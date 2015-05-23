@@ -1,0 +1,29 @@
+Usage:
+fmedia [OPTIONS] [INPUT...]
+
+The default action is to play input files one by one.
+
+INPUT    Input file
+
+Options:
+--repeat-all   Repeat all
+--seek=TIME    Seek to time "mm:ss".
+--until=TIME   Stop at time "mm:ss"
+--fseek=BYTE   Set input file offset
+
+--info         Just show media information
+
+--mix          Play input files simultaneously.
+               Note: all inputs must have exactly the same format as the output.
+
+--out=FILE     Don't play but write output to a file
+
+--record=FILE  Record to a file until stopped by user
+
+--list-dev           List available sound devices and exit
+--dev=DEVNO          Use playback device
+--dev-capture=DEVNO  Use capture device
+
+--silent       Don't print anything to stdout
+--debug        Print debug info to stdout
+-h, --help     Print help info and exit
