@@ -17,17 +17,22 @@ typedef struct dsnd_out {
 	fmed_handler handler;
 	void *trk;
 	unsigned async :1
-		, silence :1;
+		, ileaved :1;
 } dsnd_out;
 
 typedef struct dsnd_in {
 	ffdsnd_capt snd;
 } dsnd_in;
 
-enum {
-	conf_buflen = 1000
-	, conf_buflen_capt = 1000
-};
+static struct dsnd_out_conf_t {
+	uint idev;
+	uint buflen;
+} dsnd_out_conf;
+
+static struct dsnd_in_conf_t {
+	uint idev;
+	uint buflen;
+} dsnd_in_conf;
 
 
 //FMEDIA MODULE
@@ -44,8 +49,14 @@ static int dsnd_listdev(void);
 static void* dsnd_open(fmed_filt *d);
 static int dsnd_write(void *ctx, fmed_filt *d);
 static void dsnd_close(void *ctx);
+static int dsnd_out_config(ffpars_ctx *ctx);
 static const fmed_filter fmed_dsnd_out = {
-	&dsnd_open, &dsnd_write, &dsnd_close
+	&dsnd_open, &dsnd_write, &dsnd_close, &dsnd_out_config
+};
+
+static const ffpars_arg dsnd_out_conf_args[] = {
+	{ "device_index",  FFPARS_TINT,  FFPARS_DSTOFF(struct dsnd_out_conf_t, idev) }
+	, { "buffer_length",  FFPARS_TINT | FFPARS_FNOTZERO,  FFPARS_DSTOFF(struct dsnd_out_conf_t, buflen) }
 };
 
 static void dsnd_onplay(void *udata);
@@ -54,8 +65,14 @@ static void dsnd_onplay(void *udata);
 static void* dsnd_in_open(fmed_filt *d);
 static int dsnd_in_read(void *ctx, fmed_filt *d);
 static void dsnd_in_close(void *ctx);
+static int dsnd_in_config(ffpars_ctx *ctx);
 static const fmed_filter fmed_dsnd_in = {
-	&dsnd_in_open, &dsnd_in_read, &dsnd_in_close
+	&dsnd_in_open, &dsnd_in_read, &dsnd_in_close, &dsnd_in_config
+};
+
+static const ffpars_arg dsnd_in_conf_args[] = {
+	{ "device_index",  FFPARS_TINT,  FFPARS_DSTOFF(struct dsnd_in_conf_t, idev) }
+	, { "buffer_length",  FFPARS_TINT | FFPARS_FNOTZERO,  FFPARS_DSTOFF(struct dsnd_in_conf_t, buflen) }
 };
 
 
@@ -71,10 +88,16 @@ FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 
 static const fmed_filter* dsnd_iface(const char *name)
 {
-	if (!ffsz_cmp(name, "out"))
+	if (!ffsz_cmp(name, "out")) {
+		dsnd_out_conf.idev = 0;
+		dsnd_out_conf.buflen = 500;
 		return &fmed_dsnd_out;
-	else if (!ffsz_cmp(name, "in"))
+
+	} else if (!ffsz_cmp(name, "in")) {
+		dsnd_in_conf.idev = 0;
+		dsnd_in_conf.buflen = 500;
 		return &fmed_dsnd_in;
+	}
 	return NULL;
 }
 
@@ -158,6 +181,12 @@ static void dsnd_onplay(void *udata)
 	ds->handler(ds->trk);
 }
 
+static int dsnd_out_config(ffpars_ctx *ctx)
+{
+	ffpars_setargs(ctx, &dsnd_out_conf, dsnd_out_conf_args, FFCNT(dsnd_out_conf_args));
+	return 0;
+}
+
 static void* dsnd_open(fmed_filt *d)
 {
 	dsnd_out *ds;
@@ -171,7 +200,8 @@ static void* dsnd_open(fmed_filt *d)
 	ds->handler = d->handler;
 	ds->trk = d->trk;
 
-	idx = (int)d->track->getval(d->trk, "playdev_name");
+	if (FMED_NULL == (idx = (int)d->track->getval(d->trk, "playdev_name")))
+		idx = dsnd_out_conf.idev;
 	if (0 != dsnd_devbyidx(&dhead, &dev, idx, FFDSND_DEV_RENDER)) {
 		errlog(core, d->trk, "dsound", "no audio device by index #%u", idx);
 		goto done;
@@ -182,7 +212,7 @@ static void* dsnd_open(fmed_filt *d)
 	fmt.format = (int)d->track->getval(d->trk, "pcm_format");
 	fmt.channels = (int)d->track->getval(d->trk, "pcm_channels");
 	fmt.sample_rate = (int)d->track->getval(d->trk, "pcm_sample_rate");
-	e = ffdsnd_open(&ds->snd, dev->id, &fmt, conf_buflen);
+	e = ffdsnd_open(&ds->snd, dev->id, &fmt, dsnd_out_conf.buflen);
 
 	ffdsnd_devenumfree(dhead);
 
@@ -210,14 +240,24 @@ static void dsnd_close(void *ctx)
 static int dsnd_write(void *ctx, fmed_filt *d)
 {
 	dsnd_out *ds = ctx;
+	int r;
 
 	if (stopping) {
 		ffdsnd_pause(&ds->snd);
 		return FMED_RDONE;
 	}
 
+	if (!ds->ileaved) {
+		int il = (int)fmed_getval("pcm_ileaved");
+		if (il != 1) {
+			fmed_setval("conv_pcm_ileaved", 1);
+			return FMED_RMORE;
+		}
+		ds->ileaved = 1;
+	}
+
 	if (d->datalen != 0) {
-		int r = ffdsnd_write(&ds->snd, d->data, d->datalen);
+		r = ffdsnd_write(&ds->snd, d->data, d->datalen);
 		if (r < 0) {
 			errlog(core, d->trk, "dsound", "ffdsnd_write(): (%xu) %s", r, ffdsnd_errstr(r));
 			return r;
@@ -232,16 +272,14 @@ static int dsnd_write(void *ctx, fmed_filt *d)
 
 	if ((d->flags & FMED_FLAST) && d->datalen == 0) {
 
-		if (!ds->silence) {
-			ds->silence = 1;
-			if (0 > ffdsnd_silence(&ds->snd))
-				return FMED_RERR;
+		r = ffdsnd_stoplazy(&ds->snd);
+		if (r == 1)
+			return FMED_RDONE;
+		else if (r < 0) {
+			errlog(core, d->trk,  "dsound", "ffdsnd_stoplazy(): (%xu) %s", r, ffdsnd_errstr(r));
+			return FMED_RERR;
 		}
 
-		if (0 == ffdsnd_filled(&ds->snd))
-			return FMED_RDONE;
-
-		ffdsnd_start(&ds->snd);
 		ds->async = 1;
 		return FMED_RASYNC; //wait until all filled bytes are played
 	}
@@ -256,6 +294,12 @@ static int dsnd_write(void *ctx, fmed_filt *d)
 }
 
 
+static int dsnd_in_config(ffpars_ctx *ctx)
+{
+	ffpars_setargs(ctx, &dsnd_in_conf, dsnd_in_conf_args, FFCNT(dsnd_in_conf_args));
+	return 0;
+}
+
 static void* dsnd_in_open(fmed_filt *d)
 {
 	dsnd_in *ds;
@@ -267,7 +311,8 @@ static void* dsnd_in_open(fmed_filt *d)
 	if (ds == NULL)
 		return NULL;
 
-	idx = (int)d->track->getval(d->trk, "capture_device");
+	if (FMED_NULL == (idx = (int)d->track->getval(d->trk, "capture_device")))
+		idx = dsnd_in_conf.idev;
 	if (0 != dsnd_devbyidx(&dhead, &dev, idx, FFDSND_DEV_CAPTURE)) {
 		errlog(core, d->trk, "dsound", "no audio device by index #%u", idx);
 		goto fail;
@@ -278,7 +323,7 @@ static void* dsnd_in_open(fmed_filt *d)
 	fmt.format = (int)d->track->getval(d->trk, "pcm_format");
 	fmt.channels = (int)d->track->getval(d->trk, "pcm_channels");
 	fmt.sample_rate = (int)d->track->getval(d->trk, "pcm_sample_rate");
-	r = ffdsnd_capt_open(&ds->snd, dev->id, &fmt, conf_buflen_capt);
+	r = ffdsnd_capt_open(&ds->snd, dev->id, &fmt, dsnd_in_conf.buflen);
 
 	ffdsnd_devenumfree(dhead);
 
