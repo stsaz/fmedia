@@ -11,13 +11,25 @@ Copyright (c) 2015 Simon Zolin */
 
 static const fmed_core *core;
 
+static const char *const metanames[] = {
+	NULL
+	, "meta_comment"
+	, "meta_album"
+	, "meta_genre"
+	, "meta_title"
+	, "meta_artist"
+	, NULL
+	, "meta_tracknumber"
+	, "meta_date"
+};
+
 typedef struct fmed_mpeg {
 	ffid3 id3;
+	ffmpg mpg;
 	ffstr title
 		, artist;
-	uint mpgoff;
-	unsigned id32done :1
-		, done :1;
+	char *meta[FFCNT(metanames)];
+	uint state;
 } fmed_mpeg;
 
 
@@ -65,9 +77,14 @@ static void mpeg_destroy(void)
 
 static void* mpeg_open(fmed_filt *d)
 {
+	int64 total_size;
 	fmed_mpeg *m = ffmem_tcalloc1(fmed_mpeg);
 	if (m == NULL)
 		return NULL;
+	ffmpg_init(&m->mpg);
+
+	if (FMED_NULL != (total_size = fmed_getval("total_size")))
+		m->mpg.total_size = total_size;
 
 	ffid3_parseinit(&m->id3);
 	return m;
@@ -76,16 +93,21 @@ static void* mpeg_open(fmed_filt *d)
 static void mpeg_close(void *ctx)
 {
 	fmed_mpeg *m = ctx;
+	uint i;
+	for (i = 0;  i < FFCNT(m->meta);  i++) {
+		ffmem_safefree(m->meta[i]);
+	}
 	ffstr_free(&m->title);
 	ffstr_free(&m->artist);
 	ffid3_parsefin(&m->id3);
+	ffmpg_close(&m->mpg);
 	ffmem_free(m);
 }
 
 static int mpeg_meta(fmed_mpeg *m, fmed_filt *d)
 {
 	ffstr3 val = {0};
-	const char *name, *v;
+	uint tag;
 
 	for (;;) {
 		size_t len = d->datalen;
@@ -109,7 +131,8 @@ static int mpeg_meta(fmed_mpeg *m, fmed_filt *d)
 			return FMED_RMORE;
 
 		case FFID3_RHDR:
-			m->mpgoff = sizeof(ffid3_hdr) + ffid3_size(&m->id3.h);
+			m->mpg.dataoff = sizeof(ffid3_hdr) + ffid3_size(&m->id3.h);
+
 			dbglog(core, d->trk, "mpeg", "id3: ID3v2.%u.%u, size: %u"
 				, (uint)m->id3.h.ver[0], (uint)m->id3.h.ver[1], ffid3_size(&m->id3.h));
 			break;
@@ -136,28 +159,13 @@ static int mpeg_meta(fmed_mpeg *m, fmed_filt *d)
 			}
 			dbglog(core, d->trk, "mpeg", "tag: %*s: %S", (size_t)4, m->id3.fr.id, &val);
 
-			v = NULL;
-			switch (ffid3_frame(&m->id3.fr)) {
-
-			case FFID3_TITLE:
-				name = "meta_title";
-				ffstr_free(&m->title);
-				if (NULL == (m->title.ptr = ffsz_alcopy(val.ptr, val.len)))
-					break;
-				v = m->title.ptr;
-				break;
-
-			case FFID3_ARTIST:
-				name = "meta_artist";
-				ffstr_free(&m->artist);
-				if (NULL == (m->artist.ptr = ffsz_alcopy(val.ptr, val.len)))
-					break;
-				v = m->artist.ptr;
-				break;
+			tag = ffid3_frame(&m->id3.fr);
+			if (tag < FFCNT(metanames) && metanames[tag] != NULL && val.len != 0) {
+				ffmem_safefree(m->meta[tag]);
+				if (NULL == (m->meta[tag] = ffsz_alcopy(val.ptr, val.len)))
+					return FMED_RERR;
+				d->track->setvalstr(d->trk, metanames[tag], m->meta[tag]);
 			}
-
-			if (v != NULL)
-				d->track->setvalstr(d->trk, name, v);
 
 			ffarr_free(&val);
 			break;
@@ -169,42 +177,86 @@ static int mpeg_meta(fmed_mpeg *m, fmed_filt *d)
 
 static int mpeg_process(void *ctx, fmed_filt *d)
 {
+	enum { I_META, I_HDR, I_DATA };
 	fmed_mpeg *m = ctx;
-	const ffmpg_hdr *mh;
-	uint64 total_size, ms;
+	int r;
+	int64 seek_time, until_time;
 
-	if (m->done) {
-		d->out = NULL;
-		d->outlen = 0;
-		errlog(core, d->trk, "mpeg", "decoding isn't supported");
-		return FMED_RERR;
-	}
-
-	if (!m->id32done) {
-		int r = mpeg_meta(m, d);
+again:
+	switch (m->state) {
+	case I_META:
+		r = mpeg_meta(m, d);
 		if (r != FMED_RDONE)
 			return r;
-		m->id32done = 1;
+		m->state = I_HDR;
+		//break;
+
+	case I_HDR:
+		break;
+
+	case I_DATA:
+		if (FMED_NULL != (seek_time = fmed_popval("seek_time")))
+			ffmpg_seek(&m->mpg, ffpcm_samples(seek_time, m->mpg.fmt.sample_rate));
+		break;
 	}
 
-	mh = (void*)d->data;
-	if (d->datalen < sizeof(ffmpg_hdr) || !ffmpg_valid(mh)) {
-		errlog(core, d->trk, "mpeg", "invalid MPEG header at offset %u", m->mpgoff);
-		return FMED_RERR;
+	m->mpg.data = d->data;
+	m->mpg.datalen = d->datalen;
+
+	for (;;) {
+		r = ffmpg_decode(&m->mpg);
+
+		switch (r) {
+		case FFMPG_RDATA:
+			goto data;
+
+		case FFMPG_RMORE:
+			if (d->flags & FMED_FLAST) {
+				d->outlen = 0;
+				return FMED_RDONE;
+			}
+			return FMED_RMORE;
+
+		case FFMPG_RHDR:
+			fmed_setpcm(d, &m->mpg.fmt);
+			fmed_setval("pcm_ileaved", 0);
+			fmed_setval("bitrate", m->mpg.bitrate);
+			fmed_setval("total_samples", m->mpg.total_samples);
+			m->state = I_DATA;
+			goto again;
+
+		case FFMPG_RSEEK:
+			fmed_setval("input_seek", ffmpg_seekoff(&m->mpg));
+			return FMED_RMORE;
+
+		case FFMPG_RWARN:
+			errlog(core, d->trk, "mpeg", "warning: ffmpg_decode(): %s", ffmpg_errstr(&m->mpg));
+			break;
+
+		case FFMPG_RERR:
+		default:
+			errlog(core, d->trk, "mpeg", "ffmpg_decode(): %s", ffmpg_errstr(&m->mpg));
+			return FMED_RERR;
+		}
 	}
 
-	d->track->setval(d->trk, "bitrate", ffmpg_bitrate(mh));
-	d->track->setval(d->trk, "pcm_format", FFPCM_16LE);
-	d->track->setval(d->trk, "pcm_channels", ffmpg_channels(mh));
-	d->track->setval(d->trk, "pcm_sample_rate", ffmpg_sample_rate(mh));
-
-	total_size = d->track->getval(d->trk, "total_size");
-	if (total_size != FMED_NULL) {
-		total_size -= m->mpgoff;
-		ms = total_size * 1000 / (ffmpg_bitrate(mh) / 8);
-		d->track->setval(d->trk, "total_samples", ffpcm_samples(ms, ffmpg_sample_rate(mh)));
+data:
+	if (FMED_NULL != (until_time = d->track->getval(d->trk, "until_time"))) {
+		uint64 until_samples = until_time * m->mpg.fmt.sample_rate / 1000;
+		if (until_samples <= ffmpg_cursample(&m->mpg)) {
+			dbglog(core, d->trk, "mpeg", "until_time is reached");
+			d->outlen = 0;
+			return FMED_RLASTOUT;
+		}
 	}
-	m->done = 1;
-	d->outlen = 0;
+
+	d->data = m->mpg.data;
+	d->datalen = m->mpg.datalen;
+	d->outni = (void**)m->mpg.pcm;
+	d->outlen = m->mpg.pcmlen;
+	fmed_setval("current_position", ffmpg_cursample(&m->mpg));
+
+	dbglog(core, d->trk, "mpeg", "output: %L PCM samples"
+		, d->outlen / ffpcm_size1(&m->mpg.fmt));
 	return FMED_ROK;
 }
