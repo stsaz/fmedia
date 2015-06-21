@@ -14,6 +14,16 @@ Copyright (c) 2015 Simon Zolin */
 
 typedef struct fm_src fm_src;
 
+typedef struct core_mod {
+	//fmed_modinfo:
+	char *name;
+	void *dl; //ffdl
+	const fmed_mod *m;
+	const fmed_filter *f;
+
+	fflist_item sib;
+} core_mod;
+
 typedef struct inmap_item {
 	const fmed_modinfo *mod;
 	char ext[0];
@@ -39,13 +49,13 @@ typedef struct fmedia {
 		;
 
 	fmed_core core;
-	struct { FFARR(fmed_modinfo) } mods;
+	fflist mods; //core_mod[]
 
 	//conf:
 	ffstr root;
 	ffarr in_files;
-	ffstr rec_file
-		, outfn;
+	ffstr outfn
+		, outdir;
 	uint playdev_name
 		, captdev_name;
 	uint seek_time
@@ -57,12 +67,19 @@ typedef struct fmedia {
 	ffpcm inp_pcm;
 
 	ffbool repeat_all
+		, overwrite
+		, rec
 		, debug
 		, mix
 		, silent
 		, info;
 	ffstr3 inmap; //inmap_item[]
+	ffstr3 outmap; //inmap_item[]
 	const fmed_modinfo *inmap_curmod;
+
+	float ogg_qual;
+	float gain;
+	int conv_pcm_formt;
 } fmedia;
 
 extern fmedia *fmed;

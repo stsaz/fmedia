@@ -18,11 +18,13 @@ Copyright (c) 2015 Simon Zolin */
 static int fmed_cmdline(int argc, char **argv);
 static int fmed_arg_usage(void);
 static int fmed_arg_infile(ffparser_schem *p, void *obj, const ffstr *val);
+static int fmed_arg_pcmfmt(ffparser_schem *p, void *obj, const ffstr *val);
 static int fmed_arg_listdev(void);
 static int fmed_arg_seek(ffparser_schem *p, void *obj, const ffstr *val);
 
 static int fmed_conf(void);
 static int fmed_conf_mod(ffparser_schem *p, void *obj, ffstr *val);
+static int fmed_conf_modconf(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
 static int fmed_conf_setmod(const fmed_modinfo **pmod, ffstr *val);
 static int fmed_conf_output(ffparser_schem *p, void *obj, ffstr *val);
 static int fmed_conf_mixer(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
@@ -30,6 +32,8 @@ static int fmed_conf_input(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
 static int fmed_conf_inp_format(ffparser_schem *p, void *obj, ffstr *val);
 static int fmed_conf_inputmap(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
 static int fmed_conf_inmap_val(ffparser_schem *p, void *obj, ffstr *val);
+
+static int pcm_formatstr(const char *s, size_t len);
 
 
 static const ffpars_arg fmed_cmdline_args[] = {
@@ -40,17 +44,24 @@ static const ffpars_arg fmed_cmdline_args[] = {
 	, { "seek",  FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_seek) }
 	, { "fseek",  FFPARS_TINT | FFPARS_F64BIT,  FFPARS_DSTOFF(fmedia, fseek) }
 	, { "until",  FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_seek) }
+	, { "gain",  FFPARS_TFLOAT | FFPARS_FSIGN,  FFPARS_DSTOFF(fmedia, gain) }
 
 	, { "info",  FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmedia, info) }
 
 	, { "out",  FFPARS_TSTR | FFPARS_FCOPY | FFPARS_FNOTEMPTY | FFPARS_FSTRZ,  FFPARS_DSTOFF(fmedia, outfn) }
+	, { "outdir",  FFPARS_TSTR | FFPARS_FCOPY | FFPARS_FNOTEMPTY | FFPARS_FSTRZ,  FFPARS_DSTOFF(fmedia, outdir) }
 
-	, { "record",  FFPARS_TSTR | FFPARS_FCOPY | FFPARS_FNOTEMPTY | FFPARS_FSTRZ,  FFPARS_DSTOFF(fmedia, rec_file) }
+	, { "record",  FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmedia, rec) }
 
 	, { "list-dev",  FFPARS_TBOOL | FFPARS_FALONE,  FFPARS_DST(&fmed_arg_listdev) }
 	, { "dev",  FFPARS_TINT,  FFPARS_DSTOFF(fmedia, playdev_name) }
 	, { "dev-capture",  FFPARS_TINT,  FFPARS_DSTOFF(fmedia, captdev_name) }
 
+	, { "pcm-format",  FFPARS_TSTR,  FFPARS_DST(fmed_arg_pcmfmt) }
+
+	, { "ogg-quality",  FFPARS_TFLOAT | FFPARS_FSIGN,  FFPARS_DSTOFF(fmedia, ogg_qual) }
+
+	, { "overwrite",  FFPARS_SETVAL('y') | FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmedia, overwrite) }
 	, { "silent",  FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmedia, silent) }
 	, { "debug",  FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmedia, debug) }
 	, { "help",  FFPARS_SETVAL('h') | FFPARS_TBOOL | FFPARS_FALONE,  FFPARS_DST(&fmed_arg_usage) }
@@ -58,9 +69,11 @@ static const ffpars_arg fmed_cmdline_args[] = {
 
 static const ffpars_arg fmed_conf_args[] = {
 	{ "mod",  FFPARS_TSTR | FFPARS_FNOTEMPTY | FFPARS_FSTRZ | FFPARS_FCOPY | FFPARS_FMULTI, FFPARS_DST(&fmed_conf_mod) }
+	, { "mod_conf",  FFPARS_TOBJ | FFPARS_FOBJ1 | FFPARS_FNOTEMPTY | FFPARS_FMULTI, FFPARS_DST(&fmed_conf_modconf) }
 	, { "output",  FFPARS_TSTR | FFPARS_FNOTEMPTY, FFPARS_DST(&fmed_conf_output) }
 	, { "input",  FFPARS_TOBJ | FFPARS_FOBJ1, FFPARS_DST(&fmed_conf_input) }
-	, { "input_map",  FFPARS_TOBJ, FFPARS_DST(&fmed_conf_inputmap) }
+	, { "input_ext",  FFPARS_TOBJ, FFPARS_DST(&fmed_conf_inputmap) }
+	, { "output_ext",  FFPARS_TOBJ, FFPARS_DST(&fmed_conf_inputmap) }
 	, { "mixer",  FFPARS_TOBJ | FFPARS_FOBJ1, FFPARS_DST(&fmed_conf_mixer) }
 };
 
@@ -84,6 +97,13 @@ static int fmed_arg_usage(void)
 	if (n > 0)
 		fffile_write(ffstdout, buf, n);
 	return FFPARS_ELAST;
+}
+
+static int fmed_arg_pcmfmt(ffparser_schem *p, void *obj, const ffstr *val)
+{
+	if (-1 == (fmed->conv_pcm_formt = pcm_formatstr(val->ptr, val->len)))
+		return FFPARS_EBADVAL;
+	return 0;
 }
 
 static int fmed_arg_infile(ffparser_schem *p, void *obj, const ffstr *val)
@@ -149,7 +169,8 @@ static int fmed_cmdline(int argc, char **argv)
 		r = ffpsarg_schemfin(&ps);
 
 	if (ffpars_iserr(r)) {
-		errlog(core, NULL, "core", "cmd line parser: %s", ffpars_errstr(r));
+		errlog(core, NULL, "core", "cmd line parser: %s"
+			, (r == FFPARS_ESYS) ? fferr_strp(fferr_last()) : ffpars_errstr(r));
 		goto fail;
 	}
 
@@ -164,9 +185,23 @@ fail:
 
 static int fmed_conf_mod(ffparser_schem *p, void *obj, ffstr *val)
 {
-	if (NULL == core->insmod(val->ptr))
+	if (NULL == core->insmod(val->ptr, NULL))
 		return FFPARS_ESYS;
 	ffstr_free(val);
+	return 0;
+}
+
+static int fmed_conf_modconf(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
+{
+	const ffstr *name = &p->vals[0];
+	char *zname = ffsz_alcopy(name->ptr, name->len);
+	if (zname == NULL)
+		return FFPARS_ESYS;
+
+	if (NULL == core->insmod(zname, ctx)) {
+		ffmem_free(zname);
+		return FFPARS_ESYS;
+	}
 	return 0;
 }
 
@@ -187,15 +222,20 @@ static int fmed_conf_output(ffparser_schem *p, void *obj, ffstr *val)
 }
 
 
+static int pcm_formatstr(const char *s, size_t len)
+{
+	if (ffs_eqcz(s, len, "16le"))
+		return FFPCM_16LE;
+	else if (ffs_eqcz(s, len, "32le"))
+		return FFPCM_32LE;
+	else if (ffs_eqcz(s, len, "float"))
+		return FFPCM_FLOAT;
+	return -1;
+}
+
 static int fmed_conf_inp_format(ffparser_schem *p, void *obj, ffstr *val)
 {
-	if (ffstr_eqcz(val, "16le"))
-		fmed->inp_pcm.format = FFPCM_16LE;
-	else if (ffstr_eqcz(val, "32le"))
-		fmed->inp_pcm.format = FFPCM_32LE;
-	else if (ffstr_eqcz(val, "float"))
-		fmed->inp_pcm.format = FFPCM_FLOAT;
-	else
+	if (-1 == (fmed->inp_pcm.format = pcm_formatstr(val->ptr, val->len)))
 		return FFPARS_EBADVAL;
 	return 0;
 }
@@ -226,6 +266,7 @@ static int fmed_conf_inmap_val(ffparser_schem *p, void *obj, ffstr *val)
 {
 	size_t n;
 	inmap_item *it;
+	ffstr3 *map = obj;
 
 	if (NULL != ffs_findc(val->ptr, val->len, '.')) {
 		const fmed_modinfo *mod = core->getmod(val->ptr);
@@ -239,10 +280,10 @@ static int fmed_conf_inmap_val(ffparser_schem *p, void *obj, ffstr *val)
 	}
 
 	n = sizeof(inmap_item) + val->len + 1;
-	if (NULL == ffarr_grow(&fmed->inmap, n, FFARR_GROWQUARTER))
+	if (NULL == ffarr_grow(map, n, FFARR_GROWQUARTER))
 		return FFPARS_ESYS;
-	it = (void*)(fmed->inmap.ptr + fmed->inmap.len);
-	fmed->inmap.len += n;
+	it = (void*)(map->ptr + map->len);
+	map->len += n;
 	it->mod = fmed->inmap_curmod;
 	ffmemcpy(it->ext, val->ptr, val->len + 1);
 	ffstr_free(val);
@@ -256,7 +297,10 @@ static const ffpars_arg fmed_conf_inmap_args[] = {
 
 static int fmed_conf_inputmap(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
 {
-	ffpars_setargs(ctx, fmed, fmed_conf_inmap_args, FFCNT(fmed_conf_inmap_args));
+	void *o = &fmed->inmap;
+	if (!ffsz_cmp(p->curarg->name, "output_ext"))
+		o = &fmed->outmap;
+	ffpars_setargs(ctx, o, fmed_conf_inmap_args, FFCNT(fmed_conf_inmap_args));
 	return 0;
 }
 
@@ -380,7 +424,7 @@ void fmed_log(fffd fd, const char *stime, const char *module, const char *level
 }
 
 
-#ifdef FF_MSVC
+#if defined FF_MSVC || defined FF_MINGW
 enum {
 	SIGINT = 1
 };

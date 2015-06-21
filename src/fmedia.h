@@ -15,11 +15,13 @@ mixer                 mixer
 
 #pragma once
 
+#include <FF/audio/pcm.h>
+#include <FF/data/parse.h>
 #include <FFOS/file.h>
 #include <FF/taskqueue.h>
 
 
-#define FMED_VER  "0.1"
+#define FMED_VER  "0.2"
 
 typedef struct fmed_core fmed_core;
 typedef struct fmed_mod fmed_mod;
@@ -61,7 +63,7 @@ struct fmed_core {
 	int (*sig)(uint signo);
 
 	const fmed_modinfo* (*getmod)(const char *name);
-	const fmed_modinfo* (*insmod)(const char *name);
+	const fmed_modinfo* (*insmod)(const char *name, ffpars_ctx *ctx);
 
 	/**
 	@cmd: enum FMED_TASK. */
@@ -99,6 +101,10 @@ typedef struct fmed_track {
 	int (*setvalstr)(void *trk, const char *name, const char *val);
 } fmed_track;
 
+#define fmed_getval(name)  (d)->track->getval((d)->trk, name)
+#define fmed_popval(name)  (d)->track->popval((d)->trk, name)
+#define fmed_setval(name, val)  (d)->track->setval((d)->trk, name, val)
+
 
 typedef void (*fmed_handler)(void *udata);
 
@@ -114,10 +120,16 @@ typedef struct fmed_filt {
 	uint flags; //enum FMED_F
 
 	size_t datalen;
+	union {
 	const char *data;
+	void **datani; //non-iterleaved
+	};
 
 	size_t outlen;
+	union {
 	const char *out;
+	void **outni;
+	};
 } fmed_filt;
 
 enum FMED_R {
@@ -137,7 +149,24 @@ struct fmed_filter {
 	int (*process)(void *ctx, fmed_filt *d);
 
 	void (*close)(void *ctx);
+
+	int (*conf)(ffpars_ctx *ctx);
 };
+
+
+static FFINL void fmed_setpcm(fmed_filt *d, const ffpcm *fmt)
+{
+	fmed_setval("pcm_format", fmt->format);
+	fmed_setval("pcm_channels", fmt->channels);
+	fmed_setval("pcm_sample_rate", fmt->sample_rate);
+}
+
+static FFINL void fmed_getpcm(const fmed_filt *d, ffpcm *fmt)
+{
+	fmt->format = fmed_getval("pcm_format");
+	fmt->channels = fmed_getval("pcm_channels");
+	fmt->sample_rate = fmed_getval("pcm_sample_rate");
+}
 
 
 enum FMED_LOG {

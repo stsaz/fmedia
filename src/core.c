@@ -7,6 +7,7 @@ Copyright (c) 2015 Simon Zolin */
 #include <FF/path.h>
 #include <FFOS/error.h>
 #include <FFOS/process.h>
+#include <FFOS/timer.h>
 
 
 typedef struct fmed_f {
@@ -14,6 +15,7 @@ typedef struct fmed_f {
 	void *ctx;
 	fmed_filt d;
 	const fmed_modinfo *mod;
+	fftime clk;
 	unsigned opened :1;
 } fmed_f;
 
@@ -36,6 +38,8 @@ struct fm_src {
 	ffstr id;
 	char sid[FFSLEN("*") + FFINT_MAXCHARS];
 
+	char *outfn;
+
 	unsigned err :1
 		, capture :1;
 };
@@ -49,6 +53,7 @@ enum {
 };
 
 static fm_src* media_open1(int t, const char *fn);
+static int media_setout(fm_src *src, const char *fn);
 static fmed_f* newfilter(fm_src *src, const char *modname);
 static fmed_f* newfilter1(fm_src *src, const fmed_modinfo *mod);
 static int media_open(fm_src *src, const char *fn);
@@ -58,7 +63,8 @@ static void media_free(fm_src *src);
 static void media_process(void *udata);
 static void media_onplay(void *udata);
 static void media_onplay_hdlr(void *udata);
-static fmed_f* media_modbyext(fm_src *src, const ffstr *ext);
+static fmed_f* media_modbyext(fm_src *src, const ffstr3 *map, const ffstr *ext);
+static void media_printtime(fm_src *src);
 
 static int64 trk_popval(void *trk, const char *name);
 static int64 trk_getval(void *trk, const char *name);
@@ -72,6 +78,7 @@ static const fmed_track _fmed_track = {
 extern const fmed_mod* fmed_getmod_file(const fmed_core *_core);
 extern const fmed_mod* fmed_getmod_mixer(const fmed_core *_core);
 extern const fmed_mod* fmed_getmod_tui(const fmed_core *_core);
+extern const fmed_mod* fmed_getmod_sndmod(const fmed_core *_core);
 
 static int core_open(void);
 static int core_nextsrc(void);
@@ -83,8 +90,8 @@ static void core_playdone(void);
 static void core_log(fffd fd, void *trk, const char *module, const char *level, const char *fmt, ...);
 static char* core_getpath(const char *name, size_t len);
 static int core_sig(uint signo);
-static fmed_modinfo* core_getmod(const char *name);
-static const fmed_modinfo* core_insmod(const char *name);
+static const fmed_modinfo* core_getmod(const char *name);
+static const fmed_modinfo* core_insmod(const char *name, ffpars_ctx *ctx);
 static void core_task(fftask *task, uint cmd);
 
 
@@ -103,18 +110,16 @@ static fmed_f* newfilter1(fm_src *src, const fmed_modinfo *mod)
 
 static fmed_f* newfilter(fm_src *src, const char *modname)
 {
-	fmed_modinfo *mod;
-	if (NULL == (mod = core_getmod(modname))) {
+	const fmed_modinfo *mod;
+	if (NULL == (mod = core_getmod(modname)))
 		errlog(core, NULL, "core", "module %s is not configured", modname);
-		return NULL;
-	}
 	return newfilter1(src, mod);
 }
 
-static fmed_f* media_modbyext(fm_src *src, const ffstr *ext)
+static fmed_f* media_modbyext(fm_src *src, const ffstr3 *map, const ffstr *ext)
 {
-	const inmap_item *it = (void*)fmed->inmap.ptr;
-	while (it != (void*)(fmed->inmap.ptr + fmed->inmap.len)) {
+	const inmap_item *it = (void*)map->ptr;
+	while (it != (void*)(map->ptr + map->len)) {
 		size_t len = ffsz_len(it->ext);
 		if (ffstr_eq(ext, it->ext, len)) {
 			return newfilter1(src, it->mod);
@@ -122,16 +127,13 @@ static fmed_f* media_modbyext(fm_src *src, const ffstr *ext)
 		it = (void*)((char*)it + sizeof(inmap_item) + len + 1);
 	}
 
-	errlog(core, NULL, "core", "unknown file format: %s", ext);
+	errlog(core, NULL, "core", "unknown file format: %S", ext);
 	return NULL;
 }
 
 static int media_open(fm_src *src, const char *fn)
 {
 	ffstr ext;
-
-	if (fmed->rec_file.len != 0)
-		trk_setval(src, "low_latency", 1);
 
 	if (fmed->info)
 		trk_setval(src, "input_info", 1);
@@ -142,8 +144,8 @@ static int media_open(fm_src *src, const char *fn)
 	trk_setvalstr(src, "input", fn);
 	newfilter(src, "#file.in");
 
-	ffs_rsplit2by(fn, ffsz_len(fn), '.', NULL, &ext);
-	if (NULL == media_modbyext(src, &ext))
+	ffpath_splitname(fn, ffsz_len(fn), NULL, &ext);
+	if (NULL == media_modbyext(src, &fmed->inmap, &ext))
 		return 1;
 
 	if (fmed->mix) {
@@ -154,15 +156,6 @@ static int media_open(fm_src *src, const char *fn)
 	if (!fmed->silent)
 		newfilter(src, "#tui.tui");
 
-	if (fmed->outfn.len != 0) {
-		trk_setvalstr(src, "output", fmed->outfn.ptr);
-		newfilter(src, "wav.out");
-		newfilter(src, "#file.out");
-
-	} else if (fmed->output != NULL) {
-		fmed_f *f = newfilter1(src, fmed->output);
-		f->d.handler = &media_onplay_hdlr;
-	}
 	return 0;
 }
 
@@ -170,7 +163,8 @@ static void media_open_capt(fm_src *src)
 {
 	fmed_f *f;
 
-	trk_setval(src, "capture_device", fmed->captdev_name);
+	if (fmed->captdev_name != 0)
+		trk_setval(src, "capture_device", fmed->captdev_name);
 
 	trk_setval(src, "pcm_format", fmed->inp_pcm.format);
 	trk_setval(src, "pcm_channels", fmed->inp_pcm.channels);
@@ -178,26 +172,12 @@ static void media_open_capt(fm_src *src)
 	f = newfilter1(src, fmed->input);
 	f->d.handler = &media_onplay_hdlr;
 
-	newfilter(src, "wav.out");
-
-	trk_setvalstr(src, "output", fmed->rec_file.ptr);
-	newfilter(src, "#file.out");
 	src->capture = 1;
 }
 
 static void media_open_mix(fm_src *src)
 {
 	newfilter(src, "#mixer.out");
-
-	if (fmed->outfn.len != 0) {
-		trk_setvalstr(src, "output", fmed->outfn.ptr);
-		newfilter(src, "wav.out");
-		newfilter(src, "#file.out");
-
-	} else if (fmed->output != NULL) {
-		fmed_f *f = newfilter1(src, fmed->output);
-		f->d.handler = &media_onplay_hdlr;
-	}
 }
 
 enum T {
@@ -206,9 +186,57 @@ enum T {
 	, M_MIX
 };
 
+static int media_setout(fm_src *src, const char *fn)
+{
+	if (fmed->gain != 0) {
+		trk_setval(src, "gain", fmed->gain * 100);
+		newfilter(src, "#soundmod.gain");
+	}
+
+	trk_setval(src, "conv_pcm_format", fmed->conv_pcm_formt);
+	newfilter(src, "#soundmod.conv");
+
+	if (fmed->outfn.len != 0 && (!fmed->rec || src->capture)) {
+		ffstr name, ext;
+		ffpath_splitname(fmed->outfn.ptr, fmed->outfn.len, &name, &ext);
+		if (NULL == media_modbyext(src, &fmed->outmap, &ext))
+			return -1;
+
+		if (name.len != 0)
+			trk_setvalstr(src, "output", fmed->outfn.ptr);
+
+		else if (fmed->outdir.len != 0 && fn != NULL) {
+			ffstr fname;
+			ffstr3 outfn = {0};
+
+			ffpath_split2(fn, ffsz_len(fn), NULL, &fname);
+			ffpath_splitname(fname.ptr, fname.len, &name, NULL);
+
+			if (0 == ffstr_catfmt(&outfn, "%S/%S.%S%Z"
+				, &fmed->outdir, &name, &ext))
+				return -1;
+			src->outfn = outfn.ptr;
+			trk_setvalstr(src, "output", src->outfn);
+
+		} else {
+			errlog(core, src, "core", "--out or --outdir must be set");
+			return -1;
+		}
+
+		newfilter(src, "#file.out");
+
+	} else if (fmed->output != NULL) {
+		fmed_f *f = newfilter1(src, fmed->output);
+		f->d.handler = &media_onplay_hdlr;
+	}
+
+	return 0;
+}
+
 static fm_src* media_open1(int t, const char *fn)
 {
 	fmed_f *f, *prev = NULL;
+	uint nout = 4;
 	fm_src *src = ffmem_tcalloc1(fm_src);
 	if (src == NULL)
 		return NULL;
@@ -217,10 +245,18 @@ static fm_src* media_open1(int t, const char *fn)
 	src->id.len = ffs_fmt(src->sid, src->sid + sizeof(src->sid), "*%u", ++fmed->srcid);
 	src->id.ptr = src->sid;
 
-	trk_setval(src, "playdev_name", fmed->playdev_name);
+	if (fmed->playdev_name != 0)
+		trk_setval(src, "playdev_name", fmed->playdev_name);
+	trk_setval(src, "pcm_ileaved", 1);
 
 	if (fmed->seek_time != 0)
 		trk_setval(src, "seek_time", fmed->seek_time);
+
+	if (fmed->overwrite)
+		trk_setval(src, "overwrite", 1);
+
+	if (fmed->ogg_qual != -255)
+		trk_setval(src, "ogg-quality", fmed->ogg_qual * 10);
 
 	if (fmed->until_time != 0) {
 		if (fmed->until_time <= fmed->seek_time) {
@@ -230,26 +266,32 @@ static fm_src* media_open1(int t, const char *fn)
 		trk_setval(src, "until_time", fmed->until_time);
 	}
 
+	if (fmed->rec)
+		trk_setval(src, "low_latency", 1);
+
 	switch (t) {
 	case M_OUT:
-		if (NULL == ffarr_grow(&src->filters, 6, 0))
+		if (NULL == ffarr_grow(&src->filters, 4 + nout, 0))
 			goto fail;
 		if (0 != media_open(src, fn))
 			goto fail;
 		break;
 
 	case M_IN:
-		if (NULL == ffarr_grow(&src->filters, 3, 0))
+		if (NULL == ffarr_grow(&src->filters, 1 + nout, 0))
 			goto fail;
 		media_open_capt(src);
 		break;
 
 	case M_MIX:
-		if (NULL == ffarr_grow(&src->filters, 3, 0))
+		if (NULL == ffarr_grow(&src->filters, 1 + nout, 0))
 			goto fail;
 		media_open_mix(src);
 		break;
 	}
+
+	if (0 != media_setout(src, fn))
+		goto fail;
 
 	FFARR_WALK(&src->filters, f) {
 
@@ -277,6 +319,30 @@ fail:
 	return NULL;
 }
 
+static void media_printtime(fm_src *src)
+{
+	fmed_f *pf;
+	ffstr3 s = {0};
+	fftime all = {0};
+
+	FFARR_WALK(&src->filters, pf) {
+		fftime_add(&all, &pf->clk);
+	}
+	if (all.s == 0 && all.mcs == 0)
+		return;
+	ffstr_catfmt(&s, "cpu time: %u.%06u.  ", all.s, all.mcs);
+
+	FFARR_WALK(&src->filters, pf) {
+		ffstr_catfmt(&s, "%s: %u.%06u (%u%%), "
+			, pf->mod->name, pf->clk.s, pf->clk.mcs, fftime_mcs(&pf->clk) * 100 / fftime_mcs(&all));
+	}
+	if (s.len > FFSLEN(", "))
+		s.len -= FFSLEN(", ");
+
+	dbglog(core, src, "core", "%S", &s);
+	ffarr_free(&s);
+}
+
 static void media_free(fm_src *src)
 {
 	fmed_f *pf;
@@ -287,12 +353,17 @@ static void media_free(fm_src *src)
 			pf->mod->f->close(pf->ctx);
 	}
 
+	if (core->loglev & FMED_LOG_DEBUG)
+		media_printtime(src);
+
 	if (fftask_active(&fmed->taskmgr, &src->task))
 		fftask_del(&fmed->taskmgr, &src->task);
 
 	ffarr_free(&src->dict);
 	if (fflist_exists(&fmed->srcs, &src->sib))
 		fflist_rm(&fmed->srcs, &src->sib);
+	FF_SAFECLOSE(src->outfn, NULL, ffmem_free);
+
 	dbglog(core, src, "core", "media: closed");
 	ffmem_free(src);
 
@@ -320,18 +391,33 @@ static void media_process(void *udata)
 	fm_src *src = udata;
 	fmed_f *nf;
 	fmed_f *f;
-	int r, e;
+	int r, e, skip = 0;
+	fftime t1, t2;
 
 	for (;;) {
 		if (src->err)
 			goto fin;
 
 		f = FF_GETPTR(fmed_f, sib, src->cur);
-		if (f->d.datalen != 0 || (f->d.flags & FMED_FLAST)) {
+		if (!skip || (f->d.flags & FMED_FLAST)) {
 
-			// dbglog(core, src, "core", "calling %s...", f->mod->name);
+			// dbglog(core, src, "core", "calling %s, input: %L"
+			// 	, f->mod->name, f->d.datalen);
+			if (core->loglev & FMED_LOG_DEBUG) {
+				ffclk_get(&t1);
+			}
+
 			e = f->mod->f->process(f->ctx, &f->d);
-			// dbglog(core, src, "core", "%s returned: %u", f->mod->name, e);
+
+			if (core->loglev & FMED_LOG_DEBUG) {
+				ffclk_get(&t2);
+				ffclk_diff(&t1, &t2);
+				fftime_add(&f->clk, &t2);
+			}
+
+			// dbglog(core, src, "core", "%s returned: %d, output: %L"
+			// 	, f->mod->name, e, f->d.outlen);
+
 			switch (e) {
 			case FMED_RERR:
 				goto fin;
@@ -363,6 +449,9 @@ static void media_process(void *udata)
 		} else
 			r = FFLIST_CUR_PREV;
 
+		if (skip)
+			skip = 0;
+
 		if (f->d.datalen != 0)
 			r |= FFLIST_CUR_SAMEIFBOUNCE;
 		r = fflist_curshift(&src->cur, r | FFLIST_CUR_BOUNCE, fflist_sentl(&src->cur));
@@ -372,7 +461,7 @@ static void media_process(void *udata)
 			goto fin; //done
 
 		case FFLIST_CUR_NOPREV:
-			errlog(core, src, "core", "filter requires more input data");
+			errlog(core, src, "core", "module %s requires more input data", f->mod->name);
 			goto fin;
 
 		case FFLIST_CUR_NEXT:
@@ -394,6 +483,9 @@ static void media_process(void *udata)
 
 		case FFLIST_CUR_SAME:
 		case FFLIST_CUR_PREV:
+			nf = FF_GETPTR(fmed_f, sib, src->cur);
+			if (nf->d.datalen == 0)
+				skip = 1;
 			break;
 
 		default:
@@ -585,7 +677,7 @@ static int core_opensrcs(void)
 
 static int core_opendests(void)
 {
-	if (fmed->rec_file.len != 0) {
+	if (fmed->rec) {
 		fmed->dst = media_open1(M_IN, NULL);
 		if (fmed->dst == NULL)
 			return 1;
@@ -618,6 +710,10 @@ int core_init(void)
 	fmed->core.insmod = &core_insmod;
 	fmed->core.task = &core_task;
 	core = &fmed->core;
+
+	fmed->ogg_qual = -255;
+	fmed->conv_pcm_formt = FFPCM_16LE;
+
 	return 0;
 }
 
@@ -627,7 +723,7 @@ void core_free(void)
 	fm_src *src;
 	fflist_item *next;
 	char **fn;
-	fmed_modinfo *mod;
+	core_mod *mod;
 
 	FFLIST_WALKSAFE(&fmed->srcs, src, sib, next) {
 		media_free(src);
@@ -642,15 +738,17 @@ void core_free(void)
 	}
 	ffarr_free(&fmed->in_files);
 	ffstr_free(&fmed->outfn);
-	ffstr_free(&fmed->rec_file);
+	ffstr_free(&fmed->outdir);
 
 	ffarr_free(&fmed->inmap);
+	ffarr_free(&fmed->outmap);
 
-	FFARR_WALK(&fmed->mods, mod) {
+	FFLIST_WALKSAFE(&fmed->mods, mod, sib, next) {
 		mod->m->destroy();
 		if (mod->dl != NULL)
 			ffdl_close(mod->dl);
 		ffmem_free(mod->name);
+		ffmem_free(mod);
 	}
 
 	if (fmed->kq != FF_BADFD)
@@ -661,22 +759,21 @@ void core_free(void)
 	fmed = NULL;
 }
 
-static const fmed_modinfo* core_insmod(const char *sname)
+static const fmed_modinfo* core_insmod(const char *sname, ffpars_ctx *ctx)
 {
 	const char *modname, *dot;
 	fmed_getmod_t getmod;
 	ffdl dl = NULL;
 	ffstr s;
-	fmed_modinfo *mod = ffarr_push(&fmed->mods, fmed_modinfo);
+	core_mod *mod = ffmem_tcalloc1(core_mod);
 	if (mod == NULL)
 		return NULL;
-	fmed->mods.len--;
 
 	ffstr_setz(&s, sname);
 	dot = ffs_findc(s.ptr, s.len, '.');
 	if (dot == NULL || dot == s.ptr || dot + 1 == s.ptr + s.len) {
 		fferr_set(EINVAL);
-		return NULL;
+		goto fail;
 	}
 	modname = dot + 1;
 	s.len = dot - s.ptr;
@@ -688,11 +785,13 @@ static const fmed_modinfo* core_insmod(const char *sname)
 			getmod = &fmed_getmod_file;
 		else if (ffstr_eqcz(&s, "mixer"))
 			getmod = &fmed_getmod_mixer;
+		else if (ffstr_eqcz(&s, "soundmod"))
+			getmod = &fmed_getmod_sndmod;
 		else if (ffstr_eqcz(&s, "tui"))
 			getmod = &fmed_getmod_tui;
 		else {
 			fferr_set(EINVAL);
-			return NULL;
+			goto fail;
 		}
 
 	} else {
@@ -701,7 +800,7 @@ static const fmed_modinfo* core_insmod(const char *sname)
 		ffs_fmt(fn, fn + sizeof(fn), "%S.%s%Z", &s, FFDL_EXT);
 		dl = ffdl_open(fn, 0);
 		if (dl == NULL)
-			return NULL;
+			goto fail;
 
 		getmod = (void*)ffdl_addr(dl, "fmed_getmod");
 		if (getmod == NULL)
@@ -720,21 +819,26 @@ static const fmed_modinfo* core_insmod(const char *sname)
 	mod->name = ffsz_alcopyz(sname);
 	if (mod->name == NULL)
 		goto fail;
-	fmed->mods.len++;
-	return mod;
+	fflist_ins(&fmed->mods, &mod->sib);
+
+	if (ctx != NULL)
+		mod->f->conf(ctx);
+
+	return (fmed_modinfo*)mod;
 
 fail:
 	if (dl != NULL)
 		ffdl_close(dl);
+	ffmem_free(mod);
 	return NULL;
 }
 
-static fmed_modinfo* core_getmod(const char *name)
+static const fmed_modinfo* core_getmod(const char *name)
 {
-	fmed_modinfo *mod;
-	FFARR_WALK(&fmed->mods, mod) {
+	core_mod *mod;
+	FFLIST_WALK(&fmed->mods, mod, sib) {
 		if (!ffsz_cmp(mod->name, name))
-			return mod;
+			return (fmed_modinfo*)mod;
 	}
 
 	return NULL;
@@ -755,7 +859,7 @@ static int core_open(void)
 		fmed->playing = 1;
 	}
 
-	if (fmed->rec_file.len != 0) {
+	if (fmed->rec) {
 		fmed->recording = 1;
 	}
 
@@ -812,7 +916,7 @@ static char* core_getpath(const char *name, size_t len)
 
 static int core_sig(uint signo)
 {
-	fmed_modinfo *mod;
+	core_mod *mod;
 
 	switch (signo) {
 
@@ -825,7 +929,7 @@ static int core_sig(uint signo)
 
 	case FMED_STOP:
 	case FMED_LISTDEV:
-		FFARR_WALK(&fmed->mods, mod) {
+		FFLIST_WALK(&fmed->mods, mod, sib) {
 			if (0 != mod->m->sig(signo))
 				break;
 		}
