@@ -13,13 +13,8 @@ static const fmed_core *core;
 static uint status;
 
 typedef struct fmed_wav {
-	uint dsize;
-	uint sample_size;
-	uint byte_rate;
-	uint64 dataoff;
-	uint64 curpos;
-	ffstr3 sample; //holds 1 incomplete sample
-	ffbool parsed;
+	ffwav wav;
+	uint state;
 } fmed_wav;
 
 
@@ -38,8 +33,6 @@ static int wav_process(void *ctx, fmed_filt *d);
 static const fmed_filter fmed_wav_input = {
 	&wav_open, &wav_process, &wav_close
 };
-
-static int wav_parse(fmed_wav *w, fmed_filt *d);
 
 //OUTPUT
 static void* wavout_open(fmed_filt *d);
@@ -104,171 +97,98 @@ static void* wav_open(fmed_filt *d)
 		errlog(core, d->trk, "wav", "%e", FFERR_BUFALOC);
 		return NULL;
 	}
+	ffwav_init(&w->wav);
 	return w;
 }
 
 static void wav_close(void *ctx)
 {
 	fmed_wav *w = ctx;
-	ffarr_free(&w->sample);
+	ffwav_close(&w->wav);
 	ffmem_free(w);
-}
-
-static int wav_parse(fmed_wav *w, fmed_filt *d)
-{
-	const ffwav_fmt *wf = NULL;
-	const ffwav_data *wd;
-	const char *data_first = d->data;
-	uint64 total_size;
-	uint br;
-	const void *pchunk;
-
-	for (;;) {
-		size_t len = d->datalen;
-		int r = ffwav_parse(d->data, &len);
-		pchunk = d->data;
-		d->data += len;
-		d->datalen -= len;
-
-		if (r & FFWAV_ERR) {
-			errlog(core, d->trk, "wav", "invalid WAVE file", 0);
-			goto done;
-		}
-
-		if (r & FFWAV_MORE) {
-			errlog(core, d->trk, "wav", "unknown file format", 0);
-			goto done;
-		}
-
-		switch (r) {
-		case FFWAV_RFMT:
-		case FFWAV_REXT:
-			if (wf != NULL) {
-				errlog(core, d->trk, "wav", "invalid WAVE file: duplicate format chunk", 0);
-				goto done;
-			}
-
-			wf = pchunk;
-			break;
-
-		case FFWAV_RDATA:
-			if (wf == NULL) {
-				errlog(core, d->trk, "wav", "invalid WAVE file: no format chunk", 0);
-				goto done;
-			}
-
-			wd = pchunk;
-			goto data;
-		}
-	}
-
-data:
-	total_size = d->track->getval(d->trk, "total_size");
-	if (total_size != FMED_NULL && wd->size != total_size - (d->data - data_first))
-		errlog(core, d->trk, "wav", "size in header %u doesn't match file size %U"
-			, wd->size, total_size);
-
-	br = ffwav_bitrate(wf);
-	d->track->setval(d->trk, "bitrate", br);
-
-	w->sample_size = ffwav_samplesize(wf);
-	if (NULL == ffarr_alloc(&w->sample, w->sample_size)) {
-		errlog(core, d->trk, "wav", "%e", FFERR_BUFALOC);
-		return -1;
-	}
-
-	d->track->setval(d->trk, "pcm_format", ffwav_pcmfmt(wf));
-	d->track->setval(d->trk, "pcm_channels", wf->channels);
-	d->track->setval(d->trk, "pcm_sample_rate", wf->sample_rate);
-
-	w->byte_rate = ffwav_bitrate(wf) / 8;
-	d->track->setval(d->trk, "total_samples", ffwav_samples(wf, wd->size));
-
-	w->dataoff = d->data - data_first;
-	w->parsed = 1;
-	w->dsize = wd->size;
-	return FMED_ROK;
-
-done:
-	return -1;
 }
 
 static int wav_process(void *ctx, fmed_filt *d)
 {
+	enum { I_HDR, I_DATA };
 	fmed_wav *w = ctx;
-	uint n;
-	uint64 seek_time, until_time;
+	int r;
+	int64 seek_time, until_time;
 
 	if (status == 1) {
 		d->outlen = 0;
 		return FMED_RLASTOUT;
 	}
 
-	if (!w->parsed)
-		return wav_parse(w, d);
+	w->wav.data = d->data;
+	w->wav.datalen = d->datalen;
 
-	if (w->dsize == 0) {
-		errlog(core, d->trk, "wav", "reached the end of data chunk", 0);
-		return -1;
+again:
+	switch (w->state) {
+	case I_HDR:
+		break;
+
+	case I_DATA:
+		if (FMED_NULL != (seek_time = fmed_popval("seek_time")))
+			ffwav_seek(&w->wav, ffpcm_samples(seek_time, ffwav_rate(&w->wav)));
+		break;
 	}
 
-	//convert time position to file offset
-	seek_time = d->track->popval(d->trk, "seek_time");
-	if (seek_time != FMED_NULL) {
-		uint64 seek_bytes = w->dataoff + w->byte_rate * (seek_time / 1000);
-		dbglog(core, d->trk, "ogg", "seeking to %U sec (byte %U)", seek_time / 1000, seek_bytes);
-		d->track->setval(d->trk, "input_seek", seek_bytes);
-		w->curpos = ffpcm_samples(seek_time, d->track->getval(d->trk, "pcm_sample_rate"));
-		return FMED_RMORE;
+	for (;;) {
+		r = ffwav_decode(&w->wav);
+		switch (r) {
+		case FFWAV_RMORE:
+			if (d->flags & FMED_FLAST) {
+				errlog(core, d->trk, "wav", "file is incomplete");
+				d->outlen = 0;
+				return FMED_RDONE;
+			}
+			return FMED_RMORE;
+
+		case FFWAV_RDONE:
+			if (!(d->flags & FMED_FLAST))
+				errlog(core, d->trk, "wav", "skipping some data at the end of file");
+			d->outlen = 0;
+			return FMED_RDONE;
+
+		case FFWAV_RDATA:
+			goto data;
+
+		case FFWAV_RHDR:
+			fmed_setval("pcm_format", w->wav.fmt.format);
+			fmed_setval("pcm_channels", w->wav.fmt.channels);
+			fmed_setval("pcm_sample_rate", w->wav.fmt.sample_rate);
+			fmed_setval("total_samples", w->wav.total_samples);
+			fmed_setval("bitrate", w->wav.bitrate);
+			w->state = I_DATA;
+			goto again;
+
+		case FFWAV_RSEEK:
+			fmed_setval("input_seek", ffwav_seekoff(&w->wav));
+			return FMED_RMORE;
+
+		case FFWAV_RERR:
+		default:
+			errlog(core, d->trk, "wav", "ffwav_decode(): %s", ffwav_errstr(&w->wav));
+			return FMED_RERR;
+		}
 	}
 
-	until_time = d->track->getval(d->trk, "until_time");
-	if (until_time != FMED_NULL) {
-		uint64 until_samples = ffpcm_samples(until_time, d->track->getval(d->trk, "pcm_sample_rate"));
-		if (until_samples <= w->curpos) {
+data:
+	if (FMED_NULL != (until_time = d->track->getval(d->trk, "until_time"))) {
+		uint64 until_samples = ffpcm_samples(until_time, ffwav_rate(&w->wav));
+		if (until_samples <= ffwav_cursample(&w->wav)) {
 			dbglog(core, d->trk, "wav", "until_time is reached");
 			d->outlen = 0;
 			return FMED_RLASTOUT;
 		}
 	}
 
-	n = (uint)ffmin(w->dsize, d->datalen);
-
-	if (w->sample.len != 0) {
-		n = (uint)ffmin(n, ffarr_unused(&w->sample));
-		ffmemcpy(ffarr_end(&w->sample), d->data, n);
-		w->sample.len += n;
-
-		d->data += n;
-		d->datalen -= n;
-		w->dsize -= n;
-		if (!ffarr_isfull(&w->sample))
-			return FMED_RMORE; //not even 1 complete PCM sample
-
-		d->out = w->sample.ptr;
-		d->outlen = w->sample.len;
-		w->sample.len = 0;
-
-	} else {
-
-		size_t ntail = n % w->sample.cap;
-		d->out = (void*)d->data;
-		d->outlen = n - ntail;
-
-		ffmemcpy(w->sample.ptr, d->data + n - ntail, ntail);
-		w->sample.len = ntail;
-
-		d->datalen -= n;
-		w->dsize -= n;
-		if (n == ntail)
-			return FMED_RMORE; //not even 1 complete PCM sample
-	}
-
-	w->curpos += d->outlen / w->sample_size;
-	d->track->setval(d->trk, "current_position", w->curpos);
-
-	if ((d->flags & FMED_FLAST) && d->datalen == 0)
-		return FMED_RDONE;
+	fmed_setval("current_position", ffwav_cursample(&w->wav));
+	d->data = w->wav.data;
+	d->datalen = w->wav.datalen;
+	d->out = w->wav.pcm;
+	d->outlen = w->wav.pcmlen;
 	return FMED_ROK;
 }
 
@@ -289,6 +209,7 @@ static int wavout_process(void *ctx, fmed_filt *d)
 {
 	ffwavpcmhdr *wav = ctx;
 	uint64 total_dur;
+	int il;
 
 	if (wav->wf.format != 0) {
 
@@ -307,9 +228,16 @@ static int wavout_process(void *ctx, fmed_filt *d)
 
 		d->out = d->data;
 		d->outlen = d->datalen;
+		dbglog(core, d->trk, "wav", "passed %L samples", d->datalen / wav->wf.block_align);
 		wav->wd.size += (uint)d->datalen;
 		d->datalen = 0;
 		return FMED_ROK;
+	}
+
+	il = (int)fmed_getval("pcm_ileaved");
+	if (il != 1) {
+		fmed_setval("conv_pcm_ileaved", 1);
+		return FMED_RMORE;
 	}
 
 	*wav = ffwav_pcmhdr;
@@ -329,7 +257,7 @@ static int wavout_process(void *ctx, fmed_filt *d)
 	total_dur = d->track->getval(d->trk, "total_samples");
 	if (total_dur != FMED_NULL) {
 		uint64 fsz = sizeof(ffwavpcmhdr) + total_dur * ffwav_samplesize(&wav->wf);
-		d->track->setval(d->trk, "total_size", fsz);
+		d->track->setval(d->trk, "output_size", fsz);
 	}
 
 	return FMED_ROK;
