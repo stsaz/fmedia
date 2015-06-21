@@ -11,23 +11,30 @@ Copyright (c) 2015 Simon Zolin */
 
 static const fmed_core *core;
 
-enum {
-	IN_NBUFS = 2
-	, IN_BSIZE = 64 * 1024
-	, ALIGN = 4096
-	, OUT_BSIZE = 16 * 1024
-	, OUT_PREALOC = 1 * 1024 * 1024
-	, OUT_FILE_MODE = FFO_CREATENEW //O_CREAT
-};
+
+static struct file_in_conf_t {
+	uint nbufs;
+	size_t bsize;
+	size_t align;
+} file_in_conf;
+
+static struct file_out_conf_t {
+	size_t bsize;
+	size_t prealoc;
+} file_out_conf;
+
+typedef struct databuf {
+	char *ptr;
+	uint off;
+	uint len;
+} databuf;
 
 typedef struct fmed_file {
 	const char *fn;
 	fffd fd;
 	uint wdata;
 	uint rdata;
-	char *data[IN_NBUFS];
-	uint offdata[IN_NBUFS];
-	uint ndata[IN_NBUFS];
+	databuf *data;
 	uint64 foff;
 	ffaio_filetask ftask;
 	uint64 seek;
@@ -64,18 +71,32 @@ static const fmed_mod fmed_file_mod = {
 static void* file_open(fmed_filt *d);
 static int file_getdata(void *ctx, fmed_filt *d);
 static void file_close(void *ctx);
+static int file_conf(ffpars_ctx *ctx);
 static const fmed_filter fmed_file_input = {
-	&file_open, &file_getdata, &file_close
+	&file_open, &file_getdata, &file_close, &file_conf
 };
 
 static void file_read(void *udata);
+
+static const ffpars_arg file_in_conf_args[] = {
+	{ "buffer_size",  FFPARS_TSIZE | FFPARS_FNOTZERO,  FFPARS_DSTOFF(struct file_in_conf_t, bsize) }
+	, { "buffers",  FFPARS_TINT | FFPARS_F8BIT,  FFPARS_DSTOFF(struct file_in_conf_t, nbufs) }
+	, { "align",  FFPARS_TBOOL | FFPARS_F8BIT,  FFPARS_DSTOFF(struct file_in_conf_t, align) }
+};
+
 
 //OUTPUT
 static void* fileout_open(fmed_filt *d);
 static int fileout_write(void *ctx, fmed_filt *d);
 static void fileout_close(void *ctx);
+static int fileout_config(ffpars_ctx *ctx);
 static const fmed_filter fmed_file_output = {
-	&fileout_open, &fileout_write, &fileout_close
+	&fileout_open, &fileout_write, &fileout_close, &fileout_config
+};
+
+static const ffpars_arg file_out_conf_args[] = {
+	{ "buffer_size",  FFPARS_TSIZE | FFPARS_FNOTZERO,  FFPARS_DSTOFF(struct file_out_conf_t, bsize) }
+	, { "preallocate",  FFPARS_TSIZE | FFPARS_FNOTZERO,  FFPARS_DSTOFF(struct file_out_conf_t, prealoc) }
 };
 
 
@@ -90,10 +111,17 @@ const fmed_mod* fmed_getmod_file(const fmed_core *_core)
 
 static const fmed_filter* file_iface(const char *name)
 {
-	if (!ffsz_cmp(name, "in"))
+	if (!ffsz_cmp(name, "in")) {
+		file_in_conf.align = 4096;
+		file_in_conf.bsize = 64 * 1024;
+		file_in_conf.nbufs = 2;
 		return &fmed_file_input;
-	else if (!ffsz_cmp(name, "out"))
+
+	} else if (!ffsz_cmp(name, "out")) {
+		file_out_conf.bsize = 64 * 1024;
+		file_out_conf.prealoc = 2 * 1024 * 1024;
 		return &fmed_file_output;
+	}
 	return NULL;
 }
 
@@ -108,6 +136,12 @@ static void file_destroy(void)
 }
 
 
+static int file_conf(ffpars_ctx *ctx)
+{
+	ffpars_setargs(ctx, &file_in_conf, file_in_conf_args, FFCNT(file_in_conf_args));
+	return 0;
+}
+
 static void* file_open(fmed_filt *d)
 {
 	fmed_file *f;
@@ -118,6 +152,8 @@ static void* file_open(fmed_filt *d)
 		return NULL;
 	f->fd = FF_BADFD;
 	f->fn = d->track->getvalstr(d->trk, "input");
+	if (NULL == (f->data = ffmem_tcalloc(databuf, file_in_conf.nbufs)))
+		goto done;
 
 	f->fd = fffile_opendirect(f->fn, O_RDONLY | O_NONBLOCK | O_NOATIME | FFO_NODOSNAME);
 	if (f->fd == FF_BADFD) {
@@ -134,9 +170,9 @@ static void* file_open(fmed_filt *d)
 		goto done;
 	}
 
-	for (i = 0;  i < IN_NBUFS;  i++) {
-		f->data[i] = ffmem_align(IN_BSIZE, ALIGN);
-		if (f->data[i] == NULL) {
+	for (i = 0;  i < file_in_conf.nbufs;  i++) {
+		f->data[i].ptr = ffmem_align(file_in_conf.bsize, file_in_conf.align);
+		if (f->data[i].ptr == NULL) {
 			syserrlog(core, d->trk, "file", "%e: %s", FFERR_BUFALOC, f->fn);
 			goto done;
 		}
@@ -165,9 +201,12 @@ static void file_close(void *ctx)
 	if (f->async)
 		return; //wait until async operation is completed
 
-	for (i = 0;  i < IN_NBUFS;  i++) {
-		if (f->data[i] != NULL)
-			ffmem_alignfree(f->data[i]);
+	if (f->data != NULL) {
+		for (i = 0;  i < file_in_conf.nbufs;  i++) {
+			if (f->data[i].ptr != NULL)
+				ffmem_alignfree(f->data[i].ptr);
+		}
+		ffmem_free(f->data);
 	}
 	ffmem_free(f);
 }
@@ -192,43 +231,49 @@ static int file_getdata(void *ctx, fmed_filt *d)
 		f->wdata = 0;
 		f->rdata = 0;
 		f->out = 0;
+		f->done = 0;
 		if (!f->async) {
 			f->foff = f->seek;
 			f->seek = 0;
 		}
 
 		//reset all buffers
-		for (i = 0;  i < IN_NBUFS;  i++) {
-			f->ndata[i] = 0;
-			f->offdata[i] = 0;
+		for (i = 0;  i < file_in_conf.nbufs;  i++) {
+			f->data[i].len = 0;
+			f->data[i].off = 0;
 		}
 	}
 
 	if (f->out) {
 		f->out = 0;
-		f->ndata[f->rdata] = 0;
-		f->offdata[f->rdata] = 0;
-		f->rdata = (f->rdata + 1) % IN_NBUFS;
+		f->data[f->rdata].len = 0;
+		f->data[f->rdata].off = 0;
+		f->rdata = (f->rdata + 1) % file_in_conf.nbufs;
+
+		if (f->done && f->data[f->rdata].len == 0) {
+			/* We finished reading in the previous iteration.
+			After that, noone's asked to seek back. */
+			d->outlen = 0;
+			return FMED_RDONE;
+		}
 	}
 
 	if (!f->async && !f->done)
 		file_read(f);
 
-	if (f->ndata[f->rdata] == 0 && !f->done) {
+	if (f->data[f->rdata].len == 0 && !f->done) {
 		f->want_read = 1;
 		return FMED_RASYNC; //wait until the buffer is full
 	}
 
-	d->out = f->data[f->rdata];
-	d->outlen = f->ndata[f->rdata];
-	if (f->offdata[f->rdata] != 0) {
-		d->out += f->offdata[f->rdata];
-		d->outlen -= f->offdata[f->rdata];
+	d->out = f->data[f->rdata].ptr;
+	d->outlen = f->data[f->rdata].len;
+	if (f->data[f->rdata].off != 0) {
+		d->out += f->data[f->rdata].off;
+		d->outlen -= f->data[f->rdata].off;
 	}
 	f->out = 1;
 
-	if (f->done)
-		return FMED_RDONE;
 	return FMED_ROK;
 }
 
@@ -246,14 +291,20 @@ static void file_read(void *udata)
 
 	for (;;) {
 		uint64 off = f->foff;
-		if (f->foff % ALIGN)
-			off &= ~(ALIGN-1);
+		if (f->foff % file_in_conf.align)
+			off &= ~(file_in_conf.align-1);
 
-		r = (int)ffaio_fread(&f->ftask, f->data[f->wdata], IN_BSIZE, off, &file_read);
+		if (f->data[f->wdata].len != 0)
+			break;
+
+		r = (int)ffaio_fread(&f->ftask, f->data[f->wdata].ptr, file_in_conf.bsize, off, &file_read);
 		f->async = 0;
 		if (r < 0) {
 			if (fferr_again(fferr_last())) {
 				f->async = 1;
+				break;
+			} else if (fferr_last() == ERROR_HANDLE_EOF) {
+				f->done = 1;
 				break;
 			}
 
@@ -270,7 +321,7 @@ static void file_read(void *udata)
 			continue;
 		}
 
-		if (r != IN_BSIZE && !f->seeking) {
+		if (r != file_in_conf.bsize) {
 			dbglog(core, f->trk, "file", "reading's done", 0);
 			f->done = 1;
 		}
@@ -278,15 +329,15 @@ static void file_read(void *udata)
 		if (f->seeking)
 			f->seeking = 0;
 
-		dbglog(core, f->trk, "file", "read %U bytes at offset %U", (int64)r - (f->foff % ALIGN), f->foff);
-		if (f->foff % ALIGN != 0)
-			f->offdata[f->wdata] = f->foff % ALIGN;
-		f->foff = (f->foff & ~(ALIGN-1)) + r;
-		f->ndata[f->wdata] = r;
+		dbglog(core, f->trk, "file", "read %U bytes at offset %U", (int64)r - (f->foff % file_in_conf.align), f->foff);
+		if (f->foff % file_in_conf.align != 0)
+			f->data[f->wdata].off = f->foff % file_in_conf.align;
+		f->foff = (f->foff & ~(file_in_conf.align-1)) + r;
+		f->data[f->wdata].len = r;
 		filled = 1;
 
-		f->wdata = (f->wdata + 1) % IN_NBUFS;
-		if (f->ndata[f->wdata] != 0 || f->done)
+		f->wdata = (f->wdata + 1) % file_in_conf.nbufs;
+		if (f->data[f->wdata].len != 0 || f->done)
 			break; //all buffers are filled or end-of-file is reached
 	}
 
@@ -297,9 +348,16 @@ static void file_read(void *udata)
 }
 
 
+static int fileout_config(ffpars_ctx *ctx)
+{
+	ffpars_setargs(ctx, &file_out_conf, file_out_conf_args, FFCNT(file_out_conf_args));
+	return 0;
+}
+
 static void* fileout_open(fmed_filt *d)
 {
 	const char *filename;
+	uint mode;
 	uint64 total_size;
 	fmed_fileout *f = ffmem_tcalloc1(fmed_fileout);
 	if (f == NULL)
@@ -312,18 +370,22 @@ static void* fileout_open(fmed_filt *d)
 		goto done;
 	}
 
-	f->fd = fffile_open(filename, OUT_FILE_MODE | O_WRONLY | O_NOATIME);
+	mode = FFO_CREATENEW;
+	if (FMED_NULL != d->track->getval(d->trk, "overwrite"))
+		mode = O_CREAT;
+
+	f->fd = fffile_open(filename, mode | O_WRONLY | O_NOATIME);
 	if (f->fd == FF_BADFD) {
 		syserrlog(core, d->trk, "file", "%e: %s", FFERR_FOPEN, filename);
 		goto done;
 	}
 
-	if (NULL == ffarr_alloc(&f->buf, OUT_BSIZE)) {
+	if (NULL == ffarr_alloc(&f->buf, file_out_conf.bsize)) {
 		syserrlog(core, d->trk, "file", "%e", FFERR_BUFALOC);
 		goto done;
 	}
 
-	total_size = (uint64)d->track->getval(d->trk, "total_size");
+	total_size = (uint64)d->track->getval(d->trk, "output_size");
 	if (total_size != FMED_NULL) {
 		if (0 == fffile_trunc(f->fd, total_size))
 			f->prealocated = total_size;
@@ -399,8 +461,8 @@ static int fileout_write(void *ctx, fmed_filt *d)
 		}
 
 		if (f->fsize + d->datalen > f->prealocated) {
-			if (0 == fffile_trunc(f->fd, f->prealocated + OUT_PREALOC))
-				f->prealocated += OUT_PREALOC;
+			if (0 == fffile_trunc(f->fd, f->prealocated + file_out_conf.prealoc))
+				f->prealocated += file_out_conf.prealoc;
 		}
 
 		r = fffile_write(f->fd, dst.ptr, dst.len);
