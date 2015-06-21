@@ -327,7 +327,7 @@ err:
 			, filename
 			, (int)ps.p->line, (int)ps.p->ch
 			, &ps.p->val, (ps.curarg != NULL) ? ps.curarg->name : ""
-			, ser);
+			, (r == FFPARS_ESYS) ? fferr_strp(fferr_last()) : ser);
 		goto fail;
 	}
 
