@@ -16,14 +16,25 @@ Options:
 --mix          Play input files simultaneously.
                Note: all inputs must have exactly the same format as the output.
 
---out=FILE     Don't play but write output to a file
+--out=[FILE].EXT  Don't play but write output to a file.
+                  Output format is chosen by "EXT".
+--outdir=DIR      Set output directory
 
---record=FILE  Record to a file until stopped by user
+--pcm-format=VAL  Set output PCM format (16le | float)
+--gain=dB         Set output gain in dB
+
+--record       Record until stopped by user
 
 --list-dev           List available sound devices and exit
 --dev=DEVNO          Use playback device
 --dev-capture=DEVNO  Use capture device
 
+-y, --overwrite  Overwrite output file
+
 --silent       Don't print anything to stdout
 --debug        Print debug info to stdout
 -h, --help     Print help info and exit
+
+
+Other options:
+--ogg-quality=VAL     Set OGG Vorbis encoding quality: -1.0 .. 10.0

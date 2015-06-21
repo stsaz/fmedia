@@ -1,0 +1,30 @@
+fmedia v0.2 - June 20 2015
+
+ + FLAC input/output
+ + OGG output
+ + MPEG decode
+ + WASAPI input with latency auto-correction
+ + "live" capture mode
+ * --record switch is now boolean, may be used with --out=FILE
+ + --outdir - Set output directory
+ + --pcm-format - Set output PCM format
+ + --gain - Set output gain in dB
+ + --overwrite - Overwrite output file
+ + conf: output_ext
+ + conf: "mod_conf": modules can be configured via fmedia.conf
+ * OGG: more precise "current_position"
+ - WASAPI: don't hang if input data is too small
+ - file.in: correctly handle read() from eof position
+ - mpeg: support ID3v2 tags with "unsync" flag
+
+
+fmedia v0.1 - May 23 2015
+
+ + OGG input
+ + WAV input/output, raw input
+ + MPEG input (meta only)
+ + file input/output
+ + Direct Sound input/output
+ + WASAPI output
+ + mixer
+ + TUI
