@@ -123,17 +123,19 @@ static void tui_info(tui *t, fmed_filt *d)
 static int tui_process(void *ctx, fmed_filt *d)
 {
 	tui *t = ctx;
-	uint64 playpos;
+	int64 playpos;
 	uint playtime;
 	uint dots = 70;
 	uint nback = (uint)t->buf.len;
 
-	if (t->total_samples == FMED_NULL) {
+	playpos = fmed_getval("current_position");
+	if (t->total_samples == FMED_NULL
+		|| playpos == FMED_NULL
+		|| (uint64)playpos > t->total_samples) {
 		d->out = d->data;
 		d->outlen = d->datalen;
 		return FMED_RDONE;
 	}
-	playpos = d->track->getval(d->trk, "current_position");
 
 	if (core->loglev & FMED_LOG_DEBUG)
 		nback = 0;
