@@ -17,7 +17,6 @@ typedef struct wasapi_out {
 	void *trk;
 	uint latcorr;
 	unsigned async :1
-		, silence :1
 		, ileaved :1;
 } wasapi_out;
 
@@ -283,14 +282,13 @@ static int wasapi_write(void *ctx, fmed_filt *d)
 
 	if ((d->flags & FMED_FLAST) && d->datalen == 0) {
 
-		if (!w->silence) {
-			w->silence = 1;
-			if (0 > ffwas_silence(&w->wa))
-				return FMED_RERR;
-		}
-
-		if (0 == ffwas_filled(&w->wa))
+		r = ffwas_stoplazy(&w->wa);
+		if (r == 1)
 			return FMED_RDONE;
+		else if (r < 0) {
+			errlog(core, d->trk,  "wasapi", "ffwas_stoplazy(): (%xu) %s", r, ffwas_errstr(r));
+			return FMED_RERR;
+		}
 
 		w->async = 1;
 		return FMED_RASYNC; //wait until all filled bytes are played
