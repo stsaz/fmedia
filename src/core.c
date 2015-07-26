@@ -122,7 +122,7 @@ static fmed_f* media_modbyext(fm_src *src, const ffstr3 *map, const ffstr *ext)
 	const inmap_item *it = (void*)map->ptr;
 	while (it != (void*)(map->ptr + map->len)) {
 		size_t len = ffsz_len(it->ext);
-		if (ffstr_eq(ext, it->ext, len)) {
+		if (ffstr_ieq(ext, it->ext, len)) {
 			return newfilter1(src, it->mod);
 		}
 		it = (void*)((char*)it + sizeof(inmap_item) + len + 1);
