@@ -13,9 +13,8 @@ static byte stopping;
 
 typedef struct wasapi_out {
 	ffwasapi wa;
-	fmed_handler handler;
-	void *trk;
 	uint latcorr;
+	fftask task;
 	unsigned async :1
 		, ileaved :1;
 } wasapi_out;
@@ -195,8 +194,8 @@ static void* wasapi_open(fmed_filt *d)
 	w = ffmem_tcalloc1(wasapi_out);
 	if (w == NULL)
 		return NULL;
-	w->handler = d->handler;
-	w->trk = d->trk;
+	w->task.handler = d->handler;
+	w->task.param = d->trk;
 
 	if (FMED_NULL == (idx = (int)d->track->getval(d->trk, "playdev_name")))
 		idx = wasapi_out_conf.idev;
@@ -235,6 +234,7 @@ done:
 static void wasapi_close(void *ctx)
 {
 	wasapi_out *w = ctx;
+	core->task(&w->task, FMED_TASK_DEL);
 	ffwas_close(&w->wa);
 	ffmem_free(w);
 }
@@ -245,7 +245,7 @@ static void wasapi_onplay(void *udata)
 	if (!w->async)
 		return;
 	w->async = 0;
-	w->handler(w->trk);
+	core->task(&w->task, FMED_TASK_POST);
 }
 
 static int wasapi_write(void *ctx, fmed_filt *d)
@@ -315,8 +315,8 @@ static void* wasapi_in_open(fmed_filt *d)
 	w = ffmem_tcalloc1(wasapi_in);
 	if (w == NULL)
 		return NULL;
-	w->handler = d->handler;
-	w->trk = d->trk;
+	w->task.handler = d->handler;
+	w->task.param = d->trk;
 
 	if (FMED_NULL == (idx = (int)d->track->getval(d->trk, "capture_device")))
 		idx = wasapi_in_conf.idev;
@@ -366,6 +366,7 @@ fail:
 static void wasapi_in_close(void *ctx)
 {
 	wasapi_in *w = ctx;
+	core->task(&w->task, FMED_TASK_DEL);
 	ffwas_capt_close(&w->wa);
 	ffmem_free(w);
 }

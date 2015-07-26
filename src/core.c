@@ -30,7 +30,6 @@ typedef struct dict_ent {
 
 struct fm_src {
 	fflist_item sib;
-	fftask task;
 	struct {FFARR(fmed_f)} filters;
 	fflist_cursor cur;
 	ffrbtree dict;
@@ -61,8 +60,6 @@ static void media_open_capt(fm_src *src);
 static void media_open_mix(fm_src *src);
 static void media_free(fm_src *src);
 static void media_process(void *udata);
-static void media_onplay(void *udata);
-static void media_onplay_hdlr(void *udata);
 static fmed_f* media_modbyext(fm_src *src, const ffstr3 *map, const ffstr *ext);
 static void media_printtime(fm_src *src);
 
@@ -170,16 +167,13 @@ static int media_open(fm_src *src, const char *fn)
 
 static void media_open_capt(fm_src *src)
 {
-	fmed_f *f;
-
 	if (fmed->captdev_name != 0)
 		trk_setval(src, "capture_device", fmed->captdev_name);
 
 	trk_setval(src, "pcm_format", fmed->inp_pcm.format);
 	trk_setval(src, "pcm_channels", fmed->inp_pcm.channels);
 	trk_setval(src, "pcm_sample_rate", fmed->inp_pcm.sample_rate);
-	f = newfilter1(src, fmed->input);
-	f->d.handler = &media_onplay_hdlr;
+	newfilter1(src, fmed->input);
 
 	src->capture = 1;
 }
@@ -235,8 +229,7 @@ static int media_setout(fm_src *src, const char *fn)
 		newfilter(src, "#file.out");
 
 	} else if (fmed->output != NULL) {
-		fmed_f *f = newfilter1(src, fmed->output);
-		f->d.handler = &media_onplay_hdlr;
+		newfilter1(src, fmed->output);
 	}
 
 	return 0;
@@ -365,9 +358,6 @@ static void media_free(fm_src *src)
 	if (core->loglev & FMED_LOG_DEBUG)
 		media_printtime(src);
 
-	if (fftask_active(&fmed->taskmgr, &src->task))
-		fftask_del(&fmed->taskmgr, &src->task);
-
 	ffarr_free(&src->dict);
 	if (fflist_exists(&fmed->srcs, &src->sib))
 		fflist_rm(&fmed->srcs, &src->sib);
@@ -378,21 +368,6 @@ static void media_free(fm_src *src)
 
 	if (src == fmed->dst)
 		fmed->dst = NULL;
-}
-
-static void media_onplay_hdlr(void *udata)
-{
-	fm_src *src = udata;
-	if (fftask_active(&fmed->taskmgr, &src->task))
-		return;
-	fftask_post4(&fmed->taskmgr, &src->task, &media_onplay, src);
-	ffkqu_post(fmed->kq, &fmed->evposted, NULL);
-}
-
-static void media_onplay(void *udata)
-{
-	fm_src *src = udata;
-	media_process(src);
 }
 
 static void media_process(void *udata)
@@ -969,6 +944,8 @@ static void core_task(fftask *task, uint cmd)
 
 	if (cmd == FMED_TASK_POST) {
 		fftask_post(&fmed->taskmgr, task);
+		if (fmed->taskmgr.tasks.len == 1)
+			ffkqu_post(fmed->kq, &fmed->evposted, NULL);
 	}
 }
 

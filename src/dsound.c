@@ -14,14 +14,15 @@ static byte refcount;
 
 typedef struct dsnd_out {
 	ffdsnd_buf snd;
-	fmed_handler handler;
-	void *trk;
+	fftask task;
 	unsigned async :1
 		, ileaved :1;
 } dsnd_out;
 
 typedef struct dsnd_in {
 	ffdsnd_capt snd;
+	fftask task;
+	unsigned async :1;
 } dsnd_in;
 
 static struct dsnd_out_conf_t {
@@ -69,6 +70,8 @@ static int dsnd_in_config(ffpars_ctx *ctx);
 static const fmed_filter fmed_dsnd_in = {
 	&dsnd_in_open, &dsnd_in_read, &dsnd_in_close, &dsnd_in_config
 };
+
+static void dsnd_in_onplay(void *udata);
 
 static const ffpars_arg dsnd_in_conf_args[] = {
 	{ "device_index",  FFPARS_TINT,  FFPARS_DSTOFF(struct dsnd_in_conf_t, idev) }
@@ -178,7 +181,7 @@ static void dsnd_onplay(void *udata)
 	if (!ds->async)
 		return; //the function may be called when we aren't expecting it
 	ds->async = 0;
-	ds->handler(ds->trk);
+	core->task(&ds->task, FMED_TASK_POST);
 }
 
 static int dsnd_out_config(ffpars_ctx *ctx)
@@ -197,8 +200,8 @@ static void* dsnd_open(fmed_filt *d)
 	ds = ffmem_tcalloc1(dsnd_out);
 	if (ds == NULL)
 		return NULL;
-	ds->handler = d->handler;
-	ds->trk = d->trk;
+	ds->task.handler = d->handler;
+	ds->task.param = d->trk;
 
 	if (FMED_NULL == (idx = (int)d->track->getval(d->trk, "playdev_name")))
 		idx = dsnd_out_conf.idev;
@@ -233,6 +236,7 @@ static void dsnd_close(void *ctx)
 {
 	dsnd_out *ds = ctx;
 
+	core->task(&ds->task, FMED_TASK_DEL);
 	ffdsnd_close(&ds->snd);
 	ffmem_free(ds);
 }
@@ -310,6 +314,8 @@ static void* dsnd_in_open(fmed_filt *d)
 	ds = ffmem_tcalloc1(dsnd_in);
 	if (ds == NULL)
 		return NULL;
+	ds->task.handler = d->handler;
+	ds->task.param = d->trk;
 
 	if (FMED_NULL == (idx = (int)d->track->getval(d->trk, "capture_device")))
 		idx = dsnd_in_conf.idev;
@@ -318,8 +324,8 @@ static void* dsnd_in_open(fmed_filt *d)
 		goto fail;
 	}
 
-	ds->snd.handler = d->handler;
-	ds->snd.udata = d->trk;
+	ds->snd.handler = &dsnd_in_onplay;
+	ds->snd.udata = ds;
 	fmt.format = (int)d->track->getval(d->trk, "pcm_format");
 	fmt.channels = (int)d->track->getval(d->trk, "pcm_channels");
 	fmt.sample_rate = (int)d->track->getval(d->trk, "pcm_sample_rate");
@@ -350,8 +356,18 @@ static void dsnd_in_close(void *ctx)
 {
 	dsnd_in *ds = ctx;
 
+	core->task(&ds->task, FMED_TASK_DEL);
 	ffdsnd_capt_close(&ds->snd);
 	ffmem_free(ds);
+}
+
+static void dsnd_in_onplay(void *udata)
+{
+	dsnd_in *ds = udata;
+	if (!ds->async)
+		return;
+	ds->async = 0;
+	core->task(&ds->task, FMED_TASK_POST);
 }
 
 static int dsnd_in_read(void *ctx, fmed_filt *d)
@@ -362,8 +378,10 @@ static int dsnd_in_read(void *ctx, fmed_filt *d)
 		errlog(core, d->trk, "dsound", "ffdsnd_capt_read(): (%xu) %s", r, ffdsnd_errstr(r));
 		return FMED_RERR;
 	}
-	if (r == 0)
+	if (r == 0) {
+		ds->async = 1;
 		return FMED_RASYNC;
+	}
 
 	dbglog(core, d->trk, "dsound", "read %L bytes", d->outlen);
 	if (stopping) {
