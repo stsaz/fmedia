@@ -383,6 +383,11 @@ static int media_open(fm_src *src, const char *fn)
 	if (fmed->fseek)
 		trk_setval(src, "input_seek", fmed->fseek);
 
+	if (fmed->trackno != 0) {
+		trk_setval(src, "input_trackno", fmed->trackno);
+		fmed->trackno = 0;
+	}
+
 	trk_setvalstr(src, "input", fn);
 	newfilter(src, "#file.in");
 

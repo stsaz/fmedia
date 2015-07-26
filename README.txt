@@ -24,6 +24,10 @@ FILTERS
 	. WAV input/output
 	. RAW input
 
+	Playlists:
+	. M3U input
+	. CUE input
+
 	Other:
 	. PCM converter
 	. Mixer
