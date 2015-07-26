@@ -35,7 +35,8 @@ typedef struct fmed_file {
 	uint wdata;
 	uint rdata;
 	databuf *data;
-	uint64 foff;
+	uint64 foff
+		, aoff;
 	ffaio_filetask ftask;
 	uint64 seek;
 
@@ -233,6 +234,7 @@ static int file_getdata(void *ctx, fmed_filt *d)
 		f->done = 0;
 		if (!f->async) {
 			f->foff = f->seek;
+			f->aoff = f->seek;
 			f->seek = 0;
 		}
 
@@ -264,6 +266,9 @@ static int file_getdata(void *ctx, fmed_filt *d)
 		f->want_read = 1;
 		return FMED_RASYNC; //wait until the buffer is full
 	}
+
+	fmed_setval("input_off", f->aoff);
+	f->aoff += f->data[f->rdata].len;
 
 	d->out = f->data[f->rdata].ptr;
 	d->outlen = f->data[f->rdata].len;
@@ -314,6 +319,7 @@ static void file_read(void *udata)
 
 		if (f->seek != 0) {
 			f->foff = f->seek;
+			f->aoff = f->seek;
 			f->seek = 0;
 			continue;
 		}
