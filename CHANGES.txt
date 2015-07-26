@@ -1,3 +1,17 @@
+fmedia v0.3 - Jul 25, 2015
+
+ + added GUI
+ + support M3U playlist
+ + FLAC: support per-track playback of CUE files
+ + file: ability to automatically name output file from meta info
+ + OGG: support playing files with no eos page
+ + FLAC: support FLAC-to-FLAC convertion
+ - conf: multiple media file extensions didn't work
+ - core: fixed module name memory leak
+ - conf: media file extension matching is now case insensitive
+ - FLAC: couldn't play flac files if header size matches input file buffer size
+
+
 fmedia v0.2 - June 20 2015
 
  + FLAC input/output
