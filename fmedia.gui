@@ -1,0 +1,194 @@
+
+menu mfile {
+	item "&Open..." {
+		action OPEN
+		hotkey "Ctrl+O"
+	}
+	item "&Add..." {
+		action ADD
+		hotkey "Insert"
+	}
+	item "-" {
+	}
+	item "&Remove" {
+		action REMOVE
+		hotkey "Delete"
+	}
+	item "&Clear List" {
+		action CLEAR
+	}
+	item "-" {
+	}
+	item "Show Fo&lder" {
+		action SHOWDIR
+	}
+	item "-" {
+	}
+	item "Minimize to &Tray" {
+		action HIDE
+		hotkey "Ctrl+M"
+	}
+	item "E&xit" {
+		action QUIT
+	}
+}
+
+menu mplay {
+	item "&Play/Pause" {
+		action PAUSE
+		hotkey "Space"
+	}
+	item "&Stop" {
+		action STOP
+		hotkey "S"
+	}
+	item "&Next" {
+		action NEXT
+		hotkey "N"
+	}
+	item "P&revious" {
+		action PREV
+		hotkey "P"
+	}
+	item "-" {
+	}
+	item "Seek &Forward" {
+		action FFWD
+		hotkey "Right"
+	}
+	item "Seek &Back" {
+		action RWND
+		hotkey "Left"
+	}
+	item "-" {
+	}
+	item "Volume &Up" {
+		action VOLUP
+		hotkey "Up"
+	}
+	item "Volume &Down" {
+		action VOLDOWN
+		hotkey "Down"
+	}
+}
+
+menu mhelp {
+	item "&About" {
+		action ABOUT
+	}
+}
+
+menu mtray {
+	item "fmedia" {
+		style default
+		action SHOW
+	}
+	item "Exit" {
+		action QUIT
+	}
+}
+
+dialog dlg {
+	filter "*.mp3;*.ogg;*.flac;*.wav;*.m3u;*.m3u8;*.cue\x00*.mp3;*.ogg;*.flac;*.wav;*.m3u;*.m3u8;*.cue\x00*.*\x00*.*\x00\x00"
+}
+
+window wmain {
+	title "fmedia"
+	position 100 100 380 300
+	borderstick 7
+	style visible
+	icon {
+		filename "fmedia.ico"
+	}
+
+	mainmenu mm {
+		item "&File" {
+			submenu mfile
+		}
+		item "&Playback" {
+			submenu mplay
+		}
+		item "&Help" {
+			submenu mhelp
+		}
+	}
+
+	trackbar tpos {
+		position 0 0 300 20
+		style no_ticks both visible
+		page_size 5
+		onscrolling SEEKING
+		onscroll SEEK
+	}
+
+	trackbar tvol {
+		position 300 0 60 20
+		style no_ticks both visible
+		page_size 5
+		onscrolling VOL
+	}
+
+	listview vlist {
+		position 0 25 360 175
+		style explorer_theme grid_lines visible
+		dblclick PLAY
+		column "#" {
+			width 35
+			align right
+		}
+		column Artist {
+		}
+		column Title {
+			width 200
+		}
+		column Duration {
+			width 50
+			align right
+		}
+		column Info {
+		}
+	}
+
+	paned pntop {
+		child tpos {
+			resize cx
+		}
+		child tvol {
+		}
+	}
+	paned pnlist {
+		child vlist {
+			resize cx cy
+		}
+	}
+
+	statusbar stbar {
+		style visible
+	}
+
+	trayicon tray_icon {
+		icon {
+			filename "fmedia.ico"
+		}
+		popupmenu mtray
+		lclick SHOW
+	}
+}
+
+window wabout {
+	parent wmain
+	title "fmedia"
+	position 300 300 300 200
+	style popup
+	opacity 90
+
+	label labout {
+		position 15 15 300 60
+		style visible
+		font {
+			name Arial
+			height 13
+			style bold
+		}
+	}
+}

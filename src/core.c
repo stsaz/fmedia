@@ -151,7 +151,9 @@ static const ffpars_arg fmed_conf_args[] = {
 
 static int fmed_conf_mod(ffparser_schem *p, void *obj, ffstr *val)
 {
-	if (NULL == core->insmod(val->ptr, NULL))
+	fmed_config *conf = obj;
+	if (!(ffstr_eqcz(val, "gui.gui") && !conf->gui)
+		&& NULL == core->insmod(val->ptr, NULL))
 		return FFPARS_ESYS;
 	ffstr_free(val);
 	return 0;
@@ -402,7 +404,9 @@ static int media_open(fm_src *src, const char *fn)
 		return 0;
 	}
 
-	if (!fmed->silent)
+	if (fmed->gui)
+		newfilter(src, "gui.gui");
+	else if (!fmed->silent)
 		newfilter(src, "#tui.tui");
 
 	return 0;

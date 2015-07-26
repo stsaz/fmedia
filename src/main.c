@@ -60,6 +60,7 @@ static const ffpars_arg fmed_cmdline_args[] = {
 
 	, { "overwrite",  FFPARS_SETVAL('y') | FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmedia, overwrite) }
 	, { "silent",  FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmedia, silent) }
+	, { "gui",  FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmedia, gui) }
 	, { "debug",  FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmedia, debug) }
 	, { "help",  FFPARS_SETVAL('h') | FFPARS_TBOOL | FFPARS_FALONE,  FFPARS_DST(&fmed_arg_usage) }
 };
@@ -342,6 +343,11 @@ int main(int argc, char **argv)
 
 	if (0 != open_input())
 		goto end;
+
+#if defined FF_WIN && !defined _DEBUG
+	if (fmed->gui && !(core->loglev & FMED_LOG_DEBUG))
+		FreeConsole();
+#endif
 
 	core->sig(FMED_START);
 

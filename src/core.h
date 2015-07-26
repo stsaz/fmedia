@@ -60,6 +60,7 @@ typedef struct fmedia {
 		, debug
 		, mix
 		, silent
+		, gui
 		, info;
 	byte volume;
 	uint trackno;

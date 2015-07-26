@@ -6,6 +6,8 @@ The default action is to play input files one by one.
 INPUT    Input file
 
 Options:
+--gui   Run in graphical UI mode
+
 --repeat-all   Repeat all
 --seek=TIME    Seek to time "mm:ss".
 --until=TIME   Stop at time "mm:ss"
