@@ -12,6 +12,12 @@ Copyright (c) 2015 Simon Zolin */
 #include <FFOS/process.h>
 
 
+static fmedia *fmed;
+static fmed_core *core;
+
+FF_IMP fmed_core* core_init(fmedia **ptr, fmed_log_t logfunc);
+FF_IMP void core_free(void);
+
 static int fmed_cmdline(int argc, char **argv);
 static int fmed_arg_usage(void);
 static int fmed_arg_infile(ffparser_schem *p, void *obj, const ffstr *val);
@@ -20,6 +26,8 @@ static int fmed_arg_listdev(void);
 static int fmed_arg_seek(ffparser_schem *p, void *obj, const ffstr *val);
 
 static int pcm_formatstr(const char *s, size_t len);
+static void fmed_log(fffd fd, const char *stime, const char *module, const char *level
+	, const ffstr *id, const char *fmt, va_list va);
 
 
 static const ffpars_arg fmed_cmdline_args[] = {
@@ -171,7 +179,7 @@ static int pcm_formatstr(const char *s, size_t len)
 }
 
 
-void fmed_log(fffd fd, const char *stime, const char *module, const char *level
+static void fmed_log(fffd fd, const char *stime, const char *module, const char *level
 	, const ffstr *id, const char *fmt, va_list va)
 {
 	char buf[4096];
@@ -233,12 +241,11 @@ int main(int argc, char **argv)
 	ffsignal sigs_task = {0};
 
 	ffmem_init();
-	ffutf8_init();
 	ffsig_init(&sigs_task);
 
 	fffile_writecz(ffstdout, "fmedia v" FMED_VER "\n");
 
-	if (0 != core_init())
+	if (NULL == (core = core_init(&fmed, &fmed_log)))
 		return 1;
 
 	{

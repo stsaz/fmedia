@@ -59,13 +59,16 @@ struct fm_src {
 };
 
 
-fmedia *fmed;
-fmed_core *core;
+static fmedia *fmed;
 typedef fmedia fmed_config;
 
 enum {
 	FMED_KQ_EVS = 100
 };
+
+
+FF_EXP fmed_core* core_init(fmedia **ptr, fmed_log_t logfunc);
+FF_EXP void core_free(void);
 
 static fm_src* media_open1(int t, const char *fn);
 static int media_setout(fm_src *src, const char *fn);
@@ -100,6 +103,7 @@ static int core_opensrcs_mix(void);
 static int core_opendests(void);
 static void core_playdone(void);
 static int core_sigmods(uint signo);
+static const fmed_modinfo* core_getmodinfo(const char *name);
 
 static const void* core_iface(const char *name);
 static int core_sig2(uint signo);
@@ -124,6 +128,7 @@ static fmed_core _fmed_core = {
 	&core_getmod, &core_insmod,
 	&core_task,
 };
+static fmed_core *core = &_fmed_core;
 
 static int fmed_conf(void);
 static int fmed_conf_mod(ffparser_schem *p, void *obj, ffstr *val);
@@ -915,24 +920,26 @@ static void core_posted(void *udata)
 }
 
 
-int core_init(void)
+fmed_core* core_init(fmedia **ptr, fmed_log_t logfunc)
 {
+	ffmem_init();
 	fflk_setup();
 	fmed = ffmem_tcalloc1(fmedia);
 	if (fmed == NULL)
-		return 1;
+		return NULL;
+	fmed->logfunc = logfunc;
 
 	fmed->volume = 100;
 	fmed->kq = FF_BADFD;
 	fftask_init(&fmed->taskmgr);
 	fflist_init(&fmed->srcs);
-	core = &_fmed_core;
 	core_insmod("#core.core", NULL);
 
 	fmed->ogg_qual = -255;
 	fmed->conv_pcm_formt = FFPCM_16LE;
 
-	return 0;
+	*ptr = fmed;
+	return core;
 }
 
 void core_free(void)
@@ -1074,7 +1081,7 @@ static const void* core_getmod(const char *name)
 	return NULL;
 }
 
-const fmed_modinfo* core_getmodinfo(const char *name)
+static const fmed_modinfo* core_getmodinfo(const char *name)
 {
 	core_mod *mod;
 	FFLIST_WALK(&fmed->mods, mod, sib) {
@@ -1230,7 +1237,7 @@ static void core_log(fffd fd, void *trk, const char *module, const char *level, 
 	fm_src *src = trk;
 	va_list va;
 	va_start(va, fmt);
-	fmed_log(fd, NULL, module, level, (src != NULL) ? &src->id : NULL, fmt, va);
+	fmed->logfunc(fd, NULL, module, level, (src != NULL) ? &src->id : NULL, fmt, va);
 	va_end(va);
 }
 

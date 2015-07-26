@@ -17,6 +17,9 @@ typedef struct inmap_item {
 	char ext[0];
 } inmap_item;
 
+typedef void (*fmed_log_t)(fffd fd, const char *stime, const char *module, const char *level
+	, const ffstr *id, const char *fmt, va_list va);
+
 typedef struct fmedia {
 	fftaskmgr taskmgr;
 	ffkevent evposted;
@@ -40,6 +43,7 @@ typedef struct fmedia {
 	fflist mods; //core_mod[]
 
 	//conf:
+	fmed_log_t logfunc;
 	ffstr root;
 	ffarr in_files;
 	ffstr outfn
@@ -70,13 +74,3 @@ typedef struct fmedia {
 	float gain;
 	int conv_pcm_formt;
 } fmedia;
-
-extern fmedia *fmed;
-extern fmed_core *core;
-
-extern int core_init(void);
-extern void core_free(void);
-extern const fmed_modinfo* core_getmodinfo(const char *name);
-
-extern void fmed_log(fffd fd, const char *stime, const char *module, const char *level
-	, const ffstr *id, const char *fmt, va_list va);
