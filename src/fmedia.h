@@ -53,6 +53,8 @@ struct fmed_core {
 	uint loglev;
 	fffd kq;
 
+	int64 (*getval)(const char *name);
+
 	void (*log)(fffd fd, void *trk, const char *module, const char *level, const char *fmt, ...);
 
 	/** Return NULL on error. */

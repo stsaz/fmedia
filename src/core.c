@@ -84,6 +84,7 @@ static int core_opendests(void);
 static void core_playdone(void);
 static int core_sigmods(uint signo);
 
+static int64 core_getval(const char *name);
 static void core_log(fffd fd, void *trk, const char *module, const char *level, const char *fmt, ...);
 static char* core_getpath(const char *name, size_t len);
 static int core_sig(uint signo);
@@ -92,6 +93,7 @@ static const fmed_modinfo* core_insmod(const char *name, ffpars_ctx *ctx);
 static void core_task(fftask *task, uint cmd);
 static fmed_core _fmed_core = {
 	0, 0,
+	&core_getval,
 	&core_log,
 	&core_getpath,
 	&core_sig,
@@ -953,6 +955,15 @@ static void core_task(fftask *task, uint cmd)
 		if (fmed->taskmgr.tasks.len == 1)
 			ffkqu_post(fmed->kq, &fmed->evposted, NULL);
 	}
+}
+
+static int64 core_getval(const char *name)
+{
+	if (!ffsz_cmp(name, "repeat_all"))
+		return fmed->repeat_all;
+	else if (!ffsz_cmp(name, "gui"))
+		return fmed->gui;
+	return FMED_NULL;
 }
 
 static void core_log(fffd fd, void *trk, const char *module, const char *level, const char *fmt, ...)
