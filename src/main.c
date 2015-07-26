@@ -291,7 +291,7 @@ static int fmed_conf_inmap_val(ffparser_schem *p, void *obj, ffstr *val)
 }
 
 static const ffpars_arg fmed_conf_inmap_args[] = {
-	{ "*",  FFPARS_TSTR | FFPARS_FNOTEMPTY | FFPARS_FSTRZ | FFPARS_FCOPY | FFPARS_FMULTI, FFPARS_DST(&fmed_conf_inmap_val) }
+	{ "*",  FFPARS_TSTR | FFPARS_FNOTEMPTY | FFPARS_FSTRZ | FFPARS_FCOPY | FFPARS_FLIST, FFPARS_DST(&fmed_conf_inmap_val) }
 };
 
 
