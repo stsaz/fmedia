@@ -5,6 +5,8 @@ Copyright (c) 2015 Simon Zolin */
 
 #include <FF/crc.h>
 #include <FF/path.h>
+#include <FF/filemap.h>
+#include <FF/data/conf.h>
 #include <FFOS/error.h>
 #include <FFOS/process.h>
 #include <FFOS/timer.h>
@@ -59,6 +61,7 @@ struct fm_src {
 
 fmedia *fmed;
 fmed_core *core;
+typedef fmedia fmed_config;
 
 enum {
 	FMED_KQ_EVS = 100
@@ -121,6 +124,212 @@ static fmed_core _fmed_core = {
 	&core_getmod, &core_insmod,
 	&core_task,
 };
+
+static int fmed_conf(void);
+static int fmed_conf_mod(ffparser_schem *p, void *obj, ffstr *val);
+static int fmed_conf_modconf(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
+static int fmed_conf_setmod(const fmed_modinfo **pmod, ffstr *val);
+static int fmed_conf_output(ffparser_schem *p, void *obj, ffstr *val);
+static int fmed_conf_input(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
+static int fmed_conf_inp_format(ffparser_schem *p, void *obj, ffstr *val);
+static int fmed_conf_ext(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
+static int fmed_conf_ext_val(ffparser_schem *p, void *obj, ffstr *val);
+
+static const ffpars_arg fmed_conf_args[] = {
+	{ "mod",  FFPARS_TSTR | FFPARS_FNOTEMPTY | FFPARS_FSTRZ | FFPARS_FCOPY | FFPARS_FMULTI, FFPARS_DST(&fmed_conf_mod) }
+	, { "mod_conf",  FFPARS_TOBJ | FFPARS_FOBJ1 | FFPARS_FNOTEMPTY | FFPARS_FMULTI, FFPARS_DST(&fmed_conf_modconf) }
+	, { "output",  FFPARS_TSTR | FFPARS_FNOTEMPTY, FFPARS_DST(&fmed_conf_output) }
+	, { "input",  FFPARS_TOBJ | FFPARS_FOBJ1, FFPARS_DST(&fmed_conf_input) }
+	, { "input_ext",  FFPARS_TOBJ, FFPARS_DST(&fmed_conf_ext) }
+	, { "output_ext",  FFPARS_TOBJ, FFPARS_DST(&fmed_conf_ext) }
+};
+
+
+static int fmed_conf_mod(ffparser_schem *p, void *obj, ffstr *val)
+{
+	if (NULL == core->insmod(val->ptr, NULL))
+		return FFPARS_ESYS;
+	ffstr_free(val);
+	return 0;
+}
+
+static int fmed_conf_modconf(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
+{
+	const ffstr *name = &p->vals[0];
+	char *zname = ffsz_alcopy(name->ptr, name->len);
+	if (zname == NULL)
+		return FFPARS_ESYS;
+
+	if (NULL == core->insmod(zname, ctx)) {
+		ffmem_free(zname);
+		return FFPARS_ESYS;
+	}
+	ffmem_free(zname);
+	return 0;
+}
+
+static int fmed_conf_setmod(const fmed_modinfo **pmod, ffstr *val)
+{
+	char s[4096];
+	ffsz_copy(s, sizeof(s), val->ptr, val->len);
+	if (NULL == (*pmod = core_getmodinfo(s))) {
+		return FFPARS_EBADVAL;
+	}
+	return 0;
+}
+
+static int fmed_conf_output(ffparser_schem *p, void *obj, ffstr *val)
+{
+	fmed_config *conf = obj;
+	return fmed_conf_setmod(&conf->output, val);
+}
+
+static int pcm_formatstr(const char *s, size_t len)
+{
+	if (ffs_eqcz(s, len, "16le"))
+		return FFPCM_16LE;
+	else if (ffs_eqcz(s, len, "32le"))
+		return FFPCM_32LE;
+	else if (ffs_eqcz(s, len, "float"))
+		return FFPCM_FLOAT;
+	return -1;
+}
+
+static int fmed_conf_inp_format(ffparser_schem *p, void *obj, ffstr *val)
+{
+	fmed_config *conf = obj;
+	if (-1 == (conf->inp_pcm.format = pcm_formatstr(val->ptr, val->len)))
+		return FFPARS_EBADVAL;
+	return 0;
+}
+
+static const ffpars_arg fmed_conf_input_args[] = {
+	{ "format",  FFPARS_TSTR | FFPARS_FNOTEMPTY, FFPARS_DST(&fmed_conf_inp_format) }
+	, { "channels",  FFPARS_TINT | FFPARS_FNOTZERO, FFPARS_DSTOFF(fmedia, inp_pcm.channels) }
+	, { "rate",  FFPARS_TINT | FFPARS_FNOTZERO, FFPARS_DSTOFF(fmedia, inp_pcm.sample_rate) }
+};
+
+static int fmed_conf_input(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
+{
+	fmed_config *conf = obj;
+	int r;
+	if (0 != (r = fmed_conf_setmod(&conf->input, &p->vals[0])))
+		return r;
+	ffpars_setargs(ctx, conf, fmed_conf_input_args, FFCNT(fmed_conf_input_args));
+	return 0;
+}
+
+static int fmed_conf_ext_val(ffparser_schem *p, void *obj, ffstr *val)
+{
+	size_t n;
+	inmap_item *it;
+	ffstr3 *map = obj;
+
+	if (NULL != ffs_findc(val->ptr, val->len, '.')) {
+		const fmed_modinfo *mod = core_getmodinfo(val->ptr);
+		if (mod == NULL) {
+			return FFPARS_EBADVAL;
+		}
+		ffstr_free(val);
+		fmed->inmap_curmod = mod;
+		return 0;
+	}
+
+	n = sizeof(inmap_item) + val->len + 1;
+	if (NULL == ffarr_grow(map, n, FFARR_GROWQUARTER))
+		return FFPARS_ESYS;
+	it = (void*)(map->ptr + map->len);
+	map->len += n;
+	it->mod = fmed->inmap_curmod;
+	ffmemcpy(it->ext, val->ptr, val->len + 1);
+	ffstr_free(val);
+	return 0;
+}
+
+static const ffpars_arg fmed_conf_ext_args[] = {
+	{ "*",  FFPARS_TSTR | FFPARS_FNOTEMPTY | FFPARS_FSTRZ | FFPARS_FCOPY | FFPARS_FLIST, FFPARS_DST(&fmed_conf_ext_val) }
+};
+
+static int fmed_conf_ext(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
+{
+	fmed_config *conf = obj;
+	void *o = &conf->inmap;
+	if (!ffsz_cmp(p->curarg->name, "output_ext"))
+		o = &conf->outmap;
+	ffpars_setargs(ctx, o, fmed_conf_ext_args, FFCNT(fmed_conf_ext_args));
+	return 0;
+}
+
+static int fmed_conf(void)
+{
+	ffparser pconf;
+	ffparser_schem ps;
+	ffpars_ctx ctx = {0};
+	int r = FFPARS_ESYS;
+	ffstr s;
+	char *buf = NULL;
+	size_t n;
+	fffd f = FF_BADFD;
+	char *filename;
+
+	ffpars_setargs(&ctx, fmed, fmed_conf_args, FFCNT(fmed_conf_args));
+	ffconf_scheminit(&ps, &pconf, &ctx);
+
+	if (NULL == (filename = core->getpath(FFSTR("fmedia.conf"))))
+		return -1;
+
+	if (FF_BADFD == (f = fffile_open(filename, O_RDONLY))) {
+		goto err;
+	}
+
+	if (NULL == (buf = ffmem_alloc(4096))) {
+		goto err;
+	}
+
+	for (;;) {
+		n = fffile_read(f, buf, 4096);
+		if (n == (size_t)-1) {
+			goto err;
+		} else if (n == 0)
+			break;
+		ffstr_set(&s, buf, n);
+
+		while (s.len != 0) {
+			n = s.len;
+			r = ffconf_parse(&pconf, s.ptr, &n);
+			ffstr_shift(&s, n);
+			r = ffpars_schemrun(&ps, r);
+
+			if (ffpars_iserr(r))
+				goto err;
+		}
+	}
+
+	r = ffconf_schemfin(&ps);
+
+err:
+	if (ffpars_iserr(r)) {
+		const char *ser = ffpars_schemerrstr(&ps, r, NULL, 0);
+		errlog(core, NULL, "core"
+			, "parse config: %s: %u:%u: near \"%S\": \"%s\": %s"
+			, filename
+			, ps.p->line, ps.p->ch
+			, &ps.p->val, (ps.curarg != NULL) ? ps.curarg->name : ""
+			, (r == FFPARS_ESYS) ? fferr_strp(fferr_last()) : ser);
+		goto fail;
+	}
+
+	r = 0;
+
+fail:
+	ffmem_free(filename);
+	ffpars_free(&pconf);
+	ffpars_schemfree(&ps);
+	ffmem_safefree(buf);
+	if (f != FF_BADFD)
+		fffile_close(f);
+	return r;
+}
 
 
 static fmed_f* newfilter1(fm_src *src, const fmed_modinfo *mod)
@@ -959,7 +1168,14 @@ static int core_sigmods(uint signo)
 
 static int core_sig(uint signo)
 {
+	dbglog(core, NULL, "core", "received signal: %u", signo);
+
 	switch (signo) {
+
+	case FMED_CONF:
+		if (0 != fmed_conf())
+			return 1;
+		break;
 
 	case FMED_OPEN:
 		if (0 != core_open())

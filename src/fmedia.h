@@ -32,6 +32,7 @@ typedef const fmed_mod* (*fmed_getmod_t)(const fmed_core *core);
 
 enum FMED_SIG {
 	FMED_OPEN
+	, FMED_CONF
 	, FMED_START
 	, FMED_STOP
 	, FMED_LISTDEV
