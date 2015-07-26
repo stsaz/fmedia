@@ -10,6 +10,17 @@ Copyright (c) 2015 Simon Zolin */
 #include <FFOS/timer.h>
 
 
+typedef struct core_mod {
+	//fmed_modinfo:
+	char *name;
+	void *dl; //ffdl
+	const fmed_mod *m;
+	const fmed_filter *f;
+
+	ffstr mname;
+	fflist_item sib;
+} core_mod;
+
 typedef struct fmed_f {
 	fflist_item sib;
 	void *ctx;
@@ -27,6 +38,8 @@ typedef struct dict_ent {
 		void *pval;
 	};
 } dict_ent;
+
+typedef struct fm_src fm_src;
 
 struct fm_src {
 	fflist_item sib;
@@ -88,7 +101,7 @@ static int64 core_getval(const char *name);
 static void core_log(fffd fd, void *trk, const char *module, const char *level, const char *fmt, ...);
 static char* core_getpath(const char *name, size_t len);
 static int core_sig(uint signo);
-static const fmed_modinfo* core_getmod(const char *name);
+static const void* core_getmod(const char *name);
 static const fmed_modinfo* core_insmod(const char *name, ffpars_ctx *ctx);
 static void core_task(fftask *task, uint cmd);
 static fmed_core _fmed_core = {
@@ -118,8 +131,7 @@ static fmed_f* newfilter1(fm_src *src, const fmed_modinfo *mod)
 static fmed_f* newfilter(fm_src *src, const char *modname)
 {
 	const fmed_modinfo *mod;
-	if (NULL == (mod = core_getmod(modname)))
-		errlog(core, NULL, "core", "module %s is not configured", modname);
+	mod = core_getmodinfo(modname);
 	return newfilter1(src, mod);
 }
 
@@ -767,13 +779,11 @@ static const fmed_modinfo* core_insmod(const char *sname, ffpars_ctx *ctx)
 	s.len = dot - s.ptr;
 
 	if (s.ptr[0] == '#') {
-		ffstr_shift(&s, 1);
-
-		if (ffstr_eqcz(&s, "file"))
+		if (ffstr_eqcz(&s, "#file"))
 			getmod = &fmed_getmod_file;
-		else if (ffstr_eqcz(&s, "soundmod"))
+		else if (ffstr_eqcz(&s, "#soundmod"))
 			getmod = &fmed_getmod_sndmod;
-		else if (ffstr_eqcz(&s, "tui"))
+		else if (ffstr_eqcz(&s, "#tui"))
 			getmod = &fmed_getmod_tui;
 		else {
 			fferr_set(EINVAL);
@@ -809,6 +819,7 @@ static const fmed_modinfo* core_insmod(const char *sname, ffpars_ctx *ctx)
 	mod->name = ffsz_alcopyz(sname);
 	if (mod->name == NULL)
 		goto fail;
+	ffstr_set(&mod->mname, mod->name, s.len);
 	fflist_ins(&fmed->mods, &mod->sib);
 
 	if (ctx != NULL)
@@ -823,7 +834,27 @@ fail:
 	return NULL;
 }
 
-static const fmed_modinfo* core_getmod(const char *name)
+static const void* core_getmod(const char *name)
+{
+	core_mod *mod;
+	ffstr smod, iface;
+	ffs_split2by(name, ffsz_len(name), '.', &smod, &iface);
+
+	FFLIST_WALK(&fmed->mods, mod, sib) {
+		if (!ffstr_eq2(&smod, &mod->mname))
+			continue;
+
+		if (iface.len != 0)
+			return mod->m->iface(iface.ptr);
+
+		return (fmed_modinfo*)mod;
+	}
+
+	errlog(core, NULL, "core", "module not found: %s", name);
+	return NULL;
+}
+
+const fmed_modinfo* core_getmodinfo(const char *name)
 {
 	core_mod *mod;
 	FFLIST_WALK(&fmed->mods, mod, sib) {
@@ -831,6 +862,7 @@ static const fmed_modinfo* core_getmod(const char *name)
 			return (fmed_modinfo*)mod;
 	}
 
+	errlog(core, NULL, "core", "module not found: %s", name);
 	return NULL;
 }
 

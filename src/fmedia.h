@@ -64,7 +64,8 @@ struct fmed_core {
 	@signo: enum FMED_SIG. */
 	int (*sig)(uint signo);
 
-	const fmed_modinfo* (*getmod)(const char *name);
+	/** Get module (fmed_modinfo*) or an interface. */
+	const void* (*getmod)(const char *name);
 	const fmed_modinfo* (*insmod)(const char *name, ffpars_ctx *ctx);
 
 	/**

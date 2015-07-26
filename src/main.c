@@ -209,8 +209,7 @@ static int fmed_conf_setmod(const fmed_modinfo **pmod, ffstr *val)
 {
 	char s[4096];
 	ffsz_copy(s, sizeof(s), val->ptr, val->len);
-	if (NULL == (*pmod = core->getmod(s))) {
-		errlog(core, NULL, "core", "module %S is not configured", val);
+	if (NULL == (*pmod = core_getmodinfo(s))) {
 		return FFPARS_EBADVAL;
 	}
 	return 0;
@@ -262,9 +261,8 @@ static int fmed_conf_inmap_val(ffparser_schem *p, void *obj, ffstr *val)
 	ffstr3 *map = obj;
 
 	if (NULL != ffs_findc(val->ptr, val->len, '.')) {
-		const fmed_modinfo *mod = core->getmod(val->ptr);
+		const fmed_modinfo *mod = core_getmodinfo(val->ptr);
 		if (mod == NULL) {
-			errlog(core, NULL, "core", "module %S is not configured", val);
 			return FFPARS_EBADVAL;
 		}
 		ffstr_free(val);

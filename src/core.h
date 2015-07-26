@@ -12,18 +12,6 @@ Copyright (c) 2015 Simon Zolin */
 #include <FFOS/file.h>
 
 
-typedef struct fm_src fm_src;
-
-typedef struct core_mod {
-	//fmed_modinfo:
-	char *name;
-	void *dl; //ffdl
-	const fmed_mod *m;
-	const fmed_filter *f;
-
-	fflist_item sib;
-} core_mod;
-
 typedef struct inmap_item {
 	const fmed_modinfo *mod;
 	char ext[0];
@@ -88,6 +76,7 @@ extern fmed_core *core;
 
 extern int core_init(void);
 extern void core_free(void);
+extern const fmed_modinfo* core_getmodinfo(const char *name);
 
 extern void fmed_log(fffd fd, const char *stime, const char *module, const char *level
 	, const ffstr *id, const char *fmt, va_list va);
