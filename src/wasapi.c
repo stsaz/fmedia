@@ -42,7 +42,7 @@ static struct wasapi_in_conf_t {
 } wasapi_in_conf;
 
 //FMEDIA MODULE
-static const fmed_filter* wasapi_iface(const char *name);
+static const void* wasapi_iface(const char *name);
 static int wasapi_sig(uint signo);
 static void wasapi_destroy(void);
 static const fmed_mod fmed_wasapi_mod = {
@@ -94,7 +94,7 @@ FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 }
 
 
-static const fmed_filter* wasapi_iface(const char *name)
+static const void* wasapi_iface(const char *name)
 {
 	if (!ffsz_cmp(name, "out")) {
 		wasapi_out_conf.idev = 0;

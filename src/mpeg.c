@@ -34,7 +34,7 @@ typedef struct fmed_mpeg {
 
 
 //FMEDIA MODULE
-static const fmed_filter* mpeg_iface(const char *name);
+static const void* mpeg_iface(const char *name);
 static int mpeg_sig(uint signo);
 static void mpeg_destroy(void);
 static const fmed_mod fmed_mpeg_mod = {
@@ -58,7 +58,7 @@ FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 }
 
 
-static const fmed_filter* mpeg_iface(const char *name)
+static const void* mpeg_iface(const char *name)
 {
 	if (!ffsz_cmp(name, "decode"))
 		return &fmed_mpeg_input;

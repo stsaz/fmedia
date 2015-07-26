@@ -44,7 +44,7 @@ static const char *const metanames[] = {
 
 
 //FMEDIA MODULE
-static const fmed_filter* ogg_iface(const char *name);
+static const void* ogg_iface(const char *name);
 static int ogg_sig(uint signo);
 static void ogg_destroy(void);
 static const fmed_mod fmed_ogg_mod = {
@@ -90,7 +90,7 @@ FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 }
 
 
-static const fmed_filter* ogg_iface(const char *name)
+static const void* ogg_iface(const char *name)
 {
 	if (!ffsz_cmp(name, "decode")) {
 		ogg_in_conf.seekable = 1;

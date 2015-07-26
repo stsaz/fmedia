@@ -59,7 +59,7 @@ typedef struct fmed_fileout {
 
 
 //FMEDIA MODULE
-static const fmed_filter* file_iface(const char *name);
+static const void* file_iface(const char *name);
 static int file_sig(uint signo);
 static void file_destroy(void);
 static const fmed_mod fmed_file_mod = {
@@ -108,7 +108,7 @@ const fmed_mod* fmed_getmod_file(const fmed_core *_core)
 }
 
 
-static const fmed_filter* file_iface(const char *name)
+static const void* file_iface(const char *name)
 {
 	if (!ffsz_cmp(name, "in")) {
 		file_in_conf.align = 4096;

@@ -25,7 +25,7 @@ enum {
 };
 
 //FMEDIA MODULE
-static const fmed_filter* sndmod_iface(const char *name);
+static const void* sndmod_iface(const char *name);
 static int sndmod_sig(uint signo);
 static void sndmod_destroy(void);
 static const fmed_mod fmed_sndmod_mod = {
@@ -56,7 +56,7 @@ const fmed_mod* fmed_getmod_sndmod(const fmed_core *_core)
 }
 
 
-static const fmed_filter* sndmod_iface(const char *name)
+static const void* sndmod_iface(const char *name)
 {
 	if (!ffsz_cmp(name, "conv"))
 		return &fmed_sndmod_conv;

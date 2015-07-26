@@ -36,7 +36,7 @@ static struct dsnd_in_conf_t {
 
 
 //FMEDIA MODULE
-static const fmed_filter* dsnd_iface(const char *name);
+static const void* dsnd_iface(const char *name);
 static int dsnd_sig(uint signo);
 static void dsnd_destroy(void);
 static const fmed_mod fmed_dsnd_mod = {
@@ -86,7 +86,7 @@ FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 }
 
 
-static const fmed_filter* dsnd_iface(const char *name)
+static const void* dsnd_iface(const char *name)
 {
 	if (!ffsz_cmp(name, "out")) {
 		dsnd_out_conf.idev = 0;

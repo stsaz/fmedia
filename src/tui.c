@@ -19,7 +19,7 @@ typedef struct tui {
 static const fmed_core *core;
 
 //FMEDIA MODULE
-static const fmed_filter* tui_iface(const char *name);
+static const void* tui_iface(const char *name);
 static int tui_sig(uint signo);
 static void tui_destroy(void);
 static const fmed_mod fmed_tui_mod = {
@@ -43,7 +43,7 @@ const fmed_mod* fmed_getmod_tui(const fmed_core *_core)
 }
 
 
-static const fmed_filter* tui_iface(const char *name)
+static const void* tui_iface(const char *name)
 {
 	if (!ffsz_cmp(name, "tui"))
 		return &fmed_tui;

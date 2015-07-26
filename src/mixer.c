@@ -43,7 +43,7 @@ static mxr *mx;
 static const fmed_core *core;
 
 //FMEDIA MODULE
-static const fmed_filter* mix_iface(const char *name);
+static const void* mix_iface(const char *name);
 static int mix_sig(uint signo);
 static void mix_destroy(void);
 static const fmed_mod fmed_mix_mod = {
@@ -103,7 +103,7 @@ const fmed_mod* fmed_getmod_mixer(const fmed_core *_core)
 }
 
 
-static const fmed_filter* mix_iface(const char *name)
+static const void* mix_iface(const char *name)
 {
 	if (!ffsz_cmp(name, "in"))
 		return &fmed_mix_in;

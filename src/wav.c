@@ -19,7 +19,7 @@ typedef struct fmed_wav {
 
 
 //FMEDIA MODULE
-static const fmed_filter* wav_iface(const char *name);
+static const void* wav_iface(const char *name);
 static int wav_sig(uint signo);
 static void wav_destroy(void);
 static const fmed_mod fmed_wav_mod = {
@@ -64,7 +64,7 @@ FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 }
 
 
-static const fmed_filter* wav_iface(const char *name)
+static const void* wav_iface(const char *name)
 {
 	if (!ffsz_cmp(name, "in"))
 		return &fmed_wav_input;

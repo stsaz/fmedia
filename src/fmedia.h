@@ -72,7 +72,7 @@ struct fmed_core {
 
 
 struct fmed_mod {
-	const fmed_filter* (*iface)(const char *name);
+	const void* (*iface)(const char *name);
 
 	/**
 	@signo: enum FMED_SIG. */
