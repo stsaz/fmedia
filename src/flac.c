@@ -28,6 +28,7 @@ typedef struct flac {
 
 typedef struct flac_out {
 	ffflac_enc fl;
+	uint ni :1;
 } flac_out;
 
 static struct flac_out_conf_t {
@@ -294,8 +295,7 @@ static void* flac_out_create(fmed_filt *d)
 
 	fmed_getpcm(d, &fmt);
 	if (1 != fmed_getval("pcm_ileaved")) {
-		errlog(core, d->trk, "flac", "input must be interleaved");
-		goto fail;
+		f->ni = 1;
 	}
 
 	f->fl.total_samples = fmed_getval("total_samples");
@@ -335,11 +335,17 @@ static int flac_out_encode(void *ctx, fmed_filt *d)
 		return FMED_RERR;
 	}
 
-	f->fl.pcmi = d->data;
+	if (f->ni)
+		f->fl.pcm = (const void**)d->datani;
+	else
+		f->fl.pcmi = d->data;
 	f->fl.pcmlen = d->datalen;
+	if (d->flags & FMED_FLAST)
+		f->fl.fin = 1;
 	r = ffflac_encode(&f->fl);
 	d->datalen = f->fl.pcmlen;
-	d->data = (void*)f->fl.pcmi;
+	if (!f->ni)
+		d->data = (void*)f->fl.pcmi;
 
 	switch (r) {
 	case FFFLAC_RMORE:
