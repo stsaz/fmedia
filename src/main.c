@@ -201,6 +201,7 @@ static int fmed_conf_modconf(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
 		ffmem_free(zname);
 		return FFPARS_ESYS;
 	}
+	ffmem_free(zname);
 	return 0;
 }
 
