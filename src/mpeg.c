@@ -17,6 +17,7 @@ static const char *const metanames[] = {
 	, "meta_album"
 	, "meta_genre"
 	, "meta_title"
+	, NULL
 	, "meta_artist"
 	, NULL
 	, "meta_tracknumber"
@@ -122,7 +123,7 @@ static int mpeg_meta(fmed_mpeg *m, fmed_filt *d)
 
 		case FFID3_RERR:
 			errlog(core, d->trk, "mpeg", "id3: parse (offset: %u): ID3v2.%u.%u, flags: %u, size: %u"
-				, ffid3_size(&m->id3.h) - m->id3.size
+				, sizeof(ffid3_hdr) + ffid3_size(&m->id3.h) - m->id3.size
 				, (uint)m->id3.h.ver[0], (uint)m->id3.h.ver[1], (uint)m->id3.h.flags
 				, ffid3_size(&m->id3.h));
 			break;
@@ -165,6 +166,12 @@ static int mpeg_meta(fmed_mpeg *m, fmed_filt *d)
 				if (NULL == (m->meta[tag] = ffsz_alcopy(val.ptr, val.len)))
 					return FMED_RERR;
 				d->track->setvalstr(d->trk, metanames[tag], m->meta[tag]);
+			}
+
+			if (tag == FFID3_LENGTH && m->id3.data.len != 0) {
+				uint64 dur;
+				if (m->id3.data.len == ffs_toint(m->id3.data.ptr, m->id3.data.len, &dur, FFS_INT64))
+					m->mpg.total_len = dur;
 			}
 
 			ffarr_free(&val);
