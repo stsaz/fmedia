@@ -26,6 +26,7 @@ static int fmed_arg_listdev(void);
 static int fmed_arg_seek(ffparser_schem *p, void *obj, const ffstr *val);
 
 static int pcm_formatstr(const char *s, size_t len);
+static int open_input(void);
 static void fmed_log(fffd fd, const char *stime, const char *module, const char *level
 	, const ffstr *id, const char *fmt, va_list va);
 
@@ -94,7 +95,7 @@ static int fmed_arg_pcmfmt(ffparser_schem *p, void *obj, const ffstr *val)
 static int fmed_arg_infile(ffparser_schem *p, void *obj, const ffstr *val)
 {
 	char **fn;
-	if (NULL == _ffarr_grow(&fmed->in_files, 1, 0, sizeof(char*)))
+	if (NULL == ffarr_grow(&fmed->in_files, 1, 0))
 		return FFPARS_ESYS;
 	fn = ffarr_push(&fmed->in_files, char*);
 	*fn = val->ptr;
@@ -236,6 +237,62 @@ static BOOL __stdcall fmed_ctrlhandler(DWORD ctrl)
 }
 #endif
 
+static int open_input(void)
+{
+	if (!fmed->mix) {
+		char **pfn;
+		const fmed_queue *qu;
+		if (NULL == (qu = core->getmod("#queue.queue")))
+			goto end;
+
+		FFARR_WALK(&fmed->in_files, pfn) {
+			fmed_que_entry e;
+			ffmem_tzero(&e);
+			ffstr_setz(&e.url, *pfn);
+			qu->add(&e);
+			ffmem_free(*pfn);
+		}
+		ffarr_free(&fmed->in_files);
+
+	} else {
+		const fmed_track *track;
+		char **pfn;
+		void *src, *mout;
+
+		if (NULL == (track = core->getmod("#core.track")))
+			goto end;
+
+		//mixer-out MUST be initialized before any mixer-in instances
+		if (NULL == (mout = track->create(FMED_TRACK_MIX, NULL)))
+			goto end;
+
+		FFARR_WALK(&fmed->in_files, pfn) {
+			if (NULL == (src = track->create(FMED_TRACK_OPEN, *pfn)))
+				goto end;
+			track->cmd(src, FMED_TRACK_START);
+			ffmem_free(*pfn);
+		}
+		ffarr_free(&fmed->in_files);
+
+		track->cmd(mout, FMED_TRACK_START);
+	}
+
+	if (fmed->rec) {
+		const fmed_track *track;
+		void *trk;
+		if (NULL == (track = core->getmod("#core.track")))
+			goto end;
+		if (NULL == (trk = track->create(FMED_TRACK_REC, NULL)))
+			goto end;
+		track->cmd(trk, FMED_TRACK_START);
+	}
+
+	return 0;
+
+end:
+	return 1;
+}
+
 int main(int argc, char **argv)
 {
 	ffsignal sigs_task = {0};
@@ -281,6 +338,9 @@ int main(int argc, char **argv)
 #ifdef FF_WIN
 	SetConsoleCtrlHandler(&fmed_ctrlhandler, TRUE);
 #endif
+
+	if (0 != open_input())
+		goto end;
 
 	core->sig(FMED_START);
 

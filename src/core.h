@@ -24,11 +24,8 @@ typedef struct fmedia {
 	fftaskmgr taskmgr;
 	ffkevent evposted;
 
-	uint in_files_cur;
 	uint srcid;
 	fflist srcs; //fm_src[]
-
-	fm_src *dst;
 
 	fffd kq;
 	const ffkqu_time *pkqutime;
@@ -39,13 +36,12 @@ typedef struct fmedia {
 		, stopped :1
 		;
 
-	fmed_core core;
 	fflist mods; //core_mod[]
 
 	//conf:
 	fmed_log_t logfunc;
 	ffstr root;
-	ffarr in_files;
+	struct { FFARR(char*) } in_files;
 	ffstr outfn
 		, outdir;
 	uint playdev_name

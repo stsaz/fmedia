@@ -35,6 +35,7 @@ enum FMED_SIG {
 	, FMED_CONF
 	, FMED_START
 	, FMED_STOP
+	, FMED_TRKSTOP
 	, FMED_LISTDEV
 };
 
@@ -92,7 +93,24 @@ enum {
 
 #define FMED_PNULL ((void*)FMED_NULL)
 
+enum FMED_TRACK {
+	FMED_TRACK_OPEN,
+	FMED_TRACK_REC,
+	FMED_TRACK_MIX,
+
+	FMED_TRACK_START,
+	FMED_TRACK_STOPALL,
+};
+
 typedef struct fmed_track {
+	/**
+	@cmd: enum FMED_TRACK. */
+	void* (*create)(uint cmd, const char *url);
+
+	/**
+	@cmd: enum FMED_TRACK. */
+	int (*cmd)(void *trk, uint cmd);
+
 	int64 (*popval)(void *trk, const char *name);
 
 	/** Return FMED_NULL on error. */
@@ -188,3 +206,30 @@ do { \
 
 #define syserrlog(core, trk, mod, fmt, ...) \
 	(core)->log(ffstderr, trk, mod, "error", fmt ": %E", __VA_ARGS__, fferr_last())
+
+
+typedef struct fmed_que_entry {
+	ffstr url;
+	ffstr *meta; //name,value,...
+	uint nmeta;
+	uint from //msec
+		, to; //msec
+	int dur; //msec
+} fmed_que_entry;
+
+enum FMED_QUE {
+	FMED_QUE_PLAY,
+	FMED_QUE_NEXT,
+	FMED_QUE_PREV,
+	FMED_QUE_CLEAR,
+	FMED_QUE_RM,
+};
+
+typedef struct fmed_queue {
+	fmed_que_entry* (*add)(fmed_que_entry *ent);
+
+	fmed_que_entry* (*getinfo)(void);
+
+	/** @cmd: enum FMED_QUE */
+	void (*cmd)(uint cmd, void *param);
+} fmed_queue;

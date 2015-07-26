@@ -70,7 +70,6 @@ enum {
 FF_EXP fmed_core* core_init(fmedia **ptr, fmed_log_t logfunc);
 FF_EXP void core_free(void);
 
-static fm_src* media_open1(int t, const char *fn);
 static int media_setout(fm_src *src, const char *fn);
 static fmed_f* newfilter(fm_src *src, const char *modname);
 static fmed_f* newfilter1(fm_src *src, const fmed_modinfo *mod);
@@ -82,12 +81,15 @@ static void media_process(void *udata);
 static fmed_f* media_modbyext(fm_src *src, const ffstr3 *map, const ffstr *ext);
 static void media_printtime(fm_src *src);
 
+static void* trk_create(uint cmd, const char *url);
+static int trk_cmd(void *trk, uint cmd);
 static int64 trk_popval(void *trk, const char *name);
 static int64 trk_getval(void *trk, const char *name);
 static const char* trk_getvalstr(void *trk, const char *name);
 static int trk_setval(void *trk, const char *name, int64 val);
 static int trk_setvalstr(void *trk, const char *name, const char *val);
 static const fmed_track _fmed_track = {
+	&trk_create, &trk_cmd,
 	&trk_popval, &trk_getval, &trk_getvalstr, &trk_setval, &trk_setvalstr
 };
 
@@ -95,12 +97,9 @@ static const fmed_mod* fmed_getmod_core(const fmed_core *_core);
 extern const fmed_mod* fmed_getmod_file(const fmed_core *_core);
 extern const fmed_mod* fmed_getmod_tui(const fmed_core *_core);
 extern const fmed_mod* fmed_getmod_sndmod(const fmed_core *_core);
+extern const fmed_mod* fmed_getmod_queue(const fmed_core *_core);
 
 static int core_open(void);
-static int core_nextsrc(void);
-static int core_opensrcs(void);
-static int core_opensrcs_mix(void);
-static int core_opendests(void);
 static void core_playdone(void);
 static int core_sigmods(uint signo);
 static const fmed_modinfo* core_getmodinfo(const char *name);
@@ -376,6 +375,8 @@ static int media_open(fm_src *src, const char *fn)
 {
 	ffstr ext;
 
+	newfilter(src, "#queue.track");
+
 	if (fmed->info)
 		trk_setval(src, "input_info", 1);
 
@@ -417,12 +418,6 @@ static void media_open_mix(fm_src *src)
 {
 	newfilter(src, "mixer.out");
 }
-
-enum T {
-	M_IN
-	, M_OUT
-	, M_MIX
-};
 
 static int media_setout(fm_src *src, const char *fn)
 {
@@ -478,7 +473,7 @@ static int media_setout(fm_src *src, const char *fn)
 	return 0;
 }
 
-static fm_src* media_open1(int t, const char *fn)
+static void* trk_create(uint cmd, const char *fn)
 {
 	fmed_f *f, *prev = NULL;
 	uint nout = 4;
@@ -514,21 +509,21 @@ static fm_src* media_open1(int t, const char *fn)
 	if (fmed->rec)
 		trk_setval(src, "low_latency", 1);
 
-	switch (t) {
-	case M_OUT:
-		if (NULL == ffarr_grow(&src->filters, 4 + nout, 0))
+	switch (cmd) {
+	case FMED_TRACK_OPEN:
+		if (NULL == ffarr_grow(&src->filters, 5 + nout, 0))
 			goto fail;
 		if (0 != media_open(src, fn))
 			goto fail;
 		break;
 
-	case M_IN:
+	case FMED_TRACK_REC:
 		if (NULL == ffarr_grow(&src->filters, 1 + nout, 0))
 			goto fail;
 		media_open_capt(src);
 		break;
 
-	case M_MIX:
+	case FMED_TRACK_MIX:
 		if (NULL == ffarr_grow(&src->filters, 1 + nout, 0))
 			goto fail;
 		media_open_mix(src);
@@ -608,9 +603,6 @@ static void media_free(fm_src *src)
 
 	dbglog(core, src, "core", "media: closed");
 	ffmem_free(src);
-
-	if (src == fmed->dst)
-		fmed->dst = NULL;
 }
 
 static void media_process(void *udata)
@@ -723,16 +715,14 @@ static void media_process(void *udata)
 	return;
 
 fin:
-	media_free(src);
 	if (fmed->mix) {
 		if (fmed->srcs.len == 0)
 			core_playdone();
-	} else if (!src->capture) {
-		core_nextsrc();
-	} else {
+	} else if (src->capture) {
 		fmed->recording = 0;
 		core_playdone();
 	}
+	media_free(src);
 }
 
 
@@ -784,6 +774,25 @@ static dict_ent* dict_add(fm_src *src, const char *name)
 	return ent;
 }
 
+
+static int trk_cmd(void *trk, uint cmd)
+{
+	fm_src *src = trk;
+	fflist_item *next;
+	switch (cmd) {
+	case FMED_TRACK_STOPALL:
+		core_sigmods(FMED_TRKSTOP);
+		FFLIST_WALKSAFE(&fmed->srcs, src, sib, next) {
+			media_free(src);
+		}
+		break;
+
+	case FMED_TRACK_START:
+		media_process(src);
+		break;
+	}
+	return 0;
+}
 
 static int64 trk_popval(void *trk, const char *name)
 {
@@ -850,71 +859,6 @@ static void core_playdone(void)
 	}
 }
 
-static int core_nextsrc(void)
-{
-	const char **pfn;
-	fm_src *src;
-
-	if (fmed->in_files_cur == fmed->in_files.len && fmed->repeat_all)
-		fmed->in_files_cur = 0;
-
-	pfn = ((const char **)fmed->in_files.ptr) + fmed->in_files_cur;
-	for (;  fmed->in_files_cur < fmed->in_files.len;  pfn++) {
-
-		fmed->in_files_cur++;
-
-		src = media_open1(M_OUT, *pfn);
-		if (src == NULL)
-			continue;
-
-		media_process(src);
-		return 0;
-	}
-
-	core_playdone();
-	return 0;
-}
-
-static int core_opensrcs_mix(void)
-{
-	const char **fn = (void*)fmed->in_files.ptr;
-	fm_src *src, *mout;
-	int i;
-
-	//mixer-out MUST be initialized before any mixer-in instances
-	mout = media_open1(M_MIX, NULL);
-
-	for (i = 0;  i < fmed->in_files.len;  i++, fn++) {
-
-		src = media_open1(M_OUT, *fn);
-		if (src == NULL)
-			continue;
-
-		media_process(src);
-	}
-
-	media_process(mout);
-	return 0;
-}
-
-static int core_opensrcs(void)
-{
-	return core_nextsrc();
-}
-
-static int core_opendests(void)
-{
-	if (fmed->rec) {
-		fmed->dst = media_open1(M_IN, NULL);
-		if (fmed->dst == NULL)
-			return 1;
-
-		media_process(fmed->dst);
-	}
-
-	return 0;
-}
-
 static void core_posted(void *udata)
 {
 }
@@ -945,17 +889,11 @@ fmed_core* core_init(fmedia **ptr, fmed_log_t logfunc)
 void core_free(void)
 {
 	uint i;
-	fm_src *src;
 	fflist_item *next;
 	char **fn;
 	core_mod *mod;
 
-	FFLIST_WALKSAFE(&fmed->srcs, src, sib, next) {
-		media_free(src);
-	}
-
-	if (fmed->dst != NULL)
-		media_free(fmed->dst);
+	trk_cmd(NULL, FMED_TRACK_STOPALL);
 
 	fn = (char**)fmed->in_files.ptr;
 	for (i = 0;  i < fmed->in_files.len;  i++, fn++) {
@@ -1012,6 +950,8 @@ static const fmed_modinfo* core_insmod(const char *sname, ffpars_ctx *ctx)
 			getmod = &fmed_getmod_sndmod;
 		else if (ffstr_eqcz(&s, "#tui"))
 			getmod = &fmed_getmod_tui;
+		else if (ffstr_eqcz(&s, "#queue"))
+			getmod = &fmed_getmod_queue;
 		else {
 			fferr_set(EINVAL);
 			goto fail;
@@ -1111,14 +1051,6 @@ static int core_open(void)
 	if (fmed->rec) {
 		fmed->recording = 1;
 	}
-
-	if (!fmed->mix && 0 != core_opensrcs())
-		return 1;
-	else if (fmed->mix && 0 != core_opensrcs_mix())
-		return 1;
-
-	if (0 != core_opendests())
-		return 1;
 
 	ffkev_init(&fmed->evposted);
 	fmed->evposted.oneshot = 0;
