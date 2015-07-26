@@ -94,6 +94,14 @@ static int core_sig(uint signo);
 static const fmed_modinfo* core_getmod(const char *name);
 static const fmed_modinfo* core_insmod(const char *name, ffpars_ctx *ctx);
 static void core_task(fftask *task, uint cmd);
+static fmed_core _fmed_core = {
+	0, 0,
+	&core_log,
+	&core_getpath,
+	&core_sig,
+	&core_getmod, &core_insmod,
+	&core_task,
+};
 
 
 static fmed_f* newfilter1(fm_src *src, const fmed_modinfo *mod)
@@ -704,13 +712,7 @@ int core_init(void)
 	fmed->kq = FF_BADFD;
 	fftask_init(&fmed->taskmgr);
 	fflist_init(&fmed->srcs);
-	fmed->core.log = &core_log;
-	fmed->core.getpath = &core_getpath;
-	fmed->core.sig = &core_sig;
-	fmed->core.getmod = &core_getmod;
-	fmed->core.insmod = &core_insmod;
-	fmed->core.task = &core_task;
-	core = &fmed->core;
+	core = &_fmed_core;
 
 	fmed->ogg_qual = -255;
 	fmed->conv_pcm_formt = FFPCM_16LE;
@@ -800,12 +802,16 @@ static const fmed_modinfo* core_insmod(const char *sname, ffpars_ctx *ctx)
 		char fn[FF_MAXFN];
 		ffs_fmt(fn, fn + sizeof(fn), "%S.%s%Z", &s, FFDL_EXT);
 		dl = ffdl_open(fn, 0);
-		if (dl == NULL)
+		if (dl == NULL) {
+			errlog(core, NULL, "core", "%e: %s: %s", FFERR_DLOPEN, ffdl_errstr(), fn);
 			goto fail;
+		}
 
 		getmod = (void*)ffdl_addr(dl, "fmed_getmod");
-		if (getmod == NULL)
+		if (getmod == NULL) {
+			errlog(core, NULL, "core", "%e: %s: %s", FFERR_DLADDR, ffdl_errstr(), "fmed_getmod");
 			goto fail;
+		}
 	}
 
 	mod->m = getmod(core);
@@ -851,8 +857,8 @@ static int core_open(void)
 		syserrlog(core, NULL, "core", "%e", FFERR_KQUCREAT);
 		return 1;
 	}
-	fmed->core.loglev = fmed->debug ? FMED_LOG_DEBUG : 0;
-	fmed->core.kq = fmed->kq;
+	core->loglev = fmed->debug ? FMED_LOG_DEBUG : 0;
+	core->kq = fmed->kq;
 
 	fmed->pkqutime = ffkqu_settm(&fmed->kqutime, (uint)-1);
 

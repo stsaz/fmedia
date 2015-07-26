@@ -43,7 +43,6 @@ typedef struct fmed_file {
 	void *trk;
 
 	unsigned async :1
-		, seeking :1
 		, done :1
 		, want_read :1
 		, err :1
@@ -311,13 +310,11 @@ static void file_read(void *udata)
 			syserrlog(core, f->trk, "file", "%e: %s", FFERR_READ, f->fn);
 			f->err = 1;
 			return;
-
 		}
 
 		if (f->seek != 0) {
 			f->foff = f->seek;
 			f->seek = 0;
-			f->seeking = 1;
 			continue;
 		}
 
@@ -325,9 +322,6 @@ static void file_read(void *udata)
 			dbglog(core, f->trk, "file", "reading's done", 0);
 			f->done = 1;
 		}
-
-		if (f->seeking)
-			f->seeking = 0;
 
 		dbglog(core, f->trk, "file", "read %U bytes at offset %U", (int64)r - (f->foff % file_in_conf.align), f->foff);
 		if (f->foff % file_in_conf.align != 0)

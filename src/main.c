@@ -343,8 +343,6 @@ static int fmed_conf(void)
 			ffstr_shift(&mp, nn);
 
 			if (r == FFPARS_MORE) {
-				if (0 != ffpars_savedata(ps.p))
-					goto err;
 				break;
 			}
 
@@ -451,13 +449,13 @@ static BOOL __stdcall fmed_ctrlhandler(DWORD ctrl)
 
 int main(int argc, char **argv)
 {
-	ffsignal sigs_task;
+	ffsignal sigs_task = {0};
 
 	ffmem_init();
 	ffutf8_init();
 	ffsig_init(&sigs_task);
 
-	fffile_writecz(ffstdout, "fmedia ver. " FMED_VER "\n");
+	fffile_writecz(ffstdout, "fmedia v" FMED_VER "\n");
 
 	if (0 != core_init())
 		return 1;
@@ -487,7 +485,7 @@ int main(int argc, char **argv)
 	if (0 != core->sig(FMED_OPEN))
 		goto end;
 
-	if (0 != ffsig_ctl(&sigs_task, fmed->kq, sigs, FFCNT(sigs), &fmed_onsig)) {
+	if (0 != ffsig_ctl(&sigs_task, core->kq, sigs, FFCNT(sigs), &fmed_onsig)) {
 		syserrlog(core, NULL, "core", "%s", "ffsig_ctl()");
 		goto end;
 	}
@@ -499,7 +497,7 @@ int main(int argc, char **argv)
 	core->sig(FMED_START);
 
 end:
-	ffsig_ctl(&sigs_task, fmed->kq, sigs, FFCNT(sigs), NULL);
+	ffsig_ctl(&sigs_task, core->kq, sigs, FFCNT(sigs), NULL);
 	core_free();
 	return 0;
 }
