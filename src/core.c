@@ -85,6 +85,7 @@ static const fmed_track _fmed_track = {
 	&trk_popval, &trk_getval, &trk_getvalstr, &trk_setval, &trk_setvalstr
 };
 
+static const fmed_mod* fmed_getmod_core(const fmed_core *_core);
 extern const fmed_mod* fmed_getmod_file(const fmed_core *_core);
 extern const fmed_mod* fmed_getmod_tui(const fmed_core *_core);
 extern const fmed_mod* fmed_getmod_sndmod(const fmed_core *_core);
@@ -96,6 +97,13 @@ static int core_opensrcs_mix(void);
 static int core_opendests(void);
 static void core_playdone(void);
 static int core_sigmods(uint signo);
+
+static const void* core_iface(const char *name);
+static int core_sig2(uint signo);
+static void core_destroy(void);
+static const fmed_mod fmed_core_mod = {
+	&core_iface, &core_sig2, &core_destroy
+};
 
 static int64 core_getval(const char *name);
 static void core_log(fffd fd, void *trk, const char *module, const char *level, const char *fmt, ...);
@@ -710,6 +718,7 @@ int core_init(void)
 	fftask_init(&fmed->taskmgr);
 	fflist_init(&fmed->srcs);
 	core = &_fmed_core;
+	core_insmod("#core.core", NULL);
 
 	fmed->ogg_qual = -255;
 	fmed->conv_pcm_formt = FFPCM_16LE;
@@ -779,7 +788,9 @@ static const fmed_modinfo* core_insmod(const char *sname, ffpars_ctx *ctx)
 	s.len = dot - s.ptr;
 
 	if (s.ptr[0] == '#') {
-		if (ffstr_eqcz(&s, "#file"))
+		if (ffstr_eqcz(&s, "#core"))
+			getmod = &fmed_getmod_core;
+		else if (ffstr_eqcz(&s, "#file"))
 			getmod = &fmed_getmod_file;
 		else if (ffstr_eqcz(&s, "#soundmod"))
 			getmod = &fmed_getmod_sndmod;
@@ -1005,4 +1016,29 @@ static void core_log(fffd fd, void *trk, const char *module, const char *level, 
 	va_start(va, fmt);
 	fmed_log(fd, NULL, module, level, (src != NULL) ? &src->id : NULL, fmt, va);
 	va_end(va);
+}
+
+
+static const fmed_mod* fmed_getmod_core(const fmed_core *_core)
+{
+	return &fmed_core_mod;
+}
+
+static const void* core_iface(const char *name)
+{
+	if (!ffsz_cmp(name, "core"))
+		return (void*)1;
+	else if (!ffsz_cmp(name, "track"))
+		return &_fmed_track;
+	return NULL;
+}
+
+static int core_sig2(uint signo)
+{
+	return 0;
+}
+
+static void core_destroy(void)
+{
+
 }
