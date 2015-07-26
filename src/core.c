@@ -86,6 +86,7 @@ static int core_opensrcs(void);
 static int core_opensrcs_mix(void);
 static int core_opendests(void);
 static void core_playdone(void);
+static int core_sigmods(uint signo);
 
 static void core_log(fffd fd, void *trk, const char *module, const char *level, const char *fmt, ...);
 static char* core_getpath(const char *name, size_t len);
@@ -914,25 +915,37 @@ static char* core_getpath(const char *name, size_t len)
 	return s.ptr;
 }
 
-static int core_sig(uint signo)
+static int core_sigmods(uint signo)
 {
 	core_mod *mod;
+	FFLIST_WALK(&fmed->mods, mod, sib) {
+		if (0 != mod->m->sig(signo))
+			return 1;
+	}
+	return 0;
+}
 
+static int core_sig(uint signo)
+{
 	switch (signo) {
 
 	case FMED_OPEN:
-		return core_open();
+		if (0 != core_open())
+			return 1;
+		core_sigmods(signo);
+		break;
 
 	case FMED_START:
 		core_work();
 		return 0;
 
 	case FMED_STOP:
+		core_sigmods(signo);
+		core_playdone();
+		break;
+
 	case FMED_LISTDEV:
-		FFLIST_WALK(&fmed->mods, mod, sib) {
-			if (0 != mod->m->sig(signo))
-				break;
-		}
+		core_sigmods(signo);
 		return 0;
 	}
 
