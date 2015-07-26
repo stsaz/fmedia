@@ -226,6 +226,7 @@ again:
 
 		case FFMPG_RHDR:
 			fmed_setpcm(d, &m->mpg.fmt);
+			d->track->setvalstr(d->trk, "pcm_decoder", "MPEG");
 			fmed_setval("pcm_ileaved", 0);
 			fmed_setval("bitrate", m->mpg.bitrate);
 			fmed_setval("total_samples", m->mpg.total_samples);

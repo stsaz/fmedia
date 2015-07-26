@@ -201,6 +201,7 @@ again:
 			return FMED_RMORE;
 
 		case FFFLAC_RHDR:
+			d->track->setvalstr(d->trk, "pcm_decoder", "FLAC");
 			fmed_setval("pcm_format", f->fl.fmt.format);
 			fmed_setval("pcm_channels", f->fl.fmt.channels);
 			fmed_setval("pcm_sample_rate", f->fl.fmt.sample_rate);

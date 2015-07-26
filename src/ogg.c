@@ -201,6 +201,7 @@ again:
 			return FMED_RDONE;
 
 		case FFOGG_RHDR:
+			d->track->setvalstr(d->trk, "pcm_decoder", "Vorbis");
 			fmed_setval("pcm_format", FFPCM_FLOAT);
 			fmed_setval("pcm_channels", ffogg_channels(&o->og));
 			fmed_setval("pcm_sample_rate", ffogg_rate(&o->og));

@@ -155,6 +155,7 @@ again:
 			goto data;
 
 		case FFWAV_RHDR:
+			d->track->setvalstr(d->trk, "pcm_decoder", "WAVE");
 			fmed_setval("pcm_format", w->wav.fmt.format);
 			fmed_setval("pcm_channels", w->wav.fmt.channels);
 			fmed_setval("pcm_sample_rate", w->wav.fmt.sample_rate);
