@@ -22,6 +22,7 @@ static const char *const metanames[] = {
 typedef struct flac {
 	ffflac fl;
 	char *meta[FFCNT(metanames)];
+	uint64 abs_seek;
 	uint state;
 } flac;
 
@@ -109,7 +110,7 @@ static void flac_destroy(void)
 static void* flac_in_create(fmed_filt *d)
 {
 	int r;
-	int64 total_size;
+	int64 total_size, val;
 	flac *f = ffmem_tcalloc1(flac);
 	if (f == NULL)
 		return NULL;
@@ -124,6 +125,8 @@ static void* flac_in_create(fmed_filt *d)
 	if (FMED_NULL != (total_size = fmed_getval("total_size")))
 		f->fl.total_size = total_size;
 
+	if (FMED_NULL != (val = fmed_getval("seek_time_abs")))
+		f->abs_seek = val;
 	return f;
 }
 
@@ -181,7 +184,7 @@ again:
 
 	case I_DATA:
 		if (FMED_NULL != (seek_time = fmed_popval("seek_time")))
-			ffflac_seek(&f->fl, ffpcm_samples(seek_time, f->fl.fmt.sample_rate));
+			ffflac_seek(&f->fl, f->abs_seek + ffpcm_samples(seek_time, f->fl.fmt.sample_rate));
 		break;
 	}
 
@@ -202,7 +205,11 @@ again:
 			fmed_setval("pcm_sample_rate", f->fl.fmt.sample_rate);
 			fmed_setval("pcm_ileaved", 0);
 			fmed_setval("bitrate", ffflac_bitrate(&f->fl));
-			fmed_setval("total_samples", ffflac_totalsamples(&f->fl));
+
+			if (f->abs_seek != 0)
+				f->abs_seek = ffpcm_samples(f->abs_seek, f->fl.fmt.sample_rate);
+
+			fmed_setval("total_samples", ffflac_totalsamples(&f->fl) - f->abs_seek);
 			break;
 
 		case FFFLAC_RTAG:
@@ -211,6 +218,8 @@ again:
 
 		case FFFLAC_RHDRFIN:
 			f->state = I_DATA;
+			if (f->abs_seek != 0)
+				ffflac_seek(&f->fl, f->abs_seek);
 			goto again;
 
 		case FFFLAC_RDATA:
@@ -242,7 +251,7 @@ data:
 
 	dbglog(core, d->trk, "flac", "decoded %L samples (%U)"
 		, f->fl.pcmlen / ffpcm_size1(&f->fl.fmt), ffflac_cursample(&f->fl));
-	fmed_setval("current_position", ffflac_cursample(&f->fl));
+	fmed_setval("current_position", ffflac_cursample(&f->fl) - f->abs_seek);
 
 	d->data = (void*)f->fl.data;
 	d->datalen = f->fl.datalen;

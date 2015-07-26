@@ -48,6 +48,11 @@ INSTALL
 	set PATH=%PATH%;C:/Program Files/fmedia
 
 ---------------
+EXTRACT TRACKS FROM flac.cue
+---------------
+If you're extracting a track from the album using CUE sheet, please note, that a track isn't exactly copied but first decoded to PCM and then re-encoded with FLAC.  Luckily, this behaviour won't result in any audio quality loss since FLAC is a lossless codec.  However, fmedia doesn't support pictures (album covers) in FLAC header, so they won't be copied into the output file.
+
+---------------
 USE-CASES
 ---------------
 Play
@@ -75,6 +80,9 @@ Get audio meta info and all tags
 
 Split audio file
 	fmedia ./file.wav --seek=00:35 --until=01:35 --out=./file-1.wav
+
+Extract one track from flac.cue
+	fmedia ./album.flac.cue --track=3 --out=./track3.flac
 
 Play wav file with a corrupted header
 	fmedia ./file.raw --fseek=44
