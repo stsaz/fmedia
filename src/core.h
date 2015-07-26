@@ -73,6 +73,7 @@ typedef struct fmedia {
 		, mix
 		, silent
 		, info;
+	byte volume;
 	ffstr3 inmap; //inmap_item[]
 	ffstr3 outmap; //inmap_item[]
 	const fmed_modinfo *inmap_curmod;

@@ -21,6 +21,7 @@ Options:
 --outdir=DIR      Set output directory
 
 --pcm-format=VAL  Set output PCM format (16le | float)
+--volume=VOL      Set volume (0% .. 125%)
 --gain=dB         Set output gain in dB
 
 --record       Record until stopped by user

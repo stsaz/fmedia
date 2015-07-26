@@ -191,10 +191,18 @@ enum T {
 
 static int media_setout(fm_src *src, const char *fn)
 {
+	if (fmed->volume != 100) {
+		double db;
+		if (fmed->volume < 100)
+			db = ffpcm_vol2db(fmed->volume, 48);
+		else
+			db = ffpcm_vol2db_inc(fmed->volume - 100, 25, 6);
+		trk_setval(src, "gain", db * 100);
+	}
 	if (fmed->gain != 0) {
 		trk_setval(src, "gain", fmed->gain * 100);
-		newfilter(src, "#soundmod.gain");
 	}
+	newfilter(src, "#soundmod.gain");
 
 	trk_setval(src, "conv_pcm_format", fmed->conv_pcm_formt);
 	newfilter(src, "#soundmod.conv");
@@ -684,6 +692,7 @@ int core_init(void)
 	if (fmed == NULL)
 		return 1;
 
+	fmed->volume = 100;
 	fmed->kq = FF_BADFD;
 	fftask_init(&fmed->taskmgr);
 	fflist_init(&fmed->srcs);
