@@ -4,9 +4,11 @@ Copyright (c) 2015 Simon Zolin */
 #include <fmedia.h>
 
 #include <FF/array.h>
+#include <FF/data/parse.h>
 #include <FFOS/file.h>
 #include <FFOS/asyncio.h>
 #include <FFOS/error.h>
+#include <FF/path.h>
 
 
 static const fmed_core *core;
@@ -93,6 +95,8 @@ static int fileout_config(ffpars_ctx *ctx);
 static const fmed_filter fmed_file_output = {
 	&fileout_open, &fileout_write, &fileout_close, &fileout_config
 };
+
+static char* fileout_getname(fmed_fileout *f, fmed_filt *d);
 
 static const ffpars_arg file_out_conf_args[] = {
 	{ "buffer_size",  FFPARS_TSIZE | FFPARS_FNOTZERO,  FFPARS_DSTOFF(struct file_out_conf_t, bsize) }
@@ -354,6 +358,74 @@ static int fileout_config(ffpars_ctx *ctx)
 	return 0;
 }
 
+static FFINL char* fileout_getname(fmed_fileout *f, fmed_filt *d)
+{
+	ffsvar p;
+	ffstr fn, val;
+	ffarr buf = {0};
+	int r;
+
+	ffmem_tzero(&p);
+	ffstr_setz(&fn, d->track->getvalstr(d->trk, "output"));
+
+	while (fn.len != 0) {
+		size_t n = fn.len;
+		r = ffsvar_parse(&p, fn.ptr, &n);
+		ffstr_shift(&fn, n);
+
+		switch (r) {
+		case FFSVAR_S:
+			if (ffstr_eqcz(&p.val, "tracknumber"))
+				val.ptr = "meta_tracknumber";
+
+			else if (ffstr_eqcz(&p.val, "artist"))
+				val.ptr = "meta_artist";
+
+			else if (ffstr_eqcz(&p.val, "title"))
+				val.ptr = "meta_title";
+
+			else
+				continue;
+
+			if (FMED_PNULL == (val.ptr = (void*)d->track->getvalstr(d->trk, val.ptr)))
+				continue;
+
+			val.len = ffsz_len(val.ptr);
+			break;
+
+		case FFSVAR_TEXT:
+			val = p.val;
+			break;
+
+		default:
+			goto done;
+		}
+
+		if (NULL == ffarr_grow(&buf, val.len, 0))
+			goto done;
+
+		switch (r) {
+		case FFSVAR_S:
+			ffpath_makefn(ffarr_end(&buf), -1, val.ptr, val.len, '_');
+			buf.len += val.len;
+			break;
+
+		case FFSVAR_TEXT:
+			ffarr_append(&buf, val.ptr, val.len);
+			break;
+		}
+	}
+
+	if (NULL == ffarr_append(&buf, "", 1))
+		goto done;
+	ffstr_acqstr3(&f->fname, &buf);
+	return f->fname.ptr;
+
+done:
+	ffarr_free(&buf);
+	return NULL;
+}
+
 static void* fileout_open(fmed_filt *d)
 {
 	const char *filename;
@@ -363,12 +435,8 @@ static void* fileout_open(fmed_filt *d)
 	if (f == NULL)
 		return NULL;
 
-	filename = d->track->getvalstr(d->trk, "output");
-
-	if (NULL == ffstr_copy(&f->fname, filename, ffsz_len(filename) + 1)) {
-		syserrlog(core, d->trk, "file", "%e", FFERR_BUFALOC);
+	if (NULL == (filename = fileout_getname(f, d)))
 		goto done;
-	}
 
 	mode = FFO_CREATENEW;
 	if (FMED_NULL != d->track->getval(d->trk, "overwrite"))

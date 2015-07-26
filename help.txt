@@ -19,6 +19,9 @@ Options:
 
 --out=[FILE].EXT  Don't play but write output to a file.
                   Output format is chosen by "EXT".
+                  Filename may be generated automatically using meta info,
+                    e.g.: --out "$tracknumber. $artist - $title.flac"
+                    Note: bash (sh) users must escape $, or use '' instead of "".
 --outdir=DIR      Set output directory
 
 --pcm-format=VAL  Set output PCM format (16le | float)
