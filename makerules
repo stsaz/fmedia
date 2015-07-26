@@ -1,0 +1,167 @@
+
+OBJ_DIR := .
+RES := $(OBJ_DIR)/fmedia.coff
+BINS := $(BIN) core.$(SO) \
+	ogg-vorbis.$(SO) mpeg.$(SO) wav.$(SO) flac.$(SO) \
+	plist.$(SO) \
+	mixer.$(SO)
+
+ifeq ($(OS),win)
+BINS += direct-sound.$(SO) wasapi.$(SO) \
+	gui.$(SO) fmedia-gui.exe
+endif
+
+all: ff $(BINS)
+
+include $(FF)/makerules
+FF_O := $(FFOS_OBJ) $(FF_OBJ)
+
+$(OBJ_DIR)/%.o: $(SRCDIR)/%.c $(SRCDIR)/fmedia.h $(SRCDIR)/core.h $(FF_HDR) $(FF_AUDIO_HDR)
+	$(C)  $(CFLAGS) $<  -o$@
+
+$(RES): $(SRCDIR)/../fmedia.rc ./fmedia.ico
+	windres $(SRCDIR)/../fmedia.rc $@
+
+
+BIN_O := core.$(SO) \
+	$(OBJ_DIR)/main.o \
+	$(FF_O) \
+	$(FF_OBJ_DIR)/ffparse.o $(FF_OBJ_DIR)/ffpsarg.o
+
+ifeq ($(OS),win)
+BIN_O += $(RES)
+endif
+
+$(BIN): $(BIN_O)
+	$(LD)  $(BIN_O) $(LDFLAGS) -o$@
+
+
+#
+CORE_O := $(OBJ_DIR)/core.o \
+	$(OBJ_DIR)/file.o \
+	$(OBJ_DIR)/soundmod.o \
+	$(OBJ_DIR)/tui.o \
+	$(OBJ_DIR)/queue.o \
+	$(FF_O) \
+	$(FF_OBJ_DIR)/ffparse.o $(FF_OBJ_DIR)/ffconf.o \
+	$(FF_OBJ_DIR)/ffpcm.o
+core.$(SO): $(CORE_O)
+	$(LD) -shared $(CORE_O) $(LDFLAGS) $(LD_LDL) $(LD_LMATH)  -o$@
+
+
+#
+WAV_O := $(OBJ_DIR)/wav.o \
+	$(FF_O) \
+	$(FF_OBJ_DIR)/ffpcm.o \
+	$(FF_OBJ_DIR)/ffwav.o
+wav.$(SO): $(WAV_O)
+	$(LD) -shared $(WAV_O) $(LDFLAGS)  -o$@
+
+
+#
+MPEG_O := $(OBJ_DIR)/mpeg.o $(FF_O) \
+	$(FF_OBJ_DIR)/ffutf8.o \
+	$(FF_OBJ_DIR)/ffpcm.o \
+	$(FF_OBJ_DIR)/ffmpg.o \
+	$(FF_OBJ_DIR)/ffid3.o
+mpeg.$(SO): $(MPEG_O)
+	$(LD) -shared $(MPEG_O) $(LDFLAGS) -L$(FF)/3pt/mad -lmad  -o$@
+
+
+#
+OGG_O := $(OBJ_DIR)/ogg.o \
+	$(FF_O) \
+	$(FF_OBJ_DIR)/ffogg.o
+ogg-vorbis.$(SO): $(OGG_O)
+	$(LD) -shared $(OGG_O) $(LDFLAGS) -L$(FF)/3pt/ogg -L$(FF)/3pt/vorbis -logg-0 -lvorbis-0 -lvorbisenc-2  -o$@
+
+
+#
+FLAC_O := $(OBJ_DIR)/flac.o \
+	$(FF_O) \
+	$(FF_OBJ_DIR)/ffflac.o \
+	$(FF_OBJ_DIR)/ffpcm.o
+flac.$(SO): $(FLAC_O)
+	$(LD) -shared $(FLAC_O) $(LDFLAGS) -L$(FF)/3pt/flac -lFLAC-8  -o$@
+
+
+#
+PLIST_O := $(OBJ_DIR)/plist.o \
+	$(FF_O) \
+	$(FF_OBJ_DIR)/ffparse.o $(FF_OBJ_DIR)/ffm3u.o $(FF_OBJ_DIR)/ffcue.o \
+	$(FF_OBJ_DIR)/ffpcm.o
+plist.$(SO): $(PLIST_O)
+	$(LD) -shared $(PLIST_O) $(LDFLAGS)  -o$@
+
+
+#
+DSOUND_O := $(OBJ_DIR)/dsound.o $(FF_O) \
+	$(FF_OBJ_DIR)/ffdsound.o \
+	$(FF_OBJ_DIR)/ffpcm.o \
+	$(FF_OBJ_DIR)/ffwav.o
+direct-sound.$(SO): $(DSOUND_O)
+	$(LD) -shared $(DSOUND_O) $(LDFLAGS) -ldsound -ldxguid  -o$@
+
+
+#
+WASAPI_O := $(OBJ_DIR)/wasapi.o $(FF_O) \
+	$(FF_OBJ_DIR)/ffpcm.o \
+	$(FF_OBJ_DIR)/ffwav.o \
+	$(FF_OBJ_DIR)/ffwasapi.o
+wasapi.$(SO): $(WASAPI_O)
+	$(LD) -shared $(WASAPI_O) $(LDFLAGS) -lole32 -o$@
+
+
+#
+$(OBJ_DIR)/gui.o: $(SRCDIR)/gui.c $(FF_GUIHDR)
+	$(C) $(CFLAGS)  $< -o$@
+
+GUI_O := $(OBJ_DIR)/gui.o \
+	$(FF_O) \
+	$(FF_OBJ_DIR)/ffparse.o $(FF_OBJ_DIR)/ffconf.o \
+	$(FF_OBJ_DIR)/ffpcm.o \
+	$(FF_GUI_OBJ)
+gui.$(SO): $(GUI_O)
+	$(LD) -shared $(GUI_O) $(LDFLAGS) -lshell32 -luxtheme -lcomctl32 -lcomdlg32 -lgdi32 -o$@
+
+BINGUI_O := core.$(SO) \
+	fmedia-gui.o \
+	$(FF_O) \
+	$(RES)
+fmedia-gui.exe: $(BINGUI_O)
+	$(LD) $(BINGUI_O) $(LDFLAGS) -mwindows -o$@
+
+
+#
+MIXER_O := $(OBJ_DIR)/mixer.o \
+	$(FF_O) \
+	$(FF_OBJ_DIR)/ffpcm.o
+mixer.$(SO): $(MIXER_O)
+	$(LD) -shared $(MIXER_O) $(LDFLAGS) -o$@
+
+
+clean:
+	rm -vf $(BINS) *.debug *.o $(RES)
+
+distclean: clean ffclean
+	rm -vfr $(INSTDIR) ./$(PROJ)-*.zip ./$(PROJ)-*.tar.xz
+
+
+%.debug: %
+	objcopy --only-keep-debug $< $@
+	strip $<
+	objcopy --add-gnu-debuglink=$@ $<
+
+debug: $(BINS:.$(SO)=.$(SO).debug) $(BINS:.exe=.exe.debug)
+
+
+install: all debug
+	mkdir -vp $(INSTDIR)
+	$(CP) $(BIN) *.$(SO) \
+		fmedia.conf help.txt README.txt CHANGES.txt \
+		fmedia-gui.exe fmedia.gui fmedia.ico *.manifest \
+		$(INSTDIR)/
+	unix2dos $(INSTDIR)/*.txt $(INSTDIR)/*.conf $(INSTDIR)/*.gui $(INSTDIR)/*.manifest
+	chmod 755 $(INSTDIR)/$(BIN)
+	chmod 755 $(INSTDIR)/fmedia-gui.exe
+	chmod 644 $(INSTDIR)/*.$(SO)
