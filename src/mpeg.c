@@ -187,7 +187,7 @@ static int mpeg_process(void *ctx, fmed_filt *d)
 	enum { I_META, I_HDR, I_DATA };
 	fmed_mpeg *m = ctx;
 	int r;
-	int64 seek_time, until_time;
+	int64 seek_time;
 
 again:
 	switch (m->state) {
@@ -248,15 +248,6 @@ again:
 	}
 
 data:
-	if (FMED_NULL != (until_time = d->track->getval(d->trk, "until_time"))) {
-		uint64 until_samples = until_time * m->mpg.fmt.sample_rate / 1000;
-		if (until_samples <= ffmpg_cursample(&m->mpg)) {
-			dbglog(core, d->trk, "mpeg", "until_time is reached");
-			d->outlen = 0;
-			return FMED_RLASTOUT;
-		}
-	}
-
 	d->data = m->mpg.data;
 	d->datalen = m->mpg.datalen;
 	d->outni = (void**)m->mpg.pcm;

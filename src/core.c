@@ -395,6 +395,8 @@ static int media_open(fm_src *src, const char *fn)
 	if (NULL == media_modbyext(src, &fmed->inmap, &ext))
 		return 1;
 
+	newfilter(src, "#soundmod.until");
+
 	if (fmed->mix) {
 		newfilter(src, "mixer.in");
 		return 0;
@@ -516,7 +518,7 @@ static void* trk_create(uint cmd, const char *fn)
 
 	switch (cmd) {
 	case FMED_TRACK_OPEN:
-		if (NULL == ffarr_grow(&src->filters, 5 + nout, 0))
+		if (NULL == ffarr_grow(&src->filters, 6 + nout, 0))
 			goto fail;
 		if (0 != media_open(src, fn))
 			goto fail;

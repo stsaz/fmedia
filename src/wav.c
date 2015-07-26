@@ -113,7 +113,7 @@ static int wav_process(void *ctx, fmed_filt *d)
 	enum { I_HDR, I_DATA };
 	fmed_wav *w = ctx;
 	int r;
-	int64 seek_time, until_time;
+	int64 seek_time;
 
 	if (status == 1) {
 		d->outlen = 0;
@@ -175,15 +175,6 @@ again:
 	}
 
 data:
-	if (FMED_NULL != (until_time = d->track->getval(d->trk, "until_time"))) {
-		uint64 until_samples = ffpcm_samples(until_time, ffwav_rate(&w->wav));
-		if (until_samples <= ffwav_cursample(&w->wav)) {
-			dbglog(core, d->trk, "wav", "until_time is reached");
-			d->outlen = 0;
-			return FMED_RLASTOUT;
-		}
-	}
-
 	fmed_setval("current_position", ffwav_cursample(&w->wav));
 	d->data = w->wav.data;
 	d->datalen = w->wav.datalen;

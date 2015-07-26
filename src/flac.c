@@ -166,7 +166,7 @@ static int flac_in_decode(void *ctx, fmed_filt *d)
 	enum { I_HDR, I_DATA };
 	flac *f = ctx;
 	int r;
-	int64 seek_time, until_time;
+	int64 seek_time;
 
 	if (status == 1) {
 		d->outlen = 0;
@@ -241,15 +241,6 @@ again:
 	}
 
 data:
-	if (FMED_NULL != (until_time = d->track->getval(d->trk, "until_time"))) {
-		uint64 until_samples = until_time * f->fl.fmt.sample_rate / 1000;
-		if (until_samples <= ffflac_cursample(&f->fl)) {
-			dbglog(core, d->trk, "ogg", "until_time is reached");
-			d->outlen = 0;
-			return FMED_RLASTOUT;
-		}
-	}
-
 	dbglog(core, d->trk, "flac", "decoded %L samples (%U)"
 		, f->fl.pcmlen / ffpcm_size1(&f->fl.fmt), ffflac_cursample(&f->fl));
 	fmed_setval("current_position", ffflac_cursample(&f->fl) - f->abs_seek);

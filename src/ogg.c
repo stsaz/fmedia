@@ -153,7 +153,7 @@ static int ogg_decode(void *ctx, fmed_filt *d)
 	fmed_ogg *o = ctx;
 	int r;
 	uint tag;
-	int64 seek_time, until_time;
+	int64 seek_time;
 
 	if (status == 1) {
 		d->outlen = 0;
@@ -243,15 +243,6 @@ again:
 	}
 
 data:
-	if (FMED_NULL != (until_time = d->track->getval(d->trk, "until_time"))) {
-		uint64 until_samples = until_time * ffogg_rate(&o->og) / 1000;
-		if (until_samples <= ffogg_cursample(&o->og)) {
-			dbglog(core, d->trk, "ogg", "until_time is reached");
-			d->outlen = 0;
-			return FMED_RLASTOUT;
-		}
-	}
-
 	dbglog(core, d->trk, "ogg", "decoded %u PCM samples, page: %u, granule pos: %U"
 		, o->og.nsamples, ffogg_pageno(&o->og), ffogg_granulepos(&o->og));
 	d->track->setval(d->trk, "current_position", ffogg_cursample(&o->og));

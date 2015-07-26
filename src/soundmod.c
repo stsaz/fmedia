@@ -48,6 +48,14 @@ static const fmed_filter fmed_sndmod_gain = {
 	&sndmod_gain_open, &sndmod_gain_process, &sndmod_gain_close
 };
 
+//UNTIL-TIME
+static void* sndmod_untl_open(fmed_filt *d);
+static int sndmod_untl_process(void *ctx, fmed_filt *d);
+static void sndmod_untl_close(void *ctx);
+static const fmed_filter fmed_smod_until = {
+	&sndmod_untl_open, &sndmod_untl_process, &sndmod_untl_close
+};
+
 
 const fmed_mod* fmed_getmod_sndmod(const fmed_core *_core)
 {
@@ -62,6 +70,8 @@ static const void* sndmod_iface(const char *name)
 		return &fmed_sndmod_conv;
 	else if (!ffsz_cmp(name, "gain"))
 		return &fmed_sndmod_gain;
+	else if (!ffsz_cmp(name, "until"))
+		return &fmed_smod_until;
 	return NULL;
 }
 
@@ -252,5 +262,67 @@ static int sndmod_gain_process(void *ctx, fmed_filt *d)
 	d->datalen = 0;
 	if (d->flags & FMED_FLAST)
 		return FMED_RDONE;
+	return FMED_ROK;
+}
+
+
+typedef struct sndmod_untl {
+	uint64 until;
+	uint sampsize;
+} sndmod_untl;
+
+static void* sndmod_untl_open(fmed_filt *d)
+{
+	int64 val;
+	sndmod_untl *u;
+
+	if (FMED_NULL == (val = fmed_getval("until_time")))
+		return (void*)1;
+
+	if (NULL == (u = ffmem_tcalloc1(sndmod_untl)))
+		return NULL;
+	u->until = val;
+
+	if (FMED_NULL != (val = fmed_getval("seek_time_abs")))
+		u->until -= val;
+
+	val = fmed_getval("pcm_format");
+	u->sampsize = ffpcm_size(val, fmed_getval("pcm_channels"));
+	u->until = ffpcm_samples(u->until, fmed_getval("pcm_sample_rate"));
+
+	if (FMED_NULL != fmed_getval("total_samples"))
+		fmed_setval("total_samples", u->until);
+	return u;
+}
+
+static void sndmod_untl_close(void *ctx)
+{
+	sndmod_untl *u = ctx;
+	if (ctx == (void*)1)
+		return;
+	ffmem_free(u);
+}
+
+static int sndmod_untl_process(void *ctx, fmed_filt *d)
+{
+	sndmod_untl *u = ctx;
+	uint samps;
+	uint64 pos;
+
+	if (ctx == (void*)1)
+		return FMED_RDONE;
+
+	samps = d->datalen / u->sampsize;
+	d->out = d->data;
+	d->outlen = d->datalen;
+	d->datalen = 0;
+
+	pos = fmed_getval("current_position");
+	if (pos + samps >= u->until) {
+		dbglog(core, d->trk, "", "until_time is reached");
+		d->outlen = (u->until - pos) * u->sampsize;
+		return FMED_RLASTOUT;
+	}
+
 	return FMED_ROK;
 }
