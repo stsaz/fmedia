@@ -464,13 +464,13 @@ int main(int argc, char **argv)
 
 	{
 	char fn[FF_MAXPATH];
+	ffstr path;
 	const char *p = ffps_filename(fn, sizeof(fn), argv[0]);
 	if (p == NULL)
 		return 1;
-	if (NULL == ffstr_copy(&fmed->root, p, ffsz_len(p)))
+	ffpath_split2(p, ffsz_len(p), &path, NULL);
+	if (NULL == ffstr_copy(&fmed->root, path.ptr, path.len + FFSLEN("/")))
 		return 1;
-	ffpath_split2(fmed->root.ptr, fmed->root.len, &fmed->root, NULL);
-	fmed->root.len += FFSLEN("/");
 	}
 
 	if (argc == 1) {
