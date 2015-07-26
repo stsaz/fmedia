@@ -178,6 +178,14 @@ again:
 		r = ffogg_decode(&o->og);
 		switch (r) {
 		case FFOGG_RMORE:
+
+			if (o->state == I_HDR) {
+				int64 off = fmed_getval("input_off");
+				if (off + d->datalen == o->og.total_size
+					&& 0 == ffogg_nodata(&o->og))
+					break;
+			}
+
 			if (d->flags & FMED_FLAST) {
 				dbglog(core, d->trk, "ogg", "no eos page");
 				d->outlen = 0;
