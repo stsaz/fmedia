@@ -73,7 +73,6 @@ static const fmed_track _fmed_track = {
 };
 
 extern const fmed_mod* fmed_getmod_file(const fmed_core *_core);
-extern const fmed_mod* fmed_getmod_mixer(const fmed_core *_core);
 extern const fmed_mod* fmed_getmod_tui(const fmed_core *_core);
 extern const fmed_mod* fmed_getmod_sndmod(const fmed_core *_core);
 
@@ -155,7 +154,7 @@ static int media_open(fm_src *src, const char *fn)
 		return 1;
 
 	if (fmed->mix) {
-		newfilter(src, "#mixer.in");
+		newfilter(src, "mixer.in");
 		return 0;
 	}
 
@@ -180,7 +179,7 @@ static void media_open_capt(fm_src *src)
 
 static void media_open_mix(fm_src *src)
 {
-	newfilter(src, "#mixer.out");
+	newfilter(src, "mixer.out");
 }
 
 enum T {
@@ -770,8 +769,6 @@ static const fmed_modinfo* core_insmod(const char *sname, ffpars_ctx *ctx)
 
 		if (ffstr_eqcz(&s, "file"))
 			getmod = &fmed_getmod_file;
-		else if (ffstr_eqcz(&s, "mixer"))
-			getmod = &fmed_getmod_mixer;
 		else if (ffstr_eqcz(&s, "soundmod"))
 			getmod = &fmed_getmod_sndmod;
 		else if (ffstr_eqcz(&s, "tui"))

@@ -27,7 +27,6 @@ static int fmed_conf_mod(ffparser_schem *p, void *obj, ffstr *val);
 static int fmed_conf_modconf(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
 static int fmed_conf_setmod(const fmed_modinfo **pmod, ffstr *val);
 static int fmed_conf_output(ffparser_schem *p, void *obj, ffstr *val);
-static int fmed_conf_mixer(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
 static int fmed_conf_input(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
 static int fmed_conf_inp_format(ffparser_schem *p, void *obj, ffstr *val);
 static int fmed_conf_inputmap(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
@@ -75,7 +74,6 @@ static const ffpars_arg fmed_conf_args[] = {
 	, { "input",  FFPARS_TOBJ | FFPARS_FOBJ1, FFPARS_DST(&fmed_conf_input) }
 	, { "input_ext",  FFPARS_TOBJ, FFPARS_DST(&fmed_conf_inputmap) }
 	, { "output_ext",  FFPARS_TOBJ, FFPARS_DST(&fmed_conf_inputmap) }
-	, { "mixer",  FFPARS_TOBJ | FFPARS_FOBJ1, FFPARS_DST(&fmed_conf_mixer) }
 };
 
 
@@ -254,13 +252,6 @@ static int fmed_conf_input(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
 		return r;
 	ffpars_setargs(ctx, fmed, fmed_conf_input_args, FFCNT(fmed_conf_input_args));
 	return 0;
-}
-
-extern int mix_conf(ffpars_ctx *ctx);
-
-static int fmed_conf_mixer(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
-{
-	return mix_conf(ctx);
 }
 
 static int fmed_conf_inmap_val(ffparser_schem *p, void *obj, ffstr *val)

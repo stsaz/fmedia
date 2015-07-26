@@ -62,8 +62,9 @@ static const fmed_filter fmed_mix_in = {
 static void* mix_open(fmed_filt *d);
 static int mix_read(void *ctx, fmed_filt *d);
 static void mix_close(void *ctx);
+static int mix_conf(ffpars_ctx *ctx);
 static const fmed_filter fmed_mix_out = {
-	&mix_open, &mix_read, &mix_close
+	&mix_open, &mix_read, &mix_close, &mix_conf
 };
 
 static uint mix_write(mxr *m, uint off, const fmed_filt *d);
@@ -89,15 +90,16 @@ static const ffpars_arg mix_conf_args[] = {
 	, { "rate",  FFPARS_TINT | FFPARS_FNOTZERO, FFPARS_DSTOFF(ffpcm, sample_rate) }
 };
 
-int mix_conf(ffpars_ctx *ctx)
+static int mix_conf(ffpars_ctx *ctx)
 {
 	ffpars_setargs(ctx, &pcmfmt, mix_conf_args, FFCNT(mix_conf_args));
 	return 0;
 }
 
 
-const fmed_mod* fmed_getmod_mixer(const fmed_core *_core)
+FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 {
+	ffmem_init();
 	core = _core;
 	return &fmed_mix_mod;
 }
