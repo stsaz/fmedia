@@ -311,9 +311,6 @@ static void file_read(void *udata)
 			if (fferr_again(fferr_last())) {
 				f->async = 1;
 				break;
-			} else if (fferr_last() == ERROR_HANDLE_EOF) {
-				f->done = 1;
-				break;
 			}
 
 			syserrlog(core, f->trk, "file", "%e: %s", FFERR_READ, f->fn);
@@ -331,6 +328,8 @@ static void file_read(void *udata)
 		if (r != file_in_conf.bsize) {
 			dbglog(core, f->trk, "file", "reading's done", 0);
 			f->done = 1;
+			if (r == 0)
+				break;
 		}
 
 		dbglog(core, f->trk, "file", "read %U bytes at offset %U", (int64)r - (f->foff % file_in_conf.align), f->foff);
