@@ -12,7 +12,6 @@ Copyright (c) 2015 Simon Zolin */
 
 
 static const fmed_core *core;
-static uint status;
 
 typedef struct fmed_ogg {
 	ffogg og;
@@ -105,11 +104,6 @@ static const void* ogg_iface(const char *name)
 
 static int ogg_sig(uint signo)
 {
-	switch (signo) {
-	case FMED_STOP:
-		status = 1;
-		break;
-	}
 	return 0;
 }
 
@@ -155,7 +149,7 @@ static int ogg_decode(void *ctx, fmed_filt *d)
 	uint tag;
 	int64 seek_time;
 
-	if (status == 1) {
+	if (d->flags & FMED_FSTOP) {
 		d->outlen = 0;
 		return FMED_RLASTOUT;
 	}
@@ -298,12 +292,6 @@ static int ogg_out_encode(void *ctx, fmed_filt *d)
 	ogg_out *o = ctx;
 	int r, qual, il;
 	ffpcm fmt;
-
-	if (status == 1) {
-		d->outlen = 0;
-		errlog(core, d->trk, "ogg", "interrupted");
-		return FMED_RERR;
-	}
 
 	switch (o->state) {
 	case I_CONF:

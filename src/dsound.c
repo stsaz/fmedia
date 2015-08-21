@@ -9,7 +9,6 @@ Copyright (c) 2015 Simon Zolin */
 
 
 static const fmed_core *core;
-static byte stopping;
 static byte refcount;
 
 typedef struct dsnd_out {
@@ -107,10 +106,6 @@ static const void* dsnd_iface(const char *name)
 static int dsnd_sig(uint signo)
 {
 	switch (signo) {
-	case FMED_STOP:
-		stopping = 1;
-		break;
-
 	case FMED_LISTDEV:
 		return dsnd_listdev();
 	}
@@ -246,11 +241,6 @@ static int dsnd_write(void *ctx, fmed_filt *d)
 	dsnd_out *ds = ctx;
 	int r;
 
-	if (stopping) {
-		ffdsnd_pause(&ds->snd);
-		return FMED_RDONE;
-	}
-
 	if (!ds->ileaved) {
 		int il = (int)fmed_getval("pcm_ileaved");
 		if (il != 1) {
@@ -373,7 +363,15 @@ static void dsnd_in_onplay(void *udata)
 static int dsnd_in_read(void *ctx, fmed_filt *d)
 {
 	dsnd_in *ds = ctx;
-	int r = ffdsnd_capt_read(&ds->snd, (void**)&d->out, &d->outlen);
+	int r;
+
+	if (d->flags & FMED_FSTOP) {
+		ffdsnd_capt_stop(&ds->snd);
+		d->outlen = 0;
+		return FMED_RDONE;
+	}
+
+	r = ffdsnd_capt_read(&ds->snd, (void**)&d->out, &d->outlen);
 	if (r < 0) {
 		errlog(core, d->trk, "dsound", "ffdsnd_capt_read(): (%xu) %s", r, ffdsnd_errstr(r));
 		return FMED_RERR;
@@ -384,9 +382,5 @@ static int dsnd_in_read(void *ctx, fmed_filt *d)
 	}
 
 	dbglog(core, d->trk, "dsound", "read %L bytes", d->outlen);
-	if (stopping) {
-		ffdsnd_capt_stop(&ds->snd);
-		return FMED_RDONE;
-	}
 	return FMED_ROK;
 }

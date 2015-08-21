@@ -7,7 +7,6 @@ Copyright (c) 2015 Simon Zolin */
 
 
 static const fmed_core *core;
-static uint status;
 
 static const char *const metanames[] = {
 	"meta_album"
@@ -95,11 +94,6 @@ static const void* flac_iface(const char *name)
 
 static int flac_sig(uint signo)
 {
-	switch (signo) {
-	case FMED_STOP:
-		status = 1;
-		break;
-	}
 	return 0;
 }
 
@@ -168,7 +162,7 @@ static int flac_in_decode(void *ctx, fmed_filt *d)
 	int r;
 	int64 seek_time;
 
-	if (status == 1) {
+	if (d->flags & FMED_FSTOP) {
 		d->outlen = 0;
 		return FMED_RLASTOUT;
 	}
@@ -321,11 +315,6 @@ static int flac_out_encode(void *ctx, fmed_filt *d)
 {
 	flac_out *f = ctx;
 	int r;
-
-	if (status == 1) {
-		errlog(core, d->trk, "flac", "interrupted");
-		return FMED_RERR;
-	}
 
 	if (f->ni)
 		f->fl.pcm = (const void**)d->datani;

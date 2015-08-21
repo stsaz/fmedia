@@ -189,6 +189,11 @@ static int mpeg_process(void *ctx, fmed_filt *d)
 	int r;
 	int64 seek_time;
 
+	if (d->flags & FMED_FSTOP) {
+		d->outlen = 0;
+		return FMED_RLASTOUT;
+	}
+
 again:
 	switch (m->state) {
 	case I_META:

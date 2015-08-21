@@ -9,7 +9,6 @@ Copyright (c) 2015 Simon Zolin */
 
 
 static const fmed_core *core;
-static byte stopping;
 
 typedef struct wasapi_out {
 	ffwasapi wa;
@@ -114,10 +113,6 @@ static const void* wasapi_iface(const char *name)
 static int wasapi_sig(uint signo)
 {
 	switch (signo) {
-	case FMED_STOP:
-		stopping = 1;
-		break;
-
 	case FMED_LISTDEV:
 		return wasapi_listdev();
 	}
@@ -374,7 +369,15 @@ static void wasapi_in_close(void *ctx)
 static int wasapi_in_read(void *ctx, fmed_filt *d)
 {
 	wasapi_in *w = ctx;
-	int r = ffwas_capt_read(&w->wa, (void**)&d->out, &d->outlen);
+	int r;
+
+	if (d->flags & FMED_FSTOP) {
+		ffwas_stop(&w->wa);
+		d->outlen = 0;
+		return FMED_RDONE;
+	}
+
+	r = ffwas_capt_read(&w->wa, (void**)&d->out, &d->outlen);
 	if (r < 0) {
 		errlog(core, d->trk, "wasapi", "ffwas_capt_read(): (%xu) %s", r, ffwas_errstr(r));
 		return FMED_RERR;
@@ -393,9 +396,5 @@ static int wasapi_in_read(void *ctx, fmed_filt *d)
 		w->latcorr -= n;
 	}
 
-	if (stopping) {
-		ffwas_stop(&w->wa);
-		return FMED_RDONE;
-	}
 	return FMED_ROK;
 }

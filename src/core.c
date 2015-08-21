@@ -79,6 +79,7 @@ static void media_open_capt(fm_src *src);
 static void media_open_mix(fm_src *src);
 static void media_free(fm_src *src);
 static void media_process(void *udata);
+static void media_stop(fm_src *src);
 static fmed_f* media_modbyext(fm_src *src, const ffstr3 *map, const ffstr *ext);
 static void media_printtime(fm_src *src);
 
@@ -594,6 +595,15 @@ fail:
 	return NULL;
 }
 
+static void media_stop(fm_src *src)
+{
+	fmed_f *f;
+	trk_setval(src, "stopped", 1);
+	FFARR_WALK(&src->filters, f) {
+		f->d.flags |= FMED_FSTOP;
+	}
+}
+
 static void media_printtime(fm_src *src)
 {
 	fmed_f *pf;
@@ -737,6 +747,9 @@ shift:
 				nf->d.flags |= FMED_FLAST;
 
 			if (!nf->opened) {
+				if (f->d.flags & FMED_FSTOP)
+					goto fin; // calling the rest of the chain is pointless
+
 				dbglog(core, src, "core", "creating context for %s...", nf->mod->name);
 				nf->ctx = nf->mod->f->open(&nf->d);
 				if (nf->ctx == NULL) {
@@ -838,9 +851,11 @@ static int trk_cmd(void *trk, uint cmd)
 
 	switch (cmd) {
 	case FMED_TRACK_STOPALL:
-		core_sigmods(FMED_TRKSTOP);
 		FFLIST_WALKSAFE(&fmed->srcs, src, sib, next) {
-			media_free(src);
+			if (src->capture && trk == NULL)
+				continue;
+
+			media_stop(src);
 		}
 		break;
 

@@ -35,7 +35,6 @@ enum FMED_SIG {
 	, FMED_CONF
 	, FMED_START
 	, FMED_STOP
-	, FMED_TRKSTOP
 	, FMED_LISTDEV
 };
 
@@ -99,6 +98,10 @@ enum FMED_TRACK {
 	FMED_TRACK_MIX,
 
 	FMED_TRACK_START,
+
+	/** @trk:
+	 . NULL: all playing
+	 . (void*)-1: all (playing and recording). */
 	FMED_TRACK_STOPALL,
 };
 
@@ -136,7 +139,8 @@ typedef struct fmed_track {
 typedef void (*fmed_handler)(void *udata);
 
 enum FMED_F {
-	FMED_FLAST = 1  //the last chunk of input data
+	FMED_FLAST = 1, // the last chunk of input data
+	FMED_FSTOP = 2, // track is being stopped
 };
 
 typedef struct fmed_filt {

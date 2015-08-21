@@ -10,7 +10,6 @@ Copyright (c) 2015 Simon Zolin */
 
 
 static const fmed_core *core;
-static uint status;
 
 typedef struct fmed_wav {
 	ffwav wav;
@@ -77,11 +76,6 @@ static const void* wav_iface(const char *name)
 
 static int wav_sig(uint signo)
 {
-	switch (signo) {
-	case FMED_STOP:
-		status = 1;
-		break;
-	}
 	return 0;
 }
 
@@ -115,7 +109,7 @@ static int wav_process(void *ctx, fmed_filt *d)
 	int r;
 	int64 seek_time;
 
-	if (status == 1) {
+	if (d->flags & FMED_FSTOP) {
 		d->outlen = 0;
 		return FMED_RLASTOUT;
 	}
@@ -290,7 +284,7 @@ static int raw_read(void *ctx, fmed_filt *d)
 {
 	raw *r = ctx;
 
-	if (status == 1) {
+	if (d->flags & FMED_FSTOP) {
 		d->outlen = 0;
 		return FMED_RLASTOUT;
 	}

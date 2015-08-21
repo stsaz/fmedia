@@ -775,9 +775,11 @@ static void* gtrk_open(fmed_filt *d)
 static void gtrk_close(void *ctx)
 {
 	gui_trk *g = ctx;
-	gg->curtrk = NULL;
-	gui_clear();
 	core->task(&g->task, FMED_TASK_DEL);
+	if (gg->curtrk == g) {
+		gg->curtrk = NULL;
+		gui_clear();
+	}
 	ffmem_free(g);
 }
 
@@ -788,6 +790,9 @@ static int gtrk_process(void *ctx, fmed_filt *d)
 	size_t n;
 	int64 playpos;
 	uint playtime;
+
+	if (d->flags & FMED_FSTOP)
+		goto done;
 
 	fflk_lock(&gg->lk);
 	switch (g->state) {
@@ -822,7 +827,7 @@ done:
 	d->out = d->data;
 	d->outlen = d->datalen;
 	d->datalen = 0;
-	if (d->flags & FMED_FLAST)
+	if (d->flags & (FMED_FLAST | FMED_FSTOP))
 		return FMED_RDONE;
 	return FMED_ROK;
 }

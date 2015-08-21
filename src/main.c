@@ -211,7 +211,11 @@ static const int sigs[] = { SIGINT };
 
 static void fmed_onsig(void *udata)
 {
-	core->sig(FMED_STOP);
+	const fmed_track *track;
+
+	if (NULL == (track = core->getmod("#core.track")))
+		return;
+	track->cmd((void*)-1, FMED_TRACK_STOPALL);
 }
 
 #ifdef FF_WIN

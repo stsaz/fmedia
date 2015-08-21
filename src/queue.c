@@ -17,8 +17,7 @@ typedef struct que {
 	entry *cur;
 	const fmed_track *track;
 	fmed_que_onchange_t onchange;
-	uint stopped :1
-		, quit_if_done :1;
+	uint quit_if_done :1;
 } que;
 
 static que *qu;
@@ -77,12 +76,6 @@ static int que_sig(uint signo)
 		qu->track = core->getmod("#core.track");
 		if (1 != core->getval("gui"))
 			qu->quit_if_done = 1;
-		break;
-
-	case FMED_TRKSTOP:
-		if (qu == NULL)
-			return 0;
-		qu->stopped = 1;
 		break;
 	}
 	return 0;
@@ -284,8 +277,6 @@ static void* que_trk_open(fmed_filt *d)
 	t->track = d->track;
 	t->trk = d->trk;
 	t->e = e;
-	if (qu->stopped)
-		qu->stopped = 0;
 
 	if (1 == fmed_getval("error")) {
 		que_trk_close(t);
@@ -298,7 +289,8 @@ static void que_trk_close(void *ctx)
 {
 	que_trk *t = ctx;
 
-	if (!qu->stopped)
+	if (qu->quit_if_done
+		|| 1 != t->track->getval(t->trk, "stopped"))
 		que_cmd(FMED_QUE_NEXT, NULL);
 
 	//delete the item from queue if there was an error
