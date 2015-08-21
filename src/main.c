@@ -267,6 +267,8 @@ static int open_input(void)
 		if (NULL == (mout = track->create(FMED_TRACK_MIX, NULL)))
 			goto end;
 
+		track->setval(mout, "mix_tracks", fmed->in_files.len);
+
 		FFARR_WALK(&fmed->in_files, pfn) {
 			if (NULL == (src = track->create(FMED_TRACK_OPEN, *pfn)))
 				goto end;

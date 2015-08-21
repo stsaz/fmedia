@@ -19,6 +19,7 @@ INPUT2 -> mixer-in /
 typedef struct mxr {
 	ffstr data;
 	fflist inputs; //mix_in[]
+	uint trk_count;
 	uint filled;
 	uint sampsize;
 	fftask task;
@@ -156,6 +157,8 @@ static void mix_in_close(void *ctx)
 {
 	mix_in *mi = ctx;
 	fflist_rm(&mi->m->inputs, &mi->sib);
+	FF_ASSERT(mi->m->trk_count != 0);
+	mi->m->trk_count--;
 	if (mi->filled)
 		mi->m->filled--;
 	mix_inputclosed(mi->m);
@@ -209,7 +212,7 @@ static void* mix_open(fmed_filt *d)
 		m = NULL;
 		return NULL;
 	}
-	//ffmem_zero(m->data.ptr, DATA_SIZE);
+	ffmem_zero(m->data.ptr, DATA_SIZE);
 
 	m->task.handler = d->handler;
 	m->task.param = d->trk;
@@ -220,6 +223,8 @@ static void* mix_open(fmed_filt *d)
 	d->track->setval(d->trk, "pcm_format", pcmfmt.format);
 	d->track->setval(d->trk, "pcm_channels", pcmfmt.channels);
 	d->track->setval(d->trk, "pcm_sample_rate", pcmfmt.sample_rate);
+
+	m->trk_count = fmed_getval("mix_tracks");
 
 	mx = m;
 	return m;
@@ -250,7 +255,7 @@ static void mix_close(void *ctx)
 
 static void mix_inputclosed(mxr *m)
 {
-	if (m->filled == m->inputs.len) {
+	if (m->filled == m->trk_count) {
 		if (m->err && m->inputs.len == 0)
 			mix_close(m);
 		else
@@ -272,7 +277,7 @@ static uint mix_write(mxr *m, uint off, const fmed_filt *d)
 		//or it's the last chunk of input data
 
 		m->filled++;
-		if (m->filled == m->inputs.len)
+		if (m->filled == m->trk_count)
 			core->task(&m->task, FMED_TASK_POST);
 	}
 
