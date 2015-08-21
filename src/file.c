@@ -232,6 +232,29 @@ static int file_getdata(void *ctx, fmed_filt *d)
 			return FMED_RERR;
 		}
 
+		/* don't do unnecessary file_read() if seek position is within the current buffers,
+			instead, just shift offsets in the buffers */
+		if (seek >= f->aoff && seek < f->foff) {
+			uint64 pos = seek - f->aoff;
+			dbglog(core, NULL, "file", "shifting %U bytes", pos);
+
+			while (pos != 0) {
+				databuf *d = &f->data[f->rdata];
+				size_t n = ffmin(d->len - d->off, pos);
+				d->off += n;
+				if (d->off == d->len)
+					f->rdata = (f->rdata + 1) % file_in_conf.nbufs;
+
+				pos -= n;
+			}
+
+			f->out = 0;
+			f->done = 0;
+			f->seek = 0;
+			f->aoff = seek;
+			goto rd;
+		}
+
 		f->wdata = 0;
 		f->rdata = 0;
 		f->out = 0;
@@ -251,6 +274,7 @@ static int file_getdata(void *ctx, fmed_filt *d)
 
 	if (f->out) {
 		f->out = 0;
+		f->aoff += f->data[f->rdata].len - f->data[f->rdata].off;
 		f->data[f->rdata].len = 0;
 		f->data[f->rdata].off = 0;
 		f->rdata = (f->rdata + 1) % file_in_conf.nbufs;
@@ -263,6 +287,7 @@ static int file_getdata(void *ctx, fmed_filt *d)
 		}
 	}
 
+rd:
 	if (!f->async && !f->done)
 		file_read(f);
 
@@ -272,7 +297,6 @@ static int file_getdata(void *ctx, fmed_filt *d)
 	}
 
 	fmed_setval("input_off", f->aoff);
-	f->aoff += f->data[f->rdata].len;
 
 	d->out = f->data[f->rdata].ptr;
 	d->outlen = f->data[f->rdata].len;
