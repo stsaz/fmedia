@@ -169,7 +169,7 @@ static int flac_in_decode(void *ctx, fmed_filt *d)
 
 	f->fl.data = (byte*)d->data;
 	f->fl.datalen = d->datalen;
-	if (d->datalen == 0)
+	if (d->flags & FMED_FLAST)
 		f->fl.fin = 1;
 
 again:
