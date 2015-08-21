@@ -27,9 +27,11 @@ FILTERS
 	Playlists:
 	. M3U input
 	. CUE input
+	. Directory input
 
 	Other:
 	. PCM converter
+	. PCM peaks
 	. Mixer
 	. Terminal UI
 	. Graphical UI
@@ -100,6 +102,9 @@ Play wav file with a corrupted header
 
 Change sound volume in an audio file
 	fmedia --gain=5.0 ./file.wav --out=./file-loud.wav
+
+Show PCM information
+	fmedia input.ogg --pcm-peaks
 
 ---------------
 HOMEPAGE

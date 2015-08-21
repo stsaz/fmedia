@@ -1,3 +1,33 @@
+fmedia v0.4 - Aug 21, 2015
+
+ + gui: fmedia-gui binary supports command-line arguments
+ + gui: synchronize queue with the playlist view
+ + gui: accept files dragged and dropped from explorer
+ + gui: support recording audio
+ + gui: save into a file wmain.position and tvol.value on exit
+ + gui: convert 1 selected media file
+ * gui: use filename as a title if there's no title in media meta info
+ * gui: use config options
+ * gui: "show directory" command selects the file in explorer
+ * tui: print total samples
+
+ + plist.cue: control track pregaps (--cue-gaps=VAL)
+ * plist.cue: don't skip pregaps by default, but add them into the previous track
+ - plist.cue: precise (to a sample) seek positioning and track duration
+
+ - mixer: fix unsynchronized output (v0.3 bug)
+ - mixer: the first output chunk might contain invalid PCM data
+ - mixer: output to OGG Vorbis didn't work
+
+ - core: fix track's dictionary entries memory leak
+ - core: command line options "--out=.EXT --outdir=DIR" didn't work (v0.2 bug)
+ + plist.dir: open directory (find files in a directory and add them to the queue)
+ * queue: delete the item from queue if there was an error while processing track
+ + soundmod.peaks (--pcm-peaks, --pcm-crc)
+ - soundmod.until: the first chunk of PCM data was skipped (v0.3 bug, affects all audio  processing)
+ + mpeg.decode: support ID3v1 tag (note: track number and genre aren't supported)
+
+
 fmedia v0.3 - Jul 25, 2015
 
  + added GUI

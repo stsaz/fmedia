@@ -7,7 +7,7 @@ BEGIN
 			VALUE "FileDescription", "fmedia"
 			VALUE "CompanyName", "Simon Zolin"
 			VALUE "ProductName", "fmedia"
-			VALUE "ProductVersion", "0.3"
+			VALUE "ProductVersion", "0.4"
 		END
 	END
     BLOCK "VarFileInfo"
