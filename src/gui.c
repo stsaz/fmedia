@@ -2,7 +2,7 @@
 Copyright (c) 2015 Simon Zolin */
 
 /*
-CORE       <-   GUI   -> QUEUE
+CORE       <-   GUI  <-> QUEUE
   |              |
 track: ... -> gui-trk -> ...
 */
@@ -90,11 +90,15 @@ static void gui_clear(void);
 static void gui_status(const char *s, size_t len);
 static void gui_list_add(ffui_viewitem *it, size_t par);
 static void gui_task(void *param);
+static void gui_media_added(fmed_que_entry *ent);
+static void gui_media_add1(const char *fn);
 static void gui_media_open(uint id);
+static void gui_media_removed(uint i);
 static void gui_media_remove(void);
 static fmed_que_entry* gui_list_getent(void);
 static void gui_media_vol(void);
 static void gui_media_showdir(void);
+static void gui_que_onchange(fmed_que_entry *e, uint flags);
 
 //GUI-TRACK
 static void* gtrk_open(fmed_filt *d);
@@ -388,6 +392,23 @@ seek:
 	}
 }
 
+static void gui_que_onchange(fmed_que_entry *e, uint flags)
+{
+	int idx;
+
+	switch (flags) {
+	case FMED_QUE_ONADD:
+		gui_media_added(e);
+		break;
+
+	case FMED_QUE_ONRM:
+		if (-1 == (idx = ffui_view_search(&gg->vlist, (size_t)e)))
+			break;
+		gui_media_removed(idx);
+		break;
+	}
+}
+
 static void gui_media_vol(void)
 {
 	char buf[64];
@@ -427,11 +448,31 @@ static void gui_media_showdir(void)
 		ffps_close(ps);
 }
 
-static void gui_media_open(uint id)
+static void gui_media_added(fmed_que_entry *ent)
 {
-	fmed_que_entry e, *ent;
 	ffstr name;
 	ffui_viewitem it;
+	ffmem_tzero(&it);
+	gui_list_add(&it, (size_t)ent);
+	ffui_view_settextstr(&it, &ent->url);
+	ffui_view_set(&gg->vlist, H_FN, &it);
+
+	ffpath_split2(ent->url.ptr, ent->url.len, NULL, &name);
+	ffui_view_settextstr(&it, &name);
+	ffui_view_set(&gg->vlist, H_TIT, &it);
+}
+
+static void gui_media_add1(const char *fn)
+{
+	fmed_que_entry e;
+
+	ffmem_tzero(&e);
+	ffstr_setz(&e.url, fn);
+	gg->qu->add(&e);
+}
+
+static void gui_media_open(uint id)
+{
 	const char *fn;
 
 	if (NULL == (fn = ffui_dlg_open(&gg->dlg, &gg->wmain)))
@@ -443,47 +484,49 @@ static void gui_media_open(uint id)
 	ffui_redraw(&gg->vlist, 0);
 
 	do {
-		ffmem_tzero(&e);
-		ffstr_setz(&e.url, fn);
-		ent = gg->qu->add(&e);
-
-		ffmem_tzero(&it);
-		gui_list_add(&it, (size_t)ent);
-		ffui_view_settextz(&it, fn);
-		ffui_view_set(&gg->vlist, H_ART, &it);
-
-		ffpath_split2(fn, ffsz_len(fn), NULL, &name);
-		ffui_view_settextstr(&it, &name);
-		ffui_view_set(&gg->vlist, H_TIT, &it);
+		gui_media_add1(fn);
 
 	} while (NULL != (fn = ffui_dlg_nextname(&gg->dlg)));
 
 	ffui_redraw(&gg->vlist, 1);
 }
 
-static void gui_media_remove(void)
+static void gui_media_removed(uint i)
 {
-	void *id;
-	int i;
-
-	if (NULL == (id = gui_list_getent()))
-		return;
-	i = ffui_view_focused(&gg->vlist);
-
-	gg->qu->cmd(FMED_QUE_RM, id);
+	ffui_viewitem it;
+	char buf[FFINT_MAXCHARS];
+	size_t n;
 
 	ffui_redraw(&gg->vlist, 0);
 	ffui_view_rm(&gg->vlist, i);
 
 	for (;  ;  i++) {
-		ffui_viewitem it = {0};
-		char buf[FFINT_MAXCHARS];
-		size_t n;
+		ffui_view_iteminit(&it);
 		ffui_view_setindex(&it, i);
 		n = ffs_fromint(i + 1, buf, sizeof(buf), 0);
 		ffui_view_settext(&it, buf, n);
 		if (0 != ffui_view_set(&gg->vlist, H_IDX, &it))
 			break;
+	}
+
+	ffui_redraw(&gg->vlist, 1);
+}
+
+static void gui_media_remove(void)
+{
+	int i;
+	void *id;
+	ffui_viewitem it;
+
+	ffui_redraw(&gg->vlist, 0);
+
+	while (-1 != (i = ffui_view_selnext(&gg->vlist, -1))) {
+		ffui_view_iteminit(&it);
+		ffui_view_setindex(&it, i);
+		ffui_view_setparam(&it, 0);
+		ffui_view_get(&gg->vlist, 0, &it);
+		id = (void*)ffui_view_param(&it);
+		gg->qu->cmd(FMED_QUE_RM, id);
 	}
 
 	ffui_redraw(&gg->vlist, 1);
@@ -558,10 +601,11 @@ static FFTHDCALL int gui_worker(void *param)
 	gg->wabout.hide_on_close = 1;
 	ffui_trk_setrange(&gg->tvol, 100 + 25);
 	ffui_trk_set(&gg->tvol, 100);
-	fflk_unlock(&gg->lk);
 	gg->cmdtask.handler = &gui_task;
 	ffui_dlg_multisel(&gg->dlg);
 	ffui_tray_settooltipz(&gg->tray_icon, "fmedia");
+
+	fflk_unlock(&gg->lk);
 
 	ffui_run();
 
@@ -591,6 +635,7 @@ static int gui_sig(uint signo)
 			ffmem_free(gg);
 			return 1;
 		}
+		gg->qu->cmd(FMED_QUE_SETONCHANGE, &gui_que_onchange);
 
 		if (NULL == (gg->track = core->getmod("#core.track"))) {
 			ffmem_free(gg);

@@ -83,6 +83,9 @@ menu mtray {
 		style default
 		action SHOW
 	}
+	item "Playback" {
+		submenu mplay
+	}
 	item "Exit" {
 		action QUIT
 	}
@@ -130,7 +133,7 @@ window wmain {
 
 	listview vlist {
 		position 0 25 360 175
-		style explorer_theme grid_lines visible
+		style explorer_theme grid_lines multi_select visible
 		dblclick PLAY
 		column "#" {
 			width 35
