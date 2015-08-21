@@ -490,6 +490,9 @@ static void gui_media_open(uint id)
 	} while (NULL != (fn = ffui_dlg_nextname(&gg->dlg)));
 
 	ffui_redraw(&gg->vlist, 1);
+
+	if (id == OPEN)
+		gui_task_add(NEXT);
 }
 
 static void gui_media_removed(uint i)

@@ -252,9 +252,6 @@ static fmed_que_entry* que_add(fmed_que_entry *ent)
 
 	if (qu->onchange != NULL)
 		qu->onchange(&e->e, FMED_QUE_ONADD);
-
-	if (qu->list.len == 1)
-		que_cmd(FMED_QUE_NEXT, NULL);
 	return &e->e;
 }
 

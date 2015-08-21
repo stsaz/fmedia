@@ -244,6 +244,7 @@ static int open_input(void)
 	if (!fmed->mix) {
 		char **pfn;
 		const fmed_queue *qu;
+		ffbool added = 0;
 		if (NULL == (qu = core->getmod("#queue.queue")))
 			goto end;
 
@@ -253,8 +254,12 @@ static int open_input(void)
 			ffstr_setz(&e.url, *pfn);
 			qu->add(&e);
 			ffmem_free(*pfn);
+			added = 1;
 		}
 		ffarr_free(&fmed->in_files);
+
+		if (added)
+			qu->cmd(FMED_QUE_PLAY, NULL);
 
 	} else {
 		const fmed_track *track;
