@@ -1,4 +1,4 @@
-/** M3U input.  CUE input.
+/** Directory input.  M3U input.  CUE input.
 Copyright (c) 2015 Simon Zolin */
 
 #include <fmedia.h>
@@ -6,6 +6,7 @@ Copyright (c) 2015 Simon Zolin */
 #include <FF/data/m3u.h>
 #include <FF/data/cue.h>
 #include <FF/path.h>
+#include <FF/dir.h>
 
 
 static const fmed_core *core;
@@ -57,6 +58,12 @@ static const fmed_filter fmed_cue_input = {
 	&cue_open, &cue_process, &cue_close
 };
 
+//DIR INPUT
+static void* dir_open(fmed_filt *d);
+static const fmed_filter fmed_dir_input = {
+	&dir_open, NULL, NULL
+};
+
 static void m3u_reset(m3u *m);
 static void m3u_copy(m3u *m);
 static int plist_fullname(fmed_filt *d, const ffstr *name, ffstr *dst);
@@ -76,6 +83,8 @@ static const void* plist_iface(const char *name)
 		return &fmed_m3u_input;
 	else if (!ffsz_cmp(name, "cue"))
 		return &fmed_cue_input;
+	else if (!ffsz_cmp(name, "dir"))
+		return &fmed_dir_input;
 	return NULL;
 }
 
@@ -385,4 +394,30 @@ done:
 		qu->add(&c->ent_prev);
 	}
 	return FMED_RERR; //stop this track
+}
+
+
+static void* dir_open(fmed_filt *d)
+{
+	ffdirexp dr;
+	const char *fn, *dirname;
+	fmed_que_entry e;
+
+	if (FMED_PNULL == (dirname = d->track->getvalstr(d->trk, "input")))
+		return NULL;
+
+	if (0 != ffdir_expopen(&dr, (char*)dirname, 0)) {
+		if (fferr_last() != ENOMOREFILES)
+			syserrlog(core, NULL, "dir", "%e", FFERR_DIROPEN);
+		return NULL;
+	}
+
+	while (NULL != (fn = ffdir_expread(&dr))) {
+		ffmem_tzero(&e);
+		ffstr_setz(&e.url, fn);
+		qu->add(&e);
+	}
+
+	ffdir_expclose(&dr);
+	return NULL;
 }

@@ -376,8 +376,15 @@ static fmed_f* media_modbyext(fm_src *src, const ffstr3 *map, const ffstr *ext)
 static int media_open(fm_src *src, const char *fn)
 {
 	ffstr ext;
+	fffileinfo fi;
 
+	trk_setvalstr(src, "input", fn);
 	newfilter(src, "#queue.track");
+
+	if (0 == fffile_infofn(fn, &fi) && fffile_isdir(fffile_infoattr(&fi))) {
+		newfilter(src, "plist.dir");
+		return 0;
+	}
 
 	if (fmed->info)
 		trk_setval(src, "input_info", 1);
@@ -390,7 +397,6 @@ static int media_open(fm_src *src, const char *fn)
 		fmed->trackno = 0;
 	}
 
-	trk_setvalstr(src, "input", fn);
 	newfilter(src, "#file.in");
 
 	ffpath_splitname(fn, ffsz_len(fn), NULL, &ext);
