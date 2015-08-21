@@ -477,7 +477,7 @@ static int media_setout(fm_src *src)
 
 	} else if (fmed->outfn.len != 0 && !fmed->rec) {
 		ffstr name, ext;
-		ffpath_splitname(fmed->outfn.ptr, fmed->outfn.len, &name, &ext);
+		ffs_rsplit2by(fmed->outfn.ptr, fmed->outfn.len, '.', &name, &ext);
 		if (NULL == media_modbyext(src, &fmed->outmap, &ext))
 			return -1;
 
