@@ -168,6 +168,10 @@ again:
 			fmed_setval("input_seek", ffwav_seekoff(&w->wav));
 			return FMED_RMORE;
 
+		case FFWAV_RWARN:
+			errlog(core, d->trk, "wav", "warning: ffwav_decode(): %s", ffwav_errstr(&w->wav));
+			break;
+
 		case FFWAV_RERR:
 		default:
 			errlog(core, d->trk, "wav", "ffwav_decode(): %s", ffwav_errstr(&w->wav));

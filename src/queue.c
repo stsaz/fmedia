@@ -128,9 +128,17 @@ static void que_play(void)
 	qu->track->cmd(trk, FMED_TRACK_START);
 }
 
+// matches enum FMED_QUE
+static const char *const scmds[] = {
+	"play", "next", "prev", "clear", "rm", "setonchange",
+};
+
 static void que_cmd(uint cmd, void *param)
 {
 	entry *e;
+
+	dbglog(core, NULL, "que", "received command:%s, param:%p", scmds[cmd], param);
+
 	//@ fflk_lock(&qu->lk);
 	switch (cmd) {
 	case FMED_QUE_PLAY:

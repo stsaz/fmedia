@@ -263,6 +263,12 @@ static void gui_task(void *param)
 	}
 }
 
+static void gui_task_add(uint id)
+{
+	gg->cmdtask.param = (void*)(size_t)id;
+	core->task(&gg->cmdtask, FMED_TASK_POST);
+}
+
 static void gui_action(ffui_wnd *wnd, int id)
 {
 	gui_trk *g = gg->curtrk;
@@ -272,14 +278,12 @@ static void gui_action(ffui_wnd *wnd, int id)
 	case PLAY:
 		if (NULL == (gg->play_id = gui_list_getent()))
 			break;
-		gg->cmdtask.param = (void*)(size_t)id;
-		core->task(&gg->cmdtask, FMED_TASK_POST);
+		gui_task_add(id);
 		break;
 
 	case PAUSE:
 		if (g == NULL) {
-			gg->cmdtask.param = (void*)(size_t)id;
-			core->task(&gg->cmdtask, FMED_TASK_POST);
+			gui_task_add(id);
 			break;
 		}
 		fflk_lock(&gg->lk);
@@ -303,8 +307,7 @@ static void gui_action(ffui_wnd *wnd, int id)
 	case STOP:
 	case NEXT:
 	case PREV:
-		gg->cmdtask.param = (void*)(size_t)id;
-		core->task(&gg->cmdtask, FMED_TASK_POST);
+		gui_task_add(id);
 		break;
 
 	case OPEN:
@@ -387,8 +390,7 @@ seek:
 		// break;
 
 	case ONCLOSE:
-		gg->cmdtask.param = (void*)(size_t)QUIT;
-		core->task(&gg->cmdtask, FMED_TASK_POST);
+		gui_task_add(QUIT);
 		break;
 	}
 }
@@ -670,6 +672,9 @@ static int gui_sig(uint signo)
 			gg = NULL;
 			return 1;
 		}
+
+		fflk_lock(&gg->lk); //give the GUI thread some time to create controls
+		fflk_unlock(&gg->lk);
 		break;
 	}
 	return 0;
@@ -702,9 +707,6 @@ static void* gtrk_open(fmed_filt *d)
 	g->trk = d->trk;
 	g->task.handler = d->handler;
 	g->task.param = d->trk;
-
-	fflk_lock(&gg->lk); //give the GUI thread some time to create controls
-	fflk_unlock(&gg->lk);
 
 	g->sample_rate = (int)fmed_getval("pcm_sample_rate");
 	total_samples = fmed_getval("total_samples");

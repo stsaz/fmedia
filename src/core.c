@@ -7,6 +7,7 @@ Copyright (c) 2015 Simon Zolin */
 #include <FF/path.h>
 #include <FF/filemap.h>
 #include <FF/data/conf.h>
+#include <FF/time.h>
 #include <FFOS/error.h>
 #include <FFOS/process.h>
 #include <FFOS/timer.h>
@@ -627,7 +628,7 @@ static void media_process(void *udata)
 	fm_src *src = udata;
 	fmed_f *nf;
 	fmed_f *f;
-	int r, e, skip = 0;
+	int r, e;
 	fftime t1, t2;
 
 	for (;;) {
@@ -635,63 +636,58 @@ static void media_process(void *udata)
 			goto fin;
 
 		f = FF_GETPTR(fmed_f, sib, src->cur);
-		if (!skip || (f->d.flags & FMED_FLAST)) {
 
-			// dbglog(core, src, "core", "calling %s, input: %L"
-			// 	, f->mod->name, f->d.datalen);
-			if (core->loglev & FMED_LOG_DEBUG) {
-				ffclk_get(&t1);
-			}
+		// dbglog(core, src, "core", "calling %s, input: %L"
+		// 	, f->mod->name, f->d.datalen);
+		if (core->loglev & FMED_LOG_DEBUG) {
+			ffclk_get(&t1);
+		}
 
-			e = f->mod->f->process(f->ctx, &f->d);
+		e = f->mod->f->process(f->ctx, &f->d);
 
-			if (core->loglev & FMED_LOG_DEBUG) {
-				ffclk_get(&t2);
-				ffclk_diff(&t1, &t2);
-				fftime_add(&f->clk, &t2);
-			}
+		if (core->loglev & FMED_LOG_DEBUG) {
+			ffclk_get(&t2);
+			ffclk_diff(&t1, &t2);
+			fftime_add(&f->clk, &t2);
+		}
 
-			// dbglog(core, src, "core", "%s returned: %d, output: %L"
-			// 	, f->mod->name, e, f->d.outlen);
+		// dbglog(core, src, "core", "%s returned: %d, output: %L"
+		// 	, f->mod->name, e, f->d.outlen);
 
-			switch (e) {
-			case FMED_RERR:
-				src->err = 1;
-				goto fin;
+		switch (e) {
+		case FMED_RERR:
+			src->err = 1;
+			goto fin;
 
-			case FMED_RASYNC:
-				return;
+		case FMED_RASYNC:
+			return;
 
-			case FMED_RMORE:
-				r = FFLIST_CUR_PREV;
-				break;
-
-			case FMED_ROK:
-				r = FFLIST_CUR_NEXT;
-				break;
-			case FMED_RDONE:
-				f->d.datalen = 0;
-				r = FFLIST_CUR_NEXT | FFLIST_CUR_RM;
-				break;
-			case FMED_RLASTOUT:
-				f->d.datalen = 0;
-				r = FFLIST_CUR_NEXT | FFLIST_CUR_RM | FFLIST_CUR_RMPREV;
-				break;
-
-			default:
-				errlog(core, src, "core", "unknown return code from module: %u", e);
-				src->err = 1;
-				goto fin;
-			}
-
-		} else
+		case FMED_RMORE:
 			r = FFLIST_CUR_PREV;
+			break;
 
-		if (skip)
-			skip = 0;
+		case FMED_ROK:
+			r = FFLIST_CUR_NEXT;
+			break;
+		case FMED_RDONE:
+			f->d.datalen = 0;
+			r = FFLIST_CUR_NEXT | FFLIST_CUR_RM;
+			break;
+		case FMED_RLASTOUT:
+			f->d.datalen = 0;
+			r = FFLIST_CUR_NEXT | FFLIST_CUR_RM | FFLIST_CUR_RMPREV;
+			break;
+
+		default:
+			errlog(core, src, "core", "unknown return code from module: %u", e);
+			src->err = 1;
+			goto fin;
+		}
 
 		if (f->d.datalen != 0)
 			r |= FFLIST_CUR_SAMEIFBOUNCE;
+
+shift:
 		r = fflist_curshift(&src->cur, r | FFLIST_CUR_BOUNCE, fflist_sentl(&src->cur));
 
 		switch (r) {
@@ -725,8 +721,11 @@ static void media_process(void *udata)
 		case FFLIST_CUR_SAME:
 		case FFLIST_CUR_PREV:
 			nf = FF_GETPTR(fmed_f, sib, src->cur);
-			if (nf->d.datalen == 0)
-				skip = 1;
+			if (nf->d.datalen == 0 && !(nf->d.flags & FMED_FLAST)) {
+				r = FFLIST_CUR_PREV;
+				f = nf;
+				goto shift;
+			}
 			break;
 
 		default:
@@ -804,6 +803,9 @@ static int trk_cmd(void *trk, uint cmd)
 {
 	fm_src *src = trk;
 	fflist_item *next;
+
+	dbglog(core, NULL, "track", "received command:%u, trk:%p", cmd, trk);
+
 	switch (cmd) {
 	case FMED_TRACK_STOPALL:
 		core_sigmods(FMED_TRKSTOP);
@@ -1167,6 +1169,9 @@ static int core_sig(uint signo)
 
 static void core_task(fftask *task, uint cmd)
 {
+	dbglog(core, NULL, "core", "task:%p, cmd:%u, active:%u, handler:%p, param:%p"
+		, task, cmd, fftask_active(&fmed->taskmgr, task), task->handler, task->param);
+
 	if (fftask_active(&fmed->taskmgr, task)) {
 		if (cmd == FMED_TASK_DEL)
 			fftask_del(&fmed->taskmgr, task);
@@ -1192,9 +1197,19 @@ static int64 core_getval(const char *name)
 static void core_log(fffd fd, void *trk, const char *module, const char *level, const char *fmt, ...)
 {
 	fm_src *src = trk;
+	char stime[32];
+	ffdtm dt;
+	fftime t;
+	size_t r;
 	va_list va;
 	va_start(va, fmt);
-	fmed->logfunc(fd, NULL, module, level, (src != NULL) ? &src->id : NULL, fmt, va);
+
+	fftime_now(&t);
+	fftime_split(&dt, &t, FFTIME_TZLOCAL);
+	r = fftime_tostr(&dt, stime, sizeof(stime), FFTIME_HMS_MSEC);
+	stime[r] = '\0';
+
+	fmed->logfunc(fd, stime, module, level, (src != NULL) ? &src->id : NULL, fmt, va);
 	va_end(va);
 }
 

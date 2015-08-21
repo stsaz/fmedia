@@ -5,7 +5,6 @@ Copyright (c) 2015 Simon Zolin */
 
 #include <FF/audio/pcm.h>
 #include <FF/data/psarg.h>
-#include <FF/time.h>
 #include <FF/path.h>
 #include <FFOS/sig.h>
 #include <FFOS/error.h>
@@ -188,18 +187,6 @@ static void fmed_log(fffd fd, const char *stime, const char *module, const char 
 	char buf[4096];
 	char *s = buf;
 	const char *end = buf + FFCNT(buf) - FFSLEN("\n");
-	char time_s[32];
-
-	if (stime == NULL) {
-		ffdtm dt;
-		fftime t;
-		size_t r;
-		fftime_now(&t);
-		fftime_split(&dt, &t, FFTIME_TZLOCAL);
-		r = fftime_tostr(&dt, time_s, sizeof(time_s), FFTIME_HMS_MSEC);
-		time_s[r] = '\0';
-		stime = time_s;
-	}
 
 	s += ffs_fmt(s, end, "%s %s %s: ", stime, level, module);
 
