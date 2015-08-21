@@ -16,6 +16,7 @@ typedef struct que {
 	fflist list; //entry[]
 	entry *cur;
 	const fmed_track *track;
+	fmed_que_onchange_t onchange;
 	uint stopped :1
 		, quit_if_done :1;
 } que;
@@ -181,6 +182,11 @@ static void que_cmd(uint cmd, void *param)
 		fflist_rm(&qu->list, &e->sib);
 		if (qu->cur == e)
 			qu->cur = NULL;
+		dbglog(core, NULL, "que", "removed item %S", &e->e.url);
+
+		if (qu->onchange != NULL)
+			qu->onchange(&e->e, FMED_QUE_ONRM);
+
 		ent_free(e);
 		break;
 
@@ -189,6 +195,10 @@ static void que_cmd(uint cmd, void *param)
 		FFLIST_ENUMSAFE(&qu->list, ent_free, entry, sib);
 		fflist_init(&qu->list);
 		dbglog(core, NULL, "que", "cleared");
+		break;
+
+	case FMED_QUE_SETONCHANGE:
+		qu->onchange = param;
 		break;
 	}
 	// fflk_unlock(&qu->lk);
@@ -239,6 +249,9 @@ static fmed_que_entry* que_add(fmed_que_entry *ent)
 
 	dbglog(core, NULL, "que", "added: (%d: %u-%u) %S"
 		, ent->dur, ent->from, ent->to, &ent->url);
+
+	if (qu->onchange != NULL)
+		qu->onchange(&e->e, FMED_QUE_ONADD);
 
 	if (qu->list.len == 1)
 		que_cmd(FMED_QUE_NEXT, NULL);

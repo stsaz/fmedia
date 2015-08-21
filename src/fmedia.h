@@ -217,12 +217,21 @@ typedef struct fmed_que_entry {
 	int dur; //msec
 } fmed_que_entry;
 
+enum FMED_QUE_EVT {
+	FMED_QUE_ONADD,
+	FMED_QUE_ONRM,
+};
+
+/** @flags: enum FMED_QUE_EVT. */
+typedef void (*fmed_que_onchange_t)(fmed_que_entry *e, uint flags);
+
 enum FMED_QUE {
 	FMED_QUE_PLAY,
 	FMED_QUE_NEXT,
 	FMED_QUE_PREV,
 	FMED_QUE_CLEAR,
 	FMED_QUE_RM,
+	FMED_QUE_SETONCHANGE, // @param: fmed_que_onchange_t
 };
 
 typedef struct fmed_queue {
