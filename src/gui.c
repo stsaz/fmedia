@@ -107,6 +107,7 @@ static void gui_media_showdir(void);
 static void gui_on_dropfiles(ffui_wnd *wnd, ffui_fdrop *df);
 static void gui_que_onchange(fmed_que_entry *e, uint flags);
 static void gui_rec(void);
+static void gui_onclose(void);
 
 //GUI-TRACK
 static void* gtrk_open(fmed_filt *d);
@@ -432,8 +433,32 @@ seek:
 
 	case ONCLOSE:
 		gui_task_add(QUIT);
+		gui_onclose();
 		break;
 	}
+}
+
+static void gui_onclose(void)
+{
+	ffui_pos pos;
+	char buf[128], *fn;
+	size_t n;
+	ffui_loaderw ldr = {0};
+
+	if (NULL == (fn = core->getpath(FFSTR("./fmedia.gui"))))
+		return;
+
+	if (IsWindowVisible(gg->wmain.h) && !IsIconic(gg->wmain.h)) {
+		ffui_getpos(gg->wmain.h, &pos);
+		n = ffs_fmt(buf, buf + sizeof(buf), "%d %d %u %u", pos.x, pos.y, pos.cx, pos.cy);
+		ffui_ldr_set(&ldr, "wmain.position", buf, n);
+	}
+
+	n = ffs_fmt(buf, buf + sizeof(buf), "%u", ffui_trk_val(&gg->tvol));
+	ffui_ldr_set(&ldr, "tvol.value", buf, n);
+
+	ffui_ldr_write(&ldr, fn);
+	ffmem_free(fn);
 }
 
 static void gui_rec(void)
