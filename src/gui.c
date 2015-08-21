@@ -631,7 +631,6 @@ static FFTHDCALL int gui_worker(void *param)
 
 	ffui_run();
 
-	core->task(&gg->cmdtask, FMED_TASK_DEL);
 	ffui_dlg_destroy(&gg->dlg);
 	ffui_wnd_destroy(&gg->wmain);
 	ffui_uninit();
@@ -686,6 +685,7 @@ static void gui_destroy(void)
 		return;
 	ffui_wnd_close(&gg->wmain);
 	ffthd_join(gg->th, -1, NULL);
+	core->task(&gg->cmdtask, FMED_TASK_DEL);
 	ffmem_free(gg);
 }
 
