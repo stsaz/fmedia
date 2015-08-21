@@ -324,5 +324,5 @@ static int mix_read(void *ctx, fmed_filt *d)
 		}
 	}
 
-	return FMED_ROK;
+	return FMED_RASYNC;
 }
