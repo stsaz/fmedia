@@ -5,6 +5,7 @@ Copyright (c) 2015 Simon Zolin */
 
 #include <FF/audio/pcm.h>
 #include <FF/array.h>
+#include <FF/crc.h>
 
 
 static const fmed_core *core;
@@ -56,6 +57,14 @@ static const fmed_filter fmed_smod_until = {
 	&sndmod_untl_open, &sndmod_untl_process, &sndmod_untl_close
 };
 
+//PEAKS
+static void* sndmod_peaks_open(fmed_filt *d);
+static int sndmod_peaks_process(void *ctx, fmed_filt *d);
+static void sndmod_peaks_close(void *ctx);
+static const fmed_filter fmed_sndmod_peaks = {
+	&sndmod_peaks_open, &sndmod_peaks_process, &sndmod_peaks_close
+};
+
 
 const fmed_mod* fmed_getmod_sndmod(const fmed_core *_core)
 {
@@ -72,6 +81,8 @@ static const void* sndmod_iface(const char *name)
 		return &fmed_sndmod_gain;
 	else if (!ffsz_cmp(name, "until"))
 		return &fmed_smod_until;
+	else if (!ffsz_cmp(name, "peaks"))
+		return &fmed_sndmod_peaks;
 	return NULL;
 }
 
@@ -332,5 +343,119 @@ static int sndmod_untl_process(void *ctx, fmed_filt *d)
 		return FMED_RLASTOUT;
 	}
 
+	return FMED_ROK;
+}
+
+
+typedef struct sndmod_peaks {
+	uint state;
+	uint nch;
+	uint64 total;
+
+	struct {
+		uint crc;
+		uint high;
+		uint64 sum;
+		uint64 clipped;
+	} ch[2];
+} sndmod_peaks;
+
+static void* sndmod_peaks_open(fmed_filt *d)
+{
+	uint ich;
+	sndmod_peaks *p = ffmem_tcalloc1(sndmod_peaks);
+	if (p == NULL)
+		return NULL;
+
+	p->nch = fmed_getval("pcm_channels");
+	if (p->nch > 2) {
+		ffmem_free(p);
+		return NULL;
+	}
+
+	if (1 == fmed_getval("pcm_crc")) {
+		for (ich = 0;  ich != p->nch;  ich++) {
+			p->ch[ich].crc = ffcrc32_start();
+		}
+	}
+	return p;
+}
+
+static void sndmod_peaks_close(void *ctx)
+{
+	sndmod_peaks *p = ctx;
+	ffmem_free(p);
+}
+
+static int sndmod_peaks_process(void *ctx, fmed_filt *d)
+{
+	sndmod_peaks *p = ctx;
+	size_t i, ich, samples;
+
+	switch (p->state) {
+	case 0:
+		fmed_setval("conv_pcm_ileaved", 0);
+		fmed_setval("conv_pcm_format", FFPCM_16LE);
+		p->state = 1;
+		return FMED_RMORE;
+
+	case 1:
+		if (1 == fmed_getval("pcm_ileaved")
+			|| FFPCM_16LE != fmed_getval("pcm_format")) {
+			errlog(core, d->trk, "peaks", "input must be non-interleaved 16LE PCM");
+			return FMED_RERR;
+		}
+		p->state = 2;
+		break;
+	}
+
+	samples = d->datalen / (sizeof(short) * p->nch);
+	p->total += samples;
+
+	for (ich = 0;  ich != p->nch;  ich++) {
+		for (i = 0;  i != samples;  i++) {
+			int sh = ((short**)d->datani)[ich][i];
+
+			if (sh == 0x7fff || sh == -0x8000)
+				p->ch[ich].clipped++;
+
+			if (sh < 0)
+				sh = -sh;
+
+			if (p->ch[ich].high < sh)
+				p->ch[ich].high = sh;
+
+			p->ch[ich].sum += sh;
+		}
+
+		if (p->ch[ich].crc != 0)
+			ffcrc32_updatestr(&p->ch[ich].crc, d->datani[ich], d->datalen / p->nch);
+	}
+
+	d->out = d->data;
+	d->outlen = d->datalen;
+	d->datalen = 0;
+
+	if (d->flags & FMED_FLAST) {
+		ffstr3 buf = {0};
+		ffstr_catfmt(&buf, "\nPCM peaks:\n");
+
+		if (p->total != 0) {
+			for (ich = 0;  ich != p->nch;  ich++) {
+
+				if (p->ch[ich].crc != 0)
+					ffcrc32_finish(&p->ch[ich].crc);
+
+				ffstr_catfmt(&buf, "Channel #%L: highest peak:%04xu, avg peak:%04xu.  Clipped: %U (%.4F%%).  CRC:%08xu\n"
+					, ich + 1, p->ch[ich].high, (int)(p->ch[ich].sum / p->total)
+					, p->ch[ich].clipped, ((double)p->ch[ich].clipped * 100 / p->total)
+					, p->ch[ich].crc);
+			}
+		}
+
+		fffile_write(ffstdout, buf.ptr, buf.len);
+		ffarr_free(&buf);
+		return FMED_RDONE;
+	}
 	return FMED_ROK;
 }

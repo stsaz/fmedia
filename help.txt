@@ -56,3 +56,7 @@ Other options:
                   2: gap is added to the previous track (but track01's pregap is preserved):
                     track01.index00 .. track02.index01
                     track02.index01 .. track03.index01
+
+--pcm-peaks  Analyze PCM and print some details.
+--pcm-crc    Print CRC of PCM data (must be used with --pcm-peaks).
+             Useful for checking the results of lossless audio conversion.

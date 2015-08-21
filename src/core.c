@@ -468,7 +468,12 @@ static int media_setout(fm_src *src)
 	trk_setval(src, "conv_pcm_format", fmed->conv_pcm_formt);
 	newfilter(src, "#soundmod.conv");
 
-	if (FMED_PNULL != (s = trk_getvalstr(src, "output"))) {
+	if (fmed->pcm_peaks) {
+		if (fmed->pcm_crc)
+			trk_setval(src, "pcm_crc", 1);
+		newfilter(src, "#soundmod.peaks");
+
+	} else if (FMED_PNULL != (s = trk_getvalstr(src, "output"))) {
 		ffstr name, ext;
 		ffpath_splitname(s, ffsz_len(s), &name, &ext);
 		if (NULL == media_modbyext(src, &fmed->outmap, &ext))

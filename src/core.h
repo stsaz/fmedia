@@ -72,4 +72,6 @@ typedef struct fmedia {
 	float gain;
 	int conv_pcm_formt;
 	byte cue_gaps;
+	byte pcm_crc;
+	byte pcm_peaks;
 } fmedia;
