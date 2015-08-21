@@ -222,8 +222,8 @@ typedef struct fmed_que_entry {
 	ffstr url;
 	ffstr *meta; //name,value,...
 	uint nmeta;
-	uint from //msec
-		, to; //msec
+	int from // >0: msec;  <0: CD frames (1/75 sec)
+		, to;
 	int dur; //msec
 } fmed_que_entry;
 

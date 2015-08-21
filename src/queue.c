@@ -248,7 +248,7 @@ static fmed_que_entry* que_add(fmed_que_entry *ent)
 	fflist_ins(&qu->list, &e->sib);
 	fflk_unlock(&qu->lk);
 
-	dbglog(core, NULL, "que", "added: (%d: %u-%u) %S"
+	dbglog(core, NULL, "que", "added: (%d: %d-%d) %S"
 		, ent->dur, ent->from, ent->to, &ent->url);
 
 	if (qu->onchange != NULL)

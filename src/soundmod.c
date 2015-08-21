@@ -273,22 +273,30 @@ typedef struct sndmod_untl {
 
 static void* sndmod_untl_open(fmed_filt *d)
 {
-	int64 val;
+	int64 val, rate;
 	sndmod_untl *u;
 
 	if (FMED_NULL == (val = fmed_getval("until_time")))
 		return (void*)1;
 
+	rate = fmed_getval("pcm_sample_rate");
+
 	if (NULL == (u = ffmem_tcalloc1(sndmod_untl)))
 		return NULL;
-	u->until = val;
+	if (val > 0)
+		u->until = ffpcm_samples(val, rate);
+	else
+		u->until = -val * rate / 75;
 
-	if (FMED_NULL != (val = fmed_getval("seek_time_abs")))
-		u->until -= val;
+	if (FMED_NULL != (val = fmed_getval("seek_time_abs"))) {
+		if (val > 0)
+			u->until -= ffpcm_samples(val, rate);
+		else
+			u->until -= -val * rate / 75;
+	}
 
 	val = fmed_getval("pcm_format");
 	u->sampsize = ffpcm_size(val, fmed_getval("pcm_channels"));
-	u->until = ffpcm_samples(u->until, fmed_getval("pcm_sample_rate"));
 
 	if (FMED_NULL != fmed_getval("total_samples"))
 		fmed_setval("total_samples", u->until);

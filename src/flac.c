@@ -21,7 +21,7 @@ static const char *const metanames[] = {
 typedef struct flac {
 	ffflac fl;
 	char *meta[FFCNT(metanames)];
-	uint64 abs_seek;
+	int64 abs_seek; // msec/cdframe/sample
 	uint state;
 } flac;
 
@@ -202,8 +202,12 @@ again:
 			fmed_setval("pcm_ileaved", 0);
 			fmed_setval("bitrate", ffflac_bitrate(&f->fl));
 
-			if (f->abs_seek != 0)
-				f->abs_seek = ffpcm_samples(f->abs_seek, f->fl.fmt.sample_rate);
+			if (f->abs_seek != 0) {
+				if (f->abs_seek > 0)
+					f->abs_seek = ffpcm_samples(f->abs_seek, f->fl.fmt.sample_rate);
+				else
+					f->abs_seek = -f->abs_seek * f->fl.fmt.sample_rate / 75;
+			}
 
 			fmed_setval("total_samples", ffflac_totalsamples(&f->fl) - f->abs_seek);
 			break;
