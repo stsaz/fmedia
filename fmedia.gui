@@ -147,6 +147,8 @@ window wmain {
 		}
 		column Info {
 		}
+		column Filename {
+		}
 	}
 
 	paned pntop {

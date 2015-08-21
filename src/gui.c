@@ -54,6 +54,7 @@ enum LIST_HDR {
 	H_TIT,
 	H_DUR,
 	H_INF,
+	H_FN,
 };
 
 enum ST {
@@ -624,6 +625,7 @@ static void* gtrk_open(fmed_filt *d)
 	ffui_viewitem it = {0};
 	const char *artist, *title, *sval;
 	char buf[1024];
+	ffstr stitle;
 	fmed_que_entry *plid;
 	size_t n;
 	ssize_t idx = -1;
@@ -644,34 +646,36 @@ static void* gtrk_open(fmed_filt *d)
 	g->total_time_sec = ffpcm_time(total_samples, g->sample_rate) / 1000;
 	ffui_trk_setrange(&gg->tpos, g->total_time_sec);
 
-	if (NULL != (plid = gg->qu->getinfo())) {
-		if (-1 != (idx = ffui_view_search(&gg->vlist, (size_t)plid)))
-			ffui_view_setindex(&it, idx);
-	}
+	plid = gg->qu->getinfo();
+	if (-1 != (idx = ffui_view_search(&gg->vlist, (size_t)plid)))
+		ffui_view_setindex(&it, idx);
 
-	if (idx == -1) {
-		gui_list_add(&it, (size_t)plid);
-	} else {
-		ffui_view_focus(&it, 1);
-		ffui_view_set(&gg->vlist, H_IDX, &it);
-	}
+	ffui_view_focus(&it, 1);
+	ffui_view_set(&gg->vlist, H_IDX, &it);
 
 	artist = d->track->getvalstr(d->trk, "meta_artist");
 	if (artist == FMED_PNULL)
 		artist = "";
 
 	title = d->track->getvalstr(d->trk, "meta_title");
-	if (title == FMED_PNULL)
-		title = "";
+	if (title == FMED_PNULL) {
+		//use filename as a title
+		ffpath_split2(plid->url.ptr, plid->url.len, NULL, &stitle);
+		ffpath_splitname(stitle.ptr, stitle.len, &stitle, NULL);
+	} else
+		ffstr_setz(&stitle, title);
 
-	n = ffs_fmt(buf, buf + sizeof(buf), "%s - %s - fmedia", artist, title);
+	n = ffs_fmt(buf, buf + sizeof(buf), "%s - %S - fmedia", artist, &stitle);
 	ffui_settext(&gg->wmain, buf, n);
 
 	ffui_view_settextz(&it, artist);
 	ffui_view_set(&gg->vlist, H_ART, &it);
 
-	ffui_view_settextz(&it, title);
+	ffui_view_settextstr(&it, &stitle);
 	ffui_view_set(&gg->vlist, H_TIT, &it);
+
+	ffui_view_settextstr(&it, &plid->url);
+	ffui_view_set(&gg->vlist, H_FN, &it);
 
 	if (FMED_NULL != (dur = fmed_getval("track_duration")))
 		dur /= 1000;
