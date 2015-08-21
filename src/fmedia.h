@@ -120,6 +120,11 @@ typedef struct fmed_track {
 	const char* (*getvalstr)(void *trk, const char *name);
 
 	int (*setval)(void *trk, const char *name, int64 val);
+
+	/**
+	@name:
+	 . "name" - set pointer
+	 . "=name" - acquire pointer (value will be deleted with ffmem_free()) */
 	int (*setvalstr)(void *trk, const char *name, const char *val);
 } fmed_track;
 

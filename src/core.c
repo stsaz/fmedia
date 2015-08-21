@@ -40,6 +40,7 @@ typedef struct dict_ent {
 		int64 val;
 		void *pval;
 	};
+	uint acq :1;
 } dict_ent;
 
 typedef struct fm_src fm_src;
@@ -52,8 +53,6 @@ struct fm_src {
 
 	ffstr id;
 	char sid[FFSLEN("*") + FFINT_MAXCHARS];
-
-	char *outfn;
 
 	unsigned err :1
 		, capture :1;
@@ -81,6 +80,9 @@ static void media_free(fm_src *src);
 static void media_process(void *udata);
 static fmed_f* media_modbyext(fm_src *src, const ffstr3 *map, const ffstr *ext);
 static void media_printtime(fm_src *src);
+
+static dict_ent* dict_add(fm_src *src, const char *name);
+static void dict_ent_free(dict_ent *e);
 
 static void* trk_create(uint cmd, const char *url);
 static int trk_cmd(void *trk, uint cmd);
@@ -474,8 +476,7 @@ static int media_setout(fm_src *src, const char *fn)
 			if (0 == ffstr_catfmt(&outfn, "%S/%S.%S%Z"
 				, &fmed->outdir, &name, &ext))
 				return -1;
-			src->outfn = outfn.ptr;
-			trk_setvalstr(src, "output", src->outfn);
+			trk_setvalstr(src, "=output", outfn.ptr);
 
 		} else {
 			errlog(core, src, "core", "--out or --outdir must be set");
@@ -601,9 +602,18 @@ static void media_printtime(fm_src *src)
 	ffarr_free(&s);
 }
 
+static void dict_ent_free(dict_ent *e)
+{
+	if (e->acq)
+		ffmem_free(e->pval);
+	ffmem_free(e);
+}
+
 static void media_free(fm_src *src)
 {
 	fmed_f *pf;
+	dict_ent *e;
+	fftree_node *node, *next;
 
 	dbglog(core, src, "core", "media: closing...");
 	FFARR_WALK(&src->filters, pf) {
@@ -614,10 +624,14 @@ static void media_free(fm_src *src)
 	if (core->loglev & FMED_LOG_DEBUG)
 		media_printtime(src);
 
-	ffarr_free(&src->dict);
+	FFTREE_WALKSAFE(&src->dict, node, next) {
+		e = FF_GETPTR(dict_ent, nod, node);
+		ffrbt_rm(&src->dict, &e->nod);
+		dict_ent_free(e);
+	}
+
 	if (fflist_exists(&fmed->srcs, &src->sib))
 		fflist_rm(&fmed->srcs, &src->sib);
-	FF_SAFECLOSE(src->outfn, NULL, ffmem_free);
 
 	dbglog(core, src, "core", "media: closed");
 	ffmem_free(src);
@@ -784,7 +798,7 @@ static dict_ent* dict_add(fm_src *src, const char *name)
 		}
 
 	} else {
-		ent = ffmem_talloc(dict_ent, 1);
+		ent = ffmem_tcalloc1(dict_ent);
 		if (ent == NULL) {
 			errlog(core, NULL, "core", "setval: %e", FFERR_BUFALOC);
 			src->err = 1;
@@ -828,6 +842,7 @@ static int64 trk_popval(void *trk, const char *name)
 	if (ent != NULL) {
 		int64 val = ent->val;
 		ffrbt_rm(&src->dict, &ent->nod);
+		dict_ent_free(ent);
 		return val;
 	}
 
@@ -859,6 +874,11 @@ static int trk_setval(void *trk, const char *name, int64 val)
 	if (ent == NULL)
 		return 0;
 
+	if (ent->acq) {
+		ffmem_free(ent->pval);
+		ent->acq = 0;
+	}
+
 	ent->val = val;
 	dbglog(core, trk, "core", "setval: %s = %D", name, val);
 	return 0;
@@ -867,11 +887,21 @@ static int trk_setval(void *trk, const char *name, int64 val)
 static int trk_setvalstr(void *trk, const char *name, const char *val)
 {
 	fm_src *src = trk;
-	dict_ent *ent = dict_add(src, name);
-	if (ent == NULL)
+	ffbool acq;
+	dict_ent *ent;
+
+	if (0 != (acq = (name[0] == '=')))
+		name++;
+
+	if (NULL == (ent = dict_add(src, name)))
 		return 0;
 
+	if (ent->acq)
+		ffmem_free(ent->pval);
+	ent->acq = acq;
+
 	ent->pval = (void*)val;
+
 	dbglog(core, trk, "core", "setval: %s = %s", name, val);
 	return 0;
 }
