@@ -55,7 +55,8 @@ struct fm_src {
 	char sid[FFSLEN("*") + FFINT_MAXCHARS];
 
 	unsigned err :1
-		, capture :1;
+		, capture :1
+		, mxr_out :1;
 };
 
 
@@ -418,7 +419,6 @@ static int media_open(fm_src *src, const char *fn)
 	newfilter(src, "#soundmod.until");
 
 	if (fmed->mix) {
-		newfilter(src, "mixer.in");
 		return 0;
 	}
 
@@ -446,6 +446,7 @@ static void media_open_capt(fm_src *src)
 static void media_open_mix(fm_src *src)
 {
 	newfilter(src, "mixer.out");
+	src->mxr_out = 1;
 }
 
 static int media_setout(fm_src *src)
@@ -468,7 +469,10 @@ static int media_setout(fm_src *src)
 	trk_setval(src, "conv_pcm_format", fmed->conv_pcm_formt);
 	newfilter(src, "#soundmod.conv");
 
-	if (fmed->pcm_peaks) {
+	if (fmed->mix && !src->mxr_out) {
+		newfilter(src, "mixer.in");
+
+	} else if (fmed->pcm_peaks) {
 		if (fmed->pcm_crc)
 			trk_setval(src, "pcm_crc", 1);
 		newfilter(src, "#soundmod.peaks");
