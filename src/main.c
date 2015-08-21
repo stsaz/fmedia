@@ -278,6 +278,11 @@ static int open_input(void)
 			goto end;
 		if (NULL == (trk = track->create(FMED_TRACK_REC, NULL)))
 			goto end;
+
+		if (fmed->outfn.len != 0) {
+			track->setvalstr(trk, "output", fmed->outfn.ptr);
+		}
+
 		track->cmd(trk, FMED_TRACK_START);
 	}
 

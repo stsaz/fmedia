@@ -70,7 +70,8 @@ enum {
 FF_EXP fmed_core* core_init(fmedia **ptr, fmed_log_t logfunc);
 FF_EXP void core_free(void);
 
-static int media_setout(fm_src *src, const char *fn);
+static int media_setout(fm_src *src);
+static int media_opened(fm_src *src);
 static fmed_f* newfilter(fm_src *src, const char *modname);
 static fmed_f* newfilter1(fm_src *src, const fmed_modinfo *mod);
 static int media_open(fm_src *src, const char *fn);
@@ -439,8 +440,10 @@ static void media_open_mix(fm_src *src)
 	newfilter(src, "mixer.out");
 }
 
-static int media_setout(fm_src *src, const char *fn)
+static int media_setout(fm_src *src)
 {
+	const char *s, *fn;
+
 	if (fmed->volume != 100) {
 		double db;
 		if (fmed->volume < 100)
@@ -457,7 +460,14 @@ static int media_setout(fm_src *src, const char *fn)
 	trk_setval(src, "conv_pcm_format", fmed->conv_pcm_formt);
 	newfilter(src, "#soundmod.conv");
 
-	if (fmed->outfn.len != 0 && (!fmed->rec || src->capture)) {
+	if (FMED_PNULL != (s = trk_getvalstr(src, "output"))) {
+		ffstr name, ext;
+		ffpath_splitname(s, ffsz_len(s), &name, &ext);
+		if (NULL == media_modbyext(src, &fmed->outmap, &ext))
+			return -1;
+		newfilter(src, "#file.out");
+
+	} else if (fmed->outfn.len != 0 && !fmed->rec) {
 		ffstr name, ext;
 		ffpath_splitname(fmed->outfn.ptr, fmed->outfn.len, &name, &ext);
 		if (NULL == media_modbyext(src, &fmed->outmap, &ext))
@@ -466,7 +476,9 @@ static int media_setout(fm_src *src, const char *fn)
 		if (name.len != 0)
 			trk_setvalstr(src, "output", fmed->outfn.ptr);
 
-		else if (fmed->outdir.len != 0 && fn != NULL) {
+		else if (fmed->outdir.len != 0
+			&& FMED_PNULL != (fn = trk_getvalstr(src, "input"))) {
+
 			ffstr fname;
 			ffstr3 outfn = {0};
 
@@ -492,9 +504,34 @@ static int media_setout(fm_src *src, const char *fn)
 	return 0;
 }
 
-static void* trk_create(uint cmd, const char *fn)
+static int media_opened(fm_src *src)
 {
 	fmed_f *f, *prev = NULL;
+	FFARR_WALK(&src->filters, f) {
+
+		if (f->mod == NULL)
+			return -1;
+
+		if (prev != NULL)
+			fflist_link(&f->sib, &prev->sib);
+		else {
+			f->d.flags = FMED_FLAST;
+			f->ctx = f->mod->f->open(&f->d);
+			if (f->ctx == NULL)
+				return -1;
+			f->opened = 1;
+			src->cur = &f->sib;
+		}
+
+		prev = f;
+	}
+
+	fflist_ins(&fmed->srcs, &src->sib);
+	return 0;
+}
+
+static void* trk_create(uint cmd, const char *fn)
+{
 	uint nout = 4;
 	fm_src *src = ffmem_tcalloc1(fm_src);
 	if (src == NULL)
@@ -532,8 +569,9 @@ static void* trk_create(uint cmd, const char *fn)
 	case FMED_TRACK_OPEN:
 		if (NULL == ffarr_grow(&src->filters, 6 + nout, 0))
 			goto fail;
-		if (0 != media_open(src, fn))
-			goto fail;
+		if (0 != media_open(src, fn)) {
+			trk_setval(src, "error", 1);
+		}
 		break;
 
 	case FMED_TRACK_REC:
@@ -549,28 +587,6 @@ static void* trk_create(uint cmd, const char *fn)
 		break;
 	}
 
-	if (0 != media_setout(src, fn))
-		goto fail;
-
-	FFARR_WALK(&src->filters, f) {
-
-		if (f->mod == NULL)
-			goto fail;
-
-		if (prev != NULL)
-			fflist_link(&f->sib, &prev->sib);
-		else {
-			f->d.flags = FMED_FLAST;
-			f->ctx = f->mod->f->open(&f->d);
-			if (f->ctx == NULL)
-				goto fail;
-			f->opened = 1;
-			src->cur = &f->sib;
-		}
-
-		prev = f;
-	}
-	fflist_ins(&fmed->srcs, &src->sib);
 	return src;
 
 fail:
@@ -829,6 +845,14 @@ static int trk_cmd(void *trk, uint cmd)
 		break;
 
 	case FMED_TRACK_START:
+		if (0 != media_setout(src)) {
+			trk_setval(src, "error", 1);
+		}
+		if (0 != media_opened(src)) {
+			media_free(src);
+			return -1;
+		}
+
 		media_process(src);
 		break;
 	}

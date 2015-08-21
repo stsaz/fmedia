@@ -286,6 +286,11 @@ static void* que_trk_open(fmed_filt *d)
 	t->e = e;
 	if (qu->stopped)
 		qu->stopped = 0;
+
+	if (1 == fmed_getval("error")) {
+		que_trk_close(t);
+		return NULL;
+	}
 	return t;
 }
 
