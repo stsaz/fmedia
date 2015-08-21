@@ -45,3 +45,14 @@ Options:
 
 Other options:
 --ogg-quality=VAL     Set OGG Vorbis encoding quality: -1.0 .. 10.0
+
+--cue-gaps=VAL    Control track pregaps
+                  0: skip pregaps:
+                    track01.index01 .. track02.index00
+
+                  1: (default), gap is added to the previous track:
+                    track01.index01 .. track02.index01
+
+                  2: gap is added to the previous track (but track01's pregap is preserved):
+                    track01.index00 .. track02.index01
+                    track02.index01 .. track03.index01

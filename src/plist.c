@@ -20,6 +20,12 @@ typedef struct m3u {
 	uint furl :1;
 } m3u;
 
+enum CUE_GAP {
+	GAP_PREV,
+	GAP_PREV1,
+	GAP_SKIP,
+};
+
 typedef struct cue {
 	ffparser p;
 	fmed_que_entry ent
@@ -30,6 +36,7 @@ typedef struct cue {
 		, trackno;
 	uint gmeta;
 	uint furl :1
+		, gaps :2 //enum CUE_GAP
 		, skip_remval :1;
 } cue;
 
@@ -250,6 +257,25 @@ static void* cue_open(fmed_filt *d)
 	c->trackno = -1;
 	if (FMED_NULL != (val = fmed_getval("input_trackno")))
 		c->trackno = (int)val;
+
+	c->gaps = GAP_PREV;
+	if (FMED_NULL != (val = core->getval("cue_gaps"))) {
+		switch (val) {
+		case 0:
+			c->gaps = GAP_SKIP;
+			break;
+		case 1:
+			c->gaps = GAP_PREV;
+			break;
+		case 2:
+			c->gaps = GAP_PREV1;
+			break;
+
+		default:
+			errlog(core, d->trk, "cue", "cue_gaps value must be within 0..2 range");
+		}
+	}
+
 	ffpars_init(&c->p);
 	ffmem_tzero(&c->ent);
 	return c;
@@ -352,7 +378,7 @@ add_metaname:
 			break;
 
 		case FFCUE_TRK_INDEX00:
-			if (c->ent_prev.url.len != 0) {
+			if (c->gaps == GAP_SKIP && c->ent_prev.url.len != 0) {
 				c->ent_prev.dur = (int)c->p.intval - c->ent_prev.from;
 				c->ent_prev.to = (int)c->p.intval;
 			}
@@ -369,8 +395,11 @@ add_metaname:
 			} else if (c->curtrk == c->trackno)
 				goto done;
 
-			// move "ent" -> "ent_prev"
 			c->ent.from = c->p.intval;
+			if (c->ent_prev.url.len == 0 && c->gaps == GAP_PREV1)
+				c->ent.from = 0;
+
+			// move "ent" -> "ent_prev"
 			c->ent_prev = c->ent;
 			ffmem_tzero(&c->ent);
 			c->ent.url = c->ent_prev.url;

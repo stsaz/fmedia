@@ -990,6 +990,7 @@ fmed_core* core_init(fmedia **ptr, fmed_log_t logfunc)
 	core_insmod("#core.core", NULL);
 
 	fmed->ogg_qual = -255;
+	fmed->cue_gaps = 255;
 	fmed->conv_pcm_formt = FFPCM_16LE;
 
 	*ptr = fmed;
@@ -1274,6 +1275,8 @@ static int64 core_getval(const char *name)
 		return fmed->repeat_all;
 	else if (!ffsz_cmp(name, "gui"))
 		return fmed->gui;
+	else if (!ffsz_cmp(name, "cue_gaps") && fmed->cue_gaps != 255)
+		return fmed->cue_gaps;
 	return FMED_NULL;
 }
 
