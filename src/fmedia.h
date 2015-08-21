@@ -98,6 +98,7 @@ enum FMED_TRACK {
 	FMED_TRACK_MIX,
 
 	FMED_TRACK_START,
+	FMED_TRACK_STOP,
 
 	/** @trk:
 	 . NULL: all playing

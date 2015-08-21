@@ -859,6 +859,10 @@ static int trk_cmd(void *trk, uint cmd)
 		}
 		break;
 
+	case FMED_TRACK_STOP:
+		media_stop(src);
+		break;
+
 	case FMED_TRACK_START:
 		if (0 != media_setout(src)) {
 			trk_setval(src, "error", 1);
