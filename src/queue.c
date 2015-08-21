@@ -123,6 +123,7 @@ static void que_play(void)
 	for (i = 0;  i != e->nmeta;  i += 2) {
 		qu->track->setvalstr(trk, e->meta[i].ptr, e->meta[i + 1].ptr);
 	}
+	qu->track->setval(trk, "queue_item", (int64)e);
 	qu->track->cmd(trk, FMED_TRACK_START);
 }
 
@@ -245,17 +246,43 @@ static fmed_que_entry* que_add(fmed_que_entry *ent)
 }
 
 
+typedef struct que_trk {
+	entry *e;
+	const fmed_track *track;
+	void *trk;
+} que_trk;
+
 static void* que_trk_open(fmed_filt *d)
 {
+	que_trk *t;
+	entry *e = (void*)d->track->getval(d->trk, "queue_item");
+
+	if ((int64)e == FMED_NULL)
+		return FMED_FILT_SKIP; //the track wasn't created by this module
+
+	t = ffmem_tcalloc1(que_trk);
+	if (t == NULL)
+		return NULL;
+	t->track = d->track;
+	t->trk = d->trk;
+	t->e = e;
 	if (qu->stopped)
 		qu->stopped = 0;
-	return (void*)1;
+	return t;
 }
 
 static void que_trk_close(void *ctx)
 {
+	que_trk *t = ctx;
+
 	if (!qu->stopped)
 		que_cmd(FMED_QUE_NEXT, NULL);
+
+	//delete the item from queue if there was an error
+	if (FMED_NULL != t->track->getval(t->trk, "error"))
+		que_cmd(FMED_QUE_RM, t->e);
+
+	ffmem_free(t);
 }
 
 static int que_trk_process(void *ctx, fmed_filt *d)

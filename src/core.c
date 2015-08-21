@@ -656,6 +656,7 @@ static void media_process(void *udata)
 
 			switch (e) {
 			case FMED_RERR:
+				src->err = 1;
 				goto fin;
 
 			case FMED_RASYNC:
@@ -679,6 +680,7 @@ static void media_process(void *udata)
 
 			default:
 				errlog(core, src, "core", "unknown return code from module: %u", e);
+				src->err = 1;
 				goto fin;
 			}
 
@@ -698,6 +700,7 @@ static void media_process(void *udata)
 
 		case FFLIST_CUR_NOPREV:
 			errlog(core, src, "core", "module %s requires more input data", f->mod->name);
+			src->err = 1;
 			goto fin;
 
 		case FFLIST_CUR_NEXT:
@@ -710,8 +713,10 @@ static void media_process(void *udata)
 			if (!nf->opened) {
 				dbglog(core, src, "core", "creating context for %s...", nf->mod->name);
 				nf->ctx = nf->mod->f->open(&nf->d);
-				if (nf->ctx == NULL)
+				if (nf->ctx == NULL) {
+					src->err = 1;
 					goto fin;
+				}
 				dbglog(core, src, "core", "context for %s created", nf->mod->name);
 				nf->opened = 1;
 			}
@@ -732,6 +737,9 @@ static void media_process(void *udata)
 	return;
 
 fin:
+	if (src->err)
+		trk_setval(src, "error", 1);
+
 	if (fmed->mix) {
 		if (fmed->srcs.len == 0)
 			core_playdone();
