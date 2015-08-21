@@ -17,6 +17,10 @@ typedef struct que {
 	entry *cur;
 	const fmed_track *track;
 	fmed_que_onchange_t onchange;
+
+	fftask tsk;
+	uint tsk_cmd;
+
 	uint quit_if_done :1;
 } que;
 
@@ -40,6 +44,8 @@ static const fmed_queue fmed_que_mgr = {
 
 static void que_play(void);
 static void ent_free(entry *e);
+static void que_taskfunc(void *udata);
+static void que_task_add(uint cmd);
 
 //QUEUE-TRACK
 static void* que_trk_open(fmed_filt *d);
@@ -76,6 +82,8 @@ static int que_sig(uint signo)
 		qu->track = core->getmod("#core.track");
 		if (1 != core->getval("gui"))
 			qu->quit_if_done = 1;
+
+		qu->tsk.handler = &que_taskfunc;
 		break;
 	}
 	return 0;
@@ -96,6 +104,7 @@ static void que_destroy(void)
 {
 	if (qu == NULL)
 		return;
+	core->task(&qu->tsk, FMED_TASK_DEL);
 	FFLIST_ENUMSAFE(&qu->list, ent_free, entry, sib);
 	ffmem_free(qu);
 }
@@ -148,12 +157,13 @@ static void que_cmd(uint cmd, void *param)
 
 	case FMED_QUE_NEXT:
 		if (qu->list.len == 0)
-			break;
+			goto nonext;
 		if (qu->cur == NULL) {
 			qu->cur = FF_GETPTR(entry, sib, qu->list.first);
 
 		} else if (qu->cur->sib.next == fflist_sentl(&qu->list)) {
 			if (1 != core->getval("repeat_all")) {
+nonext:
 				dbglog(core, NULL, "que", "no next file in playlist");
 				if (qu->quit_if_done)
 					core->sig(FMED_STOP);
@@ -256,6 +266,17 @@ static fmed_que_entry* que_add(fmed_que_entry *ent)
 	return &e->e;
 }
 
+static void que_taskfunc(void *udata)
+{
+	que_cmd(qu->tsk_cmd, NULL);
+}
+
+static void que_task_add(uint cmd)
+{
+	qu->tsk_cmd = cmd;
+	core->task(&qu->tsk, FMED_TASK_POST);
+}
+
 
 typedef struct que_trk {
 	entry *e;
@@ -291,7 +312,7 @@ static void que_trk_close(void *ctx)
 
 	if (qu->quit_if_done
 		|| 1 != t->track->getval(t->trk, "stopped"))
-		que_cmd(FMED_QUE_NEXT, NULL);
+		que_task_add(FMED_QUE_NEXT);
 
 	//delete the item from queue if there was an error
 	if (FMED_NULL != t->track->getval(t->trk, "error"))
