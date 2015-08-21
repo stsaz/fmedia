@@ -98,6 +98,7 @@ static void gui_media_remove(void);
 static fmed_que_entry* gui_list_getent(void);
 static void gui_media_vol(void);
 static void gui_media_showdir(void);
+static void gui_on_dropfiles(ffui_wnd *wnd, ffui_fdrop *df);
 static void gui_que_onchange(fmed_que_entry *e, uint flags);
 
 //GUI-TRACK
@@ -568,6 +569,19 @@ static void gui_clear(void)
 	gui_status("", 0);
 }
 
+static void gui_on_dropfiles(ffui_wnd *wnd, ffui_fdrop *df)
+{
+	const char *fn;
+
+	ffui_redraw(&gg->vlist, 0);
+
+	while (NULL != (fn = ffui_fdrop_next(df))) {
+		gui_media_add1(fn);
+	}
+
+	ffui_redraw(&gg->vlist, 1);
+}
+
 static FFTHDCALL int gui_worker(void *param)
 {
 	char *fn;
@@ -604,6 +618,9 @@ static FFTHDCALL int gui_worker(void *param)
 	gg->cmdtask.handler = &gui_task;
 	ffui_dlg_multisel(&gg->dlg);
 	ffui_tray_settooltipz(&gg->tray_icon, "fmedia");
+
+	gg->wmain.on_dropfiles = &gui_on_dropfiles;
+	ffui_fdrop_accept(&gg->wmain, 1);
 
 	fflk_unlock(&gg->lk);
 
