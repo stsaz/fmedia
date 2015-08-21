@@ -13,15 +13,15 @@ static const fmed_core *core;
 
 static const char *const metanames[] = {
 	NULL
-	, "meta_comment"
-	, "meta_album"
-	, "meta_genre"
-	, "meta_title"
+	, "=meta_comment"
+	, "=meta_album"
+	, "=meta_genre"
+	, "=meta_title"
 	, NULL
-	, "meta_artist"
+	, "=meta_artist"
 	, NULL
-	, "meta_tracknumber"
-	, "meta_date"
+	, "=meta_tracknumber"
+	, "=meta_date"
 };
 
 typedef struct fmed_mpeg {
@@ -29,7 +29,7 @@ typedef struct fmed_mpeg {
 	ffmpg mpg;
 	ffstr title
 		, artist;
-	char *meta[FFCNT(metanames)];
+	byte meta[FFCNT(metanames)];
 	uint state;
 } fmed_mpeg;
 
@@ -84,6 +84,7 @@ static void* mpeg_open(fmed_filt *d)
 		return NULL;
 	ffmpg_init(&m->mpg);
 
+	m->mpg.seekable = 1;
 	if (FMED_NULL != (total_size = fmed_getval("total_size")))
 		m->mpg.total_size = total_size;
 
@@ -94,10 +95,6 @@ static void* mpeg_open(fmed_filt *d)
 static void mpeg_close(void *ctx)
 {
 	fmed_mpeg *m = ctx;
-	uint i;
-	for (i = 0;  i < FFCNT(m->meta);  i++) {
-		ffmem_safefree(m->meta[i]);
-	}
 	ffstr_free(&m->title);
 	ffstr_free(&m->artist);
 	ffid3_parsefin(&m->id3);
@@ -162,10 +159,8 @@ static int mpeg_meta(fmed_mpeg *m, fmed_filt *d)
 
 			tag = ffid3_frame(&m->id3.fr);
 			if (tag < FFCNT(metanames) && metanames[tag] != NULL && val.len != 0) {
-				ffmem_safefree(m->meta[tag]);
-				if (NULL == (m->meta[tag] = ffsz_alcopy(val.ptr, val.len)))
-					return FMED_RERR;
-				d->track->setvalstr(d->trk, metanames[tag], m->meta[tag]);
+				m->meta[tag] = 1;
+				d->track->setvalstr(d->trk, metanames[tag], ffsz_alcopy(val.ptr, val.len));
 			}
 
 			if (tag == FFID3_LENGTH && m->id3.data.len != 0) {
@@ -237,6 +232,15 @@ again:
 			fmed_setval("total_samples", m->mpg.total_samples);
 			m->state = I_DATA;
 			goto again;
+
+		case FFMPG_RTAG: {
+			int tag = m->mpg.tagframe;
+			if (tag < FFCNT(metanames) && metanames[tag] != NULL && m->mpg.tagval.len != 0
+				&& m->meta[tag] == 0) {
+				d->track->setvalstr(d->trk, metanames[tag], ffsz_alcopy(m->mpg.tagval.ptr, m->mpg.tagval.len));
+			}
+			}
+			break;
 
 		case FFMPG_RSEEK:
 			fmed_setval("input_seek", ffmpg_seekoff(&m->mpg));
