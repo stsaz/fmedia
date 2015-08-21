@@ -173,8 +173,11 @@ enum FMED_R {
 	, FMED_RERR = -1 //fatal error, the track will be closed.
 };
 
+#define FMED_FILT_SKIP  ((void*)-1)
+
 struct fmed_filter {
-	/** Return NULL on error. */
+	/** Return NULL on error.
+	 Return FMED_FILT_SKIP to skip this filter. */
 	void* (*open)(fmed_filt *d);
 
 	/** Return enum FMED_R. */

@@ -527,14 +527,6 @@ static int media_opened(fm_src *src)
 
 		if (prev != NULL)
 			fflist_link(&f->sib, &prev->sib);
-		else {
-			f->d.flags = FMED_FLAST;
-			f->ctx = f->mod->f->open(&f->d);
-			if (f->ctx == NULL)
-				return -1;
-			f->opened = 1;
-			src->cur = &f->sib;
-		}
 
 		prev = f;
 	}
@@ -683,6 +675,12 @@ static void media_process(void *udata)
 	int r, e;
 	fftime t1, t2;
 
+	if (src->cur == NULL) {
+		src->cur = &src->filters.ptr->sib;
+		f = FF_GETPTR(fmed_f, sib, src->cur);
+		goto next;
+	}
+
 	for (;;) {
 		if (src->err)
 			goto fin;
@@ -752,6 +750,7 @@ shift:
 			goto fin;
 
 		case FFLIST_CUR_NEXT:
+next:
 			nf = FF_GETPTR(fmed_f, sib, src->cur);
 			nf->d.data = f->d.out;
 			nf->d.datalen = f->d.outlen;
@@ -767,7 +766,15 @@ shift:
 				if (nf->ctx == NULL) {
 					src->err = 1;
 					goto fin;
+
+				} else if (nf->ctx == FMED_FILT_SKIP) {
+					dbglog(core, src, "core", "%s is skipped", nf->mod->name);
+					nf->ctx = NULL; //don't call fmed_filter.close()
+					f = nf;
+					r = FFLIST_CUR_NEXT | FFLIST_CUR_RM;
+					goto shift;
 				}
+
 				dbglog(core, src, "core", "context for %s created", nf->mod->name);
 				nf->opened = 1;
 			}
