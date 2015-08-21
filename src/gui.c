@@ -514,7 +514,6 @@ static void gui_media_vol(void)
 static void gui_media_showdir(void)
 {
 	const fmed_que_entry *ent;
-	ffstr path;
 	fffd ps;
 	char pathz[FF_MAXPATH];
 	const char *args[2];
@@ -522,8 +521,7 @@ static void gui_media_showdir(void)
 	if (NULL == (ent = gui_list_getent()))
 		return;
 
-	ffpath_split2(ent->url.ptr, ent->url.len, &path, NULL);
-	ffsz_copy(pathz, FFCNT(pathz), path.ptr, path.len);
+	ffs_fmt(pathz, pathz + FFCNT(pathz), "/select,%S%Z", &ent->url);
 	args[0] = pathz;
 	args[1] = NULL;
 	if (FF_BADFD != (ps = ffps_exec("c:\\windows\\explorer.exe", args, NULL)))
