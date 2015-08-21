@@ -309,14 +309,14 @@ static int sndmod_untl_process(void *ctx, fmed_filt *d)
 	uint samps;
 	uint64 pos;
 
+	d->out = d->data;
+	d->outlen = d->datalen;
+
 	if (ctx == (void*)1)
 		return FMED_RDONE;
 
 	samps = d->datalen / u->sampsize;
-	d->out = d->data;
-	d->outlen = d->datalen;
 	d->datalen = 0;
-
 	pos = fmed_getval("current_position");
 	if (pos + samps >= u->until) {
 		dbglog(core, d->trk, "", "until_time is reached");
