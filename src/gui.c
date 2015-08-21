@@ -37,6 +37,7 @@ typedef struct ggui {
 	ffui_menu mfile
 		, mplay
 		, mrec
+		, mconvert
 		, mhelp
 		, mtray;
 	ffui_dialog dlg;
@@ -109,6 +110,8 @@ static void gui_que_onchange(fmed_que_entry *e, uint flags);
 static void gui_rec(void);
 static void gui_onclose(void);
 
+static void gui_convert(void);
+
 //GUI-TRACK
 static void* gtrk_open(fmed_filt *d);
 static int gtrk_process(void *ctx, fmed_filt *d);
@@ -157,6 +160,7 @@ static const name_to_ctl ctls[] = {
 	add(mfile),
 	add(mplay),
 	add(mrec),
+	add(mconvert),
 	add(mhelp),
 	add(mtray),
 
@@ -195,6 +199,8 @@ enum CMDS {
 	REC,
 	SHOWRECS,
 
+	CONVERT,
+
 	OPEN,
 	ADD,
 	REMOVE,
@@ -228,6 +234,8 @@ static const char *const scmds[] = {
 
 	"REC",
 	"SHOWRECS",
+
+	"CONVERT",
 
 	"OPEN",
 	"ADD",
@@ -398,6 +406,11 @@ seek:
 		break;
 
 
+	case CONVERT:
+		gui_convert();
+		break;
+
+
 	case SHOWDIR:
 		gui_media_showdir();
 		break;
@@ -498,6 +511,37 @@ static void gui_rec(void)
 	gg->rec_trk = t;
 
 	gui_status(FFSTR("Recording..."));
+}
+
+static void gui_convert(void)
+{
+	char *fn;
+	int i;
+	ffui_viewitem it;
+	fmed_que_entry e, *qent, *inp;
+	ffstr props[2];
+
+	if (-1 == (i = ffui_view_selnext(&gg->vlist, -1)))
+		return;
+
+	if (NULL == (fn = ffui_dlg_save(&gg->dlg, &gg->wmain, NULL)))
+		return;
+
+	ffui_view_iteminit(&it);
+	ffui_view_setindex(&it, i);
+	ffui_view_setparam(&it, 0);
+	ffui_view_get(&gg->vlist, 0, &it);
+	inp = (void*)ffui_view_param(&it);
+
+	e = *inp;
+	ffstr_setcz(&props[0], "output");
+	ffstr_setz(&props[1], fn);
+	e.meta = props;
+	e.nmeta = FFCNT(props);
+	if (NULL != (qent = gg->qu->add(&e))) {
+		gg->play_id = qent;
+		gui_task_add(PLAY);
+	}
 }
 
 static void gui_que_onchange(fmed_que_entry *e, uint flags)

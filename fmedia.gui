@@ -82,6 +82,13 @@ menu mrec {
 	}
 }
 
+menu mconvert {
+	item "&Convert..." {
+		action CONVERT
+		hotkey "Ctrl+T"
+	}
+}
+
 menu mhelp {
 	item "&About" {
 		action ABOUT
@@ -123,6 +130,9 @@ window wmain {
 		}
 		item "&Record" {
 			submenu mrec
+		}
+		item "&Convert" {
+			submenu mconvert
 		}
 		item "&Help" {
 			submenu mhelp
