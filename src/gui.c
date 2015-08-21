@@ -499,9 +499,6 @@ static void gui_media_vol(void)
 	double db;
 	size_t n;
 
-	if (gg->curtrk == NULL)
-		return;
-
 	pos = ffui_trk_val(&gg->tvol);
 	if (pos <= 100)
 		db = ffpcm_vol2db(pos, 48);
@@ -509,7 +506,9 @@ static void gui_media_vol(void)
 		db = ffpcm_vol2db_inc(pos - 100, 25, 6);
 	n = ffs_fmt(buf, buf + sizeof(buf), "Volume: %.02FdB", db);
 	gui_status(buf, n);
-	gg->track->setval(gg->curtrk->trk, "gain", db * 100);
+
+	if (gg->curtrk != NULL)
+		gg->track->setval(gg->curtrk->trk, "gain", db * 100);
 }
 
 static void gui_media_showdir(void)
@@ -698,8 +697,6 @@ static FFTHDCALL int gui_worker(void *param)
 	gg->wmain.onclose_id = ONCLOSE;
 	ffui_settextz(&gg->labout, "fmedia v" FMED_VER "\nhttp://fmedia.firmdev.com");
 	gg->wabout.hide_on_close = 1;
-	ffui_trk_setrange(&gg->tvol, 100 + 25);
-	ffui_trk_set(&gg->tvol, 100);
 	gg->cmdtask.handler = &gui_task;
 	ffui_dlg_multisel(&gg->dlg);
 	ffui_tray_settooltipz(&gg->tray_icon, "fmedia");

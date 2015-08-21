@@ -77,7 +77,7 @@ menu mrec {
 		action REC
 		hotkey "Ctrl+R"
 	}
-	item "S&how Recordings Folder" {
+	item "Open Recordings Fo&lder" {
 		action SHOWRECS
 	}
 }
@@ -140,6 +140,8 @@ window wmain {
 	trackbar tvol {
 		position 300 0 60 20
 		style no_ticks both visible
+		range 125
+		value 100
 		page_size 5
 		onscrolling VOL
 	}
