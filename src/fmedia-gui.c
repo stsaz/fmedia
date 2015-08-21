@@ -15,6 +15,7 @@ static fmed_core *core;
 FF_IMP fmed_core* core_init(fmedia **ptr, fmed_log_t logfunc);
 FF_IMP void core_free(void);
 
+static void open_input(void);
 static void fmed_log(fffd fd, const char *stime, const char *module, const char *level
 	, const ffstr *id, const char *fmt, va_list va);
 
@@ -22,6 +23,46 @@ static void fmed_log(fffd fd, const char *stime, const char *module, const char 
 static void fmed_log(fffd fd, const char *stime, const char *module, const char *level
 	, const ffstr *id, const char *fmt, va_list va)
 {
+}
+
+static void open_input(void)
+{
+	const fmed_queue *qu;
+	fmed_que_entry e;
+	const ffsyschar *w = GetCommandLine();
+	char *s;
+	ffstr args, fn;
+	size_t n;
+	ffbool skip = 1, added = 0;
+
+	if (NULL == (qu = core->getmod("#queue.queue")))
+		return;
+
+	if (NULL == (s = ffsz_alcopyqz(w)))
+		return;
+	ffstr_setz(&args, s);
+
+	while (args.len != 0) {
+		n = ffstr_nextval(args.ptr, args.len, &fn, ' ' | FFSTR_NV_DBLQUOT);
+		ffstr_shift(&args, n);
+
+		if (skip) {
+			skip = 0;
+			continue;
+		}
+
+		if (fn.len != 0) {
+			ffmem_tzero(&e);
+			e.url = fn;
+			qu->add(&e);
+			added = 1;
+		}
+	}
+
+	ffmem_free(s);
+
+	if (added)
+		qu->cmd(FMED_QUE_PLAY, NULL);
 }
 
 int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
@@ -48,6 +89,8 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
 
 	if (0 != core->sig(FMED_OPEN))
 		goto end;
+
+	open_input();
 
 	core->sig(FMED_START);
 
