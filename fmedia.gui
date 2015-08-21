@@ -72,6 +72,16 @@ menu mplay {
 	}
 }
 
+menu mrec {
+	item "Sta&rt/Stop" {
+		action REC
+		hotkey "Ctrl+R"
+	}
+	item "S&how Recordings Folder" {
+		action SHOWRECS
+	}
+}
+
 menu mhelp {
 	item "&About" {
 		action ABOUT
@@ -110,6 +120,9 @@ window wmain {
 		}
 		item "&Playback" {
 			submenu mplay
+		}
+		item "&Record" {
+			submenu mrec
 		}
 		item "&Help" {
 			submenu mhelp

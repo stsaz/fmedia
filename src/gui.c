@@ -15,6 +15,7 @@ track: ... -> gui-trk -> ...
 #include <FF/gui/loader.h>
 #include <FFOS/thread.h>
 #include <FFOS/process.h>
+#include <FFOS/dir.h>
 
 
 typedef struct gui_trk gui_trk;
@@ -26,11 +27,16 @@ typedef struct ggui {
 	const fmed_track *track;
 	fftask cmdtask;
 	void *play_id;
+	char *rec_dir;
+	ffstr rec_format;
+
+	void *rec_trk;
 
 	ffui_wnd wmain;
 	ffui_menu mm;
 	ffui_menu mfile
 		, mplay
+		, mrec
 		, mhelp
 		, mtray;
 	ffui_dialog dlg;
@@ -100,13 +106,21 @@ static void gui_media_vol(void);
 static void gui_media_showdir(void);
 static void gui_on_dropfiles(ffui_wnd *wnd, ffui_fdrop *df);
 static void gui_que_onchange(fmed_que_entry *e, uint flags);
+static void gui_rec(void);
 
 //GUI-TRACK
 static void* gtrk_open(fmed_filt *d);
 static int gtrk_process(void *ctx, fmed_filt *d);
 static void gtrk_close(void *ctx);
+static int gtrk_conf(ffpars_ctx *ctx);
 static const fmed_filter fmed_gui = {
-	&gtrk_open, &gtrk_process, &gtrk_close
+	&gtrk_open, &gtrk_process, &gtrk_close, &gtrk_conf
+};
+
+static int gui_conf_rec_dir(ffparser_schem *ps, void *obj, ffstr *val);
+static const ffpars_arg gui_conf[] = {
+	{ "rec_dir",	FFPARS_TSTR | FFPARS_FSTRZ | FFPARS_FCOPY, FFPARS_DST(&gui_conf_rec_dir) },
+	{ "rec_format",	FFPARS_TSTR | FFPARS_FCOPY, FFPARS_DSTOFF(ggui, rec_format) },
 };
 
 
@@ -141,6 +155,7 @@ static const name_to_ctl ctls[] = {
 	add(mm),
 	add(mfile),
 	add(mplay),
+	add(mrec),
 	add(mhelp),
 	add(mtray),
 
@@ -176,6 +191,9 @@ enum CMDS {
 	VOLUP,
 	VOLDOWN,
 
+	REC,
+	SHOWRECS,
+
 	OPEN,
 	ADD,
 	REMOVE,
@@ -206,6 +224,9 @@ static const char *const scmds[] = {
 	"VOL",
 	"VOLUP",
 	"VOLDOWN",
+
+	"REC",
+	"SHOWRECS",
 
 	"OPEN",
 	"ADD",
@@ -255,6 +276,11 @@ static void gui_task(void *param)
 	case PREV:
 		gg->track->cmd(NULL, FMED_TRACK_STOPALL);
 		gg->qu->cmd(FMED_QUE_PREV, NULL);
+		break;
+
+
+	case REC:
+		gui_rec();
 		break;
 
 	case QUIT:
@@ -356,6 +382,21 @@ seek:
 		break;
 
 
+	case REC:
+		gui_task_add(REC);
+		break;
+
+	case SHOWRECS: {
+		const char *args[2];
+		fffd ps;
+		args[0] = gg->rec_dir;
+		args[1] = NULL;
+		if (FF_BADFD != (ps = ffps_exec("c:\\windows\\explorer.exe", args, NULL)))
+			ffps_close(ps);
+		}
+		break;
+
+
 	case SHOWDIR:
 		gui_media_showdir();
 		break;
@@ -393,6 +434,45 @@ seek:
 		gui_task_add(QUIT);
 		break;
 	}
+}
+
+static void gui_rec(void)
+{
+	void *t;
+	ffstr3 nm = {0};
+	fftime now;
+	ffdtm dt;
+
+	if (gg->rec_trk != NULL) {
+		const char *fn = gg->track->getvalstr(gg->rec_trk, "output");
+		gg->track->cmd(gg->rec_trk, FMED_TRACK_STOP);
+		gg->rec_trk = NULL;
+		gui_status(FFSTR(""));
+		if (fn != FMED_PNULL)
+			gui_media_add1(fn);
+		return;
+	}
+
+	if (0 != ffdir_make(gg->rec_dir) && fferr_last() != EEXIST) {
+		char buf[1024];
+		size_t n = ffs_fmt(buf, buf + sizeof(buf), "Can't create directory for recordings:\n%s", gg->rec_dir);
+		ffui_msgdlg_show("fmedia GUI", buf, n, FFUI_MSGDLG_ERR);
+		return;
+	}
+
+	if (NULL == (t = gg->track->create(FMED_TRACK_REC, NULL)))
+		return;
+
+	fftime_now(&now);
+	fftime_split(&dt, &now, FFTIME_TZLOCAL);
+	ffstr_catfmt(&nm, "%s%crec-%u-%02u-%02u_%02u%02u%02u.%S%Z"
+		, gg->rec_dir, FFPATH_SLASH, dt.year, dt.month, dt.day, dt.hour, dt.min, dt.sec, &gg->rec_format);
+	gg->track->setvalstr(t, "=output", nm.ptr);
+
+	gg->track->cmd(t, FMED_TRACK_START);
+	gg->rec_trk = t;
+
+	gui_status(FFSTR("Recording..."));
 }
 
 static void gui_que_onchange(fmed_que_entry *e, uint flags)
@@ -640,6 +720,9 @@ static FFTHDCALL int gui_worker(void *param)
 static const void* gui_iface(const char *name)
 {
 	if (!ffsz_cmp(name, "gui")) {
+		if (NULL == (gg = ffmem_tcalloc1(ggui)))
+			return NULL;
+
 		return &fmed_gui;
 	}
 	return NULL;
@@ -649,17 +732,12 @@ static int gui_sig(uint signo)
 {
 	switch (signo) {
 	case FMED_OPEN:
-		if (NULL == (gg = ffmem_tcalloc1(ggui)))
-			return 1;
-
 		if (NULL == (gg->qu = core->getmod("#queue.queue"))) {
-			ffmem_free(gg);
 			return 1;
 		}
 		gg->qu->cmd(FMED_QUE_SETONCHANGE, &gui_que_onchange);
 
 		if (NULL == (gg->track = core->getmod("#core.track"))) {
-			ffmem_free(gg);
 			return 1;
 		}
 
@@ -667,8 +745,6 @@ static int gui_sig(uint signo)
 		fflk_lock(&gg->lk);
 
 		if (NULL == (gg->th = ffthd_create(&gui_worker, gg, 0))) {
-			ffmem_free(gg);
-			gg = NULL;
 			return 1;
 		}
 
@@ -686,9 +762,26 @@ static void gui_destroy(void)
 	ffui_wnd_close(&gg->wmain);
 	ffthd_join(gg->th, -1, NULL);
 	core->task(&gg->cmdtask, FMED_TASK_DEL);
+	ffmem_safefree(gg->rec_dir);
+	ffstr_free(&gg->rec_format);
 	ffmem_free(gg);
 }
 
+
+static int gui_conf_rec_dir(ffparser_schem *ps, void *obj, ffstr *val)
+{
+	if (NULL == (gg->rec_dir = ffenv_expand(NULL, 0, val->ptr)))
+		return FFPARS_ESYS;
+	ffmem_free(val->ptr);
+	return 0;
+}
+
+static int gtrk_conf(ffpars_ctx *ctx)
+{
+	ffstr_copy(&gg->rec_format, "wav", 3);
+	ffpars_setargs(ctx, gg, gui_conf, FFCNT(gui_conf));
+	return 0;
+}
 
 static void* gtrk_open(fmed_filt *d)
 {

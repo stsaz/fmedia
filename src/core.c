@@ -167,7 +167,14 @@ static int fmed_conf_mod(ffparser_schem *p, void *obj, ffstr *val)
 static int fmed_conf_modconf(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
 {
 	const ffstr *name = &p->vals[0];
-	char *zname = ffsz_alcopy(name->ptr, name->len);
+	char *zname;
+
+	if (ffstr_eqcz(name, "gui.gui") && !fmed->gui) {
+		ffpars_ctx_skip(ctx);
+		return 0;
+	}
+
+	zname = ffsz_alcopy(name->ptr, name->len);
 	if (zname == NULL)
 		return FFPARS_ESYS;
 
@@ -782,13 +789,16 @@ fin:
 	if (src->err)
 		trk_setval(src, "error", 1);
 
-	if (fmed->mix) {
-		if (fmed->srcs.len == 0)
+	if (!fmed->gui) {
+		if (fmed->mix) {
+			if (fmed->srcs.len == 0)
+				core_playdone();
+		} else if (src->capture) {
+			fmed->recording = 0;
 			core_playdone();
-	} else if (src->capture) {
-		fmed->recording = 0;
-		core_playdone();
+		}
 	}
+
 	media_free(src);
 }
 
