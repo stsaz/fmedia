@@ -37,9 +37,13 @@ typedef struct mix_in {
 		, filled :1;
 } mix_in;
 
-enum { DATA_SIZE = 32 * 1024 };
+static struct mix_conf_t {
+	ffpcm pcm;
+	uint buf_size;
+} conf;
+#define pcmfmt  (conf.pcm)
+#define DATA_SIZE  (conf.buf_size)
 
-static ffpcm pcmfmt;
 static mxr *mx;
 static const fmed_core *core;
 
@@ -72,6 +76,8 @@ static uint mix_write(mxr *m, uint off, const fmed_filt *d);
 static void mix_inputclosed(mxr *m);
 
 
+static int mix_conf_close(ffparser_schem *p, void *obj);
+
 static int mix_conf_format(ffparser_schem *p, void *obj, ffstr *val)
 {
 	if (ffstr_eqcz(val, "16le"))
@@ -89,11 +95,23 @@ static const ffpars_arg mix_conf_args[] = {
 	{ "format",  FFPARS_TSTR | FFPARS_FNOTEMPTY, FFPARS_DST(&mix_conf_format) }
 	, { "channels",  FFPARS_TINT | FFPARS_FNOTZERO, FFPARS_DSTOFF(ffpcm, channels) }
 	, { "rate",  FFPARS_TINT | FFPARS_FNOTZERO, FFPARS_DSTOFF(ffpcm, sample_rate) }
+	, { "buffer",	FFPARS_TINT | FFPARS_FNOTZERO, FFPARS_DSTOFF(struct mix_conf_t, buf_size) },
+	{ NULL,	FFPARS_TCLOSE, FFPARS_DST(&mix_conf_close) },
 };
+
+static int mix_conf_close(ffparser_schem *p, void *obj)
+{
+	conf.pcm.format = FFPCM_16LE;
+	conf.pcm.channels = 2;
+	conf.pcm.sample_rate = 44100;
+	conf.buf_size = ffpcm_bytes(&conf.pcm, conf.buf_size);
+	return 0;
+}
 
 static int mix_conf(ffpars_ctx *ctx)
 {
-	ffpars_setargs(ctx, &pcmfmt, mix_conf_args, FFCNT(mix_conf_args));
+	conf.buf_size = 1000;
+	ffpars_setargs(ctx, &conf, mix_conf_args, FFCNT(mix_conf_args));
 	return 0;
 }
 
