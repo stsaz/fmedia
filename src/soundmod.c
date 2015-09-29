@@ -17,9 +17,6 @@ typedef struct sndmod_conv {
 	ffstr3 buf;
 } sndmod_conv;
 
-enum {
-	conf_bufsize = 64 * 1024
-};
 
 //FMEDIA MODULE
 static const void* sndmod_iface(const char *name);
@@ -98,20 +95,6 @@ static void* sndmod_conv_open(fmed_filt *d)
 
 	if (c == NULL)
 		return NULL;
-
-	c->inpcm.format = (int)fmed_getval("pcm_format");
-	c->inpcm.sample_rate = (int)fmed_getval("pcm_sample_rate");
-	c->inpcm.channels = (int)fmed_getval("pcm_channels");
-	if (1 == fmed_getval("pcm_ileaved"))
-		c->inpcm.ileaved = 1;
-	c->outpcm = c->inpcm;
-
-	if (NULL == ffarr_alloc(&c->buf, conf_bufsize)) {
-		ffmem_free(c);
-		return NULL;
-	}
-	c->buf.len = conf_bufsize;
-
 	return c;
 }
 
@@ -124,9 +107,26 @@ static void sndmod_conv_close(void *ctx)
 
 enum { CONV_CONF, CONV_CHK, CONV_DATA };
 
+/** Set array elements to point to consecutive regions of one buffer. */
+static void arrp_setbuf(void **ar, size_t size, const void *buf, size_t region_len)
+{
+	size_t i;
+	for (i = 0;  i != size;  i++) {
+		ar[i] = (char*)buf + region_len * i;
+	}
+}
+
 static int sndmod_conv_prepare(sndmod_conv *c, fmed_filt *d)
 {
 	int il, fmt;
+	size_t cap;
+
+	c->inpcm.format = (int)fmed_getval("pcm_format");
+	c->inpcm.sample_rate = (int)fmed_getval("pcm_sample_rate");
+	c->inpcm.channels = (int)fmed_getval("pcm_channels");
+	if (1 == fmed_getval("pcm_ileaved"))
+		c->inpcm.ileaved = 1;
+	c->outpcm = c->inpcm;
 
 	fmt = (int)fmed_popval("conv_pcm_format");
 	il = (int)fmed_popval("conv_pcm_ileaved");
@@ -141,40 +141,30 @@ static int sndmod_conv_prepare(sndmod_conv *c, fmed_filt *d)
 		fmed_setval("pcm_ileaved", c->outpcm.ileaved);
 	}
 
-	if ((c->state == CONV_CONF && (fmt == FMED_NULL || il == FMED_NULL))
-		|| (c->state == CONV_CHK && !ffmemcmp(&c->outpcm, &c->inpcm, sizeof(ffpcmex)))) {
-
-		if (c->state == CONV_CHK) {
-			d->out = d->data;
-			d->outlen = d->datalen;
-			return FMED_RDONE; //the second call of the module - no conversion is needed
-		}
-
-		d->outlen = 0;
-		c->state = CONV_CHK;
-		return FMED_ROK;
+	if (!ffmemcmp(&c->outpcm, &c->inpcm, sizeof(ffpcmex))) {
+		d->out = d->data;
+		d->outlen = d->datalen;
+		return FMED_RDONE; //the second call of the module - no conversion is needed
 	}
 
 	dbglog(core, d->trk, "conv", "PCM conversion: %s/%u/%u/%s -> %s/%u/%u/%s"
 		, ffpcm_fmtstr[c->inpcm.format], c->inpcm.channels, c->inpcm.sample_rate, (c->inpcm.ileaved) ? "i" : "ni"
 		, ffpcm_fmtstr[c->outpcm.format], c->outpcm.channels, c->outpcm.sample_rate, (c->outpcm.ileaved) ? "i" : "ni");
 
+	cap = ffpcm_bytes(&c->inpcm, 1000);
 	if (!c->outpcm.ileaved) {
-		void **ni;
-		char *data;
-		size_t cap = c->buf.cap;
-		uint i;
-		if (NULL == ffarr_realloc(&c->buf, sizeof(void*) * c->outpcm.channels + c->buf.cap)) {
+		if (NULL == ffarr_alloc(&c->buf, sizeof(void*) * c->outpcm.channels + cap)) {
 			return FMED_RERR;
 		}
-		ni = (void**)c->buf.ptr;
-		data = c->buf.ptr + sizeof(void*) * c->outpcm.channels;
-		for (i = 0;  i < c->outpcm.channels;  i++) {
-			ni[i] = data + cap * i / c->outpcm.channels;
-		}
-	}
+		arrp_setbuf((void**)c->buf.ptr, c->outpcm.channels
+			, c->buf.ptr + sizeof(void*) * c->outpcm.channels, cap / c->outpcm.channels);
 
-	c->buf.len /= ffpcm_size1(&c->outpcm);
+	} else {
+		if (NULL == ffarr_alloc(&c->buf, cap))
+			return FMED_RERR;
+	}
+	c->buf.len = cap / ffpcm_size1(&c->outpcm);
+
 	c->state = CONV_DATA;
 	return FMED_ROK;
 }
@@ -187,6 +177,10 @@ static int sndmod_conv_process(void *ctx, fmed_filt *d)
 
 	switch (c->state) {
 	case CONV_CONF:
+		d->outlen = 0;
+		c->state = CONV_CHK;
+		return FMED_ROK;
+
 	case CONV_CHK:
 		r = sndmod_conv_prepare(c, d);
 		if (c->state != 2)
