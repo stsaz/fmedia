@@ -33,6 +33,10 @@ typedef struct ggui {
 
 	void *rec_trk;
 
+	char *conv_dir;
+	char *conv_name;
+	char *conv_fmt;
+
 	ffui_wnd wmain;
 	ffui_menu mm;
 	ffui_menu mfile
@@ -49,6 +53,11 @@ typedef struct ggui {
 		, pnlist;
 	ffui_ctl stbar;
 	ffui_trayicon tray_icon;
+
+	ffui_wnd wconvert;
+	ffui_menu mmconv;
+	ffui_edit eout;
+	ffui_btn boutbrowse;
 
 	ffui_wnd wabout;
 	ffui_ctl labout;
@@ -114,6 +123,8 @@ static void gui_que_onchange(fmed_que_entry *e, uint flags);
 static void gui_rec(uint cmd);
 static void gui_onclose(void);
 
+static void gui_showconvert(void);
+static void gui_conv_browse(void);
 static void gui_convert(void);
 
 //GUI-TRACK
@@ -126,9 +137,14 @@ static const fmed_filter fmed_gui = {
 };
 
 static int gui_conf_rec_dir(ffparser_schem *ps, void *obj, ffstr *val);
+static int gui_conf_conv_dir(ffparser_schem *ps, void *obj, char *val);
 static const ffpars_arg gui_conf[] = {
 	{ "rec_dir",	FFPARS_TSTR | FFPARS_FSTRZ | FFPARS_FCOPY, FFPARS_DST(&gui_conf_rec_dir) },
 	{ "rec_format",	FFPARS_TSTR | FFPARS_FCOPY, FFPARS_DSTOFF(ggui, rec_format) },
+
+	{ "convert_dir",	FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY, FFPARS_DST(&gui_conf_conv_dir) },
+	{ "convert_name",	FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY, FFPARS_DSTOFF(ggui, conv_name) },
+	{ "convert_format",	FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY, FFPARS_DSTOFF(ggui, conv_fmt) },
 };
 
 
@@ -168,6 +184,11 @@ static const name_to_ctl ctls[] = {
 	add(mhelp),
 	add(mtray),
 
+	add(wconvert),
+	add(mmconv),
+	add(eout),
+	add(boutbrowse),
+
 	add(wabout),
 	add(labout),
 };
@@ -205,6 +226,8 @@ enum CMDS {
 	MIXREC,
 	SHOWRECS,
 
+	SHOWCONVERT,
+	OUTBROWSE,
 	CONVERT,
 
 	OPEN,
@@ -249,6 +272,8 @@ static const char *const scmds[] = {
 	"MIXREC",
 	"SHOWRECS",
 
+	"SHOWCONVERT",
+	"OUTBROWSE",
 	"CONVERT",
 
 	"OPEN",
@@ -429,6 +454,14 @@ seek:
 		break;
 
 
+	case SHOWCONVERT:
+		gui_showconvert();
+		break;
+
+	case OUTBROWSE:
+		gui_conv_browse();
+		break;
+
 	case CONVERT:
 		gui_convert();
 		break;
@@ -598,35 +631,65 @@ static void gui_rec(uint cmd)
 	gui_status(FFSTR("Recording..."));
 }
 
+static void gui_showconvert(void)
+{
+	ffstr3 s = {0};
+
+	if (0 == ffui_view_selcount(&gg->vlist))
+		return;
+
+	ffstr_catfmt(&s, "%s%c%s.%s", gg->conv_dir, FFPATH_SLASH, gg->conv_name, gg->conv_fmt);
+	ffui_settext(&gg->eout, s.ptr, s.len);
+	ffarr_free(&s);
+
+	ffui_show(&gg->wconvert, 1);
+}
+
+static void gui_conv_browse(void)
+{
+	const char *fn;
+	ffstr fullname;
+
+	ffui_textstr(&gg->eout, &fullname);
+	if (NULL == (fn = ffui_dlg_save(&gg->dlg, &gg->wmain, fullname.ptr, fullname.len)))
+		goto done;
+
+	ffui_settextz(&gg->eout, fn);
+
+done:
+	ffstr_free(&fullname);
+}
+
 static void gui_convert(void)
 {
-	char *fn;
-	int i;
+	int i = -1;
 	ffui_viewitem it;
 	fmed_que_entry e, *qent, *inp;
-	ffstr props[2];
+	ffstr fn;
+	uint play = 0;
 
-	if (-1 == (i = ffui_view_selnext(&gg->vlist, -1)))
-		return;
+	ffui_textstr(&gg->eout, &fn);
 
-	if (NULL == (fn = ffui_dlg_save(&gg->dlg, &gg->wmain, NULL)))
-		return;
+	while (-1 != (i = ffui_view_selnext(&gg->vlist, i))) {
+		ffui_view_iteminit(&it);
+		ffui_view_setindex(&it, i);
+		ffui_view_setparam(&it, 0);
+		ffui_view_get(&gg->vlist, 0, &it);
+		inp = (void*)ffui_view_param(&it);
 
-	ffui_view_iteminit(&it);
-	ffui_view_setindex(&it, i);
-	ffui_view_setparam(&it, 0);
-	ffui_view_get(&gg->vlist, 0, &it);
-	inp = (void*)ffui_view_param(&it);
-
-	e = *inp;
-	ffstr_setcz(&props[0], "output");
-	ffstr_setz(&props[1], fn);
-	e.meta = props;
-	e.nmeta = FFCNT(props);
-	if (NULL != (qent = gg->qu->add(&e))) {
-		gg->play_id = qent;
-		gui_task_add(PLAY);
+		ffmemcpy(&e, inp, sizeof(fmed_que_entry));
+		if (NULL != (qent = gg->qu->add(&e))) {
+			gg->qu->meta_set(qent, FFSTR("output"), fn.ptr, fn.len, 0);
+			if (!play) {
+				play = 1;
+				gg->play_id = qent;
+			}
+		}
 	}
+
+	if (play)
+		gui_task_add(PLAY);
+	ffstr_free(&fn);
 }
 
 static void gui_que_onchange(fmed_que_entry *e, uint flags)
@@ -932,6 +995,10 @@ static FFTHDCALL int gui_worker(void *param)
 	gg->wmain.onclose_id = ONCLOSE;
 	ffui_settextz(&gg->labout, "fmedia v" FMED_VER "\nhttp://fmedia.firmdev.com");
 	gg->wabout.hide_on_close = 1;
+
+	gg->wconvert.hide_on_close = 1;
+	gg->wconvert.on_action = &gui_action;
+
 	gg->cmdtask.handler = &gui_task;
 	ffui_dlg_multisel(&gg->dlg);
 	ffui_tray_settooltipz(&gg->tray_icon, "fmedia");
@@ -1002,6 +1069,11 @@ static void gui_destroy(void)
 	ffthd_join(gg->th, -1, NULL);
 	core->task(&gg->cmdtask, FMED_TASK_DEL);
 	ffmem_safefree(gg->rec_dir);
+
+	ffmem_safefree(gg->conv_dir);
+	ffmem_safefree(gg->conv_name);
+	ffmem_safefree(gg->conv_fmt);
+
 	ffstr_free(&gg->rec_format);
 	ffmem_free(gg);
 }
@@ -1012,6 +1084,14 @@ static int gui_conf_rec_dir(ffparser_schem *ps, void *obj, ffstr *val)
 	if (NULL == (gg->rec_dir = ffenv_expand(NULL, 0, val->ptr)))
 		return FFPARS_ESYS;
 	ffmem_free(val->ptr);
+	return 0;
+}
+
+static int gui_conf_conv_dir(ffparser_schem *ps, void *obj, char *val)
+{
+	if (NULL == (gg->conv_dir = ffenv_expand(NULL, 0, val)))
+		return FFPARS_ESYS;
+	ffmem_free(val);
 	return 0;
 }
 

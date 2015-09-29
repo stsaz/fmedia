@@ -108,7 +108,7 @@ menu mrec {
 
 menu mconvert {
 	item "&Convert..." {
-		action CONVERT
+		action SHOWCONVERT
 		hotkey "Ctrl+T"
 	}
 }
@@ -227,6 +227,36 @@ window wmain {
 		}
 		popupmenu mtray
 		lclick SHOW
+	}
+}
+
+window wconvert {
+	parent wmain
+	position 300 100 300 200
+	style popup
+	title "Convert"
+
+	font {
+		name Arial
+		height 10
+	}
+
+	mainmenu mmconv {
+		item "&Convert!" {
+			action CONVERT
+		}
+	}
+
+	editbox eout {
+		position 10 10 200 25
+		style visible
+	}
+
+	button boutbrowse {
+		position 220 10 35 25
+		style visible
+		text "..."
+		action OUTBROWSE
 	}
 }
 
