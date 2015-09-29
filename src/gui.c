@@ -288,6 +288,8 @@ static void gui_task(void *param)
 
 	case STOP:
 		gg->track->cmd(NULL, FMED_TRACK_STOPALL);
+		if (gg->curtrk != NULL && gg->curtrk->state == ST_PAUSED)
+			gui_action(&gg->wmain, PAUSE);
 		break;
 
 	case NEXT:
@@ -1060,8 +1062,10 @@ static int gtrk_process(void *ctx, fmed_filt *d)
 	int64 playpos;
 	uint playtime;
 
-	if (d->flags & FMED_FSTOP)
-		goto done;
+	if (d->flags & FMED_FSTOP) {
+		d->outlen = 0;
+		return FMED_RDONE;
+	}
 
 	fflk_lock(&gg->lk);
 	switch (g->state) {
@@ -1096,7 +1100,7 @@ done:
 	d->out = d->data;
 	d->outlen = d->datalen;
 	d->datalen = 0;
-	if (d->flags & (FMED_FLAST | FMED_FSTOP))
+	if (d->flags & FMED_FLAST)
 		return FMED_RDONE;
 	return FMED_ROK;
 }
