@@ -155,6 +155,7 @@ static void* file_open(fmed_filt *d)
 	f = ffmem_tcalloc1(fmed_file);
 	if (f == NULL)
 		return NULL;
+	f->seek = -1;
 	f->fd = FF_BADFD;
 	f->fn = d->track->getvalstr(d->trk, "input");
 	if (NULL == (f->data = ffmem_tcalloc(databuf, file_in_conf.nbufs)))
@@ -251,7 +252,7 @@ static int file_getdata(void *ctx, fmed_filt *d)
 
 			f->out = 0;
 			f->done = 0;
-			f->seek = 0;
+			f->seek = -1;
 			f->aoff = seek;
 			goto rd;
 		}
@@ -263,7 +264,7 @@ static int file_getdata(void *ctx, fmed_filt *d)
 		if (!f->async) {
 			f->foff = f->seek;
 			f->aoff = f->seek;
-			f->seek = 0;
+			f->seek = -1;
 		}
 
 		//reset all buffers
@@ -343,10 +344,10 @@ static void file_read(void *udata)
 			return;
 		}
 
-		if (f->seek != 0) {
+		if (f->seek != -1) {
 			f->foff = f->seek;
 			f->aoff = f->seek;
-			f->seek = 0;
+			f->seek = -1;
 			continue;
 		}
 
