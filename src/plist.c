@@ -323,14 +323,14 @@ static int cue_process(void *ctx, fmed_filt *d)
 			goto add_metaname;
 
 		case FFCUE_TRK_TITLE:
-			if (c->gmeta == 0)
-				c->gmeta = c->metas.len;
+			if (c->gmeta == 0 && c->metas.len != 0)
+				c->gmeta = c->metas.len - 2;
 			ffstr_setcz(&metaname, "meta_title");
 			goto add_metaname;
 
 		case FFCUE_TRK_PERFORMER:
-			if (c->gmeta == 0)
-				c->gmeta = c->metas.len;
+			if (c->gmeta == 0 && c->metas.len != 0)
+				c->gmeta = c->metas.len - 2;
 			ffstr_setcz(&metaname, "meta_artist");
 
 add_metaname:
