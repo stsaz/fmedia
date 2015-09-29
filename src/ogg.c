@@ -336,6 +336,8 @@ static int ogg_out_encode(void *ctx, fmed_filt *d)
 	case I_INPUT:
 		o->og.pcm = (const float**)d->data;
 		o->og.pcmlen = d->datalen;
+		if (d->flags & FMED_FLAST)
+			o->og.fin = 1;
 		o->state = I_ENCODE;
 		//break;
 
@@ -361,12 +363,8 @@ static int ogg_out_encode(void *ctx, fmed_filt *d)
 			return FMED_RDONE;
 
 		case FFOGG_RMORE:
-			if (!(d->flags & FMED_FLAST)) {
-				o->state = I_INPUT;
-				return FMED_RMORE;
-			}
-			//o->og.pcmlen == 0
-			break;
+			o->state = I_INPUT;
+			return FMED_RMORE;
 
 		default:
 			errlog(core, d->trk, "ogg", "ffogg_encode() failed: %s", ffogg_errstr(o->og.err));
