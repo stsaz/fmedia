@@ -20,6 +20,7 @@ typedef struct que {
 
 	fftask tsk;
 	uint tsk_cmd;
+	void *tsk_param;
 
 	uint quit_if_done :1;
 } que;
@@ -130,6 +131,30 @@ static void que_play(void)
 	qu->track->cmd(trk, FMED_TRACK_START);
 }
 
+static entry* que_getnext(entry *from)
+{
+	if (qu->list.len == 0)
+		goto nonext;
+
+	if (from == NULL) {
+		return FF_GETPTR(entry, sib, qu->list.first);
+
+	} else if (from->sib.next == fflist_sentl(&qu->list)) {
+		if (1 != core->getval("repeat_all")) {
+nonext:
+			dbglog(core, NULL, "que", "no next file in playlist");
+			if (qu->quit_if_done)
+				core->sig(FMED_STOP);
+			return NULL;
+		}
+
+		dbglog(core, NULL, "que", "repeat_all: starting from the beginning");
+		return FF_GETPTR(entry, sib, qu->list.first);
+	}
+
+	return FF_GETPTR(entry, sib, from->sib.next);
+}
+
 // matches enum FMED_QUE
 static const char *const scmds[] = {
 	"play", "next", "prev", "clear", "rm", "setonchange",
@@ -156,25 +181,7 @@ static void que_cmd(uint cmd, void *param)
 		break;
 
 	case FMED_QUE_NEXT:
-		if (qu->list.len == 0)
-			goto nonext;
-		if (qu->cur == NULL) {
-			qu->cur = FF_GETPTR(entry, sib, qu->list.first);
-
-		} else if (qu->cur->sib.next == fflist_sentl(&qu->list)) {
-			if (1 != core->getval("repeat_all")) {
-nonext:
-				dbglog(core, NULL, "que", "no next file in playlist");
-				if (qu->quit_if_done)
-					core->sig(FMED_STOP);
-				break;
-			}
-
-			qu->cur = FF_GETPTR(entry, sib, qu->list.first);
-			dbglog(core, NULL, "que", "repeat_all: starting from the beginning");
-		} else
-			qu->cur = FF_GETPTR(entry, sib, qu->cur->sib.next);
-
+		qu->cur = que_getnext(qu->cur);
 		que_play();
 		break;
 
@@ -268,7 +275,9 @@ static fmed_que_entry* que_add(fmed_que_entry *ent)
 
 static void que_taskfunc(void *udata)
 {
-	que_cmd(qu->tsk_cmd, NULL);
+	void *param = qu->tsk_param;
+	qu->tsk_param = NULL;
+	que_cmd(qu->tsk_cmd, param);
 }
 
 static void que_task_add(uint cmd)
@@ -309,14 +318,20 @@ static void* que_trk_open(fmed_filt *d)
 static void que_trk_close(void *ctx)
 {
 	que_trk *t = ctx;
+	entry *next = NULL;
 
 	if (qu->quit_if_done
 		|| 1 != t->track->getval(t->trk, "stopped"))
-		que_task_add(FMED_QUE_NEXT);
+		next = que_getnext(t->e);
 
 	//delete the item from queue if there was an error
 	if (FMED_NULL != t->track->getval(t->trk, "error"))
 		que_cmd(FMED_QUE_RM, t->e);
+
+	if (next != NULL) {
+		qu->tsk_param = next;
+		que_task_add(FMED_QUE_PLAY);
+	}
 
 	ffmem_free(t);
 }
