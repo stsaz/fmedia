@@ -24,21 +24,23 @@ typedef struct wasapi_mod {
 static wasapi_mod *mod;
 
 struct wasapi_out {
+	uint state;
+
 	ffwas_dev dev;
 	uint devidx;
 
 	fftask task;
 	unsigned async :1
-		, ileaved :1
 		, bufused :1;
 };
+
+enum { WAS_TRYOPEN, WAS_OPEN, WAS_DATA };
 
 typedef struct wasapi_in {
 	ffwasapi wa;
 	uint latcorr;
 	fftask task;
-	unsigned async :1
-		, ileaved :1;
+	unsigned async :1;
 } wasapi_in;
 
 enum EXCL {
@@ -216,21 +218,28 @@ static int wasapi_out_config(ffpars_ctx *ctx)
 static void* wasapi_open(fmed_filt *d)
 {
 	wasapi_out *w;
-	ffpcm fmt;
-	int r, idx, reused = 0, excl = 0;
-	int64 lowlat;
-	ffwas_dev dev;
 
 	w = ffmem_tcalloc1(wasapi_out);
 	if (w == NULL)
 		return NULL;
 	w->task.handler = d->handler;
 	w->task.param = d->trk;
+	return w;
+}
 
-	if (FMED_NULL == (idx = (int)d->track->getval(d->trk, "playdev_name")))
-		idx = wasapi_out_conf.idev;
+static int wasapi_create(wasapi_out *w, fmed_filt *d)
+{
+	ffpcm fmt;
+	int r, reused = 0, excl = 0;
+	int64 lowlat;
 
-	fmed_getpcm(d, &fmt);
+	if (w->state == WAS_TRYOPEN
+		&& FMED_NULL == (w->devidx = (int)d->track->getval(d->trk, "playdev_name")))
+		w->devidx = wasapi_out_conf.idev;
+
+	fmt.format = FFPCM_16LE;
+	fmt.channels = fmed_getval("pcm_channels");
+	fmt.sample_rate = fmed_getval("pcm_sample_rate");
 
 	if (wasapi_out_conf.exclusive == EXCL_ALLOWED && FMED_NULL != (lowlat = d->track->getval(d->trk, "low_latency")))
 		excl = !!lowlat;
@@ -246,8 +255,15 @@ static void* wasapi_open(fmed_filt *d)
 			mod->usedby = NULL;
 		}
 
-		if (!ffmemcmp(&fmt, &mod->fmt, sizeof(ffpcm))
-			&& mod->devidx == idx && mod->out.excl == excl) {
+		if (fmt.channels == mod->fmt.channels
+			&& (!excl || fmt.sample_rate == mod->fmt.sample_rate)
+			&& mod->devidx == w->devidx && mod->out.excl == excl) {
+
+			if (!excl) {
+				fmt.sample_rate = mod->fmt.sample_rate;
+				fmed_setval("conv_pcm_rate", mod->fmt.sample_rate);
+			}
+
 			ffwas_stop(&mod->out);
 			ffwas_clear(&mod->out);
 			reused = 1;
@@ -259,8 +275,9 @@ static void* wasapi_open(fmed_filt *d)
 		mod->out_valid = 0;
 	}
 
-	if (0 != wasapi_devbyidx(&dev, idx, FFWAS_DEV_RENDER)) {
-		errlog(core, d->trk, "wasapi", "no audio device by index #%u", idx);
+	if (w->state == WAS_TRYOPEN
+		&& 0 != wasapi_devbyidx(&w->dev, w->devidx, FFWAS_DEV_RENDER)) {
+		errlog(core, d->trk, "wasapi", "no audio device by index #%u", w->devidx);
 		goto done;
 	}
 
@@ -268,17 +285,26 @@ static void* wasapi_open(fmed_filt *d)
 
 	mod->out.handler = &wasapi_onplay;
 	mod->out.autostart = 1;
-	r = ffwas_open(&mod->out, dev.id, &fmt, wasapi_out_conf.buflen);
-
-	ffwas_devdestroy(&dev);
+	r = ffwas_open(&mod->out, w->dev.id, &fmt, wasapi_out_conf.buflen);
 
 	if (r != 0) {
+
+		if (r == AUDCLNT_E_UNSUPPORTED_FORMAT && w->state == WAS_TRYOPEN
+			&& fmt.sample_rate != fmed_getval("pcm_sample_rate")) {
+
+			fmed_setval("conv_pcm_rate", fmt.sample_rate);
+			w->state = WAS_OPEN;
+			return FMED_RMORE;
+		}
+
 		errlog(core, d->trk, "wasapi", "ffwas_open(): (%xu) %s", r, ffwas_errstr(r));
 		goto done;
 	}
+
+	ffwas_devdestroy(&w->dev);
 	mod->out_valid = 1;
 	mod->fmt = fmt;
-	mod->devidx = idx;
+	mod->devidx = w->devidx;
 
 fin:
 	mod->out.udata = w;
@@ -287,11 +313,10 @@ fin:
 	dbglog(core, d->trk, "wasapi", "%s buffer %ums, %uHz, excl:%u"
 		, reused ? "reused" : "opened", ffpcm_bytes2time(&fmt, ffwas_bufsize(&mod->out))
 		, fmt.sample_rate, mod->out.excl);
-	return w;
+	return 0;
 
 done:
-	wasapi_close(w);
-	return NULL;
+	return FMED_RERR;
 }
 
 static void wasapi_close(void *ctx)
@@ -309,6 +334,7 @@ static void wasapi_close(void *ctx)
 		}
 		mod->usedby = NULL;
 	}
+	ffwas_devdestroy(&w->dev);
 	core->task(&w->task, FMED_TASK_DEL);
 	ffmem_free(w);
 }
@@ -327,13 +353,21 @@ static int wasapi_write(void *ctx, fmed_filt *d)
 	wasapi_out *w = ctx;
 	int r;
 
-	if (!w->ileaved) {
-		int il = (int)fmed_getval("pcm_ileaved");
-		if (il != 1) {
+	switch (w->state) {
+	case WAS_TRYOPEN:
+		fmed_setval("conv_pcm_format", FFPCM_16LE);
+		if (1 != fmed_getval("pcm_ileaved"))
 			fmed_setval("conv_pcm_ileaved", 1);
-			return FMED_RMORE;
-		}
-		w->ileaved = 1;
+		// break
+
+	case WAS_OPEN:
+		if (0 != (r = wasapi_create(w, d)))
+			return r;
+		w->state = WAS_DATA;
+		return FMED_RMORE;
+
+	case WAS_DATA:
+		break;
 	}
 
 	if (!w->bufused || (d->flags & FMED_FSTOP)) {
