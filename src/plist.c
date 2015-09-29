@@ -393,6 +393,7 @@ add_metaname:
 			if (c->ent_prev.url.len != 0 && c->trackno == -1) {
 				c->ent_prev.from = -c->ent_prev.from;
 				c->ent_prev.to = -c->ent_prev.to;
+				c->ent_prev.dur = c->ent_prev.dur * 1000 / 75;
 				qu->add(&c->ent_prev);
 			} else if (c->curtrk == c->trackno)
 				goto done;
@@ -424,6 +425,7 @@ done:
 		&& (c->trackno == -1 || c->curtrk == c->trackno)) {
 		c->ent_prev.from = -c->ent_prev.from;
 		c->ent_prev.to = -c->ent_prev.to;
+		c->ent_prev.dur = c->ent_prev.dur * 1000 / 75;
 		qu->add(&c->ent_prev);
 	}
 	return FMED_RERR; //stop this track
