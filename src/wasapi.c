@@ -10,15 +10,36 @@ Copyright (c) 2015 Simon Zolin */
 
 static const fmed_core *core;
 
-typedef struct wasapi_out {
+typedef struct wasapi_out wasapi_out;
+
+typedef struct wasapi_mod {
+	ffwasapi out;
+	ffpcm fmt;
+	wasapi_out *usedby;
+	const fmed_track *track;
+	uint devidx;
+	uint out_valid :1;
+} wasapi_mod;
+
+static wasapi_mod *mod;
+
+struct wasapi_out {
+	ffwas_dev dev;
+	uint devidx;
+
+	fftask task;
+	unsigned async :1
+		, ileaved :1
+		, bufused :1;
+};
+
+typedef struct wasapi_in {
 	ffwasapi wa;
 	uint latcorr;
 	fftask task;
 	unsigned async :1
 		, ileaved :1;
-} wasapi_out;
-
-typedef wasapi_out wasapi_in;
+} wasapi_in;
 
 enum EXCL {
 	EXCL_DISABLED
@@ -74,6 +95,7 @@ static const fmed_filter fmed_wasapi_in = {
 };
 
 static void wasapi_onplay(void *udata);
+static void wasapi_oncapt(void *udata);
 
 static const ffpars_arg wasapi_in_conf_args[] = {
 	{ "device_index",  FFPARS_TINT,  FFPARS_DSTOFF(struct wasapi_in_conf_t, idev) }
@@ -113,6 +135,12 @@ static const void* wasapi_iface(const char *name)
 static int wasapi_sig(uint signo)
 {
 	switch (signo) {
+	case FMED_OPEN:
+		if (NULL == (mod = ffmem_tcalloc1(wasapi_mod)))
+			return -1;
+		mod->track = core->getmod("#core.track");
+		return 0;
+
 	case FMED_LISTDEV:
 		return wasapi_listdev();
 	}
@@ -121,6 +149,13 @@ static int wasapi_sig(uint signo)
 
 static void wasapi_destroy(void)
 {
+	if (mod != NULL) {
+		if (mod->out_valid)
+			ffwas_close(&mod->out);
+		ffmem_free(mod);
+		mod = NULL;
+	}
+
 	ffwas_uninit();
 }
 
@@ -182,7 +217,7 @@ static void* wasapi_open(fmed_filt *d)
 {
 	wasapi_out *w;
 	ffpcm fmt;
-	int r, idx;
+	int r, idx, reused = 0, excl = 0;
 	int64 lowlat;
 	ffwas_dev dev;
 
@@ -194,21 +229,46 @@ static void* wasapi_open(fmed_filt *d)
 
 	if (FMED_NULL == (idx = (int)d->track->getval(d->trk, "playdev_name")))
 		idx = wasapi_out_conf.idev;
+
+	fmed_getpcm(d, &fmt);
+
+	if (wasapi_out_conf.exclusive == EXCL_ALLOWED && FMED_NULL != (lowlat = d->track->getval(d->trk, "low_latency")))
+		excl = !!lowlat;
+	else if (wasapi_out_conf.exclusive == EXCL_ALWAYS)
+		excl = 1;
+
+	if (mod->out_valid) {
+
+		if (mod->usedby != NULL) {
+			mod->usedby->bufused = 0;
+			if (mod->usedby->async)
+				wasapi_onplay(mod->usedby);
+			mod->usedby = NULL;
+		}
+
+		if (!ffmemcmp(&fmt, &mod->fmt, sizeof(ffpcm))
+			&& mod->devidx == idx && mod->out.excl == excl) {
+			ffwas_stop(&mod->out);
+			ffwas_clear(&mod->out);
+			reused = 1;
+			goto fin;
+		}
+
+		ffwas_close(&mod->out);
+		ffmem_tzero(&mod->out);
+		mod->out_valid = 0;
+	}
+
 	if (0 != wasapi_devbyidx(&dev, idx, FFWAS_DEV_RENDER)) {
 		errlog(core, d->trk, "wasapi", "no audio device by index #%u", idx);
 		goto done;
 	}
 
-	if (wasapi_out_conf.exclusive == EXCL_ALLOWED && FMED_NULL != (lowlat = d->track->getval(d->trk, "low_latency")))
-		w->wa.excl = !!lowlat;
-	else if (wasapi_out_conf.exclusive == EXCL_ALWAYS)
-		w->wa.excl = 1;
+	mod->out.excl = excl;
 
-	w->wa.handler = &wasapi_onplay;
-	w->wa.udata = w;
-	w->wa.autostart = 1;
-	fmed_getpcm(d, &fmt);
-	r = ffwas_open(&w->wa, dev.id, &fmt, wasapi_out_conf.buflen);
+	mod->out.handler = &wasapi_onplay;
+	mod->out.autostart = 1;
+	r = ffwas_open(&mod->out, dev.id, &fmt, wasapi_out_conf.buflen);
 
 	ffwas_devdestroy(&dev);
 
@@ -216,9 +276,17 @@ static void* wasapi_open(fmed_filt *d)
 		errlog(core, d->trk, "wasapi", "ffwas_open(): (%xu) %s", r, ffwas_errstr(r));
 		goto done;
 	}
+	mod->out_valid = 1;
+	mod->fmt = fmt;
+	mod->devidx = idx;
 
-	dbglog(core, d->trk, "wasapi", "opened buffer %ums"
-		, ffpcm_time(w->wa.bufsize, fmt.sample_rate));
+fin:
+	mod->out.udata = w;
+	mod->usedby = w;
+	w->bufused = 1;
+	dbglog(core, d->trk, "wasapi", "%s buffer %ums, excl:%u"
+		, reused ? "reused" : "opened", ffpcm_time(mod->out.bufsize, fmt.sample_rate)
+		, mod->out.excl);
 	return w;
 
 done:
@@ -229,8 +297,19 @@ done:
 static void wasapi_close(void *ctx)
 {
 	wasapi_out *w = ctx;
+	if (w->bufused) {
+		void *trk = w->task.param;
+		if (1 == mod->track->getval(trk, "stopped")) {
+			ffwas_close(&mod->out);
+			ffmem_tzero(&mod->out);
+			mod->out_valid = 0;
+		} else {
+			ffwas_stop(&mod->out);
+			ffwas_clear(&mod->out);
+		}
+		mod->usedby = NULL;
+	}
 	core->task(&w->task, FMED_TASK_DEL);
-	ffwas_close(&w->wa);
 	ffmem_free(w);
 }
 
@@ -257,9 +336,14 @@ static int wasapi_write(void *ctx, fmed_filt *d)
 		w->ileaved = 1;
 	}
 
+	if (!w->bufused || (d->flags & FMED_FSTOP)) {
+		d->outlen = 0;
+		return FMED_RDONE;
+	}
+
 	while (d->datalen != 0) {
 
-		r = ffwas_write(&w->wa, d->data, d->datalen);
+		r = ffwas_write(&mod->out, d->data, d->datalen);
 		if (r < 0) {
 			errlog(core, d->trk, "wasapi", "ffwas_write(): (%xu) %s", r, ffwas_errstr(r));
 			return FMED_RERR;
@@ -272,12 +356,12 @@ static int wasapi_write(void *ctx, fmed_filt *d)
 		d->data += r;
 		d->datalen -= r;
 		dbglog(core, d->trk, "wasapi", "written %u bytes (%u%% filled)"
-			, r, ffwas_filled(&w->wa) * 100 / ffwas_bufsize(&w->wa));
+			, r, ffwas_filled(&mod->out) * 100 / ffwas_bufsize(&mod->out));
 	}
 
 	if ((d->flags & FMED_FLAST) && d->datalen == 0) {
 
-		r = ffwas_stoplazy(&w->wa);
+		r = ffwas_stoplazy(&mod->out);
 		if (r == 1)
 			return FMED_RDONE;
 		else if (r < 0) {
@@ -325,7 +409,7 @@ static void* wasapi_in_open(fmed_filt *d)
 	else if (wasapi_in_conf.exclusive == EXCL_ALWAYS)
 		w->wa.excl = 1;
 
-	w->wa.handler = &wasapi_onplay;
+	w->wa.handler = &wasapi_oncapt;
 	w->wa.udata = w;
 	fmt.format = (int)fmed_getval("pcm_format");
 	fmt.channels = (int)fmed_getval("pcm_channels");
@@ -364,6 +448,15 @@ static void wasapi_in_close(void *ctx)
 	core->task(&w->task, FMED_TASK_DEL);
 	ffwas_capt_close(&w->wa);
 	ffmem_free(w);
+}
+
+static void wasapi_oncapt(void *udata)
+{
+	wasapi_in *w = udata;
+	if (!w->async)
+		return;
+	w->async = 0;
+	core->task(&w->task, FMED_TASK_POST);
 }
 
 static int wasapi_in_read(void *ctx, fmed_filt *d)
