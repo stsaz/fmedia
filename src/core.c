@@ -551,7 +551,6 @@ static void* trk_create(uint cmd, const char *fn)
 
 	if (fmed->playdev_name != 0)
 		trk_setval(src, "playdev_name", fmed->playdev_name);
-	trk_setval(src, "pcm_ileaved", 1);
 
 	if (fmed->seek_time != 0)
 		trk_setval(src, "seek_time", fmed->seek_time);

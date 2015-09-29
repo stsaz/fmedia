@@ -153,6 +153,7 @@ again:
 			fmed_setval("pcm_format", w->wav.fmt.format);
 			fmed_setval("pcm_channels", w->wav.fmt.channels);
 			fmed_setval("pcm_sample_rate", w->wav.fmt.sample_rate);
+			fmed_setval("pcm_ileaved", 1);
 			fmed_setval("total_samples", w->wav.total_samples);
 			fmed_setval("bitrate", w->wav.bitrate);
 			w->state = I_DATA;
