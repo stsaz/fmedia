@@ -30,7 +30,8 @@ typedef struct fmed_f {
 	fmed_filt d;
 	const fmed_modinfo *mod;
 	fftime clk;
-	unsigned opened :1;
+	unsigned opened :1
+		, noskip :1;
 } fmed_f;
 
 typedef struct dict_ent {
@@ -671,6 +672,11 @@ static void media_free(fm_src *src)
 	ffmem_free(src);
 }
 
+// enum FMED_R
+static const char *const fmed_retstr[] = {
+	"err", "ok", "data", "more", "async", "done", "done-prev", "last-out"
+};
+
 static void media_process(void *udata)
 {
 	fm_src *src = udata;
@@ -705,8 +711,8 @@ static void media_process(void *udata)
 			fftime_add(&f->clk, &t2);
 		}
 
-		// dbglog(core, src, "core", "%s returned: %d, output: %L"
-		// 	, f->mod->name, e, f->d.outlen);
+		// dbglog(core, src, "core", "%s returned: %s, output: %L"
+		// 	, f->mod->name, (e + 1 < FFCNT(fmed_retstr)) ? fmed_retstr[e + 1] : "", f->d.outlen);
 
 		switch (e) {
 		case FMED_RERR:
@@ -723,10 +729,22 @@ static void media_process(void *udata)
 		case FMED_ROK:
 			r = FFLIST_CUR_NEXT;
 			break;
+
+		case FMED_RDATA:
+			f->noskip = 1;
+			r = FFLIST_CUR_NEXT | FFLIST_CUR_SAMEIFBOUNCE;
+			break;
+
 		case FMED_RDONE:
 			f->d.datalen = 0;
 			r = FFLIST_CUR_NEXT | FFLIST_CUR_RM;
 			break;
+
+		case FMED_RDONE_PREV:
+			f->d.datalen = 0;
+			r = FFLIST_CUR_PREV | FFLIST_CUR_RM;
+			break;
+
 		case FMED_RLASTOUT:
 			f->d.datalen = 0;
 			r = FFLIST_CUR_NEXT | FFLIST_CUR_RM | FFLIST_CUR_RMPREV;
@@ -787,7 +805,9 @@ next:
 		case FFLIST_CUR_SAME:
 		case FFLIST_CUR_PREV:
 			nf = FF_GETPTR(fmed_f, sib, src->cur);
-			if (nf->d.datalen == 0 && !(nf->d.flags & FMED_FLAST)) {
+			if (nf->noskip) {
+				nf->noskip = 0;
+			} else if (nf->d.datalen == 0 && !(nf->d.flags & FMED_FLAST)) {
 				r = FFLIST_CUR_PREV;
 				f = nf;
 				goto shift;

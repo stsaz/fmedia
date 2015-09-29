@@ -166,9 +166,11 @@ typedef struct fmed_filt {
 
 enum FMED_R {
 	FMED_ROK //output data is ready
+	, FMED_RDATA //output data is ready, the module will be called again
 	, FMED_RMORE //more input data is needed
 	, FMED_RASYNC //an asynchronous operation is scheduled.  The module will call fmed_filt.handler.
 	, FMED_RDONE //output data is completed, remove this module from the chain
+	, FMED_RDONE_PREV //the same as FMED_RDONE, but move backward through the chain
 	, FMED_RLASTOUT //output data is completed, remove this & all previous modules from the chain
 	, FMED_RERR = -1 //fatal error, the track will be closed.
 };
