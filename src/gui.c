@@ -97,6 +97,7 @@ static void gui_action(ffui_wnd *wnd, int id);
 static void gui_clear(void);
 static void gui_status(const char *s, size_t len);
 static void gui_list_add(ffui_viewitem *it, size_t par);
+static int __stdcall gui_list_sortfunc(LPARAM p1, LPARAM p2, LPARAM udata);
 static void gui_task(void *param);
 static void gui_media_added(fmed_que_entry *ent);
 static void gui_media_add1(const char *fn);
@@ -210,6 +211,7 @@ enum CMDS {
 	CLEAR,
 	SELALL,
 	SELINVERT,
+	SORT,
 	SHOWDIR,
 	COPYFN,
 	COPYFILE,
@@ -251,6 +253,7 @@ static const char *const scmds[] = {
 	"CLEAR",
 	"SELALL",
 	"SELINVERT",
+	"SORT",
 	"SHOWDIR",
 	"COPYFN",
 	"COPYFILE",
@@ -446,6 +449,11 @@ seek:
 		ffui_view_sel_invert(&gg->vlist);
 		break;
 
+	case SORT:
+		if (gg->vlist.col == H_TIT || gg->vlist.col == H_ART || gg->vlist.col == H_FN)
+			ffui_view_sort(&gg->vlist, &gui_list_sortfunc, gg->vlist.col);
+		break;
+
 	case CLEAR:
 		gg->qu->cmd(FMED_QUE_CLEAR, NULL);
 		ffui_view_clear(&gg->vlist);
@@ -475,6 +483,36 @@ seek:
 		gui_onclose();
 		break;
 	}
+}
+
+static int __stdcall gui_list_sortfunc(LPARAM p1, LPARAM p2, LPARAM udata)
+{
+	fmed_que_entry *e1 = (void*)p1, *e2 = (void*)p2;
+	ffstr *s1, *s2, nm;
+
+	switch (udata) {
+	case H_ART:
+	case H_TIT:
+		if (udata == H_ART)
+			ffstr_setcz(&nm, "meta_artist");
+		else
+			ffstr_setcz(&nm, "meta_title");
+
+		s1 = gg->qu->meta_find(e1, nm.ptr, nm.len);
+		s2 = gg->qu->meta_find(e2, nm.ptr, nm.len);
+		if (s1 == NULL || s2 == NULL) {
+			if (s1 == NULL && s2 == NULL)
+				return 0;
+			else
+				return (s1 == NULL) ? 1 : -1;
+		}
+		return ffstr_cmp2(s1, s2);
+
+	case H_FN:
+		return ffstr_cmp2(&e1->url, &e2->url);
+	}
+
+	return 0;
 }
 
 static void gui_onclose(void)
@@ -875,6 +913,7 @@ static FFTHDCALL int gui_worker(void *param)
 	gg->cmdtask.handler = &gui_task;
 	ffui_dlg_multisel(&gg->dlg);
 	ffui_tray_settooltipz(&gg->tray_icon, "fmedia");
+	gg->vlist.colclick_id = SORT;
 
 	gg->wmain.on_dropfiles = &gui_on_dropfiles;
 	ffui_fdrop_accept(&gg->wmain, 1);
