@@ -565,6 +565,8 @@ static void* trk_create(uint cmd, const char *fn)
 		trk_setval(src, "wav-format", fmed->wav_formt);
 	if (fmed->ogg_qual != -255)
 		trk_setval(src, "ogg-quality", fmed->ogg_qual * 10);
+	else if (fmed->mpeg_qual != 0xffff)
+		trk_setval(src, "mpeg-quality", fmed->mpeg_qual);
 
 	if (fmed->until_time != 0) {
 		if (fmed->until_time <= fmed->seek_time) {
@@ -1028,6 +1030,7 @@ fmed_core* core_init(fmedia **ptr, fmed_log_t logfunc)
 	core_insmod("#core.core", NULL);
 
 	fmed->ogg_qual = -255;
+	fmed->mpeg_qual = 0xffff;
 	fmed->cue_gaps = 255;
 	fmed->wav_formt = 255;
 

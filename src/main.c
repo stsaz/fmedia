@@ -57,6 +57,7 @@ static const ffpars_arg fmed_cmdline_args[] = {
 	, { "wav-format",  FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_pcmfmt) }
 
 	, { "ogg-quality",  FFPARS_TFLOAT | FFPARS_FSIGN,  FFPARS_DSTOFF(fmedia, ogg_qual) }
+	, { "mpeg-quality",  FFPARS_TINT | FFPARS_F16BIT,  FFPARS_DSTOFF(fmedia, mpeg_qual) }
 	, { "cue-gaps",  FFPARS_TINT | FFPARS_F8BIT,  FFPARS_DSTOFF(fmedia, cue_gaps) }
 	, { "pcm-crc",  FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmedia, pcm_crc) }
 	, { "pcm-peaks",  FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmedia, pcm_peaks) }

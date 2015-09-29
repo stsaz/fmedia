@@ -16,7 +16,7 @@ INPUT
 	. Windows Direct Sound Capture
 
 FILTERS
-	. MPEG input
+	. MPEG input/output
 	. OGG Vorbis input/output.  Note: OGG file positioning isn't precise.
 
 	Lossless:
@@ -75,6 +75,7 @@ Play
 Convert
 	fmedia ./file.ogg --out=./file.wav
 	fmedia ./file.wav --out=./file.ogg --ogg-quality=7.0
+	fmedia ./file.wav --out=./file.mp3 --mpeg-quality=0
 	fmedia ./*.wav --out=.ogg --outdir=.
 
 Mix multiple streams

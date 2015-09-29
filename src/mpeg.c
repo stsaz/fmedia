@@ -5,6 +5,7 @@ Copyright (c) 2015 Simon Zolin */
 
 #include <FF/audio/id3.h>
 #include <FF/audio/mpeg.h>
+#include <FF/audio/mp3lame.h>
 #include <FF/audio/pcm.h>
 #include <FF/array.h>
 
@@ -33,6 +34,14 @@ typedef struct fmed_mpeg {
 	uint state;
 } fmed_mpeg;
 
+typedef struct mpeg_out {
+	uint state;
+	ffmpg_enc mpg;
+} mpeg_out;
+
+static struct mpeg_out_conf_t {
+	uint qual;
+} mpeg_out_conf;
 
 //FMEDIA MODULE
 static const void* mpeg_iface(const char *name);
@@ -50,6 +59,19 @@ static const fmed_filter fmed_mpeg_input = {
 	&mpeg_open, &mpeg_process, &mpeg_close
 };
 
+//ENCODE
+static void* mpeg_out_open(fmed_filt *d);
+static void mpeg_out_close(void *ctx);
+static int mpeg_out_process(void *ctx, fmed_filt *d);
+static int mpeg_out_config(ffpars_ctx *ctx);
+static const fmed_filter fmed_mpeg_output = {
+	&mpeg_out_open, &mpeg_out_process, &mpeg_out_close, &mpeg_out_config
+};
+
+static const ffpars_arg mpeg_out_conf_args[] = {
+	{ "quality",	FFPARS_TINT,  FFPARS_DSTOFF(struct mpeg_out_conf_t, qual) },
+};
+
 
 FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 {
@@ -63,6 +85,8 @@ static const void* mpeg_iface(const char *name)
 {
 	if (!ffsz_cmp(name, "decode"))
 		return &fmed_mpeg_input;
+	else if (!ffsz_cmp(name, "encode"))
+		return &fmed_mpeg_output;
 	return NULL;
 }
 
@@ -266,5 +290,101 @@ data:
 
 	dbglog(core, d->trk, "mpeg", "output: %L PCM samples"
 		, d->outlen / ffpcm_size1(&m->mpg.fmt));
+	return FMED_ROK;
+}
+
+
+static int mpeg_out_config(ffpars_ctx *ctx)
+{
+	mpeg_out_conf.qual = 2;
+	ffpars_setargs(ctx, &mpeg_out_conf, mpeg_out_conf_args, FFCNT(mpeg_out_conf_args));
+	return 0;
+}
+
+static void* mpeg_out_open(fmed_filt *d)
+{
+	mpeg_out *m = ffmem_tcalloc1(mpeg_out);
+	if (m == NULL)
+		return NULL;
+	return m;
+}
+
+static void mpeg_out_close(void *ctx)
+{
+	mpeg_out *m = ctx;
+	ffmpg_enc_close(&m->mpg);
+	ffmem_free(m);
+}
+
+static int mpeg_out_process(void *ctx, fmed_filt *d)
+{
+	mpeg_out *m = ctx;
+	ffpcm pcm;
+	int r, qual;
+
+	switch (m->state) {
+	case 0:
+	case 1:
+		pcm.format = (int)fmed_getval("pcm_format");
+		pcm.sample_rate = (int)fmed_getval("pcm_sample_rate");
+		pcm.channels = (int)fmed_getval("pcm_channels");
+
+		if (FMED_NULL == (qual = (int)fmed_getval("mpeg-quality")))
+			qual = mpeg_out_conf.qual;
+
+		m->mpg.ileaved = fmed_getval("pcm_ileaved");
+		if (0 != (r = ffmpg_create(&m->mpg, &pcm, qual))) {
+
+			if (r == FFMPG_EFMT && m->state == 0) {
+				fmed_setval("conv_pcm_format", FFPCM_16LE);
+				m->state = 1;
+				return FMED_RMORE;
+			}
+
+			errlog(core, d->trk, "mpeg", "ffmpg_create() failed: %s", ffmpg_enc_errstr(&m->mpg));
+			return FMED_RERR;
+		}
+		m->state = 2;
+		break;
+	}
+
+	m->mpg.pcm = (void*)d->data;
+	m->mpg.pcmlen = d->datalen;
+
+	for (;;) {
+		r = ffmpg_encode(&m->mpg);
+		switch (r) {
+
+		case FFMPG_RDATA:
+			goto data;
+
+		case FFMPG_RMORE:
+			if (!(d->flags & FMED_FLAST)) {
+				return FMED_RMORE;
+			}
+			m->mpg.fin = 1;
+			break;
+
+		case FFMPG_RSEEK:
+			fmed_setval("output_seek", 0);
+			break;
+
+		case FFMPG_RDONE:
+			d->outlen = 0;
+			return FMED_RDONE;
+
+		default:
+			errlog(core, d->trk, "mpeg", "ffmpg_encode() failed: %s", ffmpg_enc_errstr(&m->mpg));
+			return FMED_RERR;
+		}
+	}
+
+data:
+	d->out = m->mpg.data;
+	d->outlen = m->mpg.datalen;
+	d->datalen = m->mpg.pcmlen;
+
+	dbglog(core, d->trk, "mpeg", "output: %L bytes"
+		, m->mpg.datalen);
 	return FMED_ROK;
 }

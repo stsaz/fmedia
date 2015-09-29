@@ -74,4 +74,5 @@ typedef struct fmedia {
 	byte cue_gaps;
 	byte pcm_crc;
 	byte pcm_peaks;
+	ushort mpeg_qual;
 } fmedia;

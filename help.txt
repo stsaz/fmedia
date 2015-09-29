@@ -47,6 +47,8 @@ Other options:
 
 --ogg-quality=VAL     Set OGG Vorbis encoding quality: -1.0 .. 10.0
 
+--mpeg-quality=VAL    Set MPEG encoding quality: 9..0 (VBR) or 64..320 (CBR)
+
 --cue-gaps=VAL    Control track pregaps
                   0: skip pregaps:
                     track01.index01 .. track02.index00
