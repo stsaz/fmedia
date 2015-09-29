@@ -96,6 +96,7 @@ static const fmed_filter fmed_file_output = {
 	&fileout_open, &fileout_write, &fileout_close, &fileout_config
 };
 
+static int fileout_writedata(fmed_fileout *f, const char *data, size_t len, fmed_filt *d);
 static char* fileout_getname(fmed_fileout *f, fmed_filt *d);
 
 static const ffpars_arg file_out_conf_args[] = {
@@ -508,6 +509,25 @@ static void fileout_close(void *ctx)
 	ffmem_free(f);
 }
 
+static int fileout_writedata(fmed_fileout *f, const char *data, size_t len, fmed_filt *d)
+{
+	ssize_t r;
+	if (f->fsize + len > f->prealocated) {
+		if (0 == fffile_trunc(f->fd, f->prealocated + file_out_conf.prealoc))
+			f->prealocated += file_out_conf.prealoc;
+	}
+
+	r = fffile_write(f->fd, data, len);
+	if (r != len) {
+		syserrlog(core, d->trk, "file", "%e: %s", FFERR_WRITE, f->fname.ptr);
+		return -1;
+	}
+
+	dbglog(core, d->trk, "file", "written %L bytes at offset %U", r, f->fsize);
+	f->fsize += r;
+	return r;
+}
+
 static int fileout_write(void *ctx, fmed_filt *d)
 {
 	fmed_fileout *f = ctx;
@@ -517,6 +537,13 @@ static int fileout_write(void *ctx, fmed_filt *d)
 
 	seek = d->track->popval(d->trk, "output_seek");
 	if (seek != FMED_NULL) {
+
+		if (f->buf.len != 0) {
+			if (-1 == fileout_writedata(f, f->buf.ptr, f->buf.len, d))
+				return FMED_RERR;
+			f->buf.len = 0;
+		}
+
 		if (0 > fffile_seek(f->fd, seek, SEEK_SET)) {
 			syserrlog(core, d->trk, "file", "%e: %s", FFERR_FSEEK, f->fname.ptr);
 			return -1;
@@ -551,19 +578,8 @@ static int fileout_write(void *ctx, fmed_filt *d)
 			ffstr_set(&dst, f->buf.ptr, f->buf.len);
 		}
 
-		if (f->fsize + d->datalen > f->prealocated) {
-			if (0 == fffile_trunc(f->fd, f->prealocated + file_out_conf.prealoc))
-				f->prealocated += file_out_conf.prealoc;
-		}
-
-		r = fffile_write(f->fd, dst.ptr, dst.len);
-		if (r != dst.len) {
-			syserrlog(core, d->trk, "file", "%e: %s", FFERR_WRITE, f->fname.ptr);
-			return -1;
-		}
-
-		dbglog(core, d->trk, "file", "written %L bytes at offset %U", r, f->fsize);
-		f->fsize += r;
+		if (-1 == fileout_writedata(f, dst.ptr, dst.len, d))
+			return FMED_RERR;
 		if (d->datalen == 0)
 			break;
 	}
