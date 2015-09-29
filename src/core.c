@@ -1271,7 +1271,8 @@ static int core_sig(uint signo)
 	case FMED_OPEN:
 		if (0 != core_open())
 			return 1;
-		core_sigmods(signo);
+		if (0 != core_sigmods(signo))
+			return 1;
 		break;
 
 	case FMED_START:

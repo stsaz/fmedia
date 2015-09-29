@@ -29,6 +29,7 @@ typedef struct ggui {
 	void *play_id;
 	char *rec_dir;
 	ffstr rec_format;
+	uint load_err;
 
 	void *rec_trk;
 
@@ -847,7 +848,7 @@ static FFTHDCALL int gui_worker(void *param)
 	ffui_ldr_init(&ldr);
 
 	if (NULL == (fn = core->getpath(FFSTR("./fmedia.gui"))))
-		return 1;
+		goto err;
 	ldr.getctl = &gui_getctl;
 	ldr.getcmd = &gui_getcmd;
 	ldr.udata = gg;
@@ -859,7 +860,7 @@ static FFTHDCALL int gui_worker(void *param)
 		ffarr_free(&msg);
 		ffmem_free(fn);
 		ffui_ldr_fin(&ldr);
-		return 1;
+		goto err;
 	}
 	ffmem_free(fn);
 	ffui_ldr_fin(&ldr);
@@ -879,7 +880,13 @@ static FFTHDCALL int gui_worker(void *param)
 	fflk_unlock(&gg->lk);
 
 	ffui_run();
+	goto done;
 
+err:
+	gg->load_err = 1;
+	fflk_unlock(&gg->lk);
+
+done:
 	ffui_dlg_destroy(&gg->dlg);
 	ffui_wnd_destroy(&gg->wmain);
 	ffui_uninit();
@@ -919,7 +926,7 @@ static int gui_sig(uint signo)
 
 		fflk_lock(&gg->lk); //give the GUI thread some time to create controls
 		fflk_unlock(&gg->lk);
-		break;
+		return gg->load_err;
 	}
 	return 0;
 }
