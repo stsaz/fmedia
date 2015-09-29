@@ -38,10 +38,9 @@ static const fmed_mod fmed_que_mod = {
 };
 
 static fmed_que_entry* que_add(fmed_que_entry *ent);
-static fmed_que_entry* que_get(void);
 static void que_cmd(uint cmd, void *param);
 static const fmed_queue fmed_que_mgr = {
-	&que_add, &que_get, &que_cmd
+	&que_add, &que_cmd
 };
 
 static void que_play(entry *e);
@@ -246,13 +245,6 @@ static void que_cmd(uint cmd, void *param)
 		break;
 	}
 	// fflk_unlock(&qu->lk);
-}
-
-static fmed_que_entry* que_get(void)
-{
-	if (qu->cur == NULL)
-		return NULL;
-	return &qu->cur->e;
 }
 
 static fmed_que_entry* que_add(fmed_que_entry *ent)

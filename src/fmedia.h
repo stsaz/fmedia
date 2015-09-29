@@ -253,8 +253,6 @@ enum FMED_QUE {
 typedef struct fmed_queue {
 	fmed_que_entry* (*add)(fmed_que_entry *ent);
 
-	fmed_que_entry* (*getinfo)(void);
-
 	/** @cmd: enum FMED_QUE */
 	void (*cmd)(uint cmd, void *param);
 } fmed_queue;

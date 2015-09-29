@@ -870,7 +870,7 @@ static void* gtrk_open(fmed_filt *d)
 	g->total_time_sec = ffpcm_time(total_samples, g->sample_rate) / 1000;
 	ffui_trk_setrange(&gg->tpos, g->total_time_sec);
 
-	plid = gg->qu->getinfo();
+	plid = (void*)fmed_getval("queue_item");
 	if (-1 != (idx = ffui_view_search(&gg->vlist, (size_t)plid)))
 		ffui_view_setindex(&it, idx);
 
