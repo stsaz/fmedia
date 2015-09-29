@@ -6,6 +6,7 @@ Copyright (c) 2015 Simon Zolin */
 #include <FF/audio/pcm.h>
 #include <FF/data/psarg.h>
 #include <FF/path.h>
+#include <FF/time.h>
 #include <FFOS/sig.h>
 #include <FFOS/error.h>
 #include <FFOS/process.h>
@@ -114,11 +115,14 @@ static int fmed_arg_listdev(void)
 
 static int fmed_arg_seek(ffparser_schem *p, void *obj, const ffstr *val)
 {
-	uint m, s, i;
-	if (val->len != ffs_fmatch(val->ptr, val->len, "%2u:%2u", &m, &s))
+	uint i;
+	ffdtm dt;
+	fftime t;
+	if (val->len != fftime_fromstr(&dt, val->ptr, val->len, FFTIME_HMS_MSEC_VAR))
 		return FFPARS_EBADVAL;
 
-	i = m * 60 * 1000 + s * 1000;
+	fftime_join(&t, &dt, FFTIME_TZNODATE);
+	i = fftime_ms(&t);
 
 	if (!ffsz_cmp(p->curarg->name, "seek"))
 		fmed->seek_time = i;
