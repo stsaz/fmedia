@@ -500,7 +500,7 @@ static void fileout_close(void *ctx)
 		if (0 != fffile_close(f->fd))
 			syserrlog(core, NULL, "file", "%e", FFERR_FCLOSE);
 
-		dbglog(core, NULL, "file", "saved file %s, %U kbytes"
+		core->log(ffstdout, NULL, "file", "info", "saved file %s, %U kbytes"
 			, f->fname.ptr, f->fsize / 1024);
 	}
 
@@ -523,7 +523,7 @@ static int fileout_writedata(fmed_fileout *f, const char *data, size_t len, fmed
 		return -1;
 	}
 
-	dbglog(core, d->trk, "file", "written %L bytes at offset %U", r, f->fsize);
+	dbglog(core, d->trk, "file", "written %L bytes at offset %U (%L pending)", r, f->fsize, d->datalen);
 	f->fsize += r;
 	return r;
 }
@@ -573,7 +573,7 @@ static int fileout_write(void *ctx, fmed_filt *d)
 		d->data += r;
 		d->datalen -= r;
 		if (dst.len == 0) {
-			if (!(d->flags & FMED_FLAST))
+			if (!(d->flags & FMED_FLAST) || f->buf.len == 0)
 				break;
 			ffstr_set(&dst, f->buf.ptr, f->buf.len);
 		}
