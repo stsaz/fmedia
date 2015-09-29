@@ -105,6 +105,8 @@ static void gui_media_remove(void);
 static fmed_que_entry* gui_list_getent(void);
 static void gui_media_vol(void);
 static void gui_media_showdir(void);
+static void gui_media_copyfn(void);
+static void gui_media_fileop(uint cmd);
 static void gui_on_dropfiles(ffui_wnd *wnd, ffui_fdrop *df);
 static void gui_que_onchange(fmed_que_entry *e, uint flags);
 static void gui_rec(void);
@@ -205,7 +207,12 @@ enum CMDS {
 	ADD,
 	REMOVE,
 	CLEAR,
+	SELALL,
+	SELINVERT,
 	SHOWDIR,
+	COPYFN,
+	COPYFILE,
+	DELFILE,
 
 	HIDE,
 	SHOW,
@@ -241,7 +248,12 @@ static const char *const scmds[] = {
 	"ADD",
 	"REMOVE",
 	"CLEAR",
+	"SELALL",
+	"SELINVERT",
 	"SHOWDIR",
+	"COPYFN",
+	"COPYFILE",
+	"DELFILE",
 
 	"HIDE",
 	"SHOW",
@@ -409,9 +421,26 @@ seek:
 		gui_media_showdir();
 		break;
 
+	case COPYFN:
+		gui_media_copyfn();
+		break;
+
+	case COPYFILE:
+	case DELFILE:
+		gui_media_fileop(id);
+		break;
+
 
 	case REMOVE:
 		gui_media_remove();
+		break;
+
+	case SELALL:
+		ffui_view_sel(&gg->vlist, -1);
+		break;
+
+	case SELINVERT:
+		ffui_view_sel_invert(&gg->vlist);
 		break;
 
 	case CLEAR:
@@ -582,6 +611,95 @@ static void gui_media_showdir(void)
 		return;
 
 	ffui_openfolder((const char *const *)&ent->url.ptr, 1);
+}
+
+/** Copy to clipboard filenames of selected items:
+/path/file1 CRLF
+/path/file2 */
+static void gui_media_copyfn(void)
+{
+	int i = -1;
+	fmed_que_entry *ent;
+	ffui_viewitem it;
+	ffarr buf = {0};
+
+	while (-1 != (i = ffui_view_selnext(&gg->vlist, i))) {
+		ffui_view_iteminit(&it);
+		ffui_view_setindex(&it, i);
+		ffui_view_setparam(&it, 0);
+		ffui_view_get(&gg->vlist, 0, &it);
+		ent = (void*)ffui_view_param(&it);
+
+		if (0 == ffstr_catfmt(&buf, "%S" FF_NEWLN, &ent->url))
+			goto done;
+	}
+
+	if (buf.len == 0)
+		goto done;
+
+	ffui_clipbd_set(buf.ptr, buf.len - FFSLEN(FF_NEWLN));
+
+done:
+	ffarr_free(&buf);
+}
+
+static void gui_media_fileop(uint cmd)
+{
+	int i = -1;
+	fmed_que_entry *ent, **pent;
+	ffui_viewitem it;
+	struct { FFARR(char*) } buf = {0};
+	struct { FFARR(fmed_que_entry*) } ents = {0};
+	char st[255];
+	size_t n;
+	char **pitem;
+
+	while (-1 != (i = ffui_view_selnext(&gg->vlist, i))) {
+		ffui_view_iteminit(&it);
+		ffui_view_setindex(&it, i);
+		ffui_view_setparam(&it, 0);
+		ffui_view_get(&gg->vlist, 0, &it);
+		ent = (void*)ffui_view_param(&it);
+
+		if (NULL == (pitem = ffarr_push(&buf, char*)))
+			goto done;
+		*pitem = ent->url.ptr;
+
+		switch (cmd) {
+		case DELFILE:
+			if (NULL == (pent = ffarr_push(&ents, fmed_que_entry*)))
+				goto done;
+			*pent = ent;
+			break;
+		}
+	}
+
+	if (buf.len == 0)
+		goto done;
+
+	switch (cmd) {
+	case COPYFILE:
+		if (0 == ffui_clipbd_setfile((const char *const *)buf.ptr, buf.len)) {
+			n = ffs_fmt(st, st + sizeof(st), "Copied %L files to clipboard", buf.len);
+			gui_status(st, n);
+		}
+		break;
+
+	case DELFILE:
+		if (0 == ffui_fop_del((const char *const *)buf.ptr, buf.len, FFUI_FOP_ALLOWUNDO)) {
+			ffui_redraw(&gg->vlist, 0);
+			FFARR_WALK(&ents, pent) {
+				gg->qu->cmd(FMED_QUE_RM, *pent);
+			}
+			ffui_redraw(&gg->vlist, 1);
+			n = ffs_fmt(st, st + sizeof(st), "Deleted %L files", buf.len);
+			gui_status(st, n);
+		}
+		break;
+	}
+
+done:
+	ffarr_free(&buf);
 }
 
 static void gui_media_added(fmed_que_entry *ent)

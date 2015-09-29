@@ -10,6 +10,13 @@ menu mfile {
 	}
 	item "-" {
 	}
+	item "Select &All" {
+		action SELALL
+		hotkey "Ctrl+A"
+	}
+	item "In&vert Selection" {
+		action SELINVERT
+	}
 	item "&Remove" {
 		action REMOVE
 		hotkey "Delete"
@@ -19,8 +26,19 @@ menu mfile {
 	}
 	item "-" {
 	}
-	item "Show Fo&lder" {
+	item "C&opy to Clipboard" {
+		action COPYFILE
+		hotkey "Ctrl+C"
+	}
+	item "Copy File&name to Clipboard" {
+		action COPYFN
+	}
+	item "Open Fo&lder" {
 		action SHOWDIR
+	}
+	item "&Delete From Disk" {
+		action DELFILE
+		hotkey "Shift+Delete"
 	}
 	item "-" {
 	}
