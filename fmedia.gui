@@ -95,6 +95,12 @@ menu mrec {
 		action REC
 		hotkey "Ctrl+R"
 	}
+	item "&Play and Record" {
+		action PLAYREC
+	}
+	item "Play &Mixed and Record" {
+		action MIXREC
+	}
 	item "Open Recordings Fo&lder" {
 		action SHOWRECS
 	}

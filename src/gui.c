@@ -111,7 +111,7 @@ static void gui_media_copyfn(void);
 static void gui_media_fileop(uint cmd);
 static void gui_on_dropfiles(ffui_wnd *wnd, ffui_fdrop *df);
 static void gui_que_onchange(fmed_que_entry *e, uint flags);
-static void gui_rec(void);
+static void gui_rec(uint cmd);
 static void gui_onclose(void);
 
 static void gui_convert(void);
@@ -201,6 +201,8 @@ enum CMDS {
 	VOLDOWN,
 
 	REC,
+	PLAYREC,
+	MIXREC,
 	SHOWRECS,
 
 	CONVERT,
@@ -243,6 +245,8 @@ static const char *const scmds[] = {
 	"VOLDOWN",
 
 	"REC",
+	"PLAYREC",
+	"MIXREC",
 	"SHOWRECS",
 
 	"CONVERT",
@@ -307,7 +311,9 @@ static void gui_task(void *param)
 
 
 	case REC:
-		gui_rec();
+	case PLAYREC:
+	case MIXREC:
+		gui_rec(cmd);
 		break;
 
 	case QUIT:
@@ -410,7 +416,9 @@ seek:
 
 
 	case REC:
-		gui_task_add(REC);
+	case PLAYREC:
+	case MIXREC:
+		gui_task_add(id);
 		break;
 
 	case SHOWRECS:
@@ -538,7 +546,7 @@ static void gui_onclose(void)
 	ffmem_free(fn);
 }
 
-static void gui_rec(void)
+static void gui_rec(uint cmd)
 {
 	void *t;
 	ffstr3 nm = {0};
@@ -570,6 +578,16 @@ static void gui_rec(void)
 	ffstr_catfmt(&nm, "%s%crec-%u-%02u-%02u_%02u%02u%02u.%S%Z"
 		, gg->rec_dir, FFPATH_SLASH, dt.year, dt.month, dt.day, dt.hour, dt.min, dt.sec, &gg->rec_format);
 	gg->track->setvalstr(t, "=output", nm.ptr);
+
+	switch (cmd) {
+	case PLAYREC:
+		gg->qu->cmd(FMED_QUE_PLAY, NULL);
+		break;
+
+	case MIXREC:
+		gg->qu->cmd(FMED_QUE_MIX, NULL);
+		break;
+	}
 
 	gg->track->cmd(t, FMED_TRACK_START);
 	gg->rec_trk = t;
