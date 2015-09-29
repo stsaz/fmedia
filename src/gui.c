@@ -395,14 +395,8 @@ seek:
 		gui_task_add(REC);
 		break;
 
-	case SHOWRECS: {
-		const char *args[2];
-		fffd ps;
-		args[0] = gg->rec_dir;
-		args[1] = NULL;
-		if (FF_BADFD != (ps = ffps_exec("c:\\windows\\explorer.exe", args, NULL)))
-			ffps_close(ps);
-		}
+	case SHOWRECS:
+		ffui_openfolder((const char *const *)&gg->rec_dir, 0);
 		break;
 
 
@@ -583,18 +577,11 @@ static void gui_media_vol(void)
 static void gui_media_showdir(void)
 {
 	const fmed_que_entry *ent;
-	fffd ps;
-	char pathz[FF_MAXPATH];
-	const char *args[2];
 
 	if (NULL == (ent = gui_list_getent()))
 		return;
 
-	ffs_fmt(pathz, pathz + FFCNT(pathz), "/select,%S%Z", &ent->url);
-	args[0] = pathz;
-	args[1] = NULL;
-	if (FF_BADFD != (ps = ffps_exec("c:\\windows\\explorer.exe", args, NULL)))
-		ffps_close(ps);
+	ffui_openfolder((const char *const *)&ent->url.ptr, 1);
 }
 
 static void gui_media_added(fmed_que_entry *ent)
