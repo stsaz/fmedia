@@ -184,6 +184,8 @@ window wmain {
 		position 0 25 360 175
 		style explorer_theme grid_lines multi_select visible
 		dblclick PLAY
+		popupmenu mfile
+
 		column "#" {
 			width 35
 			align right
