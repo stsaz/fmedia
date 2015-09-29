@@ -4,9 +4,20 @@ Copyright (c) 2015 Simon Zolin */
 #include <fmedia.h>
 
 #include <FF/audio/pcm.h>
+#include <FF/audio/soxr.h>
 #include <FF/array.h>
 #include <FF/crc.h>
 
+/*
+PCM conversion preparation:
+ . INPUT -> conv -> conv-soxr -> OUTPUT
+
+                                newfmt+rate
+ . INPUT -- [conv] -- conv-soxr      <-     OUTPUT
+
+                                newfmt
+ . INPUT -- conv <- [conv-soxr]   <-   OUTPUT
+*/
 
 static const fmed_core *core;
 
@@ -32,6 +43,14 @@ static int sndmod_conv_process(void *ctx, fmed_filt *d);
 static void sndmod_conv_close(void *ctx);
 static const fmed_filter fmed_sndmod_conv = {
 	&sndmod_conv_open, &sndmod_conv_process, &sndmod_conv_close
+};
+
+//CONVERTER-SOXR
+static void* sndmod_soxr_open(fmed_filt *d);
+static int sndmod_soxr_process(void *ctx, fmed_filt *d);
+static void sndmod_soxr_close(void *ctx);
+static const fmed_filter fmed_sndmod_soxr = {
+	&sndmod_soxr_open, &sndmod_soxr_process, &sndmod_soxr_close
 };
 
 //GAIN
@@ -70,6 +89,8 @@ static const void* sndmod_iface(const char *name)
 {
 	if (!ffsz_cmp(name, "conv"))
 		return &fmed_sndmod_conv;
+	else if (!ffsz_cmp(name, "conv-soxr"))
+		return &fmed_sndmod_soxr;
 	else if (!ffsz_cmp(name, "gain"))
 		return &fmed_sndmod_gain;
 	else if (!ffsz_cmp(name, "until"))
@@ -211,6 +232,113 @@ static int sndmod_conv_process(void *ctx, fmed_filt *d)
 
 	if ((d->flags & FMED_FLAST) && d->datalen == 0)
 		return FMED_RDONE;
+	return FMED_ROK;
+}
+
+
+typedef struct sndmod_soxr {
+	uint state;
+	ffsoxr soxr;
+} sndmod_soxr;
+
+static void* sndmod_soxr_open(fmed_filt *d)
+{
+	sndmod_soxr *c = ffmem_tcalloc1(sndmod_soxr);
+	if (c == NULL)
+		return NULL;
+	ffsoxr_init(&c->soxr);
+	return c;
+}
+
+static void sndmod_soxr_close(void *ctx)
+{
+	sndmod_soxr *c = ctx;
+	ffsoxr_destroy(&c->soxr);
+	ffmem_free(c);
+}
+
+static int sndmod_soxr_process(void *ctx, fmed_filt *d)
+{
+	sndmod_soxr *c = ctx;
+	int val;
+	ffpcmex inpcm, outpcm;
+
+	switch (c->state) {
+	case 0:
+		d->outlen = 0;
+		c->state = 1;
+		return FMED_RDATA;
+
+	case 1:
+		inpcm.format = (int)fmed_getval("pcm_format");
+		inpcm.sample_rate = (int)fmed_getval("pcm_sample_rate");
+		inpcm.channels = (int)fmed_getval("pcm_channels");
+		if (1 == fmed_getval("pcm_ileaved"))
+			inpcm.ileaved = 1;
+		outpcm = inpcm;
+
+		if (FMED_NULL != (val = (int)fmed_popval("conv_pcm_rate"))) {
+			outpcm.sample_rate = val;
+			fmed_setval("pcm_sample_rate", outpcm.sample_rate);
+		} else {
+			return FMED_RDONE_PREV;
+		}
+
+		if (FMED_NULL != (val = (int)fmed_popval("conv_pcm_format"))) {
+			outpcm.format = val;
+			fmed_setval("pcm_format", outpcm.format);
+		}
+
+		if (FMED_NULL != (val = (int)fmed_popval("conv_pcm_ileaved"))) {
+			outpcm.ileaved = val;
+			fmed_setval("pcm_ileaved", outpcm.ileaved);
+		}
+
+		if (!ffmemcmp(&outpcm, &inpcm, sizeof(ffpcmex))) {
+			d->out = d->data;
+			d->outlen = d->datalen;
+			return FMED_RDONE;
+		}
+
+		// c->soxr.dither = 1;
+		if (0 != ffsoxr_create(&c->soxr, &inpcm, &outpcm)) {
+			errlog(core, d->trk, "soxr", "unsupported PCM conversion: %s/%u/%u/%s -> %s/%u/%u/%s: %s"
+				, ffpcm_fmtstr[inpcm.format], inpcm.channels, inpcm.sample_rate, (inpcm.ileaved) ? "i" : "ni"
+				, ffpcm_fmtstr[outpcm.format], outpcm.channels, outpcm.sample_rate, (outpcm.ileaved) ? "i" : "ni"
+				, ffsoxr_errstr(&c->soxr));
+			return FMED_RERR;
+		}
+
+		dbglog(core, d->trk, "soxr", "PCM conversion: %s/%u/%u/%s -> %s/%u/%u/%s"
+			, ffpcm_fmtstr[inpcm.format], inpcm.channels, inpcm.sample_rate, (inpcm.ileaved) ? "i" : "ni"
+			, ffpcm_fmtstr[outpcm.format], outpcm.channels, outpcm.sample_rate, (outpcm.ileaved) ? "i" : "ni");
+		c->state = 2;
+		break;
+
+	case 2:
+		break;
+	}
+
+	c->soxr.in_i = d->data;
+	c->soxr.inlen = d->datalen;
+	if (d->flags & FMED_FLAST)
+		c->soxr.fin = 1;
+	if (0 != ffsoxr_convert(&c->soxr)) {
+		errlog(core, d->trk, "soxr", "ffsoxr_convert(): %s", ffsoxr_errstr(&c->soxr));
+		return FMED_RERR;
+	}
+
+	d->out = c->soxr.out;
+	d->outlen = c->soxr.outlen;
+
+	if (c->soxr.outlen == 0) {
+		if (d->flags & FMED_FLAST)
+			return FMED_RDONE;
+		return FMED_RMORE;
+	}
+
+	d->data = c->soxr.in_i;
+	d->datalen = c->soxr.inlen;
 	return FMED_ROK;
 }
 

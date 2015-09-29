@@ -468,6 +468,7 @@ static int media_setout(fm_src *src)
 	newfilter(src, "#soundmod.gain");
 
 	newfilter(src, "#soundmod.conv");
+	newfilter(src, "#soundmod.conv-soxr");
 
 	if (fmed->mix && !src->mxr_out) {
 		newfilter(src, "mixer.in");
