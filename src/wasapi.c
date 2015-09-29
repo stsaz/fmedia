@@ -284,9 +284,9 @@ fin:
 	mod->out.udata = w;
 	mod->usedby = w;
 	w->bufused = 1;
-	dbglog(core, d->trk, "wasapi", "%s buffer %ums, excl:%u"
-		, reused ? "reused" : "opened", ffpcm_time(mod->out.bufsize, fmt.sample_rate)
-		, mod->out.excl);
+	dbglog(core, d->trk, "wasapi", "%s buffer %ums, %uHz, excl:%u"
+		, reused ? "reused" : "opened", ffpcm_bytes2time(&fmt, ffwas_bufsize(&mod->out))
+		, fmt.sample_rate, mod->out.excl);
 	return w;
 
 done:
@@ -430,7 +430,7 @@ static void* wasapi_in_open(fmed_filt *d)
 	}
 
 	dbglog(core, d->trk, "wasapi", "opened capture buffer %ums"
-		, ffpcm_bytes2time(&fmt, w->wa.bufsize));
+		, ffpcm_bytes2time(&fmt, ffwas_bufsize(&mod->out)));
 
 	if (wasapi_in_conf.latency_autocorrect)
 		w->latcorr = ffpcm_samples(wasapi_out_conf.buflen, fmt.sample_rate) * ffpcm_size1(&fmt)
