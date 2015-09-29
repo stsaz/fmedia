@@ -30,6 +30,7 @@ typedef struct mxr {
 typedef struct mix_in {
 	fflist_item sib;
 	uint off;
+	uint state;
 	fmed_handler handler;
 	void *udata;
 	mxr *m;
@@ -150,14 +151,6 @@ static void* mix_in_open(fmed_filt *d)
 	if (mx->err)
 		return NULL;
 
-	if (pcmfmt.format != d->track->getval(d->trk, "pcm_format")
-		|| pcmfmt.channels != d->track->getval(d->trk, "pcm_channels")
-		|| pcmfmt.sample_rate != d->track->getval(d->trk, "pcm_sample_rate")) {
-		errlog(core, d->trk, "mixer", "input format doesn't match output");
-		mx->err = 1;
-		return NULL;
-	}
-
 	mi = ffmem_tcalloc1(mix_in);
 	if (mi == NULL) {
 		errlog(core, d->trk, "mixer", "%e", FFERR_BUFALOC);
@@ -190,6 +183,25 @@ static int mix_in_write(void *ctx, fmed_filt *d)
 
 	if (mi->m->err)
 		return FMED_RERR;
+
+	switch (mi->state) {
+	case 0:
+		d->track->setval(d->trk, "conv_pcm_format", pcmfmt.format);
+		d->track->setval(d->trk, "conv_pcm_ileaved", 1);
+		mi->state = 1;
+		return FMED_RMORE;
+
+	case 1:
+		if (pcmfmt.format != d->track->getval(d->trk, "pcm_format")
+			|| pcmfmt.channels != d->track->getval(d->trk, "pcm_channels")
+			|| pcmfmt.sample_rate != d->track->getval(d->trk, "pcm_sample_rate")) {
+			errlog(core, d->trk, "mixer", "input format doesn't match output");
+			mx->err = 1;
+			return NULL;
+		}
+		mi->state = 2;
+		break;
+	}
 
 	n = mix_write(mi->m, mi->off, d);
 	mi->off += n;
