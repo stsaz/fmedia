@@ -2,7 +2,7 @@
 OBJ_DIR := .
 RES := $(OBJ_DIR)/fmedia.coff
 BINS := $(BIN) core.$(SO) \
-	ogg-vorbis.$(SO) mpeg.$(SO) wav.$(SO) flac.$(SO) \
+	ogg-vorbis.$(SO) mpeg.$(SO) wav.$(SO) flac.$(SO) wavpack.$(SO) \
 	plist.$(SO) \
 	mixer.$(SO)
 
@@ -67,7 +67,7 @@ MPEG_O := $(OBJ_DIR)/mpeg.o $(FF_O) \
 	$(FF_OBJ_DIR)/ffmp3lame.o \
 	$(FF_OBJ_DIR)/ffid3.o
 mpeg.$(SO): $(MPEG_O)
-	$(LD) -shared $(MPEG_O) $(LDFLAGS) -L$(FF)/3pt/win-x64 -lmad -lmp3lame-0  -o$@
+	$(LD) -shared $(MPEG_O) $(LDFLAGS) -lmad -lmp3lame-0  -o$@
 
 
 #
@@ -75,7 +75,7 @@ OGG_O := $(OBJ_DIR)/ogg.o \
 	$(FF_O) \
 	$(FF_OBJ_DIR)/ffogg.o
 ogg-vorbis.$(SO): $(OGG_O)
-	$(LD) -shared $(OGG_O) $(LDFLAGS) -L$(FF)/3pt/ogg -L$(FF)/3pt/vorbis -logg-0 -lvorbis-0 -lvorbisenc-2  -o$@
+	$(LD) -shared $(OGG_O) $(LDFLAGS) -logg-0 -lvorbis-0 -lvorbisenc-2  -o$@
 
 
 #
@@ -84,7 +84,19 @@ FLAC_O := $(OBJ_DIR)/flac.o \
 	$(FF_OBJ_DIR)/ffflac.o \
 	$(FF_OBJ_DIR)/ffpcm.o
 flac.$(SO): $(FLAC_O)
-	$(LD) -shared $(FLAC_O) $(LDFLAGS) -L$(FF)/3pt/flac -lFLAC-8  -o$@
+	$(LD) -shared $(FLAC_O) $(LDFLAGS) -lFLAC-8  -o$@
+
+
+#
+WAVPACK_O := $(OBJ_DIR)/wavpack.o \
+	$(FF_O) \
+	$(FF_OBJ_DIR)/ffwavpack.o \
+	$(FF_OBJ_DIR)/ffapetag.o \
+	$(FF_OBJ_DIR)/ffid3.o \
+	$(FF_OBJ_DIR)/ffutf8.o \
+	$(FF_OBJ_DIR)/ffpcm.o
+wavpack.$(SO): $(WAVPACK_O)
+	$(LD) -shared $(WAVPACK_O) $(LDFLAGS) -lwavpack-1  -o$@
 
 
 #
@@ -115,7 +127,7 @@ wasapi.$(SO): $(WASAPI_O)
 
 
 #
-$(OBJ_DIR)/gui.o: $(SRCDIR)/gui.c $(FF_GUIHDR)
+$(OBJ_DIR)/gui.o: $(SRCDIR)/gui.c $(SRCDIR)/fmedia.h $(FF_GUIHDR)
 	$(C) $(CFLAGS)  $< -o$@
 
 GUI_O := $(OBJ_DIR)/gui.o \

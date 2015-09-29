@@ -1,3 +1,36 @@
+fmedia v0.5 - Sep 29, 2015
+
+ + WavPack decode
+ + MPEG encode
+ + soundmod.soxr: convert PCM sample rate
+
+ * fmedia: --seek and --until accept variable length time string of format "h:m:s.ms"
+ * fmedia, core, wav.out: --pcm-format -> --wav-format
+
+ + gui: new menu commands: "Select All", "Invert Selection", "Copy to Clipboard", "Copy Filename to Clipboard", "Delete From Disk", "Play and Record", "Mix and Record"
+ + gui: simple sorting by "filename", "artist", "title" columns
+ + gui: convert multiple files
+ - core, gui: fmedia didn't exit after error in GUI loader
+ - gui: STOP didn't work after PAUSE
+ - gui, wasapi.out, dsound.out: quicker reaction to "pause", "seek" command
+ - gui: meta from flac.cue wasn't passed to output file when "Convert" command is used
+ - gui: "Open Folder" didn't work for filenames with spaces
+
+ + mixer: buffer size can be configured in fmedia.conf
+ + mixer: support mixing PCM 16le with PCM float
+ - mixer: output could hang in some cases
+
+ - file.out: flush memory buffers to a file before seeking
+ - file: seek=0 didn't work
+
+ * wasapi: request sample rate conversion if soundcard doesn't support input sample rate
+ * wasapi: output: don't reopen output buffer on each file, unless audio format or device has changed
+
+ - queue: the next item in queue wasn't played after directory or playlist was opened (v0.4 bug)
+ - plist.cue: invalid track_duration was set (v0.4 bug)
+ - soundmod.until: tracks from .cue files could hang when stopped from GUI (v0.4 bug)
+
+
 fmedia v0.4 - Aug 21, 2015
 
  + gui: fmedia-gui binary supports command-line arguments
