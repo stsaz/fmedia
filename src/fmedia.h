@@ -250,9 +250,17 @@ enum FMED_QUE {
 	FMED_QUE_SETONCHANGE, // @param: fmed_que_onchange_t
 };
 
+enum FMED_QUE_META_F {
+	FMED_QUE_TMETA = 1,
+};
+
 typedef struct fmed_queue {
 	fmed_que_entry* (*add)(fmed_que_entry *ent);
 
 	/** @cmd: enum FMED_QUE */
 	void (*cmd)(uint cmd, void *param);
+
+	/** flags: enum FMED_QUE_META_F */
+	void (*meta_set)(fmed_que_entry *ent, const char *name, size_t name_len, const char *val, size_t val_len, uint flags);
+	ffstr* (*meta_find)(fmed_que_entry *ent, const char *name, size_t name_len);
 } fmed_queue;

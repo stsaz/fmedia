@@ -9,6 +9,9 @@ static const fmed_core *core;
 typedef struct entry {
 	fmed_que_entry e;
 	fflist_item sib;
+
+	ffstr *tmeta; //transient meta
+	uint tmeta_len;
 } entry;
 
 typedef struct que {
@@ -39,8 +42,10 @@ static const fmed_mod fmed_que_mod = {
 
 static fmed_que_entry* que_add(fmed_que_entry *ent);
 static void que_cmd(uint cmd, void *param);
+static void que_meta_set(fmed_que_entry *ent, const char *name, size_t name_len, const char *val, size_t val_len, uint flags);
+static ffstr* que_meta_find(fmed_que_entry *ent, const char *name, size_t name_len);
 static const fmed_queue fmed_que_mgr = {
-	&que_add, &que_cmd
+	&que_add, &que_cmd, &que_meta_set, &que_meta_find
 };
 
 static void que_play(entry *e);
@@ -98,6 +103,12 @@ static void ent_free(entry *e)
 		ffstr_free(&e->e.meta[i]);
 	}
 	ffmem_safefree(e->e.meta);
+
+	for (i = 0;  i != e->tmeta_len;  i++) {
+		ffstr_free(&e->tmeta[i]);
+	}
+	ffmem_safefree(e->tmeta);
+
 	ffstr_free(&e->e.url);
 	ffmem_free(e);
 }
@@ -125,9 +136,18 @@ static void que_play(entry *ent)
 		qu->track->setval(trk, "seek_time_abs", e->from);
 	if (e->to != 0)
 		qu->track->setval(trk, "until_time", e->to);
+
 	for (i = 0;  i != e->nmeta;  i += 2) {
 		qu->track->setvalstr(trk, e->meta[i].ptr, e->meta[i + 1].ptr);
 	}
+
+	for (i = 0;  i != ent->tmeta_len;  i++) {
+		ffstr_free(&ent->tmeta[i]);
+	}
+	ffmem_safefree(ent->tmeta);
+	ent->tmeta = NULL;
+	ent->tmeta_len = 0;
+
 	qu->track->setval(trk, "queue_item", (int64)e);
 	qu->track->cmd(trk, FMED_TRACK_START);
 }
@@ -175,7 +195,7 @@ static void que_mix(void)
 
 // matches enum FMED_QUE
 static const char *const scmds[] = {
-	"play", "mix", "next", "prev", "clear", "rm", "setonchange",
+	"play", "mix", "next", "prev", "clear", "rm", "setonchange", "meta-clear"
 };
 
 static void que_cmd(uint cmd, void *param)
@@ -247,6 +267,7 @@ static void que_cmd(uint cmd, void *param)
 	// fflk_unlock(&qu->lk);
 }
 
+
 static fmed_que_entry* que_add(fmed_que_entry *ent)
 {
 	uint i;
@@ -290,6 +311,52 @@ static fmed_que_entry* que_add(fmed_que_entry *ent)
 		qu->onchange(&e->e, FMED_QUE_ONADD);
 	return &e->e;
 }
+
+static void que_meta_set(fmed_que_entry *ent, const char *name, size_t name_len, const char *val, size_t val_len, uint flags)
+{
+	entry *e = FF_GETPTR(entry, e, ent);
+	ffstr **m = &ent->meta;
+	uint *n = &ent->nmeta;
+	char *sname, *sval;
+
+	if (flags & FMED_QUE_TMETA) {
+		m = &e->tmeta;
+		n = &e->tmeta_len;
+	}
+
+	if (NULL == (*m = ffmem_realloc(*m, (*n + 2) * sizeof(ffstr))))
+		return;
+
+	sname = ffsz_alcopy(name, name_len);
+	sval = ffsz_alcopy(val, val_len);
+	if (sname == NULL || sval == NULL) {
+		ffmem_safefree(sname);
+		ffmem_safefree(sval);
+		return;
+	}
+
+	ffstr_set(&(*m)[*n], sname, name_len);
+	ffstr_set(&(*m)[*n + 1], sval, val_len);
+	(*n) += 2;
+}
+
+static ffstr* que_meta_find(fmed_que_entry *ent, const char *name, size_t name_len)
+{
+	uint i;
+	entry *e = FF_GETPTR(entry, e, ent);
+
+	for (i = 0;  i != e->tmeta_len;  i += 2) {
+		if (ffstr_eq(&e->tmeta[i], name, name_len))
+			return &e->tmeta[i + 1];
+	}
+
+	for (i = 0;  i != ent->nmeta;  i += 2) {
+		if (ffstr_eq(&ent->meta[i], name, name_len))
+			return &ent->meta[i + 1];
+	}
+	return NULL;
+}
+
 
 static void que_taskfunc(void *udata)
 {
