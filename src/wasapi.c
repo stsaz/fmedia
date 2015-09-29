@@ -375,6 +375,17 @@ static int wasapi_write(void *ctx, fmed_filt *d)
 		return FMED_RDONE;
 	}
 
+	if (1 == d->track->popval(d->trk, "snd_output_clear")) {
+		ffwas_stop(&mod->out);
+		ffwas_clear(&mod->out);
+		return FMED_RMORE;
+	}
+
+	if (1 == d->track->popval(d->trk, "snd_output_pause")) {
+		ffwas_stop(&mod->out);
+		return FMED_RMORE;
+	}
+
 	while (d->datalen != 0) {
 
 		r = ffwas_write(&mod->out, d->data, d->datalen);

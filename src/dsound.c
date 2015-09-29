@@ -241,6 +241,11 @@ static int dsnd_write(void *ctx, fmed_filt *d)
 	dsnd_out *ds = ctx;
 	int r;
 
+	if (d->flags & FMED_FSTOP) {
+		d->outlen = 0;
+		return FMED_RDONE;
+	}
+
 	if (!ds->ileaved) {
 		int il = (int)fmed_getval("pcm_ileaved");
 		if (il != 1) {
@@ -248,6 +253,17 @@ static int dsnd_write(void *ctx, fmed_filt *d)
 			return FMED_RMORE;
 		}
 		ds->ileaved = 1;
+	}
+
+	if (1 == d->track->popval(d->trk, "snd_output_clear")) {
+		ffdsnd_pause(&ds->snd);
+		ffdsnd_clear(&ds->snd);
+		return FMED_RMORE;
+	}
+
+	if (1 == d->track->popval(d->trk, "snd_output_pause")) {
+		ffdsnd_pause(&ds->snd);
+		return FMED_RMORE;
 	}
 
 	if (d->datalen != 0) {

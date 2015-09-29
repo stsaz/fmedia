@@ -388,8 +388,10 @@ static void gui_action(ffui_wnd *wnd, int id)
 
 	case SEEK:
 seek:
-		if (g != NULL)
+		if (g != NULL) {
 			gg->track->setval(g->trk, "seek_time", ffui_trk_val(&gg->tpos) * 1000);
+			gg->track->setval(g->trk, "snd_output_clear", 1);
+		}
 		break;
 
 	case FFWD:
@@ -1129,9 +1131,15 @@ static int gtrk_process(void *ctx, fmed_filt *d)
 	fflk_lock(&gg->lk);
 	switch (g->state) {
 	case ST_PAUSE:
+		d->track->setval(d->trk, "snd_output_pause", 1);
 		g->state = ST_PAUSED;
 		fflk_unlock(&gg->lk);
+		d->outlen = 0;
+		return FMED_ROK;
+
+	case ST_PAUSED:
 		gui_status(FFSTR("Paused"));
+		fflk_unlock(&gg->lk);
 		return FMED_RASYNC;
 	}
 	fflk_unlock(&gg->lk);
