@@ -331,7 +331,7 @@ static int sndmod_untl_process(void *ctx, fmed_filt *d)
 	d->out = d->data;
 	d->outlen = d->datalen;
 
-	if (ctx == (void*)1)
+	if ((d->flags & FMED_FLAST) || ctx == (void*)1)
 		return FMED_RDONE;
 
 	samps = d->datalen / u->sampsize;
