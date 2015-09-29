@@ -466,7 +466,6 @@ static int media_setout(fm_src *src)
 	}
 	newfilter(src, "#soundmod.gain");
 
-	trk_setval(src, "conv_pcm_format", fmed->conv_pcm_formt);
 	newfilter(src, "#soundmod.conv");
 
 	if (fmed->mix && !src->mxr_out) {
@@ -560,6 +559,8 @@ static void* trk_create(uint cmd, const char *fn)
 	if (fmed->overwrite)
 		trk_setval(src, "overwrite", 1);
 
+	if (fmed->wav_formt != 255)
+		trk_setval(src, "wav-format", fmed->wav_formt);
 	if (fmed->ogg_qual != -255)
 		trk_setval(src, "ogg-quality", fmed->ogg_qual * 10);
 
@@ -1007,7 +1008,7 @@ fmed_core* core_init(fmedia **ptr, fmed_log_t logfunc)
 
 	fmed->ogg_qual = -255;
 	fmed->cue_gaps = 255;
-	fmed->conv_pcm_formt = FFPCM_16LE;
+	fmed->wav_formt = 255;
 
 	*ptr = fmed;
 	return core;

@@ -183,23 +183,42 @@ data:
 }
 
 
+typedef struct wavout {
+	uint state;
+	ffwavpcmhdr wav;
+} wavout;
+
 static void* wavout_open(fmed_filt *d)
 {
-	ffwavpcmhdr *wav = ffmem_tcalloc1(ffwavpcmhdr);
+	wavout *wav = ffmem_tcalloc1(wavout);
 	return wav;
 }
 
 static void wavout_close(void *ctx)
 {
-	ffwavpcmhdr *wav = ctx;
+	wavout *wav = ctx;
 	ffmem_free(wav);
 }
 
 static int wavout_process(void *ctx, fmed_filt *d)
 {
-	ffwavpcmhdr *wav = ctx;
+	wavout *w = ctx;
+	ffwavpcmhdr *wav = &w->wav;
 	uint64 total_dur;
-	int il;
+	int r;
+
+	switch (w->state) {
+	case 0:
+		if (FMED_NULL == (r = fmed_getval("wav-format")))
+			r = FFPCM_16LE;
+		fmed_setval("conv_pcm_format", r);
+		fmed_setval("conv_pcm_ileaved", 1);
+		w->state = 1;
+		return FMED_RMORE;
+
+	case 1:
+		break;
+	}
 
 	if (wav->wf.format != 0) {
 
@@ -222,12 +241,6 @@ static int wavout_process(void *ctx, fmed_filt *d)
 		wav->wd.size += (uint)d->datalen;
 		d->datalen = 0;
 		return FMED_ROK;
-	}
-
-	il = (int)fmed_getval("pcm_ileaved");
-	if (il != 1) {
-		fmed_setval("conv_pcm_ileaved", 1);
-		return FMED_RMORE;
 	}
 
 	*wav = ffwav_pcmhdr;

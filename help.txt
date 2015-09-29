@@ -26,7 +26,6 @@ Options:
                     Note: bash (sh) users must escape $, or use '' instead of "".
 --outdir=DIR      Set output directory
 
---pcm-format=VAL  Set output PCM format (16le | float)
 --volume=VOL      Set volume (0% .. 125%)
 --gain=dB         Set output gain in dB
 
@@ -44,6 +43,8 @@ Options:
 
 
 Other options:
+--wav-format=VAL  Set output PCM format (16le | float)
+
 --ogg-quality=VAL     Set OGG Vorbis encoding quality: -1.0 .. 10.0
 
 --cue-gaps=VAL    Control track pregaps

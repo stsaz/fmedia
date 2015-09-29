@@ -54,7 +54,7 @@ static const ffpars_arg fmed_cmdline_args[] = {
 	, { "dev",  FFPARS_TINT,  FFPARS_DSTOFF(fmedia, playdev_name) }
 	, { "dev-capture",  FFPARS_TINT,  FFPARS_DSTOFF(fmedia, captdev_name) }
 
-	, { "pcm-format",  FFPARS_TSTR,  FFPARS_DST(fmed_arg_pcmfmt) }
+	, { "wav-format",  FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_pcmfmt) }
 
 	, { "ogg-quality",  FFPARS_TFLOAT | FFPARS_FSIGN,  FFPARS_DSTOFF(fmedia, ogg_qual) }
 	, { "cue-gaps",  FFPARS_TINT | FFPARS_F8BIT,  FFPARS_DSTOFF(fmedia, cue_gaps) }
@@ -92,8 +92,10 @@ static int fmed_arg_usage(void)
 
 static int fmed_arg_pcmfmt(ffparser_schem *p, void *obj, const ffstr *val)
 {
-	if (-1 == (fmed->conv_pcm_formt = pcm_formatstr(val->ptr, val->len)))
+	int i;
+	if (-1 == (i = pcm_formatstr(val->ptr, val->len)))
 		return FFPARS_EBADVAL;
+	fmed->wav_formt = i;
 	return 0;
 }
 
