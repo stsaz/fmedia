@@ -15,10 +15,6 @@ typedef struct sndmod_conv {
 	ffpcmex inpcm
 		, outpcm;
 	ffstr3 buf;
-
-	//for handling large non-ileaved input data:
-	void **niarr;
-	uint nioff;
 } sndmod_conv;
 
 enum {
@@ -122,7 +118,6 @@ static void* sndmod_conv_open(fmed_filt *d)
 static void sndmod_conv_close(void *ctx)
 {
 	sndmod_conv *c = ctx;
-	ffmem_safefree(c->niarr);
 	ffarr_free(&c->buf);
 	ffmem_free(c);
 }
@@ -160,9 +155,9 @@ static int sndmod_conv_prepare(sndmod_conv *c, fmed_filt *d)
 		return FMED_ROK;
 	}
 
-	dbglog(core, d->trk, "conv", "PCM convertion: %u/%u/%u/%s -> %u/%u/%u/%s"
-		, c->inpcm.format, c->inpcm.channels, c->inpcm.sample_rate, (c->inpcm.ileaved) ? "i" : "ni"
-		, c->outpcm.format, c->outpcm.channels, c->outpcm.sample_rate, (c->outpcm.ileaved) ? "i" : "ni");
+	dbglog(core, d->trk, "conv", "PCM conversion: %s/%u/%u/%s -> %s/%u/%u/%s"
+		, ffpcm_fmtstr[c->inpcm.format], c->inpcm.channels, c->inpcm.sample_rate, (c->inpcm.ileaved) ? "i" : "ni"
+		, ffpcm_fmtstr[c->outpcm.format], c->outpcm.channels, c->outpcm.sample_rate, (c->outpcm.ileaved) ? "i" : "ni");
 
 	if (!c->outpcm.ileaved) {
 		void **ni;
@@ -179,11 +174,6 @@ static int sndmod_conv_prepare(sndmod_conv *c, fmed_filt *d)
 		}
 	}
 
-	if (!c->inpcm.ileaved) {
-		if (NULL == (c->niarr = ffmem_alloc(c->inpcm.channels)))
-			return FMED_RERR;
-	}
-
 	c->buf.len /= ffpcm_size1(&c->outpcm);
 	c->state = CONV_DATA;
 	return FMED_ROK;
@@ -192,9 +182,8 @@ static int sndmod_conv_prepare(sndmod_conv *c, fmed_filt *d)
 static int sndmod_conv_process(void *ctx, fmed_filt *d)
 {
 	sndmod_conv *c = ctx;
-	uint samples, i;
+	uint samples;
 	int r;
-	const void *in;
 
 	switch (c->state) {
 	case CONV_CONF:
@@ -210,22 +199,10 @@ static int sndmod_conv_process(void *ctx, fmed_filt *d)
 
 	samples = (uint)ffmin(d->datalen / ffpcm_size1(&c->inpcm), c->buf.len);
 
-	in = d->data;
-	if (!c->inpcm.ileaved) {
-		if (c->nioff == 0)
-			in = d->datani;
-		else {
-			for (i = 0;  i < c->inpcm.channels;  i++) {
-				c->niarr[i] = (byte*)d->datani[i] + c->nioff;
-			}
-			in = c->niarr;
-		}
-	}
-
-	if (0 != ffpcm_convert(&c->outpcm, c->buf.ptr, &c->inpcm, in, samples)) {
-		errlog(core, d->trk, "conv", "unsupported PCM conversion: %u/%u/%u/%s -> %u/%u/%u/%s"
-			, c->inpcm.format, c->inpcm.channels, c->inpcm.sample_rate, (c->inpcm.ileaved) ? "i" : "ni"
-			, c->outpcm.format, c->outpcm.channels, c->outpcm.sample_rate, (c->outpcm.ileaved) ? "i" : "ni");
+	if (0 != ffpcm_convert(&c->outpcm, c->buf.ptr, &c->inpcm, d->data, samples)) {
+		errlog(core, d->trk, "conv", "unsupported PCM conversion: %s/%u/%u/%s -> %s/%u/%u/%s"
+			, ffpcm_fmtstr[c->inpcm.format], c->inpcm.channels, c->inpcm.sample_rate, (c->inpcm.ileaved) ? "i" : "ni"
+			, ffpcm_fmtstr[c->outpcm.format], c->outpcm.channels, c->outpcm.sample_rate, (c->outpcm.ileaved) ? "i" : "ni");
 		return FMED_RERR;
 	}
 
@@ -236,7 +213,7 @@ static int sndmod_conv_process(void *ctx, fmed_filt *d)
 	if (c->inpcm.ileaved)
 		d->data += samples * ffpcm_size1(&c->inpcm);
 	else
-		c->nioff = (d->datalen != 0) ? c->nioff + samples : 0;
+		ffarrp_shift((void**)d->datani, c->inpcm.channels, samples * ffpcm_size(c->inpcm.format, 1));
 
 	if ((d->flags & FMED_FLAST) && d->datalen == 0)
 		return FMED_RDONE;
