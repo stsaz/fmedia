@@ -178,22 +178,15 @@ static int mix_in_write(void *ctx, fmed_filt *d)
 	d->data += n;
 	d->datalen -= n;
 
-	if (d->datalen != 0) {
-		mi->more = 1;
-	}
-
-	if (mi->off == DATA_SIZE || (d->flags & FMED_FLAST)) {
-		//no more space in output buffer
-		//or it's the last chunk of input data
+	if (mi->off == DATA_SIZE) {
 		mi->filled = 1;
-	}
-
-	if (d->datalen != 0) {
+		mi->more = 1;
 		return FMED_RASYNC; //wait until there's more space in output buffer
-	}
 
-	if (d->flags & FMED_FLAST)
+	} else if (d->flags & FMED_FLAST) {
+		mi->filled = 1;
 		return FMED_RDONE;
+	}
 	return FMED_ROK;
 }
 
