@@ -218,6 +218,7 @@ window wmain {
 
 	statusbar stbar {
 		style visible
+		parts 100 -1
 	}
 
 	trayicon tray_icon {

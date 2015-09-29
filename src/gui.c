@@ -357,6 +357,7 @@ static void gui_action(ffui_wnd *wnd, int id)
 
 		case ST_PAUSED:
 			g->state = ST_PLAYING;
+			gui_status(FFSTR(""));
 			core->task(&g->task, FMED_TASK_POST);
 			break;
 		}
@@ -874,13 +875,14 @@ static void gui_list_add(ffui_viewitem *it, size_t par)
 
 static void gui_status(const char *s, size_t len)
 {
-	ffui_stbar_settext(&gg->stbar, 0, s, len);
+	ffui_stbar_settext(&gg->stbar, 1, s, len);
 }
 
 static void gui_clear(void)
 {
 	ffui_settextz(&gg->wmain, "fmedia");
 	ffui_trk_set(&gg->tpos, 0);
+	ffui_stbar_settext(&gg->stbar, 0, NULL, 0);
 	gui_status("", 0);
 }
 
@@ -1151,7 +1153,7 @@ static int gtrk_process(void *ctx, fmed_filt *d)
 	n = ffs_fmt(buf, buf + sizeof(buf), "%u:%02u / %u:%02u"
 		, playtime / 60, playtime % 60
 		, g->total_time_sec / 60, g->total_time_sec % 60);
-	gui_status(buf, n);
+	ffui_stbar_settext(&gg->stbar, 0, buf, n);
 
 done:
 	d->out = d->data;
