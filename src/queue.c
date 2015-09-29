@@ -22,7 +22,8 @@ typedef struct que {
 	uint tsk_cmd;
 	void *tsk_param;
 
-	uint quit_if_done :1;
+	uint quit_if_done :1
+		, mixing :1;
 } que;
 
 static que *qu;
@@ -43,10 +44,11 @@ static const fmed_queue fmed_que_mgr = {
 	&que_add, &que_get, &que_cmd
 };
 
-static void que_play(void);
+static void que_play(entry *e);
 static void ent_free(entry *e);
 static void que_taskfunc(void *udata);
 static void que_task_add(uint cmd);
+static void que_mix(void);
 
 //QUEUE-TRACK
 static void* que_trk_open(fmed_filt *d);
@@ -111,9 +113,9 @@ static void que_destroy(void)
 }
 
 
-static void que_play(void)
+static void que_play(entry *ent)
 {
-	fmed_que_entry *e = &qu->cur->e;
+	fmed_que_entry *e = &ent->e;
 	void *trk = qu->track->create(FMED_TRACK_OPEN, e->url.ptr);
 	uint i;
 	if (trk == NULL)
@@ -155,9 +157,26 @@ nonext:
 	return FF_GETPTR(entry, sib, from->sib.next);
 }
 
+static void que_mix(void)
+{
+	void *mxout;
+	entry *e;
+
+	if (NULL == (mxout = qu->track->create(FMED_TRACK_MIX, NULL)))
+		return;
+	qu->track->setval(mxout, "mix_tracks", qu->list.len);
+
+	qu->mixing = 1;
+	FFLIST_WALK(&qu->list, e, sib) {
+		que_play(e);
+	}
+
+	qu->track->cmd(mxout, FMED_TRACK_START);
+}
+
 // matches enum FMED_QUE
 static const char *const scmds[] = {
-	"play", "next", "prev", "clear", "rm", "setonchange",
+	"play", "mix", "next", "prev", "clear", "rm", "setonchange",
 };
 
 static void que_cmd(uint cmd, void *param)
@@ -177,12 +196,19 @@ static void que_cmd(uint cmd, void *param)
 
 		} else if (qu->cur == NULL)
 			qu->cur = FF_GETPTR(entry, sib, qu->list.first);
-		que_play();
+		qu->mixing = 0;
+		que_play(qu->cur);
+		break;
+
+	case FMED_QUE_MIX:
+		que_mix();
 		break;
 
 	case FMED_QUE_NEXT:
-		qu->cur = que_getnext(qu->cur);
-		que_play();
+		if (NULL != (e = que_getnext(qu->cur))) {
+			qu->cur = e;
+			que_play(qu->cur);
+		}
 		break;
 
 	case FMED_QUE_PREV:
@@ -192,7 +218,7 @@ static void que_cmd(uint cmd, void *param)
 			break;
 		}
 		qu->cur = FF_GETPTR(entry, sib, qu->cur->sib.prev);
-		que_play();
+		que_play(qu->cur);
 		break;
 
 	case FMED_QUE_RM:
@@ -298,7 +324,7 @@ static void* que_trk_open(fmed_filt *d)
 	que_trk *t;
 	entry *e = (void*)d->track->getval(d->trk, "queue_item");
 
-	if ((int64)e == FMED_NULL)
+	if ((int64)e == FMED_NULL && !qu->mixing)
 		return FMED_FILT_SKIP; //the track wasn't created by this module
 
 	t = ffmem_tcalloc1(que_trk);
@@ -320,6 +346,12 @@ static void que_trk_close(void *ctx)
 	que_trk *t = ctx;
 	entry *next = NULL;
 
+	if (qu->mixing) {
+		if (qu->quit_if_done && FMED_NULL != t->track->getval(t->trk, "mix_tracks"))
+			core->sig(FMED_STOP);
+		goto done;
+	}
+
 	if (qu->quit_if_done
 		|| 1 != t->track->getval(t->trk, "stopped"))
 		next = que_getnext(t->e);
@@ -333,6 +365,7 @@ static void que_trk_close(void *ctx)
 		que_task_add(FMED_QUE_PLAY);
 	}
 
+done:
 	ffmem_free(t);
 }
 

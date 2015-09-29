@@ -446,6 +446,7 @@ static void media_open_capt(fm_src *src)
 
 static void media_open_mix(fm_src *src)
 {
+	newfilter(src, "#queue.track");
 	newfilter(src, "mixer.out");
 	src->mxr_out = 1;
 }
@@ -592,7 +593,7 @@ static void* trk_create(uint cmd, const char *fn)
 		break;
 
 	case FMED_TRACK_MIX:
-		if (NULL == ffarr_grow(&src->filters, 1 + nout, 0))
+		if (NULL == ffarr_grow(&src->filters, 2 + nout, 0))
 			goto fail;
 		media_open_mix(src);
 		break;

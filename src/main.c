@@ -241,53 +241,31 @@ static BOOL __stdcall fmed_ctrlhandler(DWORD ctrl)
 
 static int open_input(void)
 {
-	if (!fmed->mix) {
-		char **pfn;
-		const fmed_queue *qu;
-		ffbool added = 0;
-		if (NULL == (qu = core->getmod("#queue.queue")))
-			goto end;
+	char **pfn;
+	const fmed_track *track;
+	const fmed_queue *qu;
+	uint added = 0;
+	if (NULL == (qu = core->getmod("#queue.queue")))
+		goto end;
 
-		FFARR_WALK(&fmed->in_files, pfn) {
-			fmed_que_entry e;
-			ffmem_tzero(&e);
-			ffstr_setz(&e.url, *pfn);
-			qu->add(&e);
-			ffmem_free(*pfn);
-			added = 1;
-		}
-		ffarr_free(&fmed->in_files);
+	FFARR_WALK(&fmed->in_files, pfn) {
+		fmed_que_entry e;
+		ffmem_tzero(&e);
+		ffstr_setz(&e.url, *pfn);
+		qu->add(&e);
+		ffmem_free(*pfn);
+		added++;
+	}
+	ffarr_free(&fmed->in_files);
 
-		if (added)
+	if (added != 0) {
+		if (!fmed->mix)
 			qu->cmd(FMED_QUE_PLAY, NULL);
-
-	} else {
-		const fmed_track *track;
-		char **pfn;
-		void *src, *mout;
-
-		if (NULL == (track = core->getmod("#core.track")))
-			goto end;
-
-		//mixer-out MUST be initialized before any mixer-in instances
-		if (NULL == (mout = track->create(FMED_TRACK_MIX, NULL)))
-			goto end;
-
-		track->setval(mout, "mix_tracks", fmed->in_files.len);
-
-		FFARR_WALK(&fmed->in_files, pfn) {
-			if (NULL == (src = track->create(FMED_TRACK_OPEN, *pfn)))
-				goto end;
-			track->cmd(src, FMED_TRACK_START);
-			ffmem_free(*pfn);
-		}
-		ffarr_free(&fmed->in_files);
-
-		track->cmd(mout, FMED_TRACK_START);
+		else
+			qu->cmd(FMED_QUE_MIX, NULL);
 	}
 
 	if (fmed->rec) {
-		const fmed_track *track;
 		void *trk;
 		if (NULL == (track = core->getmod("#core.track")))
 			goto end;
