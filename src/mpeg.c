@@ -3,7 +3,6 @@ Copyright (c) 2015 Simon Zolin */
 
 #include <fmedia.h>
 
-#include <FF/audio/id3.h>
 #include <FF/audio/mpeg.h>
 #include <FF/audio/mp3lame.h>
 #include <FF/audio/pcm.h>
@@ -11,6 +10,7 @@ Copyright (c) 2015 Simon Zolin */
 
 
 static const fmed_core *core;
+static const fmed_queue *qu;
 
 static const char *const metanames[] = {
 	NULL
@@ -26,12 +26,12 @@ static const char *const metanames[] = {
 };
 
 typedef struct fmed_mpeg {
-	ffid3 id3;
 	ffmpg mpg;
 	ffstr title
 		, artist;
 	byte meta[FFCNT(metanames)];
 	uint state;
+	uint have_id32tag :1;
 } fmed_mpeg;
 
 typedef struct mpeg_out {
@@ -58,6 +58,8 @@ static int mpeg_process(void *ctx, fmed_filt *d);
 static const fmed_filter fmed_mpeg_input = {
 	&mpeg_open, &mpeg_process, &mpeg_close
 };
+
+static void mpeg_meta(fmed_mpeg *m, fmed_filt *d);
 
 //ENCODE
 static void* mpeg_out_open(fmed_filt *d);
@@ -92,6 +94,11 @@ static const void* mpeg_iface(const char *name)
 
 static int mpeg_sig(uint signo)
 {
+	switch (signo) {
+	case FMED_OPEN:
+		qu = core->getmod("#queue.queue");
+		break;
+	}
 	return 0;
 }
 
@@ -107,12 +114,10 @@ static void* mpeg_open(fmed_filt *d)
 	if (m == NULL)
 		return NULL;
 	ffmpg_init(&m->mpg);
+	m->mpg.options = FFMPG_O_ID3V1 | FFMPG_O_ID3V2;
 
-	m->mpg.seekable = 1;
 	if (FMED_NULL != (total_size = fmed_getval("total_size")))
 		m->mpg.total_size = total_size;
-
-	ffid3_parseinit(&m->id3);
 	return m;
 }
 
@@ -121,89 +126,46 @@ static void mpeg_close(void *ctx)
 	fmed_mpeg *m = ctx;
 	ffstr_free(&m->title);
 	ffstr_free(&m->artist);
-	ffid3_parsefin(&m->id3);
 	ffmpg_close(&m->mpg);
 	ffmem_free(m);
 }
 
-static int mpeg_meta(fmed_mpeg *m, fmed_filt *d)
+static void mpeg_meta(fmed_mpeg *m, fmed_filt *d)
 {
-	ffstr3 val = {0};
-	uint tag;
+	ffstr name, val;
+	int tag;
 
-	for (;;) {
-		size_t len = d->datalen;
-		int r = ffid3_parse(&m->id3, d->data, &len);
-		d->data += len;
-		d->datalen -= len;
+	if (!m->mpg.is_id32tag) {
+		val = m->mpg.id31tag.val;
+		tag = m->mpg.id31tag.field;
+		ffstr_setz(&name, metanames[tag] + FFSLEN("="));
 
-		switch (r) {
-		case FFID3_RDONE:
-			ffid3_parsefin(&m->id3);
-			return FMED_RDONE;
-
-		case FFID3_RERR:
-			errlog(core, d->trk, "mpeg", "id3: parse (offset: %u): ID3v2.%u.%u, flags: %u, size: %u"
-				, sizeof(ffid3_hdr) + ffid3_size(&m->id3.h) - m->id3.size
-				, (uint)m->id3.h.ver[0], (uint)m->id3.h.ver[1], (uint)m->id3.h.flags
-				, ffid3_size(&m->id3.h));
-			break;
-
-		case FFID3_RMORE:
-			return FMED_RMORE;
-
-		case FFID3_RHDR:
-			m->mpg.dataoff = sizeof(ffid3_hdr) + ffid3_size(&m->id3.h);
-
+	} else {
+		if (!m->have_id32tag) {
+			m->have_id32tag = 1;
 			dbglog(core, d->trk, "mpeg", "id3: ID3v2.%u.%u, size: %u"
-				, (uint)m->id3.h.ver[0], (uint)m->id3.h.ver[1], ffid3_size(&m->id3.h));
-			break;
-
-		case FFID3_RFRAME:
-			switch (ffid3_frame(&m->id3.fr)) {
-			case FFID3_PICTURE:
-			case FFID3_COMMENT:
-				m->id3.flags &= ~FFID3_FWHOLE;
-				break;
-
-			default:
-				m->id3.flags |= FFID3_FWHOLE;
-			}
-			break;
-
-		case FFID3_RDATA:
-			if (!(m->id3.flags & FFID3_FWHOLE))
-				break;
-
-			if (0 > ffid3_getdata(m->id3.data.ptr, m->id3.data.len, m->id3.txtenc, 0, &val)) {
-				errlog(core, d->trk, "mpeg", "id3: get frame data");
-				break;
-			}
-			dbglog(core, d->trk, "mpeg", "tag: %*s: %S", (size_t)4, m->id3.fr.id, &val);
-
-			tag = ffid3_frame(&m->id3.fr);
-			if (tag < FFCNT(metanames) && metanames[tag] != NULL && val.len != 0) {
-				m->meta[tag] = 1;
-				d->track->setvalstr(d->trk, metanames[tag], ffsz_alcopy(val.ptr, val.len));
-			}
-
-			if (tag == FFID3_LENGTH && m->id3.data.len != 0) {
-				uint64 dur;
-				if (m->id3.data.len == ffs_toint(m->id3.data.ptr, m->id3.data.len, &dur, FFS_INT64))
-					m->mpg.total_len = dur;
-			}
-
-			ffarr_free(&val);
-			break;
+				, (uint)m->mpg.id32tag.h.ver[0], (uint)m->mpg.id32tag.h.ver[1], ffid3_size(&m->mpg.id32tag.h));
 		}
+
+		ffstr_set2(&val, &m->mpg.tagval);
+		tag = ffid3_frame(&m->mpg.id32tag.fr);
+		if (tag < FFCNT(metanames) && metanames[tag] != NULL)
+			ffstr_setz(&name, metanames[tag] + FFSLEN("="));
+		else
+			ffstr_set(&name, m->mpg.id32tag.fr.id, 4);
 	}
 
-	return 0; //unreachable
+	dbglog(core, d->trk, "mpeg", "tag: %S: %S", &name, &m->mpg.tagval);
+
+	qu->meta_set((void*)fmed_getval("queue_item"), name.ptr, name.len, val.ptr, val.len, FMED_QUE_TMETA);
+
+	if (tag < FFCNT(metanames) && metanames[tag] != NULL)
+		d->track->setvalstr(d->trk, metanames[tag], ffsz_alcopy(val.ptr, val.len));
 }
 
 static int mpeg_process(void *ctx, fmed_filt *d)
 {
-	enum { I_META, I_HDR, I_DATA };
+	enum { I_HDR, I_DATA };
 	fmed_mpeg *m = ctx;
 	int r;
 	int64 seek_time;
@@ -215,13 +177,6 @@ static int mpeg_process(void *ctx, fmed_filt *d)
 
 again:
 	switch (m->state) {
-	case I_META:
-		r = mpeg_meta(m, d);
-		if (r != FMED_RDONE)
-			return r;
-		m->state = I_HDR;
-		//break;
-
 	case I_HDR:
 		break;
 
@@ -248,6 +203,10 @@ again:
 			}
 			return FMED_RMORE;
 
+		case FFMPG_RDONE:
+			d->outlen = 0;
+			return FMED_RDONE;
+
 		case FFMPG_RHDR:
 			fmed_setpcm(d, &m->mpg.fmt);
 			d->track->setvalstr(d->trk, "pcm_decoder", "MPEG");
@@ -257,13 +216,8 @@ again:
 			m->state = I_DATA;
 			goto again;
 
-		case FFMPG_RTAG: {
-			int tag = m->mpg.tagframe;
-			if (tag < FFCNT(metanames) && metanames[tag] != NULL && m->mpg.tagval.len != 0
-				&& m->meta[tag] == 0) {
-				d->track->setvalstr(d->trk, metanames[tag], ffsz_alcopy(m->mpg.tagval.ptr, m->mpg.tagval.len));
-			}
-			}
+		case FFMPG_RTAG:
+			mpeg_meta(m, d);
 			break;
 
 		case FFMPG_RSEEK:
@@ -271,7 +225,15 @@ again:
 			return FMED_RMORE;
 
 		case FFMPG_RWARN:
-			errlog(core, d->trk, "mpeg", "warning: ffmpg_decode(): %s", ffmpg_errstr(&m->mpg));
+			if (m->mpg.err == FFMPG_ETAG) {
+				errlog(core, d->trk, "mpeg", "id3: parse (offset: %u): ID3v2.%u.%u, flags: %u, size: %u"
+					, sizeof(ffid3_hdr) + ffid3_size(&m->mpg.id32tag.h) - m->mpg.id32tag.size
+					, (uint)m->mpg.id32tag.h.ver[0], (uint)m->mpg.id32tag.h.ver[1], (uint)m->mpg.id32tag.h.flags
+					, ffid3_size(&m->mpg.id32tag.h));
+				continue;
+			}
+			errlog(core, d->trk, "mpeg", "warning: near sample %u: ffmpg_decode(): %s"
+				, ffmpg_cursample(&m->mpg), ffmpg_errstr(&m->mpg));
 			break;
 
 		case FFMPG_RERR:
