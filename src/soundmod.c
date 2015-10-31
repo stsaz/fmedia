@@ -334,7 +334,6 @@ static int sndmod_soxr_process(void *ctx, fmed_filt *d)
 	if (c->soxr.outlen == 0) {
 		if (d->flags & FMED_FLAST)
 			return FMED_RDONE;
-		return FMED_RMORE;
 	}
 
 	d->data = c->soxr.in_i;
