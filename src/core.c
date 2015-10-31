@@ -65,8 +65,15 @@ static fmedia *fmed;
 typedef fmedia fmed_config;
 
 enum {
-	FMED_KQ_EVS = 100
+	FMED_KQ_EVS = 100,
+	CONF_MBUF = 4096,
 };
+
+#ifdef FF_UNIX
+#define USR_CONF  "$HOME/.config/fmedia/fmedia.conf"
+#else
+#define USR_CONF  "%APPDATA%/Roaming/fmedia/fmedia.conf"
+#endif
 
 
 FF_EXP fmed_core* core_init(fmedia **ptr, fmed_log_t logfunc);
@@ -136,7 +143,7 @@ static fmed_core _fmed_core = {
 };
 static fmed_core *core = &_fmed_core;
 
-static int fmed_conf(void);
+static int fmed_conf(uint userconf);
 static int fmed_conf_mod(ffparser_schem *p, void *obj, ffstr *val);
 static int fmed_conf_modconf(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
 static int fmed_conf_setmod(const fmed_modinfo **pmod, ffstr *val);
@@ -153,6 +160,12 @@ static const ffpars_arg fmed_conf_args[] = {
 	, { "input",  FFPARS_TOBJ | FFPARS_FOBJ1, FFPARS_DST(&fmed_conf_input) }
 	, { "input_ext",  FFPARS_TOBJ, FFPARS_DST(&fmed_conf_ext) }
 	, { "output_ext",  FFPARS_TOBJ, FFPARS_DST(&fmed_conf_ext) }
+};
+
+static int fmed_confusr_mod(ffparser_schem *ps, void *obj, ffpars_ctx *ctx);
+
+static const ffpars_arg fmed_confusr_args[] = {
+	{ "*",	FFPARS_TOBJ | FFPARS_FOBJ1 | FFPARS_FMULTI, FFPARS_DST(&fmed_confusr_mod) },
 };
 
 
@@ -280,7 +293,36 @@ static int fmed_conf_ext(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
 	return 0;
 }
 
-static int fmed_conf(void)
+/** Process "so.modname" part from "so.modname.key value" */
+static int fmed_confusr_mod(ffparser_schem *ps, void *obj, ffpars_ctx *ctx)
+{
+	ffstr *val = &ps->vals[0];
+	const fmed_modinfo *mod;
+
+	if (fmed->usrconf_modname == NULL) {
+		if (NULL == (fmed->usrconf_modname = ffsz_alcopy(val->ptr, val->len)))
+			return FFPARS_ESYS;
+		ffpars_setargs(ctx, fmed, fmed_confusr_args, FFCNT(fmed_confusr_args));
+
+	} else {
+		ffstr3 s = {0};
+		if (0 == ffstr_catfmt(&s, "%s.%S%Z", fmed->usrconf_modname, val))
+			return FFPARS_ESYS;
+		mod = core_getmodinfo(s.ptr);
+
+		ffmem_free(fmed->usrconf_modname);
+		fmed->usrconf_modname = NULL;
+		ffarr_free(&s);
+
+		if (mod == NULL || mod->f->conf == NULL)
+			return FFPARS_EINTL;
+		mod->f->conf(ctx);
+	}
+
+	return 0;
+}
+
+static int fmed_conf(uint userconf)
 {
 	ffparser pconf;
 	ffparser_schem ps;
@@ -292,14 +334,31 @@ static int fmed_conf(void)
 	fffd f = FF_BADFD;
 	char *filename;
 
-	ffpars_setargs(&ctx, fmed, fmed_conf_args, FFCNT(fmed_conf_args));
-	ffconf_scheminit(&ps, &pconf, &ctx);
+	if (userconf == 1) {
+		ffpars_setargs(&ctx, fmed, fmed_confusr_args, FFCNT(fmed_confusr_args));
+		ffconf_scheminit(&ps, &pconf, &ctx);
 
-	if (NULL == (filename = core->getpath(FFSTR("fmedia.conf"))))
-		return -1;
+		if (NULL == (filename = ffenv_expand(NULL, 0, USR_CONF)))
+			return 0;
 
-	if (FF_BADFD == (f = fffile_open(filename, O_RDONLY))) {
-		goto err;
+		if (FF_BADFD == (f = fffile_open(filename, O_RDONLY))) {
+			if (!fferr_nofile(fferr_last()))
+				syserrlog(core, NULL, "core", "%e: %s", FFERR_FOPEN, filename);
+			r = 0;
+			goto fail;
+		}
+
+	} else {
+
+		ffpars_setargs(&ctx, fmed, fmed_conf_args, FFCNT(fmed_conf_args));
+		ffconf_scheminit(&ps, &pconf, &ctx);
+
+		if (NULL == (filename = core->getpath(FFSTR("fmedia.conf"))))
+			return -1;
+
+		if (FF_BADFD == (f = fffile_open(filename, O_RDONLY))) {
+			goto err;
+		}
 	}
 
 	if (NULL == (buf = ffmem_alloc(4096))) {
@@ -318,7 +377,7 @@ static int fmed_conf(void)
 			n = s.len;
 			r = ffconf_parse(&pconf, s.ptr, &n);
 			ffstr_shift(&s, n);
-			r = ffpars_schemrun(&ps, r);
+			r = ffconf_schemrun(&ps);
 
 			if (ffpars_iserr(r))
 				goto err;
@@ -1264,7 +1323,9 @@ static int core_sig(uint signo)
 	switch (signo) {
 
 	case FMED_CONF:
-		if (0 != fmed_conf())
+		if (0 != fmed_conf(0))
+			return 1;
+		if (0 != fmed_conf(1))
 			return 1;
 		break;
 

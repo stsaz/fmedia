@@ -54,6 +54,8 @@ typedef struct fmedia {
 	const fmed_modinfo *input;
 	ffpcm inp_pcm;
 
+	char *usrconf_modname;
+
 	ffbool repeat_all
 		, overwrite
 		, rec

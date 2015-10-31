@@ -52,6 +52,18 @@ INSTALL
 	set PATH=%PATH%;C:/Program Files/fmedia
 
 ---------------
+CONFIG
+---------------
+The global configuration file "fmedia.conf" is located within the fmedia directory itself.  It contains all supported settings and their default values.  You must restart fmedia after you make changes to this file.
+
+Per-user configuration settings are also supported, they must be stored in "fmedia.conf" file in home directory:
+ Windows: %APPDATA%/Roaming/fmedia/fmedia.conf
+ Linux:   $HOME/.config/fmedia/fmedia.conf
+
+Settings for a module must be in format "so.module.key value", e.g. to overwrite the global OGG Vorbis encoding quality you should write:
+ogg-vorbis.encode.quality "70"
+
+---------------
 EXTRACT TRACKS FROM flac.cue
 ---------------
 If you're extracting a track from the album using CUE sheet, please note, that a track isn't exactly copied but first decoded to PCM and then re-encoded with FLAC.  Luckily, this behaviour won't result in any audio quality loss since FLAC is a lossless codec.  However, fmedia doesn't support pictures (album covers) in FLAC header, so they won't be copied into the output file.
