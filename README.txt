@@ -1,7 +1,7 @@
 ---------------
 OVERVIEW
 ---------------
-fmedia is a fast asynchronous media player/recorder/converter for Windows (Linux/ALSA version is being tested now and it will be available in the next releases).  Its goal is to provide smooth playback even if input device is very slow and unresponsive.  The architecure allows to extend the functionality of the application in any way: adding a new audio input/output format, a new DSP filter or even a new GUI.  fmedia is very small and fast: it has low CPU & memory consumption making it ideal to listen to music or process audio files while running on a notebook's battery.
+fmedia is a fast asynchronous media player/recorder/converter for Windows and Linux.  Its goal is to provide smooth playback even if input device is very slow and unresponsive.  The architecure allows to extend the functionality of the application in any way: adding a new audio input/output format, a new DSP filter or even a new GUI.  fmedia is very small and fast: it has low CPU & memory consumption making it ideal to listen to music or process audio files while running on a notebook's battery.
 
 Note: it's beta version - not tested well enough, not all functions will work as expected.  See section "USE-CASES" to have an idea of which features should work.
 
@@ -41,15 +41,49 @@ OUTPUT
 	. File
 	. Windows Direct Sound Playback
 	. WASAPI Playback
+	. ALSA Playback
 
 ---------------
-INSTALL
+INSTALL ON WINDOWS
 ---------------
 1. Unpack archive to the directory of your choice, e.g. to "C:/Program Files/fmedia"
 
 2. Optionally, add the path into the system environment:
 
 	set PATH=%PATH%;C:/Program Files/fmedia
+
+---------------
+INSTALL ON LINUX
+---------------
+1. Unpack archive to the directory of your choice, e.g. to "/usr/local/fmedia-0"
+
+2. Optionally, create a symbolic link:
+
+	ln -s /usr/local/fmedia-0/fmedia /usr/local/bin/fmedia
+
+---------------
+BUILD ON LINUX
+---------------
+1. Create a directory for all needed sources:
+
+	mkdir firmdev && cd firmdev
+
+2. Download all needed source repositories:
+
+	git clone https://github.com/stsaz/ffos
+	git clone https://github.com/stsaz/ff
+	wget http://firmdev.com/ff-3pt.tar.xz
+	tar Jxf ff-3pt.tar.xz
+
+	git clone https://github.com/stsaz/fmedia
+
+3. Build
+
+	cd fmedia
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:../ff-3pt/linux-amd64
+	make install
+
+4. Ready!  You can copy the directory ./fmedia-0 anywhere you want (see section "INSTALL ON LINUX").
 
 ---------------
 CONFIG
@@ -60,7 +94,7 @@ Per-user configuration settings are also supported, they must be stored in "fmed
  Windows: %APPDATA%/Roaming/fmedia/fmedia.conf
  Linux:   $HOME/.config/fmedia/fmedia.conf
 
-Settings for a module must be in format "so.module.key value", e.g. to overwrite the global OGG Vorbis encoding quality you should write:
+Settings for a module must be in format "so.module.key value", e.g. to overwrite the global setting for OGG Vorbis encoding quality you should write:
 ogg-vorbis.encode.quality "70"
 
 ---------------

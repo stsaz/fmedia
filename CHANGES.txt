@@ -1,3 +1,24 @@
+fmedia v0.6 - Oct 31, 2015
+
+ + support Linux
+ + ALSA playback
+
+ + core: support per-user configuration settings
+ * queue: quit when Ctrl+C is pressed
+ * mpeg, ogg, flac: support "meta_tracktotal"
+ + mpeg.decode: support configuration setting "meta_codepage" via fmedia.conf
+
+ * flac.encode: support PCM float input
+ - fmedia: don't hang if no input files were specified
+ - core: --list-dev command didn't work (v0.3 bug)
+ - flac, wavpack: meta info from .CUE file has a higher priority than meta from media file itself
+ - plist.m3u: absolute filenames inside M3U file were not supported
+ - conv-soxr: "pause" command from gui didn't work correctly
+ - wasapi: eliminate potential race during playback
+ - wasapi.in, dsound.in: fix segfault on starting sound capture (v0.5 bug)
+ - mixer: fix segfault when using mixer (v0.5 bug)
+
+
 fmedia v0.5 - Sep 29, 2015
 
  + WavPack decode
