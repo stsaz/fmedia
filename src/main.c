@@ -19,8 +19,9 @@ static fmed_core *core;
 FF_IMP fmed_core* core_init(fmedia **ptr, fmed_log_t logfunc);
 FF_IMP void core_free(void);
 
-static int fmed_cmdline(int argc, char **argv);
+static int fmed_cmdline(int argc, char **argv, uint main_only);
 static int fmed_arg_usage(void);
+static int fmed_arg_skip(ffparser_schem *p, void *obj, const ffstr *val);
 static int fmed_arg_infile(ffparser_schem *p, void *obj, const ffstr *val);
 static int fmed_arg_pcmfmt(ffparser_schem *p, void *obj, const ffstr *val);
 static int fmed_arg_listdev(void);
@@ -68,6 +69,13 @@ static const ffpars_arg fmed_cmdline_args[] = {
 	, { "gui",  FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmedia, gui) }
 	, { "debug",  FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmedia, debug) }
 	, { "help",  FFPARS_SETVAL('h') | FFPARS_TBOOL | FFPARS_FALONE,  FFPARS_DST(&fmed_arg_usage) }
+};
+
+static const ffpars_arg fmed_cmdline_main_args[] = {
+	{ "",	FFPARS_TSTR | FFPARS_FMULTI,  FFPARS_DST(&fmed_arg_skip) },
+	{ "*",	FFPARS_TSTR | FFPARS_FMULTI,  FFPARS_DST(&fmed_arg_skip) },
+	{ "gui",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmedia, gui) },
+	{ "help",	FFPARS_SETVAL('h') | FFPARS_TBOOL | FFPARS_FALONE,  FFPARS_DST(&fmed_arg_usage) },
 };
 
 
@@ -135,7 +143,12 @@ static int fmed_arg_seek(ffparser_schem *p, void *obj, const ffstr *val)
 	return 0;
 }
 
-static int fmed_cmdline(int argc, char **argv)
+static int fmed_arg_skip(ffparser_schem *p, void *obj, const ffstr *val)
+{
+	return 0;
+}
+
+static int fmed_cmdline(int argc, char **argv, uint main_only)
 {
 	ffparser_schem ps;
 	ffparser p;
@@ -143,7 +156,11 @@ static int fmed_cmdline(int argc, char **argv)
 	int r = 0, i;
 	int ret = 1;
 
-	ffpars_setargs(&ctx, fmed, fmed_cmdline_args, FFCNT(fmed_cmdline_args));
+	if (main_only)
+		ffpars_setargs(&ctx, fmed, fmed_cmdline_main_args, FFCNT(fmed_cmdline_main_args));
+	else
+		ffpars_setargs(&ctx, fmed, fmed_cmdline_args, FFCNT(fmed_cmdline_args));
+
 	if (0 != ffpsarg_scheminit(&ps, &p, &ctx)) {
 		errlog(core, NULL, "core", "cmd line parser", NULL);
 		return 1;
@@ -316,10 +333,13 @@ int main(int argc, char **argv)
 		return 0;
 	}
 
-	if (0 != fmed_cmdline(argc, argv))
+	if (0 != fmed_cmdline(argc, argv, 1))
 		goto end;
 
 	if (0 != core->sig(FMED_CONF))
+		goto end;
+
+	if (0 != fmed_cmdline(argc, argv, 0))
 		goto end;
 
 	if (0 != core->sig(FMED_OPEN))
