@@ -259,7 +259,7 @@ static int wasapi_create(wasapi_out *w, fmed_filt *d)
 			&& (!excl || fmt.sample_rate == mod->fmt.sample_rate)
 			&& mod->devidx == w->devidx && mod->out.excl == excl) {
 
-			if (!excl) {
+			if (!excl && fmt.sample_rate != mod->fmt.sample_rate) {
 				fmt.sample_rate = mod->fmt.sample_rate;
 				fmed_setval("conv_pcm_rate", mod->fmt.sample_rate);
 			}
