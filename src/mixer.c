@@ -246,6 +246,7 @@ static void* mix_open(fmed_filt *d)
 	d->track->setval(d->trk, "pcm_format", pcmfmt.format);
 	d->track->setval(d->trk, "pcm_channels", pcmfmt.channels);
 	d->track->setval(d->trk, "pcm_sample_rate", pcmfmt.sample_rate);
+	d->track->setval(d->trk, "pcm_ileaved", 1);
 
 	m->trk_count = fmed_getval("mix_tracks");
 

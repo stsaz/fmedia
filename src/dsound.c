@@ -351,6 +351,8 @@ static void* dsnd_in_open(fmed_filt *d)
 	}
 
 	dbglog(core, d->trk, "dsound", "opened capture buffer %u bytes", ds->snd.bufsize);
+
+	fmed_setval("pcm_ileaved", 1);
 	return ds;
 
 fail:

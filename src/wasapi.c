@@ -480,6 +480,8 @@ static void* wasapi_in_open(fmed_filt *d)
 	if (wasapi_in_conf.latency_autocorrect)
 		w->latcorr = ffpcm_samples(wasapi_out_conf.buflen, fmt.sample_rate) * ffpcm_size1(&fmt)
 			+ w->wa.bufsize;
+
+	fmed_setval("pcm_ileaved", 1);
 	return w;
 
 fail:
