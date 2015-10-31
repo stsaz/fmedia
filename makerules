@@ -1,14 +1,22 @@
 
 OBJ_DIR := .
-RES := $(OBJ_DIR)/fmedia.coff
 BINS := $(BIN) core.$(SO) \
 	ogg-vorbis.$(SO) mpeg.$(SO) wav.$(SO) flac.$(SO) wavpack.$(SO) \
 	plist.$(SO) \
 	mixer.$(SO)
 
-ifeq ($(OS),win)
+ifeq ($(OS),linux)
+
+BINS += alsa.$(SO)
+
+else
+#windows:
+
 BINS += direct-sound.$(SO) wasapi.$(SO) \
 	gui.$(SO) fmedia-gui.exe
+
+RES := $(OBJ_DIR)/fmedia.coff
+
 endif
 
 all: ff $(BINS)
@@ -19,8 +27,8 @@ FF_O := $(FFOS_OBJ) $(FF_OBJ)
 $(OBJ_DIR)/%.o: $(SRCDIR)/%.c $(SRCDIR)/fmedia.h $(SRCDIR)/core.h $(FF_HDR) $(FF_AUDIO_HDR)
 	$(C)  $(CFLAGS) $<  -o$@
 
-$(RES): $(SRCDIR)/../fmedia.rc ./fmedia.ico
-	windres $(SRCDIR)/../fmedia.rc $@
+$(RES): $(SRCDIR)/../fmedia.rc $(PROJDIR)/fmedia.ico
+	$(WINDRES) $(PROJDIR)/fmedia.rc $@
 
 
 BIN_O := core.$(SO) \
@@ -47,7 +55,7 @@ CORE_O := $(OBJ_DIR)/core.o \
 	$(FF_OBJ_DIR)/ffsoxr.o \
 	$(FF_OBJ_DIR)/ffpcm.o
 core.$(SO): $(CORE_O)
-	$(LD) -shared $(CORE_O) $(LDFLAGS) $(LD_LDL) $(LD_LMATH) -lsoxr  -o$@
+	$(LD) -shared $(CORE_O) $(LDFLAGS) $(LD_LDL) $(LD_LMATH) -lsoxr-ff  -o$@
 
 
 #
@@ -67,7 +75,7 @@ MPEG_O := $(OBJ_DIR)/mpeg.o $(FF_O) \
 	$(FF_OBJ_DIR)/ffmp3lame.o \
 	$(FF_OBJ_DIR)/ffid3.o
 mpeg.$(SO): $(MPEG_O)
-	$(LD) -shared $(MPEG_O) $(LDFLAGS) -lmad -lmp3lame-0  -o$@
+	$(LD) -shared $(MPEG_O) $(LDFLAGS) -lmad-ff -lmp3lame-ff  -o$@
 
 
 #
@@ -75,7 +83,7 @@ OGG_O := $(OBJ_DIR)/ogg.o \
 	$(FF_O) \
 	$(FF_OBJ_DIR)/ffogg.o
 ogg-vorbis.$(SO): $(OGG_O)
-	$(LD) -shared $(OGG_O) $(LDFLAGS) -logg-0 -lvorbis-0 -lvorbisenc-2  -o$@
+	$(LD) -shared $(OGG_O) $(LDFLAGS) -logg-ff -lvorbis-ff -lvorbisenc-ff  -o$@
 
 
 #
@@ -84,7 +92,7 @@ FLAC_O := $(OBJ_DIR)/flac.o \
 	$(FF_OBJ_DIR)/ffflac.o \
 	$(FF_OBJ_DIR)/ffpcm.o
 flac.$(SO): $(FLAC_O)
-	$(LD) -shared $(FLAC_O) $(LDFLAGS) -lFLAC-8  -o$@
+	$(LD) -shared $(FLAC_O) $(LDFLAGS) -lFLAC-ff  -o$@
 
 
 #
@@ -96,7 +104,7 @@ WAVPACK_O := $(OBJ_DIR)/wavpack.o \
 	$(FF_OBJ_DIR)/ffutf8.o \
 	$(FF_OBJ_DIR)/ffpcm.o
 wavpack.$(SO): $(WAVPACK_O)
-	$(LD) -shared $(WAVPACK_O) $(LDFLAGS) -lwavpack-1  -o$@
+	$(LD) -shared $(WAVPACK_O) $(LDFLAGS) -lwavpack-ff  -o$@
 
 
 #
@@ -124,6 +132,14 @@ WASAPI_O := $(OBJ_DIR)/wasapi.o $(FF_O) \
 	$(FF_OBJ_DIR)/ffwasapi.o
 wasapi.$(SO): $(WASAPI_O)
 	$(LD) -shared $(WASAPI_O) $(LDFLAGS) -lole32 -o$@
+
+
+#
+ALSA_O := $(OBJ_DIR)/alsa.o $(FF_O) \
+	$(FF_OBJ_DIR)/ffpcm.o \
+	$(FF_OBJ_DIR)/ffalsa.o
+alsa.$(SO): $(ALSA_O)
+	$(LD) -shared $(ALSA_O) $(LDFLAGS) -lasound -o$@
 
 
 #
@@ -161,21 +177,36 @@ distclean: clean ffclean
 	rm -vfr $(INSTDIR) ./$(PROJ)-*.zip ./$(PROJ)-*.tar.xz
 
 
-%.debug: %
-	objcopy --only-keep-debug $< $@
-	strip $<
-	objcopy --add-gnu-debuglink=$@ $<
-
-debug: $(BINS:.$(SO)=.$(SO).debug) $(BINS:.exe=.exe.debug)
+strip: $(BINS:.$(SO)=.$(SO).debug) $(BIN).debug $(BINS:.exe=.exe.debug)
 
 
-install: all debug
+installd: all
+
 	mkdir -vp $(INSTDIR)
 	$(CP) $(BIN) *.$(SO) \
-		fmedia.conf help.txt README.txt CHANGES.txt \
-		fmedia-gui.exe fmedia.gui fmedia.ico *.manifest \
+		$(PROJDIR)/fmedia.conf $(PROJDIR)/help.txt $(PROJDIR)/README.txt $(PROJDIR)/CHANGES.txt \
+		$(INSTDIR)/
+	$(CP) \
+		$(FF3PTLIB)/libogg-ff.$(SO) $(FF3PTLIB)/libvorbis-ff.$(SO) $(FF3PTLIB)/libvorbisenc-ff.$(SO) \
+		$(FF3PTLIB)/libmad-ff.$(SO) $(FF3PTLIB)/libmp3lame-ff.$(SO) \
+		$(FF3PTLIB)/libFLAC-ff.$(SO) $(FF3PTLIB)/libwavpack-ff.$(SO) \
+		$(FF3PTLIB)/libsoxr-ff.$(SO) \
+		$(INSTDIR)/
+
+ifeq ($(OSTYPE),unix)
+	$(CP) $(PROJDIR)/fmedia-exec $(INSTDIR)/fmedia
+	chmod 644 $(INSTDIR)/*
+	chmod 755 $(INSTDIR)/fmedia
+
+else
+
+	$(CP) ./fmedia-gui.exe $(PROJDIR)/fmedia.gui $(PROJDIR)/fmedia.ico $(PROJDIR)/*.manifest \
 		$(INSTDIR)/
 	unix2dos $(INSTDIR)/*.txt $(INSTDIR)/*.conf $(INSTDIR)/*.gui $(INSTDIR)/*.manifest
-	chmod 755 $(INSTDIR)/$(BIN)
-	chmod 755 $(INSTDIR)/fmedia-gui.exe
-	chmod 644 $(INSTDIR)/*.$(SO)
+	chmod 644 $(INSTDIR)/*
+endif
+
+	chmod 755 $(INSTDIR)/$(BIN) $(INSTDIR)/*.$(SO)
+
+
+install: all strip installd

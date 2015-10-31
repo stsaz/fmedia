@@ -240,6 +240,11 @@ static const int sigs[] = { SIGINT };
 static void fmed_onsig(void *udata)
 {
 	const fmed_track *track;
+	int sig;
+	ffsignal *sg = udata;
+
+	if (sg != NULL && -1 == (sig = ffsig_read(sg)))
+		return;
 
 	if (NULL == (track = core->getmod("#core.track")))
 		return;
@@ -349,6 +354,8 @@ int main(int argc, char **argv)
 	if (0 != core->sig(FMED_OPEN))
 		goto end;
 
+	ffsig_mask(SIG_BLOCK, sigs, FFCNT(sigs));
+	sigs_task.udata = &sigs_task;
 	if (0 != ffsig_ctl(&sigs_task, core->kq, sigs, FFCNT(sigs), &fmed_onsig)) {
 		syserrlog(core, NULL, "core", "%s", "ffsig_ctl()");
 		goto end;

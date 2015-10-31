@@ -1161,8 +1161,10 @@ void core_free(void)
 		ffmem_free(mod);
 	}
 
-	if (fmed->kq != FF_BADFD)
+	if (fmed->kq != FF_BADFD) {
+		ffkqu_post_attach(FF_BADFD);
 		ffkqu_close(fmed->kq);
+	}
 
 	ffstr_free(&fmed->root);
 	ffmem_free(fmed);
@@ -1288,6 +1290,7 @@ static int core_open(void)
 	}
 	core->loglev = fmed->debug ? FMED_LOG_DEBUG : 0;
 	core->kq = fmed->kq;
+	ffkqu_post_attach(fmed->kq);
 
 	fmed->pkqutime = ffkqu_settm(&fmed->kqutime, (uint)-1);
 

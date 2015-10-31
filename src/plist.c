@@ -7,6 +7,7 @@ Copyright (c) 2015 Simon Zolin */
 #include <FF/data/cue.h>
 #include <FF/path.h>
 #include <FF/dir.h>
+#include <FFOS/error.h>
 
 
 static const fmed_core *core;
