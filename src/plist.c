@@ -113,11 +113,14 @@ static void plist_destroy(void)
 
 static int plist_fullname(fmed_filt *d, const ffstr *name, ffstr *dst)
 {
-	const char *fn = d->track->getvalstr(d->trk, "input");
+	const char *fn;
 	ffstr path = {0};
 	ffstr3 s = {0};
-	if (NULL != ffpath_split2(fn, ffsz_len(fn), &path, NULL))
-		path.len++;
+	if (!ffpath_abs(name->ptr, name->len)) {
+		fn = d->track->getvalstr(d->trk, "input");
+		if (NULL != ffpath_split2(fn, ffsz_len(fn), &path, NULL))
+			path.len++;
+	}
 	if (0 == ffstr_catfmt(&s, "%S%S", &path, name))
 		return 1;
 	ffstr_acqstr3(dst, &s);
