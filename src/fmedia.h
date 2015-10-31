@@ -106,6 +106,11 @@ enum FMED_TRACK {
 	FMED_TRACK_STOPALL,
 };
 
+enum FMED_TRK_FVAL {
+	FMED_TRK_FACQUIRE = 2, //acquire pointer (value will be deleted with ffmem_free())
+	FMED_TRK_FNO_OVWRITE = 4, //don't overwrite if already exists
+};
+
 typedef struct fmed_track {
 	/**
 	@cmd: enum FMED_TRACK. */
@@ -125,11 +130,11 @@ typedef struct fmed_track {
 
 	int (*setval)(void *trk, const char *name, int64 val);
 
-	/**
-	@name:
-	 . "name" - set pointer
-	 . "=name" - acquire pointer (value will be deleted with ffmem_free()) */
 	int (*setvalstr)(void *trk, const char *name, const char *val);
+
+	/**
+	@flags: enum FMED_TRK_FVAL */
+	char* (*setvalstr4)(void *trk, const char *name, const char *val, uint flags);
 } fmed_track;
 
 #define fmed_getval(name)  (d)->track->getval((d)->trk, name)

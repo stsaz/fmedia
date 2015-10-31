@@ -16,11 +16,11 @@ static const char *const metanames[] = {
 	, "meta_genre"
 	, "meta_title"
 	, "meta_tracknumber"
+	, "meta_tracktotal"
 };
 
 typedef struct flac {
 	ffflac fl;
-	char *meta[FFCNT(metanames)];
 	int64 abs_seek; // msec/cdframe/sample
 	uint state;
 } flac;
@@ -128,10 +128,6 @@ static void* flac_in_create(fmed_filt *d)
 static void flac_in_free(void *ctx)
 {
 	flac *f = ctx;
-	uint i;
-	for (i = 0;  i < FFCNT(f->meta);  i++) {
-		ffmem_safefree(f->meta[i]);
-	}
 	ffflac_close(&f->fl);
 	ffmem_free(f);
 }
@@ -139,6 +135,7 @@ static void flac_in_free(void *ctx)
 static void flac_meta(flac *f, fmed_filt *d)
 {
 	uint tag;
+	const char *tagval;
 
 	dbglog(core, d->trk, "flac", "%S: %S", &f->fl.tagname, &f->fl.tagval);
 
@@ -146,13 +143,11 @@ static void flac_meta(flac *f, fmed_filt *d)
 		return;
 
 	tag = ffflac_tag(f->fl.tagname.ptr, f->fl.tagname.len);
-	if (tag >= FFCNT(f->meta))
+	if (tag >= FFCNT(metanames))
 		return;
 
-	ffmem_safefree(f->meta[tag]);
-	if (NULL == (f->meta[tag] = ffsz_alcopy(f->fl.tagval.ptr, f->fl.tagval.len)))
-		return;
-	d->track->setvalstr(d->trk, metanames[tag], f->meta[tag]);
+	tagval = ffsz_alcopy(f->fl.tagval.ptr, f->fl.tagval.len);
+	d->track->setvalstr4(d->trk, metanames[tag], tagval, FMED_TRK_FACQUIRE | FMED_TRK_FNO_OVWRITE);
 }
 
 static int flac_in_decode(void *ctx, fmed_filt *d)

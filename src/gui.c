@@ -613,7 +613,7 @@ static void gui_rec(uint cmd)
 	fftime_split(&dt, &now, FFTIME_TZLOCAL);
 	ffstr_catfmt(&nm, "%s%crec-%u-%02u-%02u_%02u%02u%02u.%S%Z"
 		, gg->rec_dir, FFPATH_SLASH, dt.year, dt.month, dt.day, dt.hour, dt.min, dt.sec, &gg->rec_format);
-	gg->track->setvalstr(t, "=output", nm.ptr);
+	gg->track->setvalstr4(t, "output", nm.ptr, FMED_TRK_FACQUIRE);
 
 	switch (cmd) {
 	case PLAYREC:

@@ -7,22 +7,34 @@ Copyright (c) 2015 Simon Zolin */
 #include <FF/audio/mp3lame.h>
 #include <FF/audio/pcm.h>
 #include <FF/array.h>
+#include <FF/number.h>
 
 
 static const fmed_core *core;
 static const fmed_queue *qu;
 
+static const byte id3_meta_ids[] = {
+	FFID3_COMMENT,
+	FFID3_ALBUM,
+	FFID3_GENRE,
+	FFID3_RECTIME,
+	FFID3_TITLE,
+	FFID3_ARTIST,
+	FFID3_TRACKNO,
+	FFID3_TRACKTOTAL,
+	FFID3_YEAR,
+};
+
 static const char *const metanames[] = {
-	NULL
-	, "=meta_comment"
-	, "=meta_album"
-	, "=meta_genre"
-	, "=meta_title"
-	, NULL
-	, "=meta_artist"
-	, NULL
-	, "=meta_tracknumber"
-	, "=meta_date"
+	"meta_comment",
+	"meta_album",
+	"meta_genre",
+	"meta_date",
+	"meta_title",
+	"meta_artist",
+	"meta_tracknumber",
+	"meta_tracktotal",
+	"meta_date",
 };
 
 typedef struct fmed_mpeg {
@@ -134,11 +146,10 @@ static void mpeg_meta(fmed_mpeg *m, fmed_filt *d)
 {
 	ffstr name, val;
 	int tag;
+	char *tagval;
 
 	if (!m->mpg.is_id32tag) {
-		val = m->mpg.id31tag.val;
 		tag = m->mpg.id31tag.field;
-		ffstr_setz(&name, metanames[tag] + FFSLEN("="));
 
 	} else {
 		if (!m->have_id32tag) {
@@ -147,20 +158,25 @@ static void mpeg_meta(fmed_mpeg *m, fmed_filt *d)
 				, (uint)m->mpg.id32tag.h.ver[0], (uint)m->mpg.id32tag.h.ver[1], ffid3_size(&m->mpg.id32tag.h));
 		}
 
-		ffstr_set2(&val, &m->mpg.tagval);
-		tag = ffid3_frame(&m->mpg.id32tag.fr);
-		if (tag < FFCNT(metanames) && metanames[tag] != NULL)
-			ffstr_setz(&name, metanames[tag] + FFSLEN("="));
-		else
-			ffstr_set(&name, m->mpg.id32tag.fr.id, 4);
+		tag = m->mpg.id32tag.frame;
 	}
 
-	dbglog(core, d->trk, "mpeg", "tag: %S: %S", &name, &m->mpg.tagval);
+	tag = ffint_find1(id3_meta_ids, FFCNT(id3_meta_ids), tag);
+	if (tag != -1)
+		ffstr_setz(&name, metanames[tag]);
+	else
+		ffstr_set(&name, m->mpg.id32tag.fr.id, 4);
+
+	ffstr_set2(&val, &m->mpg.tagval);
+
+	dbglog(core, d->trk, "mpeg", "tag: %S: %S", &name, &val);
 
 	qu->meta_set((void*)fmed_getval("queue_item"), name.ptr, name.len, val.ptr, val.len, FMED_QUE_TMETA);
 
-	if (tag < FFCNT(metanames) && metanames[tag] != NULL)
-		d->track->setvalstr(d->trk, metanames[tag], ffsz_alcopy(val.ptr, val.len));
+	if (tag != -1) {
+		tagval = ffsz_alcopy(val.ptr, val.len);
+		d->track->setvalstr4(d->trk, metanames[tag], tagval, FMED_TRK_FACQUIRE);
+	}
 }
 
 static int mpeg_process(void *ctx, fmed_filt *d)

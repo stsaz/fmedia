@@ -39,6 +39,7 @@ static const char *const metanames[] = {
 	, "meta_genre"
 	, "meta_title"
 	, "meta_tracknumber"
+	, "meta_tracktotal"
 };
 
 

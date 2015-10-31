@@ -4,6 +4,7 @@ Copyright (c) 2015 Simon Zolin */
 #include <fmedia.h>
 
 #include <FF/audio/wavpack.h>
+#include <FF/number.h>
 
 
 static const fmed_core *core;
@@ -11,27 +12,33 @@ static const fmed_queue *qu;
 
 // enum FFAPETAG_FIELD
 static const char *const ape_metanames[] = {
-	"=meta_album",
-	"=meta_artist",
-	"=meta_comment",
-	"=meta_genre",
-	"=meta_title",
-	"=meta_tracknumber",
-	"=meta_date",
+	"meta_album",
+	"meta_artist",
+	"meta_comment",
+	"meta_genre",
+	"meta_title",
+	"meta_tracknumber",
+	"meta_date",
 };
 
-// enum FFID3_FRAME
+static const byte id3_meta_ids[] = {
+	FFID3_COMMENT,
+	FFID3_ALBUM,
+	FFID3_GENRE,
+	FFID3_TITLE,
+	FFID3_ARTIST,
+	FFID3_TRACKNO,
+	FFID3_YEAR,
+};
+
 static const char *const id3_metanames[] = {
-	NULL,
-	"=meta_comment",
-	"=meta_album",
-	"=meta_genre",
-	"=meta_title",
-	NULL,
-	"=meta_artist",
-	NULL,
-	"=meta_tracknumber",
-	"=meta_date",
+	"meta_comment",
+	"meta_album",
+	"meta_genre",
+	"meta_title",
+	"meta_artist",
+	"meta_tracknumber",
+	"meta_date",
 };
 
 typedef struct wvpk {
@@ -117,18 +124,19 @@ static void wvpk_meta(wvpk *w, fmed_filt *d)
 {
 	uint tag = 0;
 	ffstr name, val;
-	const char *tagstr;
+	const char *tagstr, *tagval;
 
 	if (w->wp.is_apetag) {
 		val = w->wp.apetag.val;
 		tag = ffapetag_field(w->wp.apetag.name.ptr);
 		if (tag < FFCNT(ape_metanames))
-			ffstr_setz(&name, ape_metanames[tag] + FFSLEN("="));
+			ffstr_setz(&name, ape_metanames[tag]);
 		else
 			name = w->wp.apetag.name;
 
 	} else {
-		ffstr_setz(&name, id3_metanames[w->wp.id31tag.field] + FFSLEN("="));
+		tag = ffint_find1(id3_meta_ids, FFCNT(id3_meta_ids), w->wp.id31tag.field);
+		ffstr_setz(&name, id3_metanames[tag]);
 		val = w->wp.id31tag.val;
 	}
 
@@ -142,9 +150,10 @@ static void wvpk_meta(wvpk *w, fmed_filt *d)
 		tagstr = ape_metanames[tag];
 
 	} else
-		tagstr = id3_metanames[w->wp.id31tag.field];
+		tagstr = id3_metanames[tag];
 
-	d->track->setvalstr(d->trk, tagstr, ffsz_alcopy(val.ptr, val.len));
+	tagval = ffsz_alcopy(val.ptr, val.len);
+	d->track->setvalstr4(d->trk, tagstr, tagval, FMED_TRK_FACQUIRE | FMED_TRK_FNO_OVWRITE);
 }
 
 static int wvpk_in_decode(void *ctx, fmed_filt *d)

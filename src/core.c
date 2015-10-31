@@ -92,7 +92,7 @@ static void media_stop(fm_src *src);
 static fmed_f* media_modbyext(fm_src *src, const ffstr3 *map, const ffstr *ext);
 static void media_printtime(fm_src *src);
 
-static dict_ent* dict_add(fm_src *src, const char *name);
+static dict_ent* dict_add(fm_src *src, const char *name, uint *f);
 static void dict_ent_free(dict_ent *e);
 
 static void* trk_create(uint cmd, const char *url);
@@ -102,9 +102,10 @@ static int64 trk_getval(void *trk, const char *name);
 static const char* trk_getvalstr(void *trk, const char *name);
 static int trk_setval(void *trk, const char *name, int64 val);
 static int trk_setvalstr(void *trk, const char *name, const char *val);
+static char* trk_setvalstr4(void *trk, const char *name, const char *val, uint flags);
 static const fmed_track _fmed_track = {
 	&trk_create, &trk_cmd,
-	&trk_popval, &trk_getval, &trk_getvalstr, &trk_setval, &trk_setvalstr
+	&trk_popval, &trk_getval, &trk_getvalstr, &trk_setval, &trk_setvalstr, &trk_setvalstr4
 };
 
 static const fmed_mod* fmed_getmod_core(const fmed_core *_core);
@@ -566,7 +567,7 @@ static int media_setout(fm_src *src)
 			if (0 == ffstr_catfmt(&outfn, "%S/%S.%S%Z"
 				, &fmed->outdir, &name, &ext))
 				return -1;
-			trk_setvalstr(src, "=output", outfn.ptr);
+			trk_setvalstr4(src, "output", outfn.ptr, FMED_TRK_FACQUIRE);
 
 		} else {
 			errlog(core, src, "core", "--out or --outdir must be set");
@@ -919,7 +920,7 @@ static dict_ent* dict_find(fm_src *src, const char *name)
 	return ent;
 }
 
-static dict_ent* dict_add(fm_src *src, const char *name)
+static dict_ent* dict_add(fm_src *src, const char *name, uint *f)
 {
 	dict_ent *ent;
 	uint crc = ffcrc32_getz(name, 0);
@@ -934,6 +935,7 @@ static dict_ent* dict_add(fm_src *src, const char *name)
 			src->err = 1;
 			return NULL;
 		}
+		*f = 1;
 
 	} else {
 		ent = ffmem_tcalloc1(dict_ent);
@@ -945,6 +947,7 @@ static dict_ent* dict_add(fm_src *src, const char *name)
 		ent->nod.key = crc;
 		ffrbt_insert(&src->dict, &ent->nod, parent);
 		ent->name = name;
+		*f = 0;
 	}
 
 	return ent;
@@ -1022,7 +1025,8 @@ static const char* trk_getvalstr(void *trk, const char *name)
 static int trk_setval(void *trk, const char *name, int64 val)
 {
 	fm_src *src = trk;
-	dict_ent *ent = dict_add(src, name);
+	uint st;
+	dict_ent *ent = dict_add(src, name, &st);
 	if (ent == NULL)
 		return 0;
 
@@ -1036,25 +1040,34 @@ static int trk_setval(void *trk, const char *name, int64 val)
 	return 0;
 }
 
-static int trk_setvalstr(void *trk, const char *name, const char *val)
+static char* trk_setvalstr4(void *trk, const char *name, const char *val, uint flags)
 {
 	fm_src *src = trk;
-	ffbool acq;
 	dict_ent *ent;
+	uint st;
 
-	if (0 != (acq = (name[0] == '=')))
-		name++;
+	if (NULL == (ent = dict_add(src, name, &st)))
+		return NULL;
 
-	if (NULL == (ent = dict_add(src, name)))
-		return 0;
+	if ((flags & FMED_TRK_FNO_OVWRITE) && st == 1) {
+		if (flags & FMED_TRK_FACQUIRE)
+			ffmem_free((char*)val);
+		return ent->pval;
+	}
 
 	if (ent->acq)
 		ffmem_free(ent->pval);
-	ent->acq = acq;
+	ent->acq = (flags & FMED_TRK_FACQUIRE) ? 1 : 0;
 
 	ent->pval = (void*)val;
 
 	dbglog(core, trk, "core", "setval: %s = %s", name, val);
+	return ent->pval;
+}
+
+static int trk_setvalstr(void *trk, const char *name, const char *val)
+{
+	trk_setvalstr4(trk, name, val, 0);
 	return 0;
 }
 
