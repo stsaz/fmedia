@@ -1,4 +1,4 @@
-/** MPEG input.
+/** MPEG input/output.
 Copyright (c) 2015 Simon Zolin */
 
 #include <fmedia.h>
@@ -6,6 +6,7 @@ Copyright (c) 2015 Simon Zolin */
 #include <FF/audio/mpeg.h>
 #include <FF/audio/mp3lame.h>
 #include <FF/audio/pcm.h>
+#include <FF/data/utf8.h>
 #include <FF/array.h>
 #include <FF/number.h>
 
@@ -51,6 +52,10 @@ typedef struct mpeg_out {
 	ffmpg_enc mpg;
 } mpeg_out;
 
+static struct mpeg_conf_t {
+	uint meta_codepage;
+} mpeg_conf;
+
 static struct mpeg_out_conf_t {
 	uint qual;
 } mpeg_out_conf;
@@ -67,11 +72,17 @@ static const fmed_mod fmed_mpeg_mod = {
 static void* mpeg_open(fmed_filt *d);
 static void mpeg_close(void *ctx);
 static int mpeg_process(void *ctx, fmed_filt *d);
+static int mpeg_config(ffpars_ctx *ctx);
 static const fmed_filter fmed_mpeg_input = {
-	&mpeg_open, &mpeg_process, &mpeg_close
+	&mpeg_open, &mpeg_process, &mpeg_close, &mpeg_config
 };
 
 static void mpeg_meta(fmed_mpeg *m, fmed_filt *d);
+static int mpeg_conf_meta_codepage(ffparser_schem *ps, void *obj, ffstr *val);
+
+static const ffpars_arg mpeg_conf_args[] = {
+	{ "meta_codepage",	FFPARS_TSTR,  FFPARS_DST(mpeg_conf_meta_codepage) },
+};
 
 //ENCODE
 static void* mpeg_out_open(fmed_filt *d);
@@ -119,6 +130,23 @@ static void mpeg_destroy(void)
 }
 
 
+static int mpeg_conf_meta_codepage(ffparser_schem *ps, void *obj, ffstr *val)
+{
+	if (ffstr_eqcz(val, "win1251"))
+		mpeg_conf.meta_codepage = FFU_WIN1251;
+	else if (ffstr_eqcz(val, "win1252"))
+		mpeg_conf.meta_codepage = FFU_WIN1252;
+	else
+		return FFPARS_EBADVAL;
+	return 0;
+}
+
+static int mpeg_config(ffpars_ctx *ctx)
+{
+	ffpars_setargs(ctx, &mpeg_conf, mpeg_conf_args, FFCNT(mpeg_conf_args));
+	return 0;
+}
+
 static void* mpeg_open(fmed_filt *d)
 {
 	int64 total_size;
@@ -127,6 +155,7 @@ static void* mpeg_open(fmed_filt *d)
 		return NULL;
 	ffmpg_init(&m->mpg);
 	m->mpg.options = FFMPG_O_ID3V1 | FFMPG_O_ID3V2;
+	m->mpg.codepage = mpeg_conf.meta_codepage;
 
 	if (FMED_NULL != (total_size = fmed_getval("total_size")))
 		m->mpg.total_size = total_size;

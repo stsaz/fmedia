@@ -5,6 +5,7 @@ Copyright (c) 2015 Simon Zolin */
 
 #include <FF/audio/pcm.h>
 #include <FF/data/psarg.h>
+#include <FF/data/utf8.h>
 #include <FF/path.h>
 #include <FF/time.h>
 #include <FFOS/sig.h>
@@ -291,6 +292,7 @@ int main(int argc, char **argv)
 	ffsignal sigs_task = {0};
 
 	ffmem_init();
+	ffutf8_init();
 	ffsig_init(&sigs_task);
 
 	fffile_writecz(ffstdout, "fmedia v" FMED_VER "\n");
