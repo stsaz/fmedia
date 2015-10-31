@@ -411,9 +411,12 @@ static void que_trk_close(void *ctx)
 		goto done;
 	}
 
-	if (qu->quit_if_done
-		|| 1 != t->track->getval(t->trk, "stopped"))
+	if (1 != t->track->getval(t->trk, "stopped"))
 		next = que_getnext(t->e);
+	else if (qu->quit_if_done) {
+		core->sig(FMED_STOP);
+		goto done;
+	}
 
 	//delete the item from queue if there was an error
 	if (FMED_NULL != t->track->getval(t->trk, "error"))
