@@ -30,8 +30,7 @@ struct wasapi_out {
 	uint devidx;
 
 	fftask task;
-	unsigned async :1
-		, bufused :1;
+	unsigned stop :1;
 };
 
 enum { WAS_TRYOPEN, WAS_OPEN, WAS_DATA };
@@ -249,10 +248,10 @@ static int wasapi_create(wasapi_out *w, fmed_filt *d)
 	if (mod->out_valid) {
 
 		if (mod->usedby != NULL) {
-			mod->usedby->bufused = 0;
-			if (mod->usedby->async)
-				wasapi_onplay(mod->usedby);
+			wasapi_out *w = mod->usedby;
 			mod->usedby = NULL;
+			w->stop = 1;
+			wasapi_onplay(w);
 		}
 
 		if (fmt.channels == mod->fmt.channels
@@ -266,6 +265,7 @@ static int wasapi_create(wasapi_out *w, fmed_filt *d)
 
 			ffwas_stop(&mod->out);
 			ffwas_clear(&mod->out);
+			ffwas_async(&mod->out, 0);
 			reused = 1;
 			goto fin;
 		}
@@ -309,7 +309,6 @@ static int wasapi_create(wasapi_out *w, fmed_filt *d)
 fin:
 	mod->out.udata = w;
 	mod->usedby = w;
-	w->bufused = 1;
 	dbglog(core, d->trk, "wasapi", "%s buffer %ums, %uHz, excl:%u"
 		, reused ? "reused" : "opened", ffpcm_bytes2time(&fmt, ffwas_bufsize(&mod->out))
 		, fmt.sample_rate, mod->out.excl);
@@ -322,7 +321,7 @@ done:
 static void wasapi_close(void *ctx)
 {
 	wasapi_out *w = ctx;
-	if (w->bufused) {
+	if (mod->usedby == w) {
 		void *trk = w->task.param;
 		if (1 == mod->track->getval(trk, "stopped")) {
 			ffwas_close(&mod->out);
@@ -331,6 +330,7 @@ static void wasapi_close(void *ctx)
 		} else {
 			ffwas_stop(&mod->out);
 			ffwas_clear(&mod->out);
+			ffwas_async(&mod->out, 0);
 		}
 		mod->usedby = NULL;
 	}
@@ -342,9 +342,6 @@ static void wasapi_close(void *ctx)
 static void wasapi_onplay(void *udata)
 {
 	wasapi_out *w = udata;
-	if (!w->async)
-		return;
-	w->async = 0;
 	core->task(&w->task, FMED_TASK_POST);
 }
 
@@ -370,7 +367,7 @@ static int wasapi_write(void *ctx, fmed_filt *d)
 		break;
 	}
 
-	if (!w->bufused || (d->flags & FMED_FSTOP)) {
+	if (w->stop || (d->flags & FMED_FSTOP)) {
 		d->outlen = 0;
 		return FMED_RDONE;
 	}
@@ -378,6 +375,7 @@ static int wasapi_write(void *ctx, fmed_filt *d)
 	if (1 == d->track->popval(d->trk, "snd_output_clear")) {
 		ffwas_stop(&mod->out);
 		ffwas_clear(&mod->out);
+		ffwas_async(&mod->out, 0);
 		return FMED_RMORE;
 	}
 
@@ -394,7 +392,7 @@ static int wasapi_write(void *ctx, fmed_filt *d)
 			return FMED_RERR;
 
 		} else if (r == 0) {
-			w->async = 1;
+			ffwas_async(&mod->out, 1);
 			return FMED_RASYNC;
 		}
 
@@ -414,7 +412,7 @@ static int wasapi_write(void *ctx, fmed_filt *d)
 			return FMED_RERR;
 		}
 
-		w->async = 1;
+		ffwas_async(&mod->out, 1);
 		return FMED_RASYNC; //wait until all filled bytes are played
 	}
 
