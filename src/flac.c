@@ -27,6 +27,7 @@ typedef struct flac {
 
 typedef struct flac_out {
 	ffflac_enc fl;
+	uint state;
 	uint ni :1;
 } flac_out;
 
@@ -279,6 +280,11 @@ static void* flac_out_create(fmed_filt *d)
 	ffflac_enc_init(&f->fl);
 
 	fmed_getpcm(d, &fmt);
+	if (fmt.format != FFPCM_16LE) {
+		f->state = 1;
+		fmt.format = FFPCM_16LE;
+	}
+
 	if (1 != fmed_getval("pcm_ileaved")) {
 		f->ni = 1;
 	}
@@ -314,6 +320,24 @@ static int flac_out_encode(void *ctx, fmed_filt *d)
 {
 	flac_out *f = ctx;
 	int r;
+
+	switch (f->state) {
+	case 1:
+		fmed_setval("conv_pcm_format", FFPCM_16LE);
+		f->state = 2;
+		return FMED_RMORE;
+
+	case 2:
+		if (FFPCM_16LE != fmed_getval("pcm_format")) {
+			errlog(core, d->trk, "flac", "unsupported input PCM format");
+			return FMED_RERR;
+		}
+		f->state = 0;
+		break;
+
+	case 0:
+		break;
+	}
 
 	if (f->ni)
 		f->fl.pcm = (const void**)d->datani;
