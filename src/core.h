@@ -31,8 +31,7 @@ typedef struct fmedia {
 	const ffkqu_time *pkqutime;
 	ffkqu_time kqutime;
 
-	unsigned playing :1
-		, recording :1
+	unsigned recording :1
 		, stopped :1
 		;
 

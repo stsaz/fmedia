@@ -294,6 +294,11 @@ static fmed_que_entry* que_add(fmed_que_entry *ent)
 		}
 		e->e.meta[i].len = ffsz_len(e->e.meta[i].ptr);
 		e->e.nmeta++;
+
+		if (i % 2 != 0) {
+			dbglog(core, NULL, "que", "meta #%u: %S=%S"
+				, e->e.nmeta / 2 + 1, &e->e.meta[i - 1], &e->e.meta[i]);
+		}
 	}
 
 	e->e.from = ent->from;

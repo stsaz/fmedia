@@ -326,7 +326,8 @@ int main(int argc, char **argv)
 	const char *p = ffps_filename(fn, sizeof(fn), argv[0]);
 	if (p == NULL)
 		return 1;
-	ffpath_split2(p, ffsz_len(p), &path, NULL);
+	if (NULL == ffpath_split2(p, ffsz_len(p), &path, NULL))
+		return 1;
 	if (NULL == ffstr_copy(&fmed->root, path.ptr, path.len + FFSLEN("/")))
 		return 1;
 	}

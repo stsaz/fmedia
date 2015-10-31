@@ -65,7 +65,7 @@ static const fmed_filter fmed_sndmod_gain = {
 static void* sndmod_untl_open(fmed_filt *d);
 static int sndmod_untl_process(void *ctx, fmed_filt *d);
 static void sndmod_untl_close(void *ctx);
-static const fmed_filter fmed_smod_until = {
+static const fmed_filter fmed_sndmod_until = {
 	&sndmod_untl_open, &sndmod_untl_process, &sndmod_untl_close
 };
 
@@ -94,7 +94,7 @@ static const void* sndmod_iface(const char *name)
 	else if (!ffsz_cmp(name, "gain"))
 		return &fmed_sndmod_gain;
 	else if (!ffsz_cmp(name, "until"))
-		return &fmed_smod_until;
+		return &fmed_sndmod_until;
 	else if (!ffsz_cmp(name, "peaks"))
 		return &fmed_sndmod_peaks;
 	return NULL;

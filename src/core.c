@@ -917,10 +917,7 @@ fin:
 		trk_setval(src, "error", 1);
 
 	if (!fmed->gui) {
-		if (fmed->mix) {
-			if (fmed->srcs.len == 0)
-				core_playdone();
-		} else if (src->capture) {
+		if (src->capture) {
 			fmed->recording = 0;
 			core_playdone();
 		}
@@ -1101,7 +1098,6 @@ static int trk_setvalstr(void *trk, const char *name, const char *val)
 
 static void core_playdone(void)
 {
-	fmed->playing = 0;
 	if (!fmed->recording) {
 		fmed->stopped = 1;
 		ffkqu_post(fmed->kq, &fmed->evposted, NULL);
@@ -1294,10 +1290,6 @@ static int core_open(void)
 	core->kq = fmed->kq;
 
 	fmed->pkqutime = ffkqu_settm(&fmed->kqutime, (uint)-1);
-
-	if (fmed->srcs.len != 0) {
-		fmed->playing = 1;
-	}
 
 	if (fmed->rec) {
 		fmed->recording = 1;
