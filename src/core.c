@@ -157,7 +157,7 @@ static int fmed_conf_ext_val(ffparser_schem *p, void *obj, ffstr *val);
 static const ffpars_arg fmed_conf_args[] = {
 	{ "mod",  FFPARS_TSTR | FFPARS_FNOTEMPTY | FFPARS_FSTRZ | FFPARS_FCOPY | FFPARS_FMULTI, FFPARS_DST(&fmed_conf_mod) }
 	, { "mod_conf",  FFPARS_TOBJ | FFPARS_FOBJ1 | FFPARS_FNOTEMPTY | FFPARS_FMULTI, FFPARS_DST(&fmed_conf_modconf) }
-	, { "output",  FFPARS_TSTR | FFPARS_FNOTEMPTY, FFPARS_DST(&fmed_conf_output) }
+	, { "output",  FFPARS_TSTR | FFPARS_FNOTEMPTY | FFPARS_FMULTI, FFPARS_DST(&fmed_conf_output) }
 	, { "input",  FFPARS_TOBJ | FFPARS_FOBJ1, FFPARS_DST(&fmed_conf_input) }
 	, { "input_ext",  FFPARS_TOBJ, FFPARS_DST(&fmed_conf_ext) }
 	, { "output_ext",  FFPARS_TOBJ, FFPARS_DST(&fmed_conf_ext) }
@@ -169,6 +169,18 @@ static const ffpars_arg fmed_confusr_args[] = {
 	{ "*",	FFPARS_TOBJ | FFPARS_FOBJ1 | FFPARS_FMULTI, FFPARS_DST(&fmed_confusr_mod) },
 };
 
+
+static int allowed_mod(const ffstr *name)
+{
+#ifdef FF_WIN
+	if (ffstr_matchcz(name, "alsa."))
+#else
+	if (ffstr_matchcz(name, "wasapi.")
+		|| ffstr_matchcz(name, "direct-sound."))
+#endif
+		return 0;
+	return 1;
+}
 
 static int fmed_conf_mod(ffparser_schem *p, void *obj, ffstr *val)
 {
@@ -184,6 +196,11 @@ static int fmed_conf_modconf(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
 {
 	const ffstr *name = &p->vals[0];
 	char *zname;
+
+	if (!allowed_mod(name)) {
+		ffpars_ctx_skip(ctx);
+		return 0;
+	}
 
 	if (ffstr_eqcz(name, "gui.gui") && !fmed->gui) {
 		ffpars_ctx_skip(ctx);
@@ -215,6 +232,10 @@ static int fmed_conf_setmod(const fmed_modinfo **pmod, ffstr *val)
 static int fmed_conf_output(ffparser_schem *p, void *obj, ffstr *val)
 {
 	fmed_config *conf = obj;
+
+	if (!allowed_mod(val))
+		return 0;
+
 	return fmed_conf_setmod(&conf->output, val);
 }
 
@@ -247,6 +268,12 @@ static int fmed_conf_input(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
 {
 	fmed_config *conf = obj;
 	int r;
+
+	if (!allowed_mod(&p->vals[0])) {
+		ffpars_ctx_skip(ctx);
+		return 0;
+	}
+
 	if (0 != (r = fmed_conf_setmod(&conf->input, &p->vals[0])))
 		return r;
 	ffpars_setargs(ctx, conf, fmed_conf_input_args, FFCNT(fmed_conf_input_args));
