@@ -30,8 +30,10 @@ typedef struct tui {
 	uint state;
 	void *trk;
 	uint64 total_samples;
+	uint64 played_samples;
 	uint lastpos;
 	uint sample_rate;
+	uint sampsize;
 	uint total_time_sec;
 	ffstr3 buf;
 
@@ -184,7 +186,6 @@ static void* tui_open(fmed_filt *d)
 	fflk_init(&t->lkcmds);
 
 	t->total_samples = d->track->getval(d->trk, "total_samples");
-	t->sample_rate = (int)d->track->getval(d->trk, "pcm_sample_rate");
 	tui_info(t, d);
 
 	if (FMED_NULL != d->track->getval(d->trk, "input_info")) {
@@ -222,7 +223,15 @@ static void tui_info(tui *t, fmed_filt *d)
 {
 	uint64 total_time, tsize;
 	uint tmsec;
-	const char *artist, *title;
+	const char *input, *artist, *title;
+	ffpcm fmt;
+
+	fmed_getpcm(d, &fmt);
+	t->sample_rate = fmt.sample_rate;
+	t->sampsize = ffpcm_size1(&fmt);
+
+	if (FMED_PNULL == (input = d->track->getvalstr(d->trk, "input")))
+		return;
 
 	total_time = (t->total_samples != FMED_NULL) ? ffpcm_time(t->total_samples, t->sample_rate) : 0;
 	tmsec = (uint)(total_time / 1000);
@@ -242,14 +251,14 @@ static void tui_info(tui *t, fmed_filt *d)
 	t->buf.len = 0;
 	ffstr_catfmt(&t->buf, "\n\"%s - %s\" %s %.02F MB, %u:%02u.%03u (%,U samples), %u kbps, %u Hz, %u bit, %s\n\n"
 		, artist, title
-		, d->track->getvalstr(d->trk, "input")
+		, input
 		, (double)tsize / (1024 * 1024)
 		, tmsec / 60, tmsec % 60, (uint)(total_time % 1000)
 		, t->total_samples
 		, (int)(d->track->getval(d->trk, "bitrate") / 1000)
-		, t->sample_rate
-		, ffpcm_bits(d->track->getval(d->trk, "pcm_format"))
-		, ffpcm_channelstr((int)d->track->getval(d->trk, "pcm_channels")));
+		, fmt.sample_rate
+		, ffpcm_bits(fmt.format)
+		, ffpcm_channelstr(fmt.channels));
 	ffstd_write(ffstderr, t->buf.ptr, t->buf.len);
 	t->buf.len = 0;
 }
@@ -338,22 +347,26 @@ static int tui_process(void *ctx, fmed_filt *d)
 		fflk_unlock(&t->lkcmds);
 	}
 
-	playpos = fmed_getval("current_position");
-	if (t->total_samples == FMED_NULL
-		|| playpos == FMED_NULL
-		|| (uint64)playpos > t->total_samples) {
-		d->out = d->data;
-		d->outlen = d->datalen;
-		return FMED_RDONE;
-	}
-
 	if (core->loglev & FMED_LOG_DEBUG)
 		nback = 0;
 
+	if (FMED_NULL == (playpos = fmed_getval("current_position")))
+		playpos = t->played_samples;
 	playtime = (uint)(ffpcm_time(playpos, t->sample_rate) / 1000);
 	if (playtime == t->lastpos)
 		goto done;
 	t->lastpos = playtime;
+
+	if (t->total_samples == FMED_NULL
+		|| (uint64)playpos > t->total_samples) {
+
+		fffile_fmt(ffstderr, &t->buf, "%*c%u:%02u"
+			, (size_t)nback, '\b'
+			, playtime / 60, playtime % 60);
+		t->buf.len -= nback;
+		goto done;
+	}
+
 	fffile_fmt(ffstderr, &t->buf, "%*c[%*c%*c] %u:%02u / %u:%02u"
 		, (size_t)nback, '\b'
 		, (size_t)(playpos * dots / t->total_samples), '='
@@ -363,6 +376,8 @@ static int tui_process(void *ctx, fmed_filt *d)
 	t->buf.len -= nback; //don't count the number of '\b'
 
 done:
+	t->played_samples += d->datalen / t->sampsize;
+
 	d->out = d->data;
 	d->outlen = d->datalen;
 	d->datalen = 0;

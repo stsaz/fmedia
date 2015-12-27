@@ -511,15 +511,6 @@ static int media_open(fm_src *src, const char *fn)
 
 	newfilter(src, "#soundmod.until");
 
-	if (fmed->mix) {
-		return 0;
-	}
-
-	if (fmed->gui)
-		newfilter(src, "gui.gui");
-	else if (!fmed->silent)
-		newfilter(src, "#tui.tui");
-
 	return 0;
 }
 
@@ -546,6 +537,11 @@ static void media_open_mix(fm_src *src)
 static int media_setout(fm_src *src)
 {
 	const char *s, *fn;
+
+	if (fmed->gui)
+		newfilter(src, "gui.gui");
+	else if (!fmed->silent)
+		newfilter(src, "#tui.tui");
 
 	if (fmed->volume != 100) {
 		double db;
@@ -645,7 +641,7 @@ Example of a typical chain:
 */
 static void* trk_create(uint cmd, const char *fn)
 {
-	uint nout = 4;
+	uint nout = 5;
 	fm_src *src = ffmem_tcalloc1(fm_src);
 	if (src == NULL)
 		return NULL;
