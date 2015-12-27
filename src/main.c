@@ -373,11 +373,6 @@ int main(int argc, char **argv)
 	if (0 != open_input())
 		goto end;
 
-#if defined FF_WIN && !defined _DEBUG
-	if (fmed->gui && !(core->loglev & FMED_LOG_DEBUG))
-		FreeConsole();
-#endif
-
 	core->sig(FMED_START);
 
 end:
