@@ -91,7 +91,7 @@ static const void* flac_iface(const char *name)
 		return &fmed_flac_input;
 
 	else if (!ffsz_cmp(name, "encode")) {
-		flac_out_conf.level = 8;
+		flac_out_conf.level = 6;
 		flac_out_conf.md5 = 1;
 		flac_out_conf.sktab_int = 1;
 		flac_out_conf.min_meta_size = 1000;
