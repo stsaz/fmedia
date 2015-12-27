@@ -124,6 +124,8 @@ struct gui_trk {
 	fftask task;
 };
 
+#define GUI_USRCONF  "%APPDATA%/fmedia/fmedia.gui.conf"
+
 static const fmed_core *core;
 static ggui *gg;
 
@@ -650,7 +652,7 @@ static void gui_onclose(void)
 	size_t n;
 	ffui_loaderw ldr = {0};
 
-	if (NULL == (fn = core->getpath(FFSTR("./fmedia.gui"))))
+	if (NULL == (fn = ffenv_expand(NULL, 0, GUI_USRCONF)))
 		return;
 
 	if (IsWindowVisible(gg->wmain.h) && !IsIconic(gg->wmain.h)) {
@@ -662,8 +664,18 @@ static void gui_onclose(void)
 	n = ffs_fmt(buf, buf + sizeof(buf), "%u", ffui_trk_val(&gg->tvol));
 	ffui_ldr_set(&ldr, "tvol.value", buf, n);
 
-	ffui_ldr_write(&ldr, fn);
+	if (0 != ffui_ldr_write(&ldr, fn) && fferr_nofile(fferr_last())) {
+		if (0 != ffdir_make_path(fn) && fferr_last() != EEXIST) {
+			syserrlog(core, NULL, "gui", "Can't create directory for the file: %s", fn);
+			goto done;
+		}
+		if (0 != ffui_ldr_write(&ldr, fn))
+			syserrlog(core, NULL, "gui", "Can't write configuration file: %s", fn);
+	}
+
+done:
 	ffmem_free(fn);
+	ffui_ldrw_fin(&ldr);
 }
 
 static void gui_rec(uint cmd)
@@ -1121,7 +1133,7 @@ static void gui_on_dropfiles(ffui_wnd *wnd, ffui_fdrop *df)
 
 static FFTHDCALL int gui_worker(void *param)
 {
-	char *fn;
+	char *fn, *fnconf;
 	ffui_loader ldr;
 	ffui_init();
 	ffui_wnd_initstyle();
@@ -1129,6 +1141,10 @@ static FFTHDCALL int gui_worker(void *param)
 
 	if (NULL == (fn = core->getpath(FFSTR("./fmedia.gui"))))
 		goto err;
+	if (NULL == (fnconf = ffenv_expand(NULL, 0, GUI_USRCONF))) {
+		ffmem_free(fn);
+		goto err;
+	}
 	ldr.getctl = &gui_getctl;
 	ldr.getcmd = &gui_getcmd;
 	ldr.udata = gg;
@@ -1139,10 +1155,13 @@ static FFTHDCALL int gui_worker(void *param)
 		ffui_msgdlg_show("fmedia GUI", msg.ptr, msg.len, FFUI_MSGDLG_ERR);
 		ffarr_free(&msg);
 		ffmem_free(fn);
+		ffmem_free(fnconf);
 		ffui_ldr_fin(&ldr);
 		goto err;
 	}
+	ffui_ldr_loadconf(&ldr, fnconf);
 	ffmem_free(fn);
+	ffmem_free(fnconf);
 	ffui_ldr_fin(&ldr);
 
 	gg->wmain.top = 1;
