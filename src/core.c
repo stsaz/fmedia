@@ -1444,6 +1444,8 @@ static int64 core_getval(const char *name)
 		return fmed->gui;
 	else if (!ffsz_cmp(name, "next_if_error"))
 		return fmed->silent;
+	else if (!ffsz_cmp(name, "show_tags"))
+		return fmed->tags;
 	else if (!ffsz_cmp(name, "cue_gaps") && fmed->cue_gaps != 255)
 		return fmed->cue_gaps;
 	return FMED_NULL;

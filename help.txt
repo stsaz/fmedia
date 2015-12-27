@@ -16,6 +16,7 @@ Options:
 --track=N1[,N2...]    Select specific track numbers in playlist
 
 --info         Just show media information
+--tags         Print all meta tags
 
 --mix          Play input files simultaneously.
                Note: all inputs must have exactly the same format as the output.

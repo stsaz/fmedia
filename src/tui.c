@@ -262,6 +262,15 @@ static void tui_info(tui *t, fmed_filt *d)
 		, fmt.sample_rate
 		, ffpcm_bits(fmt.format)
 		, ffpcm_channelstr(fmt.channels));
+
+	if (1 == core->getval("show_tags")) {
+		uint i;
+		ffstr name, *val;
+		for (i = 0;  NULL != (val = gt->qu->meta(qent, i, &name, 0));  i++) {
+			ffstr_catfmt(&t->buf, "%S\t%S\n", &name, val);
+		}
+	}
+
 	ffstd_write(ffstderr, t->buf.ptr, t->buf.len);
 	t->buf.len = 0;
 }
