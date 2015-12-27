@@ -238,7 +238,7 @@ again:
 
 		case FFWVPK_RDONE:
 			d->outlen = 0;
-			return FMED_RDONE;
+			return FMED_RLASTOUT;
 
 		case FFWVPK_RWARN:
 			errlog(core, d->trk, "wvpk", "warning: ffwvpk_decode(): %s", ffwvpk_errstr(&w->wp));
