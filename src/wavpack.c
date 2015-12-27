@@ -216,6 +216,14 @@ again:
 			break;
 
 		case FFWVPK_RHDRFIN:
+			dbglog(core, d->trk, "wvpk", "version:%xu  lossless:%u  compression:%s  block-samples:%u  MD5:%16xb"
+				, (int)w->wp.info.version, (int)w->wp.info.lossless
+				, ffwvpk_comp_levelstr[w->wp.info.comp_level], (int)w->wp.info.block_samples
+				, w->wp.info.md5);
+
+			if (FMED_NULL != fmed_getval("input_info"))
+				return FMED_ROK;
+
 			w->state = I_DATA;
 			if (w->abs_seek != 0)
 				ffwvpk_seek(&w->wp, w->abs_seek);

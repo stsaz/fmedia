@@ -197,7 +197,7 @@ static int m3u_process(void *ctx, fmed_filt *d)
 		if (r == FFPARS_MORE)
 			break;
 		else if (ffpars_iserr(r)) {
-			errlog(core, d, "m3u", "parse error at line %u", m->p.line);
+			errlog(core, d->trk, "m3u", "parse error at line %u", m->p.line);
 			return FMED_RERR;
 		}
 
@@ -345,7 +345,7 @@ static int cue_process(void *ctx, fmed_filt *d)
 			goto add;
 
 		} else if (ffpars_iserr(r)) {
-			errlog(core, d, "cue", "parse error at line %u: %s"
+			errlog(core, d->trk, "cue", "parse error at line %u: %s"
 				, c->p.line, ffpars_errstr(r));
 			return FMED_RERR;
 		}
@@ -456,7 +456,7 @@ static void* dir_open(fmed_filt *d)
 
 	if (0 != ffdir_expopen(&dr, (char*)dirname, 0)) {
 		if (fferr_last() != ENOMOREFILES)
-			syserrlog(core, NULL, "dir", "%e", FFERR_DIROPEN);
+			syserrlog(core, d->trk, "dir", "%e", FFERR_DIROPEN);
 		return NULL;
 	}
 

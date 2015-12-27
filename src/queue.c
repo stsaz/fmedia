@@ -58,6 +58,7 @@ static void ent_free(entry *e);
 static void que_taskfunc(void *udata);
 static void que_task_add(uint cmd);
 static void que_mix(void);
+static entry* que_getnext(entry *from);
 
 //QUEUE-TRACK
 static void* que_trk_open(fmed_filt *d);

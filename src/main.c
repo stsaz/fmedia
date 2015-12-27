@@ -31,6 +31,7 @@ static int pcm_formatstr(const char *s, size_t len);
 static int open_input(void);
 static void fmed_log(fffd fd, const char *stime, const char *module, const char *level
 	, const ffstr *id, const char *fmt, va_list va);
+static void fmed_onsig(void *udata);
 
 
 static const ffpars_arg fmed_cmdline_args[] = {

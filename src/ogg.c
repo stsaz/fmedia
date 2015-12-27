@@ -144,10 +144,9 @@ static void ogg_close(void *ctx)
 
 static int ogg_decode(void *ctx, fmed_filt *d)
 {
-	enum { I_HDR, I_DATA };
+	enum { I_HDR, I_DATA0, I_DATA };
 	fmed_ogg *o = ctx;
 	int r;
-	uint tag;
 	int64 seek_time;
 
 	if (d->flags & FMED_FSTOP) {
@@ -162,6 +161,12 @@ again:
 	switch (o->state) {
 	case I_HDR:
 		break;
+
+	case I_DATA0:
+		if (FMED_NULL != fmed_getval("input_info"))
+			return FMED_ROK;
+		o->state = I_DATA;
+		// break
 
 	case I_DATA:
 		if (FMED_NULL != (seek_time = fmed_popval("seek_time")))
@@ -205,7 +210,6 @@ again:
 
 		case FFOGG_RTAG:
 			dbglog(core, d->trk, "ogg", "%S: %S", &o->og.tagname, &o->og.tagval);
-
 			tag = ffogg_tag(o->og.tagname.ptr, o->og.tagname.len);
 			if (tag < FFCNT(metanames) && o->og.tagval.len != 0)
 				d->track->setvalstr(d->trk, metanames[tag], o->og.tagval.ptr);
@@ -213,14 +217,16 @@ again:
 
 		case FFOGG_RHDRFIN:
 			dbglog(core, d->trk, "ogg", "vendor: %s", o->og.vcmt.vendor);
-			if (!ogg_in_conf.seekable)
-				o->state = I_DATA;
+			if (!ogg_in_conf.seekable) {
+				o->state = I_DATA0;
+				goto again;
+			}
 			break;
 
 		case FFOGG_RINFO:
 			fmed_setval("total_samples", o->og.total_samples);
 			fmed_setval("bitrate", ffogg_bitrate(&o->og));
-			o->state = I_DATA;
+			o->state = I_DATA0;
 			goto again;
 
 		case FFOGG_RSEEK:

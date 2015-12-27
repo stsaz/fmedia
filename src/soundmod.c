@@ -227,7 +227,7 @@ static int sndmod_conv_process(void *ctx, fmed_filt *d)
 
 	if (c->inpcm.ileaved)
 		d->data += samples * ffpcm_size1(&c->inpcm);
-	else
+	else if (samples != 0)
 		ffarrp_shift((void**)d->datani, c->inpcm.channels, samples * ffpcm_size(c->inpcm.format, 1));
 
 	if ((d->flags & FMED_FLAST) && d->datalen == 0)
@@ -428,7 +428,7 @@ static int sndmod_untl_process(void *ctx, fmed_filt *d)
 	samps = d->datalen / u->sampsize;
 	d->datalen = 0;
 	pos = fmed_getval("current_position");
-	if (pos + samps >= u->until) {
+	if (pos != FMED_NULL && pos + samps >= u->until) {
 		dbglog(core, d->trk, "", "until_time is reached");
 		d->outlen = (u->until > pos) ? (u->until - pos) * u->sampsize : 0;
 		return FMED_RLASTOUT;
@@ -529,7 +529,8 @@ static int sndmod_peaks_process(void *ctx, fmed_filt *d)
 
 	if (d->flags & FMED_FLAST) {
 		ffstr3 buf = {0};
-		ffstr_catfmt(&buf, "\nPCM peaks:\n");
+		ffstr_catfmt(&buf, "\nPCM peaks (%,U total samples):\n"
+			, p->total);
 
 		if (p->total != 0) {
 			for (ich = 0;  ich != p->nch;  ich++) {

@@ -169,7 +169,7 @@ static int flac_in_decode(void *ctx, fmed_filt *d)
 		return FMED_RLASTOUT;
 	}
 
-	f->fl.data = (byte*)d->data;
+	f->fl.data = d->data;
 	f->fl.datalen = d->datalen;
 	if (d->flags & FMED_FLAST)
 		f->fl.fin = 1;
@@ -202,7 +202,6 @@ again:
 			fmed_setval("pcm_channels", f->fl.fmt.channels);
 			fmed_setval("pcm_sample_rate", f->fl.fmt.sample_rate);
 			fmed_setval("pcm_ileaved", 0);
-			fmed_setval("bitrate", ffflac_bitrate(&f->fl));
 
 			if (f->abs_seek != 0) {
 				if (f->abs_seek > 0)
@@ -219,6 +218,14 @@ again:
 			break;
 
 		case FFFLAC_RHDRFIN:
+			dbglog(core, d->trk, "flac", "blocksize:%u..%u  framesize:%u..%u  MD5:%16xb  seek-table:%u  meta-length:%u"
+				, (int)f->fl.info.minblock, (int)f->fl.info.maxblock, (int)f->fl.info.minframe, (int)f->fl.info.maxframe
+				, f->fl.info.md5, (int)f->fl.sktab.len, (int)f->fl.framesoff);
+			fmed_setval("bitrate", ffflac_bitrate(&f->fl));
+
+			if (FMED_NULL != fmed_getval("input_info"))
+				return FMED_ROK;
+
 			f->state = I_DATA;
 			if (f->abs_seek != 0)
 				ffflac_seek(&f->fl, f->abs_seek);
