@@ -302,6 +302,13 @@ static int alsa_write(void *ctx, fmed_filt *d)
 		return FMED_RDONE;
 	}
 
+	if (1 == d->track->popval(d->trk, "snd_output_clear")) {
+		ffalsa_stop(&mod->out);
+		ffalsa_clear(&mod->out);
+		ffalsa_async(&mod->out, 0);
+		return FMED_RMORE;
+	}
+
 	while (d->datalen != 0) {
 
 		r = ffalsa_write(&mod->out, d->datani, d->datalen);
