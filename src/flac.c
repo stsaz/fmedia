@@ -325,6 +325,7 @@ static void flac_out_free(void *ctx)
 
 static int flac_out_encode(void *ctx, fmed_filt *d)
 {
+	enum { I_DATA = 3 };
 	flac_out *f = ctx;
 	int r;
 
@@ -343,6 +344,7 @@ static int flac_out_encode(void *ctx, fmed_filt *d)
 		break;
 
 	case 0:
+	case I_DATA:
 		break;
 	}
 
@@ -364,6 +366,12 @@ again:
 		return FMED_RMORE;
 
 	case FFFLAC_RDATA:
+		if (f->state == 0) {
+			fmed_setval("output_size", ffflac_enc_size(&f->fl));
+			f->state = I_DATA;
+		}
+		break;
+
 	case FFFLAC_RDONE:
 		break;
 
