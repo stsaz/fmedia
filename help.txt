@@ -63,3 +63,5 @@ Other options:
 --pcm-peaks  Analyze PCM and print some details.
 --pcm-crc    Print CRC of PCM data (must be used with --pcm-peaks).
              Useful for checking the results of lossless audio conversion.
+
+--preserve-date  Set output file date/time equal to input file.

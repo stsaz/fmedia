@@ -558,6 +558,9 @@ static int media_setout(fm_src *src)
 	newfilter(src, "#soundmod.conv");
 	newfilter(src, "#soundmod.conv-soxr");
 
+	if (fmed->preserve_date)
+		trk_setval(src, "out_preserve_date", 1);
+
 	if (fmed->mix && !src->mxr_out) {
 		newfilter(src, "mixer.in");
 

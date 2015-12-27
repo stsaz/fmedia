@@ -58,6 +58,7 @@ typedef struct fmed_fileout {
 	ffarr buf;
 	uint64 fsize
 		, prealocated;
+	fftime modtime;
 } fmed_fileout;
 
 
@@ -185,6 +186,14 @@ static void* file_open(fmed_filt *d)
 	}
 
 	d->track->setval(d->trk, "total_size", fffile_size(f->fd));
+
+	if (FMED_NULL != fmed_getval("out_preserve_date")) {
+		fffileinfo fi;
+		if (0 == fffile_info(f->fd, &fi)) {
+			fftime t = fffile_infomtime(&fi);
+			fmed_setval("output_time", fftime_mcs(&t));
+		}
+	}
 
 	f->handler = d->handler;
 	f->trk = d->trk;
@@ -484,6 +493,10 @@ static void* fileout_open(fmed_filt *d)
 			f->prealocated = total_size;
 	}
 
+	int64 mtime;
+	if (FMED_NULL != (mtime = fmed_getval("output_time")))
+		fftime_setmcs(&f->modtime, mtime);
+
 	return f;
 
 done:
@@ -498,6 +511,10 @@ static void fileout_close(void *ctx)
 	if (f->fd != FF_BADFD) {
 
 		fffile_trunc(f->fd, f->fsize);
+
+		if (f->modtime.s != 0)
+			fffile_settime(f->fd, &f->modtime);
+
 		if (0 != fffile_close(f->fd))
 			syserrlog(core, NULL, "file", "%e", FFERR_FCLOSE);
 
