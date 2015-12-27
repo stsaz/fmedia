@@ -169,8 +169,8 @@ static int sndmod_conv_prepare(sndmod_conv *c, fmed_filt *d)
 	}
 
 	dbglog(core, d->trk, "conv", "PCM conversion: %s/%u/%u/%s -> %s/%u/%u/%s"
-		, ffpcm_fmtstr[c->inpcm.format], c->inpcm.channels, c->inpcm.sample_rate, (c->inpcm.ileaved) ? "i" : "ni"
-		, ffpcm_fmtstr[c->outpcm.format], c->outpcm.channels, c->outpcm.sample_rate, (c->outpcm.ileaved) ? "i" : "ni");
+		, ffpcm_fmtstr(c->inpcm.format), c->inpcm.channels, c->inpcm.sample_rate, (c->inpcm.ileaved) ? "i" : "ni"
+		, ffpcm_fmtstr(c->outpcm.format), c->outpcm.channels, c->outpcm.sample_rate, (c->outpcm.ileaved) ? "i" : "ni");
 
 	cap = ffpcm_bytes(&c->inpcm, 1000);
 	if (!c->outpcm.ileaved) {
@@ -216,8 +216,8 @@ static int sndmod_conv_process(void *ctx, fmed_filt *d)
 
 	if (0 != ffpcm_convert(&c->outpcm, c->buf.ptr, &c->inpcm, d->data, samples)) {
 		errlog(core, d->trk, "conv", "unsupported PCM conversion: %s/%u/%u/%s -> %s/%u/%u/%s"
-			, ffpcm_fmtstr[c->inpcm.format], c->inpcm.channels, c->inpcm.sample_rate, (c->inpcm.ileaved) ? "i" : "ni"
-			, ffpcm_fmtstr[c->outpcm.format], c->outpcm.channels, c->outpcm.sample_rate, (c->outpcm.ileaved) ? "i" : "ni");
+			, ffpcm_fmtstr(c->inpcm.format), c->inpcm.channels, c->inpcm.sample_rate, (c->inpcm.ileaved) ? "i" : "ni"
+			, ffpcm_fmtstr(c->outpcm.format), c->outpcm.channels, c->outpcm.sample_rate, (c->outpcm.ileaved) ? "i" : "ni");
 		return FMED_RERR;
 	}
 
@@ -303,15 +303,15 @@ static int sndmod_soxr_process(void *ctx, fmed_filt *d)
 		// c->soxr.dither = 1;
 		if (0 != ffsoxr_create(&c->soxr, &inpcm, &outpcm)) {
 			errlog(core, d->trk, "soxr", "unsupported PCM conversion: %s/%u/%u/%s -> %s/%u/%u/%s: %s"
-				, ffpcm_fmtstr[inpcm.format], inpcm.channels, inpcm.sample_rate, (inpcm.ileaved) ? "i" : "ni"
-				, ffpcm_fmtstr[outpcm.format], outpcm.channels, outpcm.sample_rate, (outpcm.ileaved) ? "i" : "ni"
+				, ffpcm_fmtstr(inpcm.format), inpcm.channels, inpcm.sample_rate, (inpcm.ileaved) ? "i" : "ni"
+				, ffpcm_fmtstr(outpcm.format), outpcm.channels, outpcm.sample_rate, (outpcm.ileaved) ? "i" : "ni"
 				, ffsoxr_errstr(&c->soxr));
 			return FMED_RERR;
 		}
 
 		dbglog(core, d->trk, "soxr", "PCM conversion: %s/%u/%u/%s -> %s/%u/%u/%s"
-			, ffpcm_fmtstr[inpcm.format], inpcm.channels, inpcm.sample_rate, (inpcm.ileaved) ? "i" : "ni"
-			, ffpcm_fmtstr[outpcm.format], outpcm.channels, outpcm.sample_rate, (outpcm.ileaved) ? "i" : "ni");
+			, ffpcm_fmtstr(inpcm.format), inpcm.channels, inpcm.sample_rate, (inpcm.ileaved) ? "i" : "ni"
+			, ffpcm_fmtstr(outpcm.format), outpcm.channels, outpcm.sample_rate, (outpcm.ileaved) ? "i" : "ni");
 		c->state = 2;
 		break;
 

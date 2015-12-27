@@ -631,6 +631,13 @@ static int media_opened(fm_src *src)
 	return 0;
 }
 
+/*
+Example of a typical chain:
+ #queue.track
+ -> INPUT
+ -> DECODER -> (#soundmod.until) -> UI -> #soundmod.gain -> (#soundmod.conv/conv-soxr) -> (ENCODER)
+ -> OUTPUT
+*/
 static void* trk_create(uint cmd, const char *fn)
 {
 	uint nout = 4;
@@ -772,7 +779,7 @@ static void media_process(void *udata)
 	fm_src *src = udata;
 	fmed_f *nf;
 	fmed_f *f;
-	int r, e;
+	int r = FFLIST_CUR_NEXT, e;
 	fftime t1, t2;
 
 	if (src->cur == NULL) {
@@ -787,8 +794,8 @@ static void media_process(void *udata)
 
 		f = FF_GETPTR(fmed_f, sib, src->cur);
 
-		// dbglog(core, src, "core", "calling %s, input: %L"
-		// 	, f->mod->name, f->d.datalen);
+		// dbglog(core, src, "core", "%s calling %s, input: %L"
+		// 	, (r == FFLIST_CUR_NEXT) ? ">>" : "<<", f->mod->name, f->d.datalen);
 		if (core->loglev & FMED_LOG_DEBUG) {
 			ffclk_get(&t1);
 		}

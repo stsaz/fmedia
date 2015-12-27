@@ -1170,7 +1170,7 @@ static void* gtrk_open(fmed_filt *d)
 		, (int)(d->track->getval(d->trk, "bitrate") / 1000)
 		, (FMED_PNULL != (sval = d->track->getvalstr(d->trk, "pcm_decoder"))) ? sval : ""
 		, g->sample_rate
-		, (int)ffpcm_bits[d->track->getval(d->trk, "pcm_format")]
+		, ffpcm_bits(d->track->getval(d->trk, "pcm_format"))
 		, ffpcm_channelstr((int)d->track->getval(d->trk, "pcm_channels")));
 	ffui_view_settext(&it, buf, n);
 	ffui_view_set(&gg->vlist, H_INF, &it);
