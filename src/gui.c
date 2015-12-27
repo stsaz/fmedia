@@ -59,6 +59,10 @@ typedef struct ggui {
 	ffui_edit eout;
 	ffui_btn boutbrowse;
 
+	ffui_wnd winfo;
+	ffui_view vinfo;
+	ffui_paned pninfo;
+
 	ffui_wnd wabout;
 	ffui_ctl labout;
 
@@ -72,6 +76,11 @@ enum LIST_HDR {
 	H_DUR,
 	H_INF,
 	H_FN,
+};
+
+enum {
+	VINFO_NAME,
+	VINFO_VAL,
 };
 
 enum ST {
@@ -118,6 +127,7 @@ static void gui_media_vol(void);
 static void gui_media_showdir(void);
 static void gui_media_copyfn(void);
 static void gui_media_fileop(uint cmd);
+static void gui_media_showinfo(void);
 static void gui_on_dropfiles(ffui_wnd *wnd, ffui_fdrop *df);
 static void gui_que_onchange(fmed_que_entry *e, uint flags);
 static void gui_rec(uint cmd);
@@ -126,6 +136,8 @@ static void gui_onclose(void);
 static void gui_showconvert(void);
 static void gui_conv_browse(void);
 static void gui_convert(void);
+
+static void gui_info_action(ffui_wnd *wnd, int id);
 
 //GUI-TRACK
 static void* gtrk_open(fmed_filt *d);
@@ -189,6 +201,10 @@ static const name_to_ctl ctls[] = {
 	add(eout),
 	add(boutbrowse),
 
+	add(winfo),
+	add(vinfo),
+	add(pninfo),
+
 	add(wabout),
 	add(labout),
 };
@@ -241,6 +257,8 @@ enum CMDS {
 	COPYFN,
 	COPYFILE,
 	DELFILE,
+	SHOWINFO,
+	INFOEDIT,
 
 	HIDE,
 	SHOW,
@@ -287,6 +305,8 @@ static const char *const scmds[] = {
 	"COPYFN",
 	"COPYFILE",
 	"DELFILE",
+	"SHOWINFO",
+	"INFOEDIT",
 
 	"HIDE",
 	"SHOW",
@@ -480,6 +500,9 @@ seek:
 		gui_media_fileop(id);
 		break;
 
+	case SHOWINFO:
+		gui_media_showinfo();
+		break;
 
 	case REMOVE:
 		gui_media_remove();
@@ -525,6 +548,17 @@ seek:
 	case ONCLOSE:
 		gui_task_add(QUIT);
 		gui_onclose();
+		break;
+	}
+}
+
+static void gui_info_action(ffui_wnd *wnd, int id)
+{
+	switch (id) {
+	case INFOEDIT: {
+		int i = ffui_view_selnext(&gg->vinfo, -1);
+		ffui_view_edit(&gg->vinfo, i, VINFO_VAL);
+		}
 		break;
 	}
 }
@@ -827,6 +861,41 @@ done:
 	ffarr_free(&buf);
 }
 
+static void gui_media_showinfo(void)
+{
+	fmed_que_entry *e;
+	ffui_viewitem it;
+	int i;
+	ffstr name, *val;
+
+	ffui_show(&gg->winfo, 1);
+
+	if (-1 == (i = ffui_view_selnext(&gg->vlist, -1))) {
+		ffui_view_clear(&gg->vinfo);
+		return;
+	}
+
+	ffui_view_iteminit(&it);
+	ffui_view_setindex(&it, i);
+	ffui_view_setparam(&it, 0);
+	ffui_view_get(&gg->vlist, 0, &it);
+	e = (void*)ffui_view_param(&it);
+
+	ffui_settextstr(&gg->winfo, &e->url);
+
+	ffui_redraw(&gg->vinfo, 0);
+	ffui_view_clear(&gg->vinfo);
+	for (i = 0;  NULL != (val = gg->qu->meta(e, i, &name, 0));  i++) {
+		ffui_view_iteminit(&it);
+		ffui_view_settextstr(&it, &name);
+		ffui_view_append(&gg->vinfo, &it);
+
+		ffui_view_settextstr(&it, val);
+		ffui_view_set(&gg->vinfo, 1, &it);
+	}
+	ffui_redraw(&gg->vinfo, 1);
+}
+
 static void gui_media_added(fmed_que_entry *ent)
 {
 	ffstr name;
@@ -995,6 +1064,9 @@ static FFTHDCALL int gui_worker(void *param)
 	gg->wmain.onclose_id = ONCLOSE;
 	ffui_settextz(&gg->labout, "fmedia v" FMED_VER "\nhttp://fmedia.firmdev.com");
 	gg->wabout.hide_on_close = 1;
+
+	gg->winfo.hide_on_close = 1;
+	gg->winfo.on_action = &gui_info_action;
 
 	gg->wconvert.hide_on_close = 1;
 	gg->wconvert.on_action = &gui_action;

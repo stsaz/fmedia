@@ -26,6 +26,10 @@ menu mfile {
 	}
 	item "-" {
 	}
+	item "Show Media Info" {
+		action SHOWINFO
+		hotkey "F4"
+	}
 	item "C&opy to Clipboard" {
 		action COPYFILE
 		hotkey "Ctrl+C"
@@ -259,6 +263,31 @@ window wconvert {
 		style visible
 		text "..."
 		action OUTBROWSE
+	}
+}
+
+window winfo {
+	parent wmain
+	position 300 100 300 500
+	style popup
+
+	listview vinfo {
+		position 0 0 100 100
+		style edit_labels explorer_theme grid_lines multi_select visible
+
+		lclick INFOEDIT
+
+		column Name {
+		}
+		column Value {
+			width 200
+		}
+	}
+
+	paned pninfo {
+		child vinfo {
+			resize cx cy
+		}
 	}
 }
 
