@@ -134,8 +134,8 @@ static void que_play(entry *ent)
 		qu->track->setval(trk, "track_duration", e->dur);
 	if (e->from != 0)
 		qu->track->setval(trk, "seek_time_abs", e->from);
-	if (e->to != 0)
-		qu->track->setval(trk, "until_time", e->to);
+	if (e->to != 0 && FMED_NULL == qu->track->getval(trk, "until_time"))
+		qu->track->setval(trk, "until_time", e->to - e->from);
 
 	for (i = 0;  i != e->nmeta;  i += 2) {
 		qu->track->setvalstr(trk, e->meta[i].ptr, e->meta[i + 1].ptr);

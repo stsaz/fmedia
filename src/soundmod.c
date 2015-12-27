@@ -397,13 +397,6 @@ static void* sndmod_untl_open(fmed_filt *d)
 	else
 		u->until = -val * rate / 75;
 
-	if (FMED_NULL != (val = fmed_getval("seek_time_abs"))) {
-		if (val > 0)
-			u->until -= ffpcm_samples(val, rate);
-		else
-			u->until -= -val * rate / 75;
-	}
-
 	val = fmed_getval("pcm_format");
 	u->sampsize = ffpcm_size(val, fmed_getval("pcm_channels"));
 
@@ -437,7 +430,7 @@ static int sndmod_untl_process(void *ctx, fmed_filt *d)
 	pos = fmed_getval("current_position");
 	if (pos + samps >= u->until) {
 		dbglog(core, d->trk, "", "until_time is reached");
-		d->outlen = (u->until - pos) * u->sampsize;
+		d->outlen = (u->until > pos) ? (u->until - pos) * u->sampsize : 0;
 		return FMED_RLASTOUT;
 	}
 

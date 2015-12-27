@@ -659,10 +659,6 @@ static void* trk_create(uint cmd, const char *fn)
 		trk_setval(src, "mpeg-quality", fmed->mpeg_qual);
 
 	if (fmed->until_time != 0) {
-		if (fmed->until_time <= fmed->seek_time) {
-			errlog(core, NULL, "core", "until_time must be bigger than seek_time");
-			goto fail;
-		}
 		trk_setval(src, "until_time", fmed->until_time);
 	}
 
