@@ -25,8 +25,8 @@ typedef struct cue {
 	ffparser p;
 	fmed_que_entry ent;
 	struct { FFARR(ffstr) } metas;
-	uint curtrk
-		, trackno;
+	ffarr trackno;
+	uint curtrk;
 	uint gmeta;
 	uint gaps :2 //enum FFCUE_GAP
 		, skip_remval :1;
@@ -56,6 +56,8 @@ static int cue_process(void *ctx, fmed_filt *d);
 static const fmed_filter fmed_cue_input = {
 	&cue_open, &cue_process, &cue_close
 };
+
+static int cue_trackno(cue *c, fmed_filt *d, ffarr *arr);
 
 //DIR INPUT
 static void* dir_open(fmed_filt *d);
@@ -247,6 +249,37 @@ add_meta:
 }
 
 
+/** Convert a list of track numbers to array. */
+static int cue_trackno(cue *c, fmed_filt *d, ffarr *arr)
+{
+	ffstr s;
+	const char *val;
+	if (FMED_PNULL == (val = d->track->getvalstr(d->trk, "input_trackno")))
+		return 0;
+
+	ffstr_setz(&s, val);
+
+	while (s.len != 0) {
+		size_t len = s.len;
+		uint num;
+		int i = ffs_numlist(s.ptr, &len, &num);
+		ffstr_shift(&s, len);
+
+		if (i < 0) {
+			errlog(core, d->trk, "cue", "invalid value for --track");
+			return -1;
+		}
+
+		uint *n = ffarr_push(arr, uint);
+		if (n == NULL)
+			return -1;
+		*n = num;
+	}
+
+	ffint_sort((uint*)arr->ptr, arr->len, 0);
+	return 0;
+}
+
 static const uint cue_opts[] = {
 	FFCUE_GAPSKIP, FFCUE_GAPPREV, FFCUE_GAPPREV1, FFCUE_GAPCURR
 };
@@ -257,9 +290,11 @@ static void* cue_open(fmed_filt *d)
 	int64 val;
 	if (NULL == (c = ffmem_tcalloc1(cue)))
 		return NULL;
-	c->trackno = -1;
-	if (FMED_NULL != (val = fmed_getval("input_trackno")))
-		c->trackno = (int)val;
+
+	if (0 != cue_trackno(c, d, &c->trackno)) {
+		cue_close(c);
+		return NULL;
+	}
 
 	c->gaps = FFCUE_GAPPREV;
 	if (FMED_NULL != (val = core->getval("cue_gaps"))) {
@@ -279,6 +314,7 @@ static void cue_close(void *ctx)
 	ffpars_free(&c->p);
 	ffstr_free(&c->ent.url);
 	ffarr_free(&c->metas);
+	ffarr_free(&c->trackno);
 	ffmem_free(c);
 }
 
@@ -378,10 +414,12 @@ add_metaname:
 
 add:
 		c->curtrk++;
-		if (c->trackno != -1) {
-			if (c->curtrk != c->trackno)
-				continue;
-			done = 1;
+		if (c->trackno.len != 0) {
+			ssize_t n;
+			if (-1 == (n = ffint_binfind4((uint*)c->trackno.ptr, c->trackno.len, c->curtrk)))
+				goto next;
+			if (n == c->trackno.len - 1)
+				done = 1;
 		}
 
 		if (ctrk->to != 0 && ctrk->from >= ctrk->to) {
@@ -395,6 +433,7 @@ add:
 		c->ent.meta = c->metas.ptr;
 		qu->add(&c->ent);
 
+next:
 		/* 'metas': GLOBAL TRACK_N TRACK_N+1
 		Remove the items for TRACK_N. */
 		ffmemcpy(c->metas.ptr + c->gmeta, c->metas.ptr + c->ent.nmeta, (c->metas.len - c->ent.nmeta) * sizeof(ffstr));

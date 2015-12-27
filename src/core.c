@@ -498,9 +498,9 @@ static int media_open(fm_src *src, const char *fn)
 	if (fmed->fseek)
 		trk_setval(src, "input_seek", fmed->fseek);
 
-	if (fmed->trackno != 0) {
-		trk_setval(src, "input_trackno", fmed->trackno);
-		fmed->trackno = 0;
+	if (fmed->trackno != NULL) {
+		trk_setvalstr4(src, "input_trackno", fmed->trackno, FMED_TRK_FACQUIRE);
+		fmed->trackno = NULL;
 	}
 
 	newfilter(src, "#file.in");
@@ -1157,6 +1157,9 @@ void core_free(void)
 	ffarr_free(&fmed->in_files);
 	ffstr_free(&fmed->outfn);
 	ffstr_free(&fmed->outdir);
+
+	ffstr_free(&fmed->meta);
+	ffmem_safefree(fmed->trackno);
 
 	ffarr_free(&fmed->inmap);
 	ffarr_free(&fmed->outmap);

@@ -12,7 +12,8 @@ Options:
 --seek=TIME    Seek to time
 --until=TIME   Stop at time
 --fseek=BYTE   Set input file offset
---track=NUM    Set track number in playlist
+
+--track=N1[,N2...]    Select specific track numbers in playlist
 
 --info         Just show media information
 
