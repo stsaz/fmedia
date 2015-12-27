@@ -33,6 +33,8 @@ typedef struct flac_out {
 
 static struct flac_out_conf_t {
 	byte level;
+	byte md5;
+	uint sktab_int;
 	uint min_meta_size;
 } flac_out_conf;
 
@@ -69,6 +71,9 @@ static int flac_out_addmeta(flac_out *f, fmed_filt *d);
 static const ffpars_arg flac_out_conf_args[] = {
 	{ "compression",  FFPARS_TINT | FFPARS_F8BIT,  FFPARS_DSTOFF(struct flac_out_conf_t, level) }
 	, { "min_meta_size",  FFPARS_TINT,  FFPARS_DSTOFF(struct flac_out_conf_t, min_meta_size) }
+	,
+	{ "seektable_interval",	FFPARS_TINT,  FFPARS_DSTOFF(struct flac_out_conf_t, sktab_int) },
+	{ "md5",	FFPARS_TBOOL | FFPARS_F8BIT,  FFPARS_DSTOFF(struct flac_out_conf_t, md5) },
 };
 
 
@@ -87,6 +92,8 @@ static const void* flac_iface(const char *name)
 
 	else if (!ffsz_cmp(name, "encode")) {
 		flac_out_conf.level = 8;
+		flac_out_conf.md5 = 1;
+		flac_out_conf.sktab_int = 1;
 		flac_out_conf.min_meta_size = 1000;
 		return &fmed_flac_output;
 	}
@@ -267,7 +274,6 @@ static int flac_out_addmeta(flac_out *f, fmed_filt *d)
 			}
 		}
 	}
-	f->fl.min_meta = flac_out_conf.min_meta_size;
 	return 0;
 }
 
@@ -293,10 +299,11 @@ static void* flac_out_create(fmed_filt *d)
 	if ((int64)f->fl.total_samples == FMED_NULL)
 		f->fl.total_samples = 0;
 
-	if (0 != flac_out_addmeta(f, d))
-		goto fail;
-
+	f->fl.seektable_int = flac_out_conf.sktab_int * fmt.sample_rate;
+	f->fl.min_meta = flac_out_conf.min_meta_size;
 	f->fl.level = flac_out_conf.level;
+	if (!flac_out_conf.md5)
+		f->fl.opts |= FFFLAC_ENC_NOMD5;
 	if (0 != ffflac_create(&f->fl, &fmt)) {
 		errlog(core, d->trk, "flac", "ffflac_create(): %s", ffflac_enc_errstr(&f->fl));
 		goto fail;
@@ -346,6 +353,7 @@ static int flac_out_encode(void *ctx, fmed_filt *d)
 	f->fl.pcmlen = d->datalen;
 	if (d->flags & FMED_FLAST)
 		f->fl.fin = 1;
+again:
 	r = ffflac_encode(&f->fl);
 	d->datalen = f->fl.pcmlen;
 	if (!f->ni)
@@ -358,6 +366,10 @@ static int flac_out_encode(void *ctx, fmed_filt *d)
 	case FFFLAC_RDATA:
 	case FFFLAC_RDONE:
 		break;
+
+	case FFFLAC_RSEEK:
+		fmed_setval("output_seek", f->fl.seekoff);
+		goto again;
 
 	case FFFLAC_RERR:
 	default:
