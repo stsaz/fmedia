@@ -1,3 +1,37 @@
+fmedia v0.7 - Dec 24, 2015
+
+ + TUI: support real-time user commands: "Play/Stop/Next/Previous", "Seek", "Volume", "Remove from playlist", "Delete file from disk"
+ * TUI: always print currently playing position (e.g. while recording)
+ + GUI: show error messages in a separate window
+ * GUI: user settings file is now located in user directory, not application directory
+ - GUI: fix potential threads race when sending commands to a track
+
+ * FLAC, OGG, WavPack: faster "--info"
+
+ + FLAC encode: support generating seek table, MD5 checksum
+ * FLAC encode: preallocate disk space for the whole output file
+ * FLAC decode: improved speed of seeking
+
+ * WavPack: improved speed of seeking
+ - WavPack: decoding might not work if APE tag is present
+ - WavPack: program could hang if a large APE tag is present
+
+ + CUE: value for --track argument may contain a list of track numbers, not just one number
+ + CUE: support one more option for --cue-gaps argument
+ * CUE: skip tracks with invalid duration (i.e. if from >= to)
+ * CUE: don't skip unknown meta tags
+ - CUE: fix potential errors with global CUE meta (those before "FILE" keyword)
+ - CUE: fix meta array memory leak
+
+ + fmedia: new command-line arguments "--meta", "--tags", "--preserve-date"
+ - fmedia: "--until" command didn't work for a track in .cue file
+ * queue: don't remove track from queue on transient or system error unless the error is "unsupported format"
+ * queue: don't play next file if error occurred, unless --silent mode is active
+ * file: support user-specified meta tags while auto-naming output file (--out)
+ * fmedia: --outdir is "." by default
+ - core: Windows: user configuration settings didn't work
+
+
 fmedia v0.6 - Oct 31, 2015
 
  + support Linux

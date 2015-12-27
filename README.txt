@@ -91,7 +91,7 @@ CONFIG
 The global configuration file "fmedia.conf" is located within the fmedia directory itself.  It contains all supported settings and their default values.  You must restart fmedia after you make changes to this file.
 
 Per-user configuration settings are also supported, they must be stored in "fmedia.conf" file in home directory:
- Windows: %APPDATA%/Roaming/fmedia/fmedia.conf
+ Windows: %APPDATA%/fmedia/fmedia.conf
  Linux:   $HOME/.config/fmedia/fmedia.conf
 
 Settings for a module must be in format "so.module.key value", e.g. to overwrite the global setting for OGG Vorbis encoding quality you should write:
@@ -127,7 +127,15 @@ Convert
 	fmedia ./file.ogg --out=./file.wav
 	fmedia ./file.wav --out=./file.ogg --ogg-quality=7.0
 	fmedia ./file.wav --out=./file.mp3 --mpeg-quality=0
+
+Convert all .wav files from the current directory to .ogg
 	fmedia ./*.wav --out=.ogg --outdir=.
+
+Convert file and override the artist name and comment (Linux: single quotes are required!)
+	fmedia ./file.flac --out=.ogg --meta='artist=Artist Name;comment=My Comment'
+
+Extract several tracks from .cue file (Linux: single quotes are required!)
+	fmedia ./album.flac.cue --track=3,7,13 --out='$tracknumber. $artist - $title.flac'
 
 Mix multiple streams
 	fmedia --mix ./file1.ogg ./file2.ogg
@@ -138,17 +146,14 @@ Record while playing
 Live output
 	fmedia --record
 
-Get audio meta info
+Print audio meta info
 	fmedia --info ./file.mp3
 
-Get audio meta info and all tags
-	fmedia --info --debug ./file.mp3
+Print audio meta info and all tags
+	fmedia --info --tags ./file.mp3
 
 Split audio file
 	fmedia ./file.wav --seek=00:35 --until=01:35 --out=./file-1.wav
-
-Extract one track from flac.cue
-	fmedia ./album.flac.cue --track=3 --out=./track3.flac
 
 Play wav file with a corrupted header
 	fmedia ./file.raw --fseek=44

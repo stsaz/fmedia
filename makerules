@@ -1,7 +1,7 @@
 
 OBJ_DIR := .
 BINS := $(BIN) core.$(SO) \
-	ogg-vorbis.$(SO) mpeg.$(SO) wav.$(SO) flac.$(SO) wavpack.$(SO) \
+	ogg-vorbis.$(SO) mpeg.$(SO) wav.$(SO) flac.$(SO) wavpack.$(SO) ape.$(SO) \
 	plist.$(SO) \
 	mixer.$(SO)
 
@@ -81,7 +81,8 @@ mpeg.$(SO): $(MPEG_O)
 #
 OGG_O := $(OBJ_DIR)/ogg.o \
 	$(FF_O) \
-	$(FF_OBJ_DIR)/ffogg.o
+	$(FF_OBJ_DIR)/ffogg.o \
+	$(FF_OBJ_DIR)/ffvorbistag.o
 ogg-vorbis.$(SO): $(OGG_O)
 	$(LD) -shared $(OGG_O) $(LDFLAGS) -logg-ff -lvorbis-ff -lvorbisenc-ff  -o$@
 
@@ -107,6 +108,19 @@ WAVPACK_O := $(OBJ_DIR)/wavpack.o \
 	$(FF_OBJ_DIR)/ffpcm.o
 wavpack.$(SO): $(WAVPACK_O)
 	$(LD) -shared $(WAVPACK_O) $(LDFLAGS) -lwavpack-ff  -o$@
+
+
+#
+APE_O := $(OBJ_DIR)/ape.o \
+	$(FF_O) \
+	$(FF_OBJ_DIR)/ffape.o \
+	$(FF_OBJ_DIR)/ffapetag.o \
+	$(FF_OBJ_DIR)/ffid3.o \
+	$(FF_OBJ_DIR)/ffutf8.o \
+	$(FF_OBJ_DIR)/ffpcm.o
+ape.$(SO): $(APE_O)
+	$(LD) -shared $(APE_O) $(LDFLAGS)   -o$@
+# -lape-ff
 
 
 #
