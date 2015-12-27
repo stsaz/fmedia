@@ -235,6 +235,11 @@ do { \
 #define syserrlog(core, trk, mod, fmt, ...) \
 	(core)->log(ffstderr, trk, mod, "error", fmt ": %E", __VA_ARGS__, fferr_last())
 
+typedef struct fmed_log {
+	void (*log)(const char *stime, const char *module, const char *level, const ffstr *id,
+		const char *fmt, va_list va);
+} fmed_log;
+
 
 typedef struct fmed_que_entry {
 	ffstr url;

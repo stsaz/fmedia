@@ -67,6 +67,10 @@ typedef struct ggui {
 	ffui_wnd wabout;
 	ffui_ctl labout;
 
+	ffui_wnd wlog;
+	ffui_paned pnlog;
+	ffui_edit tlog;
+
 	ffthd th;
 } ggui;
 
@@ -186,6 +190,13 @@ static const ffpars_arg gui_conf[] = {
 	{ "convert_format",	FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY, FFPARS_DSTOFF(ggui, conv_fmt) },
 };
 
+//LOG
+static void gui_log(const char *stime, const char *module, const char *level, const ffstr *id,
+	const char *fmt, va_list va);
+static const fmed_log gui_logger = {
+	&gui_log
+};
+
 
 FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 {
@@ -234,6 +245,10 @@ static const name_to_ctl ctls[] = {
 
 	add(wabout),
 	add(labout),
+
+	add(wlog),
+	add(pnlog),
+	add(tlog),
 };
 #undef add
 
@@ -1139,6 +1154,8 @@ static FFTHDCALL int gui_worker(void *param)
 	gg->winfo.hide_on_close = 1;
 	gg->winfo.on_action = &gui_info_action;
 
+	gg->wlog.hide_on_close = 1;
+
 	gg->wconvert.hide_on_close = 1;
 	gg->wconvert.on_action = &gui_cvt_action;
 
@@ -1173,6 +1190,9 @@ static const void* gui_iface(const char *name)
 			return NULL;
 
 		return &fmed_gui;
+
+	} else if (!ffsz_cmp(name, "log")) {
+		return &gui_logger;
 	}
 	return NULL;
 }
@@ -1414,4 +1434,25 @@ done:
 	if (d->flags & FMED_FLAST)
 		return FMED_RDONE;
 	return FMED_ROK;
+}
+
+
+static void gui_log(const char *stime, const char *module, const char *level, const ffstr *id,
+	const char *fmt, va_list va)
+{
+	char buf[4096];
+	char *s = buf;
+	const char *end = buf + sizeof(buf) - FFSLEN("\r\n");
+
+	s += ffs_fmt(s, end, "%s %s %s: ", stime, level, module);
+	if (id != NULL)
+		s += ffs_fmt(s, end, "%S:\t", id);
+	s += ffs_fmtv(s, end, fmt, va);
+	*s++ = '\r';
+	*s++ = '\n';
+
+	ffui_edit_addtext(&gg->tlog, buf, s - buf);
+
+	if (!ffsz_cmp(level, "error"))
+		ffui_show(&gg->wlog, 1);
 }

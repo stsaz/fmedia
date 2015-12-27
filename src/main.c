@@ -29,7 +29,7 @@ static int fmed_arg_seek(ffparser_schem *p, void *obj, const ffstr *val);
 
 static int pcm_formatstr(const char *s, size_t len);
 static int open_input(void);
-static void fmed_log(fffd fd, const char *stime, const char *module, const char *level
+static void addlog(fffd fd, const char *stime, const char *module, const char *level
 	, const ffstr *id, const char *fmt, va_list va);
 static void fmed_onsig(void *udata);
 
@@ -212,7 +212,7 @@ static int pcm_formatstr(const char *s, size_t len)
 }
 
 
-static void fmed_log(fffd fd, const char *stime, const char *module, const char *level
+static void addlog(fffd fd, const char *stime, const char *module, const char *level
 	, const ffstr *id, const char *fmt, va_list va)
 {
 	char buf[4096];
@@ -325,7 +325,7 @@ int main(int argc, char **argv)
 
 	fffile_writecz(ffstdout, "fmedia v" FMED_VER "\n");
 
-	if (NULL == (core = core_init(&fmed, &fmed_log)))
+	if (NULL == (core = core_init(&fmed, &addlog)))
 		return 1;
 
 	{

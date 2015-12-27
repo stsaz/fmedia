@@ -308,3 +308,25 @@ window wabout {
 		}
 	}
 }
+
+window wlog {
+	parent wmain
+	title "Log"
+	position 300 300 400 200
+	style popup
+
+	text tlog {
+		position 0 0 100 100
+		style visible
+		font {
+			name "Courier New"
+			height 10
+		}
+	}
+
+	paned pnlog {
+		child tlog {
+			resize cx cy
+		}
+	}
+}

@@ -10,19 +10,23 @@ Copyright (c) 2015 Simon Zolin */
 
 static fmedia *fmed;
 static fmed_core *core;
+static const fmed_log *lg;
 
 
 FF_IMP fmed_core* core_init(fmedia **ptr, fmed_log_t logfunc);
 FF_IMP void core_free(void);
 
 static void open_input(void);
-static void fmed_log(fffd fd, const char *stime, const char *module, const char *level
+static void addlog(fffd fd, const char *stime, const char *module, const char *level
 	, const ffstr *id, const char *fmt, va_list va);
 
 
-static void fmed_log(fffd fd, const char *stime, const char *module, const char *level
+static void addlog(fffd fd, const char *stime, const char *module, const char *level
 	, const ffstr *id, const char *fmt, va_list va)
 {
+	if (lg == NULL)
+		return;
+	lg->log(stime, module, level, id, fmt, va);
 }
 
 static void open_input(void)
@@ -69,7 +73,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
 {
 	ffmem_init();
 
-	if (NULL == (core = core_init(&fmed, &fmed_log)))
+	if (NULL == (core = core_init(&fmed, &addlog)))
 		return 1;
 
 	{
@@ -85,6 +89,9 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
 
 	fmed->gui = 1;
 	if (0 != core->sig(FMED_CONF))
+		goto end;
+
+	if (NULL == (lg = core->getmod("gui.log")))
 		goto end;
 
 	if (0 != core->sig(FMED_OPEN))
