@@ -103,6 +103,11 @@ EXTRACT TRACKS FROM flac.cue
 If you're extracting a track from the album using CUE sheet, please note, that a track isn't exactly copied but first decoded to PCM and then re-encoded with FLAC.  Luckily, this behaviour won't result in any audio quality loss since FLAC is a lossless codec.  However, fmedia doesn't support pictures (album covers) in FLAC header, so they won't be copied into the output file.
 
 ---------------
+TERMINAL UI
+---------------
+By default fmedia runs with a terminal UI, which shows information about the currently playing audio track and the currently playing audio position.  User commands such as seeking are also supported, all supported commands are described in file "help-tui.txt".
+
+---------------
 GRAPHICAL UI
 ---------------
 If you specify '--gui' argument to fmedia binary, it will run in GUI mode:

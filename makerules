@@ -184,7 +184,7 @@ installd: all
 
 	mkdir -vp $(INSTDIR)
 	$(CP) $(BIN) *.$(SO) \
-		$(PROJDIR)/fmedia.conf $(PROJDIR)/help.txt $(PROJDIR)/README.txt $(PROJDIR)/CHANGES.txt \
+		$(PROJDIR)/fmedia.conf $(PROJDIR)/help*.txt $(PROJDIR)/README.txt $(PROJDIR)/CHANGES.txt \
 		$(INSTDIR)/
 	$(CP) \
 		$(FF3PTLIB)/libogg-ff.$(SO) $(FF3PTLIB)/libvorbis-ff.$(SO) $(FF3PTLIB)/libvorbisenc-ff.$(SO) \

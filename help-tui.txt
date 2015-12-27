@@ -1,0 +1,22 @@
+fmedia Terminal UI commands:
+
+Key    Command
+--------------
+Space  Play
+s      Stop
+n      Next track
+p      Previous track
+q      Quit
+h      Show help
+
+Right  Seek forward
+Left   Seek backward
+Supported key modifiers:
+  +Alt   medium step
+  +Ctrl  large step
+
+Up     Volume up
+Down   Volume down
+
+d      Remove the track from playlist
+D      Delete file from disk

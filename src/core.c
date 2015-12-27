@@ -185,9 +185,14 @@ static int allowed_mod(const ffstr *name)
 static int fmed_conf_mod(ffparser_schem *p, void *obj, ffstr *val)
 {
 	fmed_config *conf = obj;
-	if (!(ffstr_eqcz(val, "gui.gui") && !conf->gui)
-		&& NULL == core->insmod(val->ptr, NULL))
+
+	if (ffstr_eqcz(val, "#tui.tui") && (conf->silent || conf->gui))
+		goto done;
+
+	if (NULL == core->insmod(val->ptr, NULL))
 		return FFPARS_ESYS;
+
+done:
 	ffstr_free(val);
 	return 0;
 }
