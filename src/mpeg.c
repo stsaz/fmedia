@@ -277,7 +277,7 @@ again:
 					, ffid3_size(&m->mpg.id32tag.h));
 				continue;
 			}
-			errlog(core, d->trk, "mpeg", "warning: near sample %u: ffmpg_decode(): %s"
+			warnlog(core, d->trk, "mpeg", "near sample %U: ffmpg_decode(): %s"
 				, ffmpg_cursample(&m->mpg), ffmpg_errstr(&m->mpg));
 			break;
 

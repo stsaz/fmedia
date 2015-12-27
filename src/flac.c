@@ -190,7 +190,7 @@ again:
 		switch (r) {
 		case FFFLAC_RMORE:
 			if (d->flags & FMED_FLAST) {
-				dbglog(core, d->trk, "flac", "file is incomplete");
+				warnlog(core, d->trk, "flac", "file is incomplete");
 				d->outlen = 0;
 				return FMED_RDONE;
 			}
@@ -241,6 +241,11 @@ again:
 		case FFFLAC_RDONE:
 			d->outlen = 0;
 			return FMED_RDONE;
+
+		case FFFLAC_RWARN:
+			warnlog(core, d->trk, "flac", "ffflac_decode(): at offset 0x%xU: %s"
+				, f->fl.off, ffflac_errstr(&f->fl));
+			break;
 
 		case FFFLAC_RERR:
 			errlog(core, d->trk, "flac", "ffflac_decode(): %s", ffflac_errstr(&f->fl));

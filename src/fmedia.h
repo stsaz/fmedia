@@ -18,6 +18,7 @@ mixer                 mixer
 #include <FF/audio/pcm.h>
 #include <FF/data/parse.h>
 #include <FFOS/file.h>
+#include <FFOS/error.h>
 #include <FF/taskqueue.h>
 
 
@@ -228,6 +229,9 @@ do { \
 	if ((core)->loglev & FMED_LOG_DEBUG) \
 		(core)->log(ffstdout, trk, mod, "debug", __VA_ARGS__); \
 } while (0)
+
+#define warnlog(core, trk, mod, ...) \
+	(core)->log(ffstderr, trk, mod, "warning", __VA_ARGS__)
 
 #define errlog(core, trk, mod, ...) \
 	(core)->log(ffstderr, trk, mod, "error", __VA_ARGS__)

@@ -234,7 +234,7 @@ again:
 			return FMED_RMORE;
 
 		case FFOGG_RWARN:
-			errlog(core, d->trk, "ogg", "warning: near sample %u: ffogg_decode(): %s"
+			warnlog(core, d->trk, "ogg", "near sample %U: ffogg_decode(): %s"
 				, ffogg_cursample(&o->og), ffogg_errstr(o->og.err));
 			break;
 

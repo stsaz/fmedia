@@ -189,7 +189,7 @@ again:
 		switch (r) {
 		case FFWVPK_RMORE:
 			if (d->flags & FMED_FLAST) {
-				dbglog(core, d->trk, "wvpk", "file is incomplete");
+				warnlog(core, d->trk, "wvpk", "file is incomplete");
 				d->outlen = 0;
 				return FMED_RDONE;
 			}
@@ -241,7 +241,8 @@ again:
 			return FMED_RLASTOUT;
 
 		case FFWVPK_RWARN:
-			errlog(core, d->trk, "wvpk", "warning: ffwvpk_decode(): %s", ffwvpk_errstr(&w->wp));
+			warnlog(core, d->trk, "wvpk", "ffwvpk_decode(): at offset %xU: %s"
+				, w->wp.off, ffwvpk_errstr(&w->wp));
 			break;
 
 		case FFWVPK_RERR:
