@@ -1363,7 +1363,8 @@ static void* gtrk_open(fmed_filt *d)
 	gg->curtrk = g;
 	fflk_unlock(&gg->lktrk);
 
-	gui_action(&gg->wmain, VOL);
+	if (FMED_PNULL == d->track->getvalstr(d->trk, "output")) // if not audio conversion
+		gui_action(&gg->wmain, VOL);
 
 	fflk_lock(&gg->lk);
 	g->state = ST_PLAYING;
