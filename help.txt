@@ -60,6 +60,9 @@ Other options:
                     track01.index00 .. track02.index01
                     track02.index01 .. track03.index01
 
+                  3: gap is added to the beginning of the current track:
+                    track01.index00 .. track02.index00
+
 --pcm-peaks  Analyze PCM and print some details.
 --pcm-crc    Print CRC of PCM data (must be used with --pcm-peaks).
              Useful for checking the results of lossless audio conversion.

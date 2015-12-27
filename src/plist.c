@@ -21,23 +21,14 @@ typedef struct m3u {
 	uint furl :1;
 } m3u;
 
-enum CUE_GAP {
-	GAP_PREV,
-	GAP_PREV1,
-	GAP_SKIP,
-};
-
 typedef struct cue {
 	ffparser p;
-	fmed_que_entry ent
-		, ent_prev;
-	struct { FFARR(ffstr) } metas
-		, metas_prev;
+	fmed_que_entry ent;
+	struct { FFARR(ffstr) } metas;
 	uint curtrk
 		, trackno;
 	uint gmeta;
-	uint furl :1
-		, gaps :2 //enum CUE_GAP
+	uint gaps :2 //enum FFCUE_GAP
 		, skip_remval :1;
 } cue;
 
@@ -252,6 +243,10 @@ add_meta:
 }
 
 
+static const uint cue_opts[] = {
+	FFCUE_GAPSKIP, FFCUE_GAPPREV, FFCUE_GAPPREV1, FFCUE_GAPCURR
+};
+
 static void* cue_open(fmed_filt *d)
 {
 	cue *c;
@@ -262,26 +257,15 @@ static void* cue_open(fmed_filt *d)
 	if (FMED_NULL != (val = fmed_getval("input_trackno")))
 		c->trackno = (int)val;
 
-	c->gaps = GAP_PREV;
+	c->gaps = FFCUE_GAPPREV;
 	if (FMED_NULL != (val = core->getval("cue_gaps"))) {
-		switch (val) {
-		case 0:
-			c->gaps = GAP_SKIP;
-			break;
-		case 1:
-			c->gaps = GAP_PREV;
-			break;
-		case 2:
-			c->gaps = GAP_PREV1;
-			break;
-
-		default:
-			errlog(core, d->trk, "cue", "cue_gaps value must be within 0..2 range");
-		}
+		if (val > FFCNT(cue_opts))
+			errlog(core, d->trk, "cue", "cue_gaps value must be within 0..3 range");
+		else
+			c->gaps = cue_opts[val];
 	}
 
 	ffpars_init(&c->p);
-	ffmem_tzero(&c->ent);
 	return c;
 }
 
@@ -289,8 +273,7 @@ static void cue_close(void *ctx)
 {
 	cue *c = ctx;
 	ffpars_free(&c->p);
-	if (c->furl)
-		ffstr_free(&c->ent.url);
+	ffstr_free(&c->ent.url);
 	ffarr_free(&c->metas);
 	ffmem_free(c);
 }
@@ -299,19 +282,29 @@ static int cue_process(void *ctx, fmed_filt *d)
 {
 	cue *c = ctx;
 	size_t n;
-	int r;
+	int r, done = 0;
 	ffstr *meta;
 	ffstr metaname;
+	ffcue cu = {0};
+	ffcuetrk *ctrk;
 
-	for (;;) {
+	cu.options = c->gaps;
+
+	while (!done) {
 		n = d->datalen;
 		r = ffcue_parse(&c->p, d->data, &n);
 		d->data += n;
 		d->datalen -= n;
 
-		if (r == FFPARS_MORE)
-			break;
-		else if (ffpars_iserr(r)) {
+		if (r == FFPARS_MORE) {
+			// end of .cue file
+			if (NULL == (ctrk = ffcue_index(&cu, FFCUE_FIN, 0)))
+				break;
+			done = 1;
+			c->ent.nmeta = c->metas.len;
+			goto add;
+
+		} else if (ffpars_iserr(r)) {
 			errlog(core, d, "cue", "parse error at line %u: %s"
 				, c->p.line, ffpars_errstr(r));
 			return FMED_RERR;
@@ -323,18 +316,16 @@ static int cue_process(void *ctx, fmed_filt *d)
 			goto add_metaname;
 
 		case FFCUE_TRACKNO:
+			c->ent.nmeta = c->metas.len;
 			ffstr_setcz(&metaname, "meta_tracknumber");
 			goto add_metaname;
 
 		case FFCUE_TRK_TITLE:
-			if (c->gmeta == 0 && c->metas.len != 0)
-				c->gmeta = c->metas.len - 2;
 			ffstr_setcz(&metaname, "meta_title");
 			goto add_metaname;
 
+		case FFCUE_PERFORMER:
 		case FFCUE_TRK_PERFORMER:
-			if (c->gmeta == 0 && c->metas.len != 0)
-				c->gmeta = c->metas.len - 2;
 			ffstr_setcz(&metaname, "meta_artist");
 
 add_metaname:
@@ -370,68 +361,42 @@ add_metaname:
 			break;
 
 		case FFCUE_FILE:
-			if (c->ent_prev.url.len != 0) {
-				qu->add(&c->ent_prev);
-				ffmem_tzero(&c->ent_prev);
-			}
-			if (c->furl)
-				ffstr_free(&c->ent.url);
+			if (c->gmeta == 0)
+				c->gmeta = c->metas.len;
+			ffstr_free(&c->ent.url);
 			if (0 != plist_fullname(d, &c->p.val, &c->ent.url))
 				return FMED_RERR;
-			c->furl = 1;
-			break;
-
-		case FFCUE_TRK_INDEX00:
-			if (c->gaps == GAP_SKIP && c->ent_prev.url.len != 0) {
-				c->ent_prev.dur = (int)c->p.intval - c->ent_prev.from;
-				c->ent_prev.to = (int)c->p.intval;
-			}
-			break;
-
-		case FFCUE_TRK_INDEX:
-			if (c->ent_prev.url.len != 0 && c->ent_prev.dur == 0) {
-				c->ent_prev.dur = (int)c->p.intval - c->ent_prev.from;
-				c->ent_prev.to = (int)c->p.intval;
-			}
-
-			if (c->ent_prev.url.len != 0 && c->trackno == -1) {
-				c->ent_prev.from = -c->ent_prev.from;
-				c->ent_prev.to = -c->ent_prev.to;
-				c->ent_prev.dur = c->ent_prev.dur * 1000 / 75;
-				qu->add(&c->ent_prev);
-			} else if (c->curtrk == c->trackno)
-				goto done;
-
-			c->ent.from = c->p.intval;
-			if (c->ent_prev.url.len == 0 && c->gaps == GAP_PREV1)
-				c->ent.from = 0;
-
-			// move "ent" -> "ent_prev"
-			c->ent_prev = c->ent;
-			ffmem_tzero(&c->ent);
-			c->ent.url = c->ent_prev.url;
-
-			// copy "metas" -> "metas_prev", remove per-track info from "metas"
-			if (NULL == ffarr_realloc(&c->metas_prev, c->metas.len))
-				return FMED_RERR;
-			ffmemcpy(c->metas_prev.ptr, c->metas.ptr, c->metas.len * sizeof(ffstr));
-			c->metas_prev.len = c->metas.len;
-			c->ent_prev.meta = c->metas_prev.ptr;
-			c->ent_prev.nmeta = c->metas_prev.len;
-			c->metas.len = c->gmeta;
-			c->curtrk++;
 			break;
 		}
+
+		if (NULL == (ctrk = ffcue_index(&cu, c->p.type, (int)c->p.intval)))
+			continue;
+
+add:
+		c->curtrk++;
+		if (c->trackno != -1) {
+			if (c->curtrk != c->trackno)
+				continue;
+			done = 1;
+		}
+
+		if (ctrk->to != 0 && ctrk->from >= ctrk->to) {
+			errlog(core, d->trk, "cue", "invalid INDEX values");
+			continue;
+		}
+
+		c->ent.from = -(int)ctrk->from;
+		c->ent.to = -(int)ctrk->to;
+		c->ent.dur = (ctrk->to != 0) ? (ctrk->to - ctrk->from) * 1000 / 75 : 0;
+		c->ent.meta = c->metas.ptr;
+		qu->add(&c->ent);
+
+		/* 'metas': GLOBAL TRACK_N TRACK_N+1
+		Remove the items for TRACK_N. */
+		ffmemcpy(c->metas.ptr + c->gmeta, c->metas.ptr + c->ent.nmeta, (c->metas.len - c->ent.nmeta) * sizeof(ffstr));
+		c->metas.len = c->gmeta + c->metas.len - c->ent.nmeta;
 	}
 
-done:
-	if (c->ent_prev.url.len != 0
-		&& (c->trackno == -1 || c->curtrk == c->trackno)) {
-		c->ent_prev.from = -c->ent_prev.from;
-		c->ent_prev.to = -c->ent_prev.to;
-		c->ent_prev.dur = c->ent_prev.dur * 1000 / 75;
-		qu->add(&c->ent_prev);
-	}
 	return FMED_RERR; //stop this track
 }
 
