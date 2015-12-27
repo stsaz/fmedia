@@ -250,7 +250,7 @@ static void fmed_onsig(void *udata)
 
 	if (NULL == (track = core->getmod("#core.track")))
 		return;
-	track->cmd((void*)-1, FMED_TRACK_STOPALL);
+	track->cmd((void*)-1, FMED_TRACK_STOPALL_EXIT);
 }
 
 #ifdef FF_WIN

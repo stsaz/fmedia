@@ -26,6 +26,7 @@ typedef struct que {
 	void *tsk_param;
 
 	uint quit_if_done :1
+		, next_if_err :1
 		, mixing :1;
 } que;
 
@@ -89,6 +90,8 @@ static int que_sig(uint signo)
 		qu->track = core->getmod("#core.track");
 		if (1 != core->getval("gui"))
 			qu->quit_if_done = 1;
+		if (1 == core->getval("next_if_error"))
+			qu->next_if_err = 1;
 
 		qu->tsk.handler = &que_taskfunc;
 		break;
@@ -425,9 +428,13 @@ static void que_trk_close(void *ctx)
 		goto done;
 	}
 
-	if (1 != t->track->getval(t->trk, "stopped"))
-		next = que_getnext(t->e);
-	else if (qu->quit_if_done) {
+	int stopped = t->track->getval(t->trk, "stopped");
+	int err = t->track->getval(t->trk, "error");
+
+	if (stopped == FMED_NULL && (err == FMED_NULL || qu->next_if_err))
+		next = que_getnext(!t->e->rm ? t->e : NULL);
+
+	else if (stopped == FMED_TRACK_STOPALL_EXIT) {
 		core->sig(FMED_STOP);
 		goto done;
 	}

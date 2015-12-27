@@ -171,7 +171,7 @@ static void alsa_close(void *ctx)
 	if (mod->usedby == a) {
 		void *trk = a->task.param;
 
-		if (1 == mod->track->getval(trk, "stopped")) {
+		if (FMED_NULL != mod->track->getval(trk, "stopped")) {
 			ffalsa_close(&mod->out);
 			ffmem_tzero(&mod->out);
 			mod->out_valid = 0;

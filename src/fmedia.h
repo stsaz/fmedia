@@ -104,6 +104,7 @@ enum FMED_TRACK {
 	 . NULL: all playing
 	 . (void*)-1: all (playing and recording). */
 	FMED_TRACK_STOPALL,
+	FMED_TRACK_STOPALL_EXIT,
 };
 
 enum FMED_TRK_FVAL {
@@ -181,6 +182,8 @@ enum FMED_R {
 	, FMED_RDONE //output data is completed, remove this module from the chain
 	, FMED_RDONE_PREV //the same as FMED_RDONE, but move backward through the chain
 	, FMED_RLASTOUT //output data is completed, remove this & all previous modules from the chain
+	, FMED_RFIN //close the track
+	, FMED_RSYSERR //system error.  Print error message and close the track.
 	, FMED_RERR = -1 //fatal error, the track will be closed.
 };
 

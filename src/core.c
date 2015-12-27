@@ -88,7 +88,7 @@ static void media_open_capt(fm_src *src);
 static void media_open_mix(fm_src *src);
 static void media_free(fm_src *src);
 static void media_process(void *udata);
-static void media_stop(fm_src *src);
+static void media_stop(fm_src *src, uint flags);
 static fmed_f* media_modbyext(fm_src *src, const ffstr3 *map, const ffstr *ext);
 static void media_printtime(fm_src *src);
 
@@ -703,10 +703,10 @@ fail:
 	return NULL;
 }
 
-static void media_stop(fm_src *src)
+static void media_stop(fm_src *src, uint flags)
 {
 	fmed_f *f;
-	trk_setval(src, "stopped", 1);
+	trk_setval(src, "stopped", flags);
 	FFARR_WALK(&src->filters, f) {
 		f->d.flags |= FMED_FSTOP;
 	}
@@ -773,7 +773,7 @@ static void media_free(fm_src *src)
 
 // enum FMED_R
 static const char *const fmed_retstr[] = {
-	"err", "ok", "data", "more", "async", "done", "done-prev", "last-out"
+	"err", "ok", "data", "more", "async", "done", "done-prev", "last-out", "fin", "syserr",
 };
 
 static void media_process(void *udata)
@@ -814,6 +814,9 @@ static void media_process(void *udata)
 		// 	, f->mod->name, (e + 1 < FFCNT(fmed_retstr)) ? fmed_retstr[e + 1] : "", f->d.outlen);
 
 		switch (e) {
+		case FMED_RSYSERR:
+			syserrlog(core, src, f->mod->name, "%s", "system error");
+			// break
 		case FMED_RERR:
 			src->err = 1;
 			goto fin;
@@ -848,6 +851,9 @@ static void media_process(void *udata)
 			f->d.datalen = 0;
 			r = FFLIST_CUR_NEXT | FFLIST_CUR_RM | FFLIST_CUR_RMPREV;
 			break;
+
+		case FMED_RFIN:
+			goto fin;
 
 		default:
 			errlog(core, src, "core", "unknown return code from module: %u", e);
@@ -994,17 +1000,24 @@ static int trk_cmd(void *trk, uint cmd)
 	dbglog(core, NULL, "track", "received command:%u, trk:%p", cmd, trk);
 
 	switch (cmd) {
+	case FMED_TRACK_STOPALL_EXIT:
+		if (fmed->srcs.len == 0) {
+			core_sig(FMED_STOP);
+			break;
+		}
+		// break
+
 	case FMED_TRACK_STOPALL:
 		FFLIST_WALKSAFE(&fmed->srcs, src, sib, next) {
 			if (src->capture && trk == NULL)
 				continue;
 
-			media_stop(src);
+			media_stop(src, cmd);
 		}
 		break;
 
 	case FMED_TRACK_STOP:
-		media_stop(src);
+		media_stop(src, FMED_TRACK_STOP);
 		break;
 
 	case FMED_TRACK_START:
@@ -1424,6 +1437,8 @@ static int64 core_getval(const char *name)
 		return fmed->repeat_all;
 	else if (!ffsz_cmp(name, "gui"))
 		return fmed->gui;
+	else if (!ffsz_cmp(name, "next_if_error"))
+		return fmed->silent;
 	else if (!ffsz_cmp(name, "cue_gaps") && fmed->cue_gaps != 255)
 		return fmed->cue_gaps;
 	return FMED_NULL;

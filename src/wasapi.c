@@ -323,7 +323,7 @@ static void wasapi_close(void *ctx)
 	wasapi_out *w = ctx;
 	if (mod->usedby == w) {
 		void *trk = w->task.param;
-		if (1 == mod->track->getval(trk, "stopped")) {
+		if (FMED_NULL != mod->track->getval(trk, "stopped")) {
 			ffwas_close(&mod->out);
 			ffmem_tzero(&mod->out);
 			mod->out_valid = 0;
