@@ -586,8 +586,7 @@ static int media_setout(fm_src *src)
 		if (name.len != 0)
 			trk_setvalstr(src, "output", fmed->outfn.ptr);
 
-		else if (fmed->outdir.len != 0
-			&& FMED_PNULL != (fn = trk_getvalstr(src, "input"))) {
+		else if (FMED_PNULL != (fn = trk_getvalstr(src, "input"))) {
 
 			ffstr fname;
 			ffstr3 outfn = {0};
@@ -601,7 +600,7 @@ static int media_setout(fm_src *src)
 			trk_setvalstr4(src, "output", outfn.ptr, FMED_TRK_FACQUIRE);
 
 		} else {
-			errlog(core, src, "core", "--out or --outdir must be set");
+			errlog(core, src, "core", "--out must be set");
 			return -1;
 		}
 
@@ -1149,6 +1148,10 @@ fmed_core* core_init(fmedia **ptr, fmed_log_t logfunc)
 	fmed->mpeg_qual = 0xffff;
 	fmed->cue_gaps = 255;
 	fmed->wav_formt = 255;
+	if (NULL == ffstr_copy(&fmed->outdir, FFSTR("."))) {
+		core_free();
+		return NULL;
+	}
 
 	*ptr = fmed;
 	return core;
