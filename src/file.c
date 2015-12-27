@@ -245,8 +245,13 @@ static int file_getdata(void *ctx, fmed_filt *d)
 
 		/* don't do unnecessary file_read() if seek position is within the current buffers,
 			instead, just shift offsets in the buffers */
-		if (seek >= f->aoff && seek < f->foff) {
-			uint64 pos = seek - f->aoff;
+		uint64 cursize = 0;
+		for (i = 0;  i != file_in_conf.nbufs;  i++) {
+			cursize += f->data[i].len;
+			f->data[i].off = 0;
+		}
+		if (seek >= f->foff - cursize && seek < f->foff) {
+			uint64 pos = seek - (f->foff - cursize);
 			dbglog(core, NULL, "file", "shifting %U bytes", pos);
 
 			while (pos != 0) {
