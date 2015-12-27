@@ -111,9 +111,13 @@ enum FMED_TRK_FVAL {
 	FMED_TRK_FNO_OVWRITE = 4, //don't overwrite if already exists
 };
 
+#define FMED_TRK_ETMP  NULL // transient/system error
+#define FMED_TRK_EFMT  ((void*)-1) // format is unsupported
+
 typedef struct fmed_track {
 	/**
-	@cmd: enum FMED_TRACK. */
+	@cmd: enum FMED_TRACK.
+	Return track ID;  FMED_TRK_E* on error. */
 	void* (*create)(uint cmd, const char *url);
 
 	/**
@@ -181,6 +185,7 @@ enum FMED_R {
 };
 
 #define FMED_FILT_SKIP  ((void*)-1)
+#define FMED_FILT_DUMMY  ((void*)-2)
 
 struct fmed_filter {
 	/** Return NULL on error.

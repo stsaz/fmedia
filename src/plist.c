@@ -59,8 +59,10 @@ static const fmed_filter fmed_cue_input = {
 
 //DIR INPUT
 static void* dir_open(fmed_filt *d);
+static void dir_close(void *ctx);
+static int dir_process(void *ctx, fmed_filt *d);
 static const fmed_filter fmed_dir_input = {
-	&dir_open, NULL, NULL
+	&dir_open, &dir_process, &dir_close
 };
 
 static void m3u_reset(m3u *m);
@@ -234,8 +236,10 @@ add_meta:
 		}
 	}
 
-	if (d->flags & FMED_FLAST)
-		return FMED_RERR; //stop this track
+	if (d->flags & FMED_FLAST) {
+		qu->cmd(FMED_QUE_RM, (void*)fmed_getval("queue_item"));
+		return FMED_RFIN;
+	}
 
 	m3u_copy(m);
 
@@ -397,7 +401,8 @@ add:
 		c->metas.len = c->gmeta + c->metas.len - c->ent.nmeta;
 	}
 
-	return FMED_RERR; //stop this track
+	qu->cmd(FMED_QUE_RM, (void*)fmed_getval("queue_item"));
+	return FMED_RFIN;
 }
 
 
@@ -423,5 +428,15 @@ static void* dir_open(fmed_filt *d)
 	}
 
 	ffdir_expclose(&dr);
-	return NULL;
+	qu->cmd(FMED_QUE_RM, (void*)fmed_getval("queue_item"));
+	return FMED_FILT_DUMMY;
+}
+
+static void dir_close(void *ctx)
+{
+}
+
+static int dir_process(void *ctx, fmed_filt *d)
+{
+	return FMED_RFIN;
 }

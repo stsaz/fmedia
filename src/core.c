@@ -678,7 +678,8 @@ static void* trk_create(uint cmd, const char *fn)
 		if (NULL == ffarr_grow(&src->filters, 6 + nout, 0))
 			goto fail;
 		if (0 != media_open(src, fn)) {
-			trk_setval(src, "error", 1);
+			media_free(src);
+			return FMED_TRK_EFMT;
 		}
 		break;
 

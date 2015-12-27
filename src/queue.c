@@ -128,8 +128,17 @@ static void que_play(entry *ent)
 	fmed_que_entry *e = &ent->e;
 	void *trk = qu->track->create(FMED_TRACK_OPEN, e->url.ptr);
 	uint i;
+
 	if (trk == NULL)
 		return;
+	else if (trk == FMED_TRK_EFMT) {
+		qu->tsk_param = que_getnext(ent);
+		que_task_add(FMED_QUE_PLAY);
+
+		que_cmd(FMED_QUE_RM, e);
+		return;
+	}
+
 	if (e->dur != 0)
 		qu->track->setval(trk, "track_duration", e->dur);
 	if (e->from != 0)
@@ -422,10 +431,6 @@ static void que_trk_close(void *ctx)
 		core->sig(FMED_STOP);
 		goto done;
 	}
-
-	//delete the item from queue if there was an error
-	if (FMED_NULL != t->track->getval(t->trk, "error"))
-		que_cmd(FMED_QUE_RM, t->e);
 
 	if (next != NULL) {
 		qu->tsk_param = next;
