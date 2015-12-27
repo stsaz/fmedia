@@ -27,15 +27,15 @@ static const byte id3_meta_ids[] = {
 };
 
 static const char *const metanames[] = {
-	"meta_comment",
-	"meta_album",
-	"meta_genre",
-	"meta_date",
-	"meta_title",
-	"meta_artist",
-	"meta_tracknumber",
-	"meta_tracktotal",
-	"meta_date",
+	"comment",
+	"album",
+	"genre",
+	"date",
+	"title",
+	"artist",
+	"tracknumber",
+	"tracktotal",
+	"date",
 };
 
 typedef struct fmed_mpeg {
@@ -175,7 +175,6 @@ static void mpeg_meta(fmed_mpeg *m, fmed_filt *d)
 {
 	ffstr name, val;
 	int tag;
-	char *tagval;
 
 	if (!m->mpg.is_id32tag) {
 		tag = m->mpg.id31tag.field;
@@ -200,12 +199,8 @@ static void mpeg_meta(fmed_mpeg *m, fmed_filt *d)
 
 	dbglog(core, d->trk, "mpeg", "tag: %S: %S", &name, &val);
 
-	qu->meta_set((void*)fmed_getval("queue_item"), name.ptr, name.len, val.ptr, val.len, FMED_QUE_TMETA);
-
-	if (tag != -1) {
-		tagval = ffsz_alcopy(val.ptr, val.len);
-		d->track->setvalstr4(d->trk, metanames[tag], tagval, FMED_TRK_FACQUIRE);
-	}
+	if (tag != -1)
+		qu->meta_set((void*)fmed_getval("queue_item"), name.ptr, name.len, val.ptr, val.len, FMED_QUE_TMETA);
 }
 
 static int mpeg_process(void *ctx, fmed_filt *d)

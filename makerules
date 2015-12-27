@@ -90,6 +90,8 @@ ogg-vorbis.$(SO): $(OGG_O)
 FLAC_O := $(OBJ_DIR)/flac.o \
 	$(FF_O) \
 	$(FF_OBJ_DIR)/ffflac.o \
+	$(FF_OBJ_DIR)/ffvorbistag.o \
+	$(FF_OBJ_DIR)/ffutf8.o \
 	$(FF_OBJ_DIR)/ffpcm.o
 flac.$(SO): $(FLAC_O)
 	$(LD) -shared $(FLAC_O) $(LDFLAGS) -lFLAC-ff  -o$@

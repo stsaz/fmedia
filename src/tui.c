@@ -223,8 +223,10 @@ static void tui_info(tui *t, fmed_filt *d)
 {
 	uint64 total_time, tsize;
 	uint tmsec;
-	const char *input, *artist, *title;
+	const char *input;
+	ffstr *tstr, artist = {0}, title = {0};
 	ffpcm fmt;
+	fmed_que_entry *qent;
 
 	fmed_getpcm(d, &fmt);
 	t->sample_rate = fmt.sample_rate;
@@ -232,6 +234,8 @@ static void tui_info(tui *t, fmed_filt *d)
 
 	if (FMED_PNULL == (input = d->track->getvalstr(d->trk, "input")))
 		return;
+
+	qent = (void*)fmed_getval("queue_item");
 
 	total_time = (t->total_samples != FMED_NULL) ? ffpcm_time(t->total_samples, t->sample_rate) : 0;
 	tmsec = (uint)(total_time / 1000);
@@ -241,16 +245,15 @@ static void tui_info(tui *t, fmed_filt *d)
 	if (tsize == FMED_NULL)
 		tsize = 0;
 
-	artist = d->track->getvalstr(d->trk, "meta_artist");
-	if (artist == FMED_PNULL)
-		artist = "";
-	title = d->track->getvalstr(d->trk, "meta_title");
-	if (title == FMED_PNULL)
-		title = "";
+	if (NULL != (tstr = gt->qu->meta_find(qent, "artist", -1)))
+		artist = *tstr;
+
+	if (NULL != (tstr = gt->qu->meta_find(qent, "title", -1)))
+		title = *tstr;
 
 	t->buf.len = 0;
-	ffstr_catfmt(&t->buf, "\n\"%s - %s\" %s %.02F MB, %u:%02u.%03u (%,U samples), %u kbps, %u Hz, %u bit, %s\n\n"
-		, artist, title
+	ffstr_catfmt(&t->buf, "\n\"%S - %S\" %s %.02F MB, %u:%02u.%03u (%,U samples), %u kbps, %u Hz, %u bit, %s\n\n"
+		, &artist, &title
 		, input
 		, (double)tsize / (1024 * 1024)
 		, tmsec / 60, tmsec % 60, (uint)(total_time % 1000)

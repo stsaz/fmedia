@@ -12,6 +12,7 @@ Copyright (c) 2015 Simon Zolin */
 
 
 static const fmed_core *core;
+static const fmed_queue *qu;
 
 typedef struct fmed_ogg {
 	ffogg og;
@@ -30,17 +31,6 @@ static struct ogg_in_conf_t {
 static struct ogg_out_conf_t {
 	uint qual;
 } ogg_out_conf;
-
-static const char *const metanames[] = {
-	"meta_album"
-	, "meta_artist"
-	, "meta_comment"
-	, "meta_date"
-	, "meta_genre"
-	, "meta_title"
-	, "meta_tracknumber"
-	, "meta_tracktotal"
-};
 
 
 //FMEDIA MODULE
@@ -105,6 +95,11 @@ static const void* ogg_iface(const char *name)
 
 static int ogg_sig(uint signo)
 {
+	switch (signo) {
+	case FMED_OPEN:
+		qu = core->getmod("#queue.queue");
+		break;
+	}
 	return 0;
 }
 
@@ -210,9 +205,7 @@ again:
 
 		case FFOGG_RTAG:
 			dbglog(core, d->trk, "ogg", "%S: %S", &o->og.tagname, &o->og.tagval);
-			tag = ffogg_tag(o->og.tagname.ptr, o->og.tagname.len);
-			if (tag < FFCNT(metanames) && o->og.tagval.len != 0)
-				d->track->setvalstr(d->trk, metanames[tag], o->og.tagval.ptr);
+			qu->meta_set((void*)fmed_getval("queue_item"), o->og.tagname.ptr, o->og.tagname.len, o->og.tagval.ptr, o->og.tagval.len, FMED_QUE_TMETA);
 			break;
 
 		case FFOGG_RHDRFIN:
@@ -283,12 +276,17 @@ static void ogg_out_close(void *ctx)
 static int ogg_out_addmeta(ogg_out *o, fmed_filt *d)
 {
 	uint i;
-	const char *val;
-	for (i = 0;  i < FFCNT(metanames);  i++) {
-		val = d->track->getvalstr(d->trk, metanames[i]);
-		if (val != FMED_PNULL) {
-			ffogg_iaddtag(&o->og, i, val);
-		}
+	ffstr name, *val;
+	void *qent;
+
+	if (NULL == (qent = (void*)fmed_getval("queue_item")))
+		return 0;
+
+	for (i = 0;  NULL != (val = qu->meta(qent, i, &name, FMED_QUE_UNIQ));  i++) {
+		if (val == FMED_QUE_SKIP
+			|| ffstr_eqcz(&name, "vendor"))
+			continue;
+		ffogg_addtag(&o->og, name.ptr, val->ptr);
 	}
 	return 0;
 }

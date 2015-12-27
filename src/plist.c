@@ -28,8 +28,7 @@ typedef struct cue {
 	ffarr trackno;
 	uint curtrk;
 	uint gmeta;
-	uint gaps :2 //enum FFCUE_GAP
-		, skip_remval :1;
+	uint gaps; //enum FFCUE_GAP
 } cue;
 
 
@@ -208,11 +207,11 @@ static int m3u_process(void *ctx, fmed_filt *d)
 			break;
 
 		case FFM3U_ARTIST:
-			ffstr_setcz(&metaname, "meta_artist");
+			ffstr_setcz(&metaname, "artist");
 			goto add_meta;
 
 		case FFM3U_TITLE:
-			ffstr_setcz(&metaname, "meta_title");
+			ffstr_setcz(&metaname, "title");
 add_meta:
 			if (NULL == ffarr_grow(&m->metas, 2, 0)
 				|| NULL == ffarr_grow(&m->fmeta, 2, 0))
@@ -352,21 +351,21 @@ static int cue_process(void *ctx, fmed_filt *d)
 
 		switch (c->p.type) {
 		case FFCUE_TITLE:
-			ffstr_setcz(&metaname, "meta_album");
+			ffstr_setcz(&metaname, "album");
 			goto add_metaname;
 
 		case FFCUE_TRACKNO:
 			c->ent.nmeta = c->metas.len;
-			ffstr_setcz(&metaname, "meta_tracknumber");
+			ffstr_setcz(&metaname, "tracknumber");
 			goto add_metaname;
 
 		case FFCUE_TRK_TITLE:
-			ffstr_setcz(&metaname, "meta_title");
+			ffstr_setcz(&metaname, "title");
 			goto add_metaname;
 
 		case FFCUE_PERFORMER:
 		case FFCUE_TRK_PERFORMER:
-			ffstr_setcz(&metaname, "meta_artist");
+			ffstr_setcz(&metaname, "artist");
 
 add_metaname:
 			if (NULL == (meta = ffarr_push(&c->metas, ffstr)))
@@ -375,29 +374,15 @@ add_metaname:
 			// break;
 
 		case FFCUE_REM_VAL:
-			if (c->skip_remval) {
-				c->skip_remval = 0;
-				break;
-			}
 			if (NULL == (meta = ffarr_push(&c->metas, ffstr)))
 				return FMED_RERR;
 			*meta = c->p.val;
 			break;
 
 		case FFCUE_REM_NAME:
-			if (ffstr_ieqcz(&c->p.val, "genre"))
-				ffstr_setcz(&metaname, "meta_genre");
-			else if (ffstr_ieqcz(&c->p.val, "date"))
-				ffstr_setcz(&metaname, "meta_date");
-			else if (ffstr_ieqcz(&c->p.val, "comment"))
-				ffstr_setcz(&metaname, "meta_comment");
-			else {
-				c->skip_remval = 1;
-				break;
-			}
 			if (NULL == (meta = ffarr_push(&c->metas, ffstr)))
 				return FMED_RERR;
-			*meta = metaname;
+			*meta = c->p.val;
 			break;
 
 		case FFCUE_FILE:

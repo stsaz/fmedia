@@ -622,9 +622,9 @@ static int __stdcall gui_list_sortfunc(LPARAM p1, LPARAM p2, LPARAM udata)
 	case H_ART:
 	case H_TIT:
 		if (udata == H_ART)
-			ffstr_setcz(&nm, "meta_artist");
+			ffstr_setcz(&nm, "artist");
 		else
-			ffstr_setcz(&nm, "meta_title");
+			ffstr_setcz(&nm, "title");
 
 		s1 = gg->qu->meta_find(e1, nm.ptr, nm.len);
 		s2 = gg->qu->meta_find(e2, nm.ptr, nm.len);
@@ -1269,9 +1269,9 @@ static int gtrk_conf(ffpars_ctx *ctx)
 static void* gtrk_open(fmed_filt *d)
 {
 	ffui_viewitem it = {0};
-	const char *artist, *title, *sval;
+	const char *sval;
 	char buf[1024];
-	ffstr stitle;
+	ffstr *tstr, artist = {0}, stitle;
 	fmed_que_entry *plid;
 	size_t n;
 	ssize_t idx = -1;
@@ -1299,22 +1299,20 @@ static void* gtrk_open(fmed_filt *d)
 	ffui_view_focus(&it, 1);
 	ffui_view_set(&gg->vlist, H_IDX, &it);
 
-	artist = d->track->getvalstr(d->trk, "meta_artist");
-	if (artist == FMED_PNULL)
-		artist = "";
+	if (NULL != (tstr = gg->qu->meta_find(plid, FFSTR("artist"))))
+		artist = *tstr;
 
-	title = d->track->getvalstr(d->trk, "meta_title");
-	if (title == FMED_PNULL) {
+	if (NULL == (tstr = gg->qu->meta_find(plid, FFSTR("title")))) {
 		//use filename as a title
 		ffpath_split2(plid->url.ptr, plid->url.len, NULL, &stitle);
 		ffpath_splitname(stitle.ptr, stitle.len, &stitle, NULL);
 	} else
-		ffstr_setz(&stitle, title);
+		stitle = *tstr;
 
-	n = ffs_fmt(buf, buf + sizeof(buf), "%s - %S - fmedia", artist, &stitle);
+	n = ffs_fmt(buf, buf + sizeof(buf), "%S - %S - fmedia", &artist, &stitle);
 	ffui_settext(&gg->wmain, buf, n);
 
-	ffui_view_settextz(&it, artist);
+	ffui_view_settextstr(&it, &artist);
 	ffui_view_set(&gg->vlist, H_ART, &it);
 
 	ffui_view_settextstr(&it, &stitle);

@@ -12,6 +12,7 @@ Copyright (c) 2015 Simon Zolin */
 
 
 static const fmed_core *core;
+static const fmed_queue *qu;
 
 
 static struct file_in_conf_t {
@@ -133,6 +134,11 @@ static const void* file_iface(const char *name)
 
 static int file_sig(uint signo)
 {
+	switch (signo) {
+	case FMED_OPEN:
+		qu = core->getmod("#queue.queue");
+		break;
+	}
 	return 0;
 }
 
@@ -400,12 +406,15 @@ static int fileout_config(ffpars_ctx *ctx)
 static FFINL char* fileout_getname(fmed_fileout *f, fmed_filt *d)
 {
 	ffsvar p;
-	ffstr fn, val;
+	ffstr *tstr, fn, val;
 	ffarr buf = {0};
 	int r;
+	void *qent;
 
 	ffmem_tzero(&p);
 	ffstr_setz(&fn, d->track->getvalstr(d->trk, "output"));
+
+	qent = (void*)fmed_getval("queue_item");
 
 	while (fn.len != 0) {
 		size_t n = fn.len;
@@ -414,22 +423,9 @@ static FFINL char* fileout_getname(fmed_fileout *f, fmed_filt *d)
 
 		switch (r) {
 		case FFSVAR_S:
-			if (ffstr_eqcz(&p.val, "tracknumber"))
-				val.ptr = "meta_tracknumber";
-
-			else if (ffstr_eqcz(&p.val, "artist"))
-				val.ptr = "meta_artist";
-
-			else if (ffstr_eqcz(&p.val, "title"))
-				val.ptr = "meta_title";
-
-			else
+			if (NULL == (tstr = qu->meta_find(qent, p.val.ptr, p.val.len)))
 				continue;
-
-			if (FMED_PNULL == (val.ptr = (void*)d->track->getvalstr(d->trk, val.ptr)))
-				continue;
-
-			val.len = ffsz_len(val.ptr);
+			val = *tstr;
 			break;
 
 		case FFSVAR_TEXT:

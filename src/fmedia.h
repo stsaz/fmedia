@@ -274,7 +274,11 @@ enum FMED_QUE {
 
 enum FMED_QUE_META_F {
 	FMED_QUE_TMETA = 1,
+	FMED_QUE_OVWRITE = 2,
+	FMED_QUE_UNIQ = 4,
 };
+
+#define FMED_QUE_SKIP  ((void*)-1)
 
 typedef struct fmed_queue {
 	fmed_que_entry* (*add)(fmed_que_entry *ent);
@@ -285,4 +289,9 @@ typedef struct fmed_queue {
 	/** flags: enum FMED_QUE_META_F */
 	void (*meta_set)(fmed_que_entry *ent, const char *name, size_t name_len, const char *val, size_t val_len, uint flags);
 	ffstr* (*meta_find)(fmed_que_entry *ent, const char *name, size_t name_len);
+
+	/** Get meta.
+	@flags: enum FMED_QUE_META_F.
+	Return meta value;  NULL: no more entries;  FMED_QUE_SKIP: skip this entry. */
+	ffstr* (*meta)(fmed_que_entry *ent, size_t n, ffstr *name, uint flags);
 } fmed_queue;

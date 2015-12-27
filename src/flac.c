@@ -7,17 +7,7 @@ Copyright (c) 2015 Simon Zolin */
 
 
 static const fmed_core *core;
-
-static const char *const metanames[] = {
-	"meta_album"
-	, "meta_artist"
-	, "meta_comment"
-	, "meta_date"
-	, "meta_genre"
-	, "meta_title"
-	, "meta_tracknumber"
-	, "meta_tracktotal"
-};
+static const fmed_queue *qu;
 
 typedef struct flac {
 	ffflac fl;
@@ -101,6 +91,11 @@ static const void* flac_iface(const char *name)
 
 static int flac_sig(uint signo)
 {
+	switch (signo) {
+	case FMED_OPEN:
+		qu = core->getmod("#queue.queue");
+		break;
+	}
 	return 0;
 }
 
@@ -141,20 +136,10 @@ static void flac_in_free(void *ctx)
 
 static void flac_meta(flac *f, fmed_filt *d)
 {
-	uint tag;
-	const char *tagval;
+	dbglog(core, d->trk, "flac", "%S: %S", &f->fl.vtag.name, &f->fl.vtag.val);
 
-	dbglog(core, d->trk, "flac", "%S: %S", &f->fl.tagname, &f->fl.tagval);
-
-	if (f->fl.tagval.len == 0)
-		return;
-
-	tag = ffflac_tag(f->fl.tagname.ptr, f->fl.tagname.len);
-	if (tag >= FFCNT(metanames))
-		return;
-
-	tagval = ffsz_alcopy(f->fl.tagval.ptr, f->fl.tagval.len);
-	d->track->setvalstr4(d->trk, metanames[tag], tagval, FMED_TRK_FACQUIRE | FMED_TRK_FNO_OVWRITE);
+	qu->meta_set((void*)fmed_getval("queue_item"), f->fl.vtag.name.ptr, f->fl.vtag.name.len
+		, f->fl.vtag.val.ptr, f->fl.vtag.val.len, FMED_QUE_TMETA);
 }
 
 static int flac_in_decode(void *ctx, fmed_filt *d)
@@ -275,14 +260,19 @@ static int flac_out_config(ffpars_ctx *conf)
 static int flac_out_addmeta(flac_out *f, fmed_filt *d)
 {
 	uint i;
-	const char *val;
-	for (i = 0;  i < FFCNT(metanames);  i++) {
-		val = d->track->getvalstr(d->trk, metanames[i]);
-		if (val != FMED_PNULL) {
-			if (0 != ffflac_iaddtag(&f->fl, i, val)) {
-				errlog(core, d->trk, "flac", "add meta tag");
-				return -1;
-			}
+	ffstr name, *val;
+	void *qent;
+
+	if (NULL == (qent = (void*)fmed_getval("queue_item")))
+		return 0;
+
+	for (i = 0;  NULL != (val = qu->meta(qent, i, &name, FMED_QUE_UNIQ));  i++) {
+		if (val == FMED_QUE_SKIP
+			|| ffstr_eqcz(&name, "vendor"))
+			continue;
+		if (0 != ffflac_addtag(&f->fl, name.ptr, val->ptr, val->len)) {
+			syserrlog(core, d->trk, "flac", "%s", "add meta tag");
+			return -1;
 		}
 	}
 	return 0;
@@ -313,6 +303,9 @@ static void* flac_out_create(fmed_filt *d)
 		errlog(core, d->trk, "flac", "ffflac_create(): %s", ffflac_enc_errstr(&f->fl));
 		goto fail;
 	}
+
+	if (0 != flac_out_addmeta(f, d))
+		goto fail;
 
 	return f;
 

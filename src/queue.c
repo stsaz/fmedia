@@ -49,8 +49,9 @@ static fmed_que_entry* que_add(fmed_que_entry *ent);
 static void que_cmd(uint cmd, void *param);
 static void que_meta_set(fmed_que_entry *ent, const char *name, size_t name_len, const char *val, size_t val_len, uint flags);
 static ffstr* que_meta_find(fmed_que_entry *ent, const char *name, size_t name_len);
+static ffstr* que_meta(fmed_que_entry *ent, size_t n, ffstr *name, uint flags);
 static const fmed_queue fmed_que_mgr = {
-	&que_add, &que_cmd, &que_meta_set, &que_meta_find
+	&que_add, &que_cmd, &que_meta_set, &que_meta_find, &que_meta
 };
 
 static void que_play(entry *e);
@@ -307,18 +308,8 @@ static fmed_que_entry* que_add(fmed_que_entry *ent)
 		return NULL;
 	}
 
-	for (i = 0;  i < ent->nmeta;  i++) {
-		if (NULL == (e->e.meta[i].ptr = ffsz_alcopy(ent->meta[i].ptr, ent->meta[i].len))) {
-			ent_free(e);
-			return NULL;
-		}
-		e->e.meta[i].len = ffsz_len(e->e.meta[i].ptr);
-		e->e.nmeta++;
-
-		if (i % 2 != 0) {
-			dbglog(core, NULL, "que", "meta #%u: %S=%S"
-				, e->e.nmeta / 2 + 1, &e->e.meta[i - 1], &e->e.meta[i]);
-		}
+	for (i = 0;  i != ent->nmeta;  i += 2) {
+		que_meta_set(&e->e, ent->meta[i].ptr, ent->meta[i].len, ent->meta[i + 1].ptr, ent->meta[i + 1].len, 0);
 	}
 
 	e->e.from = ent->from;
@@ -344,25 +335,47 @@ static void que_meta_set(fmed_que_entry *ent, const char *name, size_t name_len,
 	uint *n = &ent->nmeta;
 	char *sname, *sval;
 
+	dbglog(core, NULL, "que", "meta #%u: %*s: %*s"
+		, (ent->nmeta + e->tmeta_len) / 2 + 1, name_len, name, val_len, val);
+
 	if (flags & FMED_QUE_TMETA) {
 		m = &e->tmeta;
 		n = &e->tmeta_len;
 	}
 
-	if (NULL == (*m = ffmem_realloc(*m, (*n + 2) * sizeof(ffstr))))
-		return;
+	if (flags & FMED_QUE_OVWRITE) {
+		uint i;
+		for (i = 0;  i != *n;  i += 2) {
 
-	sname = ffsz_alcopy(name, name_len);
+			if (ffstr_eq(&(*m)[i], name, name_len)) {
+
+				if (NULL == (sval = ffsz_alcopy(val, val_len)))
+					goto err;
+
+				ffstr_set(&(*m)[i + 1], sval, val_len);
+				return;
+			}
+		}
+	}
+
+	if (NULL == (*m = ffmem_saferealloc(*m, (*n + 2) * sizeof(ffstr))))
+		goto err;
+
+	sname = ffsz_alcopylwr(name, name_len);
 	sval = ffsz_alcopy(val, val_len);
 	if (sname == NULL || sval == NULL) {
 		ffmem_safefree(sname);
 		ffmem_safefree(sval);
-		return;
+		goto err;
 	}
 
 	ffstr_set(&(*m)[*n], sname, name_len);
 	ffstr_set(&(*m)[*n + 1], sval, val_len);
 	(*n) += 2;
+	return;
+
+err:
+	syserrlog(core, NULL, "que", "%e", FFERR_BUFALOC);
 }
 
 static ffstr* que_meta_find(fmed_que_entry *ent, const char *name, size_t name_len)
@@ -370,16 +383,54 @@ static ffstr* que_meta_find(fmed_que_entry *ent, const char *name, size_t name_l
 	uint i;
 	entry *e = FF_GETPTR(entry, e, ent);
 
-	for (i = 0;  i != e->tmeta_len;  i += 2) {
-		if (ffstr_eq(&e->tmeta[i], name, name_len))
-			return &e->tmeta[i + 1];
-	}
+	if (name_len == (size_t)-1)
+		name_len = ffsz_len(name);
 
 	for (i = 0;  i != ent->nmeta;  i += 2) {
 		if (ffstr_eq(&ent->meta[i], name, name_len))
 			return &ent->meta[i + 1];
 	}
+
+	for (i = 0;  i != e->tmeta_len;  i += 2) {
+		if (ffstr_eq(&e->tmeta[i], name, name_len))
+			return &e->tmeta[i + 1];
+	}
 	return NULL;
+}
+
+static ffstr* que_meta(fmed_que_entry *ent, size_t n, ffstr *name, uint flags)
+{
+	entry *e = FF_GETPTR(entry, e, ent);
+	uint i;
+	size_t nt = 0;
+
+	n *= 2;
+
+	if (n >= ent->nmeta) {
+		nt = n - ent->nmeta;
+		if (nt >= e->tmeta_len)
+			return NULL;
+		*name = e->tmeta[nt];
+	} else
+		*name = ent->meta[n];
+
+	if (flags & FMED_QUE_UNIQ) {
+		for (i = 0;  i != ffmin(n, ent->nmeta);  i += 2) {
+			if (ffstr_eq(&ent->meta[i], name->ptr, name->len))
+				return FMED_QUE_SKIP;
+		}
+
+		if (n >= ent->nmeta) {
+			for (i = 0;  i != ffmin(nt, e->tmeta_len);  i += 2) {
+				if (ffstr_eq(&e->tmeta[i], name->ptr, name->len))
+					return FMED_QUE_SKIP;
+			}
+		}
+	}
+
+	if (n >= ent->nmeta)
+		return &e->tmeta[nt + 1];
+	return &ent->meta[n + 1];
 }
 
 

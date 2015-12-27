@@ -12,13 +12,13 @@ static const fmed_queue *qu;
 
 // enum FFAPETAG_FIELD
 static const char *const ape_metanames[] = {
-	"meta_album",
-	"meta_artist",
-	"meta_comment",
-	"meta_genre",
-	"meta_title",
-	"meta_tracknumber",
-	"meta_date",
+	"album",
+	"artist",
+	"comment",
+	"genre",
+	"title",
+	"tracknumber",
+	"date",
 };
 
 static const byte id3_meta_ids[] = {
@@ -32,13 +32,13 @@ static const byte id3_meta_ids[] = {
 };
 
 static const char *const id3_metanames[] = {
-	"meta_comment",
-	"meta_album",
-	"meta_genre",
-	"meta_title",
-	"meta_artist",
-	"meta_tracknumber",
-	"meta_date",
+	"comment",
+	"album",
+	"genre",
+	"title",
+	"artist",
+	"tracknumber",
+	"date",
 };
 
 typedef struct wvpk {
@@ -124,7 +124,6 @@ static void wvpk_meta(wvpk *w, fmed_filt *d)
 {
 	uint tag = 0;
 	ffstr name, val;
-	const char *tagstr, *tagval;
 
 	if (w->wp.is_apetag) {
 		val = w->wp.apetag.val;
@@ -143,17 +142,6 @@ static void wvpk_meta(wvpk *w, fmed_filt *d)
 	dbglog(core, d->trk, "wvpk", "tag: %S: %S", &name, &val);
 
 	qu->meta_set((void*)fmed_getval("queue_item"), name.ptr, name.len, val.ptr, val.len, FMED_QUE_TMETA);
-
-	if (w->wp.is_apetag) {
-		if (tag >= FFCNT(ape_metanames))
-			return;
-		tagstr = ape_metanames[tag];
-
-	} else
-		tagstr = id3_metanames[tag];
-
-	tagval = ffsz_alcopy(val.ptr, val.len);
-	d->track->setvalstr4(d->trk, tagstr, tagval, FMED_TRK_FACQUIRE | FMED_TRK_FNO_OVWRITE);
 }
 
 static int wvpk_in_decode(void *ctx, fmed_filt *d)
