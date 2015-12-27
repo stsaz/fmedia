@@ -1073,13 +1073,13 @@ static char* trk_setvalstr4(void *trk, const char *name, const char *val, uint f
 	dict_ent *ent;
 	uint st;
 
-	if (NULL == (ent = dict_add(src, name, &st)))
-		return NULL;
+	ent = dict_add(src, name, &st);
+	if (ent == NULL
+		|| ((flags & FMED_TRK_FNO_OVWRITE) && st == 1)) {
 
-	if ((flags & FMED_TRK_FNO_OVWRITE) && st == 1) {
 		if (flags & FMED_TRK_FACQUIRE)
 			ffmem_free((char*)val);
-		return ent->pval;
+		return (ent != NULL) ? ent->pval : NULL;
 	}
 
 	if (ent->acq)
