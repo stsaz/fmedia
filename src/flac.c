@@ -250,7 +250,7 @@ data:
 	d->datalen = f->fl.datalen;
 	d->outni = f->fl.pcm;
 	d->outlen = f->fl.pcmlen;
-	return FMED_ROK;
+	return FMED_RDATA;
 }
 
 
