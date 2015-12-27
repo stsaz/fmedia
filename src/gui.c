@@ -763,7 +763,7 @@ static void gui_convert(void)
 	ffui_viewitem it;
 	fmed_que_entry e, *qent, *inp;
 	ffstr fn;
-	uint play = 0;
+	void *play = NULL;
 
 	ffui_textstr(&gg->eout, &fn);
 
@@ -776,16 +776,16 @@ static void gui_convert(void)
 
 		ffmemcpy(&e, inp, sizeof(fmed_que_entry));
 		if (NULL != (qent = gg->qu->add(&e))) {
-			gg->qu->meta_set(qent, FFSTR("output"), fn.ptr, fn.len, 0);
-			if (!play) {
-				play = 1;
-				gg->play_id = qent;
-			}
+			gg->qu->meta_set(qent, FFSTR("output"), fn.ptr, fn.len, FMED_QUE_TRKDICT);
+			if (play == NULL)
+				play = qent;
 		}
 	}
 
-	if (play)
+	if (play != NULL) {
+		gg->play_id = play;
 		gui_task_add(PLAY);
+	}
 	ffstr_free(&fn);
 }
 

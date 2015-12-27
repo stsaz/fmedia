@@ -10,6 +10,9 @@ typedef struct entry {
 	fmed_que_entry e;
 	fflist_item sib;
 
+	ffstr *dict;
+	uint dict_len;
+
 	ffstr *tmeta; //transient meta
 	uint tmeta_len;
 
@@ -113,6 +116,11 @@ static void ent_free(entry *e)
 	}
 	ffmem_safefree(e->e.meta);
 
+	for (i = 0;  i != e->dict_len;  i++) {
+		ffstr_free(&e->dict[i]);
+	}
+	ffmem_safefree(e->dict);
+
 	for (i = 0;  i != e->tmeta_len;  i++) {
 		ffstr_free(&e->tmeta[i]);
 	}
@@ -175,6 +183,13 @@ static void que_play(entry *ent)
 		qu->track->setval(trk, "seek_time_abs", e->from);
 	if (e->to != 0 && FMED_NULL == qu->track->getval(trk, "until_time"))
 		qu->track->setval(trk, "until_time", e->to - e->from);
+
+	for (i = 0;  i != ent->dict_len;  i += 2) {
+		if ((ssize_t)ent->dict[i + 1].len >= 0)
+			qu->track->setvalstr(trk, ent->dict[i].ptr, ent->dict[i + 1].ptr);
+		else
+			qu->track->setval(trk, ent->dict[i].ptr, *(int64*)ent->dict[i + 1].ptr);
+	}
 
 	const char *smeta = qu->track->getvalstr(trk, "meta");
 	if (smeta != FMED_PNULL && 0 != que_setmeta(ent, smeta, trk)) {
@@ -358,12 +373,19 @@ static void que_meta_set(fmed_que_entry *ent, const char *name, size_t name_len,
 	uint *n = &ent->nmeta;
 	char *sname, *sval;
 
-	dbglog(core, NULL, "que", "meta #%u: %*s: %*s"
-		, (ent->nmeta + e->tmeta_len) / 2 + 1, name_len, name, val_len, val);
+	if (!(flags & FMED_QUE_NUM)) {
+		dbglog(core, NULL, "que", "meta #%u: %*s: %*s"
+			, (ent->nmeta + e->tmeta_len) / 2 + 1, name_len, name, val_len, val);
+	}
 
 	if (flags & FMED_QUE_TMETA) {
 		m = &e->tmeta;
 		n = &e->tmeta_len;
+	} else if (flags & FMED_QUE_TRKDICT) {
+		m = &e->dict;
+		n = &e->dict_len;
+		if ((flags & FMED_QUE_NUM) && val_len != sizeof(int64))
+			return;
 	}
 
 	if (flags & FMED_QUE_OVWRITE) {
@@ -391,6 +413,9 @@ static void que_meta_set(fmed_que_entry *ent, const char *name, size_t name_len,
 		ffmem_safefree(sval);
 		goto err;
 	}
+
+	if ((flags & (FMED_QUE_TRKDICT | FMED_QUE_NUM)) == (FMED_QUE_TRKDICT | FMED_QUE_NUM))
+		val_len = -(ssize_t)val_len;
 
 	ffstr_set(&(*m)[*n], sname, name_len);
 	ffstr_set(&(*m)[*n + 1], sval, val_len);
