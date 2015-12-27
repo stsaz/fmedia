@@ -12,6 +12,10 @@ typedef struct entry {
 
 	ffstr *tmeta; //transient meta
 	uint tmeta_len;
+
+	uint active :1
+		, rm :1
+		;
 } entry;
 
 typedef struct que {
@@ -262,7 +266,10 @@ static void que_cmd(uint cmd, void *param)
 		if (qu->onchange != NULL)
 			qu->onchange(&e->e, FMED_QUE_ONRM);
 
-		ent_free(e);
+		if (!e->active)
+			ent_free(e);
+		else
+			e->rm = 1;
 		break;
 
 	case FMED_QUE_CLEAR:
@@ -409,6 +416,7 @@ static void* que_trk_open(fmed_filt *d)
 	t->track = d->track;
 	t->trk = d->trk;
 	t->e = e;
+	e->active = 1;
 
 	if (1 == fmed_getval("error")) {
 		que_trk_close(t);
@@ -445,6 +453,9 @@ static void que_trk_close(void *ctx)
 	}
 
 done:
+	if (t->e->rm)
+		ent_free(t->e);
+
 	ffmem_free(t);
 }
 
