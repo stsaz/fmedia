@@ -695,6 +695,8 @@ static void* trk_create(uint cmd, const char *fn)
 		break;
 	}
 
+	if (fmed->meta.len != 0)
+		trk_setvalstr(src, "meta", fmed->meta.ptr);
 	return src;
 
 fail:

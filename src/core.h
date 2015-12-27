@@ -69,6 +69,7 @@ typedef struct fmedia {
 	ffstr3 outmap; //inmap_item[]
 	const fmed_modinfo *inmap_curmod;
 
+	ffstr meta;
 	float ogg_qual;
 	float gain;
 	byte wav_formt;

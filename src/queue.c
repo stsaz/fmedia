@@ -132,6 +132,27 @@ static void que_destroy(void)
 }
 
 
+/**
+@meta: string of format "NAME=VAL;NAME=VAL..." */
+static int que_setmeta(entry *ent, const char *meta, void *trk)
+{
+	ffstr s, m, name, val;
+
+	ffstr_setz(&s, meta);
+	while (s.len != 0) {
+		ffstr_shift(&s, ffstr_nextval(s.ptr, s.len, &m, ';'));
+
+		if (NULL == ffs_split2by(m.ptr, m.len, '=', &name, &val)
+			|| name.len == 0) {
+			errlog(core, trk, "que", "--meta: invalid data");
+			return -1;
+		}
+
+		que_meta_set(&ent->e, name.ptr, name.len, val.ptr, val.len, FMED_QUE_OVWRITE);
+	}
+	return 0;
+}
+
 static void que_play(entry *ent)
 {
 	fmed_que_entry *e = &ent->e;
@@ -155,8 +176,10 @@ static void que_play(entry *ent)
 	if (e->to != 0 && FMED_NULL == qu->track->getval(trk, "until_time"))
 		qu->track->setval(trk, "until_time", e->to - e->from);
 
-	for (i = 0;  i != e->nmeta;  i += 2) {
-		qu->track->setvalstr(trk, e->meta[i].ptr, e->meta[i + 1].ptr);
+	const char *smeta = qu->track->getvalstr(trk, "meta");
+	if (smeta != FMED_PNULL && 0 != que_setmeta(ent, smeta, trk)) {
+		que_cmd(FMED_QUE_RM, e);
+		return;
 	}
 
 	for (i = 0;  i != ent->tmeta_len;  i++) {
