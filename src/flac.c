@@ -28,7 +28,6 @@ typedef struct flac {
 typedef struct flac_out {
 	ffflac_enc fl;
 	uint state;
-	uint ni :1;
 } flac_out;
 
 static struct flac_out_conf_t {
@@ -286,14 +285,8 @@ static void* flac_out_create(fmed_filt *d)
 	ffflac_enc_init(&f->fl);
 
 	fmed_getpcm(d, &fmt);
-	if (fmt.format != FFPCM_16LE) {
-		f->state = 1;
-		fmt.format = FFPCM_16LE;
-	}
-
-	if (1 != fmed_getval("pcm_ileaved")) {
-		f->ni = 1;
-	}
+	fmt.format = FFPCM_16LE;
+	f->state = 1;
 
 	f->fl.total_samples = fmed_getval("total_samples");
 	if ((int64)f->fl.total_samples == FMED_NULL)
@@ -331,12 +324,13 @@ static int flac_out_encode(void *ctx, fmed_filt *d)
 
 	switch (f->state) {
 	case 1:
-		fmed_setval("conv_pcm_format", FFPCM_16LE);
+		fmed_setval("conv_pcm_format", FFPCM_16LE_32);
+		fmed_setval("conv_pcm_ileaved", 0);
 		f->state = 2;
 		return FMED_RMORE;
 
 	case 2:
-		if (FFPCM_16LE != fmed_getval("pcm_format")) {
+		if (FFPCM_16LE_32 != fmed_getval("pcm_format") || 1 == fmed_getval("pcm_ileaved")) {
 			errlog(core, d->trk, "flac", "unsupported input PCM format");
 			return FMED_RERR;
 		}
@@ -348,18 +342,13 @@ static int flac_out_encode(void *ctx, fmed_filt *d)
 		break;
 	}
 
-	if (f->ni)
-		f->fl.pcm = (const void**)d->datani;
-	else
-		f->fl.pcmi = d->data;
+	f->fl.pcm = (const int**)d->datani;
 	f->fl.pcmlen = d->datalen;
 	if (d->flags & FMED_FLAST)
 		f->fl.fin = 1;
 again:
 	r = ffflac_encode(&f->fl);
 	d->datalen = f->fl.pcmlen;
-	if (!f->ni)
-		d->data = (void*)f->fl.pcmi;
 
 	switch (r) {
 	case FFFLAC_RMORE:
