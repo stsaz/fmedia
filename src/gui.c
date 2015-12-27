@@ -21,6 +21,7 @@ track: ... -> gui-trk -> ...
 typedef struct gui_trk gui_trk;
 
 typedef struct ggui {
+	fflock lktrk;
 	gui_trk *curtrk;
 	fflock lk;
 	const fmed_queue *qu;
@@ -69,6 +70,22 @@ typedef struct ggui {
 	ffthd th;
 } ggui;
 
+typedef void (*cmdfunc0)(void);
+typedef void (*cmdfunc)(uint id);
+typedef void (*cmdfunc2)(gui_trk *g, uint id);
+
+enum CMDFLAGS {
+	F1 = 0,
+	F0 = 1,
+	F2 = 2,
+};
+
+struct cmd {
+	uint cmd;
+	uint flags; // enum CMDFLAGS
+	void *func; // cmdfunc*
+};
+
 enum LIST_HDR {
 	H_IDX,
 	H_ART,
@@ -94,6 +111,10 @@ struct gui_trk {
 	uint lastpos;
 	uint sample_rate;
 	uint total_time_sec;
+	uint gain;
+
+	fflock lkcmds;
+	ffarr cmds; //struct cmd[]
 
 	void *trk;
 	fftask task;
@@ -116,6 +137,7 @@ static void gui_clear(void);
 static void gui_status(const char *s, size_t len);
 static void gui_list_add(ffui_viewitem *it, size_t par);
 static int __stdcall gui_list_sortfunc(LPARAM p1, LPARAM p2, LPARAM udata);
+static void gui_task_add(uint id);
 static void gui_task(void *param);
 static void gui_media_added(fmed_que_entry *ent);
 static void gui_media_add1(const char *fn);
@@ -123,7 +145,9 @@ static void gui_media_open(uint id);
 static void gui_media_removed(uint i);
 static void gui_media_remove(void);
 static fmed_que_entry* gui_list_getent(void);
-static void gui_media_vol(void);
+static void gui_media_seek(gui_trk *g, uint cmd);
+static void gui_vol(uint id);
+static void gui_media_vol(gui_trk *g, uint id);
 static void gui_media_showdir(void);
 static void gui_media_copyfn(void);
 static void gui_media_fileop(uint cmd);
@@ -134,10 +158,13 @@ static void gui_rec(uint cmd);
 static void gui_onclose(void);
 
 static void gui_showconvert(void);
+static void gui_cvt_action(ffui_wnd *wnd, int id);
 static void gui_conv_browse(void);
 static void gui_convert(void);
 
 static void gui_info_action(ffui_wnd *wnd, int id);
+
+static void gui_addcmd(cmdfunc2 func, uint cmd);
 
 //GUI-TRACK
 static void* gtrk_open(fmed_filt *d);
@@ -373,9 +400,90 @@ static void gui_task_add(uint id)
 	core->task(&gg->cmdtask, FMED_TASK_POST);
 }
 
+static void gui_addcmd(cmdfunc2 func, uint cmd)
+{
+	if (gg->curtrk == NULL)
+		return;
+
+	fflk_lock(&gg->curtrk->lkcmds);
+	struct cmd *pcmd = ffarr_push(&gg->curtrk->cmds, struct cmd);
+	if (pcmd != NULL) {
+		pcmd->cmd = cmd;
+		pcmd->func = func;
+	}
+	fflk_unlock(&gg->curtrk->lkcmds);
+}
+
+static const struct cmd cmds[] = {
+	{ STOP,	F1,	&gui_task_add },
+	{ NEXT,	F1,	&gui_task_add },
+	{ PREV,	F1,	&gui_task_add },
+
+	{ SEEK,	F2,	&gui_media_seek },
+	{ FFWD,	F2,	&gui_media_seek },
+	{ RWND,	F2,	&gui_media_seek },
+
+	{ VOL,	F1,	&gui_vol },
+	{ VOLUP,	F1,	&gui_vol },
+	{ VOLDOWN,	F1,	&gui_vol },
+
+	{ REC,	F1,	&gui_task_add },
+	{ PLAYREC,	F1,	&gui_task_add },
+	{ MIXREC,	F1,	&gui_task_add },
+
+	{ SHOWCONVERT,	F0,	&gui_showconvert },
+	{ OUTBROWSE,	F0,	&gui_conv_browse },
+
+	{ OPEN,	F1,	&gui_media_open },
+	{ ADD,	F1,	&gui_media_open },
+	{ REMOVE,	F0,	&gui_media_remove },
+	{ SHOWDIR,	F0,	&gui_media_showdir },
+	{ COPYFN,	F0,	&gui_media_copyfn },
+	{ COPYFILE,	F1,	&gui_media_fileop },
+	{ DELFILE,	F1,	&gui_media_fileop },
+	{ SHOWINFO,	F0,	&gui_media_showinfo },
+};
+
+static const struct cmd* getcmd(uint cmd)
+{
+	size_t i, start = 0;
+	uint n = FFCNT(cmds);
+	while (start != n) {
+		i = start + (n - start) / 2;
+		if (cmd == cmds[i].cmd) {
+			return &cmds[i];
+		} else if (cmd < cmds[i].cmd)
+			n = i;
+		else
+			start = i + 1;
+	}
+	return NULL;
+}
+
 static void gui_action(ffui_wnd *wnd, int id)
 {
 	gui_trk *g = gg->curtrk;
+
+	const struct cmd *cmd = getcmd(id);
+	if (cmd != NULL) {
+		union {
+			cmdfunc0 f0;
+			cmdfunc f;
+		} u;
+		u.f = cmd->func;
+
+		if (cmd->flags & F2) {
+			fflk_lock(&gg->lktrk);
+			gui_addcmd(cmd->func, id);
+			fflk_unlock(&gg->lktrk);
+
+		} else if (cmd->flags & F0)
+			u.f0();
+
+		else
+			u.f(id);
+		return;
+	}
 
 	switch (id) {
 
@@ -409,17 +517,6 @@ static void gui_action(ffui_wnd *wnd, int id)
 		fflk_unlock(&gg->lk);
 		break;
 
-	case STOP:
-	case NEXT:
-	case PREV:
-		gui_task_add(id);
-		break;
-
-	case OPEN:
-	case ADD:
-		gui_media_open(id);
-		break;
-
 
 	case SEEKING:
 		{
@@ -431,82 +528,11 @@ static void gui_action(ffui_wnd *wnd, int id)
 		}
 		break;
 
-	case SEEK:
-seek:
-		if (g != NULL) {
-			gg->track->setval(g->trk, "seek_time", ffui_trk_val(&gg->tpos) * 1000);
-			gg->track->setval(g->trk, "snd_output_clear", 1);
-		}
-		break;
-
-	case FFWD:
-		ffui_trk_move(&gg->tpos, FFUI_TRK_PGUP);
-		goto seek;
-
-	case RWND:
-		ffui_trk_move(&gg->tpos, FFUI_TRK_PGDN);
-		goto seek;
-
-
-	case VOL:
-		gui_media_vol();
-		break;
-
-	case VOLUP:
-		ffui_trk_move(&gg->tvol, FFUI_TRK_PGUP);
-		gui_media_vol();
-		break;
-
-	case VOLDOWN:
-		ffui_trk_move(&gg->tvol, FFUI_TRK_PGDN);
-		gui_media_vol();
-		break;
-
-
-	case REC:
-	case PLAYREC:
-	case MIXREC:
-		gui_task_add(id);
-		break;
 
 	case SHOWRECS:
 		ffui_openfolder((const char *const *)&gg->rec_dir, 0);
 		break;
 
-
-	case SHOWCONVERT:
-		gui_showconvert();
-		break;
-
-	case OUTBROWSE:
-		gui_conv_browse();
-		break;
-
-	case CONVERT:
-		gui_convert();
-		break;
-
-
-	case SHOWDIR:
-		gui_media_showdir();
-		break;
-
-	case COPYFN:
-		gui_media_copyfn();
-		break;
-
-	case COPYFILE:
-	case DELFILE:
-		gui_media_fileop(id);
-		break;
-
-	case SHOWINFO:
-		gui_media_showinfo();
-		break;
-
-	case REMOVE:
-		gui_media_remove();
-		break;
 
 	case SELALL:
 		ffui_view_sel(&gg->vlist, -1);
@@ -559,6 +585,15 @@ static void gui_info_action(ffui_wnd *wnd, int id)
 		int i = ffui_view_selnext(&gg->vinfo, -1);
 		ffui_view_edit(&gg->vinfo, i, VINFO_VAL);
 		}
+		break;
+	}
+}
+
+static void gui_cvt_action(ffui_wnd *wnd, int id)
+{
+	switch (id) {
+	case CONVERT:
+		gui_convert();
 		break;
 	}
 }
@@ -677,6 +712,7 @@ static void gui_showconvert(void)
 	ffarr_free(&s);
 
 	ffui_show(&gg->wconvert, 1);
+	ffui_wnd_setfront(&gg->wconvert);
 }
 
 static void gui_conv_browse(void)
@@ -743,12 +779,38 @@ static void gui_que_onchange(fmed_que_entry *e, uint flags)
 	}
 }
 
-static void gui_media_vol(void)
+static void gui_media_seek(gui_trk *g, uint cmd)
+{
+	switch (cmd) {
+	case FFWD:
+		ffui_trk_move(&gg->tpos, FFUI_TRK_PGUP);
+		break;
+
+	case RWND:
+		ffui_trk_move(&gg->tpos, FFUI_TRK_PGDN);
+		break;
+	}
+
+	gg->track->setval(g->trk, "seek_time", ffui_trk_val(&gg->tpos) * 1000);
+	gg->track->setval(g->trk, "snd_output_clear", 1);
+}
+
+static void gui_vol(uint id)
 {
 	char buf[64];
 	uint pos;
 	double db;
 	size_t n;
+
+	switch (id) {
+	case VOLUP:
+		ffui_trk_move(&gg->tvol, FFUI_TRK_PGUP);
+		break;
+
+	case VOLDOWN:
+		ffui_trk_move(&gg->tvol, FFUI_TRK_PGDN);
+		break;
+	}
 
 	pos = ffui_trk_val(&gg->tvol);
 	if (pos <= 100)
@@ -758,8 +820,17 @@ static void gui_media_vol(void)
 	n = ffs_fmt(buf, buf + sizeof(buf), "Volume: %.02FdB", db);
 	gui_status(buf, n);
 
-	if (gg->curtrk != NULL)
-		gg->track->setval(gg->curtrk->trk, "gain", db * 100);
+	fflk_lock(&gg->lktrk);
+	if (gg->curtrk != NULL) {
+		gg->curtrk->gain = db * 100;
+		gui_addcmd(&gui_media_vol, id);
+	}
+	fflk_unlock(&gg->lktrk);
+}
+
+static void gui_media_vol(gui_trk *g, uint id)
+{
+	gg->track->setval(gg->curtrk->trk, "gain", g->gain);
 }
 
 static void gui_media_showdir(void)
@@ -1069,7 +1140,7 @@ static FFTHDCALL int gui_worker(void *param)
 	gg->winfo.on_action = &gui_info_action;
 
 	gg->wconvert.hide_on_close = 1;
-	gg->wconvert.on_action = &gui_action;
+	gg->wconvert.on_action = &gui_cvt_action;
 
 	gg->cmdtask.handler = &gui_task;
 	ffui_dlg_multisel(&gg->dlg);
@@ -1113,6 +1184,7 @@ static int gui_sig(uint signo)
 		if (NULL == (gg->qu = core->getmod("#queue.queue"))) {
 			return 1;
 		}
+		fflk_init(&gg->lktrk);
 		gg->qu->cmd(FMED_QUE_SETONCHANGE, &gui_que_onchange);
 
 		if (NULL == (gg->track = core->getmod("#core.track"))) {
@@ -1188,6 +1260,7 @@ static void* gtrk_open(fmed_filt *d)
 	gui_trk *g = ffmem_tcalloc1(gui_trk);
 	if (g == NULL)
 		return NULL;
+	fflk_init(&g->lkcmds);
 	g->trk = d->trk;
 	g->task.handler = d->handler;
 	g->task.param = d->trk;
@@ -1249,7 +1322,10 @@ static void* gtrk_open(fmed_filt *d)
 	ffui_view_settext(&it, buf, n);
 	ffui_view_set(&gg->vlist, H_INF, &it);
 
+	fflk_lock(&gg->lktrk);
 	gg->curtrk = g;
+	fflk_unlock(&gg->lktrk);
+
 	gui_action(&gg->wmain, VOL);
 
 	fflk_lock(&gg->lk);
@@ -1263,7 +1339,9 @@ static void gtrk_close(void *ctx)
 	gui_trk *g = ctx;
 	core->task(&g->task, FMED_TASK_DEL);
 	if (gg->curtrk == g) {
+		fflk_lock(&gg->lktrk);
 		gg->curtrk = NULL;
+		fflk_unlock(&gg->lktrk);
 		gui_clear();
 	}
 	ffmem_free(g);
@@ -1276,6 +1354,18 @@ static int gtrk_process(void *ctx, fmed_filt *d)
 	size_t n;
 	int64 playpos;
 	uint playtime;
+
+	if (g->cmds.len != 0) {
+		uint i;
+		fflk_lock(&g->lkcmds);
+		const struct cmd *pcmd = (void*)g->cmds.ptr;
+		for (i = 0;  i != g->cmds.len;  i++) {
+			cmdfunc2 f = pcmd[i].func;
+			f(g, pcmd[i].cmd);
+		}
+		g->cmds.len = 0;
+		fflk_unlock(&g->lkcmds);
+	}
 
 	if (d->flags & FMED_FSTOP) {
 		d->outlen = 0;
