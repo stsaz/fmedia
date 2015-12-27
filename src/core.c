@@ -72,7 +72,7 @@ enum {
 #ifdef FF_UNIX
 #define USR_CONF  "$HOME/.config/fmedia/fmedia.conf"
 #else
-#define USR_CONF  "%APPDATA%/Roaming/fmedia/fmedia.conf"
+#define USR_CONF  "%APPDATA%/fmedia/fmedia.conf"
 #endif
 
 
