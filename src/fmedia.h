@@ -264,6 +264,7 @@ typedef void (*fmed_que_onchange_t)(fmed_que_entry *e, uint flags);
 
 enum FMED_QUE {
 	FMED_QUE_PLAY,
+	FMED_QUE_PLAY_EXCL,
 	FMED_QUE_MIX,
 	FMED_QUE_NEXT,
 	FMED_QUE_PREV,

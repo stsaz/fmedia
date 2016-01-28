@@ -251,7 +251,7 @@ static void que_mix(void)
 
 // matches enum FMED_QUE
 static const char *const scmds[] = {
-	"play", "mix", "next", "prev", "clear", "rm", "setonchange", "meta-clear"
+	"play", "play-excl", "mix", "next", "prev", "clear", "rm", "setonchange", "meta-clear"
 };
 
 static void que_cmd(uint cmd, void *param)
@@ -262,6 +262,10 @@ static void que_cmd(uint cmd, void *param)
 
 	//@ fflk_lock(&qu->lk);
 	switch (cmd) {
+	case FMED_QUE_PLAY_EXCL:
+		qu->track->cmd(NULL, FMED_TRACK_STOPALL);
+		// break
+
 	case FMED_QUE_PLAY:
 		if (qu->list.len == 0)
 			break;
