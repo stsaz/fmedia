@@ -23,6 +23,7 @@ static alsa_mod *mod;
 
 struct alsa_out {
 	uint state;
+	size_t dataoff;
 
 	ffalsa_dev dev;
 	uint devidx;
@@ -306,12 +307,13 @@ static int alsa_write(void *ctx, fmed_filt *d)
 		ffalsa_stop(&mod->out);
 		ffalsa_clear(&mod->out);
 		ffalsa_async(&mod->out, 0);
+		a->dataoff = 0;
 		return FMED_RMORE;
 	}
 
 	while (d->datalen != 0) {
 
-		r = ffalsa_write(&mod->out, d->datani, d->datalen);
+		r = ffalsa_write(&mod->out, d->datani, d->datalen, a->dataoff);
 		if (r < 0) {
 			errlog(core, d->trk, "alsa", "ffalsa_write(): (%d) %s", r, ffalsa_errstr(r));
 			return FMED_RERR;
@@ -321,13 +323,13 @@ static int alsa_write(void *ctx, fmed_filt *d)
 			return FMED_RASYNC;
 		}
 
-		mod->out.dataoff += r;
+		a->dataoff += r;
 		d->datalen -= r;
 		dbglog(core, d->trk, "alsa", "written %u bytes (%u%% filled)"
 			, r, ffalsa_filled(&mod->out) * 100 / ffalsa_bufsize(&mod->out));
 	}
 
-	mod->out.dataoff = 0;
+	a->dataoff = 0;
 
 	if ((d->flags & FMED_FLAST) && d->datalen == 0) {
 
