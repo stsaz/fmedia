@@ -358,6 +358,7 @@ static void file_read(void *udata)
 		f->async = 0;
 		if (r < 0) {
 			if (fferr_again(fferr_last())) {
+				dbglog(core, f->trk, "file", "async read, offset:%xU", off);
 				f->async = 1;
 				break;
 			}

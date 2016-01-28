@@ -389,7 +389,7 @@ window wlog {
 		style visible
 		font {
 			name "Courier New"
-			height 10
+			height 8
 		}
 	}
 

@@ -177,7 +177,7 @@ static int fmed_cmdline(int argc, char **argv, uint main_only)
 		r = ffpsarg_parse(&p, argv[i], &n);
 		i += n;
 
-		r = ffpars_schemrun(&ps, r);
+		r = ffpsarg_schemrun(&ps);
 
 		if (r == FFPARS_ELAST)
 			goto fail;
@@ -190,8 +190,8 @@ static int fmed_cmdline(int argc, char **argv, uint main_only)
 		r = ffpsarg_schemfin(&ps);
 
 	if (ffpars_iserr(r)) {
-		errlog(core, NULL, "core", "cmd line parser: %s"
-			, (r == FFPARS_ESYS) ? fferr_strp(fferr_last()) : ffpars_errstr(r));
+		errlog(core, NULL, "core", "cmd line parser: near \"%S\": %s"
+			, &p.val, (r == FFPARS_ESYS) ? fferr_strp(fferr_last()) : ffpars_errstr(r));
 		goto fail;
 	}
 
@@ -323,7 +323,6 @@ int main(int argc, char **argv)
 	ffsignal sigs_task = {0};
 
 	ffmem_init();
-	ffutf8_init();
 	ffsig_init(&sigs_task);
 
 	fffile_writecz(ffstdout, "fmedia v" FMED_VER "\n");

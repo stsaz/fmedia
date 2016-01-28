@@ -180,14 +180,6 @@ again:
 		r = ffogg_decode(&o->og);
 		switch (r) {
 		case FFOGG_RMORE:
-
-			if (o->state == I_HDR) {
-				int64 off = fmed_getval("input_off");
-				if (off + d->datalen == o->og.total_size
-					&& 0 == ffogg_nodata(&o->og))
-					break;
-			}
-
 			if (d->flags & FMED_FLAST) {
 				dbglog(core, d->trk, "ogg", "no eos page");
 				d->outlen = 0;
@@ -210,13 +202,14 @@ again:
 			fmed_setval("pcm_ileaved", 0);
 			break;
 
-		case FFOGG_RTAG:
-			dbglog(core, d->trk, "ogg", "%S: %S", &o->og.tagname, &o->og.tagval);
-			qu->meta_set((void*)fmed_getval("queue_item"), o->og.tagname.ptr, o->og.tagname.len, o->og.tagval.ptr, o->og.tagval.len, FMED_QUE_TMETA);
+		case FFOGG_RTAG: {
+			const ffvorbtag *vtag = &o->og.vtag;
+			dbglog(core, d->trk, "ogg", "%S: %S", &vtag->name, &vtag->val);
+			qu->meta_set((void*)fmed_getval("queue_item"), vtag->name.ptr, vtag->name.len, vtag->val.ptr, vtag->val.len, FMED_QUE_TMETA);
+			}
 			break;
 
 		case FFOGG_RHDRFIN:
-			dbglog(core, d->trk, "ogg", "vendor: %s", o->og.vcmt.vendor);
 			if (!ogg_in_conf.seekable) {
 				o->state = I_DATA0;
 				goto again;
@@ -294,7 +287,7 @@ static int ogg_out_addmeta(ogg_out *o, fmed_filt *d)
 		if (val == FMED_QUE_SKIP
 			|| ffstr_eqcz(&name, "vendor"))
 			continue;
-		ffogg_addtag(&o->og, name.ptr, val->ptr);
+		ffogg_addtag(&o->og, name.ptr, val->ptr, val->len);
 	}
 	return 0;
 }
