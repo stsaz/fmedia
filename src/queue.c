@@ -308,17 +308,17 @@ static void que_cmd(uint cmd, void *param)
 
 	case FMED_QUE_RM:
 		e = param;
-		fflist_rm(&qu->list, &e->sib);
-		if (qu->cur == e)
-			qu->cur = NULL;
 		dbglog(core, NULL, "que", "removed item %S", &e->e.url);
 
 		if (qu->onchange != NULL)
 			qu->onchange(&e->e, FMED_QUE_ONRM);
 
-		if (!e->active)
+		if (!e->active) {
+			if (qu->cur == e)
+				qu->cur = NULL;
+			fflist_rm(&qu->list, &e->sib);
 			ent_free(e);
-		else
+		} else
 			e->rm = 1;
 		break;
 
@@ -550,7 +550,7 @@ static void que_trk_close(void *ctx)
 	int err = t->track->getval(t->trk, "error");
 
 	if (stopped == FMED_NULL && (err == FMED_NULL || qu->next_if_err))
-		next = que_getnext(!t->e->rm ? t->e : NULL);
+		next = que_getnext(t->e);
 
 	else if (stopped == FMED_TRACK_STOPALL_EXIT) {
 		core->sig(FMED_STOP);
@@ -568,8 +568,14 @@ static void que_trk_close(void *ctx)
 	}
 
 done:
-	if (t->e->rm)
+	t->e->active = 0;
+
+	if (t->e->rm) {
+		if (qu->cur == t->e)
+			qu->cur = NULL;
+		fflist_rm(&qu->list, &t->e->sib);
 		ent_free(t->e);
+	}
 
 	ffmem_free(t);
 }
