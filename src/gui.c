@@ -80,6 +80,10 @@ typedef struct ggui {
 typedef void (*cmdfunc0)(void);
 typedef void (*cmdfunc)(uint id);
 typedef void (*cmdfunc2)(gui_trk *g, uint id);
+typedef union {
+	cmdfunc0 f0;
+	cmdfunc f;
+} cmdfunc_u;
 
 enum CMDFLAGS {
 	F1 = 0,
@@ -461,7 +465,6 @@ static const struct cmd cmds[] = {
 	{ MIXREC,	F1,	&gui_task_add },
 
 	{ SHOWCONVERT,	F0,	&gui_showconvert },
-	{ OUTBROWSE,	F0,	&gui_conv_browse },
 
 	{ OPEN,	F1,	&gui_media_open },
 	{ ADD,	F1,	&gui_media_open },
@@ -473,10 +476,9 @@ static const struct cmd cmds[] = {
 	{ SHOWINFO,	F0,	&gui_media_showinfo },
 };
 
-static const struct cmd* getcmd(uint cmd)
+static const struct cmd* getcmd(uint cmd, const struct cmd *cmds, uint n)
 {
 	size_t i, start = 0;
-	uint n = FFCNT(cmds);
 	while (start != n) {
 		i = start + (n - start) / 2;
 		if (cmd == cmds[i].cmd) {
@@ -493,12 +495,9 @@ static void gui_action(ffui_wnd *wnd, int id)
 {
 	gui_trk *g = gg->curtrk;
 
-	const struct cmd *cmd = getcmd(id);
+	const struct cmd *cmd = getcmd(id, cmds, FFCNT(cmds));
 	if (cmd != NULL) {
-		union {
-			cmdfunc0 f0;
-			cmdfunc f;
-		} u;
+		cmdfunc_u u;
 		u.f = cmd->func;
 
 		if (cmd->flags & F2) {
@@ -618,13 +617,25 @@ static void gui_info_action(ffui_wnd *wnd, int id)
 	}
 }
 
+static const struct cmd cvt_cmds[] = {
+	{ OUTBROWSE,	F0,	&gui_conv_browse },
+	{ CONVERT,	F0,	&gui_convert },
+};
+
 static void gui_cvt_action(ffui_wnd *wnd, int id)
 {
-	switch (id) {
-	case CONVERT:
-		gui_convert();
-		break;
+	const struct cmd *cmd = getcmd(id, cvt_cmds, FFCNT(cvt_cmds));
+	if (cmd != NULL) {
+		cmdfunc_u u;
+		u.f = cmd->func;
+		if (cmd->flags & F0)
+			u.f0();
+		else
+			u.f(id);
+		return;
+	}
 
+	switch (id) {
 	case CVT_SETS_EDIT: {
 		int i = ffui_view_selnext(&gg->vsets, -1);
 		ffui_view_edit(&gg->vsets, i, VINFO_VAL);
