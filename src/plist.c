@@ -7,6 +7,7 @@ Copyright (c) 2015 Simon Zolin */
 #include <FF/data/cue.h>
 #include <FF/path.h>
 #include <FF/dir.h>
+#include <FF/data/utf8.h>
 #include <FFOS/error.h>
 
 
@@ -321,11 +322,14 @@ static int cue_process(void *ctx, fmed_filt *d)
 {
 	cue *c = ctx;
 	size_t n;
-	int r, done = 0;
+	int rc = FMED_RERR, r, done = 0;
 	ffstr *meta;
 	ffstr metaname;
+	ffarr val = {0};
 	ffcue cu = {0};
 	ffcuetrk *ctrk;
+	uint codepage = core->getval("codepage");
+	uint utf8 = 1;
 
 	cu.options = c->gaps;
 
@@ -346,7 +350,18 @@ static int cue_process(void *ctx, fmed_filt *d)
 		} else if (ffpars_iserr(r)) {
 			errlog(core, d->trk, "cue", "parse error at line %u: %s"
 				, c->p.line, ffpars_errstr(r));
-			return FMED_RERR;
+			goto err;
+		}
+
+		if (utf8 && ffutf8_valid(c->p.val.ptr, c->p.val.len))
+			ffarr_copy(&val, c->p.val.ptr, c->p.val.len);
+		else {
+			utf8 = 0;
+			size_t len = c->p.val.len;
+			size_t n = ffutf8_encode(NULL, 0, c->p.val.ptr, &len, codepage);
+			if (NULL == ffarr_realloc(&val, n))
+				goto err;
+			val.len = ffutf8_encode(val.ptr, val.cap, c->p.val.ptr, &len, codepage);
 		}
 
 		switch (c->p.type) {
@@ -369,28 +384,28 @@ static int cue_process(void *ctx, fmed_filt *d)
 
 add_metaname:
 			if (NULL == (meta = ffarr_push(&c->metas, ffstr)))
-				return FMED_RERR;
+				goto err;
 			*meta = metaname;
 			// break;
 
 		case FFCUE_REM_VAL:
 			if (NULL == (meta = ffarr_push(&c->metas, ffstr)))
-				return FMED_RERR;
-			*meta = c->p.val;
+				goto err;
+			ffstr_acqstr3(meta, &val);
 			break;
 
 		case FFCUE_REM_NAME:
 			if (NULL == (meta = ffarr_push(&c->metas, ffstr)))
-				return FMED_RERR;
-			*meta = c->p.val;
+				goto err;
+			ffstr_acqstr3(meta, &val);
 			break;
 
 		case FFCUE_FILE:
 			if (c->gmeta == 0)
 				c->gmeta = c->metas.len;
 			ffstr_free(&c->ent.url);
-			if (0 != plist_fullname(d, &c->p.val, &c->ent.url))
-				return FMED_RERR;
+			if (0 != plist_fullname(d, (ffstr*)&val, &c->ent.url))
+				goto err;
 			break;
 		}
 
@@ -426,7 +441,11 @@ next:
 	}
 
 	qu->cmd(FMED_QUE_RM, (void*)fmed_getval("queue_item"));
-	return FMED_RFIN;
+	rc = FMED_RFIN;
+
+err:
+	ffarr_free(&val);
+	return rc;
 }
 
 

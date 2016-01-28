@@ -51,6 +51,7 @@ CORE_O := $(OBJ_DIR)/core.o \
 	$(OBJ_DIR)/tui.o \
 	$(OBJ_DIR)/queue.o \
 	$(FF_O) \
+	$(FF_OBJ_DIR)/ffutf8.o \
 	$(FF_OBJ_DIR)/ffparse.o $(FF_OBJ_DIR)/ffconf.o \
 	$(FF_OBJ_DIR)/ffsoxr.o \
 	$(FF_OBJ_DIR)/ffpcm.o
@@ -126,6 +127,7 @@ ape.$(SO): $(APE_O)
 #
 PLIST_O := $(OBJ_DIR)/plist.o \
 	$(FF_O) \
+	$(FF_OBJ_DIR)/ffutf8.o \
 	$(FF_OBJ_DIR)/ffparse.o $(FF_OBJ_DIR)/ffm3u.o $(FF_OBJ_DIR)/ffcue.o \
 	$(FF_OBJ_DIR)/ffpcm.o
 plist.$(SO): $(PLIST_O)

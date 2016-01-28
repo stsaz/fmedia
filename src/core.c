@@ -7,6 +7,7 @@ Copyright (c) 2015 Simon Zolin */
 #include <FF/path.h>
 #include <FF/filemap.h>
 #include <FF/data/conf.h>
+#include <FF/data/utf8.h>
 #include <FF/time.h>
 #include <FFOS/error.h>
 #include <FFOS/process.h>
@@ -153,6 +154,7 @@ static int fmed_conf_input(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
 static int fmed_conf_inp_format(ffparser_schem *p, void *obj, ffstr *val);
 static int fmed_conf_ext(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
 static int fmed_conf_ext_val(ffparser_schem *p, void *obj, ffstr *val);
+static int fmed_conf_codepage(ffparser_schem *p, void *obj, ffstr *val);
 
 static const ffpars_arg fmed_conf_args[] = {
 	{ "mod",  FFPARS_TSTR | FFPARS_FNOTEMPTY | FFPARS_FSTRZ | FFPARS_FCOPY | FFPARS_FMULTI, FFPARS_DST(&fmed_conf_mod) }
@@ -161,6 +163,7 @@ static const ffpars_arg fmed_conf_args[] = {
 	, { "input",  FFPARS_TOBJ | FFPARS_FOBJ1, FFPARS_DST(&fmed_conf_input) }
 	, { "input_ext",  FFPARS_TOBJ, FFPARS_DST(&fmed_conf_ext) }
 	, { "output_ext",  FFPARS_TOBJ, FFPARS_DST(&fmed_conf_ext) }
+	, { "codepage",  FFPARS_TSTR, FFPARS_DST(&fmed_conf_codepage) }
 };
 
 static int fmed_confusr_mod(ffparser_schem *ps, void *obj, ffpars_ctx *ctx);
@@ -323,6 +326,16 @@ static int fmed_conf_ext(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
 	if (!ffsz_cmp(p->curarg->name, "output_ext"))
 		o = &conf->outmap;
 	ffpars_setargs(ctx, o, fmed_conf_ext_args, FFCNT(fmed_conf_ext_args));
+	return 0;
+}
+
+static int fmed_conf_codepage(ffparser_schem *p, void *obj, ffstr *val)
+{
+	fmed_config *conf = obj;
+	int cp = ffu_coding(val->ptr, val->len);
+	if (cp == -1)
+		return FFPARS_EBADVAL;
+	conf->codepage = cp;
 	return 0;
 }
 
@@ -1160,6 +1173,7 @@ fmed_core* core_init(fmedia **ptr, fmed_log_t logfunc)
 	fmed->cue_gaps = 255;
 	fmed->wav_formt = 255;
 	fmed->out_channels = 0xff;
+	fmed->codepage = FFU_WIN1252;
 	if (NULL == ffstr_copy(&fmed->outdir, FFSTR("."))) {
 		core_free();
 		return NULL;
@@ -1450,6 +1464,8 @@ static int64 core_getval(const char *name)
 {
 	if (!ffsz_cmp(name, "repeat_all"))
 		return fmed->repeat_all;
+	else if (!ffsz_cmp(name, "codepage"))
+		return fmed->codepage;
 	else if (!ffsz_cmp(name, "gui"))
 		return fmed->gui;
 	else if (!ffsz_cmp(name, "next_if_error"))
