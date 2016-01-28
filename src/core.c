@@ -156,6 +156,12 @@ static int fmed_conf_ext(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
 static int fmed_conf_ext_val(ffparser_schem *p, void *obj, ffstr *val);
 static int fmed_conf_codepage(ffparser_schem *p, void *obj, ffstr *val);
 
+// enum FMED_INSTANCE_MODE
+static const char *const im_enumstr[] = {
+	"off", "add", "play", "clear_play"
+};
+static const ffpars_enumlist im_enum = { im_enumstr, FFCNT(im_enumstr), FFPARS_DSTOFF(fmedia, instance_mode) };
+
 static const ffpars_arg fmed_conf_args[] = {
 	{ "mod",  FFPARS_TSTR | FFPARS_FNOTEMPTY | FFPARS_FSTRZ | FFPARS_FCOPY | FFPARS_FMULTI, FFPARS_DST(&fmed_conf_mod) }
 	, { "mod_conf",  FFPARS_TOBJ | FFPARS_FOBJ1 | FFPARS_FNOTEMPTY | FFPARS_FMULTI, FFPARS_DST(&fmed_conf_modconf) }
@@ -164,6 +170,7 @@ static const ffpars_arg fmed_conf_args[] = {
 	, { "input_ext",  FFPARS_TOBJ, FFPARS_DST(&fmed_conf_ext) }
 	, { "output_ext",  FFPARS_TOBJ, FFPARS_DST(&fmed_conf_ext) }
 	, { "codepage",  FFPARS_TSTR, FFPARS_DST(&fmed_conf_codepage) }
+	, { "instance_mode",  FFPARS_TENUM, FFPARS_DST(&im_enum) }
 };
 
 static int fmed_confusr_mod(ffparser_schem *ps, void *obj, ffpars_ctx *ctx);
@@ -1474,6 +1481,8 @@ static int64 core_getval(const char *name)
 		return fmed->tags;
 	else if (!ffsz_cmp(name, "cue_gaps") && fmed->cue_gaps != 255)
 		return fmed->cue_gaps;
+	else if (!ffsz_cmp(name, "instance_mode"))
+		return fmed->instance_mode;
 	return FMED_NULL;
 }
 

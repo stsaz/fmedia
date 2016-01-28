@@ -67,6 +67,7 @@ typedef struct fmedia {
 		, info;
 	byte volume;
 	byte codepage;
+	byte instance_mode;
 	char *trackno;
 	ffstr3 inmap; //inmap_item[]
 	ffstr3 outmap; //inmap_item[]

@@ -12,9 +12,21 @@ static fmedia *fmed;
 static fmed_core *core;
 static const fmed_log *lg;
 
+typedef struct inst_mode {
+	int mode;
+	ffarr pipename;
+	ffkevent kev;
+} inst_mode;
+static inst_mode *imode;
+#define IM_PIPE_NAME  "fmedia"
+
 
 FF_IMP fmed_core* core_init(fmedia **ptr, fmed_log_t logfunc);
 FF_IMP void core_free(void);
+
+static int pipe_listen(const char *name, inst_mode *imode);
+static void pipe_onaccept(void *udata);
+static int pipe_add_inputfiles(fffd ph);
 
 static void open_input(void);
 static void addlog(fffd fd, const char *stime, const char *module, const char *level
@@ -69,6 +81,129 @@ static void open_input(void)
 		qu->cmd(FMED_QUE_PLAY, NULL);
 }
 
+
+static int pipe_listen(const char *name, inst_mode *im)
+{
+	if (FF_BADFD == (im->kev.fd = ffpipe_create_named(name))) {
+		goto end;
+	}
+
+	im->kev.udata = im;
+	im->kev.oneshot = 0;
+	if (0 != ffkev_attach(&im->kev, core->kq, FFKQU_READ)) {
+		goto end;
+	}
+
+	if (0 != ffaio_pipe_listen(&im->kev, &pipe_onaccept))
+		goto end;
+
+	return 0;
+
+end:
+	FF_SAFECLOSE(im->kev.fd, FF_BADFD, ffpipe_close);
+	return -1;
+}
+
+/**
+Format: INPUT1\0 INPUT2\0 ... */
+static void pipe_onaccept(void *udata)
+{
+	fmed_que_entry e, *first = NULL, *ent;
+	ffarr buf;
+	inst_mode *im = udata;
+	ffbool skip = 0;
+
+	const fmed_queue *qu = core->getmod("#queue.queue");
+
+	if (im->mode == FMED_IM_CLEARPLAY)
+		qu->cmd(FMED_QUE_CLEAR, NULL);
+
+	if (NULL == ffarr_alloc(&buf, 4096)) {
+		syserrlog(core, NULL, "gui", "single instance mode: %e", FFERR_BUFALOC);
+		goto done;
+	}
+
+	for (;;) {
+		ssize_t r = fffile_read(im->kev.fd, ffarr_end(&buf), ffarr_unused(&buf));
+		if (r <= 0)
+			break;
+		buf.len += r;
+
+		ffstr s;
+		ffstr_set(&s, buf.ptr, buf.len);
+
+		for (;;) {
+			ffstr fn;
+			fn.ptr = s.ptr;
+			fn.len = ffsz_nlen(s.ptr, s.len);
+			if (fn.len == s.len && (fn.len == 0 || ffarr_back(&s) != '\0'))
+				break;
+
+			ffstr_shift(&s, fn.len + 1);
+			if (skip)
+				continue;
+
+			ffmem_tzero(&e);
+			e.url = fn;
+			ent = qu->add(&e);
+			if (first == NULL)
+				first = ent;
+		}
+
+		if (s.len == buf.cap) {
+			warnlog(core, NULL, "gui", "single instance mode: %s", "skipping too long filename");
+			skip = 1;
+			buf.len = 0;
+			continue;
+		}
+		_ffarr_rmleft(&buf, buf.len - s.len, sizeof(char));
+	}
+
+	ffarr_free(&buf);
+
+	if ((im->mode == FMED_IM_PLAY || im->mode == FMED_IM_CLEARPLAY) && first != NULL) {
+		qu->cmd(FMED_QUE_PLAY_EXCL, first);
+	}
+
+done:
+	ffpipe_disconnect(im->kev.fd);
+	if (0 != ffaio_pipe_listen(&im->kev, &pipe_onaccept))
+		syserrlog(core, NULL, "gui", "single instance mode: %s", "pipe listen");
+}
+
+static int pipe_add_inputfiles(fffd ph)
+{
+	int r = -1;
+	ffbool skip = 1;
+	char *cmd;
+	ffstr args, fn;
+	if (NULL == (cmd = ffsz_alcopyqz(GetCommandLine())))
+		goto end;
+	ffstr_setz(&args, cmd);
+
+	while (args.len != 0) {
+		size_t n = ffstr_nextval(args.ptr, args.len, &fn, ' ' | FFSTR_NV_DBLQUOT);
+		ffstr_shift(&args, n);
+
+		if (skip) {
+			skip = 0;
+			continue;
+		}
+
+		fn.len++;
+		ffarr_back(&fn) = '\0';
+		if (fn.len != fffile_write(ph, fn.ptr, fn.len)) {
+			goto end;
+		}
+	}
+
+	r = 0;
+end:
+	ffmem_safefree(cmd);
+	return r;
+}
+
+
 int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
 {
 	ffmem_init();
@@ -94,14 +229,44 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
 	if (NULL == (lg = core->getmod("gui.log")))
 		goto end;
 
+	int im = core->getval("instance_mode");
+	if (im != FMED_IM_OFF) {
+		if (NULL == (imode = ffmem_tcalloc1(inst_mode)))
+			goto end;
+		ffkev_init(&imode->kev);
+		imode->mode = im;
+		if (0 == ffstr_catfmt(&imode->pipename, "\\\\.\\pipe\\%s%Z", IM_PIPE_NAME))
+			goto end;
+
+		fffd ph;
+		if (FF_BADFD != (ph = fffile_open(imode->pipename.ptr, O_WRONLY))) {
+			pipe_add_inputfiles(ph);
+			ffpipe_close(ph);
+			goto end;
+		}
+	}
+
 	if (0 != core->sig(FMED_OPEN))
 		goto end;
+
+	if (imode != NULL) {
+		if (0 != pipe_listen(imode->pipename.ptr, imode))
+			syserrlog(core, NULL, "gui", "single instance mode: ", "pipe listen");
+		ffarr_free(&imode->pipename);
+	}
 
 	open_input();
 
 	core->sig(FMED_START);
 
 end:
+	if (imode != NULL) {
+		if (imode->kev.fd != FF_BADFD)
+			ffpipe_close(imode->kev.fd);
+		ffarr_free(&imode->pipename);
+		ffmem_free(imode);
+	}
+
 	core_free();
 	return 0;
 }

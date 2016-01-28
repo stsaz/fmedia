@@ -75,6 +75,13 @@ struct fmed_core {
 	void (*task)(fftask *task, uint cmd);
 };
 
+enum FMED_INSTANCE_MODE {
+	FMED_IM_OFF,
+	FMED_IM_ADD,
+	FMED_IM_PLAY,
+	FMED_IM_CLEARPLAY,
+};
+
 
 struct fmed_mod {
 	const void* (*iface)(const char *name);
