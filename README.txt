@@ -95,7 +95,8 @@ Per-user configuration settings are also supported, they must be stored in "fmed
  Linux:   $HOME/.config/fmedia/fmedia.conf
 
 Settings for a module must be in format "so.module.key value", e.g. to overwrite the global setting for OGG Vorbis encoding quality you should write:
-ogg-vorbis.encode.quality "70"
+
+	ogg-vorbis.encode.quality "7.0"
 
 Core configuration settings start with "core.", e.g. set codepage for non-Unicode text:
 

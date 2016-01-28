@@ -30,7 +30,7 @@ static struct ogg_in_conf_t {
 
 static struct ogg_out_conf_t {
 	ushort min_tag_size;
-	uint qual;
+	float qual;
 } ogg_out_conf;
 
 
@@ -66,7 +66,7 @@ static const fmed_filter fmed_ogg_output = {
 
 static const ffpars_arg ogg_out_conf_args[] = {
 	{ "min_tag_size",  FFPARS_TINT | FFPARS_F16BIT,  FFPARS_DSTOFF(struct ogg_out_conf_t, min_tag_size) },
-	{ "quality",  FFPARS_TINT,  FFPARS_DSTOFF(struct ogg_out_conf_t, qual) }
+	{ "quality",  FFPARS_TFLOAT | FFPARS_FSIGN,  FFPARS_DSTOFF(struct ogg_out_conf_t, qual) }
 };
 
 
@@ -90,7 +90,7 @@ static const void* ogg_iface(const char *name)
 
 	} else if (!ffsz_cmp(name, "encode")) {
 		ogg_out_conf.min_tag_size = 1000;
-		ogg_out_conf.qual = 50;
+		ogg_out_conf.qual = 5.0;
 		return &fmed_ogg_output;
 	}
 	return NULL;
@@ -333,7 +333,7 @@ static int ogg_out_encode(void *ctx, fmed_filt *d)
 
 		qual = (int)fmed_getval("ogg-quality");
 		if (qual == FMED_NULL)
-			qual = ogg_out_conf.qual;
+			qual = ogg_out_conf.qual * 10;
 
 		if (0 != (r = ffogg_create(&o->og, &fmt, qual))) {
 			errlog(core, d->trk, "ogg", "ffogg_create() failed: %s", ffogg_errstr(r));
