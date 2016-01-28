@@ -474,7 +474,7 @@ static void* fileout_open(fmed_filt *d)
 		goto done;
 
 	mode = FFO_CREATENEW;
-	if (FMED_NULL != d->track->getval(d->trk, "overwrite"))
+	if (1 == d->track->getval(d->trk, "overwrite"))
 		mode = O_CREAT;
 
 	f->fd = fffile_open(filename, mode | O_WRONLY | O_NOATIME);

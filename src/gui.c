@@ -59,6 +59,7 @@ typedef struct ggui {
 	ffui_menu mmconv;
 	ffui_edit eout;
 	ffui_btn boutbrowse;
+	ffui_view vsets;
 
 	ffui_wnd winfo;
 	ffui_view vinfo;
@@ -72,6 +73,8 @@ typedef struct ggui {
 	ffui_edit tlog;
 
 	ffthd th;
+
+	uint wconv_init :1;
 } ggui;
 
 typedef void (*cmdfunc0)(void);
@@ -97,6 +100,11 @@ enum LIST_HDR {
 	H_DUR,
 	H_INF,
 	H_FN,
+};
+
+enum {
+	VSETS_NAME,
+	VSETS_VAL,
 };
 
 enum {
@@ -240,6 +248,7 @@ static const name_to_ctl ctls[] = {
 	add(mmconv),
 	add(eout),
 	add(boutbrowse),
+	add(vsets),
 
 	add(winfo),
 	add(vinfo),
@@ -289,6 +298,7 @@ enum CMDS {
 	SHOWCONVERT,
 	OUTBROWSE,
 	CONVERT,
+	CVT_SETS_EDIT,
 
 	OPEN,
 	ADD,
@@ -311,6 +321,7 @@ enum CMDS {
 
 	//private:
 	ONCLOSE,
+	CVT_SETS_EDITDONE,
 };
 
 static const char *const scmds[] = {
@@ -337,6 +348,7 @@ static const char *const scmds[] = {
 	"SHOWCONVERT",
 	"OUTBROWSE",
 	"CONVERT",
+	"CVT_SETS_EDIT",
 
 	"OPEN",
 	"ADD",
@@ -612,6 +624,22 @@ static void gui_cvt_action(ffui_wnd *wnd, int id)
 	case CONVERT:
 		gui_convert();
 		break;
+
+	case CVT_SETS_EDIT: {
+		int i = ffui_view_selnext(&gg->vsets, -1);
+		ffui_view_edit(&gg->vsets, i, VINFO_VAL);
+		}
+		break;
+
+	case CVT_SETS_EDITDONE: {
+		int i = ffui_view_selnext(&gg->vsets, -1);
+		ffui_viewitem it;
+		ffui_view_iteminit(&it);
+		ffui_view_setindex(&it, i);
+		ffui_view_settextz(&it, gg->vsets.text);
+		ffui_view_set(&gg->vsets, VSETS_VAL, &it);
+		}
+		break;
 	}
 }
 
@@ -727,6 +755,19 @@ static void gui_rec(uint cmd)
 	gui_status(FFSTR("Recording..."));
 }
 
+struct cvt_set {
+	const char *settname;
+	const char *name;
+	const char *defval;
+};
+
+static const struct cvt_set cvt_sets[] = {
+	{ "ogg-quality", "OGG Vorbis Quality", "5.0" },
+	{ "mpeg-quality", "MPEG Quality", "2" },
+	{ "overwrite", "Overwrite Output File", "0" },
+	{ "out_preserve_date", "Preserve Date", "1" },
+};
+
 static void gui_showconvert(void)
 {
 	ffstr3 s = {0};
@@ -734,9 +775,24 @@ static void gui_showconvert(void)
 	if (0 == ffui_view_selcount(&gg->vlist))
 		return;
 
-	ffstr_catfmt(&s, "%s%c%s.%s", gg->conv_dir, FFPATH_SLASH, gg->conv_name, gg->conv_fmt);
-	ffui_settext(&gg->eout, s.ptr, s.len);
-	ffarr_free(&s);
+	if (!gg->wconv_init) {
+		ffstr_catfmt(&s, "%s%c%s.%s", gg->conv_dir, FFPATH_SLASH, gg->conv_name, gg->conv_fmt);
+		ffui_settext(&gg->eout, s.ptr, s.len);
+		ffarr_free(&s);
+
+		ffui_viewitem it;
+		ffui_view_iteminit(&it);
+
+		uint i;
+		for (i = 0;  i != FFCNT(cvt_sets);  i++) {
+			ffui_view_settextz(&it, cvt_sets[i].name);
+			ffui_view_append(&gg->vsets, &it);
+			ffui_view_settextz(&it, cvt_sets[i].defval);
+			ffui_view_set(&gg->vsets, VSETS_VAL, &it);
+		}
+
+		gg->wconv_init = 1;
+	}
 
 	ffui_show(&gg->wconvert, 1);
 	ffui_wnd_setfront(&gg->wconvert);
@@ -766,6 +822,8 @@ static void gui_convert(void)
 	void *play = NULL;
 
 	ffui_textstr(&gg->eout, &fn);
+	if (fn.len == 0)
+		return;
 
 	while (-1 != (i = ffui_view_selnext(&gg->vlist, i))) {
 		ffui_view_iteminit(&it);
@@ -775,17 +833,57 @@ static void gui_convert(void)
 		inp = (void*)ffui_view_param(&it);
 
 		ffmemcpy(&e, inp, sizeof(fmed_que_entry));
-		if (NULL != (qent = gg->qu->add(&e))) {
-			gg->qu->meta_set(qent, FFSTR("output"), fn.ptr, fn.len, FMED_QUE_TRKDICT);
-			if (play == NULL)
-				play = qent;
+		if (NULL == (qent = gg->qu->add(&e))) {
+			continue;
 		}
+
+		gg->qu->meta_set(qent, FFSTR("output"), fn.ptr, fn.len, FMED_QUE_TRKDICT);
+		if (play == NULL)
+			play = qent;
+
+		ffui_viewitem it;
+		uint k;
+		int64 val;
+		char *txt;
+		size_t len;
+		ffstr name;
+		ffui_view_iteminit(&it);
+		for (k = 0;  k != FFCNT(cvt_sets);  k++) {
+
+			ffstr_setz(&name, cvt_sets[k].settname);
+
+			ffui_view_setindex(&it, k);
+			ffui_view_gettext(&it);
+			ffui_view_get(&gg->vsets, VSETS_VAL, &it);
+
+			if (NULL == (txt = ffsz_alcopyqz(ffui_view_textq(&it)))) {
+				syserrlog(core, NULL, "gui", "%e", FFERR_BUFALOC);
+				goto end;
+			}
+			len = ffsz_len(txt);
+
+			if (ffstr_eqcz(&name, "ogg-quality")) {
+				double d;
+				ffs_tofloat(txt, len, &d, 0);
+				val = d * 10;
+			} else {
+				ffs_toint(txt, len, &val, FFS_INT64);
+			}
+
+			ffmem_free(txt);
+
+			gg->qu->meta_set(qent, name.ptr, name.len
+				, (char*)&val, sizeof(int64), FMED_QUE_TRKDICT | FMED_QUE_NUM);
+		}
+
+		ffui_view_itemreset(&it);
 	}
 
 	if (play != NULL) {
 		gg->play_id = play;
 		gui_task_add(PLAY);
 	}
+end:
 	ffstr_free(&fn);
 }
 
@@ -1177,6 +1275,7 @@ static FFTHDCALL int gui_worker(void *param)
 
 	gg->wconvert.hide_on_close = 1;
 	gg->wconvert.on_action = &gui_cvt_action;
+	gg->vsets.edit_id = CVT_SETS_EDITDONE;
 
 	gg->cmdtask.handler = &gui_task;
 	ffui_dlg_multisel(&gg->dlg);

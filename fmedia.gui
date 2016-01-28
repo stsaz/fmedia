@@ -264,6 +264,18 @@ window wconvert {
 		text "..."
 		action OUTBROWSE
 	}
+
+	listview vsets {
+		position 10 50 250 100
+		style edit_labels explorer_theme grid_lines visible
+
+		lclick CVT_SETS_EDIT
+
+		column Setting {
+		}
+		column Value {
+		}
+	}
 }
 
 window winfo {
