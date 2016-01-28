@@ -188,7 +188,7 @@ again:
 			fmed_setval("pcm_format", a->ap.info.fmt.format);
 			fmed_setval("pcm_channels", a->ap.info.fmt.channels);
 			fmed_setval("pcm_sample_rate", a->ap.info.fmt.sample_rate);
-			fmed_setval("pcm_ileaved", 0);
+			fmed_setval("pcm_ileaved", 1);
 
 			if (a->abs_seek != 0) {
 				if (a->abs_seek > 0)
@@ -247,7 +247,7 @@ data:
 
 	d->data = (void*)a->ap.data;
 	d->datalen = a->ap.datalen;
-	// d->outni = a->ap.pcm;
-	// d->outlen = a->ap.pcmlen;
-	return FMED_ROK;
+	d->out = (void*)a->ap.pcm;
+	d->outlen = a->ap.pcmlen;
+	return FMED_RDATA;
 }

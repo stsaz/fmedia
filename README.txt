@@ -22,6 +22,7 @@ FILTERS
 	Lossless:
 	. FLAC input/output
 	. WavPack input
+	. APE input
 	. WAV input/output
 	. RAW input
 

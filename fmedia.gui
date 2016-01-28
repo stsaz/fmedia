@@ -141,7 +141,7 @@ menu mtray {
 }
 
 dialog dlg {
-	filter "*.mp3;*.ogg;*.flac;*.wv;*.wav;*.m3u;*.m3u8;*.cue\x00*.mp3;*.ogg;*.flac;*.wv;*.wav;*.m3u;*.m3u8;*.cue\x00*.*\x00*.*\x00\x00"
+	filter "*.mp3;*.ogg;*.flac;*.wv;*.ape;*.wav;*.m3u;*.m3u8;*.cue\x00*.mp3;*.ogg;*.flac;*.wv;*.ape;*.wav;*.m3u;*.m3u8;*.cue\x00*.*\x00*.*\x00\x00"
 }
 
 window wmain {
