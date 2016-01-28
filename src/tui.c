@@ -186,6 +186,7 @@ static void* tui_open(fmed_filt *d)
 	if (t == NULL)
 		return NULL;
 	fflk_init(&t->lkcmds);
+	t->lastpos = (uint)-1;
 
 	t->total_samples = d->track->getval(d->trk, "total_samples");
 	tui_info(t, d);

@@ -1430,6 +1430,7 @@ static void* gtrk_open(fmed_filt *d)
 	if (g == NULL)
 		return NULL;
 	fflk_init(&g->lkcmds);
+	g->lastpos = (uint)-1;
 	g->trk = d->trk;
 	g->task.handler = d->handler;
 	g->task.param = d->trk;
