@@ -29,6 +29,7 @@ static struct ogg_in_conf_t {
 } ogg_in_conf;
 
 static struct ogg_out_conf_t {
+	ushort min_tag_size;
 	uint qual;
 } ogg_out_conf;
 
@@ -64,6 +65,7 @@ static const fmed_filter fmed_ogg_output = {
 };
 
 static const ffpars_arg ogg_out_conf_args[] = {
+	{ "min_tag_size",  FFPARS_TINT | FFPARS_F16BIT,  FFPARS_DSTOFF(struct ogg_out_conf_t, min_tag_size) },
 	{ "quality",  FFPARS_TINT,  FFPARS_DSTOFF(struct ogg_out_conf_t, qual) }
 };
 
@@ -87,6 +89,7 @@ static const void* ogg_iface(const char *name)
 		return &fmed_ogg_input;
 
 	} else if (!ffsz_cmp(name, "encode")) {
+		ogg_out_conf.min_tag_size = 1000;
 		ogg_out_conf.qual = 50;
 		return &fmed_ogg_output;
 	}
@@ -263,6 +266,7 @@ static void* ogg_out_open(fmed_filt *d)
 		return NULL;
 
 	ffogg_enc_init(&o->og);
+	o->og.min_tagsize = ogg_out_conf.min_tag_size;
 	return o;
 }
 
