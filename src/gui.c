@@ -134,6 +134,8 @@ struct gui_trk {
 
 	void *trk;
 	fftask task;
+
+	uint goback :1;
 };
 
 #define GUI_USRCONF  "%APPDATA%/fmedia/fmedia.gui.conf"
@@ -929,6 +931,7 @@ static void gui_media_seek(gui_trk *g, uint cmd)
 
 	gg->track->setval(g->trk, "seek_time", ffui_trk_val(&gg->tpos) * 1000);
 	gg->track->setval(g->trk, "snd_output_clear", 1);
+	g->goback = 1;
 }
 
 static void gui_vol(uint id)
@@ -1513,6 +1516,11 @@ static int gtrk_process(void *ctx, fmed_filt *d)
 		}
 		g->cmds.len = 0;
 		fflk_unlock(&g->lkcmds);
+
+		if (g->goback) {
+			g->goback = 0;
+			return FMED_RMORE;
+		}
 	}
 
 	if (d->flags & FMED_FSTOP) {

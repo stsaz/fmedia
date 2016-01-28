@@ -39,6 +39,8 @@ typedef struct tui {
 
 	fflock lkcmds;
 	ffarr cmds; // queued commands from gtui.  tcmd[]
+
+	uint goback :1;
 } tui;
 
 enum {
@@ -298,6 +300,7 @@ static void tui_seek(tui *t, uint cmd)
 		pos = ffmax(pos - by, 0);
 	gt->track->setval(t->trk, "seek_time", pos);
 	gt->track->setval(t->trk, "snd_output_clear", 1);
+	t->goback = 1;
 }
 
 static void tui_vol(tui *t, uint cmd)
@@ -357,6 +360,11 @@ static int tui_process(void *ctx, fmed_filt *d)
 		}
 		t->cmds.len = 0;
 		fflk_unlock(&t->lkcmds);
+
+		if (t->goback) {
+			t->goback = 0;
+			return FMED_RMORE;
+		}
 	}
 
 	if (core->loglev & FMED_LOG_DEBUG)
