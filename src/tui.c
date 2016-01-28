@@ -379,7 +379,7 @@ static int tui_process(void *ctx, fmed_filt *d)
 	t->lastpos = playtime;
 
 	if (t->total_samples == FMED_NULL
-		|| (uint64)playpos > t->total_samples) {
+		|| (uint64)playpos >= t->total_samples) {
 
 		fffile_fmt(ffstderr, &t->buf, "%*c%u:%02u"
 			, (size_t)nback, '\b'
