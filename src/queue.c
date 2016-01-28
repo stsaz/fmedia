@@ -18,6 +18,7 @@ typedef struct entry {
 
 	uint active :1
 		, rm :1
+		, stop_after :1
 		;
 } entry;
 
@@ -251,7 +252,7 @@ static void que_mix(void)
 
 // matches enum FMED_QUE
 static const char *const scmds[] = {
-	"play", "play-excl", "mix", "next", "prev", "clear", "rm", "setonchange", "meta-clear"
+	"play", "play-excl", "mix", "stop-after", "next", "prev", "clear", "rm", "setonchange", "meta-clear"
 };
 
 static void que_cmd(uint cmd, void *param)
@@ -281,6 +282,11 @@ static void que_cmd(uint cmd, void *param)
 
 	case FMED_QUE_MIX:
 		que_mix();
+		break;
+
+	case FMED_QUE_STOP_AFTER:
+		if (qu->cur != NULL)
+			qu->cur->stop_after = 1;
 		break;
 
 	case FMED_QUE_NEXT:
@@ -549,6 +555,11 @@ static void que_trk_close(void *ctx)
 	else if (stopped == FMED_TRACK_STOPALL_EXIT) {
 		core->sig(FMED_STOP);
 		goto done;
+	}
+
+	if (t->e->stop_after) {
+		t->e->stop_after = 0;
+		next = NULL;
 	}
 
 	if (next != NULL) {

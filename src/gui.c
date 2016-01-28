@@ -299,6 +299,7 @@ enum CMDS {
 	PLAY = 1,
 	PAUSE,
 	STOP,
+	STOP_AFTER,
 	NEXT,
 	PREV,
 
@@ -349,6 +350,7 @@ static const char *const scmds[] = {
 	"PLAY",
 	"PAUSE",
 	"STOP",
+	"STOP_AFTER",
 	"NEXT",
 	"PREV",
 
@@ -421,6 +423,10 @@ static void gui_task(void *param)
 			gui_action(&gg->wmain, PAUSE);
 		break;
 
+	case STOP_AFTER:
+		gg->qu->cmd(FMED_QUE_STOP_AFTER, NULL);
+		break;
+
 	case NEXT:
 		gg->track->cmd(NULL, FMED_TRACK_STOPALL);
 		gg->qu->cmd(FMED_QUE_NEXT, NULL);
@@ -466,6 +472,7 @@ static void gui_addcmd(cmdfunc2 func, uint cmd)
 
 static const struct cmd cmds[] = {
 	{ STOP,	F1,	&gui_task_add },
+	{ STOP_AFTER,	F1,	&gui_task_add },
 	{ NEXT,	F1,	&gui_task_add },
 	{ PREV,	F1,	&gui_task_add },
 

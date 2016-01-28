@@ -64,6 +64,10 @@ menu mplay {
 		action STOP
 		hotkey "S"
 	}
+	item "Stop After Current" {
+		action STOP_AFTER
+		hotkey "Shift+S"
+	}
 	item "&Next" {
 		action NEXT
 		hotkey "N"
