@@ -332,7 +332,13 @@ static int fmed_confusr_mod(ffparser_schem *ps, void *obj, ffpars_ctx *ctx)
 	ffstr *val = &ps->vals[0];
 	const fmed_modinfo *mod;
 
-	if (fmed->usrconf_modname == NULL) {
+	if (ps->p->type != FFCONF_TKEYCTX)
+		return FFPARS_EUKNKEY;
+
+	if (ffstr_eqcz(val, "core"))
+		ffpars_setargs(ctx, fmed, fmed_conf_args, FFCNT(fmed_conf_args));
+
+	else if (fmed->usrconf_modname == NULL) {
 		if (NULL == (fmed->usrconf_modname = ffsz_alcopy(val->ptr, val->len)))
 			return FFPARS_ESYS;
 		ffpars_setargs(ctx, fmed, fmed_confusr_args, FFCNT(fmed_confusr_args));
