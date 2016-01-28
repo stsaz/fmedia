@@ -128,6 +128,7 @@ struct gui_trk {
 	uint sample_rate;
 	uint total_time_sec;
 	uint gain;
+	uint seekpos;
 
 	fflock lkcmds;
 	ffarr cmds; //struct cmd[]
@@ -135,7 +136,8 @@ struct gui_trk {
 	void *trk;
 	fftask task;
 
-	uint goback :1;
+	uint goback :1
+		, conversion :1;
 };
 
 #define GUI_USRCONF  "%APPDATA%/fmedia/fmedia.gui.conf"
@@ -165,6 +167,7 @@ static void gui_media_open(uint id);
 static void gui_media_removed(uint i);
 static void gui_media_remove(void);
 static fmed_que_entry* gui_list_getent(void);
+static void gui_seek(uint cmd);
 static void gui_media_seek(gui_trk *g, uint cmd);
 static void gui_vol(uint id);
 static void gui_media_vol(gui_trk *g, uint id);
@@ -454,9 +457,9 @@ static const struct cmd cmds[] = {
 	{ NEXT,	F1,	&gui_task_add },
 	{ PREV,	F1,	&gui_task_add },
 
-	{ SEEK,	F2,	&gui_media_seek },
-	{ FFWD,	F2,	&gui_media_seek },
-	{ RWND,	F2,	&gui_media_seek },
+	{ SEEK,	F1,	&gui_seek },
+	{ FFWD,	F1,	&gui_seek },
+	{ RWND,	F1,	&gui_seek },
 
 	{ VOL,	F1,	&gui_vol },
 	{ VOLUP,	F1,	&gui_vol },
@@ -917,7 +920,9 @@ static void gui_que_onchange(fmed_que_entry *e, uint flags)
 	}
 }
 
-static void gui_media_seek(gui_trk *g, uint cmd)
+/*
+Note: if Left/Right key is pressed while trackbar is focused, SEEK command will be received after RWND/FFWD. */
+static void gui_seek(uint cmd)
 {
 	switch (cmd) {
 	case FFWD:
@@ -929,7 +934,19 @@ static void gui_media_seek(gui_trk *g, uint cmd)
 		break;
 	}
 
-	gg->track->setval(g->trk, "seek_time", ffui_trk_val(&gg->tpos) * 1000);
+	uint pos = ffui_trk_val(&gg->tpos);
+
+	fflk_lock(&gg->lktrk);
+	if (gg->curtrk != NULL && pos != gg->curtrk->seekpos && !gg->curtrk->conversion) {
+		gg->curtrk->seekpos = pos;
+		gui_addcmd(&gui_media_seek, cmd);
+	}
+	fflk_unlock(&gg->lktrk);
+}
+
+static void gui_media_seek(gui_trk *g, uint cmd)
+{
+	gg->track->setval(g->trk, "seek_time", g->seekpos * 1000);
 	gg->track->setval(g->trk, "snd_output_clear", 1);
 	g->goback = 1;
 }
@@ -960,7 +977,7 @@ static void gui_vol(uint id)
 	gui_status(buf, n);
 
 	fflk_lock(&gg->lktrk);
-	if (gg->curtrk != NULL) {
+	if (gg->curtrk != NULL && !gg->curtrk->conversion) {
 		gg->curtrk->gain = db * 100;
 		gui_addcmd(&gui_media_vol, id);
 	}
@@ -1476,8 +1493,10 @@ static void* gtrk_open(fmed_filt *d)
 	gg->curtrk = g;
 	fflk_unlock(&gg->lktrk);
 
-	if (FMED_PNULL == d->track->getvalstr(d->trk, "output")) // if not audio conversion
-		gui_action(&gg->wmain, VOL);
+	if (FMED_PNULL != d->track->getvalstr(d->trk, "output"))
+		g->conversion = 1;
+
+	gui_vol(VOL);
 
 	fflk_lock(&gg->lk);
 	g->state = ST_PLAYING;
