@@ -264,8 +264,11 @@ static int file_getdata(void *ctx, fmed_filt *d)
 				databuf *d = &f->data[f->rdata];
 				size_t n = ffmin(d->len - d->off, pos);
 				d->off += n;
-				if (d->off == d->len)
+				if (d->off == d->len) {
+					d->len = 0;
+					d->off = 0;
 					f->rdata = (f->rdata + 1) % file_in_conf.nbufs;
+				}
 
 				pos -= n;
 			}
