@@ -167,8 +167,58 @@ window wmain {
 		}
 	}
 
+	button bpause {
+		position 0 0 20 20
+		style visible
+		text "►"
+		tooltip "Play/Pause"
+		action PAUSE
+		font {
+			name Arial
+			height 10
+		}
+	}
+
+	button bstop {
+		position 25 0 20 20
+		style visible
+		text "■"
+		tooltip "Stop"
+		action STOP
+		font {
+			name Arial
+			height 13
+		}
+	}
+
+	button bprev {
+		position 50 0 20 20
+		style visible
+		text "<<"
+		tooltip "Previous"
+		action PREV
+	}
+
+	button bnext {
+		position 75 0 20 20
+		style visible
+		text ">>"
+		tooltip "Next"
+		action NEXT
+	}
+
+	label lpos {
+		position 100 0 100 20
+		style visible
+		font {
+			name Arial
+			height 13
+			style bold
+		}
+	}
+
 	trackbar tpos {
-		position 0 0 300 20
+		position 0 20 300 20
 		style no_ticks both visible
 		page_size 5
 		onscrolling SEEKING
@@ -185,7 +235,7 @@ window wmain {
 	}
 
 	listview vlist {
-		position 0 25 360 175
+		position 0 45 360 175
 		style explorer_theme grid_lines multi_select visible
 		dblclick PLAY
 		popupmenu mfile
@@ -210,10 +260,13 @@ window wmain {
 	}
 
 	paned pntop {
+		child tvol {
+			move x
+		}
+	}
+	paned pnpos {
 		child tpos {
 			resize cx
-		}
-		child tvol {
 		}
 	}
 	paned pnlist {

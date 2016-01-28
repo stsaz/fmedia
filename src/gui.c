@@ -47,10 +47,16 @@ typedef struct ggui {
 		, mhelp
 		, mtray;
 	ffui_dialog dlg;
+	ffui_btn bpause
+		, bstop
+		, bprev
+		, bnext;
+	ffui_ctl lpos;
 	ffui_trkbar tpos
 		, tvol;
 	ffui_view vlist;
 	ffui_paned pntop
+		, pnpos
 		, pnlist;
 	ffui_ctl stbar;
 	ffui_trayicon tray_icon;
@@ -236,11 +242,17 @@ typedef struct {
 #define add(name) { #name, FFOFF(ggui, name) }
 static const name_to_ctl ctls[] = {
 	add(wmain),
+	add(bpause),
+	add(bstop),
+	add(bprev),
+	add(bnext),
+	add(lpos),
 	add(tpos),
 	add(tvol),
 	add(vlist),
 	add(stbar),
 	add(pntop),
+	add(pnpos),
 	add(pnlist),
 	add(dlg),
 	add(tray_icon),
@@ -1243,7 +1255,7 @@ static void gui_clear(void)
 {
 	ffui_settextz(&gg->wmain, "fmedia");
 	ffui_trk_set(&gg->tpos, 0);
-	ffui_stbar_settext(&gg->stbar, 0, NULL, 0);
+	ffui_settext(&gg->lpos, NULL, 0);
 	gui_status("", 0);
 }
 
@@ -1581,7 +1593,7 @@ static int gtrk_process(void *ctx, fmed_filt *d)
 	n = ffs_fmt(buf, buf + sizeof(buf), "%u:%02u / %u:%02u"
 		, playtime / 60, playtime % 60
 		, g->total_time_sec / 60, g->total_time_sec % 60);
-	ffui_stbar_settext(&gg->stbar, 0, buf, n);
+	ffui_settext(&gg->lpos, buf, n);
 
 done:
 	d->out = d->data;
