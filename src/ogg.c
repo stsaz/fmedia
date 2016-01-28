@@ -22,6 +22,7 @@ typedef struct fmed_ogg {
 typedef struct ogg_out {
 	ffogg_enc og;
 	uint state;
+	uint hdr_done :1;
 } ogg_out;
 
 static struct ogg_in_conf_t {
@@ -363,6 +364,12 @@ static int ogg_out_encode(void *ctx, fmed_filt *d)
 		switch (r) {
 
 		case FFOGG_RDATA:
+			if (!o->hdr_done) {
+				o->hdr_done = 1;
+				int64 total_samples = fmed_getval("total_samples");
+				if (total_samples != FMED_NULL)
+					fmed_setval("output_size", ffogg_enc_size(&o->og, total_samples));
+			}
 			goto data;
 
 		case FFOGG_RDONE:
