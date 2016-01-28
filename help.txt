@@ -23,9 +23,13 @@ Options:
 
 --out=[FILE].EXT  Don't play but write output to a file.
                   Output format is chosen by "EXT".
+                  Supported variables:
+                    $filepath: path to input file
+                    $filename: name (without extension) of the input file
                   Filename may be generated automatically using meta info,
                     e.g.: --out "$tracknumber. $artist - $title.flac"
                     Note: bash (sh) users must escape $, or use '' instead of "".
+
 --outdir=DIR      Set output directory
 
 --volume=VOL      Set volume (0% .. 125%)

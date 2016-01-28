@@ -411,7 +411,7 @@ static FFINL char* fileout_getname(fmed_fileout *f, fmed_filt *d)
 	ffsvar p;
 	ffstr *tstr, fn, val;
 	ffarr buf = {0};
-	int r;
+	int r, fpath;
 	void *qent;
 
 	ffmem_tzero(&p);
@@ -426,7 +426,25 @@ static FFINL char* fileout_getname(fmed_fileout *f, fmed_filt *d)
 
 		switch (r) {
 		case FFSVAR_S:
-			if (NULL == (tstr = qu->meta_find(qent, p.val.ptr, p.val.len)))
+			if ((fpath = ffstr_eqcz(&p.val, "filepath"))
+				|| ffstr_eqcz(&p.val, "filename")) {
+
+				const char *in;
+				ffstr dir, name;
+				if (NULL == (in = d->track->getvalstr(d->trk, "input"))
+					|| NULL == ffpath_split2(in, ffsz_len(in), &dir, &name))
+					goto done;
+
+				if (fpath) {
+					if (NULL == ffarr_append(&buf, dir.ptr, dir.len))
+						goto done;
+					continue;
+				} else {
+					ffpath_splitname(name.ptr, name.len, &val, NULL);
+				}
+				break;
+
+			} else if (NULL == (tstr = qu->meta_find(qent, p.val.ptr, p.val.len)))
 				continue;
 			val = *tstr;
 			break;
