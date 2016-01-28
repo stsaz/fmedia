@@ -300,7 +300,7 @@ static int ogg_out_addmeta(ogg_out *o, fmed_filt *d)
 
 static int ogg_out_encode(void *ctx, fmed_filt *d)
 {
-	enum { I_CONF, I_CREAT, I_INPUT, I_ENCODE, I_DATA };
+	enum { I_CONF, I_CREAT, I_INPUT, I_ENCODE };
 	ogg_out *o = ctx;
 	int r, qual, il;
 	ffpcm fmt;
@@ -339,7 +339,7 @@ static int ogg_out_encode(void *ctx, fmed_filt *d)
 			qual = ogg_out_conf.qual * 10;
 
 		o->og.max_pagesize = ogg_out_conf.page_size;
-		if (0 != (r = ffogg_create(&o->og, &fmt, qual))) {
+		if (0 != (r = ffogg_create(&o->og, &fmt, qual, ffrnd_get()))) {
 			errlog(core, d->trk, "ogg", "ffogg_create() failed: %s", ffogg_errstr(r));
 			return FMED_RERR;
 		}
@@ -356,12 +356,6 @@ static int ogg_out_encode(void *ctx, fmed_filt *d)
 
 	case I_ENCODE:
 		break;
-
-	case I_DATA:
-		d->out = o->og.data;
-		d->outlen = o->og.datalen;
-		o->state = I_ENCODE;
-		return FMED_RDATA;
 	}
 
 	for (;;) {
@@ -373,7 +367,7 @@ static int ogg_out_encode(void *ctx, fmed_filt *d)
 
 		case FFOGG_RDONE:
 			d->outlen = 0;
-			return FMED_RDONE;
+			return FMED_RLASTOUT;
 
 		case FFOGG_RMORE:
 			o->state = I_INPUT;
@@ -386,12 +380,11 @@ static int ogg_out_encode(void *ctx, fmed_filt *d)
 	}
 
 data:
-	d->out = ffogg_pagehdr(&o->og, &d->outlen);
-	o->state = I_DATA;
+	d->out = o->og.data;
+	d->outlen = o->og.datalen;
 
-	dbglog(core, d->trk, "ogg", "output: %L+%L bytes, page: %u, granule pos: %U"
-		, (size_t)d->outlen, o->og.datalen
-		, ffogg_pageno(&o->og), ffogg_granulepos(&o->og));
+	dbglog(core, d->trk, "ogg", "output: %L bytes, page: %u"
+		, (size_t)d->outlen, o->og.page.number);
 
 	return FMED_RDATA;
 }
