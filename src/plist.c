@@ -329,7 +329,7 @@ static int cue_process(void *ctx, fmed_filt *d)
 	ffcue cu = {0};
 	ffcuetrk *ctrk;
 	uint codepage = core->getval("codepage");
-	uint utf8 = 1;
+	uint utf8 = 1, have_glob_artist = 0, artist_trk = 0;
 
 	cu.options = c->gaps;
 
@@ -378,8 +378,9 @@ static int cue_process(void *ctx, fmed_filt *d)
 			ffstr_setcz(&metaname, "title");
 			goto add_metaname;
 
-		case FFCUE_PERFORMER:
 		case FFCUE_TRK_PERFORMER:
+			artist_trk++;
+		case FFCUE_PERFORMER:
 			ffstr_setcz(&metaname, "artist");
 
 add_metaname:
@@ -409,6 +410,13 @@ add_metaname:
 			break;
 		}
 
+		if (c->p.type == FFCUE_PERFORMER) {
+			/* swap {FIRST_ENTRY_NAME, FIRST_ENTRY_VAL} <-> {"artist", ARTIST_VAL}
+			This allows to easily skip global artist key-value pair when track artist name is specified. */
+			have_glob_artist = 1;
+			_ffarr_swap(c->metas.ptr, c->metas.ptr + c->metas.len - 2, 2, sizeof(ffstr));
+		}
+
 		if (NULL == (ctrk = ffcue_index(&cu, c->p.type, (int)c->p.intval)))
 			continue;
 
@@ -430,6 +438,20 @@ add:
 		c->ent.from = -(int)ctrk->from;
 		c->ent.to = -(int)ctrk->to;
 		c->ent.dur = (ctrk->to != 0) ? (ctrk->to - ctrk->from) * 1000 / 75 : 0;
+
+		if (have_glob_artist && artist_trk != 0) {
+			// remove global artist
+			struct { FFARR(ffstr) } metas;
+			ffarr_set(&metas, c->metas.ptr, c->metas.len);
+			ffarr_shift(&metas, 2);
+			c->ent.nmeta -= 2;
+			c->ent.meta = metas.ptr;
+			qu->add(&c->ent);
+			c->ent.nmeta += 2;
+			artist_trk--;
+			goto next;
+		}
+
 		c->ent.meta = c->metas.ptr;
 		qu->add(&c->ent);
 
