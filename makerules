@@ -22,7 +22,7 @@ endif
 all: ff $(BINS)
 
 include $(FF)/makerules
-FF_O := $(FFOS_OBJ) $(FF_OBJ)
+FF_O := $(FFOS_OBJ) $(FF_OBJ) $(FF_OBJ_DIR)/ffutf8.o
 
 $(OBJ_DIR)/%.o: $(SRCDIR)/%.c $(SRCDIR)/fmedia.h $(SRCDIR)/core.h $(FF_HDR) $(FF_AUDIO_HDR)
 	$(C)  $(CFLAGS) $<  -o$@
@@ -51,7 +51,6 @@ CORE_O := $(OBJ_DIR)/core.o \
 	$(OBJ_DIR)/tui.o \
 	$(OBJ_DIR)/queue.o \
 	$(FF_O) \
-	$(FF_OBJ_DIR)/ffutf8.o \
 	$(FF_OBJ_DIR)/ffparse.o $(FF_OBJ_DIR)/ffconf.o \
 	$(FF_OBJ_DIR)/ffsoxr.o \
 	$(FF_OBJ_DIR)/ffpcm.o
@@ -70,7 +69,6 @@ wav.$(SO): $(WAV_O)
 
 #
 MPEG_O := $(OBJ_DIR)/mpeg.o $(FF_O) \
-	$(FF_OBJ_DIR)/ffutf8.o \
 	$(FF_OBJ_DIR)/ffpcm.o \
 	$(FF_OBJ_DIR)/ffmpg.o \
 	$(FF_OBJ_DIR)/ffmp3lame.o \
@@ -82,6 +80,7 @@ mpeg.$(SO): $(MPEG_O)
 #
 OGG_O := $(OBJ_DIR)/ogg.o \
 	$(FF_O) \
+	$(FF_OBJ_DIR)/ffpcm.o \
 	$(FF_OBJ_DIR)/ffogg.o \
 	$(FF_OBJ_DIR)/ffvorbistag.o
 ogg-vorbis.$(SO): $(OGG_O)
@@ -93,7 +92,6 @@ FLAC_O := $(OBJ_DIR)/flac.o \
 	$(FF_O) \
 	$(FF_OBJ_DIR)/ffflac.o \
 	$(FF_OBJ_DIR)/ffvorbistag.o \
-	$(FF_OBJ_DIR)/ffutf8.o \
 	$(FF_OBJ_DIR)/ffpcm.o
 flac.$(SO): $(FLAC_O)
 	$(LD) -shared $(FLAC_O) $(LDFLAGS) -lFLAC-ff  -o$@
@@ -105,7 +103,6 @@ WAVPACK_O := $(OBJ_DIR)/wavpack.o \
 	$(FF_OBJ_DIR)/ffwavpack.o \
 	$(FF_OBJ_DIR)/ffapetag.o \
 	$(FF_OBJ_DIR)/ffid3.o \
-	$(FF_OBJ_DIR)/ffutf8.o \
 	$(FF_OBJ_DIR)/ffpcm.o
 wavpack.$(SO): $(WAVPACK_O)
 	$(LD) -shared $(WAVPACK_O) $(LDFLAGS) -lwavpack-ff  -o$@
@@ -117,17 +114,14 @@ APE_O := $(OBJ_DIR)/ape.o \
 	$(FF_OBJ_DIR)/ffape.o \
 	$(FF_OBJ_DIR)/ffapetag.o \
 	$(FF_OBJ_DIR)/ffid3.o \
-	$(FF_OBJ_DIR)/ffutf8.o \
 	$(FF_OBJ_DIR)/ffpcm.o
 ape.$(SO): $(APE_O)
-	$(LD) -shared $(APE_O) $(LDFLAGS)   -o$@
-# -lape-ff
+	$(LD) -shared $(APE_O) $(LDFLAGS) -lMAC-ff  -o$@
 
 
 #
 PLIST_O := $(OBJ_DIR)/plist.o \
 	$(FF_O) \
-	$(FF_OBJ_DIR)/ffutf8.o \
 	$(FF_OBJ_DIR)/ffparse.o $(FF_OBJ_DIR)/ffm3u.o $(FF_OBJ_DIR)/ffcue.o \
 	$(FF_OBJ_DIR)/ffpcm.o
 plist.$(SO): $(PLIST_O)
@@ -207,7 +201,7 @@ installd: all
 	$(CP) \
 		$(FF3PTLIB)/libogg-ff.$(SO) $(FF3PTLIB)/libvorbis-ff.$(SO) $(FF3PTLIB)/libvorbisenc-ff.$(SO) \
 		$(FF3PTLIB)/libmad-ff.$(SO) $(FF3PTLIB)/libmp3lame-ff.$(SO) \
-		$(FF3PTLIB)/libFLAC-ff.$(SO) $(FF3PTLIB)/libwavpack-ff.$(SO) \
+		$(FF3PTLIB)/libFLAC-ff.$(SO) $(FF3PTLIB)/libwavpack-ff.$(SO) $(FF3PTLIB)/libMAC-ff.$(SO) \
 		$(FF3PTLIB)/libsoxr-ff.$(SO) \
 		$(INSTDIR)/
 

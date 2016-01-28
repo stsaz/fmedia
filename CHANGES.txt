@@ -1,3 +1,41 @@
+fmedia v0.8 - Jan 27, 2016
+
+ + APE decode
+
+ + fmedia-gui: support single instance mode
+ + GUI: add playback control buttons
+ + GUI: "Stop After Current" command
+ * GUI: show playback/total time info at the top
+ * GUI: add settings for audio conversion
+ - GUI: don't react to seek or volume changes while converting audio
+ - GUI: prevent hanging when too many seek requests are made
+ - GUI: 2 seek requests were made if Right key is pressed while seek trackbar is focused
+ - GUI: "convert" window: "..." button didn't work (v0.7 bug)
+
+ * TUI, GUI: reduce delay after seek request
+ - TUI, GUI: progress bar wasn't shown right after a track is started
+
+ + OGG encode: new config option "page_size", "min_tag_size"
+ * OGG: "quality" config setting type is now "float"
+ * OGG encode: allocate disk space for the whole output file
+ - OGG encode: audio samples could be lost if input data is very small
+ - OGG: prevent hanging in case no eos page is found or unexpected data exists after eos page
+
+ + CUE: support non-Unicode text
+ - CUE: use track PERFORMER value even if global PERFORMER value exists (v0.7 bug)
+
+ + file.out: support $filepath and $filename variables for naming output file
+ + core config settings can be stored in user config file
+ + fmedia: new argument --mono: convert stereo to mono
+ * fmedia: new config option "codepage"
+ * MPEG.decode: "meta_codepage" option is removed, use global "codepage" config option
+ - TUI: fix FP exception when total_samples is 0
+ - queue: the next track is started after the current track has been removed
+ - ALSA: fix segfault on starting the next track
+ - core: fix segfault when invalid keyname is used in user config file
+ - file.in: near forward seek didn't work if target position is larger than buffer size (v0.4 bug)
+
+
 fmedia v0.7 - Dec 24, 2015
 
  + TUI: support real-time user commands: "Play/Stop/Next/Previous", "Seek", "Volume", "Remove from playlist", "Delete file from disk"
