@@ -49,6 +49,12 @@ Options:
 
 
 Other options:
+--mono=VAL        Convert stereo to mono.  Supported values:
+                  0: mix all channels together
+                  1: use left channel only
+                  2: use right channel only
+                  Note: can't be used together with sample rate conversion.
+
 --wav-format=VAL  Set output PCM format (16le | float)
 
 --ogg-quality=VAL     Set OGG Vorbis encoding quality: -1.0 .. 10.0

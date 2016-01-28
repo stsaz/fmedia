@@ -658,6 +658,9 @@ static void* trk_create(uint cmd, const char *fn)
 	if (fmed->overwrite)
 		trk_setval(src, "overwrite", 1);
 
+	if (fmed->out_channels != 0xff)
+		trk_setval(src, "conv_channels", (fmed->out_channels << 4) | 1);
+
 	if (fmed->wav_formt != 255)
 		trk_setval(src, "wav-format", fmed->wav_formt);
 	if (fmed->ogg_qual != -255)
@@ -1150,6 +1153,7 @@ fmed_core* core_init(fmedia **ptr, fmed_log_t logfunc)
 	fmed->mpeg_qual = 0xffff;
 	fmed->cue_gaps = 255;
 	fmed->wav_formt = 255;
+	fmed->out_channels = 0xff;
 	if (NULL == ffstr_copy(&fmed->outdir, FFSTR("."))) {
 		core_free();
 		return NULL;

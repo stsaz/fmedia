@@ -58,6 +58,7 @@ static const ffpars_arg fmed_cmdline_args[] = {
 	, { "dev",  FFPARS_TINT,  FFPARS_DSTOFF(fmedia, playdev_name) }
 	, { "dev-capture",  FFPARS_TINT,  FFPARS_DSTOFF(fmedia, captdev_name) }
 
+	, { "mono",  FFPARS_TINT | FFPARS_F8BIT,  FFPARS_DSTOFF(fmedia, out_channels) }
 	, { "wav-format",  FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_pcmfmt) }
 
 	, { "ogg-quality",  FFPARS_TFLOAT | FFPARS_FSIGN,  FFPARS_DSTOFF(fmedia, ogg_qual) }

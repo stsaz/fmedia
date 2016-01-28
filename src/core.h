@@ -61,6 +61,7 @@ typedef struct fmedia {
 		, debug
 		, mix
 		, tags
+		, out_channels
 		, silent
 		, gui
 		, info;
