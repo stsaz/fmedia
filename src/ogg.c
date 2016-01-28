@@ -187,7 +187,7 @@ again:
 			if (d->flags & FMED_FLAST) {
 				dbglog(core, d->trk, "ogg", "no eos page");
 				d->outlen = 0;
-				return FMED_RDONE;
+				return FMED_RLASTOUT;
 			}
 			return FMED_RMORE;
 
@@ -196,7 +196,7 @@ again:
 
 		case FFOGG_RDONE:
 			d->outlen = 0;
-			return FMED_RDONE;
+			return FMED_RLASTOUT;
 
 		case FFOGG_RHDR:
 			d->track->setvalstr(d->trk, "pcm_decoder", "Vorbis");
@@ -249,7 +249,7 @@ data:
 	d->datalen = o->og.datalen;
 	d->outni = (void**)o->og.pcm;
 	d->outlen = o->og.pcmlen;
-	return FMED_ROK;
+	return FMED_RDATA;
 }
 
 
