@@ -353,7 +353,7 @@ static int ogg_out_encode(void *ctx, fmed_filt *d)
 		d->out = o->og.data;
 		d->outlen = o->og.datalen;
 		o->state = I_ENCODE;
-		return FMED_ROK;
+		return FMED_RDATA;
 	}
 
 	for (;;) {
@@ -385,5 +385,5 @@ data:
 		, (size_t)d->outlen, o->og.datalen
 		, ffogg_pageno(&o->og), ffogg_granulepos(&o->og));
 
-	return FMED_ROK;
+	return FMED_RDATA;
 }
