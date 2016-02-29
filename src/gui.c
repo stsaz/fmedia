@@ -1460,6 +1460,10 @@ static int gui_sig(uint signo)
 		fflk_lock(&gg->lk); //give the GUI thread some time to create controls
 		fflk_unlock(&gg->lk);
 		return gg->load_err;
+
+	case FMED_GUI_SHOW:
+		gui_action(&gg->wmain, SHOW);
+		break;
 	}
 	return 0;
 }

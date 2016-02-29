@@ -312,3 +312,7 @@ typedef struct fmed_queue {
 	Return meta value;  NULL: no more entries;  FMED_QUE_SKIP: skip this entry. */
 	ffstr* (*meta)(fmed_que_entry *ent, size_t n, ffstr *name, uint flags);
 } fmed_queue;
+
+enum FMED_GUI_SIG {
+	FMED_GUI_SHOW = 1 << 31,
+};

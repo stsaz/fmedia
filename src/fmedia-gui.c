@@ -140,7 +140,7 @@ static void pipe_onaccept(void *udata)
 				break;
 
 			ffstr_shift(&s, fn.len + 1);
-			if (skip)
+			if (skip || fn.len == 0)
 				continue;
 
 			ffmem_tzero(&e);
@@ -161,7 +161,12 @@ static void pipe_onaccept(void *udata)
 
 	ffarr_free(&buf);
 
-	if ((im->mode == FMED_IM_PLAY || im->mode == FMED_IM_CLEARPLAY) && first != NULL) {
+	if (first == NULL) {
+		const fmed_modinfo *gui;
+		gui = core->getmod("gui");
+		gui->m->sig(FMED_GUI_SHOW);
+
+	} else if (im->mode == FMED_IM_PLAY || im->mode == FMED_IM_CLEARPLAY) {
 		qu->cmd(FMED_QUE_PLAY_EXCL, first);
 	}
 
