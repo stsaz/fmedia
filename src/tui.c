@@ -381,19 +381,23 @@ static int tui_process(void *ctx, fmed_filt *d)
 	if (t->total_samples == FMED_NULL
 		|| (uint64)playpos >= t->total_samples) {
 
-		fffile_fmt(ffstderr, &t->buf, "%*c%u:%02u"
+		t->buf.len = 0;
+		ffstr_catfmt(&t->buf, "%*c%u:%02u"
 			, (size_t)nback, '\b'
 			, playtime / 60, playtime % 60);
-		t->buf.len -= nback;
-		goto done;
+		goto print;
 	}
 
-	fffile_fmt(ffstderr, &t->buf, "%*c[%*c%*c] %u:%02u / %u:%02u"
+	t->buf.len = 0;
+	ffstr_catfmt(&t->buf, "%*c[%*c%*c] %u:%02u / %u:%02u"
 		, (size_t)nback, '\b'
 		, (size_t)(playpos * dots / t->total_samples), '='
 		, (size_t)(dots - (playpos * dots / t->total_samples)), '.'
 		, playtime / 60, playtime % 60
 		, t->total_time_sec / 60, t->total_time_sec % 60);
+
+print:
+	fffile_write(ffstderr, t->buf.ptr, t->buf.len);
 	t->buf.len -= nback; //don't count the number of '\b'
 
 done:
