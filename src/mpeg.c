@@ -88,6 +88,8 @@ static const fmed_filter fmed_mpeg_output = {
 	&mpeg_out_open, &mpeg_out_process, &mpeg_out_close, &mpeg_out_config
 };
 
+static int mpeg_out_addmeta(mpeg_out *m, fmed_filt *d);
+
 static const ffpars_arg mpeg_out_conf_args[] = {
 	{ "quality",	FFPARS_TINT,  FFPARS_DSTOFF(struct mpeg_out_conf_t, qual) },
 };
@@ -292,6 +294,7 @@ static void* mpeg_out_open(fmed_filt *d)
 	mpeg_out *m = ffmem_tcalloc1(mpeg_out);
 	if (m == NULL)
 		return NULL;
+	m->mpg.options = FFMPG_WRITE_ID3V1 | FFMPG_WRITE_ID3V2;
 	return m;
 }
 
@@ -300,6 +303,33 @@ static void mpeg_out_close(void *ctx)
 	mpeg_out *m = ctx;
 	ffmpg_enc_close(&m->mpg);
 	ffmem_free(m);
+}
+
+static int mpeg_out_addmeta(mpeg_out *m, fmed_filt *d)
+{
+	uint i;
+	ffstr name, *val;
+	void *qent;
+	ssize_t r;
+
+	if (NULL == (qent = (void*)fmed_getval("queue_item")))
+		return 0;
+
+	for (i = 0;  NULL != (val = qu->meta(qent, i, &name, FMED_QUE_UNIQ));  i++) {
+		if (val == FMED_QUE_SKIP
+			|| -1 == (r = ffs_findarrz(metanames, FFCNT(metanames), name.ptr, name.len)))
+			continue;
+
+		r = id3_meta_ids[r];
+		if (r == FFID3_RECTIME)
+			r = FFID3_YEAR;
+
+		if (0 != ffmpg_addtag(&m->mpg, r, val->ptr, val->len)) {
+			syserrlog(core, d->trk, "mpeg", "%s", "add meta tag");
+			return -1;
+		}
+	}
+	return 0;
 }
 
 static int mpeg_out_process(void *ctx, fmed_filt *d)
@@ -330,6 +360,10 @@ static int mpeg_out_process(void *ctx, fmed_filt *d)
 			errlog(core, d->trk, "mpeg", "ffmpg_create() failed: %s", ffmpg_enc_errstr(&m->mpg));
 			return FMED_RERR;
 		}
+
+		if (0 != mpeg_out_addmeta(m, d))
+			return FMED_RERR;
+
 		m->state = 2;
 		break;
 	}
@@ -352,7 +386,7 @@ static int mpeg_out_process(void *ctx, fmed_filt *d)
 			break;
 
 		case FFMPG_RSEEK:
-			fmed_setval("output_seek", 0);
+			fmed_setval("output_seek", ffmpg_enc_seekoff(&m->mpg));
 			break;
 
 		case FFMPG_RDONE:
