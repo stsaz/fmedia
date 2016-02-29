@@ -551,6 +551,7 @@ static void media_open_capt(fm_src *src)
 	newfilter1(src, fmed->input);
 
 	src->capture = 1;
+	trk_setval(src, "type", FMED_TRK_TYPE_REC);
 }
 
 static void media_open_mix(fm_src *src)

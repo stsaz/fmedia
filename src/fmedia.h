@@ -115,6 +115,10 @@ enum FMED_TRACK {
 	FMED_TRACK_STOPALL_EXIT,
 };
 
+enum FMED_TRK_TYPE {
+	FMED_TRK_TYPE_REC = 1,
+};
+
 enum FMED_TRK_FVAL {
 	FMED_TRK_FACQUIRE = 2, //acquire pointer (value will be deleted with ffmem_free())
 	FMED_TRK_FNO_OVWRITE = 4, //don't overwrite if already exists
