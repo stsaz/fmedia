@@ -983,6 +983,7 @@ static void gui_seek(uint cmd)
 static void gui_media_seek(gui_trk *g, uint cmd)
 {
 	gg->track->setval(g->trk, "seek_time", g->seekpos * 1000);
+	g->seekpos = (uint)-1;
 	gg->track->setval(g->trk, "snd_output_clear", 1);
 	g->goback = 1;
 }
@@ -1485,6 +1486,7 @@ static void* gtrk_open(fmed_filt *d)
 		return NULL;
 	fflk_init(&g->lkcmds);
 	g->lastpos = (uint)-1;
+	g->seekpos = (uint)-1;
 	g->trk = d->trk;
 	g->task.handler = d->handler;
 	g->task.param = d->trk;
