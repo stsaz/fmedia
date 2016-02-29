@@ -33,6 +33,8 @@ typedef struct ggui {
 	uint load_err;
 	char *list_fn;
 
+	uint go_pos;
+
 	void *rec_trk;
 
 	char *conv_dir;
@@ -181,6 +183,7 @@ static void gui_media_removed(uint i);
 static void gui_media_savelist(void);
 static void gui_media_remove(void);
 static fmed_que_entry* gui_list_getent(void);
+static void gui_go_set(void);
 static void gui_seek(uint cmd);
 static void gui_media_seek(gui_trk *g, uint cmd);
 static void gui_vol(uint id);
@@ -315,6 +318,8 @@ enum CMDS {
 	SEEKING,
 	FFWD,
 	RWND,
+	GOPOS,
+	SETGOPOS,
 
 	VOL,
 	VOLUP,
@@ -367,6 +372,8 @@ static const char *const scmds[] = {
 	"SEEKING",
 	"FFWD",
 	"RWND",
+	"GOPOS",
+	"SETGOPOS",
 
 	"VOL",
 	"VOLUP",
@@ -495,6 +502,8 @@ static const struct cmd cmds[] = {
 	{ SEEK,	F1,	&gui_seek },
 	{ FFWD,	F1,	&gui_seek },
 	{ RWND,	F1,	&gui_seek },
+	{ GOPOS,	F1,	&gui_seek },
+	{ SETGOPOS,	F0,	&gui_go_set },
 
 	{ VOL,	F1,	&gui_vol },
 	{ VOLUP,	F1,	&gui_vol },
@@ -956,6 +965,23 @@ static void gui_que_onchange(fmed_que_entry *e, uint flags)
 	}
 }
 
+static void gui_go_set(void)
+{
+	fflk_lock(&gg->lktrk);
+	if (gg->curtrk != NULL) {
+		gg->go_pos = gg->curtrk->lastpos;
+	}
+	fflk_unlock(&gg->lktrk);
+
+	if (gg->go_pos == (uint)-1)
+		return;
+
+	char buf[255];
+	size_t n = ffs_fmt(buf, buf + sizeof(buf), "Marker: %u:%02u"
+		, gg->go_pos / 60, gg->go_pos % 60);
+	gui_status(buf, n);
+}
+
 /*
 Note: if Left/Right key is pressed while trackbar is focused, SEEK command will be received after RWND/FFWD. */
 static void gui_seek(uint cmd)
@@ -967,6 +993,12 @@ static void gui_seek(uint cmd)
 
 	case RWND:
 		ffui_trk_move(&gg->tpos, FFUI_TRK_PGDN);
+		break;
+
+	case GOPOS:
+		if (gg->go_pos == (uint)-1)
+			return;
+		ffui_trk_set(&gg->tpos, gg->go_pos);
 		break;
 	}
 
@@ -1392,6 +1424,7 @@ static const void* gui_iface(const char *name)
 	if (!ffsz_cmp(name, "gui")) {
 		if (NULL == (gg = ffmem_tcalloc1(ggui)))
 			return NULL;
+		gg->go_pos = (uint)-1;
 
 		return &fmed_gui;
 

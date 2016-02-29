@@ -90,6 +90,14 @@ menu mplay {
 		action RWND
 		hotkey "Left"
 	}
+	item "Set Marker" {
+		action SETGOPOS
+		hotkey "Shift+G"
+	}
+	item "Jump To Marker" {
+		action GOPOS
+		hotkey "G"
+	}
 	item "-" {
 	}
 	item "Volume &Up" {
