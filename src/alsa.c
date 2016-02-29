@@ -69,6 +69,41 @@ static const ffpars_arg alsa_out_conf_args[] = {
 
 static void alsa_onplay(void *udata);
 
+//INPUT
+static void* alsa_in_open(fmed_filt *d);
+static int alsa_in_read(void *ctx, fmed_filt *d);
+static void alsa_in_close(void *ctx);
+static int alsa_in_config(ffpars_ctx *ctx);
+static const fmed_filter fmed_alsa_in = {
+	&alsa_in_open, &alsa_in_read, &alsa_in_close, &alsa_in_config
+};
+
+typedef struct alsa_mod_in {
+	ffalsa_buf snd;
+} alsa_mod_in;
+
+static alsa_mod_in *ain;
+
+typedef struct alsa_in {
+	void *bufs[8];
+	struct {
+		fftask_handler handler;
+		void *param;
+	} cb;
+} alsa_in;
+
+static struct alsa_in_conf_t {
+	uint idev;
+	uint buflen;
+} alsa_in_conf;
+
+static const ffpars_arg alsa_in_conf_args[] = {
+	{ "device_index",	FFPARS_TINT,  FFPARS_DSTOFF(struct alsa_in_conf_t, idev) },
+	{ "buffer_length",	FFPARS_TINT | FFPARS_FNOTZERO,  FFPARS_DSTOFF(struct alsa_in_conf_t, buflen) },
+};
+
+static void alsa_in_oncapt(void *udata);
+
 
 FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 {
@@ -84,6 +119,11 @@ static const void* alsa_iface(const char *name)
 		alsa_out_conf.idev = 0;
 		alsa_out_conf.buflen = 500;
 		return &fmed_alsa_out;
+
+	} else if (!ffsz_cmp(name, "in")) {
+		alsa_in_conf.idev = 0;
+		alsa_in_conf.buflen = 500;
+		return &fmed_alsa_in;
 	}
 	return NULL;
 }
@@ -95,8 +135,14 @@ static int alsa_sig(uint signo)
 		if (NULL == (mod = ffmem_tcalloc1(alsa_mod)))
 			return -1;
 
+		if (NULL == (ain = ffmem_tcalloc1(alsa_mod_in))) {
+			ffmem_free0(mod);
+			return -1;
+		}
+
 		if (0 != ffalsa_init(core->kq)) {
 			ffmem_free0(mod);
+			ffmem_free0(ain);
 			return -1;
 		}
 
@@ -117,6 +163,8 @@ static void alsa_destroy(void)
 		ffmem_free(mod);
 		mod = NULL;
 	}
+
+	ffmem_safefree0(ain);
 
 	ffalsa_uninit(core->kq);
 }
@@ -360,4 +408,96 @@ err:
 	mod->out_valid = 0;
 	mod->usedby = NULL;
 	return FMED_RERR;
+}
+
+
+static int alsa_in_config(ffpars_ctx *ctx)
+{
+	ffpars_setargs(ctx, &alsa_in_conf, alsa_in_conf_args, FFCNT(alsa_in_conf_args));
+	return 0;
+}
+
+static void* alsa_in_open(fmed_filt *d)
+{
+	alsa_in *a;
+	ffpcm fmt;
+	int r, idx;
+	ffalsa_dev dev;
+
+	if (NULL == (a = ffmem_tcalloc1(alsa_in)))
+		return NULL;
+	a->cb.handler = d->handler;
+	a->cb.param = d->trk;
+
+	if (FMED_NULL == (idx = (int)d->track->getval(d->trk, "capture_device")))
+		idx = alsa_in_conf.idev;
+	if (0 != alsa_devbyidx(&dev, idx, FFALSA_DEV_CAPTURE)) {
+		errlog(core, d->trk, "alsa", "no audio device by index #%u", idx);
+		goto fail;
+	}
+
+	ain->snd.handler = &alsa_in_oncapt;
+	ain->snd.udata = a;
+	fmt.format = (int)fmed_getval("pcm_format");
+	fmt.channels = (int)fmed_getval("pcm_channels");
+	fmt.sample_rate = (int)fmed_getval("pcm_sample_rate");
+	r = ffalsa_capt_open(&ain->snd, dev.id, &fmt, alsa_in_conf.buflen);
+
+	ffalsa_devdestroy(&dev);
+
+	if (r != 0) {
+		errlog(core, d->trk, "alsa", "ffalsa_capt_open(): (%xu) %s", r, ffalsa_errstr(r));
+		goto fail;
+	}
+
+	if (0 != (r = ffalsa_start(&ain->snd))) {
+		errlog(core, d->trk, "alsa", "ffalsa_start(): (%xu) %s", r, ffalsa_errstr(r));
+		goto fail;
+	}
+
+	dbglog(core, d->trk, "alsa", "opened capture buffer %ums"
+		, ffpcm_bytes2time(&fmt, ffalsa_bufsize(&ain->snd)));
+	return a;
+
+fail:
+	alsa_in_close(a);
+	return NULL;
+}
+
+static void alsa_in_close(void *ctx)
+{
+	alsa_in *a = ctx;
+	ffalsa_capt_close(&ain->snd);
+	ffmem_free(a);
+}
+
+static void alsa_in_oncapt(void *udata)
+{
+	alsa_in *a = udata;
+	a->cb.handler(a->cb.param);
+}
+
+static int alsa_in_read(void *ctx, fmed_filt *d)
+{
+	alsa_in *a = ctx;
+	int r;
+
+	if (d->flags & FMED_FSTOP) {
+		ffalsa_stop(&ain->snd);
+		d->outlen = 0;
+		return FMED_RDONE;
+	}
+
+	r = ffalsa_capt_read(&ain->snd, a->bufs, &d->outlen);
+	if (r < 0) {
+		errlog(core, d->trk, "alsa", "ffalsa_capt_read(): (%xu) %s", r, ffalsa_errstr(r));
+		return FMED_RERR;
+	} else if (r == 0) {
+		ffalsa_async(&ain->snd, 1);
+		return FMED_RASYNC;
+	}
+	d->outni = a->bufs;
+
+	dbglog(core, d->trk, "alsa", "read %L bytes", d->outlen);
+	return FMED_ROK;
 }
