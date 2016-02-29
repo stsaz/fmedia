@@ -389,7 +389,7 @@ static int wasapi_write(void *ctx, fmed_filt *d)
 		r = ffwas_write(&mod->out, d->data, d->datalen);
 		if (r < 0) {
 			errlog(core, d->trk, "wasapi", "ffwas_write(): (%xu) %s", r, ffwas_errstr(r));
-			return FMED_RERR;
+			goto err;
 
 		} else if (r == 0) {
 			ffwas_async(&mod->out, 1);
@@ -409,7 +409,7 @@ static int wasapi_write(void *ctx, fmed_filt *d)
 			return FMED_RDONE;
 		else if (r < 0) {
 			errlog(core, d->trk,  "wasapi", "ffwas_stoplazy(): (%xu) %s", r, ffwas_errstr(r));
-			return FMED_RERR;
+			goto err;
 		}
 
 		ffwas_async(&mod->out, 1);
@@ -417,6 +417,13 @@ static int wasapi_write(void *ctx, fmed_filt *d)
 	}
 
 	return FMED_ROK;
+
+err:
+	ffwas_close(&mod->out);
+	ffmem_tzero(&mod->out);
+	mod->out_valid = 0;
+	mod->usedby = NULL;
+	return FMED_RERR;
 }
 
 

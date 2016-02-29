@@ -316,7 +316,7 @@ static int alsa_write(void *ctx, fmed_filt *d)
 		r = ffalsa_write(&mod->out, d->datani, d->datalen, a->dataoff);
 		if (r < 0) {
 			errlog(core, d->trk, "alsa", "ffalsa_write(): (%d) %s", r, ffalsa_errstr(r));
-			return FMED_RERR;
+			goto err;
 
 		} else if (r == 0) {
 			ffalsa_async(&mod->out, 1);
@@ -338,7 +338,7 @@ static int alsa_write(void *ctx, fmed_filt *d)
 			return FMED_RDONE;
 		else if (r < 0) {
 			errlog(core, d->trk,  "alsa", "ffalsa_stoplazy(): (%d) %s", r, ffalsa_errstr(r));
-			return FMED_RERR;
+			goto err;
 		}
 
 		ffalsa_async(&mod->out, 1);
@@ -346,4 +346,11 @@ static int alsa_write(void *ctx, fmed_filt *d)
 	}
 
 	return FMED_ROK;
+
+err:
+	ffalsa_close(&mod->out);
+	ffmem_tzero(&mod->out);
+	mod->out_valid = 0;
+	mod->usedby = NULL;
+	return FMED_RERR;
 }
