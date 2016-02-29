@@ -171,8 +171,8 @@ static void que_play(entry *ent)
 	if (trk == NULL)
 		return;
 	else if (trk == FMED_TRK_EFMT) {
-		qu->tsk_param = que_getnext(ent);
-		que_task_add(FMED_QUE_PLAY);
+		if (NULL != (qu->tsk_param = que_getnext(ent)))
+			que_task_add(FMED_QUE_PLAY);
 
 		que_cmd(FMED_QUE_RM, e);
 		return;
