@@ -1,3 +1,42 @@
+-----------------
+HISTORY OF FMEDIA
+-----------------
+
+ "+" - new feature
+ "*" - change, update or a small improvement
+ "-" - bugfix
+
+
+fmedia v0.9 - Feb 29, 2016
+
+ + MP4 (ALAC) input
+ + ALSA capture
+ + MPEG encode: write ID3v1 and ID3v2 tags
+
+ + TUI: show real-time PCM peak value in dB while recording
+ * TUI: "Stop", "Quit" commands can stop recording
+ + GUI: save playlist to M3U file
+ + GUI: add commands "Jump To Marker" and "Set Marker"
+ - GUI: main window position wasn't preserved on File->Exit command
+ - GUI: show the first fmedia instance after executing the second instance without input files
+ - GUI: "Play Mixed and Record" command didn't work
+ - GUI: record: stop all playing tracks before starting playback of new tracks
+ - GUI: issuing the second seek command to the same position didn't work (v0.8 bug)
+
+ - APE, WavPack: don't pass binary meta (e.g. cover picture)
+ - OGG: support padding in Vorbis comments
+ * Vorbis comments: support "TotalTracks"
+ - OGG: fix invalid audio position if page granulepos is not set
+ - MPEG decode: fix inaccurate bitrate value if there's a large ID3v2 tag present
+
+ * --pcm-peaks: print peak values as dB
+ - fmedia: linux: fix potential threads race when SIGIO event from ALSA device fd is received in TUI command processing thread
+ - fmedia: windows: Unicode input arguments were not supported
+ - ALSA, WASAPI: reset audio device after system error
+ - WASAPI, core: playback of mono audio didn't work in shared WASAPI mode
+ - queue: don't start playing the first track in queue after playback of the last track has failed with "unsupported format" error (v0.7 bug)
+
+
 fmedia v0.8 - Jan 27, 2016
 
  + APE decode

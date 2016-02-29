@@ -420,12 +420,12 @@ static int fmed_conf(uint userconf)
 		}
 	}
 
-	if (NULL == (buf = ffmem_alloc(4096))) {
+	if (NULL == (buf = ffmem_alloc(CONF_MBUF))) {
 		goto err;
 	}
 
 	for (;;) {
-		n = fffile_read(f, buf, 4096);
+		n = fffile_read(f, buf, CONF_MBUF);
 		if (n == (size_t)-1) {
 			goto err;
 		} else if (n == 0)

@@ -14,6 +14,7 @@ INPUT
 	. File
 	. WASAPI Capture
 	. Windows Direct Sound Capture
+	. ALSA Capture
 
 FILTERS
 	. MPEG input/output
@@ -21,6 +22,7 @@ FILTERS
 
 	Lossless:
 	. FLAC input/output
+	. ALAC input
 	. WavPack input
 	. APE input
 	. WAV input/output
@@ -56,7 +58,9 @@ INSTALL ON WINDOWS
 ---------------
 INSTALL ON LINUX
 ---------------
-1. Unpack archive to the directory of your choice, e.g. to "/usr/local/fmedia-0"
+1. Unpack archive to the directory of your choice, e.g. to "/usr/local/fmedia-0":
+
+	tar Jxf ./fmedia-0.8-linux-amd64.tar.xz -C /usr/local
 
 2. Optionally, create a symbolic link:
 
