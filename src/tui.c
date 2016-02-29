@@ -469,7 +469,7 @@ static void tui_task(void *param)
 	uint cmd = (uint)(size_t)param;
 	switch (cmd) {
 	case CMD_STOP:
-		gt->track->cmd(NULL, FMED_TRACK_STOPALL);
+		gt->track->cmd((void*)-1, FMED_TRACK_STOPALL);
 		break;
 
 	case CMD_NEXT:

@@ -1048,6 +1048,7 @@ static int trk_cmd(void *trk, uint cmd)
 			core_sig(FMED_STOP);
 			break;
 		}
+		trk = (void*)-1;
 		// break
 
 	case FMED_TRACK_STOPALL:
