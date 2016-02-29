@@ -537,6 +537,9 @@ static int media_open(fm_src *src, const char *fn)
 
 	newfilter(src, "#soundmod.until");
 
+	if (fmed->mix && !src->mxr_out)
+		trk_setval(src, "type", FMED_TRK_TYPE_MIXIN);
+
 	return 0;
 }
 
@@ -566,11 +569,14 @@ static void media_open_mix(fm_src *src)
 static int media_setout(fm_src *src)
 {
 	const char *s, *fn;
+	int type = trk_getval(src, "type");
 
-	if (fmed->gui)
-		newfilter(src, "gui.gui");
-	else if (!fmed->silent)
-		newfilter(src, "#tui.tui");
+	if (type != FMED_TRK_TYPE_MIXIN) {
+		if (fmed->gui)
+			newfilter(src, "gui.gui");
+		else if (!fmed->silent)
+			newfilter(src, "#tui.tui");
+	}
 
 	if (fmed->volume != 100) {
 		double db;
