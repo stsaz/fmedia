@@ -555,8 +555,10 @@ static int sndmod_peaks_process(void *ctx, fmed_filt *d)
 				if (p->ch[ich].crc != 0)
 					ffcrc32_finish(&p->ch[ich].crc);
 
-				ffstr_catfmt(&buf, "Channel #%L: highest peak:%04xu, avg peak:%04xu.  Clipped: %U (%.4F%%).  CRC:%08xu\n"
-					, ich + 1, p->ch[ich].high, (int)(p->ch[ich].sum / p->total)
+				double hi = ffpcm_gain2db(_ffpcm_16le_flt(p->ch[ich].high));
+				double avg = ffpcm_gain2db(_ffpcm_16le_flt(p->ch[ich].sum / p->total));
+				ffstr_catfmt(&buf, "Channel #%L: highest peak:%.2FdB, avg peak:%.2FdB.  Clipped: %U (%.4F%%).  CRC:%08xu\n"
+					, ich + 1, hi, avg
 					, p->ch[ich].clipped, ((double)p->ch[ich].clipped * 100 / p->total)
 					, p->ch[ich].crc);
 			}
