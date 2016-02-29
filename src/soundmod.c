@@ -77,6 +77,14 @@ static const fmed_filter fmed_sndmod_peaks = {
 	&sndmod_peaks_open, &sndmod_peaks_process, &sndmod_peaks_close
 };
 
+//RTPEAK
+static void* sndmod_rtpeak_open(fmed_filt *d);
+static int sndmod_rtpeak_process(void *ctx, fmed_filt *d);
+static void sndmod_rtpeak_close(void *ctx);
+static const fmed_filter fmed_sndmod_rtpeak = {
+	&sndmod_rtpeak_open, &sndmod_rtpeak_process, &sndmod_rtpeak_close
+};
+
 
 const fmed_mod* fmed_getmod_sndmod(const fmed_core *_core)
 {
@@ -97,6 +105,8 @@ static const void* sndmod_iface(const char *name)
 		return &fmed_sndmod_until;
 	else if (!ffsz_cmp(name, "peaks"))
 		return &fmed_sndmod_peaks;
+	else if (!ffsz_cmp(name, "rtpeak"))
+		return &fmed_sndmod_rtpeak;
 	return NULL;
 }
 
@@ -575,5 +585,51 @@ static int sndmod_peaks_process(void *ctx, fmed_filt *d)
 		ffarr_free(&buf);
 		return FMED_RDONE;
 	}
+	return FMED_ROK;
+}
+
+
+typedef struct sndmod_rtpeak {
+	ffpcmex fmt;
+} sndmod_rtpeak;
+
+static void* sndmod_rtpeak_open(fmed_filt *d)
+{
+	sndmod_rtpeak *p = ffmem_tcalloc1(sndmod_rtpeak);
+	if (p == NULL)
+		return NULL;
+	p->fmt.format = fmed_getval("pcm_format");
+	p->fmt.channels = fmed_getval("pcm_channels");
+	p->fmt.sample_rate = fmed_getval("pcm_sample_rate");
+	p->fmt.ileaved = (1 == fmed_getval("pcm_ileaved"));
+	float t;
+	if (0 != ffpcm_peak(&p->fmt, NULL, 0, &t)) {
+		errlog(core, d->trk, "rtpeak", "ffpcm_peak(): unsupported format");
+		ffmem_free(p);
+		return FMED_FILT_SKIP;
+	}
+	return p;
+}
+
+static void sndmod_rtpeak_close(void *ctx)
+{
+	sndmod_rtpeak *p = ctx;
+	ffmem_free(p);
+}
+
+static int sndmod_rtpeak_process(void *ctx, fmed_filt *d)
+{
+	sndmod_rtpeak *p = ctx;
+
+	float maxpeak;
+	ffpcm_peak(&p->fmt, d->data, d->datalen / ffpcm_size1(&p->fmt), &maxpeak);
+	double db = ffpcm_gain2db(maxpeak);
+	fmed_setval("pcm_peak", (uint)(db * 100));
+
+	d->out = d->data;
+	d->outlen = d->datalen;
+	d->datalen = 0;
+	if (d->flags & FMED_FLAST)
+		return FMED_RDONE;
 	return FMED_ROK;
 }

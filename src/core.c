@@ -550,6 +550,8 @@ static void media_open_capt(fm_src *src)
 	trk_setval(src, "pcm_sample_rate", fmed->inp_pcm.sample_rate);
 	newfilter1(src, fmed->input);
 
+	newfilter(src, "#soundmod.rtpeak");
+
 	src->capture = 1;
 	trk_setval(src, "type", FMED_TRK_TYPE_REC);
 }
@@ -713,7 +715,7 @@ static void* trk_create(uint cmd, const char *fn)
 		break;
 
 	case FMED_TRACK_REC:
-		if (NULL == ffarr_grow(&src->filters, 1 + nout, 0))
+		if (NULL == ffarr_grow(&src->filters, 2 + nout, 0))
 			goto fail;
 		media_open_capt(src);
 		break;

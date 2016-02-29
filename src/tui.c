@@ -36,11 +36,13 @@ typedef struct tui {
 	uint sampsize;
 	uint total_time_sec;
 	ffstr3 buf;
+	double maxdb;
 
 	fflock lkcmds;
 	ffarr cmds; // queued commands from gtui.  tcmd[]
 
-	uint goback :1;
+	uint goback :1
+		, rec :1;
 } tui;
 
 enum {
@@ -52,6 +54,8 @@ enum {
 	VOL_MAX = 125,
 	VOL_LO = /*-*/48,
 	VOL_HI = 6,
+
+	MINDB = 40,
 };
 
 enum CMDS {
@@ -98,6 +102,7 @@ static const fmed_filter fmed_tui = {
 	&tui_open, &tui_process, &tui_close
 };
 
+static void tui_print_peak(tui *t, fmed_filt *d);
 static void tui_info(tui *t, fmed_filt *d);
 static int tui_cmdloop(void *param);
 static void tui_help(uint cmd);
@@ -187,6 +192,12 @@ static void* tui_open(fmed_filt *d)
 		return NULL;
 	fflk_init(&t->lkcmds);
 	t->lastpos = (uint)-1;
+
+	int type = fmed_getval("type");
+	if (type == FMED_TRK_TYPE_REC) {
+		t->rec = 1;
+		t->maxdb = -MINDB;
+	}
 
 	t->total_samples = d->track->getval(d->trk, "total_samples");
 	tui_info(t, d);
@@ -340,12 +351,31 @@ static void tui_rmfile(tui *t, uint cmd)
 		gt->qu->cmd(FMED_QUE_RM, qtrk);
 }
 
+static void tui_print_peak(tui *t, fmed_filt *d)
+{
+	int pk;
+	if (FMED_NULL == (pk = (int)fmed_getval("pcm_peak")))
+		return;
+
+	double db = ((double)pk) / 100;
+	if (db < -MINDB)
+		db = -MINDB;
+	if (t->maxdb < db)
+		t->maxdb = db;
+	size_t pos = ((MINDB + db) / MINDB) * 10;
+	ffstr_catfmt(&t->buf, "  [%*c%*c] %.02FdB / %.02FdB  "
+		, pos, '='
+		, (size_t)(10 - pos), '.'
+		, db, t->maxdb);
+}
+
 static int tui_process(void *ctx, fmed_filt *d)
 {
 	tui *t = ctx;
 	int64 playpos;
 	uint playtime;
 	uint dots = 70;
+	int pk;
 
 	if (ctx == FMED_FILT_DUMMY)
 		return FMED_RFIN;
@@ -374,8 +404,19 @@ static int tui_process(void *ctx, fmed_filt *d)
 	if (FMED_NULL == (playpos = fmed_getval("current_position")))
 		playpos = t->played_samples;
 	playtime = (uint)(ffpcm_time(playpos, t->sample_rate) / 1000);
-	if (playtime == t->lastpos)
+	if (playtime == t->lastpos) {
+
+		if (t->rec
+			&& FMED_NULL != (pk = (int)fmed_getval("pcm_peak"))) {
+			double db = ((double)pk) / 100;
+			if (db < -40)
+				db = -40;
+			if (t->maxdb < db)
+				t->maxdb = db;
+		}
+
 		goto done;
+	}
 	t->lastpos = playtime;
 
 	if (t->total_samples == FMED_NULL
@@ -385,6 +426,11 @@ static int tui_process(void *ctx, fmed_filt *d)
 		ffstr_catfmt(&t->buf, "%*c%u:%02u"
 			, (size_t)nback, '\b'
 			, playtime / 60, playtime % 60);
+
+		if (t->rec) {
+			tui_print_peak(t, d);
+		}
+
 		goto print;
 	}
 
