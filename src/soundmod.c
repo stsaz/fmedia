@@ -139,7 +139,7 @@ static void arrp_setbuf(void **ar, size_t size, const void *buf, size_t region_l
 
 static int sndmod_conv_prepare(sndmod_conv *c, fmed_filt *d)
 {
-	int il, fmt;
+	int il, fmt, val;
 	size_t cap;
 
 	fmt = (int)fmed_popval("conv_pcm_format");
@@ -153,6 +153,11 @@ static int sndmod_conv_prepare(sndmod_conv *c, fmed_filt *d)
 	if (il != FMED_NULL) {
 		c->outpcm.ileaved = il;
 		fmed_setval("pcm_ileaved", c->outpcm.ileaved);
+	}
+
+	if (FMED_NULL != (val = fmed_popval("conv_channels"))) {
+		c->outpcm.channels = val;
+		fmed_setval("pcm_channels", val & FFPCM_CHMASK);
 	}
 
 	if (!ffmemcmp(&c->outpcm, &c->inpcm, sizeof(ffpcmex))) {
@@ -287,6 +292,12 @@ static int sndmod_soxr_process(void *ctx, fmed_filt *d)
 		return FMED_RDATA;
 
 	case 1:
+		if (FMED_NULL == fmed_getval("conv_pcm_rate"))
+			return FMED_RDONE_PREV;
+
+		if (FMED_NULL != fmed_getval("conv_channels"))
+			return FMED_RMORE; // "conv" module will handle channel conversion
+
 		inpcm.format = (int)fmed_getval("pcm_format");
 		inpcm.sample_rate = (int)fmed_getval("pcm_sample_rate");
 		inpcm.channels = (int)fmed_getval("pcm_channels");
@@ -294,12 +305,8 @@ static int sndmod_soxr_process(void *ctx, fmed_filt *d)
 			inpcm.ileaved = 1;
 		outpcm = inpcm;
 
-		if (FMED_NULL != (val = (int)fmed_popval("conv_pcm_rate"))) {
-			outpcm.sample_rate = val;
-			fmed_setval("pcm_sample_rate", outpcm.sample_rate);
-		} else {
-			return FMED_RDONE_PREV;
-		}
+		outpcm.sample_rate = (int)fmed_popval("conv_pcm_rate");
+		fmed_setval("pcm_sample_rate", outpcm.sample_rate);
 
 		if (FMED_NULL != (val = (int)fmed_popval("conv_pcm_format"))) {
 			outpcm.format = val;

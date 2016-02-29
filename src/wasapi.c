@@ -228,7 +228,7 @@ static void* wasapi_open(fmed_filt *d)
 
 static int wasapi_create(wasapi_out *w, fmed_filt *d)
 {
-	ffpcm fmt;
+	ffpcm fmt, in_fmt;
 	int r, reused = 0, excl = 0;
 	int64 lowlat;
 
@@ -285,14 +285,19 @@ static int wasapi_create(wasapi_out *w, fmed_filt *d)
 
 	mod->out.handler = &wasapi_onplay;
 	mod->out.autostart = 1;
+	in_fmt = fmt;
 	r = ffwas_open(&mod->out, w->dev.id, &fmt, wasapi_out_conf.buflen);
 
 	if (r != 0) {
 
 		if (r == AUDCLNT_E_UNSUPPORTED_FORMAT && w->state == WAS_TRYOPEN
-			&& fmt.sample_rate != fmed_getval("pcm_sample_rate")) {
+			&& (fmt.sample_rate != in_fmt.sample_rate || fmt.channels != in_fmt.channels)) {
 
-			fmed_setval("conv_pcm_rate", fmt.sample_rate);
+			if (fmt.sample_rate != in_fmt.sample_rate)
+				fmed_setval("conv_pcm_rate", fmt.sample_rate);
+
+			if (fmt.channels != in_fmt.channels)
+				fmed_setval("conv_channels", fmt.channels);
 			w->state = WAS_OPEN;
 			return FMED_RMORE;
 		}
