@@ -620,12 +620,11 @@ static void gui_action(ffui_wnd *wnd, int id)
 		break;
 
 	case QUIT:
-		ffui_wnd_close(&gg->wmain);
-		// break;
-
 	case ONCLOSE:
 		gui_task_add(QUIT);
 		gui_onclose();
+		if (id == QUIT)
+			ffui_wnd_close(&gg->wmain);
 		break;
 	}
 }
