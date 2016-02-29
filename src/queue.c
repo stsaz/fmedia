@@ -2,6 +2,7 @@
 Copyright (c) 2015 Simon Zolin */
 
 #include <fmedia.h>
+#include <FF/data/m3u.h>
 
 
 static const fmed_core *core;
@@ -59,6 +60,7 @@ static const fmed_queue fmed_que_mgr = {
 };
 
 static void que_play(entry *e);
+static void que_save(entry *first, const char *fn);
 static void ent_free(entry *e);
 static void que_taskfunc(void *udata);
 static void que_task_add(uint cmd);
@@ -209,6 +211,56 @@ static void que_play(entry *ent)
 	qu->track->cmd(trk, FMED_TRACK_START);
 }
 
+/** Save playlist file. */
+static void que_save(entry *first, const char *fn)
+{
+	fffd f;
+	ffm3u_cook m3 = {0};
+	int rc = -1;
+	entry *e;
+	char buf[32];
+
+	if (FF_BADFD == (f = fffile_open(fn, O_CREAT | O_TRUNC | O_WRONLY)))
+		goto done;
+
+	for (e = first;  ;  e = FF_GETPTR(entry, sib, e->sib.next)) {
+		int r = 0;
+		ffstr ss, *s;
+		ss.len = 0;
+
+		int dur = (e->e.dur != 0) ? e->e.dur / 1000 : -1;
+		uint n = ffs_fromint(dur, buf, sizeof(buf), FFINT_SIGNED);
+		r |= ffm3u_add(&m3, FFM3U_DUR, buf, n);
+
+		if (NULL == (s = que_meta_find(&e->e, FFSTR("artist"))))
+			s = &ss;
+		r |= ffm3u_add(&m3, FFM3U_ARTIST, s->ptr, s->len);
+
+		if (NULL == (s = que_meta_find(&e->e, FFSTR("title"))))
+			s = &ss;
+		r |= ffm3u_add(&m3, FFM3U_TITLE, s->ptr, s->len);
+
+		r |= ffm3u_add(&m3, FFM3U_NAME, e->e.url.ptr, e->e.url.len);
+
+		if (r != 0)
+			goto done;
+
+		if (e->sib.next == FFLIST_END)
+			break;
+	}
+
+	if (m3.buf.len != fffile_write(f, m3.buf.ptr, m3.buf.len))
+		goto done;
+	dbglog(core, NULL, "que", "saved playlist to %s (%L KB)", fn, m3.buf.len / 1024);
+	rc = 0;
+
+done:
+	if (rc != 0)
+		syserrlog(core, NULL, "que", "saving playlist to file: %s", fn);
+	FF_SAFECLOSE(f, FF_BADFD, fffile_close);
+	ffm3u_fin(&m3);
+}
+
 static entry* que_getnext(entry *from)
 {
 	if (qu->list.len == 0)
@@ -252,7 +304,7 @@ static void que_mix(void)
 
 // matches enum FMED_QUE
 static const char *const scmds[] = {
-	"play", "play-excl", "mix", "stop-after", "next", "prev", "clear", "rm", "setonchange", "meta-clear"
+	"play", "play-excl", "mix", "stop-after", "next", "prev", "save", "clear", "rm", "setonchange", "meta-clear"
 };
 
 static void que_cmd(uint cmd, void *param)
@@ -320,6 +372,12 @@ static void que_cmd(uint cmd, void *param)
 			ent_free(e);
 		} else
 			e->rm = 1;
+		break;
+
+	case FMED_QUE_SAVE:
+		if (qu->list.len == 0)
+			break;
+		que_save(FF_GETPTR(entry, sib, qu->list.first), param);
 		break;
 
 	case FMED_QUE_CLEAR:

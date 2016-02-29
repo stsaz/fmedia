@@ -31,6 +31,7 @@ typedef struct ggui {
 	char *rec_dir;
 	ffstr rec_format;
 	uint load_err;
+	char *list_fn;
 
 	void *rec_trk;
 
@@ -122,6 +123,12 @@ enum {
 	VINFO_VAL,
 };
 
+enum {
+	DLG_FILT_INPUT,
+	DLG_FILT_OUTPUT,
+	DLG_FILT_PLAYLISTS,
+};
+
 enum ST {
 	ST_PLAYING = 1,
 	ST_PAUSE,
@@ -171,6 +178,7 @@ static void gui_media_added(fmed_que_entry *ent);
 static void gui_media_add1(const char *fn);
 static void gui_media_open(uint id);
 static void gui_media_removed(uint i);
+static void gui_media_savelist(void);
 static void gui_media_remove(void);
 static fmed_que_entry* gui_list_getent(void);
 static void gui_seek(uint cmd);
@@ -324,6 +332,7 @@ enum CMDS {
 
 	OPEN,
 	ADD,
+	SAVELIST,
 	REMOVE,
 	CLEAR,
 	SELALL,
@@ -375,6 +384,7 @@ static const char *const scmds[] = {
 
 	"OPEN",
 	"ADD",
+	"SAVELIST",
 	"REMOVE",
 	"CLEAR",
 	"SELALL",
@@ -438,6 +448,12 @@ static void gui_task(void *param)
 		break;
 
 
+	case SAVELIST:
+		gg->qu->cmd(FMED_QUE_SAVE, gg->list_fn);
+		ffmem_free0(gg->list_fn);
+		break;
+
+
 	case REC:
 	case PLAYREC:
 	case MIXREC:
@@ -492,6 +508,7 @@ static const struct cmd cmds[] = {
 
 	{ OPEN,	F1,	&gui_media_open },
 	{ ADD,	F1,	&gui_media_open },
+	{ SAVELIST,	F0,	&gui_media_savelist },
 	{ REMOVE,	F0,	&gui_media_remove },
 	{ SHOWDIR,	F0,	&gui_media_showdir },
 	{ COPYFN,	F0,	&gui_media_copyfn },
@@ -837,6 +854,7 @@ static void gui_conv_browse(void)
 	const char *fn;
 	ffstr fullname;
 
+	ffui_dlg_nfilter(&gg->dlg, DLG_FILT_OUTPUT);
 	ffui_textstr(&gg->eout, &fullname);
 	if (NULL == (fn = ffui_dlg_save(&gg->dlg, &gg->wmain, fullname.ptr, fullname.len)))
 		goto done;
@@ -1168,6 +1186,7 @@ static void gui_media_open(uint id)
 {
 	const char *fn;
 
+	ffui_dlg_nfilter(&gg->dlg, DLG_FILT_INPUT);
 	if (NULL == (fn = ffui_dlg_open(&gg->dlg, &gg->wmain)))
 		return;
 
@@ -1206,6 +1225,23 @@ static void gui_media_removed(uint i)
 	}
 
 	ffui_redraw(&gg->vlist, 1);
+}
+
+static void gui_media_savelist(void)
+{
+	char *fn;
+	ffstr name;
+	ffstr_setz(&name, "Playlist");
+	ffui_dlg_nfilter(&gg->dlg, DLG_FILT_PLAYLISTS);
+	gg->dlg.of.lpstrDefExt = L""; //the first extension from the current filter will be appended to filename
+	fn = ffui_dlg_save(&gg->dlg, &gg->wmain, name.ptr, name.len);
+	gg->dlg.of.lpstrDefExt = NULL;
+	if (fn == NULL)
+		return;
+
+	if (NULL == (gg->list_fn = ffsz_alcopyz(fn)))
+		return;
+	gui_task_add(SAVELIST);
 }
 
 static void gui_media_remove(void)

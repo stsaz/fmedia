@@ -53,7 +53,8 @@ CORE_O := $(OBJ_DIR)/core.o \
 	$(FF_O) \
 	$(FF_OBJ_DIR)/ffparse.o $(FF_OBJ_DIR)/ffconf.o \
 	$(FF_OBJ_DIR)/ffsoxr.o \
-	$(FF_OBJ_DIR)/ffpcm.o
+	$(FF_OBJ_DIR)/ffpcm.o \
+	$(FF_OBJ_DIR)/ffm3u.o
 core.$(SO): $(CORE_O)
 	$(LD) -shared $(CORE_O) $(LDFLAGS) $(LD_LDL) $(LD_LMATH) -lsoxr-ff  -o$@
 

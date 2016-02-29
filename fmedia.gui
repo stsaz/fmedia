@@ -10,6 +10,10 @@ menu mfile {
 	}
 	item "-" {
 	}
+	item "&Save Playlist..." {
+		action SAVELIST
+		hotkey "Ctrl+S"
+	}
 	item "Select &All" {
 		action SELALL
 		hotkey "Ctrl+A"
@@ -141,7 +145,7 @@ menu mtray {
 }
 
 dialog dlg {
-	filter "*.mp3;*.ogg;*.flac;*.wv;*.ape;*.wav;*.m3u;*.m3u8;*.cue\x00*.mp3;*.ogg;*.flac;*.wv;*.ape;*.wav;*.m3u;*.m3u8;*.cue\x00*.*\x00*.*\x00\x00"
+	filter "Input(*.mp3;*.ogg;*.flac;*.m4a;*.wv;*.ape;*.wav;*.m3u;*.m3u8;*.cue)\x00*.mp3;*.ogg;*.flac;*.m4a;*.wv;*.ape;*.wav;*.m3u;*.m3u8;*.cue\x00Output(*.ogg;*.mp3;*.flac;*.wav)\x00*.ogg;*.mp3;*.flac;*.wav\x00Playlists(*.m3u8;*.m3u)\x00*.m3u8;*.m3u\x00All(*.*)\x00*.*\x00\x00"
 }
 
 window wmain {

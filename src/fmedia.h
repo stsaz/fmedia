@@ -276,6 +276,7 @@ enum FMED_QUE {
 	FMED_QUE_STOP_AFTER,
 	FMED_QUE_NEXT,
 	FMED_QUE_PREV,
+	FMED_QUE_SAVE, //save playlist to file, @param: "const char *filename"
 	FMED_QUE_CLEAR,
 	FMED_QUE_RM,
 	FMED_QUE_SETONCHANGE, // @param: fmed_que_onchange_t
