@@ -14,6 +14,7 @@ static const char *const ape_metanames[] = {
 	"album",
 	"artist",
 	"comment",
+	"cover-art",
 	"genre",
 	"title",
 	"tracknumber",
@@ -132,6 +133,11 @@ static void ape_meta(ape *a, fmed_filt *d)
 			ffstr_setz(&name, ape_metanames[tag]);
 		else
 			name = a->ap.apetag.name;
+
+		if (FFAPETAG_FBINARY == (a->ap.apetag.flags & FFAPETAG_FMASK)) {
+			dbglog(core, d->trk, "ape", "skipping binary tag: %S", &name);
+			return;
+		}
 
 	} else {
 		tag = ffint_find1(id3_meta_ids, FFCNT(id3_meta_ids), a->ap.id31tag.field);

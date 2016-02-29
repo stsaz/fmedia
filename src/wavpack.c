@@ -15,6 +15,7 @@ static const char *const ape_metanames[] = {
 	"album",
 	"artist",
 	"comment",
+	"cover-art",
 	"genre",
 	"title",
 	"tracknumber",
@@ -132,6 +133,11 @@ static void wvpk_meta(wvpk *w, fmed_filt *d)
 			ffstr_setz(&name, ape_metanames[tag]);
 		else
 			name = w->wp.apetag.name;
+
+		if (FFAPETAG_FBINARY == (w->wp.apetag.flags & FFAPETAG_FMASK)) {
+			dbglog(core, d->trk, "wvpk", "skipping binary tag: %S", &name);
+			return;
+		}
 
 	} else {
 		tag = ffint_find1(id3_meta_ids, FFCNT(id3_meta_ids), w->wp.id31tag.field);
