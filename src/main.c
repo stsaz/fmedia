@@ -159,8 +159,12 @@ static int fmed_cmdline(int argc, char **argv, uint main_only)
 	ffparser_schem ps;
 	ffparser p;
 	ffpars_ctx ctx = {0};
-	int r = 0, i;
+	int r = 0;
 	int ret = 1;
+	const char *arg;
+	ffpsarg a;
+
+	ffpsarg_init(&a, (void*)argv, argc);
 
 	if (main_only)
 		ffpars_setargs(&ctx, fmed, fmed_cmdline_main_args, FFCNT(fmed_cmdline_main_args));
@@ -172,10 +176,14 @@ static int fmed_cmdline(int argc, char **argv, uint main_only)
 		return 1;
 	}
 
-	for (i = 1;  i < argc; ) {
+	ffpsarg_next(&a); //skip argv[0]
+
+	arg = ffpsarg_next(&a);
+	while (arg != NULL) {
 		int n = 0;
-		r = ffpsarg_parse(&p, argv[i], &n);
-		i += n;
+		r = ffpsarg_parse(&p, arg, &n);
+		if (n != 0)
+			arg = ffpsarg_next(&a);
 
 		r = ffpsarg_schemrun(&ps);
 
@@ -198,6 +206,7 @@ static int fmed_cmdline(int argc, char **argv, uint main_only)
 	ret = 0;
 
 fail:
+	ffpsarg_destroy(&a);
 	ffpars_schemfree(&ps);
 	ffpars_free(&p);
 	return ret;
