@@ -597,7 +597,7 @@ static int media_setout(fm_src *src)
 	if (fmed->preserve_date)
 		trk_setval(src, "out_preserve_date", 1);
 
-	if (fmed->mix && !src->mxr_out) {
+	if (type == FMED_TRK_TYPE_MIXIN) {
 		newfilter(src, "mixer.in");
 
 	} else if (fmed->pcm_peaks) {
@@ -730,6 +730,7 @@ static void* trk_create(uint cmd, const char *fn)
 		if (NULL == ffarr_grow(&src->filters, 2 + nout, 0))
 			goto fail;
 		media_open_mix(src);
+		fmed->mix = 1;
 		break;
 	}
 
@@ -805,6 +806,9 @@ static void media_free(fm_src *src)
 
 	if (fflist_exists(&fmed->srcs, &src->sib))
 		fflist_rm(&fmed->srcs, &src->sib);
+
+	if (src->mxr_out)
+		fmed->mix = 0;
 
 	dbglog(core, src, "core", "media: closed");
 	ffmem_free(src);

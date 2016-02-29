@@ -575,7 +575,7 @@ static void* que_trk_open(fmed_filt *d)
 	que_trk *t;
 	entry *e = (void*)d->track->getval(d->trk, "queue_item");
 
-	if ((int64)e == FMED_NULL && !qu->mixing)
+	if ((int64)e == FMED_NULL)
 		return FMED_FILT_SKIP; //the track wasn't created by this module
 
 	t = ffmem_tcalloc1(que_trk);
