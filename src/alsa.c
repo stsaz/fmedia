@@ -28,7 +28,10 @@ struct alsa_out {
 	ffalsa_dev dev;
 	uint devidx;
 
-	fftask task;
+	struct {
+		fftask_handler handler;
+		void *param;
+	} task;
 	uint stop :1;
 };
 
@@ -70,7 +73,6 @@ static void alsa_onplay(void *udata);
 FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 {
 	ffmem_init();
-	ffalsa_init();
 	core = _core;
 	return &fmed_alsa_mod;
 }
@@ -92,6 +94,12 @@ static int alsa_sig(uint signo)
 	case FMED_OPEN:
 		if (NULL == (mod = ffmem_tcalloc1(alsa_mod)))
 			return -1;
+
+		if (0 != ffalsa_init(core->kq)) {
+			ffmem_free0(mod);
+			return -1;
+		}
+
 		mod->track = core->getmod("#core.track");
 		return 0;
 
@@ -110,7 +118,7 @@ static void alsa_destroy(void)
 		mod = NULL;
 	}
 
-	ffalsa_uninit();
+	ffalsa_uninit(core->kq);
 }
 
 static int alsa_listdev(void)
@@ -188,7 +196,6 @@ static void alsa_close(void *ctx)
 	}
 
 	ffalsa_devdestroy(&a->dev);
-	core->task(&a->task, FMED_TASK_DEL);
 	ffmem_free(a);
 }
 
@@ -276,7 +283,7 @@ done:
 static void alsa_onplay(void *udata)
 {
 	alsa_out *a = udata;
-	core->task(&a->task, FMED_TASK_POST);
+	a->task.handler(a->task.param);
 }
 
 static int alsa_write(void *ctx, fmed_filt *d)

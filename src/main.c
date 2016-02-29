@@ -247,10 +247,12 @@ static void addlog(fffd fd, const char *stime, const char *module, const char *l
 #if defined FF_MSVC || defined FF_MINGW
 enum {
 	SIGINT = 1
+	, SIGIO,
 };
 #endif
 
 static const int sigs[] = { SIGINT };
+static const int sigs_block[] = { SIGINT, SIGIO };
 
 static void fmed_onsig(void *udata)
 {
@@ -258,7 +260,7 @@ static void fmed_onsig(void *udata)
 	int sig;
 	ffsignal *sg = udata;
 
-	if (sg != NULL && -1 == (sig = ffsig_read(sg)))
+	if (-1 == (sig = ffsig_read(sg, NULL)))
 		return;
 
 	if (NULL == (track = core->getmod("#core.track")))
@@ -336,6 +338,8 @@ int main(int argc, char **argv)
 
 	fffile_writecz(ffstdout, "fmedia v" FMED_VER "\n");
 
+	ffsig_mask(SIG_BLOCK, sigs_block, FFCNT(sigs_block));
+
 	if (NULL == (core = core_init(&fmed, &addlog)))
 		return 1;
 
@@ -368,7 +372,6 @@ int main(int argc, char **argv)
 	if (0 != core->sig(FMED_OPEN))
 		goto end;
 
-	ffsig_mask(SIG_BLOCK, sigs, FFCNT(sigs));
 	sigs_task.udata = &sigs_task;
 	if (0 != ffsig_ctl(&sigs_task, core->kq, sigs, FFCNT(sigs), &fmed_onsig)) {
 		syserrlog(core, NULL, "core", "%s", "ffsig_ctl()");
