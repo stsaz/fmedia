@@ -1,7 +1,7 @@
 
 OBJ_DIR := .
 BINS := $(BIN) core.$(SO) \
-	ogg-vorbis.$(SO) mpeg.$(SO) wav.$(SO) flac.$(SO) wavpack.$(SO) ape.$(SO) \
+	ogg-vorbis.$(SO) mpeg.$(SO) wav.$(SO) flac.$(SO) mp4.$(SO) wavpack.$(SO) ape.$(SO) \
 	plist.$(SO) \
 	mixer.$(SO)
 
@@ -96,6 +96,17 @@ FLAC_O := $(OBJ_DIR)/flac.o \
 	$(FF_OBJ_DIR)/ffpcm.o
 flac.$(SO): $(FLAC_O)
 	$(LD) -shared $(FLAC_O) $(LDFLAGS) -lFLAC-ff  -o$@
+
+
+#
+MP4_O := $(OBJ_DIR)/mp4.o \
+	$(FF_O) \
+	$(FF_OBJ_DIR)/ffmp4.o \
+	$(FF_OBJ_DIR)/ffid3.o \
+	$(FF_OBJ_DIR)/ffalac.o \
+	$(FF_OBJ_DIR)/ffpcm.o
+mp4.$(SO): $(MP4_O)
+	$(LD) -shared $(MP4_O) $(LDFLAGS) -lALAC-ff -o$@
 
 
 #
@@ -203,6 +214,7 @@ installd: all
 		$(FF3PTLIB)/libogg-ff.$(SO) $(FF3PTLIB)/libvorbis-ff.$(SO) $(FF3PTLIB)/libvorbisenc-ff.$(SO) \
 		$(FF3PTLIB)/libmad-ff.$(SO) $(FF3PTLIB)/libmp3lame-ff.$(SO) \
 		$(FF3PTLIB)/libFLAC-ff.$(SO) $(FF3PTLIB)/libwavpack-ff.$(SO) $(FF3PTLIB)/libMAC-ff.$(SO) \
+		$(FF3PTLIB)/libALAC-ff.$(SO) \
 		$(FF3PTLIB)/libsoxr-ff.$(SO) \
 		$(INSTDIR)/
 
