@@ -6,6 +6,7 @@ Copyright (c) 2015 Simon Zolin */
 #include <FF/audio/ogg.h>
 #include <FF/audio/pcm.h>
 #include <FF/array.h>
+#include <FF/path.h>
 #include <FFOS/error.h>
 #include <FFOS/random.h>
 #include <FFOS/timer.h>
@@ -146,7 +147,7 @@ static void ogg_close(void *ctx)
 
 static int ogg_decode(void *ctx, fmed_filt *d)
 {
-	enum { I_HDR, I_DATA0, I_DATA };
+	enum { I_ASIS_CHECK, I_HDR, I_DATA0, I_DATA };
 	fmed_ogg *o = ctx;
 	int r;
 	int64 seek_time;
@@ -161,6 +162,22 @@ static int ogg_decode(void *ctx, fmed_filt *d)
 
 again:
 	switch (o->state) {
+	case I_ASIS_CHECK:
+		// Check if the output is also OGG.  If so, don't decode audio but just pass OGG pages as-is.
+		{
+		const char *out = d->track->getvalstr(d->trk, "output");
+		if (out != FMED_PNULL) {
+			ffstr ext = {0};
+			ffpath_splitname(out, ffsz_len(out), NULL, &ext);
+			if (ffstr_eqcz(&ext, "ogg")) {
+				fmed_setval("data_asis", 1);
+				o->og.nodecode = 1;
+			}
+		}
+		}
+		o->state = I_HDR;
+		// break
+
 	case I_HDR:
 		break;
 
@@ -186,6 +203,13 @@ again:
 				return FMED_RLASTOUT;
 			}
 			return FMED_RMORE;
+
+		case FFOGG_RPAGE:
+			d->track->setval(d->trk, "current_position", ffogg_cursample(&o->og));
+			d->data = o->og.data;
+			d->datalen = o->og.datalen;
+			ffogg_pagedata(&o->og, &d->out, &d->outlen);
+			return FMED_RDATA;
 
 		case FFOGG_RDATA:
 			goto data;
@@ -258,6 +282,9 @@ static int ogg_out_config(ffpars_ctx *ctx)
 
 static void* ogg_out_open(fmed_filt *d)
 {
+	if (1 == fmed_getval("data_asis"))
+		return FMED_FILT_SKIP;
+
 	ogg_out *o = ffmem_tcalloc1(ogg_out);
 	if (o == NULL)
 		return NULL;
