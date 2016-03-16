@@ -412,6 +412,7 @@ static int sndmod_gain_process(void *ctx, fmed_filt *d)
 typedef struct sndmod_untl {
 	uint64 until;
 	uint sampsize;
+	uint asis :1; //data is passed as-is (i.e. encoded/compressed)
 } sndmod_untl;
 
 static void* sndmod_untl_open(fmed_filt *d)
@@ -436,6 +437,9 @@ static void* sndmod_untl_open(fmed_filt *d)
 
 	if (FMED_NULL != fmed_getval("total_samples"))
 		fmed_setval("total_samples", u->until);
+
+	if (1 == fmed_getval("data_asis"))
+		u->asis = 1;
 	return u;
 }
 
@@ -459,6 +463,15 @@ static int sndmod_untl_process(void *ctx, fmed_filt *d)
 
 	if (FMED_NULL == (pos = fmed_getval("current_position")))
 		return FMED_RDONE;
+
+	if (u->asis) {
+		if (pos >= u->until) {
+			dbglog(core, d->trk, "", "until_time is reached");
+			return FMED_RLASTOUT;
+		}
+		d->datalen = 0;
+		return FMED_ROK;
+	}
 
 	samps = d->datalen / u->sampsize;
 	d->datalen = 0;
