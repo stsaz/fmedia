@@ -420,7 +420,7 @@ static void* sndmod_untl_open(fmed_filt *d)
 	sndmod_untl *u;
 
 	if (FMED_NULL == (val = fmed_getval("until_time")))
-		return (void*)1;
+		return FMED_FILT_SKIP;
 
 	rate = fmed_getval("pcm_sample_rate");
 
@@ -442,8 +442,6 @@ static void* sndmod_untl_open(fmed_filt *d)
 static void sndmod_untl_close(void *ctx)
 {
 	sndmod_untl *u = ctx;
-	if (ctx == (void*)1)
-		return;
 	ffmem_free(u);
 }
 
@@ -456,13 +454,15 @@ static int sndmod_untl_process(void *ctx, fmed_filt *d)
 	d->out = d->data;
 	d->outlen = d->datalen;
 
-	if ((d->flags & FMED_FLAST) || ctx == (void*)1)
+	if (d->flags & FMED_FLAST)
+		return FMED_RDONE;
+
+	if (FMED_NULL == (pos = fmed_getval("current_position")))
 		return FMED_RDONE;
 
 	samps = d->datalen / u->sampsize;
 	d->datalen = 0;
-	pos = fmed_getval("current_position");
-	if (pos != FMED_NULL && pos + samps >= u->until) {
+	if (pos + samps >= u->until) {
 		dbglog(core, d->trk, "", "until_time is reached");
 		d->outlen = (u->until > pos) ? (u->until - pos) * u->sampsize : 0;
 		return FMED_RLASTOUT;
