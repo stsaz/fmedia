@@ -21,6 +21,8 @@ static const byte mp4_meta_ids[] = {
 	FFMP4_TRACKTOTAL,
 	FFMP4_YEAR,
 	FFMP4_TOOL,
+	FFMP4_LYRICS,
+	FFMP4_COMPOSER,
 };
 
 static const char *const mp4_metanames[] = {
@@ -34,6 +36,8 @@ static const char *const mp4_metanames[] = {
 	"tracktotal",
 	"date",
 	"vendor",
+	"lyrics",
+	"composer",
 };
 
 typedef struct mp4 {

@@ -18,7 +18,7 @@ INPUT
 
 FILTERS
 	. MPEG input/output
-	. OGG Vorbis input/output.  Note: OGG file positioning isn't precise.
+	. OGG Vorbis input/output
 
 	Lossless:
 	. FLAC input/output
@@ -146,6 +146,9 @@ Convert file and override the artist name and comment (Linux: single quotes are 
 
 Extract several tracks from .cue file (Linux: single quotes are required!)
 	fmedia ./album.flac.cue --track=3,7,13 --out='$tracknumber. $artist - $title.flac'
+
+Cut compressed audio without re-encoding
+	fmedia ./file.ogg --out=./out.ogg --seek=1:00 --until=2:00
 
 Mix multiple streams
 	fmedia --mix ./file1.ogg ./file2.ogg

@@ -7,6 +7,23 @@ HISTORY OF FMEDIA
  "-" - bugfix
 
 
+fmedia v0.10 - Mar 15, 2016
+
+ + OGG: support copying OGG stream without re-encoding
+ - OGG: seeking is more accurate (the target OGG page is located)
+
+ - FLAC,OGG,MPEG: the formats couldn't be used with --record
+ - MP4: get average file bitrate from MP4 if bitrate value in ALAC header isn't set
+ - MP4: ALAC: accurate seek to an audio sample
+ - ALAC: windows: libALAC-ff.dll doesn't require libstdc++-6.dll anymore (fmedia couldn't startup with mp4.decode module enabled)
+
+ * GUI: save text of output conversion file in fmedia.gui.conf
+ * GUI: remove "convert_*" config settings
+ - GUI: fix main window flicker on startup (v0.4 bug)
+
+ - fmedia: windows: Ctrl+C didn't work (v0.9 bug)
+
+
 fmedia v0.9 - Feb 29, 2016
 
  + MP4 (ALAC) input
