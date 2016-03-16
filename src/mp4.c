@@ -172,9 +172,6 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 
 			fmed_setval("total_samples", ffmp4_totalsamples(&m->mp));
 
-			if (FMED_NULL != fmed_getval("input_info"))
-				break;
-
 			if (m->mp.codec != FFMP4_ALAC) {
 				errlog(core, d->trk, "mp4", "%s: decoding unsupported", ffmp4_codec(m->mp.codec));
 				return FMED_RERR;
@@ -189,7 +186,14 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 				return FMED_RERR;
 			}
 
-			fmed_setval("bitrate", m->alac.bitrate);
+			{
+			uint br = (m->alac.bitrate != 0) ? m->alac.bitrate : ffmp4_bitrate(&m->mp);
+			fmed_setval("bitrate", br);
+			}
+
+			if (FMED_NULL != fmed_getval("input_info"))
+				break;
+
 			fmed_setval("pcm_ileaved", 1);
 			break;
 
