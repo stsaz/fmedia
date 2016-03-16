@@ -940,6 +940,8 @@ next:
 				} else if (nf->ctx == FMED_FILT_SKIP) {
 					dbglog(core, src, "core", "%s is skipped", nf->mod->name);
 					nf->ctx = NULL; //don't call fmed_filter.close()
+					nf->d.out = f->d.out;
+					nf->d.outlen = f->d.outlen;
 					f = nf;
 					r = FFLIST_CUR_NEXT | FFLIST_CUR_RM;
 					goto shift;
