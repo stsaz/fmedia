@@ -160,7 +160,7 @@ window wmain {
 	title "fmedia"
 	position 100 100 380 300
 	borderstick 7
-	style visible
+	# style visible
 	icon {
 		filename "fmedia.ico"
 	}

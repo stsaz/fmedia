@@ -1372,6 +1372,7 @@ static FFTHDCALL int gui_worker(void *param)
 	ffmem_free(fnconf);
 	ffui_ldr_fin(&ldr);
 
+	ffui_show(&gg->wmain, 1);
 	gg->wmain.top = 1;
 	gg->wmain.on_action = &gui_action;
 	gg->wmain.onclose_id = ONCLOSE;
