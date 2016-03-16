@@ -244,13 +244,6 @@ static void addlog(fffd fd, const char *stime, const char *module, const char *l
 }
 
 
-#if defined FF_MSVC || defined FF_MINGW
-enum {
-	SIGINT = 1
-	, SIGIO,
-};
-#endif
-
 static const int sigs[] = { SIGINT };
 static const int sigs_block[] = { SIGINT, SIGIO };
 
@@ -267,18 +260,6 @@ static void fmed_onsig(void *udata)
 		return;
 	track->cmd((void*)-1, FMED_TRACK_STOPALL_EXIT);
 }
-
-#ifdef FF_WIN
-static BOOL __stdcall fmed_ctrlhandler(DWORD ctrl)
-{
-	if (ctrl == CTRL_C_EVENT) {
-		fmed_onsig(NULL);
-		ffkqu_post(fmed->kq, &fmed->evposted, NULL);
-		return 1;
-	}
-	return 0;
-}
-#endif
 
 static int open_input(void)
 {
@@ -377,10 +358,6 @@ int main(int argc, char **argv)
 		syserrlog(core, NULL, "core", "%s", "ffsig_ctl()");
 		goto end;
 	}
-
-#ifdef FF_WIN
-	SetConsoleCtrlHandler(&fmed_ctrlhandler, TRUE);
-#endif
 
 	if (0 != open_input())
 		goto end;
