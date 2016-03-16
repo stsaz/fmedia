@@ -41,6 +41,7 @@ typedef struct mp4 {
 	uint state;
 
 	ffalac alac;
+	uint64 seek;
 } mp4;
 
 
@@ -101,6 +102,7 @@ static void* mp4_in_create(fmed_filt *d)
 		return NULL;
 
 	ffmp4_init(&m->mp);
+	m->seek = (uint64)-1;
 
 	if (FMED_NULL != (val = fmed_getval("total_size")))
 		m->mp.total_size = val;
@@ -150,8 +152,10 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 	switch (m->state) {
 
 	case I_DATA:
-		if (FMED_NULL != (val = fmed_popval("seek_time")))
-			ffmp4_seek(&m->mp, ffpcm_samples(val, m->mp.fmt.sample_rate));
+		if (FMED_NULL != (val = fmed_popval("seek_time"))) {
+			m->seek = ffpcm_samples(val, m->mp.fmt.sample_rate);
+			ffmp4_seek(&m->mp, m->seek);
+		}
 
 	case I_HDR:
 		r = ffmp4_read(&m->mp);
@@ -211,6 +215,11 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 		case FFMP4_RDATA:
 			m->alac.data = m->mp.out;
 			m->alac.datalen = m->mp.outlen;
+			m->alac.cursample = ffmp4_cursample(&m->mp);
+			if (m->seek != (uint64)-1) {
+				ffalac_seek(&m->alac, m->seek);
+				m->seek = (uint64)-1;
+			}
 			m->state = I_DECODE;
 			continue;
 
@@ -243,9 +252,9 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 			m->state = I_DATA;
 			continue;
 		}
-		dbglog(core, d->trk, "mp4", "ALAC: decoded %u samples (%d)"
-			, m->alac.pcmlen / ffpcm_size1(&m->alac.fmt), r);
-		fmed_setval("current_position", ffmp4_cursample(&m->mp));
+		dbglog(core, d->trk, "mp4", "ALAC: decoded %u samples (%U)"
+			, m->alac.pcmlen / ffpcm_size1(&m->alac.fmt), ffalac_cursample(&m->alac));
+		fmed_setval("current_position", ffalac_cursample(&m->alac));
 
 		d->data = (void*)m->mp.data;
 		d->datalen = m->mp.datalen;
