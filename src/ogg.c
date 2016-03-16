@@ -280,7 +280,7 @@ static int ogg_out_addmeta(ogg_out *o, fmed_filt *d)
 	ffstr name, *val;
 	void *qent;
 
-	if (NULL == (qent = (void*)fmed_getval("queue_item")))
+	if (FMED_PNULL == (qent = (void*)fmed_getval("queue_item")))
 		return 0;
 
 	for (i = 0;  NULL != (val = qu->meta(qent, i, &name, FMED_QUE_UNIQ));  i++) {

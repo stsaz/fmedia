@@ -312,7 +312,7 @@ static int mpeg_out_addmeta(mpeg_out *m, fmed_filt *d)
 	void *qent;
 	ssize_t r;
 
-	if (NULL == (qent = (void*)fmed_getval("queue_item")))
+	if (FMED_PNULL == (qent = (void*)fmed_getval("queue_item")))
 		return 0;
 
 	for (i = 0;  NULL != (val = qu->meta(qent, i, &name, FMED_QUE_UNIQ));  i++) {
