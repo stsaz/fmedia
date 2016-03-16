@@ -37,10 +37,6 @@ typedef struct ggui {
 
 	void *rec_trk;
 
-	char *conv_dir;
-	char *conv_name;
-	char *conv_fmt;
-
 	ffui_wnd wmain;
 	ffui_menu mm;
 	ffui_menu mfile
@@ -216,14 +212,9 @@ static const fmed_filter fmed_gui = {
 };
 
 static int gui_conf_rec_dir(ffparser_schem *ps, void *obj, ffstr *val);
-static int gui_conf_conv_dir(ffparser_schem *ps, void *obj, char *val);
 static const ffpars_arg gui_conf[] = {
 	{ "rec_dir",	FFPARS_TSTR | FFPARS_FSTRZ | FFPARS_FCOPY, FFPARS_DST(&gui_conf_rec_dir) },
 	{ "rec_format",	FFPARS_TSTR | FFPARS_FCOPY, FFPARS_DSTOFF(ggui, rec_format) },
-
-	{ "convert_dir",	FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY, FFPARS_DST(&gui_conf_conv_dir) },
-	{ "convert_name",	FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY, FFPARS_DSTOFF(ggui, conv_name) },
-	{ "convert_format",	FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY, FFPARS_DSTOFF(ggui, conv_fmt) },
 };
 
 //LOG
@@ -739,6 +730,7 @@ static void gui_onclose(void)
 	char buf[128], *fn;
 	size_t n;
 	ffui_loaderw ldr = {0};
+	ffstr s;
 
 	if (NULL == (fn = ffenv_expand(NULL, 0, GUI_USRCONF)))
 		return;
@@ -746,11 +738,15 @@ static void gui_onclose(void)
 	if (IsWindowVisible(gg->wmain.h) && !IsIconic(gg->wmain.h)) {
 		ffui_getpos(gg->wmain.h, &pos);
 		n = ffs_fmt(buf, buf + sizeof(buf), "%d %d %u %u", pos.x, pos.y, pos.cx, pos.cy);
-		ffui_ldr_set(&ldr, "wmain.position", buf, n);
+		ffui_ldr_set(&ldr, "wmain.position", buf, n, 0);
 	}
 
 	n = ffs_fmt(buf, buf + sizeof(buf), "%u", ffui_trk_val(&gg->tvol));
-	ffui_ldr_set(&ldr, "tvol.value", buf, n);
+	ffui_ldr_set(&ldr, "tvol.value", buf, n, 0);
+
+	ffui_textstr(&gg->eout, &s);
+	ffui_ldr_set(&ldr, "eout.text", s.ptr, s.len, FFUI_LDR_FSTR);
+	ffstr_free(&s);
 
 	if (0 != ffui_ldr_write(&ldr, fn) && fferr_nofile(fferr_last())) {
 		if (0 != ffdir_make_path(fn) && fferr_last() != EEXIST) {
@@ -832,16 +828,10 @@ static const struct cvt_set cvt_sets[] = {
 
 static void gui_showconvert(void)
 {
-	ffstr3 s = {0};
-
 	if (0 == ffui_view_selcount(&gg->vlist))
 		return;
 
 	if (!gg->wconv_init) {
-		ffstr_catfmt(&s, "%s%c%s.%s", gg->conv_dir, FFPATH_SLASH, gg->conv_name, gg->conv_fmt);
-		ffui_settext(&gg->eout, s.ptr, s.len);
-		ffarr_free(&s);
-
 		ffui_viewitem it;
 		ffui_view_iteminit(&it);
 
@@ -1477,10 +1467,6 @@ static void gui_destroy(void)
 	core->task(&gg->cmdtask, FMED_TASK_DEL);
 	ffmem_safefree(gg->rec_dir);
 
-	ffmem_safefree(gg->conv_dir);
-	ffmem_safefree(gg->conv_name);
-	ffmem_safefree(gg->conv_fmt);
-
 	ffstr_free(&gg->rec_format);
 	ffmem_free(gg);
 }
@@ -1491,14 +1477,6 @@ static int gui_conf_rec_dir(ffparser_schem *ps, void *obj, ffstr *val)
 	if (NULL == (gg->rec_dir = ffenv_expand(NULL, 0, val->ptr)))
 		return FFPARS_ESYS;
 	ffmem_free(val->ptr);
-	return 0;
-}
-
-static int gui_conf_conv_dir(ffparser_schem *ps, void *obj, char *val)
-{
-	if (NULL == (gg->conv_dir = ffenv_expand(NULL, 0, val)))
-		return FFPARS_ESYS;
-	ffmem_free(val);
 	return 0;
 }
 

@@ -325,6 +325,7 @@ window wconvert {
 	editbox eout {
 		position 10 10 200 25
 		style visible
+		text "$filepath/$tracknumber. $artist - $title.ogg"
 	}
 
 	button boutbrowse {
