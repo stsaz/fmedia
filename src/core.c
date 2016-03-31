@@ -128,7 +128,7 @@ static const fmed_mod fmed_core_mod = {
 };
 
 static int64 core_getval(const char *name);
-static void core_log(fffd fd, void *trk, const char *module, const char *level, const char *fmt, ...);
+static void core_log(uint flags, void *trk, const char *module, const char *fmt, ...);
 static char* core_getpath(const char *name, size_t len);
 static int core_sig(uint signo);
 static const void* core_getmod(const char *name);
@@ -1502,7 +1502,11 @@ static int64 core_getval(const char *name)
 	return FMED_NULL;
 }
 
-static void core_log(fffd fd, void *trk, const char *module, const char *level, const char *fmt, ...)
+static const char *const loglevs[] = {
+	"debug", "info", "warning", "error",
+};
+
+static void core_log(uint flags, void *trk, const char *module, const char *fmt, ...)
 {
 	fm_src *src = trk;
 	char stime[32];
@@ -1517,7 +1521,9 @@ static void core_log(fffd fd, void *trk, const char *module, const char *level, 
 	r = fftime_tostr(&dt, stime, sizeof(stime), FFTIME_HMS_MSEC);
 	stime[r] = '\0';
 
-	fmed->logfunc(fd, stime, module, level, (src != NULL) ? &src->id : NULL, fmt, va);
+	uint lev = flags & _FMED_LOG_LEVMASK;
+	fffd fd = (lev == FMED_LOG_DEBUG || lev == FMED_LOG_INFO) ? ffstdout : ffstderr;
+	fmed->logfunc(fd, stime, module, loglevs[lev - 1], (src != NULL) ? &src->id : NULL, fmt, va);
 	va_end(va);
 }
 

@@ -57,7 +57,10 @@ struct fmed_core {
 
 	int64 (*getval)(const char *name);
 
-	void (*log)(fffd fd, void *trk, const char *module, const char *level, const char *fmt, ...);
+	/**
+	@flags: enum FMED_LOG.
+	*/
+	void (*log)(uint flags, void *trk, const char *module, const char *fmt, ...);
 
 	/** Return NULL on error. */
 	char* (*getpath)(const char *name, size_t len);
@@ -233,23 +236,27 @@ static FFINL void fmed_getpcm(const fmed_filt *d, ffpcm *fmt)
 
 
 enum FMED_LOG {
-	FMED_LOG_DEBUG = 1
+	FMED_LOG_DEBUG = 1,
+	FMED_LOG_INFO,
+	FMED_LOG_WARN,
+	FMED_LOG_ERR,
+	_FMED_LOG_LEVMASK = 0x0f,
 };
 
 #define dbglog(core, trk, mod, ...) \
 do { \
 	if ((core)->loglev & FMED_LOG_DEBUG) \
-		(core)->log(ffstdout, trk, mod, "debug", __VA_ARGS__); \
+		(core)->log(FMED_LOG_DEBUG, trk, mod, __VA_ARGS__); \
 } while (0)
 
 #define warnlog(core, trk, mod, ...) \
-	(core)->log(ffstderr, trk, mod, "warning", __VA_ARGS__)
+	(core)->log(FMED_LOG_WARN, trk, mod, __VA_ARGS__)
 
 #define errlog(core, trk, mod, ...) \
-	(core)->log(ffstderr, trk, mod, "error", __VA_ARGS__)
+	(core)->log(FMED_LOG_ERR, trk, mod, __VA_ARGS__)
 
 #define syserrlog(core, trk, mod, fmt, ...) \
-	(core)->log(ffstderr, trk, mod, "error", fmt ": %E", __VA_ARGS__, fferr_last())
+	(core)->log(FMED_LOG_ERR, trk, mod, fmt ": %E", __VA_ARGS__, fferr_last())
 
 typedef struct fmed_log {
 	void (*log)(const char *stime, const char *module, const char *level, const ffstr *id,

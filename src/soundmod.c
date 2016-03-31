@@ -179,15 +179,14 @@ static int sndmod_conv_prepare(sndmod_conv *c, fmed_filt *d)
 	int r = ffpcm_convert(&c->outpcm, NULL, &c->inpcm, NULL, 0);
 	if (r != 0 || (core->loglev & FMED_LOG_DEBUG)) {
 
-		fffd fd = ffstdout;
-		const char *lev = "debug", *unsupp = "";
+		int f = FMED_LOG_DEBUG;
+		const char *unsupp = "";
 		if (r != 0) {
-			fd = ffstderr;
-			lev = "error";
+			f = FMED_LOG_ERR;
 			unsupp = "unsupported ";
 		}
 
-		core->log(fd, d->trk, "conv", lev, "%sPCM conversion: %s/%u/%u/%s -> %s/%u/%u/%s"
+		core->log(f, d->trk, "conv", "%sPCM conversion: %s/%u/%u/%s -> %s/%u/%u/%s"
 			, unsupp
 			, ffpcm_fmtstr(c->inpcm.format), c->inpcm.channels, c->inpcm.sample_rate, (c->inpcm.ileaved) ? "i" : "ni"
 			, ffpcm_fmtstr(c->outpcm.format), c->outpcm.channels & FFPCM_CHMASK, c->outpcm.sample_rate, (c->outpcm.ileaved) ? "i" : "ni");
