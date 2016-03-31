@@ -314,7 +314,8 @@ static int ogg_out_addmeta(ogg_out *o, fmed_filt *d)
 		if (val == FMED_QUE_SKIP
 			|| ffstr_eqcz(&name, "vendor"))
 			continue;
-		ffogg_addtag(&o->og, name.ptr, val->ptr, val->len);
+		if (0 != ffogg_addtag(&o->og, name.ptr, val->ptr, val->len))
+			warnlog(core, d->trk, "ogg", "can't add tag: %S", &name);
 	}
 	return 0;
 }
