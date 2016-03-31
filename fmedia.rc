@@ -1,4 +1,7 @@
+#include <fmedia.h>
+
 1 VERSIONINFO
+	FILEVERSION 0,FMED_VER_MINOR,0,0
 BEGIN
 	BLOCK "StringFileInfo"
 	BEGIN
@@ -7,7 +10,6 @@ BEGIN
 			VALUE "FileDescription", "fmedia"
 			VALUE "CompanyName", "Simon Zolin"
 			VALUE "ProductName", "fmedia"
-			VALUE "ProductVersion", "0.4"
 		END
 	END
     BLOCK "VarFileInfo"

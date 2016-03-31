@@ -66,6 +66,10 @@ INSTALL ON LINUX
 
 	ln -s /usr/local/fmedia-0/fmedia /usr/local/bin/fmedia
 
+Note: the file "fmedia-0/fmedia" is just a script that executes binary file "fmedia-0/fmedia-bin" with proper environment.  If the script doesn't work for some reason, call fmedia-bin directly:
+
+	env LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/fmedia-0 /usr/local/fmedia-0/fmedia-bin
+
 ---------------
 BUILD ON LINUX
 ---------------
@@ -120,8 +124,18 @@ By default fmedia runs with a terminal UI, which shows information about the cur
 ---------------
 GRAPHICAL UI
 ---------------
-If you specify '--gui' argument to fmedia binary, it will run in GUI mode:
+On Windows you can run fmedia in GUI mode:
+
+	fmedia-gui.exe
+
+You should use this binary file for opening files via Explorer's "Open With..." feature.
+Note: command-line options are not supported.
+
+Or you may execute the console binary like this:
+
 	fmedia --gui
+
+Note: GUI isn't supported on Linux.
 
 fmedia GUI is provided by a separate module - gui.dll.  It is written in such a way that it won't become unresponsive even if the main thread (the one that processes audio) is waiting for I/O operations.  The module doesn't perform any sound processing, it just issues commands to fmedia core and receives the feedback.
 

@@ -17,6 +17,8 @@ static const fmed_queue *qu;
 static const byte id3_meta_ids[] = {
 	FFID3_COMMENT,
 	FFID3_ALBUM,
+	FFID3_ALBUMARTIST,
+	FFID3_PUBLISHER,
 	FFID3_GENRE,
 	FFID3_RECTIME,
 	FFID3_TITLE,
@@ -29,6 +31,8 @@ static const byte id3_meta_ids[] = {
 static const char *const metanames[] = {
 	"comment",
 	"album",
+	"albumartist",
+	"publisher",
 	"genre",
 	"date",
 	"title",

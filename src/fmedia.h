@@ -22,7 +22,8 @@ mixer                 mixer
 #include <FF/taskqueue.h>
 
 
-#define FMED_VER  "0.10"
+#define FMED_VER_MINOR  11
+#define FMED_VER  "0.11"
 
 typedef struct fmed_core fmed_core;
 typedef struct fmed_mod fmed_mod;

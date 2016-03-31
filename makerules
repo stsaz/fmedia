@@ -28,7 +28,7 @@ $(OBJ_DIR)/%.o: $(SRCDIR)/%.c $(SRCDIR)/fmedia.h $(SRCDIR)/core.h $(FF_HDR) $(FF
 	$(C)  $(CFLAGS) $<  -o$@
 
 $(RES): $(SRCDIR)/../fmedia.rc $(PROJDIR)/fmedia.ico
-	$(WINDRES) $(PROJDIR)/fmedia.rc $@
+	$(WINDRES) -I$(SRCDIR) -I$(FF) -I$(FFOS) $(PROJDIR)/fmedia.rc $@
 
 
 BIN_O := core.$(SO) \

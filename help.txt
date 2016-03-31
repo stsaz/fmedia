@@ -6,7 +6,7 @@ The default action is to play input files one by one.
 INPUT    Input file
 
 Options:
---gui   Run in graphical UI mode
+--gui   Run in graphical UI mode (Windows only)
 
 --repeat-all   Repeat all
 --seek=TIME    Seek to time

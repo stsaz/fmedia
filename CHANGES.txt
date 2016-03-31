@@ -7,6 +7,20 @@ HISTORY OF FMEDIA
  "-" - bugfix
 
 
+fmedia v0.11 - Mar 30, 2016
+
+ * MPEG decode: use libmpg123 instead of libmad
+ * OGG, FLAC encode: support larger Vorbis comments
+
+ - OGG: seek didn't work on files with pages copied from another file
+ - OGG decode: "current sample" value for the first page was invalid
+ - GUI: tags info: support large text
+ - fmedia: --gui switch didn't work without input files
+ - core: --wav-format=float didn't work (v0.7 bug)
+ - file: fix segfault when using unknown $-variable with --out switch
+ - file: using $filename with --out switch didn't work for filenames without slash
+
+
 fmedia v0.10 - Mar 15, 2016
 
  + OGG: support copying OGG stream without re-encoding

@@ -271,7 +271,7 @@ static int flac_out_addmeta(flac_out *f, fmed_filt *d)
 			|| ffstr_eqcz(&name, "vendor"))
 			continue;
 		if (0 != ffflac_addtag(&f->fl, name.ptr, val->ptr, val->len)) {
-			syserrlog(core, d->trk, "flac", "%s", "add meta tag");
+			syserrlog(core, d->trk, "flac", "can't add tag: %S", &name);
 			return -1;
 		}
 	}
