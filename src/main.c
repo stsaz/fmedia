@@ -301,7 +301,7 @@ static int open_input(void)
 		track->cmd(trk, FMED_TRACK_START);
 	}
 
-	if (added == 0 && !fmed->rec)
+	if (added == 0 && !fmed->rec && !fmed->gui)
 		return 1;
 
 	return 0;
