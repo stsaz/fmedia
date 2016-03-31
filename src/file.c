@@ -433,7 +433,7 @@ static FFINL char* fileout_getname(fmed_fileout *f, fmed_filt *d)
 				const char *in;
 				ffstr dir, name;
 				if (NULL == (in = d->track->getvalstr(d->trk, "input"))
-					|| NULL == ffpath_split2(in, ffsz_len(in), &dir, &name))
+					|| (NULL == ffpath_split2(in, ffsz_len(in), &dir, &name) && fpath))
 					goto done;
 
 				if (fpath) {
