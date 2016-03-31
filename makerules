@@ -75,7 +75,7 @@ MPEG_O := $(OBJ_DIR)/mpeg.o $(FF_O) \
 	$(FF_OBJ_DIR)/ffmp3lame.o \
 	$(FF_OBJ_DIR)/ffid3.o
 mpeg.$(SO): $(MPEG_O)
-	$(LD) -shared $(MPEG_O) $(LDFLAGS) -lmad-ff -lmp3lame-ff  -o$@
+	$(LD) -shared $(MPEG_O) $(LDFLAGS) -lmpg123-ff -lmp3lame-ff  -o$@
 
 
 #
@@ -212,7 +212,7 @@ installd: all
 		$(INSTDIR)/
 	$(CP) \
 		$(FF3PTLIB)/libogg-ff.$(SO) $(FF3PTLIB)/libvorbis-ff.$(SO) $(FF3PTLIB)/libvorbisenc-ff.$(SO) \
-		$(FF3PTLIB)/libmad-ff.$(SO) $(FF3PTLIB)/libmp3lame-ff.$(SO) \
+		$(FF3PTLIB)/libmpg123-ff.$(SO) $(FF3PTLIB)/libmp3lame-ff.$(SO) \
 		$(FF3PTLIB)/libFLAC-ff.$(SO) $(FF3PTLIB)/libwavpack-ff.$(SO) $(FF3PTLIB)/libMAC-ff.$(SO) \
 		$(FF3PTLIB)/libALAC-ff.$(SO) \
 		$(FF3PTLIB)/libsoxr-ff.$(SO) \

@@ -201,6 +201,9 @@ static int mpeg_process(void *ctx, fmed_filt *d)
 		return FMED_RLASTOUT;
 	}
 
+	m->mpg.data = d->data;
+	m->mpg.datalen = d->datalen;
+
 again:
 	switch (m->state) {
 	case I_HDR:
@@ -211,9 +214,6 @@ again:
 			ffmpg_seek(&m->mpg, ffpcm_samples(seek_time, m->mpg.fmt.sample_rate));
 		break;
 	}
-
-	m->mpg.data = d->data;
-	m->mpg.datalen = d->datalen;
 
 	for (;;) {
 		r = ffmpg_decode(&m->mpg);
@@ -234,9 +234,9 @@ again:
 			return FMED_RDONE;
 
 		case FFMPG_RHDR:
-			fmed_setpcm(d, &m->mpg.fmt);
+			fmed_setpcm(d, (void*)&m->mpg.fmt);
 			d->track->setvalstr(d->trk, "pcm_decoder", "MPEG");
-			fmed_setval("pcm_ileaved", 0);
+			fmed_setval("pcm_ileaved", m->mpg.fmt.ileaved);
 			fmed_setval("bitrate", m->mpg.bitrate);
 			fmed_setval("total_samples", m->mpg.total_samples);
 			m->state = I_DATA;
@@ -272,13 +272,16 @@ again:
 data:
 	d->data = m->mpg.data;
 	d->datalen = m->mpg.datalen;
-	d->outni = (void**)m->mpg.pcm;
+	if (m->mpg.fmt.ileaved)
+		d->out = (void*)m->mpg.pcmi;
+	else
+		d->outni = (void**)m->mpg.pcm;
 	d->outlen = m->mpg.pcmlen;
 	fmed_setval("current_position", ffmpg_cursample(&m->mpg));
 
 	dbglog(core, d->trk, "mpeg", "output: %L PCM samples"
 		, d->outlen / ffpcm_size1(&m->mpg.fmt));
-	return FMED_ROK;
+	return FMED_RDATA;
 }
 
 
