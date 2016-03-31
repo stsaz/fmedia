@@ -491,6 +491,7 @@ static void* fileout_open(fmed_filt *d)
 	fmed_fileout *f = ffmem_tcalloc1(fmed_fileout);
 	if (f == NULL)
 		return NULL;
+	f->fd = FF_BADFD;
 
 	if (NULL == (filename = fileout_getname(f, d)))
 		goto done;
