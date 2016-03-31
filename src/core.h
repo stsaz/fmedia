@@ -76,7 +76,7 @@ typedef struct fmedia {
 	ffstr meta;
 	float ogg_qual;
 	float gain;
-	byte wav_formt;
+	uint wav_formt;
 	byte cue_gaps;
 	byte pcm_crc;
 	byte pcm_peaks;
