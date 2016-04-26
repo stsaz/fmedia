@@ -5,6 +5,19 @@ fmedia is a fast asynchronous media player/recorder/converter for Windows and Li
 
 Note: it's beta version - not tested well enough, not all functions will work as expected.  See section "USE-CASES" to have an idea of which features should work.
 
+Contents:
+	. MODULES
+	. INSTALL ON WINDOWS
+	. INSTALL ON LINUX
+	. BUILD ON LINUX
+	. CONFIG
+	. EXTRACT TRACKS FROM FLAC.CUE
+	. TERMINAL UI
+	. GRAPHICAL UI
+	. USE-CASES
+	. BUG REPORT
+
+
 ---------------
 MODULES
 ---------------
@@ -150,20 +163,21 @@ fmedia GUI is highly customizable, thanks to FF library that is used under the h
 USE-CASES
 ---------------
 Play
-	fmedia ./file.ogg
+	fmedia ./file.ogg ./*.mp3
+	fmedia ./Music
 
 Convert
 	fmedia ./file.ogg --out=./file.wav
 	fmedia ./file.wav --out=./file.ogg --ogg-quality=7.0
-	fmedia ./file.wav --out=./file.mp3 --mpeg-quality=0
+	fmedia ./file.wav --out=./file.mp3 --mpeg-quality=0 --rate=48000
 
 Convert all .wav files from the current directory to .ogg
 	fmedia ./*.wav --out=.ogg --outdir=.
 
-Convert file and override the artist name and comment (Linux: single quotes are required!)
+Convert file and override meta info (Use single quotes on Linux, double quotes on Windows)
 	fmedia ./file.flac --out=.ogg --meta='artist=Artist Name;comment=My Comment'
 
-Extract several tracks from .cue file (Linux: single quotes are required!)
+Extract several tracks from .cue file (Use single quotes on Linux, double quotes on Windows)
 	fmedia ./album.flac.cue --track=3,7,13 --out='$tracknumber. $artist - $title.flac'
 
 Cut compressed audio without re-encoding
@@ -195,6 +209,17 @@ Change sound volume in an audio file
 
 Show PCM information
 	fmedia input.ogg --pcm-peaks
+
+
+---------------
+BUG REPORT
+---------------
+If you encounter a bug, please report it: the more issues will be reported by users, the more stable fmedia will become.  When filing a bug report try to provide information that can help us to fix the problem.  Try to execute the same command once again, only this time add --debug switch, e.g.:
+
+	fmedia --debug OPTIONS INPUT_FILES...
+
+It will print a lot of information about what fmedia is doing.  This info or a screenshot would be very helpful.
+
 
 ---------------
 HOMEPAGE

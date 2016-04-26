@@ -23,10 +23,15 @@ static const fmed_core *core;
 
 typedef struct sndmod_conv {
 	uint state;
+	uint out_samp_size;
 	ffpcmex inpcm
 		, outpcm;
 	ffstr3 buf;
 } sndmod_conv;
+
+enum {
+	CONV_OUTBUF_MSEC = 500,
+};
 
 
 //FMEDIA MODULE
@@ -138,13 +143,18 @@ static void sndmod_conv_close(void *ctx)
 
 enum { CONV_CONF, CONV_CHK, CONV_DATA };
 
-/** Set array elements to point to consecutive regions of one buffer. */
-static void arrp_setbuf(void **ar, size_t size, const void *buf, size_t region_len)
+static void log_pcmconv(const char *module, int r, const ffpcmex *in, const ffpcmex *out, void *trk)
 {
-	size_t i;
-	for (i = 0;  i != size;  i++) {
-		ar[i] = (char*)buf + region_len * i;
+	int f = FMED_LOG_DEBUG;
+	const char *unsupp = "";
+	if (r != 0) {
+		f = FMED_LOG_ERR;
+		unsupp = "unsupported ";
 	}
+	core->log(f, trk, module, "%sPCM conversion: %s/%u/%u/%s -> %s/%u/%u/%s"
+		, unsupp
+		, ffpcm_fmtstr(in->format), in->channels, in->sample_rate, (in->ileaved) ? "i" : "ni"
+		, ffpcm_fmtstr(out->format), out->channels & FFPCM_CHMASK, out->sample_rate, (out->ileaved) ? "i" : "ni");
 }
 
 static int sndmod_conv_prepare(sndmod_conv *c, fmed_filt *d)
@@ -178,36 +188,25 @@ static int sndmod_conv_prepare(sndmod_conv *c, fmed_filt *d)
 
 	int r = ffpcm_convert(&c->outpcm, NULL, &c->inpcm, NULL, 0);
 	if (r != 0 || (core->loglev & FMED_LOG_DEBUG)) {
-
-		int f = FMED_LOG_DEBUG;
-		const char *unsupp = "";
-		if (r != 0) {
-			f = FMED_LOG_ERR;
-			unsupp = "unsupported ";
-		}
-
-		core->log(f, d->trk, "conv", "%sPCM conversion: %s/%u/%u/%s -> %s/%u/%u/%s"
-			, unsupp
-			, ffpcm_fmtstr(c->inpcm.format), c->inpcm.channels, c->inpcm.sample_rate, (c->inpcm.ileaved) ? "i" : "ni"
-			, ffpcm_fmtstr(c->outpcm.format), c->outpcm.channels & FFPCM_CHMASK, c->outpcm.sample_rate, (c->outpcm.ileaved) ? "i" : "ni");
-
+		log_pcmconv("conv", r, &c->inpcm, &c->outpcm, d->trk);
 		if (r != 0)
 			return FMED_RERR;
 	}
 
-	cap = ffpcm_bytes(&c->inpcm, 1000);
+	uint out_ch = c->outpcm.channels & FFPCM_CHMASK;
+	c->out_samp_size = ffpcm_size(c->outpcm.format, out_ch);
+	cap = ffpcm_samples(CONV_OUTBUF_MSEC, c->outpcm.sample_rate) * c->out_samp_size;
 	if (!c->outpcm.ileaved) {
-		if (NULL == ffarr_alloc(&c->buf, sizeof(void*) * c->outpcm.channels + cap)) {
+		if (NULL == ffarr_alloc(&c->buf, sizeof(void*) * out_ch + cap)) {
 			return FMED_RERR;
 		}
-		arrp_setbuf((void**)c->buf.ptr, c->outpcm.channels
-			, c->buf.ptr + sizeof(void*) * c->outpcm.channels, cap / c->outpcm.channels);
+		ffarrp_setbuf((void**)c->buf.ptr, out_ch, c->buf.ptr + sizeof(void*) * out_ch, cap / out_ch);
 
 	} else {
 		if (NULL == ffarr_alloc(&c->buf, cap))
 			return FMED_RERR;
 	}
-	c->buf.len = cap / ffpcm_size(c->outpcm.format, c->outpcm.channels & FFPCM_CHMASK);
+	c->buf.len = cap / c->out_samp_size;
 
 	c->state = CONV_DATA;
 	return FMED_ROK;
@@ -253,7 +252,7 @@ static int sndmod_conv_process(void *ctx, fmed_filt *d)
 	}
 
 	d->out = c->buf.ptr;
-	d->outlen = samples * ffpcm_size(c->outpcm.format, c->outpcm.channels & FFPCM_CHMASK);
+	d->outlen = samples * c->out_samp_size;
 	d->datalen -= samples * ffpcm_size1(&c->inpcm);
 
 	if (c->inpcm.ileaved)
@@ -338,17 +337,13 @@ static int sndmod_soxr_process(void *ctx, fmed_filt *d)
 		}
 
 		// c->soxr.dither = 1;
-		if (0 != ffsoxr_create(&c->soxr, &inpcm, &outpcm)) {
-			errlog(core, d->trk, "soxr", "unsupported PCM conversion: %s/%u/%u/%s -> %s/%u/%u/%s: %s"
-				, ffpcm_fmtstr(inpcm.format), inpcm.channels, inpcm.sample_rate, (inpcm.ileaved) ? "i" : "ni"
-				, ffpcm_fmtstr(outpcm.format), outpcm.channels, outpcm.sample_rate, (outpcm.ileaved) ? "i" : "ni"
-				, ffsoxr_errstr(&c->soxr));
-			return FMED_RERR;
+		if (0 != (val = ffsoxr_create(&c->soxr, &inpcm, &outpcm))
+			|| (core->loglev & FMED_LOG_DEBUG)) {
+			log_pcmconv("soxr", val, &inpcm, &outpcm, d->trk);
+			if (val != 0)
+				return FMED_RERR;
 		}
 
-		dbglog(core, d->trk, "soxr", "PCM conversion: %s/%u/%u/%s -> %s/%u/%u/%s"
-			, ffpcm_fmtstr(inpcm.format), inpcm.channels, inpcm.sample_rate, (inpcm.ileaved) ? "i" : "ni"
-			, ffpcm_fmtstr(outpcm.format), outpcm.channels, outpcm.sample_rate, (outpcm.ileaved) ? "i" : "ni");
 		c->state = 2;
 		break;
 

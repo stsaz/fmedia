@@ -58,7 +58,6 @@ typedef struct fmedia {
 		, debug
 		, mix
 		, tags
-		, out_channels
 		, silent
 		, gui
 		, info;
@@ -75,6 +74,7 @@ typedef struct fmedia {
 	float gain;
 	uint wav_formt;
 	uint out_rate;
+	byte out_channels;
 	byte flac_complevel;
 	byte cue_gaps;
 	byte pcm_crc;

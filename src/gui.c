@@ -382,7 +382,7 @@ static void gui_rec(uint cmd)
 		const char *fn = gg->track->getvalstr(gg->rec_trk, "output");
 		gg->track->cmd(gg->rec_trk, FMED_TRACK_STOP);
 		gg->rec_trk = NULL;
-		gui_status(FFSTR(""));
+		ffui_stbar_settextz(&gg->wmain.stbar, 0, "");
 		if (fn != FMED_PNULL)
 			gui_media_add1(fn);
 		return;
@@ -419,7 +419,7 @@ static void gui_rec(uint cmd)
 	gg->track->cmd(t, FMED_TRACK_START);
 	gg->rec_trk = t;
 
-	gui_status(FFSTR("Recording..."));
+	ffui_stbar_settextz(&gg->wmain.stbar, 0, "Recording...");
 }
 
 

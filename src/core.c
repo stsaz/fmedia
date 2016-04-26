@@ -1272,22 +1272,18 @@ void core_free(void)
 
 static const fmed_modinfo* core_insmod(const char *sname, ffpars_ctx *ctx)
 {
-	const char *modname, *dot;
 	fmed_getmod_t getmod;
 	ffdl dl = NULL;
-	ffstr s;
+	ffstr s, modname;
 	core_mod *mod = ffmem_tcalloc1(core_mod);
 	if (mod == NULL)
 		return NULL;
 
-	ffstr_setz(&s, sname);
-	dot = ffs_findc(s.ptr, s.len, '.');
-	if (dot == NULL || dot == s.ptr || dot + 1 == s.ptr + s.len) {
+	ffs_split2by(sname, ffsz_len(sname), '.', &s, &modname);
+	if (s.len == 0 || modname.len == 0) {
 		fferr_set(EINVAL);
 		goto fail;
 	}
-	modname = dot + 1;
-	s.len = dot - s.ptr;
 
 	if (s.ptr[0] == '#') {
 		if (ffstr_eqcz(&s, "#core"))
@@ -1309,6 +1305,9 @@ static const fmed_modinfo* core_insmod(const char *sname, ffpars_ctx *ctx)
 
 		char fn[FF_MAXFN];
 		ffs_fmt(fn, fn + sizeof(fn), "%S.%s%Z", &s, FFDL_EXT);
+
+		dbglog(core, NULL, "core", "loading module %s from %s", sname, fn);
+
 		dl = ffdl_open(fn, 0);
 		if (dl == NULL) {
 			errlog(core, NULL, "core", "%e: %s: %s", FFERR_DLOPEN, ffdl_errstr(), fn);
@@ -1326,7 +1325,7 @@ static const fmed_modinfo* core_insmod(const char *sname, ffpars_ctx *ctx)
 	if (mod->m == NULL)
 		goto fail;
 
-	mod->f = mod->m->iface(modname);
+	mod->f = mod->m->iface(modname.ptr);
 	if (mod->f == NULL)
 		goto fail;
 

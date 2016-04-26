@@ -1,3 +1,4 @@
+# fmedia v0.12 GUI
 
 menu mfile {
 	item "&Open..." {
@@ -58,7 +59,7 @@ menu mfile {
 	}
 	item "-" {
 	}
-	item "Minimize to &Tray" {
+	item "&Minimize to Tray" {
 		action HIDE
 		hotkey "Ctrl+M"
 	}

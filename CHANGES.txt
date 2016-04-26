@@ -7,6 +7,37 @@ HISTORY OF FMEDIA
  "-" - bugfix
 
 
+fmedia v0.12 - Apr 26, 2016
+
+ + MP4: support AAC decoding
+
+ + GUI: support multiple playlists
+ + GUI: menu commands for editing config files
+ * GUI: much faster remove from queue
+ * GUI: save position of all windows on close
+ * GUI: preserve track position within queue when expanding directory/m3u/cue
+ * TUI: Windows: support seeking and volume change using arrows
+ * TUI: Linux: new config setting "echo_off"
+ - TUI: don't react on volume change or seeking while converting
+ - TUI, GUI: accurate bitrate value
+
+ * MPEG encode: ID3: support tag padding ("min_meta_size" config setting)
+ * MPEG decode: ID3: support null-terminated tag value
+ - FLAC decode: support int24 audio format
+ - FLAC encode: fix segfault on writing large meta
+ * MP4: support multi-track .mp4 files
+ * MP4: don't fail if box with the same name occurs more than once
+ * soxr: support non-interleaved output
+ * WASAPI capture: auto-detect supported audio format
+ * ALSA,WASAPI playback: support more audio formats, not just int16
+
+ * fmedia: windows: support wildcards when opening input files (without bash auto-expansion)
+ + fmedia: windows: new commands to fmedia.exe: --install and --uninstall
+ * fmedia: new arguments --flac-compression, --rate
+ - rtpeak: real-time peaks didn't work while recording with ALSA
+ - queue: couldn't overwrite meta tags with --meta argument
+
+
 fmedia v0.11 - Mar 30, 2016
 
  * MPEG decode: use libmpg123 instead of libmad

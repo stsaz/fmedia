@@ -22,8 +22,8 @@ mixer                 mixer
 #include <FF/taskqueue.h>
 
 
-#define FMED_VER_MINOR  11
-#define FMED_VER  "0.11"
+#define FMED_VER_MINOR  12
+#define FMED_VER  "0.12"
 
 typedef struct fmed_core fmed_core;
 typedef struct fmed_mod fmed_mod;
@@ -196,7 +196,7 @@ typedef struct fmed_filt {
 } fmed_filt;
 
 enum FMED_R {
-	FMED_ROK //output data is ready
+	FMED_ROK //output data is ready.  The module will be called again if there's unprocessed input data.
 	, FMED_RDATA //output data is ready, the module will be called again
 	, FMED_RMORE //more input data is needed
 	, FMED_RASYNC //an asynchronous operation is scheduled.  The module will call fmed_filt.handler.
