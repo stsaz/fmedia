@@ -123,27 +123,6 @@ static const ffpars_arg tui_conf_args[] = {
 	{ "echo_off",	FFPARS_TBOOL | FFPARS_F8BIT,  FFPARS_DSTOFF(struct tui_conf_t, echo_off) },
 };
 
-#ifdef FF_WIN
-enum {
-	FFKEY_UP = 0x100,
-	FFKEY_DOWN,
-	FFKEY_RIGHT,
-	FFKEY_LEFT,
-
-	FFKEY_CTRL = 0x1 << 24,
-	FFKEY_SHIFT = 0x2 << 24,
-	FFKEY_ALT = 0x4 << 24,
-	FFKEY_MODMASK = FFKEY_CTRL | FFKEY_SHIFT | FFKEY_ALT,
-};
-
-static int ffstd_key(const char *data, size_t *len)
-{
-	*len = 1;
-	return data[0];
-}
-
-#endif
-
 
 const fmed_mod* fmed_getmod_tui(const fmed_core *_core)
 {
@@ -597,14 +576,17 @@ end:
 
 static int tui_cmdloop(void *param)
 {
-	char buf[128];
+	ffstd_ev ev = {0};
+	int r;
 
 	for (;;) {
-		ssize_t r = fffile_read(ffstdin, buf, sizeof(buf));
-		if (r <= 0)
+		r = ffstd_event(ffstdin, &ev);
+		if (r == 0)
+			continue;
+		else if (r < 0)
 			break;
-		size_t len = r;
-		int key = ffstd_key(buf, &len);
+
+		uint key = ffstd_key(ev.data, &ev.datalen);
 
 		const struct key *k = key2cmd(key);
 		if (k == NULL)
