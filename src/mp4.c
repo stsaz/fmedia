@@ -40,12 +40,21 @@ static const char *const mp4_metanames[] = {
 	"composer",
 };
 
+struct mp4;
+struct dec_iface_t {
+	int (*open)(struct mp4 *m, fmed_filt *d);
+	void (*close)(struct mp4 *m);
+	int (*decode)(struct mp4 *m, fmed_filt *d);
+};
+
 typedef struct mp4 {
 	ffmp4 mp;
 	uint state;
 
 	ffalac alac;
 	uint64 seek;
+
+	const struct dec_iface_t *dec;
 } mp4;
 
 
@@ -66,6 +75,14 @@ static const fmed_filter fmed_mp4_input = {
 };
 
 static void mp4_meta(mp4 *m, fmed_filt *d);
+
+
+static int mp4alac_open(mp4 *m, fmed_filt *d);
+static void mp4alac_close(mp4 *m);
+static int mp4alac_decode(mp4 *m, fmed_filt *d);
+static const struct dec_iface_t alac_dec_iface = {
+	&mp4alac_open, &mp4alac_close, &mp4alac_decode
+};
 
 
 FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
@@ -117,7 +134,8 @@ static void* mp4_in_create(fmed_filt *d)
 static void mp4_in_free(void *ctx)
 {
 	mp4 *m = ctx;
-	ffalac_close(&m->alac);
+	if (m->dec != NULL)
+		m->dec->close(m);
 	ffmp4_close(&m->mp);
 	ffmem_free(m);
 }
@@ -180,24 +198,15 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 
 			fmed_setval("total_samples", ffmp4_totalsamples(&m->mp));
 
-			if (m->mp.codec != FFMP4_ALAC) {
+			if (m->mp.codec == FFMP4_ALAC)
+				m->dec = &alac_dec_iface;
+			else {
 				errlog(core, d->trk, "mp4", "%s: decoding unsupported", ffmp4_codec(m->mp.codec));
 				return FMED_RERR;
 			}
 
-			if (0 != ffalac_open(&m->alac, m->mp.out, m->mp.outlen)) {
-				errlog(core, d->trk, "mp4", "ffalac_open(): %s", ffalac_errstr(&m->alac));
-				return FMED_RERR;
-			}
-			if (0 != memcmp(&m->alac.fmt, &m->mp.fmt, sizeof(m->alac.fmt))) {
-				errlog(core, d->trk, "mp4", "ALAC: audio format doesn't match with format from MP4");
-				return FMED_RERR;
-			}
-
-			{
-			uint br = (m->alac.bitrate != 0) ? m->alac.bitrate : ffmp4_bitrate(&m->mp);
-			fmed_setval("bitrate", br);
-			}
+			if (0 != (r = m->dec->open(m, d)))
+				return r;
 
 			if (FMED_NULL != fmed_getval("input_info"))
 				break;
@@ -217,13 +226,6 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 			continue;
 
 		case FFMP4_RDATA:
-			m->alac.data = m->mp.out;
-			m->alac.datalen = m->mp.outlen;
-			m->alac.cursample = ffmp4_cursample(&m->mp);
-			if (m->seek != (uint64)-1) {
-				ffalac_seek(&m->alac, m->seek);
-				m->seek = (uint64)-1;
-			}
 			m->state = I_DECODE;
 			continue;
 
@@ -247,27 +249,70 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 		break;
 
 	case I_DECODE:
-		r = ffalac_decode(&m->alac);
-		if (r == FFALAC_RERR) {
-			errlog(core, d->trk, "mp4", "ffalac_decode(): %s", ffalac_errstr(&m->alac));
-			return FMED_RERR;
-		}
-		if (r == FFALAC_RMORE) {
+		r = m->dec->decode(m, d);
+		if (r == FMED_RMORE) {
 			m->state = I_DATA;
 			continue;
 		}
-		dbglog(core, d->trk, "mp4", "ALAC: decoded %u samples (%U)"
-			, m->alac.pcmlen / ffpcm_size1(&m->alac.fmt), ffalac_cursample(&m->alac));
-		fmed_setval("current_position", ffalac_cursample(&m->alac));
-
-		d->data = (void*)m->mp.data;
-		d->datalen = m->mp.datalen;
-		d->out = m->alac.pcm;
-		d->outlen = m->alac.pcmlen;
-		return FMED_RDATA;
+		return r;
 	}
 
 	}
 
 	//unreachable
+}
+
+
+static int mp4alac_open(mp4 *m, fmed_filt *d)
+{
+	if (0 != ffalac_open(&m->alac, m->mp.out, m->mp.outlen)) {
+		errlog(core, d->trk, "mp4", "ffalac_open(): %s", ffalac_errstr(&m->alac));
+		return FMED_RERR;
+	}
+	if (0 != memcmp(&m->alac.fmt, &m->mp.fmt, sizeof(m->alac.fmt))) {
+		errlog(core, d->trk, "mp4", "ALAC: audio format doesn't match with format from MP4");
+		return FMED_RERR;
+	}
+
+	uint br = (m->alac.bitrate != 0) ? m->alac.bitrate : ffmp4_bitrate(&m->mp);
+	fmed_setval("bitrate", br);
+	return 0;
+}
+
+static void mp4alac_close(mp4 *m)
+{
+	ffalac_close(&m->alac);
+}
+
+static int mp4alac_decode(mp4 *m, fmed_filt *d)
+{
+	if (m->mp.outlen != 0) {
+		m->alac.data = m->mp.out;
+		m->alac.datalen = m->mp.outlen;
+		m->alac.cursample = ffmp4_cursample(&m->mp);
+		if (m->seek != (uint64)-1) {
+			ffalac_seek(&m->alac, m->seek);
+			m->seek = (uint64)-1;
+		}
+		m->mp.outlen = 0;
+	}
+
+	int r;
+	r = ffalac_decode(&m->alac);
+	if (r == FFALAC_RERR) {
+		errlog(core, d->trk, "mp4", "ffalac_decode(): %s", ffalac_errstr(&m->alac));
+		return FMED_RERR;
+
+	} else if (r == FFALAC_RMORE)
+		return FMED_RMORE;
+
+	dbglog(core, d->trk, "mp4", "ALAC: decoded %u samples (%U)"
+		, m->alac.pcmlen / ffpcm_size1(&m->alac.fmt), ffalac_cursample(&m->alac));
+	fmed_setval("current_position", ffalac_cursample(&m->alac));
+
+	d->data = (void*)m->mp.data;
+	d->datalen = m->mp.datalen;
+	d->out = m->alac.pcm;
+	d->outlen = m->alac.pcmlen;
+	return FMED_RDATA;
 }
