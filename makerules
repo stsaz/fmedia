@@ -104,9 +104,10 @@ MP4_O := $(OBJ_DIR)/mp4.o \
 	$(FF_OBJ_DIR)/ffmp4.o \
 	$(FF_OBJ_DIR)/ffid3.o \
 	$(FF_OBJ_DIR)/ffalac.o \
+	$(FF_OBJ_DIR)/ffaac.o \
 	$(FF_OBJ_DIR)/ffpcm.o
 mp4.$(SO): $(MP4_O)
-	$(LD) -shared $(MP4_O) $(LDFLAGS) -lALAC-ff -o$@
+	$(LD) -shared $(MP4_O) $(LDFLAGS) -lALAC-ff -lfdk-aac-ff -o$@
 
 
 #
@@ -214,6 +215,7 @@ installd: all
 		$(FF3PTLIB)/libogg-ff.$(SO) $(FF3PTLIB)/libvorbis-ff.$(SO) $(FF3PTLIB)/libvorbisenc-ff.$(SO) \
 		$(FF3PTLIB)/libmpg123-ff.$(SO) $(FF3PTLIB)/libmp3lame-ff.$(SO) \
 		$(FF3PTLIB)/libFLAC-ff.$(SO) $(FF3PTLIB)/libwavpack-ff.$(SO) $(FF3PTLIB)/libMAC-ff.$(SO) \
+		$(FF3PTLIB)/libfdk-aac-ff.$(SO) \
 		$(FF3PTLIB)/libALAC-ff.$(SO) \
 		$(FF3PTLIB)/libsoxr-ff.$(SO) \
 		$(INSTDIR)/

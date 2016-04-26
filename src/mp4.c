@@ -5,6 +5,7 @@ Copyright (c) 2016 Simon Zolin */
 
 #include <FF/audio/mp4.h>
 #include <FF/audio/alac.h>
+#include <FF/audio/aac.h>
 
 
 static const fmed_core *core;
@@ -51,7 +52,10 @@ typedef struct mp4 {
 	ffmp4 mp;
 	uint state;
 
+	union {
 	ffalac alac;
+	ffaac aac;
+	};
 	uint64 seek;
 
 	const struct dec_iface_t *dec;
@@ -76,6 +80,13 @@ static const fmed_filter fmed_mp4_input = {
 
 static void mp4_meta(mp4 *m, fmed_filt *d);
 
+
+static int mp4aac_open(mp4 *m, fmed_filt *d);
+static void mp4aac_close(mp4 *m);
+static int mp4aac_decode(mp4 *m, fmed_filt *d);
+static const struct dec_iface_t aac_dec_iface = {
+	&mp4aac_open, &mp4aac_close, &mp4aac_decode
+};
 
 static int mp4alac_open(mp4 *m, fmed_filt *d);
 static void mp4alac_close(mp4 *m);
@@ -200,6 +211,8 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 
 			if (m->mp.codec == FFMP4_ALAC)
 				m->dec = &alac_dec_iface;
+			else if (m->mp.codec == FFMP4_AAC)
+				m->dec = &aac_dec_iface;
 			else {
 				errlog(core, d->trk, "mp4", "%s: decoding unsupported", ffmp4_codec(m->mp.codec));
 				return FMED_RERR;
@@ -260,6 +273,56 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 	}
 
 	//unreachable
+}
+
+
+static int mp4aac_open(mp4 *m, fmed_filt *d)
+{
+	if (0 != ffaac_open(&m->aac, m->mp.fmt.channels, m->mp.out, m->mp.outlen)) {
+		errlog(core, d->trk, "mp4", "ffaac_open(): %s", ffaac_errstr(&m->aac));
+		return FMED_RERR;
+	}
+
+	uint br = (m->mp.aac_brate != 0) ? m->mp.aac_brate : ffmp4_bitrate(&m->mp);
+	fmed_setval("bitrate", br);
+	return 0;
+}
+
+static void mp4aac_close(mp4 *m)
+{
+	ffaac_close(&m->aac);
+}
+
+static int mp4aac_decode(mp4 *m, fmed_filt *d)
+{
+	if (m->mp.outlen != 0) {
+		m->aac.data = m->mp.out;
+		m->aac.datalen = m->mp.outlen;
+		if (m->seek != (uint64)-1) {
+			ffalac_seek(&m->alac, m->seek);
+			m->seek = (uint64)-1;
+		}
+		m->mp.outlen = 0;
+	}
+
+	int r;
+	r = ffaac_decode(&m->aac);
+	if (r == FFAAC_RERR) {
+		errlog(core, d->trk, "mp4", "ffaac_decode(): %s", ffaac_errstr(&m->aac));
+		return FMED_RERR;
+
+	} else if (r == FFAAC_RMORE)
+		return FMED_RMORE;
+
+	dbglog(core, d->trk, "mp4", "AAC: decoded %u samples (%U)"
+		, m->aac.pcmlen / ffpcm_size1(&m->aac.fmt), ffmp4_cursample(&m->mp));
+	fmed_setval("current_position", ffmp4_cursample(&m->mp));
+
+	d->data = (void*)m->mp.data;
+	d->datalen = m->mp.datalen;
+	d->out = (void*)m->aac.pcm;
+	d->outlen = m->aac.pcmlen;
+	return FMED_RDATA;
 }
 
 
