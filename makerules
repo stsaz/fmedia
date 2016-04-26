@@ -168,10 +168,12 @@ alsa.$(SO): $(ALSA_O)
 
 
 #
-$(OBJ_DIR)/gui.o: $(SRCDIR)/gui.c $(SRCDIR)/fmedia.h $(FF_GUIHDR)
+$(OBJ_DIR)/gui.o: $(SRCDIR)/gui.c $(SRCDIR)/gui/gui.h $(SRCDIR)/fmedia.h $(FF_GUIHDR)
+	$(C) $(CFLAGS)  $< -o$@
+$(OBJ_DIR)/%.o: $(SRCDIR)/gui/%.c $(SRCDIR)/gui/gui.h $(SRCDIR)/fmedia.h $(FF_GUIHDR)
 	$(C) $(CFLAGS)  $< -o$@
 
-GUI_O := $(OBJ_DIR)/gui.o \
+GUI_O := $(OBJ_DIR)/gui.o $(OBJ_DIR)/gui-main.o $(OBJ_DIR)/gui-dlgs.o \
 	$(FF_O) \
 	$(FF_OBJ_DIR)/ffparse.o $(FF_OBJ_DIR)/ffconf.o \
 	$(FF_OBJ_DIR)/ffpcm.o \

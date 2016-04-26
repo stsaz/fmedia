@@ -346,20 +346,20 @@ window wconvert {
 	}
 
 	editbox eout {
-		position 10 10 200 25
+		position 0 0 200 25
 		style visible
 		text "$filepath/$tracknumber. $artist - $title.ogg"
 	}
 
 	button boutbrowse {
-		position 220 10 35 25
+		position 220 0 35 25
 		style visible
 		text "..."
 		action OUTBROWSE
 	}
 
 	listview vsets {
-		position 10 50 250 100
+		position 0 25 250 100
 		style edit_labels explorer_theme grid_lines visible
 
 		lclick CVT_SETS_EDIT
@@ -367,6 +367,23 @@ window wconvert {
 		column Setting {
 		}
 		column Value {
+		}
+		column Description {
+		}
+	}
+
+	paned pnout {
+		child eout {
+			resize cx
+		}
+		child boutbrowse {
+			move x
+		}
+	}
+
+	paned pnsets {
+		child vsets {
+			resize cx cy
 		}
 	}
 }
