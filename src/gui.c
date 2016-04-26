@@ -1556,7 +1556,7 @@ static void* gtrk_open(fmed_filt *d)
 	ffui_view_set(&gg->vlist, H_DUR, &it);
 
 	n = ffs_fmt(buf, buf + sizeof(buf), "%u kbps, %s, %u Hz, %u bit, %s"
-		, (int)(d->track->getval(d->trk, "bitrate") / 1000)
+		, (int)((d->track->getval(d->trk, "bitrate") + 500) / 1000)
 		, (FMED_PNULL != (sval = d->track->getvalstr(d->trk, "pcm_decoder"))) ? sval : ""
 		, g->sample_rate
 		, ffpcm_bits(d->track->getval(d->trk, "pcm_format"))
