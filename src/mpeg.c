@@ -62,6 +62,7 @@ static struct mpeg_conf_t {
 
 static struct mpeg_out_conf_t {
 	uint qual;
+	uint min_meta_size;
 } mpeg_out_conf;
 
 //FMEDIA MODULE
@@ -96,6 +97,7 @@ static int mpeg_out_addmeta(mpeg_out *m, fmed_filt *d);
 
 static const ffpars_arg mpeg_out_conf_args[] = {
 	{ "quality",	FFPARS_TINT,  FFPARS_DSTOFF(struct mpeg_out_conf_t, qual) },
+	{ "min_meta_size",	FFPARS_TINT,  FFPARS_DSTOFF(struct mpeg_out_conf_t, min_meta_size) },
 };
 
 
@@ -292,6 +294,7 @@ data:
 static int mpeg_out_config(ffpars_ctx *ctx)
 {
 	mpeg_out_conf.qual = 2;
+	mpeg_out_conf.min_meta_size = 1000;
 	ffpars_setargs(ctx, &mpeg_out_conf, mpeg_out_conf_args, FFCNT(mpeg_out_conf_args));
 	return 0;
 }
@@ -367,6 +370,7 @@ static int mpeg_out_process(void *ctx, fmed_filt *d)
 			errlog(core, d->trk, "mpeg", "ffmpg_create() failed: %s", ffmpg_enc_errstr(&m->mpg));
 			return FMED_RERR;
 		}
+		m->mpg.min_meta = mpeg_out_conf.min_meta_size;
 
 		if (0 != mpeg_out_addmeta(m, d))
 			return FMED_RERR;
