@@ -236,7 +236,7 @@ static int wasapi_create(wasapi_out *w, fmed_filt *d)
 		&& FMED_NULL == (w->devidx = (int)d->track->getval(d->trk, "playdev_name")))
 		w->devidx = wasapi_out_conf.idev;
 
-	fmt.format = FFPCM_16LE;
+	fmt.format = fmed_getval("pcm_format");
 	fmt.channels = fmed_getval("pcm_channels");
 	fmt.sample_rate = fmed_getval("pcm_sample_rate");
 
@@ -255,6 +255,7 @@ static int wasapi_create(wasapi_out *w, fmed_filt *d)
 		}
 
 		if (fmt.channels == mod->fmt.channels
+			&& fmt.format == mod->fmt.format
 			&& (!excl || fmt.sample_rate == mod->fmt.sample_rate)
 			&& mod->devidx == w->devidx && mod->out.excl == excl) {
 
@@ -291,7 +292,10 @@ static int wasapi_create(wasapi_out *w, fmed_filt *d)
 	if (r != 0) {
 
 		if (r == AUDCLNT_E_UNSUPPORTED_FORMAT && w->state == WAS_TRYOPEN
-			&& (fmt.sample_rate != in_fmt.sample_rate || fmt.channels != in_fmt.channels)) {
+			&& memcmp(&fmt, &in_fmt, sizeof(fmt))) {
+
+			if (fmt.format != in_fmt.format)
+				fmed_setval("conv_pcm_format", fmt.format);
 
 			if (fmt.sample_rate != in_fmt.sample_rate)
 				fmed_setval("conv_pcm_rate", fmt.sample_rate);
@@ -357,7 +361,6 @@ static int wasapi_write(void *ctx, fmed_filt *d)
 
 	switch (w->state) {
 	case WAS_TRYOPEN:
-		fmed_setval("conv_pcm_format", FFPCM_16LE);
 		if (1 != fmed_getval("pcm_ileaved"))
 			fmed_setval("conv_pcm_ileaved", 1);
 		// break

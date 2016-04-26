@@ -268,7 +268,7 @@ static int alsa_create(alsa_out *a, fmed_filt *d)
 	if (FMED_NULL == (a->devidx = (int)d->track->getval(d->trk, "playdev_name")))
 		a->devidx = alsa_out_conf.idev;
 
-	fmt.format = FFPCM_16LE;
+	fmt.format = fmed_getval("pcm_format");
 	fmt.channels = fmed_getval("pcm_channels");
 	fmt.sample_rate = fmed_getval("pcm_sample_rate");
 
@@ -282,6 +282,7 @@ static int alsa_create(alsa_out *a, fmed_filt *d)
 		}
 
 		if (fmt.channels == mod->fmt.channels
+			&& fmt.format == mod->fmt.format
 			&& fmt.sample_rate == mod->fmt.sample_rate
 			&& mod->devidx == a->devidx) {
 
@@ -341,7 +342,6 @@ static int alsa_write(void *ctx, fmed_filt *d)
 
 	switch (a->state) {
 	case I_OPEN:
-		fmed_setval("conv_pcm_format", FFPCM_16LE);
 		if (1 == fmed_getval("pcm_ileaved"))
 			fmed_setval("conv_pcm_ileaved", 0);
 		if (0 != (r = alsa_create(a, d)))
