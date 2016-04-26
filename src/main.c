@@ -6,6 +6,7 @@ Copyright (c) 2015 Simon Zolin */
 #include <FF/audio/pcm.h>
 #include <FF/data/psarg.h>
 #include <FF/data/utf8.h>
+#include <FF/dir.h>
 #include <FF/path.h>
 #include <FF/time.h>
 #include <FFOS/sig.h>
@@ -275,6 +276,32 @@ static void fmed_onsig(void *udata)
 	track->cmd((void*)-1, FMED_TRACK_STOPALL_EXIT);
 }
 
+#ifdef FF_WIN
+/** Add to queue filenames expanded by wildcard. */
+static int open_input_wcard(const fmed_queue *qu, char *src)
+{
+	ffdirexp de;
+
+	ffstr s;
+	ffstr_setz(&s, src);
+	if (ffarr_end(&s) == ffs_findof(s.ptr, s.len, "*?", 2))
+		return 1;
+
+	if (0 != ffdir_expopen(&de, src, 0))
+		return 1;
+
+	const char *fn;
+	while (NULL != (fn = ffdir_expread(&de))) {
+		fmed_que_entry e;
+		ffmem_tzero(&e);
+		ffstr_setz(&e.url, fn);
+		qu->add(&e);
+	}
+	ffdir_expclose(&de);
+	return 0;
+}
+#endif
+
 static int open_input(void)
 {
 	char **pfn;
@@ -285,6 +312,15 @@ static int open_input(void)
 		goto end;
 
 	FFARR_WALK(&fmed->in_files, pfn) {
+
+#ifdef FF_WIN
+		if (0 == open_input_wcard(qu, *pfn)) {
+			added = 1;
+			ffmem_free(*pfn);
+			continue;
+		}
+#endif
+
 		fmed_que_entry e;
 		ffmem_tzero(&e);
 		ffstr_setz(&e.url, *pfn);
