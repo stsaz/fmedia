@@ -296,6 +296,15 @@ enum FMED_QUE {
 	FMED_QUE_CLEAR,
 	FMED_QUE_RM,
 	FMED_QUE_SETONCHANGE, // @param: fmed_que_onchange_t
+
+	FMED_QUE_NEW,
+	FMED_QUE_DEL, // @param: uint
+	FMED_QUE_SEL, // @param: uint
+	FMED_QUE_LIST, // @param: fmed_que_entry*
+};
+
+enum FMED_QUE_CMDF {
+	_FMED_QUE_FMASK = 0xffff0000,
 };
 
 enum FMED_QUE_META_F {
@@ -309,6 +318,11 @@ enum FMED_QUE_META_F {
 #define FMED_QUE_SKIP  ((void*)-1)
 
 typedef struct fmed_queue {
+	/**
+	@cmd: enum FMED_QUE + enum FMED_QUE_CMDF
+	*/
+	ssize_t (*cmd2)(uint cmd, void *param, size_t param2);
+
 	fmed_que_entry* (*add)(fmed_que_entry *ent);
 
 	/** @cmd: enum FMED_QUE */

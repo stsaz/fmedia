@@ -23,9 +23,15 @@ typedef struct entry {
 		;
 } entry;
 
+typedef struct plist {
+	fflist_item sib;
+	fflist ents; //entry[]
+} plist;
+
 typedef struct que {
 	fflock lk;
-	fflist list; //entry[]
+	fflist plists; //plist[]
+	plist *curlist;
 	entry *cur;
 	const fmed_track *track;
 	fmed_que_onchange_t onchange;
@@ -50,13 +56,14 @@ static const fmed_mod fmed_que_mod = {
 	&que_iface, &que_sig, &que_destroy
 };
 
+static ssize_t que_cmd2(uint cmd, void *param, size_t param2);
 static fmed_que_entry* que_add(fmed_que_entry *ent);
 static void que_cmd(uint cmd, void *param);
 static void que_meta_set(fmed_que_entry *ent, const char *name, size_t name_len, const char *val, size_t val_len, uint flags);
 static ffstr* que_meta_find(fmed_que_entry *ent, const char *name, size_t name_len);
 static ffstr* que_meta(fmed_que_entry *ent, size_t n, ffstr *name, uint flags);
 static const fmed_queue fmed_que_mgr = {
-	&que_add, &que_cmd, &que_meta_set, &que_meta_find, &que_meta
+	&que_cmd2, &que_add, &que_cmd, &que_meta_set, &que_meta_find, &que_meta
 };
 
 static void que_play(entry *e);
@@ -98,7 +105,8 @@ static int que_sig(uint signo)
 	case FMED_OPEN:
 		if (NULL == (qu = ffmem_tcalloc1(que)))
 			return 1;
-		fflist_init(&qu->list);
+		que_cmd2(FMED_QUE_NEW, NULL, 0);
+		que_cmd2(FMED_QUE_SEL, (void*)0, 0);
 		qu->track = core->getmod("#core.track");
 		if (1 != core->getval("gui"))
 			qu->quit_if_done = 1;
@@ -133,12 +141,18 @@ static void ent_free(entry *e)
 	ffmem_free(e);
 }
 
+static void plist_free(plist *pl)
+{
+	FFLIST_ENUMSAFE(&pl->ents, ent_free, entry, sib);
+	ffmem_free(pl);
+}
+
 static void que_destroy(void)
 {
 	if (qu == NULL)
 		return;
 	core->task(&qu->tsk, FMED_TASK_DEL);
-	FFLIST_ENUMSAFE(&qu->list, ent_free, entry, sib);
+	FFLIST_ENUMSAFE(&qu->plists, plist_free, plist, sib);
 	ffmem_free(qu);
 }
 
@@ -263,13 +277,14 @@ done:
 
 static entry* que_getnext(entry *from)
 {
-	if (qu->list.len == 0)
+	fflist *ents = &qu->curlist->ents;
+	if (ents->len == 0)
 		goto nonext;
 
 	if (from == NULL) {
-		return FF_GETPTR(entry, sib, qu->list.first);
+		return FF_GETPTR(entry, sib, ents->first);
 
-	} else if (from->sib.next == fflist_sentl(&qu->list)) {
+	} else if (from->sib.next == fflist_sentl(ents)) {
 		if (1 != core->getval("repeat_all")) {
 nonext:
 			dbglog(core, NULL, "que", "no next file in playlist");
@@ -279,7 +294,7 @@ nonext:
 		}
 
 		dbglog(core, NULL, "que", "repeat_all: starting from the beginning");
-		return FF_GETPTR(entry, sib, qu->list.first);
+		return FF_GETPTR(entry, sib, ents->first);
 	}
 
 	return FF_GETPTR(entry, sib, from->sib.next);
@@ -287,29 +302,39 @@ nonext:
 
 static void que_mix(void)
 {
+	fflist *ents = &qu->curlist->ents;
 	void *mxout;
 	entry *e;
 
 	if (NULL == (mxout = qu->track->create(FMED_TRACK_MIX, NULL)))
 		return;
-	qu->track->setval(mxout, "mix_tracks", qu->list.len);
+	qu->track->setval(mxout, "mix_tracks", ents->len);
 
 	qu->mixing = 1;
-	FFLIST_WALK(&qu->list, e, sib) {
+	FFLIST_WALK(ents, e, sib) {
 		que_play(e);
 	}
 
 	qu->track->cmd(mxout, FMED_TRACK_START);
 }
 
-// matches enum FMED_QUE
-static const char *const scmds[] = {
-	"play", "play-excl", "mix", "stop-after", "next", "prev", "save", "clear", "rm", "setonchange", "meta-clear"
-};
-
 static void que_cmd(uint cmd, void *param)
 {
+	que_cmd2(cmd, param, 0);
+}
+
+// matches enum FMED_QUE
+static const char *const scmds[] = {
+	"play", "play-excl", "mix", "stop-after", "next", "prev", "save", "clear", "rm", "setonchange",
+	"que-new", "que-del", "que-sel", "que-list",
+};
+
+static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
+{
+	fflist *ents = &qu->curlist->ents;
 	entry *e;
+	uint flags = cmd & _FMED_QUE_FMASK;
+	cmd &= ~_FMED_QUE_FMASK;
 
 	dbglog(core, NULL, "que", "received command:%s, param:%p", scmds[cmd], param);
 
@@ -320,14 +345,14 @@ static void que_cmd(uint cmd, void *param)
 		// break
 
 	case FMED_QUE_PLAY:
-		if (qu->list.len == 0)
+		if (ents->len == 0)
 			break;
 
 		if (param != NULL) {
 			qu->cur = param;
 
 		} else if (qu->cur == NULL)
-			qu->cur = FF_GETPTR(entry, sib, qu->list.first);
+			qu->cur = FF_GETPTR(entry, sib, ents->first);
 		qu->mixing = 0;
 		que_play(qu->cur);
 		break;
@@ -349,7 +374,7 @@ static void que_cmd(uint cmd, void *param)
 		break;
 
 	case FMED_QUE_PREV:
-		if (qu->cur == NULL || qu->cur->sib.prev == fflist_sentl(&qu->list)) {
+		if (qu->cur == NULL || qu->cur->sib.prev == fflist_sentl(ents)) {
 			qu->cur = NULL;
 			dbglog(core, NULL, "que", "no previous file in playlist");
 			break;
@@ -368,30 +393,82 @@ static void que_cmd(uint cmd, void *param)
 		if (!e->active) {
 			if (qu->cur == e)
 				qu->cur = NULL;
-			fflist_rm(&qu->list, &e->sib);
+			fflist_rm(ents, &e->sib);
 			ent_free(e);
 		} else
 			e->rm = 1;
 		break;
 
 	case FMED_QUE_SAVE:
-		if (qu->list.len == 0)
+		if (ents->len == 0)
 			break;
-		que_save(FF_GETPTR(entry, sib, qu->list.first), param);
+		que_save(FF_GETPTR(entry, sib, ents->first), param);
 		break;
 
 	case FMED_QUE_CLEAR:
 		qu->cur = NULL;
-		FFLIST_ENUMSAFE(&qu->list, ent_free, entry, sib);
-		fflist_init(&qu->list);
+		FFLIST_ENUMSAFE(ents, ent_free, entry, sib);
+		fflist_init(ents);
 		dbglog(core, NULL, "que", "cleared");
 		break;
 
 	case FMED_QUE_SETONCHANGE:
 		qu->onchange = param;
 		break;
+
+
+	case FMED_QUE_NEW:
+		{
+		plist *pl;
+		if (NULL == (pl = ffmem_tcalloc1(plist)))
+			return -1;
+		fflist_init(&pl->ents);
+		fflist_ins(&qu->plists, &pl->sib);
+		}
+		break;
+
+	case FMED_QUE_DEL:
+		fflist_rm(&qu->plists, &qu->curlist->sib);
+		plist_free(qu->curlist);
+		qu->curlist = NULL;
+		break;
+
+	case FMED_QUE_SEL:
+		{
+		uint i = 0, n = (uint)(size_t)param;
+		fflist_item *li;
+
+		if (n >= qu->plists.len)
+			return -1;
+
+		FFLIST_WALKNEXT(qu->plists.first, li) {
+			if (i++ == n)
+				break;
+		}
+		qu->curlist = FF_GETPTR(plist, sib, li);
+		}
+		break;
+
+	case FMED_QUE_LIST:
+		{
+		fmed_que_entry **ent = param;
+		if (*ent == NULL) {
+			if (ents->len == 0)
+				return 0;
+			e = FF_GETPTR(entry, sib, ents->first);
+		} else {
+			e = FF_GETPTR(entry, e, *ent);
+			if (e->sib.next == fflist_sentl(ents))
+				return 0;
+			e = FF_GETPTR(entry, sib, e->sib.next);
+		}
+		*ent = &e->e;
+		}
+		return 1;
 	}
 	// fflk_unlock(&qu->lk);
+
+	return 0;
 }
 
 
@@ -423,7 +500,7 @@ static fmed_que_entry* que_add(fmed_que_entry *ent)
 	e->e.dur = ent->dur;
 
 	fflk_lock(&qu->lk);
-	fflist_ins(&qu->list, &e->sib);
+	fflist_ins(&qu->curlist->ents, &e->sib);
 	fflk_unlock(&qu->lk);
 
 	dbglog(core, NULL, "que", "added: (%d: %d-%d) %S"
@@ -631,7 +708,7 @@ done:
 	if (t->e->rm) {
 		if (qu->cur == t->e)
 			qu->cur = NULL;
-		fflist_rm(&qu->list, &t->e->sib);
+		fflist_rm(&qu->curlist->ents, &t->e->sib);
 		ent_free(t->e);
 	}
 
