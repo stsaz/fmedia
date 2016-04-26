@@ -248,29 +248,24 @@ static int __stdcall gui_list_sortfunc(LPARAM p1, LPARAM p2, LPARAM udata)
 	return 0;
 }
 
+static const char *const setts[] = {
+	"wmain.placement", "wmain.tvol.value",
+	"wconvert.position", "wconvert.eout.text",
+	"winfo.position",
+	"wlog.position",
+};
+
 static void gui_onclose(void)
 {
-	ffui_pos pos;
-	char buf[128], *fn;
-	size_t n;
+	char *fn;
 	ffui_loaderw ldr = {0};
-	ffstr s;
 
 	if (NULL == (fn = ffenv_expand(NULL, 0, GUI_USRCONF)))
 		return;
 
-	if (IsWindowVisible(gg->wmain.wmain.h) && !IsIconic(gg->wmain.wmain.h)) {
-		ffui_getpos(gg->wmain.wmain.h, &pos);
-		n = ffs_fmt(buf, buf + sizeof(buf), "%d %d %u %u", pos.x, pos.y, pos.cx, pos.cy);
-		ffui_ldr_set(&ldr, "wmain.position", buf, n, 0);
-	}
-
-	n = ffs_fmt(buf, buf + sizeof(buf), "%u", ffui_trk_val(&gg->wmain.tvol));
-	ffui_ldr_set(&ldr, "tvol.value", buf, n, 0);
-
-	ffui_textstr(&gg->wconvert.eout, &s);
-	ffui_ldr_set(&ldr, "eout.text", s.ptr, s.len, FFUI_LDR_FSTR);
-	ffstr_free(&s);
+	ldr.getctl = &gui_getctl;
+	ldr.udata = gg;
+	ffui_ldr_setv(&ldr, setts, FFCNT(setts), 0);
 
 	if (0 != ffui_ldr_write(&ldr, fn) && fferr_nofile(fferr_last())) {
 		if (0 != ffdir_make_path(fn) && fferr_last() != EEXIST) {
