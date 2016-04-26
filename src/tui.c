@@ -45,6 +45,10 @@ typedef struct tui {
 		, rec :1;
 } tui;
 
+static struct tui_conf_t {
+	byte echo_off;
+} tui_conf;
+
 enum {
 	SEEK_STEP = 5 * 1000,
 	SEEK_STEP_MED = 15 * 1000,
@@ -98,8 +102,9 @@ static const fmed_mod fmed_tui_mod = {
 static void* tui_open(fmed_filt *d);
 static int tui_process(void *ctx, fmed_filt *d);
 static void tui_close(void *ctx);
+static int tui_config(ffpars_ctx *conf);
 static const fmed_filter fmed_tui = {
-	&tui_open, &tui_process, &tui_close
+	&tui_open, &tui_process, &tui_close, &tui_config
 };
 
 static void tui_print_peak(tui *t, fmed_filt *d);
@@ -113,6 +118,10 @@ static void tui_vol(tui *t, uint cmd);
 static void tui_seek(tui *t, uint cmd);
 static void tui_addcmd(cmdfunc func, uint cmd);
 
+
+static const ffpars_arg tui_conf_args[] = {
+	{ "echo_off",	FFPARS_TBOOL | FFPARS_F8BIT,  FFPARS_DSTOFF(struct tui_conf_t, echo_off) },
+};
 
 #ifdef FF_WIN
 enum {
@@ -145,8 +154,10 @@ const fmed_mod* fmed_getmod_tui(const fmed_core *_core)
 
 static const void* tui_iface(const char *name)
 {
-	if (!ffsz_cmp(name, "tui"))
+	if (!ffsz_cmp(name, "tui")) {
+		tui_conf.echo_off = 1;
 		return &fmed_tui;
+	}
 	return NULL;
 }
 
@@ -163,8 +174,13 @@ static int tui_sig(uint signo)
 		if (NULL == (gt->track = core->getmod("#core.track")))
 			return 1;
 
-		ffstd_keypress(ffstdin, 1);
-		ffstd_echo(ffstdin, 0);
+		{
+		uint attr = FFSTD_LINEINPUT;
+		if (tui_conf.echo_off)
+			attr |= FFSTD_ECHO;
+		ffstd_attr(ffstdin, attr, 0);
+		}
+
 		if (FFTHD_INV == (gt->th = ffthd_create(&tui_cmdloop, NULL, 0))) {
 			return 1;
 		}
@@ -179,11 +195,21 @@ static void tui_destroy(void)
 		return;
 	if (gt->th != FFTHD_INV)
 		ffthd_detach(gt->th);
-	ffstd_echo(ffstdin, 1);
-	ffstd_keypress(ffstdin, 0);
+
+	uint attr = FFSTD_LINEINPUT;
+	if (tui_conf.echo_off)
+		attr |= FFSTD_ECHO;
+	ffstd_attr(ffstdin, attr, attr);
+
 	ffmem_safefree(gt);
 }
 
+
+static int tui_config(ffpars_ctx *conf)
+{
+	ffpars_setargs(conf, &tui_conf, tui_conf_args, FFCNT(tui_conf_args));
+	return 0;
+}
 
 static void* tui_open(fmed_filt *d)
 {
