@@ -42,7 +42,9 @@ typedef struct tui {
 	ffarr cmds; // queued commands from gtui.  tcmd[]
 
 	uint goback :1
-		, rec :1;
+		, rec :1
+		, conversion :1
+		;
 } tui;
 
 static struct tui_conf_t {
@@ -78,6 +80,7 @@ enum CMDS {
 
 	CMD_QUIT,
 
+	_CMD_PLAYONLY = 1 << 30,
 	_CMD_F1 = 1 << 31, //use 'cmdfunc1'
 };
 
@@ -219,6 +222,9 @@ static void* tui_open(fmed_filt *d)
 
 	if (gt->vol != 100)
 		tui_vol(t, CMD_VOL);
+
+	if (FMED_PNULL != d->track->getvalstr(d->trk, "output"))
+		t->conversion = 1;
 	return t;
 }
 
@@ -514,10 +520,10 @@ static struct key hotkeys[] = {
 	{ 'p',	CMD_PREV | _CMD_F1,	&tui_addtask },
 	{ 'q',	CMD_QUIT | _CMD_F1,	&tui_addtask },
 	{ 's',	CMD_STOP | _CMD_F1,	&tui_addtask },
-	{ FFKEY_UP,	CMD_VOLUP,	&tui_vol },
-	{ FFKEY_DOWN,	CMD_VOLDOWN,	&tui_vol },
-	{ FFKEY_RIGHT,	CMD_SEEKRIGHT,	&tui_seek },
-	{ FFKEY_LEFT,	CMD_SEEKLEFT,	&tui_seek },
+	{ FFKEY_UP,	CMD_VOLUP | _CMD_PLAYONLY,	&tui_vol },
+	{ FFKEY_DOWN,	CMD_VOLDOWN | _CMD_PLAYONLY,	&tui_vol },
+	{ FFKEY_RIGHT,	CMD_SEEKRIGHT | _CMD_PLAYONLY,	&tui_seek },
+	{ FFKEY_LEFT,	CMD_SEEKLEFT | _CMD_PLAYONLY,	&tui_seek },
 };
 
 static const struct key* key2cmd(int key)
@@ -561,6 +567,12 @@ static void tui_addcmd(cmdfunc func, uint cmd)
 	fflk_lock(&gt->lktrk);
 	if (gt->curtrk == NULL)
 		goto end;
+
+	if (cmd & _CMD_PLAYONLY) {
+		if (gt->curtrk->conversion)
+			goto end;
+		cmd &= ~_CMD_PLAYONLY;
+	}
 
 	fflk_lock(&gt->curtrk->lkcmds);
 	struct tcmd *pcmd = ffarr_push(&gt->curtrk->cmds, struct tcmd);
