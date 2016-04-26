@@ -26,6 +26,7 @@ typedef struct cue {
 	ffparser p;
 	fmed_que_entry ent;
 	struct { FFARR(ffstr) } metas;
+	uint nmeta;
 	ffarr trackno;
 	uint curtrk;
 	uint gmeta;
@@ -230,13 +231,19 @@ add_meta:
 			break;
 
 		case FFM3U_NAME:
+			{
 			if (0 != plist_fullname(d, &m->p.val, &m->ent.url))
 				return FMED_RERR;
 			m->furl = 1;
-			m->ent.meta = m->metas.ptr;
-			m->ent.nmeta = m->metas.len;
 			m->ent.prev = cur;
-			cur = qu->add(&m->ent);
+			cur = (void*)qu->cmd2(FMED_QUE_ADD, &m->ent, 0);
+			uint i;
+			const ffstr *meta = m->metas.ptr;
+			for (i = 0;  i != m->metas.len;  i += 2) {
+				ffstr pair[2] = { meta[i], meta[i + 1] };
+				qu->cmd2(FMED_QUE_METASET, cur, (size_t)pair);
+			}
+			}
 
 			m3u_reset(m);
 			break;
@@ -353,7 +360,7 @@ static int cue_process(void *ctx, fmed_filt *d)
 			if (NULL == (ctrk = ffcue_index(&cu, FFCUE_FIN, 0)))
 				break;
 			done = 1;
-			c->ent.nmeta = c->metas.len;
+			c->nmeta = c->metas.len;
 			goto add;
 
 		} else if (ffpars_iserr(r)) {
@@ -379,7 +386,7 @@ static int cue_process(void *ctx, fmed_filt *d)
 			goto add_metaname;
 
 		case FFCUE_TRACKNO:
-			c->ent.nmeta = c->metas.len;
+			c->nmeta = c->metas.len;
 			ffstr_setcz(&metaname, "tracknumber");
 			goto add_metaname;
 
@@ -448,29 +455,26 @@ add:
 		c->ent.to = -(int)ctrk->to;
 		c->ent.dur = (ctrk->to != 0) ? (ctrk->to - ctrk->from) * 1000 / 75 : 0;
 
+		uint i = 0;
 		if (have_glob_artist && artist_trk != 0) {
-			// remove global artist
-			struct { FFARR(ffstr) } metas;
-			ffarr_set(&metas, c->metas.ptr, c->metas.len);
-			ffarr_shift(&metas, 2);
-			c->ent.nmeta -= 2;
-			c->ent.meta = metas.ptr;
-			c->ent.prev = cur;
-			cur = qu->add(&c->ent);
-			c->ent.nmeta += 2;
+			i += 2; // skip global artist
 			artist_trk--;
-			goto next;
 		}
 
-		c->ent.meta = c->metas.ptr;
 		c->ent.prev = cur;
-		cur = qu->add(&c->ent);
+		cur = (void*)qu->cmd2(FMED_QUE_ADD, &c->ent, 0);
+
+		const ffstr *m = c->metas.ptr;
+		for (;  i != c->nmeta;  i += 2) {
+			ffstr pair[2] = { m[i], m[i + 1] };
+			qu->cmd2(FMED_QUE_METASET, cur, (size_t)pair);
+		}
 
 next:
 		/* 'metas': GLOBAL TRACK_N TRACK_N+1
 		Remove the items for TRACK_N. */
-		ffmemcpy(c->metas.ptr + c->gmeta, c->metas.ptr + c->ent.nmeta, (c->metas.len - c->ent.nmeta) * sizeof(ffstr));
-		c->metas.len = c->gmeta + c->metas.len - c->ent.nmeta;
+		ffmemcpy(c->metas.ptr + c->gmeta, c->metas.ptr + c->nmeta, (c->metas.len - c->nmeta) * sizeof(ffstr));
+		c->metas.len = c->gmeta + c->metas.len - c->nmeta;
 	}
 
 	qu->cmd(FMED_QUE_RM, first);
