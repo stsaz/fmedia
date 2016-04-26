@@ -270,8 +270,6 @@ typedef struct fmed_log {
 
 typedef struct fmed_que_entry {
 	ffstr url;
-	ffstr *meta; //name,value,...
-	uint nmeta;
 	int from // >0: msec;  <0: CD frames (1/75 sec)
 		, to;
 	int dur; //msec
@@ -294,6 +292,7 @@ enum FMED_QUE {
 	FMED_QUE_PREV,
 	FMED_QUE_SAVE, //save playlist to file, @param: "const char *filename"
 	FMED_QUE_CLEAR,
+	FMED_QUE_ADD,
 	FMED_QUE_RM,
 	FMED_QUE_SETONCHANGE, // @param: fmed_que_onchange_t
 

@@ -57,15 +57,16 @@ static const fmed_mod fmed_que_mod = {
 };
 
 static ssize_t que_cmd2(uint cmd, void *param, size_t param2);
-static fmed_que_entry* que_add(fmed_que_entry *ent);
+static fmed_que_entry* _que_add(fmed_que_entry *ent);
 static void que_cmd(uint cmd, void *param);
 static void que_meta_set(fmed_que_entry *ent, const char *name, size_t name_len, const char *val, size_t val_len, uint flags);
 static ffstr* que_meta_find(fmed_que_entry *ent, const char *name, size_t name_len);
 static ffstr* que_meta(fmed_que_entry *ent, size_t n, ffstr *name, uint flags);
 static const fmed_queue fmed_que_mgr = {
-	&que_cmd2, &que_add, &que_cmd, &que_meta_set, &que_meta_find, &que_meta
+	&que_cmd2, &_que_add, &que_cmd, &que_meta_set, &que_meta_find, &que_meta
 };
 
+static fmed_que_entry* que_add(fmed_que_entry *ent, uint flags);
 static void que_play(entry *e);
 static void que_save(entry *first, const char *fn);
 static void ent_free(entry *e);
@@ -325,7 +326,7 @@ static void que_cmd(uint cmd, void *param)
 
 // matches enum FMED_QUE
 static const char *const scmds[] = {
-	"play", "play-excl", "mix", "stop-after", "next", "prev", "save", "clear", "rm", "setonchange",
+	"play", "play-excl", "mix", "stop-after", "next", "prev", "save", "clear", "add", "rm", "setonchange",
 	"que-new", "que-del", "que-sel", "que-list",
 };
 
@@ -382,6 +383,9 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 		qu->cur = FF_GETPTR(entry, sib, qu->cur->sib.prev);
 		que_play(qu->cur);
 		break;
+
+	case FMED_QUE_ADD:
+		return (ssize_t)que_add(param, flags);
 
 	case FMED_QUE_RM:
 		e = param;
@@ -471,29 +475,22 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 	return 0;
 }
 
-
-static fmed_que_entry* que_add(fmed_que_entry *ent)
+static fmed_que_entry* _que_add(fmed_que_entry *ent)
 {
-	uint i;
+	return (void*)que_cmd2(FMED_QUE_ADD, ent, 0);
+}
+
+static fmed_que_entry* que_add(fmed_que_entry *ent, uint flags)
+{
 	entry *e = ffmem_tcalloc1(entry);
 	if (e == NULL)
 		return NULL;
 
-	if (NULL == (e->e.url.ptr = ffsz_alcopy(ent->url.ptr, ent->url.len))
-		|| (ent->nmeta != 0 && NULL == (e->e.meta = ffmem_talloc(ffstr, ent->nmeta)))) {
+	if (NULL == (e->e.url.ptr = ffsz_alcopy(ent->url.ptr, ent->url.len))) {
 		ent_free(e);
 		return NULL;
 	}
 	e->e.url.len = ffsz_len(e->e.url.ptr);
-
-	if (ent->nmeta % 2) {
-		ent_free(e);
-		return NULL;
-	}
-
-	for (i = 0;  i != ent->nmeta;  i += 2) {
-		que_meta_set(&e->e, ent->meta[i].ptr, ent->meta[i].len, ent->meta[i + 1].ptr, ent->meta[i + 1].len, 0);
-	}
 
 	e->e.from = ent->from;
 	e->e.to = ent->to;
@@ -506,7 +503,7 @@ static fmed_que_entry* que_add(fmed_que_entry *ent)
 	dbglog(core, NULL, "que", "added: (%d: %d-%d) %S"
 		, ent->dur, ent->from, ent->to, &ent->url);
 
-	if (qu->onchange != NULL)
+	if (!(flags & FMED_QUE_NO_ONCHANGE) && qu->onchange != NULL)
 		qu->onchange(&e->e, FMED_QUE_ONADD);
 	return &e->e;
 }
