@@ -131,9 +131,10 @@ static void gui_convert(void)
 		inp = (void*)ffui_view_param(&it);
 
 		ffmemcpy(&e, inp, sizeof(fmed_que_entry));
-		if (NULL == (qent = gg->qu->add(&e))) {
+		if (NULL == (qent = (void*)gg->qu->cmd2(FMED_QUE_ADD | FMED_QUE_NO_ONCHANGE, &e, 0))) {
 			continue;
 		}
+		gui_media_added(qent);
 
 		gg->qu->meta_set(qent, FFSTR("output"), fn.ptr, fn.len, FMED_QUE_TRKDICT);
 		if (play == NULL)

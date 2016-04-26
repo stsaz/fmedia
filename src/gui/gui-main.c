@@ -24,6 +24,7 @@ static void gui_list_add(ffui_viewitem *it, size_t par);
 static int __stdcall gui_list_sortfunc(LPARAM p1, LPARAM p2, LPARAM udata);
 static void gui_media_open(uint id);
 static void gui_media_savelist(void);
+static void gui_plist_recount(uint from);
 static void gui_media_remove(void);
 static fmed_que_entry* gui_list_getent(void);
 static void gui_go_set(void);
@@ -574,16 +575,13 @@ static void gui_media_open(uint id)
 		gui_task_add(NEXT);
 }
 
-void gui_media_removed(uint i)
+static void gui_plist_recount(uint from)
 {
 	ffui_viewitem it;
 	char buf[FFINT_MAXCHARS];
 	size_t n;
-
-	ffui_redraw(&gg->wmain.vlist, 0);
-	ffui_view_rm(&gg->wmain.vlist, i);
-
-	for (;  ;  i++) {
+	uint i;
+	for (i = from;  ;  i++) {
 		ffui_view_iteminit(&it);
 		ffui_view_setindex(&it, i);
 		n = ffs_fromint(i + 1, buf, sizeof(buf), 0);
@@ -591,7 +589,13 @@ void gui_media_removed(uint i)
 		if (0 != ffui_view_set(&gg->wmain.vlist, H_IDX, &it))
 			break;
 	}
+}
 
+void gui_media_removed(uint i)
+{
+	ffui_redraw(&gg->wmain.vlist, 0);
+	ffui_view_rm(&gg->wmain.vlist, i);
+	gui_plist_recount(i);
 	ffui_redraw(&gg->wmain.vlist, 1);
 }
 
@@ -673,21 +677,25 @@ static void gui_media_savelist(void)
 
 static void gui_media_remove(void)
 {
-	int i;
+	int i, first;
 	void *id;
 	ffui_viewitem it;
 
 	ffui_redraw(&gg->wmain.vlist, 0);
 
+	first = ffui_view_selnext(&gg->wmain.vlist, -1);
 	while (-1 != (i = ffui_view_selnext(&gg->wmain.vlist, -1))) {
 		ffui_view_iteminit(&it);
 		ffui_view_setindex(&it, i);
 		ffui_view_setparam(&it, 0);
 		ffui_view_get(&gg->wmain.vlist, 0, &it);
 		id = (void*)ffui_view_param(&it);
-		gg->qu->cmd(FMED_QUE_RM, id);
+		gg->qu->cmd2(FMED_QUE_RM | FMED_QUE_NO_ONCHANGE, id, 0);
+		ffui_view_rm(&gg->wmain.vlist, i);
 	}
 
+	if (first != -1)
+		gui_plist_recount(first);
 	ffui_redraw(&gg->wmain.vlist, 1);
 }
 

@@ -363,11 +363,13 @@ static void gui_que_onchange(fmed_que_entry *e, uint flags)
 
 void gui_media_add1(const char *fn)
 {
-	fmed_que_entry e;
+	fmed_que_entry e, *pe;
 
 	ffmem_tzero(&e);
 	ffstr_setz(&e.url, fn);
-	gg->qu->add(&e);
+	if (NULL == (pe = (void*)gg->qu->cmd2(FMED_QUE_ADD | FMED_QUE_NO_ONCHANGE, &e, 0)))
+		return;
+	gui_media_added(pe);
 }
 
 static void gui_rec(uint cmd)
