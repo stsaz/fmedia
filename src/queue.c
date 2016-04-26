@@ -487,9 +487,10 @@ static fmed_que_entry* que_add(fmed_que_entry *ent, uint flags)
 	e->e.from = ent->from;
 	e->e.to = ent->to;
 	e->e.dur = ent->dur;
+	e->e.prev = ent->prev;
 
 	fflk_lock(&qu->lk);
-	fflist_ins(&qu->curlist->ents, &e->sib);
+	fflist_place(&qu->curlist->ents, &e->sib, (ent->prev != NULL) ? &((entry*)ent->prev)->sib : NULL);
 	fflk_unlock(&qu->lk);
 
 	dbglog(core, NULL, "que", "added: (%d: %d-%d) %S"

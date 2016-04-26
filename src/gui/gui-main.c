@@ -527,7 +527,21 @@ void gui_media_added(fmed_que_entry *ent)
 	ffstr name;
 	ffui_viewitem it;
 	ffmem_tzero(&it);
-	gui_list_add(&it, (size_t)ent);
+
+	int idx = -1;
+	if (ent->prev != NULL)
+		idx = ffui_view_search(&gg->wmain.vlist, (size_t)ent->prev);
+
+	if (idx == -1) {
+		gui_list_add(&it, (size_t)ent);
+	} else {
+		char buf[FFINT_MAXCHARS];
+		size_t n = ffs_fromint(idx + 2, buf, sizeof(buf), 0);
+		ffui_view_settext(&it, buf, n);
+		ffui_view_setparam(&it, (size_t)ent);
+		ffui_view_ins(&gg->wmain.vlist, idx + 1, &it);
+	}
+
 	ffui_view_settextstr(&it, &ent->url);
 	ffui_view_set(&gg->wmain.vlist, H_FN, &it);
 

@@ -273,6 +273,7 @@ typedef struct fmed_que_entry {
 	int from // >0: msec;  <0: CD frames (1/75 sec)
 		, to;
 	int dur; //msec
+	void *prev;
 } fmed_que_entry;
 
 enum FMED_QUE_EVT {

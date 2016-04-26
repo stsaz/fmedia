@@ -187,6 +187,10 @@ static int m3u_process(void *ctx, fmed_filt *d)
 	size_t n;
 	int r;
 	ffstr metaname;
+	fmed_que_entry *first, *cur;
+
+	first = (void*)fmed_getval("queue_item");
+	cur = first;
 
 	for (;;) {
 		n = d->datalen;
@@ -231,7 +235,8 @@ add_meta:
 			m->furl = 1;
 			m->ent.meta = m->metas.ptr;
 			m->ent.nmeta = m->metas.len;
-			qu->add(&m->ent);
+			m->ent.prev = cur;
+			cur = qu->add(&m->ent);
 
 			m3u_reset(m);
 			break;
@@ -239,7 +244,7 @@ add_meta:
 	}
 
 	if (d->flags & FMED_FLAST) {
-		qu->cmd(FMED_QUE_RM, (void*)fmed_getval("queue_item"));
+		qu->cmd(FMED_QUE_RM, first);
 		return FMED_RFIN;
 	}
 
@@ -330,8 +335,12 @@ static int cue_process(void *ctx, fmed_filt *d)
 	ffcuetrk *ctrk;
 	uint codepage = core->getval("codepage");
 	uint utf8 = 1, have_glob_artist = 0, artist_trk = 0;
+	fmed_que_entry *first, *cur;
 
 	cu.options = c->gaps;
+
+	first = (void*)fmed_getval("queue_item");
+	cur = first;
 
 	while (!done) {
 		n = d->datalen;
@@ -446,14 +455,16 @@ add:
 			ffarr_shift(&metas, 2);
 			c->ent.nmeta -= 2;
 			c->ent.meta = metas.ptr;
-			qu->add(&c->ent);
+			c->ent.prev = cur;
+			cur = qu->add(&c->ent);
 			c->ent.nmeta += 2;
 			artist_trk--;
 			goto next;
 		}
 
 		c->ent.meta = c->metas.ptr;
-		qu->add(&c->ent);
+		c->ent.prev = cur;
+		cur = qu->add(&c->ent);
 
 next:
 		/* 'metas': GLOBAL TRACK_N TRACK_N+1
@@ -462,7 +473,7 @@ next:
 		c->metas.len = c->gmeta + c->metas.len - c->ent.nmeta;
 	}
 
-	qu->cmd(FMED_QUE_RM, (void*)fmed_getval("queue_item"));
+	qu->cmd(FMED_QUE_RM, first);
 	rc = FMED_RFIN;
 
 err:
@@ -475,7 +486,7 @@ static void* dir_open(fmed_filt *d)
 {
 	ffdirexp dr;
 	const char *fn, *dirname;
-	fmed_que_entry e;
+	fmed_que_entry e, *first, *cur;
 
 	if (FMED_PNULL == (dirname = d->track->getvalstr(d->trk, "input")))
 		return NULL;
@@ -486,14 +497,18 @@ static void* dir_open(fmed_filt *d)
 		return NULL;
 	}
 
+	first = (void*)fmed_getval("queue_item");
+	cur = first;
+
 	while (NULL != (fn = ffdir_expread(&dr))) {
 		ffmem_tzero(&e);
 		ffstr_setz(&e.url, fn);
-		qu->add(&e);
+		e.prev = cur;
+		cur = (void*)qu->cmd2(FMED_QUE_ADD, &e, 0);
 	}
 
 	ffdir_expclose(&dr);
-	qu->cmd(FMED_QUE_RM, (void*)fmed_getval("queue_item"));
+	qu->cmd(FMED_QUE_RM, first);
 	return FMED_FILT_DUMMY;
 }
 
