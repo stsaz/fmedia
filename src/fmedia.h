@@ -159,6 +159,7 @@ typedef struct fmed_track {
 
 	/**
 	@flags: enum FMED_TRK_FVAL */
+	int64 (*setval4)(void *trk, const char *name, int64 val, uint flags);
 	char* (*setvalstr4)(void *trk, const char *name, const char *val, uint flags);
 } fmed_track;
 

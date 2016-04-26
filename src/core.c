@@ -103,10 +103,11 @@ static int64 trk_getval(void *trk, const char *name);
 static const char* trk_getvalstr(void *trk, const char *name);
 static int trk_setval(void *trk, const char *name, int64 val);
 static int trk_setvalstr(void *trk, const char *name, const char *val);
+static int64 trk_setval4(void *trk, const char *name, int64 val, uint flags);
 static char* trk_setvalstr4(void *trk, const char *name, const char *val, uint flags);
 static const fmed_track _fmed_track = {
 	&trk_create, &trk_cmd,
-	&trk_popval, &trk_getval, &trk_getvalstr, &trk_setval, &trk_setvalstr, &trk_setvalstr4
+	&trk_popval, &trk_getval, &trk_getvalstr, &trk_setval, &trk_setvalstr, &trk_setval4, &trk_setvalstr4
 };
 
 static const fmed_mod* fmed_getmod_core(const fmed_core *_core);
@@ -1115,11 +1116,20 @@ static const char* trk_getvalstr(void *trk, const char *name)
 
 static int trk_setval(void *trk, const char *name, int64 val)
 {
+	trk_setval4(trk, name, val, 0);
+	return 0;
+}
+
+static int64 trk_setval4(void *trk, const char *name, int64 val, uint flags)
+{
 	fm_src *src = trk;
 	uint st;
 	dict_ent *ent = dict_add(src, name, &st);
 	if (ent == NULL)
-		return 0;
+		return FMED_NULL;
+
+	if ((flags & FMED_TRK_FNO_OVWRITE) && st == 1)
+		return ent->val;
 
 	if (ent->acq) {
 		ffmem_free(ent->pval);
@@ -1128,7 +1138,7 @@ static int trk_setval(void *trk, const char *name, int64 val)
 
 	ent->val = val;
 	dbglog(core, trk, "core", "setval: %s = %D", name, val);
-	return 0;
+	return val;
 }
 
 static char* trk_setvalstr4(void *trk, const char *name, const char *val, uint flags)
