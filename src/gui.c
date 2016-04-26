@@ -52,11 +52,13 @@ typedef struct ggui {
 		, bprev
 		, bnext;
 	ffui_ctl lpos;
+	ffui_tab tabs;
 	ffui_trkbar tpos
 		, tvol;
 	ffui_view vlist;
 	ffui_paned pntop
 		, pnpos
+		, pntabs
 		, pnlist;
 	ffui_ctl stbar;
 	ffui_trayicon tray_icon;
@@ -179,6 +181,9 @@ static void gui_media_added(fmed_que_entry *ent);
 static void gui_media_add1(const char *fn);
 static void gui_media_open(uint id);
 static void gui_media_removed(uint i);
+static void gui_que_new(void);
+static void gui_que_del(void);
+static void gui_que_sel(void);
 static void gui_media_savelist(void);
 static void gui_media_remove(void);
 static fmed_que_entry* gui_list_getent(void);
@@ -252,12 +257,14 @@ static const name_to_ctl ctls[] = {
 	add(bprev),
 	add(bnext),
 	add(lpos),
+	add(tabs),
 	add(tpos),
 	add(tvol),
 	add(vlist),
 	add(stbar),
 	add(pntop),
 	add(pnpos),
+	add(pntabs),
 	add(pnlist),
 	add(dlg),
 	add(tray_icon),
@@ -331,6 +338,9 @@ enum CMDS {
 
 	OPEN,
 	ADD,
+	QUE_NEW,
+	QUE_DEL,
+	QUE_SEL,
 	SAVELIST,
 	REMOVE,
 	CLEAR,
@@ -385,6 +395,9 @@ static const char *const scmds[] = {
 
 	"OPEN",
 	"ADD",
+	"QUE_NEW",
+	"QUE_DEL",
+	"QUE_SEL",
 	"SAVELIST",
 	"REMOVE",
 	"CLEAR",
@@ -511,6 +524,9 @@ static const struct cmd cmds[] = {
 
 	{ OPEN,	F1,	&gui_media_open },
 	{ ADD,	F1,	&gui_media_open },
+	{ QUE_NEW,	F0,	&gui_que_new },
+	{ QUE_DEL,	F0,	&gui_que_del },
+	{ QUE_SEL,	F0,	&gui_que_sel },
 	{ SAVELIST,	F0,	&gui_media_savelist },
 	{ REMOVE,	F0,	&gui_media_remove },
 	{ SHOWDIR,	F0,	&gui_media_showdir },
@@ -1255,6 +1271,62 @@ static void gui_media_removed(uint i)
 	ffui_redraw(&gg->vlist, 1);
 }
 
+static void gui_newtab(void)
+{
+	char buf[32];
+	static uint tabs;
+	ffui_tabitem it = {0};
+
+	int n = ffs_fmt(buf, buf + sizeof(buf), "Playlist %u", ++tabs);
+	ffui_tab_settext(&it, buf, n);
+	int itab = ffui_tab_append(&gg->tabs, &it);
+	ffui_tab_setactive(&gg->tabs, itab);
+}
+
+static void gui_que_new(void)
+{
+	gui_newtab();
+	gg->qu->cmd(FMED_QUE_NEW, NULL);
+	ffui_view_clear(&gg->vlist);
+}
+
+static void gui_showque(uint i)
+{
+	gg->qu->cmd(FMED_QUE_SEL, (void*)(size_t)i);
+
+	ffui_redraw(&gg->vlist, 0);
+	ffui_view_clear(&gg->vlist);
+	fmed_que_entry *e = NULL;
+	for (;;) {
+		if (0 == gg->qu->cmd2(FMED_QUE_LIST, &e, 0))
+			break;
+		gui_media_added(e);
+	}
+	ffui_redraw(&gg->vlist, 1);
+}
+
+static void gui_que_del(void)
+{
+	int sel = ffui_tab_active(&gg->tabs);
+	if (sel == -1)
+		return;
+	ffui_tab_del(&gg->tabs, sel);
+	ffbool last = (0 == ffui_tab_count(&gg->tabs));
+	ffui_tab_setactive(&gg->tabs, 0);
+
+	gg->qu->cmd(FMED_QUE_DEL, NULL);
+	if (!last)
+		gui_showque(0);
+	else
+		gui_que_new();
+}
+
+static void gui_que_sel(void)
+{
+	int sel = ffui_tab_active(&gg->tabs);
+	gui_showque(sel);
+}
+
 static void gui_media_savelist(void)
 {
 	char *fn;
@@ -1379,6 +1451,8 @@ static FFTHDCALL int gui_worker(void *param)
 	gg->wmain.top = 1;
 	gg->wmain.on_action = &gui_action;
 	gg->wmain.onclose_id = ONCLOSE;
+	gui_newtab();
+
 	ffui_settextz(&gg->labout, "fmedia v" FMED_VER "\nhttp://fmedia.firmdev.com");
 	gg->wabout.hide_on_close = 1;
 

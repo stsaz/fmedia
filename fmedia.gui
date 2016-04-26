@@ -10,6 +10,14 @@ menu mfile {
 	}
 	item "-" {
 	}
+	item "&New Tab" {
+		action QUE_NEW
+		hotkey "Ctrl+N"
+	}
+	item "Close Tab" {
+		action QUE_DEL
+		hotkey "Ctrl+W"
+	}
 	item "&Save Playlist..." {
 		action SAVELIST
 		hotkey "Ctrl+S"
@@ -164,6 +172,10 @@ window wmain {
 	icon {
 		filename "fmedia.ico"
 	}
+	font {
+		name Arial
+		height 10
+	}
 
 	mainmenu mm {
 		item "&File" {
@@ -250,8 +262,14 @@ window wmain {
 		onscrolling VOL
 	}
 
+	tab tabs {
+		position 0 45 300 20
+		style visible
+		onchange QUE_SEL
+	}
+
 	listview vlist {
-		position 0 45 360 175
+		position 0 65 360 175
 		style explorer_theme grid_lines multi_select visible
 		dblclick PLAY
 		popupmenu mfile
@@ -282,6 +300,11 @@ window wmain {
 	}
 	paned pnpos {
 		child tpos {
+			resize cx
+		}
+	}
+	paned pntabs {
+		child tabs {
 			resize cx
 		}
 	}
