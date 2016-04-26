@@ -696,6 +696,8 @@ static void* trk_create(uint cmd, const char *fn)
 
 	if (fmed->out_channels != 0xff)
 		trk_setval(src, "conv_channels", (fmed->out_channels << 4) | 1);
+	if (fmed->out_rate != 0)
+		trk_setval(src, "conv_pcm_rate", fmed->out_rate);
 
 	if (fmed->wav_formt != 255)
 		trk_setval(src, "wav-format", fmed->wav_formt);

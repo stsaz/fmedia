@@ -79,6 +79,7 @@ static const struct cvt_set cvt_sets[] = {
 	{ "ogg-quality", "OGG Vorbis Quality", "5.0", "-1.0 .. 10.0" },
 	{ "mpeg-quality", "MPEG Quality", "2", "VBR quality: 9..0 or CBR bitrate: 64..320" },
 	{ "flac_complevel", "FLAC Compression", "6", "0..8" },
+	{ "conv_pcm_rate", "Sample rate (Hz)", "0", "0: As Source" },
 	{ "overwrite", "Overwrite Output File", "0", "0 or 1" },
 	{ "out_preserve_date", "Preserve Date", "1", "0 or 1" },
 };
@@ -167,6 +168,8 @@ static void gui_convert(void)
 				val = d * 10;
 			} else {
 				ffs_toint(txt, len, &val, FFS_INT64);
+				if (ffstr_eqcz(&name, "conv_pcm_rate") && val == 0)
+					continue;
 			}
 
 			ffmem_free(txt);

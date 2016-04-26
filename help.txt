@@ -55,6 +55,8 @@ Other options:
                   2: use right channel only
                   Note: can't be used together with sample rate conversion.
 
+--rate=VAL  Set audio sample rate
+
 --wav-format=VAL  Set output PCM format (16le | float)
 
 --ogg-quality=VAL     Set OGG Vorbis encoding quality: -1.0 .. 10.0

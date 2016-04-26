@@ -270,6 +270,7 @@ static int sndmod_conv_process(void *ctx, fmed_filt *d)
 typedef struct sndmod_soxr {
 	uint state;
 	ffsoxr soxr;
+	ffpcm inpcm;
 } sndmod_soxr;
 
 static void* sndmod_soxr_open(fmed_filt *d)
@@ -296,6 +297,9 @@ static int sndmod_soxr_process(void *ctx, fmed_filt *d)
 
 	switch (c->state) {
 	case 0:
+		c->inpcm.sample_rate = (int)fmed_getval("pcm_sample_rate");
+		if (FMED_NULL != (outpcm.sample_rate = (int)fmed_getval("conv_pcm_rate")))
+			fmed_setval("pcm_sample_rate", outpcm.sample_rate);
 		d->outlen = 0;
 		c->state = 1;
 		return FMED_RDATA;
@@ -308,8 +312,8 @@ static int sndmod_soxr_process(void *ctx, fmed_filt *d)
 			return FMED_RMORE; // "conv" module will handle channel conversion
 
 		inpcm.format = (int)fmed_getval("pcm_format");
-		inpcm.sample_rate = (int)fmed_getval("pcm_sample_rate");
 		inpcm.channels = (int)fmed_getval("pcm_channels");
+		inpcm.sample_rate = c->inpcm.sample_rate;
 		if (1 == fmed_getval("pcm_ileaved"))
 			inpcm.ileaved = 1;
 		outpcm = inpcm;
