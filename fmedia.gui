@@ -142,6 +142,23 @@ menu mconvert {
 }
 
 menu mhelp {
+	item "Edit Default Settings..." {
+		action CONF_EDIT
+	}
+	item "Edit User Settings..." {
+		action USRCONF_EDIT
+	}
+	item "Edit GUI..." {
+		action FMEDGUI_EDIT
+	}
+	item "-" {
+	}
+	item "Show Readme File..." {
+		action README_SHOW
+	}
+	item "Show Changelog..." {
+		action CHANGES_SHOW
+	}
 	item "&About" {
 		action ABOUT
 	}

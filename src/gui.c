@@ -243,6 +243,12 @@ static const char *const scmds[] = {
 	"SHOW",
 	"QUIT",
 	"ABOUT",
+
+	"CONF_EDIT",
+	"USRCONF_EDIT",
+	"FMEDGUI_EDIT",
+	"README_SHOW",
+	"CHANGES_SHOW",
 };
 
 static int gui_getcmd(void *udata, const ffstr *name)

@@ -34,6 +34,7 @@ static void gui_media_vol(gui_trk *g, uint id);
 static void gui_media_showdir(void);
 static void gui_media_copyfn(void);
 static void gui_media_fileop(uint cmd);
+static void gui_showtextfile(uint cmd);
 static void gui_on_dropfiles(ffui_wnd *wnd, ffui_fdrop *df);
 static void gui_onclose(void);
 static int gui_newtab(void);
@@ -87,6 +88,12 @@ static const struct cmd cmds[] = {
 	{ COPYFILE,	F1,	&gui_media_fileop },
 	{ DELFILE,	F1,	&gui_media_fileop },
 	{ SHOWINFO,	F0,	&gui_media_showinfo },
+
+	{ CONF_EDIT,	F1,	&gui_showtextfile },
+	{ USRCONF_EDIT,	F1,	&gui_showtextfile },
+	{ FMEDGUI_EDIT,	F1,	&gui_showtextfile },
+	{ README_SHOW,	F1,	&gui_showtextfile },
+	{ CHANGES_SHOW,	F1,	&gui_showtextfile },
 };
 
 const struct cmd* getcmd(uint cmd, const struct cmd *cmds, uint n)
@@ -471,6 +478,48 @@ static void gui_media_fileop(uint cmd)
 
 done:
 	ffarr_free(&buf);
+}
+
+static void gui_showtextfile(uint cmd)
+{
+	char *notepad, *fn;
+
+	if (NULL == (notepad = ffenv_expand(NULL, 0, "%SYSTEMROOT%\\system32\\notepad.exe")))
+		return;
+
+	switch (cmd) {
+	case CONF_EDIT:
+		fn = core->getpath(FFSTR("fmedia.conf"));
+		break;
+	case USRCONF_EDIT:
+		fn = ffenv_expand(NULL, 0, "%APPDATA%/fmedia/fmedia.conf");
+		break;
+	case FMEDGUI_EDIT:
+		fn = core->getpath(FFSTR("fmedia.gui"));
+		break;
+	case README_SHOW:
+		fn = core->getpath(FFSTR("README.txt"));
+		break;
+	case CHANGES_SHOW:
+		fn = core->getpath(FFSTR("CHANGES.txt"));
+		break;
+	default:
+		goto end;
+	}
+
+	if (fn == NULL)
+		goto end;
+
+	const char *args[2];
+	args[0] = fn;
+	args[1] = NULL;
+	fffd ps;
+	if (FF_BADFD != (ps = ffps_exec(notepad, args, NULL)))
+		ffps_close(ps);
+
+	ffmem_free(fn);
+end:
+	ffmem_free(notepad);
 }
 
 void gui_media_added(fmed_que_entry *ent)
