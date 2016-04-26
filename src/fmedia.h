@@ -305,6 +305,7 @@ enum FMED_QUE {
 
 enum FMED_QUE_CMDF {
 	_FMED_QUE_FMASK = 0xffff0000,
+	FMED_QUE_NO_ONCHANGE = 0x10000,
 };
 
 enum FMED_QUE_META_F {

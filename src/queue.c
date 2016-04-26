@@ -387,7 +387,7 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 		e = param;
 		dbglog(core, NULL, "que", "removed item %S", &e->e.url);
 
-		if (qu->onchange != NULL)
+		if (!(flags & FMED_QUE_NO_ONCHANGE) && qu->onchange != NULL)
 			qu->onchange(&e->e, FMED_QUE_ONRM);
 
 		if (!e->active) {
