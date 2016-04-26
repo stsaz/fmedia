@@ -444,10 +444,11 @@ static int wasapi_in_config(ffpars_ctx *ctx)
 static void* wasapi_in_open(fmed_filt *d)
 {
 	wasapi_in *w;
-	ffpcm fmt;
+	ffpcm fmt, in_fmt;
 	int r, idx;
-	ffwas_dev dev;
+	ffwas_dev dev = {0};
 	int lowlat;
+	ffbool try_open = 1;
 
 	w = ffmem_tcalloc1(wasapi_in);
 	if (w == NULL)
@@ -472,11 +473,31 @@ static void* wasapi_in_open(fmed_filt *d)
 	fmt.format = (int)fmed_getval("pcm_format");
 	fmt.channels = (int)fmed_getval("pcm_channels");
 	fmt.sample_rate = (int)fmed_getval("pcm_sample_rate");
+	in_fmt = fmt;
+
+again:
 	r = ffwas_capt_open(&w->wa, dev.id, &fmt, wasapi_in_conf.buflen);
 
-	ffwas_devdestroy(&dev);
-
 	if (r != 0) {
+
+		if (r == AUDCLNT_E_UNSUPPORTED_FORMAT && try_open
+			&& memcmp(&fmt.format, &in_fmt, sizeof(fmt))) {
+
+			if (fmt.format != in_fmt.format)
+				fmed_setval("pcm_format", fmt.format);
+
+			if (fmt.sample_rate != in_fmt.sample_rate) {
+				d->track->setval4(d->trk, "conv_pcm_rate", in_fmt.sample_rate, FMED_TRK_FNO_OVWRITE);
+				fmed_setval("pcm_sample_rate", fmt.sample_rate);
+			}
+
+			if (fmt.channels != in_fmt.channels)
+				fmed_setval("pcm_channels", fmt.channels);
+
+			try_open = 0;
+			goto again;
+		}
+
 		errlog(core, d->trk, "wasapi", "ffwas_capt_open(): (%xu) %s", r, ffwas_errstr(r));
 		goto fail;
 	}
@@ -494,10 +515,12 @@ static void* wasapi_in_open(fmed_filt *d)
 		w->latcorr = ffpcm_samples(wasapi_out_conf.buflen, fmt.sample_rate) * ffpcm_size1(&fmt)
 			+ w->wa.bufsize;
 
+	ffwas_devdestroy(&dev);
 	fmed_setval("pcm_ileaved", 1);
 	return w;
 
 fail:
+	ffwas_devdestroy(&dev);
 	wasapi_in_close(w);
 	return NULL;
 }
