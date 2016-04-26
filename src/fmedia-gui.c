@@ -10,7 +10,6 @@ Copyright (c) 2015 Simon Zolin */
 
 static fmedia *fmed;
 static fmed_core *core;
-static const fmed_log *lg;
 
 typedef struct inst_mode {
 	int mode;
@@ -21,7 +20,7 @@ static inst_mode *imode;
 #define IM_PIPE_NAME  "fmedia"
 
 
-FF_IMP fmed_core* core_init(fmedia **ptr, fmed_log_t logfunc);
+FF_IMP fmed_core* core_init(fmedia **ptr);
 FF_IMP void core_free(void);
 
 static int pipe_listen(const char *name, inst_mode *imode);
@@ -29,17 +28,7 @@ static void pipe_onaccept(void *udata);
 static int pipe_add_inputfiles(fffd ph);
 
 static void open_input(void);
-static void addlog(fffd fd, const char *stime, const char *module, const char *level
-	, const ffstr *id, const char *fmt, va_list va);
 
-
-static void addlog(fffd fd, const char *stime, const char *module, const char *level
-	, const ffstr *id, const char *fmt, va_list va)
-{
-	if (lg == NULL)
-		return;
-	lg->log(stime, module, level, id, fmt, va);
-}
 
 static void open_input(void)
 {
@@ -213,7 +202,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
 {
 	ffmem_init();
 
-	if (NULL == (core = core_init(&fmed, &addlog)))
+	if (NULL == (core = core_init(&fmed)))
 		return 1;
 
 	{
@@ -231,7 +220,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
 	if (0 != core->sig(FMED_CONF))
 		goto end;
 
-	if (NULL == (lg = core->getmod("gui.log")))
+	if (NULL == (fmed->log = core->getmod("gui.log")))
 		goto end;
 
 	int im = core->getval("instance_mode");

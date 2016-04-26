@@ -77,7 +77,7 @@ enum {
 #endif
 
 
-FF_EXP fmed_core* core_init(fmedia **ptr, fmed_log_t logfunc);
+FF_EXP fmed_core* core_init(fmedia **ptr);
 FF_EXP void core_free(void);
 
 static int media_setout(fm_src *src);
@@ -145,6 +145,14 @@ static fmed_core _fmed_core = {
 	&core_task,
 };
 static fmed_core *core = &_fmed_core;
+
+//LOG
+static void log_dummy_func(uint flags, fmed_logdata *ld)
+{
+}
+static const fmed_log log_dummy = {
+	&log_dummy_func
+};
 
 static int fmed_conf(uint userconf);
 static int fmed_conf_mod(ffparser_schem *p, void *obj, ffstr *val);
@@ -1190,14 +1198,14 @@ static void core_posted(void *udata)
 }
 
 
-fmed_core* core_init(fmedia **ptr, fmed_log_t logfunc)
+fmed_core* core_init(fmedia **ptr)
 {
 	ffmem_init();
 	fflk_setup();
 	fmed = ffmem_tcalloc1(fmedia);
 	if (fmed == NULL)
 		return NULL;
-	fmed->logfunc = logfunc;
+	fmed->log = &log_dummy;
 
 	fmed->volume = 100;
 	fmed->kq = FF_BADFD;
@@ -1379,7 +1387,6 @@ static int core_open(void)
 		syserrlog(core, NULL, "core", "%e", FFERR_KQUCREAT);
 		return 1;
 	}
-	core->loglev = fmed->debug ? FMED_LOG_DEBUG : 0;
 	core->kq = fmed->kq;
 	ffkqu_post_attach(fmed->kq);
 
@@ -1449,6 +1456,7 @@ static int core_sig(uint signo)
 	switch (signo) {
 
 	case FMED_CONF:
+		core->loglev = fmed->debug ? FMED_LOG_DEBUG : 0;
 		if (0 != fmed_conf(0))
 			return 1;
 		if (0 != fmed_conf(1))
@@ -1528,18 +1536,23 @@ static void core_log(uint flags, void *trk, const char *module, const char *fmt,
 	ffdtm dt;
 	fftime t;
 	size_t r;
-	va_list va;
-	va_start(va, fmt);
+	fmed_logdata ld;
+	uint lev = flags & _FMED_LOG_LEVMASK;
 
 	fftime_now(&t);
 	fftime_split(&dt, &t, FFTIME_TZLOCAL);
 	r = fftime_tostr(&dt, stime, sizeof(stime), FFTIME_HMS_MSEC);
 	stime[r] = '\0';
+	ld.stime = stime;
 
-	uint lev = flags & _FMED_LOG_LEVMASK;
-	fffd fd = (lev == FMED_LOG_DEBUG || lev == FMED_LOG_INFO) ? ffstdout : ffstderr;
-	fmed->logfunc(fd, stime, module, loglevs[lev - 1], (src != NULL) ? &src->id : NULL, fmt, va);
-	va_end(va);
+	FF_ASSERT(lev != 0);
+	ld.level = loglevs[lev - 1];
+	ld.module = module;
+	ld.ctx = (src != NULL) ? &src->id : NULL;
+	ld.fmt = fmt;
+	va_start(ld.va, fmt);
+	fmed->log->log(flags, &ld);
+	va_end(ld.va);
 }
 
 

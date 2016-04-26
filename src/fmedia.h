@@ -263,9 +263,17 @@ do { \
 #define syserrlog(core, trk, mod, fmt, ...) \
 	(core)->log(FMED_LOG_ERR, trk, mod, fmt ": %E", __VA_ARGS__, fferr_last())
 
+typedef struct fmed_logdata {
+	const char *level;
+	const char *stime;
+	const char *module;
+	const ffstr *ctx;
+	const char *fmt;
+	va_list va;
+} fmed_logdata;
+
 typedef struct fmed_log {
-	void (*log)(const char *stime, const char *module, const char *level, const ffstr *id,
-		const char *fmt, va_list va);
+	void (*log)(uint flags, fmed_logdata *ld);
 } fmed_log;
 
 

@@ -54,8 +54,7 @@ static const ffpars_arg gui_conf[] = {
 };
 
 //LOG
-static void gui_log(const char *stime, const char *module, const char *level, const ffstr *id,
-	const char *fmt, va_list va);
+static void gui_log(uint flags, fmed_logdata *ld);
 static const fmed_log gui_logger = {
 	&gui_log
 };
@@ -781,22 +780,21 @@ done:
 }
 
 
-static void gui_log(const char *stime, const char *module, const char *level, const ffstr *id,
-	const char *fmt, va_list va)
+static void gui_log(uint flags, fmed_logdata *ld)
 {
 	char buf[4096];
 	char *s = buf;
 	const char *end = buf + sizeof(buf) - FFSLEN("\r\n");
 
-	s += ffs_fmt(s, end, "%s %s %s: ", stime, level, module);
-	if (id != NULL)
-		s += ffs_fmt(s, end, "%S:\t", id);
-	s += ffs_fmtv(s, end, fmt, va);
+	s += ffs_fmt(s, end, "%s %s %s: ", ld->stime, ld->level, ld->module);
+	if (ld->ctx != NULL)
+		s += ffs_fmt(s, end, "%S:\t", ld->ctx);
+	s += ffs_fmtv(s, end, ld->fmt, ld->va);
 	*s++ = '\r';
 	*s++ = '\n';
 
 	ffui_edit_addtext(&gg->wlog.tlog, buf, s - buf);
 
-	if (!ffsz_cmp(level, "error"))
+	if ((flags & _FMED_LOG_LEVMASK) == FMED_LOG_ERR)
 		ffui_show(&gg->wlog.wlog, 1);
 }

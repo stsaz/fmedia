@@ -17,7 +17,7 @@ Copyright (c) 2015 Simon Zolin */
 static fmedia *fmed;
 static fmed_core *core;
 
-FF_IMP fmed_core* core_init(fmedia **ptr, fmed_log_t logfunc);
+FF_IMP fmed_core* core_init(fmedia **ptr);
 FF_IMP void core_free(void);
 
 static int fmed_cmdline(int argc, char **argv, uint main_only);
@@ -31,9 +31,13 @@ static int fmed_arg_install(ffparser_schem *p, void *obj, const ffstr *val);
 
 static int pcm_formatstr(const char *s, size_t len);
 static int open_input(void);
-static void addlog(fffd fd, const char *stime, const char *module, const char *level
-	, const ffstr *id, const char *fmt, va_list va);
 static void fmed_onsig(void *udata);
+
+//LOG
+static void std_log(uint flags, fmed_logdata *ld);
+static const fmed_log std_logger = {
+	&std_log
+};
 
 
 static const ffpars_arg fmed_cmdline_args[] = {
@@ -88,6 +92,7 @@ static const ffpars_arg fmed_cmdline_main_args[] = {
 	{ "*",	FFPARS_TSTR | FFPARS_FMULTI,  FFPARS_DST(&fmed_arg_skip) },
 	{ "silent",  FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmedia, silent) },
 	{ "gui",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmedia, gui) },
+	{ "debug",  FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmedia, debug) },
 	{ "help",	FFPARS_SETVAL('h') | FFPARS_TBOOL | FFPARS_FALONE,  FFPARS_DST(&fmed_arg_usage) },
 };
 
@@ -241,22 +246,23 @@ static int pcm_formatstr(const char *s, size_t len)
 }
 
 
-static void addlog(fffd fd, const char *stime, const char *module, const char *level
-	, const ffstr *id, const char *fmt, va_list va)
+static void std_log(uint flags, fmed_logdata *ld)
 {
 	char buf[4096];
 	char *s = buf;
 	const char *end = buf + FFCNT(buf) - FFSLEN("\n");
 
-	s += ffs_fmt(s, end, "%s %s %s: ", stime, level, module);
+	s += ffs_fmt(s, end, "%s %s %s: ", ld->stime, ld->level, ld->module);
 
-	if (id != NULL)
-		s += ffs_fmt(s, end, "%S:\t", id);
+	if (ld->ctx != NULL)
+		s += ffs_fmt(s, end, "%S:\t", ld->ctx);
 
-	s += ffs_fmtv(s, end, fmt, va);
+	s += ffs_fmtv(s, end, ld->fmt, ld->va);
 
 	*s++ = '\n';
 
+	uint lev = flags & _FMED_LOG_LEVMASK;
+	fffd fd = (lev == FMED_LOG_DEBUG || lev == FMED_LOG_INFO) ? ffstdout : ffstderr;
 	ffstd_write(fd, buf, s - buf);
 }
 
@@ -373,8 +379,9 @@ int main(int argc, char **argv)
 
 	ffsig_mask(SIG_BLOCK, sigs_block, FFCNT(sigs_block));
 
-	if (NULL == (core = core_init(&fmed, &addlog)))
+	if (NULL == (core = core_init(&fmed)))
 		return 1;
+	fmed->log = &std_logger;
 
 	{
 	char fn[FF_MAXPATH];
