@@ -177,7 +177,7 @@ GUI_O := $(OBJ_DIR)/gui.o \
 	$(FF_OBJ_DIR)/ffpcm.o \
 	$(FF_GUI_OBJ)
 gui.$(SO): $(GUI_O)
-	$(LD) -shared $(GUI_O) $(LDFLAGS) -lshell32 -luxtheme -lcomctl32 -lcomdlg32 -lgdi32 -o$@
+	$(LD) -shared $(GUI_O) $(LDFLAGS) -lshell32 -luxtheme -lcomctl32 -lcomdlg32 -lgdi32 -lole32 -luuid -o$@
 
 BINGUI_O := core.$(SO) \
 	fmedia-gui.o \

@@ -50,11 +50,15 @@ OUTPUT
 ---------------
 INSTALL ON WINDOWS
 ---------------
-1. Unpack archive to the directory of your choice, e.g. to "C:/Program Files/fmedia"
+1. Unpack archive to the directory of your choice, e.g. to "C:\Program Files\fmedia"
 
-2. Optionally, add the path into the system environment:
+2. Optionally, run the following command (from console):
 
-	set PATH=%PATH%;C:/Program Files/fmedia
+	"C:\Program Files\fmedia\fmedia.exe" --install
+
+	This command will:
+	. add fmedia directory into user's environment
+	. create a desktop shortcut to fmedia-gui.exe
 
 ---------------
 INSTALL ON LINUX

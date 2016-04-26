@@ -26,6 +26,7 @@ static int fmed_arg_infile(ffparser_schem *p, void *obj, const ffstr *val);
 static int fmed_arg_pcmfmt(ffparser_schem *p, void *obj, const ffstr *val);
 static int fmed_arg_listdev(void);
 static int fmed_arg_seek(ffparser_schem *p, void *obj, const ffstr *val);
+static int fmed_arg_install(ffparser_schem *p, void *obj, const ffstr *val);
 
 static int pcm_formatstr(const char *s, size_t len);
 static int open_input(void);
@@ -74,6 +75,9 @@ static const ffpars_arg fmed_cmdline_args[] = {
 	, { "gui",  FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmedia, gui) }
 	, { "debug",  FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmedia, debug) }
 	, { "help",  FFPARS_SETVAL('h') | FFPARS_TBOOL | FFPARS_FALONE,  FFPARS_DST(&fmed_arg_usage) }
+	,
+	{ "install",  FFPARS_TBOOL | FFPARS_FALONE,  FFPARS_DST(&fmed_arg_install) },
+	{ "uninstall",  FFPARS_TBOOL | FFPARS_FALONE,  FFPARS_DST(&fmed_arg_install) },
 };
 
 static const ffpars_arg fmed_cmdline_main_args[] = {
@@ -147,6 +151,16 @@ static int fmed_arg_seek(ffparser_schem *p, void *obj, const ffstr *val)
 	else
 		fmed->until_time = i;
 	return 0;
+}
+
+static int fmed_arg_install(ffparser_schem *p, void *obj, const ffstr *val)
+{
+#ifdef FF_WIN
+	const fmed_modinfo *mi = core->insmod("gui.gui", NULL);
+	if (mi != NULL)
+		mi->m->sig(!ffsz_cmp(p->curarg->name, "install") ? FMED_SIG_INSTALL : FMED_SIG_UNINSTALL);
+#endif
+	return FFPARS_ELAST;
 }
 
 static int fmed_arg_skip(ffparser_schem *p, void *obj, const ffstr *val)

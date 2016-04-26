@@ -16,6 +16,7 @@ track: ... -> gui-trk -> ...
 #include <FFOS/thread.h>
 #include <FFOS/process.h>
 #include <FFOS/dir.h>
+#include <FFOS/win/reg.h>
 
 
 typedef struct gui_trk gui_trk;
@@ -163,6 +164,8 @@ static void gui_destroy(void);
 static const fmed_mod fmed_gui_mod = {
 	&gui_iface, &gui_sig, &gui_destroy
 };
+
+static int gui_install(uint sig);
 
 static FFTHDCALL int gui_worker(void *param);
 static void gui_action(ffui_wnd *wnd, int id);
@@ -1427,6 +1430,96 @@ static const void* gui_iface(const char *name)
 	return NULL;
 }
 
+/**
+1. HKCU\Environment\PATH = [...;] FMEDIA_PATH [;...]
+2. Desktop shortcut to fmedia-gui.exe
+*/
+static int gui_install(uint sig)
+{
+	ffwreg k;
+	ffarr buf = {0};
+	ffstr path;
+	char *desktop = NULL;
+	int r = -1;
+
+	char fn[FF_MAXPATH];
+	const char *pfn = ffps_filename(fn, sizeof(fn), NULL);
+	if (pfn == NULL)
+		return FFPARS_ELAST;
+	if (NULL == ffpath_split2(pfn, ffsz_len(pfn), &path, NULL))
+		return FFPARS_ELAST;
+
+	if (FFWREG_BADKEY == (k = ffwreg_open(HKEY_CURRENT_USER, "Environment", KEY_ALL_ACCESS)))
+		goto end;
+
+	if (-1 == ffwreg_readbuf(k, "PATH", &buf))
+		goto end;
+
+	const char *pos_path = ffs_ifinds(buf.ptr, buf.len, path.ptr, path.len);
+
+	if (sig == FMED_SIG_INSTALL) {
+		if (pos_path != ffarr_end(&buf)) {
+			errlog(core, NULL, "", "Path \"%S\" is already in user's environment", &path);
+			r = 0;
+			goto end;
+		}
+
+		if ((buf.len == 0 || NULL == ffarr_append(&buf, ";", 1))
+			|| NULL == ffarr_append(&buf, path.ptr, path.len))
+			goto end;
+
+	} else {
+		if (pos_path == ffarr_end(&buf)) {
+			r = 0;
+			goto end;
+		}
+
+		uint n = path.len + 1;
+		if (pos_path != buf.ptr && *(pos_path - 1) == ';')
+			pos_path--; // "...;\fmedia"
+		else if (pos_path + path.len != ffarr_end(&buf) && *(pos_path + path.len) == ';')
+		{} // "\fmedia;..."
+		else if (buf.len == path.len)
+			n = path.len; // "\fmedia"
+		else
+			goto end;
+		_ffarr_rm(&buf, pos_path - buf.ptr, n, sizeof(char));
+	}
+
+	if (0 != ffwreg_writestr(k, "PATH", buf.ptr, buf.len))
+		goto end;
+
+	ffenv_update();
+
+	if (sig == FMED_SIG_INSTALL) {
+		fffile_fmt(ffstdout, NULL, "Added \"%S\" to user's environment.\n"
+			, path);
+
+		buf.len = 0;
+		if (0 == ffstr_catfmt(&buf, "%S\\fmedia-gui.exe%Z", &path))
+			goto end;
+		buf.len--;
+		if (NULL == (desktop = ffenv_expand(NULL, 0, "%USERPROFILE%\\Desktop\\fmedia.lnk")))
+			goto end;
+		if (0 != ffui_createlink(buf.ptr, desktop))
+			goto end;
+		fffile_fmt(ffstdout, NULL, "Created desktop shortcut to \"%S\".\n"
+			, &buf);
+
+	} else
+		fffile_fmt(ffstdout, NULL, "Removed \"%S\" from user's environment.\n"
+			, path);
+
+	r = 0;
+end:
+	ffmem_safefree(desktop);
+	ffwreg_close(k);
+	ffarr_free(&buf);
+	if (r != 0)
+		syserrlog(core, NULL, "", "%s", (sig == FMED_SIG_INSTALL) ? "install" : "uninstall");
+	return 0;
+}
+
 static int gui_sig(uint signo)
 {
 	switch (signo) {
@@ -1454,6 +1547,11 @@ static int gui_sig(uint signo)
 
 	case FMED_GUI_SHOW:
 		gui_action(&gg->wmain, SHOW);
+		break;
+
+	case FMED_SIG_INSTALL:
+	case FMED_SIG_UNINSTALL:
+		gui_install(signo);
 		break;
 	}
 	return 0;

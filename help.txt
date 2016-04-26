@@ -82,3 +82,8 @@ Other options:
 --preserve-date  Set output file date/time equal to input file.
 
 --meta='NAME=VAL;NAME=VAL...'   Set meta data.
+
+
+Install:
+--install    Windows: add fmedia directory into user's environment and create a desktop shortcut
+--uninstall  Undo changes made by '--install'
