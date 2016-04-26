@@ -294,6 +294,7 @@ enum FMED_QUE {
 	FMED_QUE_CLEAR,
 	FMED_QUE_ADD,
 	FMED_QUE_RM,
+	FMED_QUE_METASET, // @param2: ffstr name_val_pair[2]
 	FMED_QUE_SETONCHANGE, // @param: fmed_que_onchange_t
 
 	FMED_QUE_NEW,
@@ -313,6 +314,7 @@ enum FMED_QUE_META_F {
 	FMED_QUE_UNIQ = 4,
 	FMED_QUE_TRKDICT = 8,
 	FMED_QUE_NUM = 0x10,
+	FMED_QUE_METADEL = 0x20,
 };
 
 #define FMED_QUE_SKIP  ((void*)-1)

@@ -11,11 +11,9 @@ typedef struct entry {
 	fmed_que_entry e;
 	fflist_item sib;
 
-	ffstr *dict;
-	uint dict_len;
-
-	ffstr *tmeta; //transient meta
-	uint tmeta_len;
+	ffarr2 meta; //ffstr[]
+	ffarr2 tmeta; //ffstr[]. transient meta
+	ffarr2 dict; //ffstr[]
 
 	uint active :1
 		, rm :1
@@ -59,14 +57,15 @@ static const fmed_mod fmed_que_mod = {
 static ssize_t que_cmd2(uint cmd, void *param, size_t param2);
 static fmed_que_entry* _que_add(fmed_que_entry *ent);
 static void que_cmd(uint cmd, void *param);
-static void que_meta_set(fmed_que_entry *ent, const char *name, size_t name_len, const char *val, size_t val_len, uint flags);
+static void _que_meta_set(fmed_que_entry *ent, const char *name, size_t name_len, const char *val, size_t val_len, uint flags);
 static ffstr* que_meta_find(fmed_que_entry *ent, const char *name, size_t name_len);
 static ffstr* que_meta(fmed_que_entry *ent, size_t n, ffstr *name, uint flags);
 static const fmed_queue fmed_que_mgr = {
-	&que_cmd2, &_que_add, &que_cmd, &que_meta_set, &que_meta_find, &que_meta
+	&que_cmd2, &_que_add, &que_cmd, &_que_meta_set, &que_meta_find, &que_meta
 };
 
 static fmed_que_entry* que_add(fmed_que_entry *ent, uint flags);
+static void que_meta_set(fmed_que_entry *ent, const ffstr *name, const ffstr *val, uint flags);
 static void que_play(entry *e);
 static void que_save(entry *first, const char *fn);
 static void ent_free(entry *e);
@@ -122,21 +121,9 @@ static int que_sig(uint signo)
 
 static void ent_free(entry *e)
 {
-	uint i;
-	for (i = 0;  i < e->e.nmeta;  i++) {
-		ffstr_free(&e->e.meta[i]);
-	}
-	ffmem_safefree(e->e.meta);
-
-	for (i = 0;  i != e->dict_len;  i++) {
-		ffstr_free(&e->dict[i]);
-	}
-	ffmem_safefree(e->dict);
-
-	for (i = 0;  i != e->tmeta_len;  i++) {
-		ffstr_free(&e->tmeta[i]);
-	}
-	ffmem_safefree(e->tmeta);
+	FFARR2_FREE_ALL(&e->meta, ffstr_free, ffstr);
+	FFARR2_FREE_ALL(&e->dict, ffstr_free, ffstr);
+	FFARR2_FREE_ALL(&e->tmeta, ffstr_free, ffstr);
 
 	ffstr_free(&e->e.url);
 	ffmem_free(e);
@@ -174,7 +161,7 @@ static int que_setmeta(entry *ent, const char *meta, void *trk)
 			return -1;
 		}
 
-		que_meta_set(&ent->e, name.ptr, name.len, val.ptr, val.len, FMED_QUE_OVWRITE);
+		_que_meta_set(&ent->e, name.ptr, name.len, val.ptr, val.len, FMED_QUE_OVWRITE);
 	}
 	return 0;
 }
@@ -202,11 +189,12 @@ static void que_play(entry *ent)
 	if (e->to != 0 && FMED_NULL == qu->track->getval(trk, "until_time"))
 		qu->track->setval(trk, "until_time", e->to - e->from);
 
-	for (i = 0;  i != ent->dict_len;  i += 2) {
-		if ((ssize_t)ent->dict[i + 1].len >= 0)
-			qu->track->setvalstr(trk, ent->dict[i].ptr, ent->dict[i + 1].ptr);
+	ffstr *dict = ent->dict.ptr;
+	for (i = 0;  i != ent->dict.len;  i += 2) {
+		if ((ssize_t)dict[i + 1].len >= 0)
+			qu->track->setvalstr(trk, dict[i].ptr, dict[i + 1].ptr);
 		else
-			qu->track->setval(trk, ent->dict[i].ptr, *(int64*)ent->dict[i + 1].ptr);
+			qu->track->setval(trk, dict[i].ptr, *(int64*)dict[i + 1].ptr); //FMED_QUE_NUM
 	}
 
 	const char *smeta = qu->track->getvalstr(trk, "meta");
@@ -215,12 +203,7 @@ static void que_play(entry *ent)
 		return;
 	}
 
-	for (i = 0;  i != ent->tmeta_len;  i++) {
-		ffstr_free(&ent->tmeta[i]);
-	}
-	ffmem_safefree(ent->tmeta);
-	ent->tmeta = NULL;
-	ent->tmeta_len = 0;
+	FFARR2_FREE_ALL(&ent->tmeta, ffstr_free, ffstr);
 
 	qu->track->setval(trk, "queue_item", (int64)e);
 	qu->track->cmd(trk, FMED_TRACK_START);
@@ -326,7 +309,8 @@ static void que_cmd(uint cmd, void *param)
 
 // matches enum FMED_QUE
 static const char *const scmds[] = {
-	"play", "play-excl", "mix", "stop-after", "next", "prev", "save", "clear", "add", "rm", "setonchange",
+	"play", "play-excl", "mix", "stop-after", "next", "prev", "save", "clear", "add", "rm",
+	"meta-set", "setonchange",
 	"que-new", "que-del", "que-sel", "que-list",
 };
 
@@ -402,6 +386,14 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 		} else
 			e->rm = 1;
 		break;
+
+	case FMED_QUE_METASET:
+		{
+		const ffstr *pair = (void*)param2;
+		que_meta_set(param, &pair[0], &pair[1], flags >> 16);
+		}
+		break;
+
 
 	case FMED_QUE_SAVE:
 		if (ents->len == 0)
@@ -508,60 +500,97 @@ static fmed_que_entry* que_add(fmed_que_entry *ent, uint flags)
 	return &e->e;
 }
 
-static void que_meta_set(fmed_que_entry *ent, const char *name, size_t name_len, const char *val, size_t val_len, uint flags)
+static int que_arrfind(const ffstr *m, uint n, const char *name, size_t name_len)
+{
+	uint i;
+	for (i = 0;  i != n;  i += 2) {
+		if (ffstr_ieq(&m[i], name, name_len))
+			return i;
+	}
+	return -1;
+}
+
+static void _que_meta_set(fmed_que_entry *ent, const char *name, size_t name_len, const char *val, size_t val_len, uint flags)
+{
+	ffstr pair[2];
+	ffstr_set(&pair[0], name, name_len);
+	ffstr_set(&pair[1], val, val_len);
+	que_cmd2(FMED_QUE_METASET | (flags << 16), ent, (size_t)pair);
+}
+
+static void que_meta_set(fmed_que_entry *ent, const ffstr *name, const ffstr *val, uint flags)
 {
 	entry *e = FF_GETPTR(entry, e, ent);
-	ffstr **m = &ent->meta;
-	uint *n = &ent->nmeta;
 	char *sname, *sval;
+	ffarr2 *a;
 
 	if (!(flags & FMED_QUE_NUM)) {
-		dbglog(core, NULL, "que", "meta #%u: %*s: %*s"
-			, (ent->nmeta + e->tmeta_len) / 2 + 1, name_len, name, val_len, val);
+		dbglog(core, NULL, "que", "meta #%u: %S: %S"
+			, (e->meta.len + e->tmeta.len) / 2 + 1, name, val);
 	}
 
+	a = &e->meta;
 	if (flags & FMED_QUE_TMETA) {
-		m = &e->tmeta;
-		n = &e->tmeta_len;
+		a = &e->tmeta;
+
+		if (!(flags & FMED_QUE_METADEL)
+			&& -1 != que_arrfind(e->meta.ptr, e->meta.len, name->ptr, name->len))
+			return; //meta value with the same name already exists
+
 	} else if (flags & FMED_QUE_TRKDICT) {
-		m = &e->dict;
-		n = &e->dict_len;
-		if ((flags & FMED_QUE_NUM) && val_len != sizeof(int64))
+		a = &e->dict;
+		if ((flags & FMED_QUE_NUM) && val->len != sizeof(int64))
 			return;
 	}
 
-	if (flags & FMED_QUE_OVWRITE) {
-		uint i;
-		for (i = 0;  i != *n;  i += 2) {
+	if (flags & (FMED_QUE_OVWRITE | FMED_QUE_METADEL)) {
+		int i = que_arrfind(a->ptr, a->len, name->ptr, name->len);
 
-			if (ffstr_eq(&(*m)[i], name, name_len)) {
+		if (i == -1) {
 
-				if (NULL == (sval = ffsz_alcopy(val, val_len)))
-					goto err;
+		} else if (flags & FMED_QUE_METADEL) {
+			ffarr ar;
+			ffarr_set3(&ar, (void*)a->ptr, a->len, a->len);
+			_ffarr_rm(&ar, i, 2, sizeof(ffstr));
+			a->len -= 2;
 
-				ffstr_set(&(*m)[i + 1], sval, val_len);
-				return;
-			}
+		} else {
+			if (NULL == (sval = ffsz_alcopy(val->ptr, val->len)))
+				goto err;
+
+			ffstr_set(&((ffstr*)a->ptr)[i + 1], sval, val->len);
 		}
+
+		if (a == &e->meta) {
+			ffstr empty;
+			empty.len = 0;
+			que_meta_set(ent, name, &empty, FMED_QUE_TMETA | FMED_QUE_METADEL);
+		}
+
+		if (i != -1)
+			return;
+
+		if (flags & FMED_QUE_METADEL)
+			return;
 	}
 
-	if (NULL == (*m = ffmem_saferealloc(*m, (*n + 2) * sizeof(ffstr))))
+	if (NULL == ffarr2_grow(a, 2, sizeof(ffstr)))
 		goto err;
 
-	sname = ffsz_alcopylwr(name, name_len);
-	sval = ffsz_alcopy(val, val_len);
+	sname = ffsz_alcopylwr(name->ptr, name->len);
+	sval = ffsz_alcopy(val->ptr, val->len);
 	if (sname == NULL || sval == NULL) {
 		ffmem_safefree(sname);
 		ffmem_safefree(sval);
 		goto err;
 	}
 
+	ffstr *arr = a->ptr;
+	ffstr_set(&arr[a->len], sname, name->len);
+	ffstr_set(&arr[a->len + 1], sval, val->len);
 	if ((flags & (FMED_QUE_TRKDICT | FMED_QUE_NUM)) == (FMED_QUE_TRKDICT | FMED_QUE_NUM))
-		val_len = -(ssize_t)val_len;
-
-	ffstr_set(&(*m)[*n], sname, name_len);
-	ffstr_set(&(*m)[*n + 1], sval, val_len);
-	(*n) += 2;
+		arr[a->len + 1].len = -(ssize_t)arr[a->len + 1].len;
+	a->len += 2;
 	return;
 
 err:
@@ -570,57 +599,52 @@ err:
 
 static ffstr* que_meta_find(fmed_que_entry *ent, const char *name, size_t name_len)
 {
-	uint i;
+	int i;
 	entry *e = FF_GETPTR(entry, e, ent);
 
 	if (name_len == (size_t)-1)
 		name_len = ffsz_len(name);
 
-	for (i = 0;  i != ent->nmeta;  i += 2) {
-		if (ffstr_eq(&ent->meta[i], name, name_len))
-			return &ent->meta[i + 1];
-	}
+	if (-1 != (i = que_arrfind(e->meta.ptr, e->meta.len, name, name_len)))
+		return &((ffstr*)e->meta.ptr)[i + 1];
 
-	for (i = 0;  i != e->tmeta_len;  i += 2) {
-		if (ffstr_eq(&e->tmeta[i], name, name_len))
-			return &e->tmeta[i + 1];
-	}
+	if (-1 != (i = que_arrfind(e->tmeta.ptr, e->tmeta.len, name, name_len)))
+		return &((ffstr*)e->tmeta.ptr)[i + 1];
+
 	return NULL;
 }
 
 static ffstr* que_meta(fmed_que_entry *ent, size_t n, ffstr *name, uint flags)
 {
 	entry *e = FF_GETPTR(entry, e, ent);
-	uint i;
-	size_t nt = 0;
+	size_t nn;
+	ffstr *m;
 
 	n *= 2;
+	if (n == e->meta.len + e->tmeta.len)
+		return NULL;
 
-	if (n >= ent->nmeta) {
-		nt = n - ent->nmeta;
-		if (nt >= e->tmeta_len)
-			return NULL;
-		*name = e->tmeta[nt];
-	} else
-		*name = ent->meta[n];
+	if (n < e->meta.len) {
+		m = e->meta.ptr;
+		nn = n;
+	} else {
+		m = e->tmeta.ptr;
+		nn = n - e->meta.len;
+	}
+
+	*name = m[nn];
 
 	if (flags & FMED_QUE_UNIQ) {
-		for (i = 0;  i != ffmin(n, ent->nmeta);  i += 2) {
-			if (ffstr_eq(&ent->meta[i], name->ptr, name->len))
-				return FMED_QUE_SKIP;
-		}
+		if (-1 != que_arrfind(e->meta.ptr, ffmin(n, e->meta.len), name->ptr, name->len))
+			return FMED_QUE_SKIP;
 
-		if (n >= ent->nmeta) {
-			for (i = 0;  i != ffmin(nt, e->tmeta_len);  i += 2) {
-				if (ffstr_eq(&e->tmeta[i], name->ptr, name->len))
-					return FMED_QUE_SKIP;
-			}
+		if (n >= e->meta.len) {
+			if (-1 != que_arrfind(e->tmeta.ptr, nn, name->ptr, name->len))
+				return FMED_QUE_SKIP;
 		}
 	}
 
-	if (n >= ent->nmeta)
-		return &e->tmeta[nt + 1];
-	return &ent->meta[n + 1];
+	return &m[nn + 1];
 }
 
 
