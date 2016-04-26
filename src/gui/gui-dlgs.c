@@ -78,6 +78,7 @@ struct cvt_set {
 static const struct cvt_set cvt_sets[] = {
 	{ "ogg-quality", "OGG Vorbis Quality", "5.0", "-1.0 .. 10.0" },
 	{ "mpeg-quality", "MPEG Quality", "2", "VBR quality: 9..0 or CBR bitrate: 64..320" },
+	{ "flac_complevel", "FLAC Compression", "6", "0..8" },
 	{ "overwrite", "Overwrite Output File", "0", "0 or 1" },
 	{ "out_preserve_date", "Preserve Date", "1", "0 or 1" },
 };

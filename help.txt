@@ -61,6 +61,8 @@ Other options:
 
 --mpeg-quality=VAL    Set MPEG encoding quality: 9..0 (VBR) or 64..320 (CBR)
 
+--flac-compression=VAL  Set FLAC compression level: 0..8
+
 --cue-gaps=VAL    Control track pregaps
                   0: skip pregaps:
                     track01.index01 .. track02.index00

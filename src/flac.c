@@ -280,6 +280,7 @@ static int flac_out_addmeta(flac_out *f, fmed_filt *d)
 
 static void* flac_out_create(fmed_filt *d)
 {
+	int val;
 	ffpcm fmt;
 	flac_out *f = ffmem_tcalloc1(flac_out);
 	if (f == NULL)
@@ -296,7 +297,8 @@ static void* flac_out_create(fmed_filt *d)
 
 	f->fl.seektable_int = flac_out_conf.sktab_int * fmt.sample_rate;
 	f->fl.min_meta = flac_out_conf.min_meta_size;
-	f->fl.level = flac_out_conf.level;
+	val = fmed_getval("flac_complevel");
+	f->fl.level = (val != FMED_NULL) ? val : flac_out_conf.level;
 	if (!flac_out_conf.md5)
 		f->fl.opts |= FFFLAC_ENC_NOMD5;
 	if (0 != ffflac_create(&f->fl, &fmt)) {
