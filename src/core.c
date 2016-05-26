@@ -1537,6 +1537,10 @@ static void core_log(uint flags, void *trk, const char *module, const char *fmt,
 	size_t r;
 	fmed_logdata ld;
 	uint lev = flags & _FMED_LOG_LEVMASK;
+	int e;
+
+	if (flags & FMED_LOG_SYS)
+		e = fferr_last();
 
 	fftime_now(&t);
 	fftime_split(&dt, &t, FFTIME_TZLOCAL);
@@ -1546,7 +1550,16 @@ static void core_log(uint flags, void *trk, const char *module, const char *fmt,
 
 	FF_ASSERT(lev != 0);
 	ld.level = loglevs[lev - 1];
+
+	if (module == NULL && src != NULL && src->cur != NULL) {
+		const fmed_f *f = FF_GETPTR(fmed_f, sib, src->cur);
+		module = f->mod->name;
+	}
 	ld.module = module;
+
+	if (flags & FMED_LOG_SYS)
+		fferr_set(e);
+
 	ld.ctx = (src != NULL) ? &src->id : NULL;
 	ld.fmt = fmt;
 	va_start(ld.va, fmt);

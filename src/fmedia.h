@@ -246,6 +246,8 @@ enum FMED_LOG {
 	FMED_LOG_WARN,
 	FMED_LOG_ERR,
 	_FMED_LOG_LEVMASK = 0x0f,
+
+	FMED_LOG_SYS = 0x10,
 };
 
 #define dbglog(core, trk, mod, ...) \
@@ -260,8 +262,8 @@ do { \
 #define errlog(core, trk, mod, ...) \
 	(core)->log(FMED_LOG_ERR, trk, mod, __VA_ARGS__)
 
-#define syserrlog(core, trk, mod, fmt, ...) \
-	(core)->log(FMED_LOG_ERR, trk, mod, fmt ": %E", __VA_ARGS__, fferr_last())
+#define syserrlog(core, trk, mod, ...) \
+	(core)->log(FMED_LOG_ERR | FMED_LOG_SYS, trk, mod, __VA_ARGS__)
 
 typedef struct fmed_logdata {
 	const char *level;

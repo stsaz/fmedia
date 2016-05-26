@@ -259,6 +259,9 @@ static void std_log(uint flags, fmed_logdata *ld)
 
 	s += ffs_fmtv(s, end, ld->fmt, ld->va);
 
+	if (flags & FMED_LOG_SYS)
+		s += ffs_fmt(s, end, ": %E", fferr_last());
+
 	*s++ = '\n';
 
 	uint lev = flags & _FMED_LOG_LEVMASK;

@@ -790,6 +790,8 @@ static void gui_log(uint flags, fmed_logdata *ld)
 	if (ld->ctx != NULL)
 		s += ffs_fmt(s, end, "%S:\t", ld->ctx);
 	s += ffs_fmtv(s, end, ld->fmt, ld->va);
+	if (flags & FMED_LOG_SYS)
+		s += ffs_fmt(s, end, ": %E", fferr_last());
 	*s++ = '\r';
 	*s++ = '\n';
 
