@@ -629,6 +629,8 @@ static ffstr* que_meta(fmed_que_entry *ent, size_t n, ffstr *name, uint flags)
 		m = e->meta.ptr;
 		nn = n;
 	} else {
+		if (flags & FMED_QUE_NO_TMETA)
+			return NULL;
 		m = e->tmeta.ptr;
 		nn = n - e->meta.len;
 	}
