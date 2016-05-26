@@ -134,7 +134,10 @@ static void gui_convert(void)
 		ffui_view_get(&gg->wmain.vlist, 0, &it);
 		inp = (void*)ffui_view_param(&it);
 
-		ffmemcpy(&e, inp, sizeof(fmed_que_entry));
+		ffmem_tzero(&e);
+		e.url = inp->url;
+		e.from = inp->from;
+		e.to = inp->to;
 		if (NULL == (qent = (void*)gg->qu->cmd2(FMED_QUE_ADD | FMED_QUE_NO_ONCHANGE, &e, 0))) {
 			continue;
 		}
