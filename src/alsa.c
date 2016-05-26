@@ -90,6 +90,7 @@ typedef struct alsa_in {
 		fftask_handler handler;
 		void *param;
 	} cb;
+	uint64 total_samps;
 } alsa_in;
 
 static struct alsa_in_conf_t {
@@ -499,5 +500,7 @@ static int alsa_in_read(void *ctx, fmed_filt *d)
 	d->outni = a->bufs;
 
 	dbglog(core, d->trk, "alsa", "read %L bytes", d->outlen);
+	a->total_samps += d->outlen / ain->snd.frsize;
+	fmed_setval("current_position", a->total_samps);
 	return FMED_ROK;
 }

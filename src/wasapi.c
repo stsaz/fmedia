@@ -39,6 +39,7 @@ typedef struct wasapi_in {
 	ffwasapi wa;
 	uint latcorr;
 	fftask task;
+	uint64 total_samps;
 	unsigned async :1;
 } wasapi_in;
 
@@ -572,5 +573,7 @@ static int wasapi_in_read(void *ctx, fmed_filt *d)
 		w->latcorr -= n;
 	}
 
+	w->total_samps += d->outlen / w->wa.frsize;
+	fmed_setval("current_position", w->total_samps);
 	return FMED_ROK;
 }

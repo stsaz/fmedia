@@ -561,6 +561,7 @@ static void media_open_capt(fm_src *src)
 	trk_setval(src, "pcm_sample_rate", fmed->inp_pcm.sample_rate);
 	newfilter1(src, fmed->input);
 
+	newfilter(src, "#soundmod.until");
 	newfilter(src, "#soundmod.rtpeak");
 
 	src->capture = 1;
