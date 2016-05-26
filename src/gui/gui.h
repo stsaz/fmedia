@@ -232,6 +232,7 @@ void gui_media_add1(const char *fn);
 
 void wmain_init(void);
 void gui_newtrack(gui_trk *g, fmed_filt *d, fmed_que_entry *plid);
+int gui_setmeta(gui_trk *g, fmed_que_entry *qent);
 void gui_clear(void);
 void gui_status(const char *s, size_t len);
 void gui_media_added(fmed_que_entry *ent);

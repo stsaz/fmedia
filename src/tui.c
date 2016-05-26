@@ -386,7 +386,7 @@ static int tui_process(void *ctx, fmed_filt *d)
 	int64 playpos;
 	uint playtime;
 	uint dots = 70;
-	int pk;
+	int pk, val;
 
 	if (ctx == FMED_FILT_DUMMY)
 		return FMED_RFIN;
@@ -407,6 +407,10 @@ static int tui_process(void *ctx, fmed_filt *d)
 			t->goback = 0;
 			return FMED_RMORE;
 		}
+	}
+
+	if (FMED_NULL != (val = fmed_popval("meta-changed"))) {
+		tui_info(t, d);
 	}
 
 	if (core->loglev & FMED_LOG_DEBUG)

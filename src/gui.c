@@ -679,6 +679,7 @@ static int gtrk_process(void *ctx, fmed_filt *d)
 	size_t n;
 	int64 playpos;
 	uint playtime;
+	int val;
 
 	if (g->cmds.len != 0) {
 		uint i;
@@ -717,6 +718,11 @@ static int gtrk_process(void *ctx, fmed_filt *d)
 		return FMED_RASYNC;
 	}
 	fflk_unlock(&gg->lk);
+
+	if (FMED_NULL != (val = fmed_popval("meta-changed"))) {
+		void *qent = (void*)fmed_getval("queue_item");
+		gui_setmeta(g, qent);
+	}
 
 	playpos = fmed_getval("current_position");
 	if (playpos == FMED_NULL) {

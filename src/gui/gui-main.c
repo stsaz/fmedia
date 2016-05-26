@@ -757,20 +757,14 @@ static void gui_on_dropfiles(ffui_wnd *wnd, ffui_fdrop *df)
 }
 
 
-void gui_newtrack(gui_trk *g, fmed_filt *d, fmed_que_entry *plid)
+/** Update window caption and playlist item with a new meta. */
+int gui_setmeta(gui_trk *g, fmed_que_entry *plid)
 {
 	ffui_viewitem it = {0};
-	const char *sval;
 	char buf[1024];
 	size_t n;
 	ssize_t idx = -1;
 	ffstr *tstr, artist = {0}, stitle;
-
-	if (-1 != (idx = ffui_view_search(&gg->wmain.vlist, (size_t)plid)))
-		ffui_view_setindex(&it, idx);
-
-	ffui_view_focus(&it, 1);
-	ffui_view_set(&gg->wmain.vlist, H_IDX, &it);
 
 	if (NULL != (tstr = gg->qu->meta_find(plid, FFSTR("artist"))))
 		artist = *tstr;
@@ -785,11 +779,33 @@ void gui_newtrack(gui_trk *g, fmed_filt *d, fmed_que_entry *plid)
 	n = ffs_fmt(buf, buf + sizeof(buf), "%S - %S - fmedia", &artist, &stitle);
 	ffui_settext(&gg->wmain.wmain, buf, n);
 
+	if (-1 == (idx = ffui_view_search(&gg->wmain.vlist, (size_t)plid)))
+		return -1;
+	ffui_view_setindex(&it, idx);
+
 	ffui_view_settextstr(&it, &artist);
 	ffui_view_set(&gg->wmain.vlist, H_ART, &it);
 
 	ffui_view_settextstr(&it, &stitle);
 	ffui_view_set(&gg->wmain.vlist, H_TIT, &it);
+	return idx;
+}
+
+/** Update all properties of the playlist item with a new info. */
+void gui_newtrack(gui_trk *g, fmed_filt *d, fmed_que_entry *plid)
+{
+	ffui_viewitem it = {0};
+	const char *sval;
+	char buf[1024];
+	size_t n;
+	ssize_t idx;
+
+	if (-1 == (idx = gui_setmeta(g, plid)))
+		return;
+	ffui_view_setindex(&it, idx);
+
+	ffui_view_focus(&it, 1);
+	ffui_view_set(&gg->wmain.vlist, H_IDX, &it);
 
 	ffui_view_settextstr(&it, &plid->url);
 	ffui_view_set(&gg->wmain.vlist, H_FN, &it);
