@@ -23,6 +23,7 @@ typedef struct core_mod {
 
 	ffstr mname;
 	fflist_item sib;
+	char name_s[0];
 } core_mod;
 
 typedef struct fmed_f {
@@ -1256,7 +1257,6 @@ void core_free(void)
 		mod->m->destroy();
 		if (mod->dl != NULL)
 			ffdl_close(mod->dl);
-		ffmem_free(mod->name);
 		ffmem_free(mod);
 	}
 
@@ -1275,11 +1275,12 @@ static const fmed_modinfo* core_insmod(const char *sname, ffpars_ctx *ctx)
 	fmed_getmod_t getmod;
 	ffdl dl = NULL;
 	ffstr s, modname;
-	core_mod *mod = ffmem_tcalloc1(core_mod);
+	size_t sname_len = ffsz_len(sname);
+	core_mod *mod = ffmem_calloc(1, sizeof(core_mod) + sname_len + 1);
 	if (mod == NULL)
 		return NULL;
 
-	ffs_split2by(sname, ffsz_len(sname), '.', &s, &modname);
+	ffs_split2by(sname, sname_len, '.', &s, &modname);
 	if (s.len == 0 || modname.len == 0) {
 		fferr_set(EINVAL);
 		goto fail;
@@ -1330,9 +1331,8 @@ static const fmed_modinfo* core_insmod(const char *sname, ffpars_ctx *ctx)
 		goto fail;
 
 	mod->dl = dl;
-	mod->name = ffsz_alcopyz(sname);
-	if (mod->name == NULL)
-		goto fail;
+	ffsz_fcopy(mod->name_s, sname, sname_len);
+	mod->name = mod->name_s;
 	ffstr_set(&mod->mname, mod->name, s.len);
 	fflist_ins(&fmed->mods, &mod->sib);
 
