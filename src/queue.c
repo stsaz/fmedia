@@ -18,6 +18,7 @@ typedef struct entry {
 	uint active :1
 		, rm :1
 		, stop_after :1
+		, no_tmeta :1
 		;
 } entry;
 
@@ -146,7 +147,7 @@ static void que_destroy(void)
 
 
 /**
-@meta: string of format "NAME=VAL;NAME=VAL..." */
+@meta: string of format "[clear;]NAME=VAL;NAME=VAL..." */
 static int que_setmeta(entry *ent, const char *meta, void *trk)
 {
 	ffstr s, m, name, val;
@@ -154,6 +155,11 @@ static int que_setmeta(entry *ent, const char *meta, void *trk)
 	ffstr_setz(&s, meta);
 	while (s.len != 0) {
 		ffstr_shift(&s, ffstr_nextval(s.ptr, s.len, &m, ';'));
+
+		if (ffstr_eqcz(&m, "clear")) {
+			ent->no_tmeta = 1;
+			continue;
+		}
 
 		if (NULL == ffs_split2by(m.ptr, m.len, '=', &name, &val)
 			|| name.len == 0) {
@@ -532,6 +538,8 @@ static void que_meta_set(fmed_que_entry *ent, const ffstr *name, const ffstr *va
 
 	a = &e->meta;
 	if (flags & FMED_QUE_TMETA) {
+		if (e->no_tmeta)
+			return;
 		a = &e->tmeta;
 
 		if (!(flags & FMED_QUE_METADEL)

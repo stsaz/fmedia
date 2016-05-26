@@ -85,7 +85,8 @@ Other options:
 
 --preserve-date  Set output file date/time equal to input file.
 
---meta='NAME=VAL;NAME=VAL...'   Set meta data.
+--meta='[clear;]NAME=VAL;NAME=VAL...'   Set meta data.
+                                        If "clear;" is specified, skip all meta from input file.
 
 
 Install:
