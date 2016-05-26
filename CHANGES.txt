@@ -7,6 +7,29 @@ HISTORY OF FMEDIA
  "-" - bugfix
 
 
+fmedia v0.13 - May 26, 2016
+
+ + ICY: support shoutcast input (MPEG)
+
+ + GUI: new window "Add URL"
+ * GUI: "Copy Filename to Cipboard": support UTF-8
+ - GUI: dialog title string wasn't NULL-terminated
+ - GUI: fix segfault on using "Convert" command (v0.12 bug)
+ - GUI: convert: meta data from .cue file wasn't copied (v0.12 bug)
+ * GUI: convert: add "gain", "mono", "meta" settings
+
+ * WASAPI, ALSA capture: --until can be used together with --record
+
+ * FLAC: skip junk data (e.g. ID3v2) before FLAC header
+ * APE, WavPack: more effective APE tag parsing
+ + MPEG decode: support APE tag
+ - MPEG decode: fix segfault when there are no first 2 complete consecutive MPEG frames in the first chunk of input data
+ - MPEG decode: compare the first 2 MPEG frame headers and skip the first frame if they don't match
+
+ * fmedia: "--meta=clear" skips transient meta tags
+ * fmedia: windows: support --key="value with space"
+
+
 fmedia v0.12 - Apr 26, 2016
 
  + MP4: support AAC decoding

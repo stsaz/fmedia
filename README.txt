@@ -25,6 +25,7 @@ All features are provided by fmedia modules divided into 3 groups:
 
 INPUT
 	. File
+	. ICY
 	. WASAPI Capture
 	. Windows Direct Sound Capture
 	. ALSA Capture
@@ -159,12 +160,14 @@ fmedia GUI is provided by a separate module - gui.dll.  It is written in such a 
 
 fmedia GUI is highly customizable, thanks to FF library that is used under the hood.  FF UI technology allows you to modify properties of every UI control: windows, buttons, menus, tray icons and more.  You may resize controls, set different styling, change any text, hotkeys, etc.  All this information is stored within "fmedia.gui" which is a plain text file.  After you make some changes in fmedia.gui, save it and then restart fmedia.
 
+
 ---------------
 USE-CASES
 ---------------
-Play
+Play files, directories, Internet-radio streams
 	fmedia ./file.ogg ./*.mp3
 	fmedia ./Music
+	fmedia http://radio-stream:80/
 
 Convert
 	fmedia ./file.ogg --out=./file.wav
@@ -185,6 +188,12 @@ Cut compressed audio without re-encoding
 
 Mix multiple streams
 	fmedia --mix ./file1.ogg ./file2.ogg
+
+Record
+	fmedia --record --out=rec.flac
+
+Record for 60 seconds then stop
+	fmedia --record --out=rec.flac --until=60
 
 Record while playing
 	fmedia ./file.ogg --record --out=./rec.wav
