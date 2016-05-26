@@ -537,11 +537,18 @@ static int media_open(fm_src *src, const char *fn)
 		fmed->trackno = NULL;
 	}
 
-	newfilter(src, "#file.in");
+	if (ffs_match(fn, ffsz_len(fn), "http", 4)) {
+		newfilter(src, "net.icy");
+		ffstr_setz(&ext, "mp3");
+		if (NULL == media_modbyext(src, &fmed->inmap, &ext))
+			return 1;
+	} else {
+		newfilter(src, "#file.in");
 
-	ffpath_splitname(fn, ffsz_len(fn), NULL, &ext);
-	if (NULL == media_modbyext(src, &fmed->inmap, &ext))
-		return 1;
+		ffpath_splitname(fn, ffsz_len(fn), NULL, &ext);
+		if (NULL == media_modbyext(src, &fmed->inmap, &ext))
+			return 1;
+	}
 
 	newfilter(src, "#soundmod.until");
 

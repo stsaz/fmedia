@@ -1,6 +1,6 @@
 
 OBJ_DIR := .
-BINS := $(BIN) core.$(SO) \
+BINS := $(BIN) core.$(SO) net.$(SO) \
 	ogg-vorbis.$(SO) mpeg.$(SO) wav.$(SO) flac.$(SO) mp4.$(SO) wavpack.$(SO) ape.$(SO) \
 	plist.$(SO) \
 	mixer.$(SO)
@@ -57,6 +57,14 @@ CORE_O := $(OBJ_DIR)/core.o \
 	$(FF_OBJ_DIR)/ffm3u.o
 core.$(SO): $(CORE_O)
 	$(LD) -shared $(CORE_O) $(LDFLAGS) $(LD_LDL) $(LD_LMATH) -lsoxr-ff  -o$@
+
+
+#
+NET_O := $(OBJ_DIR)/net.o \
+	$(FF_OBJ_DIR)/ffhttp.o $(FF_OBJ_DIR)/ffurl.o $(FF_OBJ_DIR)/ffparse.o $(FF_OBJ_DIR)/fficy.o \
+	$(FF_O)
+net.$(SO): $(NET_O)
+	$(LD) -shared $(NET_O) $(LDFLAGS)  -o$@
 
 
 #
