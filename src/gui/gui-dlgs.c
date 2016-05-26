@@ -70,21 +70,54 @@ static void gui_cvt_action(ffui_wnd *wnd, int id)
 	}
 }
 
+enum CVTF {
+	CVTF_EMPTY = 0x010000,
+	CVTF_FLT = 0x020000,
+	CVTF_STR = 0x040000,
+};
+
 struct cvt_set {
 	const char *settname;
 	const char *name;
 	const char *defval;
 	const char *desc;
+	uint flags; //enum CVTF
 };
 
+typedef struct cvt_sets_t {
+	int ogg_quality;
+	int mpg_quality;
+	int flac_complevel;
+
+	int conv_pcm_rate;
+	int conv_channels;
+	int gain;
+	char *meta;
+
+	int overwrite;
+	int out_preserve_date;
+} cvt_sets_t;
+
 static const struct cvt_set cvt_sets[] = {
-	{ "ogg-quality", "OGG Vorbis Quality", "5.0", "-1.0 .. 10.0" },
-	{ "mpeg-quality", "MPEG Quality", "2", "VBR quality: 9..0 or CBR bitrate: 64..320" },
-	{ "flac_complevel", "FLAC Compression", "6", "0..8" },
-	{ "conv_pcm_rate", "Sample rate (Hz)", "0", "0: As Source" },
-	{ "overwrite", "Overwrite Output File", "0", "0 or 1" },
-	{ "out_preserve_date", "Preserve Date", "1", "0 or 1" },
+	{ "ogg-quality", "OGG Vorbis Quality", "5.0", "-1.0 .. 10.0", CVTF_FLT | FFOFF(cvt_sets_t, ogg_quality) },
+	{ "mpeg-quality", "MPEG Quality", "2", "VBR quality: 9..0 or CBR bitrate: 64..320", FFOFF(cvt_sets_t, mpg_quality) },
+	{ "flac_complevel", "FLAC Compression", "6", "0..8", FFOFF(cvt_sets_t, flac_complevel) },
+
+	{ "conv_pcm_rate", "Sample rate (Hz)", "", "", CVTF_EMPTY | FFOFF(cvt_sets_t, conv_pcm_rate) },
+	{ "conv_channels", "Mono", "", "mix | left | right", CVTF_EMPTY | FFOFF(cvt_sets_t, conv_channels) },
+	{ "gain", "Gain (dB)", "", "", CVTF_FLT | CVTF_EMPTY | FFOFF(cvt_sets_t, gain) },
+	{ "meta", "Meta Tags", "", "[clear;]NAME=VAL;...", CVTF_STR | CVTF_EMPTY | FFOFF(cvt_sets_t, meta) },
+
+	{ "overwrite", "Overwrite Output File", "0", "0 or 1", FFOFF(cvt_sets_t, overwrite) },
+	{ "out_preserve_date", "Preserve Date", "1", "0 or 1", FFOFF(cvt_sets_t, out_preserve_date) },
 };
+
+static const char *const cvt_channels_str[] = { "mix", "left", "right" };
+
+static void cvt_sets_destroy(cvt_sets_t *sets)
+{
+	ffmem_safefree(sets->meta);
+}
 
 void gui_showconvert(void)
 {
@@ -114,18 +147,102 @@ void gui_showconvert(void)
 	ffui_wnd_setfront(&gg->wconvert.wconvert);
 }
 
+static int gui_cvt_getsettings(cvt_sets_t *sets)
+{
+	uint k;
+	int val, rc = -1;
+	double d;
+	char *txt;
+	size_t len;
+	ffstr name;
+	ffui_viewitem it;
+	ffui_view_iteminit(&it);
+	for (k = 0;  k != FFCNT(cvt_sets);  k++) {
+
+		ffstr_setz(&name, cvt_sets[k].settname);
+
+		ffui_view_setindex(&it, k);
+		ffui_view_gettext(&it);
+		ffui_view_get(&gg->wconvert.vsets, VSETS_VAL, &it);
+
+		if (NULL == (txt = ffsz_alcopyqz(ffui_view_textq(&it)))) {
+			syserrlog(core, NULL, "gui", "%e", FFERR_BUFALOC);
+			ffui_view_itemreset(&it);
+			return -1;
+		}
+		len = ffsz_len(txt);
+
+		void *p = (char*)sets + (cvt_sets[k].flags & 0xffff);
+		if (cvt_sets[k].flags & CVTF_STR) {
+			char **pstr = p;
+			if ((cvt_sets[k].flags & CVTF_EMPTY) && len == 0) {
+				*pstr = NULL;
+				goto next;
+			}
+			*pstr = txt;
+			continue;
+		}
+
+		int *pint = p;
+
+		if ((cvt_sets[k].flags & CVTF_EMPTY) && len == 0) {
+			*pint = -1;
+			goto next;
+		}
+
+		if ((cvt_sets[k].flags & CVTF_FLT)
+			&& len != ffs_tofloat(txt, len, &d, 0))
+			goto end;
+
+		if (ffstr_eqcz(&name, "ogg-quality")) {
+			val = d * 10;
+
+		} else if (ffstr_eqcz(&name, "conv_channels")) {
+			if (-1 == (val = ffs_ifindarrz(cvt_channels_str, FFCNT(cvt_channels_str), txt, len)))
+				goto end;
+			val = (val << 4) | 1;
+
+		} else if (ffstr_eqcz(&name, "gain")) {
+			val = d * 100;
+
+		} else {
+			if (len != ffs_toint(txt, len, &val, FFS_INT32))
+				goto end;
+		}
+
+		*pint = val;
+
+next:
+		ffmem_free(txt);
+	}
+
+	rc = 0;
+
+end:
+	if (rc != 0)
+		errlog(core, NULL, "gui", "%s: bad value", cvt_sets[k].name);
+	ffui_view_itemreset(&it);
+	return rc;
+}
+
 static void gui_convert(void)
 {
+	cvt_sets_t sets = {0};
 	int i = -1;
 	ffui_viewitem it;
 	fmed_que_entry e, *qent, *inp;
-	ffstr fn;
+	ffstr fn, name;
 	void *play = NULL;
+	int64 val;
+	uint k;
 
 	ffui_view_iteminit(&it);
 	ffui_textstr(&gg->wconvert.eout, &fn);
 	if (fn.len == 0)
 		return;
+
+	if (0 != gui_cvt_getsettings(&sets))
+		goto end;
 
 	while (-1 != (i = ffui_view_selnext(&gg->wmain.vlist, i))) {
 		ffui_view_iteminit(&it);
@@ -154,43 +271,27 @@ static void gui_convert(void)
 		if (play == NULL)
 			play = qent;
 
-		uint k;
-		int64 val;
-		char *txt;
-		size_t len;
-		ffstr name;
-		ffui_view_iteminit(&it);
 		for (k = 0;  k != FFCNT(cvt_sets);  k++) {
 
 			ffstr_setz(&name, cvt_sets[k].settname);
 
-			ffui_view_setindex(&it, k);
-			ffui_view_gettext(&it);
-			ffui_view_get(&gg->wconvert.vsets, VSETS_VAL, &it);
+			void *p = (char*)&sets + (cvt_sets[k].flags & 0xffff);
 
-			if (NULL == (txt = ffsz_alcopyqz(ffui_view_textq(&it)))) {
-				syserrlog(core, NULL, "gui", "%e", FFERR_BUFALOC);
-				goto end;
-			}
-			len = ffsz_len(txt);
-
-			if (ffstr_eqcz(&name, "ogg-quality")) {
-				double d;
-				ffs_tofloat(txt, len, &d, 0);
-				val = d * 10;
-			} else {
-				ffs_toint(txt, len, &val, FFS_INT64);
-				if (ffstr_eqcz(&name, "conv_pcm_rate") && val == 0)
+			if (cvt_sets[k].flags & CVTF_STR) {
+				char **pstr = p;
+				if (*pstr == NULL)
 					continue;
+				gg->qu->meta_set(qent, name.ptr, name.len, *pstr, ffsz_len(*pstr), FMED_QUE_TRKDICT);
+				continue;
 			}
 
-			ffmem_free(txt);
-
+			int *pint = p;
+			if (*pint == -1)
+				continue;
+			val = *pint;
 			gg->qu->meta_set(qent, name.ptr, name.len
 				, (char*)&val, sizeof(int64), FMED_QUE_TRKDICT | FMED_QUE_NUM);
 		}
-
-		ffui_view_itemreset(&it);
 	}
 
 	if (play != NULL) {
@@ -200,6 +301,7 @@ static void gui_convert(void)
 end:
 	ffui_view_itemreset(&it);
 	ffstr_free(&fn);
+	cvt_sets_destroy(&sets);
 }
 
 static void gui_conv_browse(void)
