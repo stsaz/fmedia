@@ -21,7 +21,7 @@ typedef struct gui_wmain {
 		, pnpos
 		, pntabs
 		, pnlist;
-	ffui_ctl stbar;
+	ffui_stbar stbar;
 	ffui_trayicon tray_icon;
 } gui_wmain;
 

@@ -70,14 +70,9 @@ FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 
 static int gui_getcmd(void *udata, const ffstr *name);
 
-typedef struct {
-	const char *name;
-	uint off;
-} name_to_ctl;
+#define add  FFUI_LDR_CTL
 
-#define add(wnd, name) { #name, FFOFF(wnd, name) }
-
-static const name_to_ctl wconvert_ctls[] = {
+static const ffui_ldr_ctl wconvert_ctls[] = {
 	add(gui_wconvert, wconvert),
 	add(gui_wconvert, mmconv),
 	add(gui_wconvert, eout),
@@ -87,24 +82,24 @@ static const name_to_ctl wconvert_ctls[] = {
 	add(gui_wconvert, pnout),
 };
 
-static const name_to_ctl winfo_ctls[] = {
+static const ffui_ldr_ctl winfo_ctls[] = {
 	add(gui_winfo, winfo),
 	add(gui_winfo, vinfo),
 	add(gui_winfo, pninfo),
 };
 
-static const name_to_ctl wabout_ctls[] = {
+static const ffui_ldr_ctl wabout_ctls[] = {
 	add(gui_wabout, wabout),
 	add(gui_wabout, labout),
 };
 
-static const name_to_ctl wlog_ctls[] = {
+static const ffui_ldr_ctl wlog_ctls[] = {
 	add(gui_wlog, wlog),
 	add(gui_wlog, pnlog),
 	add(gui_wlog, tlog),
 };
 
-static const name_to_ctl wmain_ctls[] = {
+static const ffui_ldr_ctl wmain_ctls[] = {
 	add(gui_wmain, wmain),
 	add(gui_wmain, bpause),
 	add(gui_wmain, bstop),
@@ -124,7 +119,7 @@ static const name_to_ctl wmain_ctls[] = {
 	add(gui_wmain, mm),
 };
 
-static const name_to_ctl top_ctls[] = {
+static const ffui_ldr_ctl top_ctls[] = {
 	add(ggui, mfile),
 	add(ggui, mplay),
 	add(ggui, mrec),
@@ -132,24 +127,12 @@ static const name_to_ctl top_ctls[] = {
 	add(ggui, mhelp),
 	add(ggui, mtray),
 	add(ggui, dlg),
-};
 
-#undef add
-#define add(name, ctls)  { #name, FFOFF(ggui, name), ctls, FFCNT(ctls) }
-
-struct name_to_wnd {
-	const char *name;
-	uint off;
-	const name_to_ctl *ctls;
-	uint nctls;
-};
-
-static const struct name_to_wnd wnds[] = {
-	add(wmain, wmain_ctls),
-	add(wconvert, wconvert_ctls),
-	add(winfo, winfo_ctls),
-	add(wlog, wlog_ctls),
-	add(wabout, wabout_ctls),
+	FFUI_LDR_CTL3(ggui, wmain, wmain_ctls),
+	FFUI_LDR_CTL3(ggui, wconvert, wconvert_ctls),
+	FFUI_LDR_CTL3(ggui, winfo, winfo_ctls),
+	FFUI_LDR_CTL3(ggui, wlog, wlog_ctls),
+	FFUI_LDR_CTL3(ggui, wabout, wabout_ctls),
 };
 
 #undef add
@@ -157,37 +140,7 @@ static const struct name_to_wnd wnds[] = {
 void* gui_getctl(void *udata, const ffstr *name)
 {
 	ggui *gg = udata;
-	uint i, nctls, goff = 0;
-	ffstr wndname, ctlname;
-	const name_to_ctl *ctls = NULL;
-
-	if (NULL == ffs_split2by(name->ptr, name->len, '.', &wndname, &ctlname))
-		ctlname = wndname;
-
-	for (i = 0;  i != FFCNT(wnds);  i++) {
-		if (ffstr_eqz(&wndname, wnds[i].name)) {
-			ctls = wnds[i].ctls;
-			nctls = wnds[i].nctls;
-			goff = wnds[i].off;
-			break;
-		}
-	}
-	if (ctls == NULL) {
-		if (wndname.ptr != ctlname.ptr)
-			return NULL;
-		ctls = top_ctls;
-		nctls = FFCNT(top_ctls);
-	}
-
-	for (i = 0;  i != nctls;  i++) {
-		if (ffstr_eqz(&ctlname, ctls[i].name)) {
-			ffui_ctl *c = (void*)((char*)gg + goff + ctls[i].off);
-			if (ctls[i].name[0] != 'm')
-				c->name = ctls[i].name;
-			return c;
-		}
-	}
-	return NULL;
+	return ffui_ldr_findctl(top_ctls, gg, name);
 }
 
 
