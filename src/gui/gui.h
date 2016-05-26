@@ -52,6 +52,14 @@ typedef struct gui_wlog {
 	ffui_edit tlog;
 } gui_wlog;
 
+typedef struct gui_wuri {
+	ffui_wnd wuri;
+	ffui_edit turi;
+	ffui_btn bok;
+	ffui_btn bcancel;
+	ffui_paned pnuri;
+} gui_wuri;
+
 typedef struct gui_trk gui_trk;
 
 typedef struct ggui {
@@ -84,6 +92,7 @@ typedef struct ggui {
 	gui_winfo winfo;
 	gui_wabout wabout;
 	gui_wlog wlog;
+	gui_wuri wuri;
 
 	ffthd th;
 
@@ -157,6 +166,7 @@ enum CMDS {
 
 	OPEN,
 	ADD,
+	ADDURL,
 	QUE_NEW,
 	QUE_DEL,
 	QUE_SEL,
@@ -183,6 +193,9 @@ enum CMDS {
 	FMEDGUI_EDIT,
 	README_SHOW,
 	CHANGES_SHOW,
+
+	URL_ADD,
+	URL_CLOSE,
 
 	//private:
 	ONCLOSE,
@@ -232,5 +245,7 @@ void gui_showconvert(void);
 
 void winfo_init(void);
 void gui_media_showinfo(void);
+
+void wuri_init(void);
 
 void wabout_init(void);

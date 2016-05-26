@@ -38,6 +38,7 @@ static void gui_media_fileop(uint cmd);
 static void gui_showtextfile(uint cmd);
 static void gui_on_dropfiles(ffui_wnd *wnd, ffui_fdrop *df);
 static void gui_onclose(void);
+static void gui_media_addurl(uint id);
 static int gui_newtab(void);
 
 
@@ -79,6 +80,7 @@ static const struct cmd cmds[] = {
 
 	{ OPEN,	F1,	&gui_media_open },
 	{ ADD,	F1,	&gui_media_open },
+	{ ADDURL,	F1,	&gui_media_addurl },
 	{ QUE_NEW,	F1,	&gui_task_add },
 	{ QUE_DEL,	F1,	&gui_task_add },
 	{ QUE_SEL,	F1,	&gui_task_add },
@@ -573,6 +575,11 @@ static void gui_media_open(uint id)
 
 	if (id == OPEN)
 		gui_task_add(NEXT);
+}
+
+static void gui_media_addurl(uint id)
+{
+	ffui_show(&gg->wuri.wuri, 1);
 }
 
 static void gui_plist_recount(uint from)

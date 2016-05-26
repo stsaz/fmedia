@@ -23,6 +23,8 @@ static void gui_convert(void);
 
 static void gui_info_action(ffui_wnd *wnd, int id);
 
+static void gui_wuri_action(ffui_wnd *wnd, int id);
+
 
 void wconvert_init()
 {
@@ -259,4 +261,29 @@ void wabout_init(void)
 {
 	ffui_settextz(&gg->wabout.labout, "fmedia v" FMED_VER "\nhttp://fmedia.firmdev.com");
 	gg->wabout.wabout.hide_on_close = 1;
+}
+
+
+void wuri_init(void)
+{
+	gg->wuri.wuri.hide_on_close = 1;
+	gg->wuri.wuri.on_action = &gui_wuri_action;
+}
+
+static void gui_wuri_action(ffui_wnd *wnd, int id)
+{
+	ffstr s;
+	switch (id) {
+	case URL_ADD:
+		ffui_textstr(&gg->wuri.turi, &s);
+		if (s.len != 0)
+			gui_media_add1(s.ptr);
+		ffstr_free(&s);
+		ffui_show(&gg->wuri.wuri, 0);
+		break;
+
+	case URL_CLOSE:
+		ffui_show(&gg->wuri.wuri, 0);
+		break;
+	}
 }

@@ -9,6 +9,10 @@ menu mfile {
 		action ADD
 		hotkey "Insert"
 	}
+	item "Add &URL..." {
+		action ADDURL
+		hotkey "Ctrl+U"
+	}
 	item "-" {
 	}
 	item "&New Tab" {
@@ -467,6 +471,42 @@ window wlog {
 	paned pnlog {
 		child tlog {
 			resize cx cy
+		}
+	}
+}
+
+window wuri {
+	parent wmain
+	title "Add URL"
+	position 300 300 400 100
+	style popup
+	font {
+		name Arial
+		height 10
+	}
+
+	editbox turi {
+		position 0 0 100 25
+		style visible
+	}
+
+	button bok {
+		position 0 25 50 25
+		style visible
+		text "OK"
+		action URL_ADD
+	}
+
+	button bcancel {
+		position 50 25 50 25
+		style visible
+		text "Cancel"
+		action URL_CLOSE
+	}
+
+	paned pnuri {
+		child turi {
+			resize cx
 		}
 	}
 }

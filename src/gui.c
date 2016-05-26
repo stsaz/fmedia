@@ -99,6 +99,14 @@ static const ffui_ldr_ctl wlog_ctls[] = {
 	add(gui_wlog, tlog),
 };
 
+static const ffui_ldr_ctl wuri_ctls[] = {
+	add(gui_wuri, wuri),
+	add(gui_wuri, turi),
+	add(gui_wuri, bok),
+	add(gui_wuri, bcancel),
+	add(gui_wuri, pnuri),
+};
+
 static const ffui_ldr_ctl wmain_ctls[] = {
 	add(gui_wmain, wmain),
 	add(gui_wmain, bpause),
@@ -132,6 +140,7 @@ static const ffui_ldr_ctl top_ctls[] = {
 	FFUI_LDR_CTL3(ggui, wconvert, wconvert_ctls),
 	FFUI_LDR_CTL3(ggui, winfo, winfo_ctls),
 	FFUI_LDR_CTL3(ggui, wlog, wlog_ctls),
+	FFUI_LDR_CTL3(ggui, wuri, wuri_ctls),
 	FFUI_LDR_CTL3(ggui, wabout, wabout_ctls),
 };
 
@@ -175,6 +184,7 @@ static const char *const scmds[] = {
 
 	"OPEN",
 	"ADD",
+	"ADDURL",
 	"QUE_NEW",
 	"QUE_DEL",
 	"QUE_SEL",
@@ -201,6 +211,9 @@ static const char *const scmds[] = {
 	"FMEDGUI_EDIT",
 	"README_SHOW",
 	"CHANGES_SHOW",
+
+	"URL_ADD",
+	"URL_CLOSE",
 };
 
 static int gui_getcmd(void *udata, const ffstr *name)
@@ -414,6 +427,7 @@ static FFTHDCALL int gui_worker(void *param)
 	wconvert_init();
 	winfo_init();
 	gg->wlog.wlog.hide_on_close = 1;
+	wuri_init();
 
 	gg->cmdtask.handler = &gui_task;
 	ffui_dlg_multisel(&gg->dlg);
