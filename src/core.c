@@ -120,7 +120,7 @@ extern const fmed_mod* fmed_getmod_queue(const fmed_core *_core);
 static int core_open(void);
 static void core_playdone(void);
 static int core_sigmods(uint signo);
-static const fmed_modinfo* core_getmodinfo(const char *name);
+static const fmed_modinfo* core_getmodinfo(const ffstr *name);
 
 static const void* core_iface(const char *name);
 static int core_sig2(uint signo);
@@ -246,9 +246,7 @@ static int fmed_conf_modconf(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
 
 static int fmed_conf_setmod(const fmed_modinfo **pmod, ffstr *val)
 {
-	char s[4096];
-	ffsz_copy(s, sizeof(s), val->ptr, val->len);
-	if (NULL == (*pmod = core_getmodinfo(s))) {
+	if (NULL == (*pmod = core_getmodinfo(val))) {
 		return FFPARS_EBADVAL;
 	}
 	return 0;
@@ -311,29 +309,27 @@ static int fmed_conf_ext_val(ffparser_schem *p, void *obj, ffstr *val)
 	inmap_item *it;
 	ffstr3 *map = obj;
 
-	if (NULL != ffs_findc(val->ptr, val->len, '.')) {
-		const fmed_modinfo *mod = core_getmodinfo(val->ptr);
+	if (p->p->type == FFCONF_TKEY) {
+		const fmed_modinfo *mod = core_getmodinfo(val);
 		if (mod == NULL) {
 			return FFPARS_EBADVAL;
 		}
-		ffstr_free(val);
 		fmed->inmap_curmod = mod;
 		return 0;
 	}
 
 	n = sizeof(inmap_item) + val->len + 1;
-	if (NULL == ffarr_grow(map, n, FFARR_GROWQUARTER))
+	if (NULL == ffarr_grow(map, n, 64 | FFARR_GROWQUARTER))
 		return FFPARS_ESYS;
 	it = (void*)(map->ptr + map->len);
 	map->len += n;
 	it->mod = fmed->inmap_curmod;
-	ffmemcpy(it->ext, val->ptr, val->len + 1);
-	ffstr_free(val);
+	ffsz_fcopy(it->ext, val->ptr, val->len);
 	return 0;
 }
 
 static const ffpars_arg fmed_conf_ext_args[] = {
-	{ "*",  FFPARS_TSTR | FFPARS_FNOTEMPTY | FFPARS_FSTRZ | FFPARS_FCOPY | FFPARS_FLIST, FFPARS_DST(&fmed_conf_ext_val) }
+	{ "*",  FFPARS_TSTR | FFPARS_FNOTEMPTY | FFPARS_FLIST, FFPARS_DST(&fmed_conf_ext_val) }
 };
 
 static int fmed_conf_ext(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
@@ -375,9 +371,9 @@ static int fmed_confusr_mod(ffparser_schem *ps, void *obj, ffpars_ctx *ctx)
 
 	} else {
 		ffstr3 s = {0};
-		if (0 == ffstr_catfmt(&s, "%s.%S%Z", fmed->usrconf_modname, val))
+		if (0 == ffstr_catfmt(&s, "%s.%S", fmed->usrconf_modname, val))
 			return FFPARS_ESYS;
-		mod = core_getmodinfo(s.ptr);
+		mod = core_getmodinfo((ffstr*)&s);
 
 		ffmem_free(fmed->usrconf_modname);
 		fmed->usrconf_modname = NULL;
@@ -496,7 +492,9 @@ static fmed_f* newfilter1(fm_src *src, const fmed_modinfo *mod)
 static fmed_f* newfilter(fm_src *src, const char *modname)
 {
 	const fmed_modinfo *mod;
-	mod = core_getmodinfo(modname);
+	ffstr s;
+	ffstr_setz(&s, modname);
+	mod = core_getmodinfo(&s);
 	return newfilter1(src, mod);
 }
 
@@ -1368,15 +1366,15 @@ static const void* core_getmod(const char *name)
 	return NULL;
 }
 
-static const fmed_modinfo* core_getmodinfo(const char *name)
+static const fmed_modinfo* core_getmodinfo(const ffstr *name)
 {
 	core_mod *mod;
 	FFLIST_WALK(&fmed->mods, mod, sib) {
-		if (!ffsz_cmp(mod->name, name))
+		if (ffstr_eqz(name, mod->name))
 			return (fmed_modinfo*)mod;
 	}
 
-	errlog(core, NULL, "core", "module not found: %s", name);
+	errlog(core, NULL, "core", "module not found: %S", name);
 	return NULL;
 }
 
