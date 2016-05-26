@@ -179,7 +179,7 @@ static const ffpars_arg fmed_conf_args[] = {
 	, { "input_ext",  FFPARS_TOBJ, FFPARS_DST(&fmed_conf_ext) }
 	, { "output_ext",  FFPARS_TOBJ, FFPARS_DST(&fmed_conf_ext) }
 	, { "codepage",  FFPARS_TSTR, FFPARS_DST(&fmed_conf_codepage) }
-	, { "instance_mode",  FFPARS_TENUM, FFPARS_DST(&im_enum) }
+	, { "instance_mode",  FFPARS_TENUM | FFPARS_F8BIT, FFPARS_DST(&im_enum) }
 };
 
 static int fmed_confusr_mod(ffparser_schem *ps, void *obj, ffpars_ctx *ctx);
