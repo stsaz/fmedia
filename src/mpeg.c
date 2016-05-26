@@ -146,7 +146,8 @@ static void* mpeg_open(fmed_filt *d)
 	if (m == NULL)
 		return NULL;
 	ffmpg_init(&m->mpg);
-	m->mpg.options = FFMPG_O_ID3V1 | FFMPG_O_ID3V2 | FFMPG_O_APETAG;
+	if (FMED_NULL != fmed_getval("total_size"))
+		m->mpg.options = FFMPG_O_ID3V2 | FFMPG_O_APETAG | FFMPG_O_ID3V1;
 	m->mpg.codepage = core->getval("codepage");
 
 	if (FMED_NULL != (total_size = fmed_getval("total_size")))
