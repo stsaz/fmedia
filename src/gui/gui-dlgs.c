@@ -141,6 +141,13 @@ static void gui_convert(void)
 		if (NULL == (qent = (void*)gg->qu->cmd2(FMED_QUE_ADD | FMED_QUE_NO_ONCHANGE, &e, 0))) {
 			continue;
 		}
+
+		ffstr sname, *sval;
+		size_t n;
+		for (n = 0;  NULL != (sval = gg->qu->meta(inp, n, &sname, FMED_QUE_NO_TMETA));  n++) {
+			gg->qu->meta_set(qent, sname.ptr, sname.len, sval->ptr, sval->len, 0);
+		}
+
 		gui_media_added(qent);
 
 		gg->qu->meta_set(qent, FFSTR("output"), fn.ptr, fn.len, FMED_QUE_TRKDICT);
