@@ -81,6 +81,7 @@ MPEG_O := $(OBJ_DIR)/mpeg.o $(FF_O) \
 	$(FF_OBJ_DIR)/ffpcm.o \
 	$(FF_OBJ_DIR)/ffmpg.o \
 	$(FF_OBJ_DIR)/ffmp3lame.o \
+	$(FF_OBJ_DIR)/ffapetag.o \
 	$(FF_OBJ_DIR)/ffid3.o
 mpeg.$(SO): $(MPEG_O)
 	$(LD) -shared $(MPEG_O) $(LDFLAGS) -lmpg123-ff -lmp3lame-ff  -o$@

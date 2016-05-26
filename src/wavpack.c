@@ -10,18 +10,6 @@ Copyright (c) 2015 Simon Zolin */
 static const fmed_core *core;
 static const fmed_queue *qu;
 
-// enum FFAPETAG_FIELD
-static const char *const ape_metanames[] = {
-	"album",
-	"artist",
-	"comment",
-	"cover-art",
-	"genre",
-	"title",
-	"tracknumber",
-	"date",
-};
-
 static const byte id3_meta_ids[] = {
 	FFID3_COMMENT,
 	FFID3_ALBUM,
@@ -123,28 +111,21 @@ static void wvpk_in_free(void *ctx)
 
 static void wvpk_meta(wvpk *w, fmed_filt *d)
 {
-	uint tag = 0;
+	uint tag;
 	ffstr name, val;
 
 	if (w->wp.is_apetag) {
-		val = w->wp.apetag.val;
-		tag = ffapetag_field(w->wp.apetag.name.ptr);
-		if (tag < FFCNT(ape_metanames))
-			ffstr_setz(&name, ape_metanames[tag]);
-		else
-			name = w->wp.apetag.name;
-
+		name = w->wp.apetag.name;
 		if (FFAPETAG_FBINARY == (w->wp.apetag.flags & FFAPETAG_FMASK)) {
-			dbglog(core, d->trk, "wvpk", "skipping binary tag: %S", &name);
+			dbglog(core, d->trk, "ape", "skipping binary tag: %S", &name);
 			return;
 		}
-
-	} else {
-		tag = ffint_find1(id3_meta_ids, FFCNT(id3_meta_ids), w->wp.id31tag.field);
-		ffstr_setz(&name, id3_metanames[tag]);
-		val = w->wp.id31tag.val;
 	}
 
+	tag = ffint_find1(id3_meta_ids, FFCNT(id3_meta_ids), w->wp.tag);
+	if (tag >= 0)
+		ffstr_setz(&name, id3_metanames[tag]);
+	val = w->wp.tagval;
 	dbglog(core, d->trk, "wvpk", "tag: %S: %S", &name, &val);
 
 	qu->meta_set((void*)fmed_getval("queue_item"), name.ptr, name.len, val.ptr, val.len, FMED_QUE_TMETA);

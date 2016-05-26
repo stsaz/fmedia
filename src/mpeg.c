@@ -146,7 +146,7 @@ static void* mpeg_open(fmed_filt *d)
 	if (m == NULL)
 		return NULL;
 	ffmpg_init(&m->mpg);
-	m->mpg.options = FFMPG_O_ID3V1 | FFMPG_O_ID3V2;
+	m->mpg.options = FFMPG_O_ID3V1 | FFMPG_O_ID3V2 | FFMPG_O_APETAG;
 	m->mpg.codepage = core->getval("codepage");
 
 	if (FMED_NULL != (total_size = fmed_getval("total_size")))
@@ -168,24 +168,25 @@ static void mpeg_meta(fmed_mpeg *m, fmed_filt *d)
 	ffstr name, val;
 	int tag;
 
-	if (!m->mpg.is_id32tag) {
-		tag = m->mpg.id31tag.field;
-
-	} else {
+	if (m->mpg.is_id32tag) {
+		ffstr_set(&name, m->mpg.id32tag.fr.id, 4);
 		if (!m->have_id32tag) {
 			m->have_id32tag = 1;
 			dbglog(core, d->trk, "mpeg", "id3: ID3v2.%u.%u, size: %u"
 				, (uint)m->mpg.id32tag.h.ver[0], (uint)m->mpg.id32tag.h.ver[1], ffid3_size(&m->mpg.id32tag.h));
 		}
 
-		tag = m->mpg.id32tag.frame;
+	} else if (m->mpg.is_apetag) {
+		name = m->mpg.apetag.name;
+		if (FFAPETAG_FBINARY == (m->mpg.apetag.flags & FFAPETAG_FMASK)) {
+			dbglog(core, d->trk, "mpeg", "skipping binary tag: %S", &m->mpg.apetag.name);
+			return;
+		}
 	}
 
-	tag = ffint_find1(id3_meta_ids, FFCNT(id3_meta_ids), tag);
+	tag = ffint_find1(id3_meta_ids, FFCNT(id3_meta_ids), m->mpg.tag);
 	if (tag != -1)
 		ffstr_setz(&name, metanames[tag]);
-	else
-		ffstr_set(&name, m->mpg.id32tag.fr.id, 4);
 
 	ffstr_set2(&val, &m->mpg.tagval);
 
@@ -237,7 +238,7 @@ again:
 
 		case FFMPG_RDONE:
 			d->outlen = 0;
-			return FMED_RDONE;
+			return FMED_RLASTOUT;
 
 		case FFMPG_RHDR:
 			fmed_setpcm(d, (void*)&m->mpg.fmt);
