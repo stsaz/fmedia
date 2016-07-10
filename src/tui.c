@@ -19,7 +19,6 @@ typedef struct gtui {
 	struct tui *curtrk;
 
 	uint vol;
-	fftask cmdtask;
 
 	ffthd th;
 } gtui;
@@ -80,6 +79,10 @@ enum CMDS {
 
 	CMD_QUIT,
 
+	CMD_MASK = 0xff,
+
+	_CMD_CURTRK = 1 << 28,
+	_CMD_CORE = 1 << 29,
 	_CMD_PLAYONLY = 1 << 30,
 	_CMD_F1 = 1 << 31, //use 'cmdfunc1'
 };
@@ -114,12 +117,14 @@ static void tui_print_peak(tui *t, fmed_filt *d);
 static void tui_info(tui *t, fmed_filt *d);
 static int tui_cmdloop(void *param);
 static void tui_help(uint cmd);
-static void tui_addtask(uint cmd);
-static void tui_task(void *param);
 static void tui_rmfile(tui *t, uint cmd);
 static void tui_vol(tui *t, uint cmd);
 static void tui_seek(tui *t, uint cmd);
 static void tui_addcmd(cmdfunc func, uint cmd);
+
+struct key;
+static void tui_corecmd(void *param);
+static void tui_corecmd_add(const struct key *k);
 
 
 static const ffpars_arg tui_conf_args[] = {
@@ -150,7 +155,6 @@ static int tui_sig(uint signo)
 		gt = ffmem_tcalloc1(gtui);
 		fflk_init(&gt->lktrk);
 		gt->vol = 100;
-		gt->cmdtask.handler = &tui_task;
 		if (NULL == (gt->qu = core->getmod("#queue.queue")))
 			return 1;
 		if (NULL == (gt->track = core->getmod("#core.track")))
@@ -350,7 +354,7 @@ static void tui_vol(tui *t, uint cmd)
 static void tui_rmfile(tui *t, uint cmd)
 {
 	fmed_que_entry *qtrk = (void*)gt->track->getval(t->trk, "queue_item");
-	if ((cmd & ~FFKEY_MODMASK) == CMD_DELFILE) {
+	if ((cmd & CMD_MASK) == CMD_DELFILE) {
 		ffarr fn = {0};
 		if (0 != ffstr_catfmt(&fn, "%S.deleted%Z", &qtrk->url)
 			&& 0 == fffile_rename(qtrk->url.ptr, fn.ptr))
@@ -473,15 +477,8 @@ done:
 	return FMED_ROK;
 }
 
-static void tui_addtask(uint cmd)
+static void tui_op(uint cmd)
 {
-	gt->cmdtask.param = (void*)(size_t)cmd;
-	core->task(&gt->cmdtask, FMED_TASK_POST);
-}
-
-static void tui_task(void *param)
-{
-	uint cmd = (uint)(size_t)param;
 	switch (cmd) {
 	case CMD_STOP:
 		gt->track->cmd((void*)-1, FMED_TRACK_STOPALL);
@@ -516,14 +513,14 @@ struct key {
 };
 
 static struct key hotkeys[] = {
-	{ ' ',	CMD_PLAY | _CMD_F1,	&tui_addtask },
-	{ 'D',	CMD_DELFILE,	&tui_rmfile },
-	{ 'd',	CMD_RM,	&tui_rmfile },
+	{ ' ',	CMD_PLAY | _CMD_F1 | _CMD_CORE,	&tui_op },
+	{ 'D',	CMD_DELFILE | _CMD_CURTRK | _CMD_CORE,	&tui_rmfile },
+	{ 'd',	CMD_RM | _CMD_CURTRK | _CMD_CORE,	&tui_rmfile },
 	{ 'h',	_CMD_F1,	&tui_help },
-	{ 'n',	CMD_NEXT | _CMD_F1,	&tui_addtask },
-	{ 'p',	CMD_PREV | _CMD_F1,	&tui_addtask },
-	{ 'q',	CMD_QUIT | _CMD_F1,	&tui_addtask },
-	{ 's',	CMD_STOP | _CMD_F1,	&tui_addtask },
+	{ 'n',	CMD_NEXT | _CMD_F1 | _CMD_CORE,	&tui_op },
+	{ 'p',	CMD_PREV | _CMD_F1 | _CMD_CORE,	&tui_op },
+	{ 'q',	CMD_QUIT | _CMD_F1 | _CMD_CORE,	&tui_op },
+	{ 's',	CMD_STOP | _CMD_F1 | _CMD_CORE,	&tui_op },
 	{ FFKEY_UP,	CMD_VOLUP | _CMD_PLAYONLY,	&tui_vol },
 	{ FFKEY_DOWN,	CMD_VOLDOWN | _CMD_PLAYONLY,	&tui_vol },
 	{ FFKEY_RIGHT,	CMD_SEEKRIGHT | _CMD_PLAYONLY,	&tui_seek },
@@ -545,6 +542,11 @@ static const struct key* key2cmd(int key)
 	}
 	return NULL;
 }
+
+struct corecmd {
+	fftask tsk;
+	const struct key *k;
+};
 
 static void tui_help(uint cmd)
 {
@@ -590,6 +592,34 @@ end:
 	fflk_unlock(&gt->lktrk);
 }
 
+static void tui_corecmd(void *param)
+{
+	struct corecmd *c = param;
+
+	if (c->k->cmd & _CMD_F1) {
+		cmdfunc1 func1 = (void*)c->k->func;
+		func1(c->k->cmd & CMD_MASK);
+
+	} else if ((c->k->cmd & _CMD_CURTRK) && gt->curtrk != NULL) {
+		cmdfunc func = (void*)c->k->func;
+		func(gt->curtrk, c->k->cmd & CMD_MASK);
+	}
+	ffmem_free(c);
+}
+
+static void tui_corecmd_add(const struct key *k)
+{
+	struct corecmd *c = ffmem_tcalloc1(struct corecmd);
+	if (c == NULL) {
+		syserrlog(core, NULL, "tui", "alloc");
+		return;
+	}
+	c->tsk.handler = &tui_corecmd;
+	c->tsk.param = c;
+	c->k = k;
+	core->task(&c->tsk, FMED_TASK_POST);
+}
+
 static int tui_cmdloop(void *param)
 {
 	ffstd_ev ev = {0};
@@ -608,7 +638,10 @@ static int tui_cmdloop(void *param)
 		if (k == NULL)
 			continue;
 
-		if (k->cmd & _CMD_F1) {
+		if (k->cmd & _CMD_CORE) {
+			tui_corecmd_add(k);
+
+		} else if (k->cmd & _CMD_F1) {
 			cmdfunc1 func1 = (void*)k->func;
 			func1(k->cmd & ~_CMD_F1);
 
