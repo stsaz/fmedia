@@ -1505,8 +1505,7 @@ static void core_task(fftask *task, uint cmd)
 	}
 
 	if (cmd == FMED_TASK_POST) {
-		fftask_post(&fmed->taskmgr, task);
-		if (fmed->taskmgr.tasks.len == 1)
+		if (1 == fftask_post(&fmed->taskmgr, task))
 			ffkqu_post(fmed->kq, &fmed->evposted, NULL);
 	}
 }
