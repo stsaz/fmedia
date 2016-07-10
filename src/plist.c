@@ -299,7 +299,7 @@ static const uint cue_opts[] = {
 static void* cue_open(fmed_filt *d)
 {
 	cue *c;
-	int64 val;
+	uint64 val;
 	if (NULL == (c = ffmem_tcalloc1(cue)))
 		return NULL;
 
@@ -309,7 +309,7 @@ static void* cue_open(fmed_filt *d)
 	}
 
 	c->gaps = FFCUE_GAPPREV;
-	if (FMED_NULL != (val = core->getval("cue_gaps"))) {
+	if (FMED_NULL != (int)(val = core->getval("cue_gaps"))) {
 		if (val > FFCNT(cue_opts))
 			errlog(core, d->trk, "cue", "cue_gaps value must be within 0..3 range");
 		else
@@ -439,8 +439,8 @@ add_metaname:
 add:
 		c->curtrk++;
 		if (c->trackno.len != 0) {
-			ssize_t n;
-			if (-1 == (n = ffint_binfind4((uint*)c->trackno.ptr, c->trackno.len, c->curtrk)))
+			size_t n;
+			if (0 > (int)(n = ffint_binfind4((uint*)c->trackno.ptr, c->trackno.len, c->curtrk)))
 				goto next;
 			if (n == c->trackno.len - 1)
 				done = 1;

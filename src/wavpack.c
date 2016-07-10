@@ -123,7 +123,7 @@ static void wvpk_meta(wvpk *w, fmed_filt *d)
 	}
 
 	tag = ffint_find1(id3_meta_ids, FFCNT(id3_meta_ids), w->wp.tag);
-	if (tag >= 0)
+	if ((int)tag >= 0)
 		ffstr_setz(&name, id3_metanames[tag]);
 	val = w->wp.tagval;
 	dbglog(core, d->trk, "wvpk", "tag: %S: %S", &name, &val);

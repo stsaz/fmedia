@@ -155,7 +155,7 @@ static void mp4_meta(mp4 *m, fmed_filt *d)
 {
 	uint tag = 0;
 	ffstr name, val;
-	if (-1 == (tag = ffint_find1(mp4_meta_ids, FFCNT(mp4_meta_ids), m->mp.tag)))
+	if (-1 == (int)(tag = ffint_find1(mp4_meta_ids, FFCNT(mp4_meta_ids), m->mp.tag)))
 		return;
 	ffstr_setz(&name, mp4_metanames[tag]);
 	val = m->mp.tagval;

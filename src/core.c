@@ -276,7 +276,7 @@ static int pcm_formatstr(const char *s, size_t len)
 static int fmed_conf_inp_format(ffparser_schem *p, void *obj, ffstr *val)
 {
 	fmed_config *conf = obj;
-	if (-1 == (conf->inp_pcm.format = pcm_formatstr(val->ptr, val->len)))
+	if (0 > (int)(conf->inp_pcm.format = pcm_formatstr(val->ptr, val->len)))
 		return FFPARS_EBADVAL;
 	return 0;
 }

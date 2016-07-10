@@ -234,7 +234,7 @@ static int wasapi_create(wasapi_out *w, fmed_filt *d)
 	int64 lowlat;
 
 	if (w->state == WAS_TRYOPEN
-		&& FMED_NULL == (w->devidx = (int)d->track->getval(d->trk, "playdev_name")))
+		&& FMED_NULL == (int)(w->devidx = (int)d->track->getval(d->trk, "playdev_name")))
 		w->devidx = wasapi_out_conf.idev;
 
 	fmt.format = fmed_getval("pcm_format");

@@ -253,7 +253,7 @@ static void que_save(entry *first, const char *fn)
 			break;
 	}
 
-	if (m3.buf.len != fffile_write(f, m3.buf.ptr, m3.buf.len))
+	if (m3.buf.len != (size_t)fffile_write(f, m3.buf.ptr, m3.buf.len))
 		goto done;
 	dbglog(core, NULL, "que", "saved playlist to %s (%L KB)", fn, m3.buf.len / 1024);
 	rc = 0;

@@ -262,12 +262,12 @@ static void tui_info(tui *t, fmed_filt *d)
 
 	qent = (void*)fmed_getval("queue_item");
 
-	total_time = (t->total_samples != FMED_NULL) ? ffpcm_time(t->total_samples, t->sample_rate) : 0;
+	total_time = ((int64)t->total_samples != FMED_NULL) ? ffpcm_time(t->total_samples, t->sample_rate) : 0;
 	tmsec = (uint)(total_time / 1000);
 	t->total_time_sec = tmsec;
 
 	tsize = d->track->getval(d->trk, "total_size");
-	if (tsize == FMED_NULL)
+	if ((int64)tsize == FMED_NULL)
 		tsize = 0;
 
 	if (NULL != (tstr = gt->qu->meta_find(qent, "artist", -1)))
@@ -434,7 +434,7 @@ static int tui_process(void *ctx, fmed_filt *d)
 	}
 	t->lastpos = playtime;
 
-	if (t->total_samples == FMED_NULL
+	if ((int64)t->total_samples == FMED_NULL
 		|| (uint64)playpos >= t->total_samples) {
 
 		t->buf.len = 0;

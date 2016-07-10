@@ -123,7 +123,7 @@ static void ape_meta(ape *a, fmed_filt *d)
 	}
 
 	tag = ffint_find1(id3_meta_ids, FFCNT(id3_meta_ids), a->ap.tag);
-	if (tag >= 0)
+	if ((int)tag >= 0)
 		ffstr_setz(&name, id3_metanames[tag]);
 	val = a->ap.tagval;
 	dbglog(core, d->trk, "ape", "tag: %S: %S", &name, &val);

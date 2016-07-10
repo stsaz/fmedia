@@ -186,7 +186,7 @@ static int pipe_add_inputfiles(fffd ph)
 
 		fn.len++;
 		ffarr_back(&fn) = '\0';
-		if (fn.len != fffile_write(ph, fn.ptr, fn.len)) {
+		if (fn.len != (size_t)fffile_write(ph, fn.ptr, fn.len)) {
 			goto end;
 		}
 	}

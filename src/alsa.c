@@ -266,7 +266,7 @@ static int alsa_create(alsa_out *a, fmed_filt *d)
 	ffpcm fmt;
 	int r, reused = 0;
 
-	if (FMED_NULL == (a->devidx = (int)d->track->getval(d->trk, "playdev_name")))
+	if (FMED_NULL == (int)(a->devidx = (int)d->track->getval(d->trk, "playdev_name")))
 		a->devidx = alsa_out_conf.idev;
 
 	fmt.format = fmed_getval("pcm_format");

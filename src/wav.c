@@ -259,7 +259,7 @@ static int wavout_process(void *ctx, fmed_filt *d)
 	d->outlen = sizeof(ffwav_pcmhdr);
 
 	total_dur = d->track->getval(d->trk, "total_samples");
-	if (total_dur != FMED_NULL) {
+	if ((int64)total_dur != FMED_NULL) {
 		uint64 fsz = sizeof(ffwavpcmhdr) + total_dur * ffwav_samplesize(&wav->wf);
 		d->track->setval(d->trk, "output_size", fsz);
 	}
@@ -278,7 +278,7 @@ static void* raw_open(fmed_filt *d)
 	}
 
 	total_size = d->track->getval(d->trk, "total_size");
-	if (total_size != FMED_NULL)
+	if ((int64)total_size != FMED_NULL)
 		d->track->setval(d->trk, "total_samples", total_size / ffpcm_size(FFPCM_16LE, 2));
 
 	d->track->setval(d->trk, "bitrate", 44100 * ffpcm_size(FFPCM_16LE, 2) * 8);

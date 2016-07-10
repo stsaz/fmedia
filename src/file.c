@@ -43,10 +43,11 @@ typedef struct fmed_file {
 	uint wdata;
 	uint rdata;
 	databuf *data;
+	uint64 fsize;
 	uint64 foff
 		, aoff;
 	ffaio_filetask ftask;
-	uint64 seek;
+	int64 seek;
 
 	fmed_handler handler;
 	void *trk;
@@ -166,6 +167,7 @@ static void* file_open(fmed_filt *d)
 {
 	fmed_file *f;
 	uint i;
+	fffileinfo fi;
 
 	f = ffmem_tcalloc1(fmed_file);
 	if (f == NULL)
@@ -181,8 +183,13 @@ static void* file_open(fmed_filt *d)
 		syserrlog(core, d->trk, "file", "%e: %s", FFERR_FOPEN, f->fn);
 		goto done;
 	}
+	if (0 != fffile_info(f->fd, &fi)) {
+		syserrlog(core, d->trk, "file", "get file info: %s", f->fn);
+		goto done;
+	}
+	f->fsize = fffile_infosize(&fi);
 
-	dbglog(core, d->trk, "file", "opened %s (%U kbytes)", f->fn, fffile_size(f->fd) / 1024);
+	dbglog(core, d->trk, "file", "opened %s (%U kbytes)", f->fn, f->fsize / 1024);
 
 	ffaio_finit(&f->ftask, f->fd, f);
 	f->ftask.kev.udata = f;
@@ -199,14 +206,11 @@ static void* file_open(fmed_filt *d)
 		}
 	}
 
-	d->track->setval(d->trk, "total_size", fffile_size(f->fd));
+	d->track->setval(d->trk, "total_size", f->fsize);
 
 	if (FMED_NULL != fmed_getval("out_preserve_date")) {
-		fffileinfo fi;
-		if (0 == fffile_info(f->fd, &fi)) {
-			fftime t = fffile_infomtime(&fi);
-			fmed_setval("output_time", fftime_mcs(&t));
-		}
+		fftime t = fffile_infomtime(&fi);
+		fmed_setval("output_time", fftime_mcs(&t));
 	}
 
 	f->handler = d->handler;
@@ -243,16 +247,16 @@ static void file_close(void *ctx)
 static int file_getdata(void *ctx, fmed_filt *d)
 {
 	fmed_file *f = ctx;
-	int64 seek;
+	uint64 seek;
 	uint i;
 
 	if (f->err)
 		return FMED_RERR;
 
 	seek = d->track->popval(d->trk, "input_seek");
-	if (seek != FMED_NULL) {
+	if ((int64)seek != FMED_NULL) {
 		f->seek = seek;
-		if (f->seek >= (uint64)fffile_size(f->fd)) {
+		if (seek >= f->fsize) {
 			errlog(core, d->trk, "file", "too big seek position %U", f->seek);
 			return FMED_RERR;
 		}
@@ -383,7 +387,7 @@ static void file_read(void *udata)
 			continue;
 		}
 
-		if (r != mod->in_conf.bsize) {
+		if ((uint)r != mod->in_conf.bsize) {
 			dbglog(core, f->trk, "file", "reading's done", 0);
 			f->done = 1;
 			if (r == 0)
@@ -522,7 +526,7 @@ static void* fileout_open(fmed_filt *d)
 	}
 
 	total_size = (uint64)d->track->getval(d->trk, "output_size");
-	if (total_size != FMED_NULL) {
+	if ((int64)total_size != FMED_NULL) {
 		if (0 == fffile_trunc(f->fd, total_size))
 			f->prealocated = total_size;
 	}
@@ -563,7 +567,7 @@ static void fileout_close(void *ctx)
 
 static int fileout_writedata(fmed_fileout *f, const char *data, size_t len, fmed_filt *d)
 {
-	ssize_t r;
+	size_t r;
 	if (f->fsize + len > f->prealocated) {
 		if (0 == fffile_trunc(f->fd, f->prealocated + mod->out_conf.prealoc))
 			f->prealocated += mod->out_conf.prealoc;
@@ -601,7 +605,7 @@ static int fileout_write(void *ctx, fmed_filt *d)
 			return -1;
 		}
 
-		if (d->datalen != fffile_write(f->fd, d->data, d->datalen)) {
+		if (d->datalen != (size_t)fffile_write(f->fd, d->data, d->datalen)) {
 			syserrlog(core, d->trk, "file", "%e: %s", FFERR_WRITE, f->fname.ptr);
 			return -1;
 		}

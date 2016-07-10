@@ -297,7 +297,7 @@ static int sndmod_soxr_process(void *ctx, fmed_filt *d)
 	switch (c->state) {
 	case 0:
 		c->inpcm.sample_rate = (int)fmed_getval("pcm_sample_rate");
-		if (FMED_NULL != (outpcm.sample_rate = (int)fmed_getval("conv_pcm_rate")))
+		if (FMED_NULL != (int)(outpcm.sample_rate = (int)fmed_getval("conv_pcm_rate")))
 			fmed_setval("pcm_sample_rate", outpcm.sample_rate);
 		d->outlen = 0;
 		c->state = 1;
@@ -459,7 +459,7 @@ static int sndmod_untl_process(void *ctx, fmed_filt *d)
 	if (d->flags & FMED_FLAST)
 		return FMED_RDONE;
 
-	if (FMED_NULL == (pos = fmed_getval("current_position")))
+	if (FMED_NULL == (int64)(pos = fmed_getval("current_position")))
 		return FMED_RDONE;
 
 	if (u->asis) {
@@ -558,7 +558,7 @@ static int sndmod_peaks_process(void *ctx, fmed_filt *d)
 			if (sh < 0)
 				sh = -sh;
 
-			if (p->ch[ich].high < sh)
+			if (p->ch[ich].high < (uint)sh)
 				p->ch[ich].high = sh;
 
 			p->ch[ich].sum += sh;
