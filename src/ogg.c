@@ -145,9 +145,76 @@ static void ogg_close(void *ctx)
 	ffmem_free(o);
 }
 
+/** Check if the output is also OGG.
+If so, don't decode audio but just pass OGG pages as-is. */
+static int ogg_asis_check(fmed_ogg *o, fmed_filt *d)
+{
+	const char *out = d->track->getvalstr(d->trk, "output");
+	if (out == FMED_PNULL)
+		return 0;
+
+	ffstr ext = {0};
+	ffpath_splitname(out, ffsz_len(out), NULL, &ext);
+	if (!ffstr_eqcz(&ext, "ogg"))
+		return 0;
+
+	fmed_setval("data_asis", 1);
+	int64 seek_time, samples = -1;
+	if (FMED_NULL != (seek_time = fmed_popval("seek_time")))
+		samples = ffpcm_samples(seek_time, ffogg_rate(&o->og));
+	ffogg_set_asis(&o->og, samples);
+	return 1;
+}
+
+static int ogg_readasis(fmed_ogg *o, fmed_filt *d)
+{
+	int r;
+
+	for (;;) {
+	r = ffogg_readasis(&o->og);
+
+	switch (r) {
+	case FFOGG_RPAGE:
+		goto data;
+
+	case FFOGG_RDONE:
+		d->outlen = 0;
+		return FMED_RLASTOUT;
+
+	case FFOGG_RMORE:
+		if (d->flags & FMED_FLAST) {
+			dbglog(core, d->trk, "ogg", "no eos page");
+			d->outlen = 0;
+			return FMED_RLASTOUT;
+		}
+		return FMED_RMORE;
+
+	case FFOGG_RSEEK:
+		fmed_setval("input_seek", o->og.off);
+		return FMED_RMORE;
+
+	case FFOGG_RWARN:
+		warnlog(core, d->trk, "ogg", "near sample %U: ffogg_decode(): %s"
+			, ffogg_cursample(&o->og), ffogg_errstr(o->og.err));
+		break;
+
+	default:
+		errlog(core, d->trk, "ogg", "ffogg_decode(): %s", ffogg_errstr(o->og.err));
+		return FMED_RERR;
+	}
+	}
+
+data:
+	d->track->setval(d->trk, "current_position", ffogg_cursample(&o->og));
+	d->data = o->og.data;
+	d->datalen = o->og.datalen;
+	ffogg_pagedata(&o->og, &d->out, &d->outlen);
+	return FMED_RDATA;
+}
+
 static int ogg_decode(void *ctx, fmed_filt *d)
 {
-	enum { I_ASIS_CHECK, I_HDR, I_DATA0, I_DATA };
+	enum { I_HDR, I_DATA0, I_DATA, I_ASIS };
 	fmed_ogg *o = ctx;
 	int r;
 	int64 seek_time;
@@ -162,21 +229,8 @@ static int ogg_decode(void *ctx, fmed_filt *d)
 
 again:
 	switch (o->state) {
-	case I_ASIS_CHECK:
-		// Check if the output is also OGG.  If so, don't decode audio but just pass OGG pages as-is.
-		{
-		const char *out = d->track->getvalstr(d->trk, "output");
-		if (out != FMED_PNULL) {
-			ffstr ext = {0};
-			ffpath_splitname(out, ffsz_len(out), NULL, &ext);
-			if (ffstr_eqcz(&ext, "ogg")) {
-				fmed_setval("data_asis", 1);
-				o->og.nodecode = 1;
-			}
-		}
-		}
-		o->state = I_HDR;
-		// break
+	case I_ASIS:
+		return ogg_readasis(o, d);
 
 	case I_HDR:
 		break;
@@ -184,6 +238,10 @@ again:
 	case I_DATA0:
 		if (FMED_NULL != fmed_getval("input_info"))
 			return FMED_ROK;
+		if (ogg_asis_check(o, d)) {
+			o->state = I_ASIS;
+			goto again;
+		}
 		o->state = I_DATA;
 		// break
 
