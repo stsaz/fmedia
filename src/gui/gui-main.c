@@ -57,10 +57,10 @@ void wmain_init(void)
 
 
 static const struct cmd cmds[] = {
-	{ STOP,	F1,	&gui_task_add },
-	{ STOP_AFTER,	F1,	&gui_task_add },
-	{ NEXT,	F1,	&gui_task_add },
-	{ PREV,	F1,	&gui_task_add },
+	{ STOP,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op },
+	{ STOP_AFTER,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op },
+	{ NEXT,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op },
+	{ PREV,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op },
 
 	{ SEEK,	F1,	&gui_seek },
 	{ FFWD,	F1,	&gui_seek },
@@ -72,25 +72,26 @@ static const struct cmd cmds[] = {
 	{ VOLUP,	F1,	&gui_vol },
 	{ VOLDOWN,	F1,	&gui_vol },
 
-	{ REC,	F1,	&gui_task_add },
-	{ PLAYREC,	F1,	&gui_task_add },
-	{ MIXREC,	F1,	&gui_task_add },
+	{ REC,	F1 | CMD_FCORE,	&gui_rec },
+	{ PLAYREC,	F1 | CMD_FCORE,	&gui_rec },
+	{ MIXREC,	F1 | CMD_FCORE,	&gui_rec },
 
 	{ SHOWCONVERT,	F0,	&gui_showconvert },
 
-	{ OPEN,	F1,	&gui_media_open },
-	{ ADD,	F1,	&gui_media_open },
+	{ OPEN,	F1 | CMD_FCORE,	&gui_media_open },
+	{ ADD,	F1 | CMD_FCORE,	&gui_media_open },
 	{ ADDURL,	F1,	&gui_media_addurl },
-	{ QUE_NEW,	F1,	&gui_task_add },
-	{ QUE_DEL,	F1,	&gui_task_add },
-	{ QUE_SEL,	F1,	&gui_task_add },
+	{ QUE_NEW,	F0 | CMD_FCORE,	&gui_que_new },
+	{ QUE_DEL,	F0 | CMD_FCORE,	&gui_que_del },
+	{ QUE_SEL,	F0 | CMD_FCORE,	&gui_que_sel },
 	{ SAVELIST,	F0,	&gui_media_savelist },
-	{ REMOVE,	F0,	&gui_media_remove },
+	{ REMOVE,	F0 | CMD_FCORE,	&gui_media_remove },
+	{ CLEAR,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op },
 	{ SHOWDIR,	F0,	&gui_media_showdir },
 	{ COPYFN,	F0,	&gui_media_copyfn },
 	{ COPYFILE,	F1,	&gui_media_fileop },
-	{ DELFILE,	F1,	&gui_media_fileop },
-	{ SHOWINFO,	F0,	&gui_media_showinfo },
+	{ DELFILE,	F1 | CMD_FCORE,	&gui_media_fileop },
+	{ SHOWINFO,	F0 | CMD_FCORE,	&gui_media_showinfo },
 
 	{ CONF_EDIT,	F1,	&gui_showtextfile },
 	{ USRCONF_EDIT,	F1,	&gui_showtextfile },
@@ -98,6 +99,11 @@ static const struct cmd cmds[] = {
 	{ README_SHOW,	F1,	&gui_showtextfile },
 	{ CHANGES_SHOW,	F1,	&gui_showtextfile },
 };
+
+static struct cmd cmd_play = { PLAY,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op };
+static struct cmd cmd_play_cur = { PAUSE,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op };
+static struct cmd cmd_quit = { QUIT,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op };
+static struct cmd cmd_savelist = { SAVELIST,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op };
 
 const struct cmd* getcmd(uint cmd, const struct cmd *cmds, uint n)
 {
@@ -120,19 +126,10 @@ static void gui_action(ffui_wnd *wnd, int id)
 
 	const struct cmd *cmd = getcmd(id, cmds, FFCNT(cmds));
 	if (cmd != NULL) {
-		cmdfunc_u u;
-		u.f = cmd->func;
-
-		if (cmd->flags & F2) {
-			fflk_lock(&gg->lktrk);
-			gui_addcmd(cmd->func, id);
-			fflk_unlock(&gg->lktrk);
-
-		} else if (cmd->flags & F0)
-			u.f0();
-
+		if (cmd->flags & CMD_FCORE)
+			gui_corecmd_add(cmd, NULL);
 		else
-			u.f(id);
+			gui_runcmd(cmd, NULL);
 		return;
 	}
 
@@ -141,12 +138,12 @@ static void gui_action(ffui_wnd *wnd, int id)
 	case PLAY:
 		if (NULL == (gg->play_id = gui_list_getent()))
 			break;
-		gui_task_add(id);
+		gui_corecmd_add(&cmd_play, NULL);
 		break;
 
 	case PAUSE:
 		if (g == NULL) {
-			gui_task_add(id);
+			gui_corecmd_add(&cmd_play_cur, NULL);
 			break;
 		}
 		fflk_lock(&gg->lk);
@@ -198,11 +195,6 @@ static void gui_action(ffui_wnd *wnd, int id)
 			ffui_view_sort(&gg->wmain.vlist, &gui_list_sortfunc, gg->wmain.vlist.col);
 		break;
 
-	case CLEAR:
-		gg->qu->cmd(FMED_QUE_CLEAR, NULL);
-		ffui_view_clear(&gg->wmain.vlist);
-		break;
-
 	case HIDE:
 		ffui_tray_show(&gg->wmain.tray_icon, 1);
 		ffui_show(&gg->wmain.wmain, 0);
@@ -220,7 +212,7 @@ static void gui_action(ffui_wnd *wnd, int id)
 
 	case QUIT:
 	case ONCLOSE:
-		gui_task_add(QUIT);
+		gui_corecmd_add(&cmd_quit, NULL);
 		gui_onclose();
 		if (id == QUIT)
 			ffui_wnd_close(&gg->wmain.wmain);
@@ -574,7 +566,7 @@ static void gui_media_open(uint id)
 	ffui_redraw(&gg->wmain.vlist, 1);
 
 	if (id == OPEN)
-		gui_task_add(NEXT);
+		gui_corecmd_op(NEXT, NULL);
 }
 
 static void gui_media_addurl(uint id)
@@ -677,9 +669,10 @@ static void gui_media_savelist(void)
 	if (fn == NULL)
 		return;
 
-	if (NULL == (gg->list_fn = ffsz_alcopyz(fn)))
+	char *list_fn;
+	if (NULL == (list_fn = ffsz_alcopyz(fn)))
 		return;
-	gui_task_add(SAVELIST);
+	gui_corecmd_add(&cmd_savelist, list_fn);
 }
 
 static void gui_media_remove(void)

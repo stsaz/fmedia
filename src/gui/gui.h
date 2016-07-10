@@ -68,12 +68,10 @@ typedef struct ggui {
 	fflock lk;
 	const fmed_queue *qu;
 	const fmed_track *track;
-	fftask cmdtask;
 	void *play_id;
 	char *rec_dir;
 	ffstr rec_format;
 	uint load_err;
-	char *list_fn;
 
 	uint go_pos;
 
@@ -205,15 +203,18 @@ enum CMDS {
 typedef void (*cmdfunc0)(void);
 typedef void (*cmdfunc)(uint id);
 typedef void (*cmdfunc2)(gui_trk *g, uint id);
+typedef void (*cmdfudata)(uint id, void *udata);
 typedef union {
 	cmdfunc0 f0;
 	cmdfunc f;
+	cmdfudata fudata;
 } cmdfunc_u;
 
 enum CMDFLAGS {
 	F1 = 0,
 	F0 = 1,
-	F2 = 2,
+	CMD_FUDATA = 2,
+	CMD_FCORE = 0x10,
 };
 
 struct cmd {
@@ -226,17 +227,20 @@ const struct cmd* getcmd(uint cmd, const struct cmd *cmds, uint n);
 
 
 void* gui_getctl(void *udata, const ffstr *name);
-void gui_task_add(uint id);
 void gui_addcmd(cmdfunc2 func, uint cmd);
 void gui_media_add1(const char *fn);
 
 void wmain_init(void);
+void gui_runcmd(const struct cmd *cmd, void *udata);
+void gui_corecmd_op(uint cmd, void *udata);
+void gui_corecmd_add(const struct cmd *cmd, void *udata);
 void gui_newtrack(gui_trk *g, fmed_filt *d, fmed_que_entry *plid);
 int gui_setmeta(gui_trk *g, fmed_que_entry *qent);
 void gui_clear(void);
 void gui_status(const char *s, size_t len);
 void gui_media_added(fmed_que_entry *ent);
 void gui_media_removed(uint i);
+void gui_rec(uint cmd);
 void gui_que_new(void);
 void gui_que_del(void);
 void gui_que_sel(void);

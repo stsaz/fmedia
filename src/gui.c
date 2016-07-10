@@ -34,9 +34,7 @@ static const fmed_mod fmed_gui_mod = {
 static int gui_install(uint sig);
 
 static FFTHDCALL int gui_worker(void *param);
-static void gui_task(void *param);
 static void gui_que_onchange(fmed_que_entry *e, uint flags);
-static void gui_rec(uint cmd);
 
 //GUI-TRACK
 static void* gtrk_open(fmed_filt *d);
@@ -68,6 +66,7 @@ FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 }
 
 
+static void gui_corecmd(void *param);
 static int gui_getcmd(void *udata, const ffstr *name);
 
 #define add  FFUI_LDR_CTL
@@ -227,9 +226,47 @@ static int gui_getcmd(void *udata, const ffstr *name)
 	return 0;
 }
 
-static void gui_task(void *param)
+void gui_runcmd(const struct cmd *cmd, void *udata)
 {
-	uint cmd = (uint)(size_t)param;
+	cmdfunc_u u;
+	u.f = cmd->func;
+	if (cmd->flags & F0)
+		u.f0();
+	else if (cmd->flags & CMD_FUDATA)
+		u.fudata(cmd->cmd, udata);
+	else //F1
+		u.f(cmd->cmd);
+}
+
+struct corecmd {
+	fftask tsk;
+	const struct cmd *cmd;
+	void *udata;
+};
+
+static void gui_corecmd(void *param)
+{
+	struct corecmd *c = param;
+	gui_runcmd(c->cmd, c->udata);
+	ffmem_free(c);
+}
+
+void gui_corecmd_add(const struct cmd *cmd, void *udata)
+{
+	struct corecmd *c = ffmem_tcalloc1(struct corecmd);
+	if (c == NULL) {
+		syserrlog(core, NULL, "gui", "alloc");
+		return;
+	}
+	c->tsk.handler = &gui_corecmd;
+	c->tsk.param = c;
+	c->cmd = cmd;
+	c->udata = udata;
+	core->task(&c->tsk, FMED_TASK_POST);
+}
+
+void gui_corecmd_op(uint cmd, void *udata)
+{
 	switch (cmd) {
 	case PLAY:
 		gg->track->cmd(NULL, FMED_TRACK_STOPALL);
@@ -261,38 +298,22 @@ static void gui_task(void *param)
 		break;
 
 
-	case SAVELIST:
-		gg->qu->cmd(FMED_QUE_SAVE, gg->list_fn);
-		ffmem_free0(gg->list_fn);
+	case CLEAR:
+		gg->qu->cmd(FMED_QUE_CLEAR, NULL);
+		ffui_view_clear(&gg->wmain.vlist);
 		break;
 
-
-	case REC:
-	case PLAYREC:
-	case MIXREC:
-		gui_rec(cmd);
+	case SAVELIST: {
+		char *list_fn = udata;
+		gg->qu->cmd(FMED_QUE_SAVE, list_fn);
+		ffmem_free(list_fn);
 		break;
-
-	case QUE_NEW:
-		gui_que_new();
-		break;
-	case QUE_DEL:
-		gui_que_del();
-		break;
-	case QUE_SEL:
-		gui_que_sel();
-		break;
+	}
 
 	case QUIT:
 		core->sig(FMED_STOP);
 		break;
 	}
-}
-
-void gui_task_add(uint id)
-{
-	gg->cmdtask.param = (void*)(size_t)id;
-	core->task(&gg->cmdtask, FMED_TASK_POST);
 }
 
 void gui_addcmd(cmdfunc2 func, uint cmd)
@@ -337,7 +358,7 @@ void gui_media_add1(const char *fn)
 	gui_media_added(pe);
 }
 
-static void gui_rec(uint cmd)
+void gui_rec(uint cmd)
 {
 	void *t;
 	ffstr3 nm = {0};
@@ -429,7 +450,6 @@ static FFTHDCALL int gui_worker(void *param)
 	gg->wlog.wlog.hide_on_close = 1;
 	wuri_init();
 
-	gg->cmdtask.handler = &gui_task;
 	ffui_dlg_multisel(&gg->dlg);
 
 	fflk_unlock(&gg->lk);
@@ -596,7 +616,6 @@ static void gui_destroy(void)
 		return;
 	ffui_wnd_close(&gg->wmain.wmain);
 	ffthd_join(gg->th, -1, NULL);
-	core->task(&gg->cmdtask, FMED_TASK_DEL);
 	ffmem_safefree(gg->rec_dir);
 
 	ffstr_free(&gg->rec_format);

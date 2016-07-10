@@ -35,19 +35,17 @@ void wconvert_init()
 
 static const struct cmd cvt_cmds[] = {
 	{ OUTBROWSE,	F0,	&gui_conv_browse },
-	{ CONVERT,	F0,	&gui_convert },
+	{ CONVERT,	F0 | CMD_FCORE,	&gui_convert },
 };
 
 static void gui_cvt_action(ffui_wnd *wnd, int id)
 {
 	const struct cmd *cmd = getcmd(id, cvt_cmds, FFCNT(cvt_cmds));
 	if (cmd != NULL) {
-		cmdfunc_u u;
-		u.f = cmd->func;
-		if (cmd->flags & F0)
-			u.f0();
+		if (cmd->flags & CMD_FCORE)
+			gui_corecmd_add(cmd, NULL);
 		else
-			u.f(id);
+			gui_runcmd(cmd, NULL);
 		return;
 	}
 
@@ -296,7 +294,7 @@ static void gui_convert(void)
 
 	if (play != NULL) {
 		gg->play_id = play;
-		gui_task_add(PLAY);
+		gui_corecmd_op(PLAY, NULL);
 	}
 end:
 	ffui_view_itemreset(&it);
