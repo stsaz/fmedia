@@ -7,6 +7,19 @@ HISTORY OF FMEDIA
  "-" - bugfix
 
 
+fmedia v0.14 - Jul 9, 2016
+
+ - GUI: fix more potential threads races
+ + TUI: new command "Show Tags"
+ - MPEG decode: fix hanging on ID3v1 tag parsing after ID3v2 was not found (FF v16.05 bug)
+ - MPEG decode: last samples in file were not decoded (FF v16.05 bug)
+ - MPEG encode: ID3v2: fix adding "track number" and "total tracks" if padding is enabled (FF v16.04 bug)
+ - ID3v2: better handling of short description for a comment with UTF16 BOM
+ - FLAC, WavPack: seek to the beginning didn't work
+ - APE tag: fix input data offset if tag is small (FF v16.05 bug)
+ - OGG: no-decode mode: 2nd page wasn't returned (FF v16.03.31 bug)
+
+
 fmedia v0.13 - May 26, 2016
 
  + ICY: support shoutcast input (MPEG)

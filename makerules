@@ -22,6 +22,7 @@ endif
 all: ff $(BINS)
 
 include $(FF)/makerules
+include $(FF3PT)/makerules
 FF_O := $(FFOS_OBJ) $(FF_OBJ) $(FF_OBJ_DIR)/ffutf8.o
 
 $(OBJ_DIR)/%.o: $(SRCDIR)/%.c $(SRCDIR)/fmedia.h $(SRCDIR)/core.h $(FF_HDR) $(FF_AUDIO_HDR)
@@ -41,7 +42,7 @@ BIN_O += $(RES)
 endif
 
 $(BIN): $(BIN_O)
-	$(LD)  $(BIN_O) $(LDFLAGS) -o$@
+	$(LD)  $(BIN_O) $(LDFLAGS) $(LD_LPTHREAD) -o$@
 
 
 #
@@ -54,9 +55,10 @@ CORE_O := $(OBJ_DIR)/core.o \
 	$(FF_OBJ_DIR)/ffparse.o $(FF_OBJ_DIR)/ffconf.o \
 	$(FF_OBJ_DIR)/ffsoxr.o \
 	$(FF_OBJ_DIR)/ffpcm.o \
-	$(FF_OBJ_DIR)/ffm3u.o
+	$(FF_OBJ_DIR)/ffm3u.o \
+	$(FF_OBJ_DIR)/crc.o
 core.$(SO): $(CORE_O)
-	$(LD) -shared $(CORE_O) $(LDFLAGS) $(LD_LDL) $(LD_LMATH) -lsoxr-ff  -o$@
+	$(LD) -shared $(CORE_O) $(LDFLAGS) $(LD_LDL) $(LD_LMATH) $(LD_LPTHREAD) -lsoxr-ff  -o$@
 
 
 #
@@ -152,6 +154,7 @@ plist.$(SO): $(PLIST_O)
 
 #
 DSOUND_O := $(OBJ_DIR)/dsound.o $(FF_O) \
+	$(FF_OBJ_DIR)/ffwohandler.o \
 	$(FF_OBJ_DIR)/ffdsound.o \
 	$(FF_OBJ_DIR)/ffpcm.o \
 	$(FF_OBJ_DIR)/ffwav.o
@@ -161,6 +164,7 @@ direct-sound.$(SO): $(DSOUND_O)
 
 #
 WASAPI_O := $(OBJ_DIR)/wasapi.o $(FF_O) \
+	$(FF_OBJ_DIR)/ffwohandler.o \
 	$(FF_OBJ_DIR)/ffpcm.o \
 	$(FF_OBJ_DIR)/ffwav.o \
 	$(FF_OBJ_DIR)/ffwasapi.o
@@ -231,7 +235,7 @@ installd: all
 		$(FF3PTLIB)/libsoxr-ff.$(SO) \
 		$(INSTDIR)/
 
-ifeq ($(OSTYPE),unix)
+ifneq ($(OS),win)
 	$(CP) $(PROJDIR)/fmedia-exec $(INSTDIR)/fmedia
 	chmod 644 $(INSTDIR)/*
 	chmod 755 $(INSTDIR)/fmedia
