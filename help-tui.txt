@@ -18,5 +18,6 @@ Supported key modifiers:
 Up     Volume up
 Down   Volume down
 
+i      Show tags
 d      Remove the track from playlist
 D      Delete file from disk

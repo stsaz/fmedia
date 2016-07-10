@@ -76,6 +76,7 @@ enum CMDS {
 
 	CMD_RM,
 	CMD_DELFILE,
+	CMD_SHOWTAGS,
 
 	CMD_QUIT,
 
@@ -248,6 +249,14 @@ static void tui_close(void *ctx)
 	ffmem_free(t);
 }
 
+static void tui_addtags(tui *t, fmed_que_entry *qent, ffarr *buf)
+{
+	ffstr name, *val;
+	for (uint i = 0;  NULL != (val = gt->qu->meta(qent, i, &name, 0));  i++) {
+		ffstr_catfmt(buf, "%S\t%S\n", &name, val);
+	}
+}
+
 static void tui_info(tui *t, fmed_filt *d)
 {
 	uint64 total_time, tsize;
@@ -293,11 +302,7 @@ static void tui_info(tui *t, fmed_filt *d)
 		, ffpcm_channelstr(fmt.channels));
 
 	if (1 == core->getval("show_tags")) {
-		uint i;
-		ffstr name, *val;
-		for (i = 0;  NULL != (val = gt->qu->meta(qent, i, &name, 0));  i++) {
-			ffstr_catfmt(&t->buf, "%S\t%S\n", &name, val);
-		}
+		tui_addtags(t, qent, &t->buf);
 	}
 
 	ffstd_write(ffstderr, t->buf.ptr, t->buf.len);
@@ -502,6 +507,17 @@ static void tui_op(uint cmd)
 	case CMD_QUIT:
 		gt->track->cmd(NULL, FMED_TRACK_STOPALL_EXIT);
 		break;
+
+	case CMD_SHOWTAGS: {
+		tui *t = gt->curtrk;
+		if (t == NULL)
+			break;
+		t->buf.len = 0;
+		tui_addtags(t, (void*)gt->track->getval(t->trk, "queue_item"), &t->buf);
+		ffstd_write(ffstderr, t->buf.ptr, t->buf.len);
+		t->buf.len = 0;
+		break;
+	}
 	}
 }
 
@@ -517,6 +533,7 @@ static struct key hotkeys[] = {
 	{ 'D',	CMD_DELFILE | _CMD_CURTRK | _CMD_CORE,	&tui_rmfile },
 	{ 'd',	CMD_RM | _CMD_CURTRK | _CMD_CORE,	&tui_rmfile },
 	{ 'h',	_CMD_F1,	&tui_help },
+	{ 'i',	CMD_SHOWTAGS | _CMD_F1 | _CMD_CORE,	&tui_op },
 	{ 'n',	CMD_NEXT | _CMD_F1 | _CMD_CORE,	&tui_op },
 	{ 'p',	CMD_PREV | _CMD_F1 | _CMD_CORE,	&tui_op },
 	{ 'q',	CMD_QUIT | _CMD_F1 | _CMD_CORE,	&tui_op },
