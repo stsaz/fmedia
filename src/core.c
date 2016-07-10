@@ -50,6 +50,7 @@ typedef struct fm_src fm_src;
 
 struct fm_src {
 	fflist_item sib;
+	ffchain filt_chain;
 	struct {FFARR(fmed_f)} filters;
 	fflist_cursor cur;
 	ffrbtree dict;
@@ -666,16 +667,13 @@ static int media_setout(fm_src *src)
 
 static int media_opened(fm_src *src)
 {
-	fmed_f *f, *prev = NULL;
+	fmed_f *f;
 	FFARR_WALK(&src->filters, f) {
 
 		if (f->mod == NULL)
 			return -1;
 
-		if (prev != NULL)
-			fflist_link(&f->sib, &prev->sib);
-
-		prev = f;
+		ffchain_add(&src->filt_chain, &f->sib);
 	}
 
 	fflist_ins(&fmed->srcs, &src->sib);
@@ -695,6 +693,7 @@ static void* trk_create(uint cmd, const char *fn)
 	fm_src *src = ffmem_tcalloc1(fm_src);
 	if (src == NULL)
 		return NULL;
+	ffchain_init(&src->filt_chain);
 	ffrbt_init(&src->dict);
 
 	src->id.len = ffs_fmt(src->sid, src->sid + sizeof(src->sid), "*%u", ++fmed->srcid);
@@ -783,7 +782,7 @@ static void media_printtime(fm_src *src)
 	}
 	if (all.s == 0 && all.mcs == 0)
 		return;
-	ffstr_catfmt(&s, "cpu time: %u.%06u.  ", all.s, all.mcs);
+	ffstr_catfmt(&s, "time: %u.%06u.  ", all.s, all.mcs);
 
 	FFARR_WALK(&src->filters, pf) {
 		ffstr_catfmt(&s, "%s: %u.%06u (%u%%), "
@@ -928,7 +927,7 @@ static void media_process(void *udata)
 			r |= FFLIST_CUR_SAMEIFBOUNCE;
 
 shift:
-		r = fflist_curshift(&src->cur, r | FFLIST_CUR_BOUNCE, fflist_sentl(&src->cur));
+		r = fflist_curshift(&src->cur, r | FFLIST_CUR_BOUNCE, ffchain_sentl(&src->filt_chain));
 
 		switch (r) {
 		case FFLIST_CUR_NONEXT:
@@ -944,7 +943,7 @@ next:
 			nf = FF_GETPTR(fmed_f, sib, src->cur);
 			nf->d.data = f->d.out;
 			nf->d.datalen = f->d.outlen;
-			if (src->cur->prev == fflist_sentl(&src->cur))
+			if (src->cur->prev == ffchain_sentl(&src->filt_chain))
 				nf->d.flags |= FMED_FLAST;
 
 			if (!nf->opened) {
@@ -1218,6 +1217,7 @@ fmed_core* core_init(fmedia **ptr)
 	fmed->kq = FF_BADFD;
 	fftask_init(&fmed->taskmgr);
 	fflist_init(&fmed->srcs);
+	fflist_init(&fmed->mods);
 	core_insmod("#core.core", NULL);
 
 	fmed->ogg_qual = -255;

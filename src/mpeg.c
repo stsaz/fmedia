@@ -378,11 +378,17 @@ static int mpeg_out_process(void *ctx, fmed_filt *d)
 			return FMED_RERR;
 
 		m->state = 2;
+		// break
+
+	case 2:
+		m->mpg.pcm = (void*)d->data;
+		m->mpg.pcmlen = d->datalen;
+		m->state = 3;
+		// break
+
+	case 3:
 		break;
 	}
-
-	m->mpg.pcm = (void*)d->data;
-	m->mpg.pcmlen = d->datalen;
 
 	for (;;) {
 		r = ffmpg_encode(&m->mpg);
@@ -393,6 +399,7 @@ static int mpeg_out_process(void *ctx, fmed_filt *d)
 
 		case FFMPG_RMORE:
 			if (!(d->flags & FMED_FLAST)) {
+				m->state = 2;
 				return FMED_RMORE;
 			}
 			m->mpg.fin = 1;
@@ -415,9 +422,8 @@ static int mpeg_out_process(void *ctx, fmed_filt *d)
 data:
 	d->out = m->mpg.data;
 	d->outlen = m->mpg.datalen;
-	d->datalen = m->mpg.pcmlen;
 
 	dbglog(core, d->trk, "mpeg", "output: %L bytes"
 		, m->mpg.datalen);
-	return FMED_ROK;
+	return FMED_RDATA;
 }

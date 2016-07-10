@@ -2,6 +2,7 @@
 Copyright (c) 2015 Simon Zolin */
 
 #include <fmedia.h>
+#include <FF/list.h>
 #include <FF/data/m3u.h>
 
 
@@ -68,7 +69,7 @@ static const fmed_queue fmed_que_mgr = {
 static fmed_que_entry* que_add(fmed_que_entry *ent, uint flags);
 static void que_meta_set(fmed_que_entry *ent, const ffstr *name, const ffstr *val, uint flags);
 static void que_play(entry *e);
-static void que_save(entry *first, const char *fn);
+static void que_save(entry *first, const fflist_item *sentl, const char *fn);
 static void ent_free(entry *e);
 static void que_taskfunc(void *udata);
 static void que_task_add(uint cmd);
@@ -106,6 +107,7 @@ static int que_sig(uint signo)
 	case FMED_OPEN:
 		if (NULL == (qu = ffmem_tcalloc1(que)))
 			return 1;
+		fflist_init(&qu->plists);
 		que_cmd2(FMED_QUE_NEW, NULL, 0);
 		que_cmd2(FMED_QUE_SEL, (void*)0, 0);
 		qu->track = core->getmod("#core.track");
@@ -216,7 +218,7 @@ static void que_play(entry *ent)
 }
 
 /** Save playlist file. */
-static void que_save(entry *first, const char *fn)
+static void que_save(entry *first, const fflist_item *sentl, const char *fn)
 {
 	fffd f;
 	ffm3u_cook m3 = {0};
@@ -227,7 +229,7 @@ static void que_save(entry *first, const char *fn)
 	if (FF_BADFD == (f = fffile_open(fn, O_CREAT | O_TRUNC | O_WRONLY)))
 		goto done;
 
-	for (e = first;  ;  e = FF_GETPTR(entry, sib, e->sib.next)) {
+	for (e = first;  &e->sib != sentl;  e = FF_GETPTR(entry, sib, e->sib.next)) {
 		int r = 0;
 		ffstr ss, *s;
 		ss.len = 0;
@@ -248,9 +250,6 @@ static void que_save(entry *first, const char *fn)
 
 		if (r != 0)
 			goto done;
-
-		if (e->sib.next == FFLIST_END)
-			break;
 	}
 
 	if (m3.buf.len != (size_t)fffile_write(f, m3.buf.ptr, m3.buf.len))
@@ -267,16 +266,15 @@ done:
 
 static entry* que_getnext(entry *from)
 {
+	ffchain_item *it;
 	fflist *ents = &qu->curlist->ents;
-	if (ents->len == 0)
-		goto nonext;
 
-	if (from == NULL) {
-		return FF_GETPTR(entry, sib, ents->first);
+	it = (from == NULL) ? ents->first : from->sib.next;
+	if (it == fflist_sentl(ents)) {
+		if (1 == core->getval("repeat_all"))
+			it = ents->first;
 
-	} else if (from->sib.next == fflist_sentl(ents)) {
-		if (1 != core->getval("repeat_all")) {
-nonext:
+		if (it == fflist_sentl(ents)) {
 			dbglog(core, NULL, "que", "no next file in playlist");
 			if (qu->quit_if_done)
 				core->sig(FMED_STOP);
@@ -284,10 +282,9 @@ nonext:
 		}
 
 		dbglog(core, NULL, "que", "repeat_all: starting from the beginning");
-		return FF_GETPTR(entry, sib, ents->first);
 	}
 
-	return FF_GETPTR(entry, sib, from->sib.next);
+	return FF_GETPTR(entry, sib, it);
 }
 
 static void que_mix(void)
@@ -329,21 +326,20 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 
 	dbglog(core, NULL, "que", "received command:%s, param:%p", scmds[cmd], param);
 
-	//@ fflk_lock(&qu->lk);
 	switch (cmd) {
 	case FMED_QUE_PLAY_EXCL:
 		qu->track->cmd(NULL, FMED_TRACK_STOPALL);
 		// break
 
 	case FMED_QUE_PLAY:
-		if (ents->len == 0)
-			break;
-
 		if (param != NULL) {
 			qu->cur = param;
 
-		} else if (qu->cur == NULL)
+		} else if (qu->cur == NULL) {
+			if (fflist_empty(ents))
+				break;
 			qu->cur = FF_GETPTR(entry, sib, ents->first);
+		}
 		qu->mixing = 0;
 		que_play(qu->cur);
 		break;
@@ -402,9 +398,7 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 
 
 	case FMED_QUE_SAVE:
-		if (ents->len == 0)
-			break;
-		que_save(FF_GETPTR(entry, sib, ents->first), param);
+		que_save(FF_GETPTR(entry, sib, ents->first), fflist_sentl(ents), param);
 		break;
 
 	case FMED_QUE_CLEAR:
@@ -443,7 +437,7 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 		if (n >= qu->plists.len)
 			return -1;
 
-		FFLIST_WALKNEXT(qu->plists.first, li) {
+		FFLIST_FOREACH(&qu->plists, li) {
 			if (i++ == n)
 				break;
 		}
@@ -454,21 +448,20 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 	case FMED_QUE_LIST:
 		{
 		fmed_que_entry **ent = param;
+		ffchain_item *it;
 		if (*ent == NULL) {
-			if (ents->len == 0)
-				return 0;
-			e = FF_GETPTR(entry, sib, ents->first);
+			it = ents->first;
 		} else {
 			e = FF_GETPTR(entry, e, *ent);
-			if (e->sib.next == fflist_sentl(ents))
-				return 0;
-			e = FF_GETPTR(entry, sib, e->sib.next);
+			it = e->sib.next;
 		}
+		if (it == fflist_sentl(ents))
+			return 0;
+		e = FF_GETPTR(entry, sib, it);
 		*ent = &e->e;
 		}
 		return 1;
 	}
-	// fflk_unlock(&qu->lk);
 
 	return 0;
 }
@@ -496,7 +489,8 @@ static fmed_que_entry* que_add(fmed_que_entry *ent, uint flags)
 	e->e.prev = ent->prev;
 
 	fflk_lock(&qu->lk);
-	fflist_place(&qu->curlist->ents, &e->sib, (ent->prev != NULL) ? &((entry*)ent->prev)->sib : NULL);
+	ffchain_append(&e->sib, (ent->prev != NULL) ? &FF_GETPTR(entry, e, ent->prev)->sib : qu->curlist->ents.last);
+	qu->curlist->ents.len++;
 	fflk_unlock(&qu->lk);
 
 	dbglog(core, NULL, "que", "added: (%d: %d-%d) %S"

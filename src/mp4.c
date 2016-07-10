@@ -1,4 +1,4 @@
-/** MP4 (ALAC) input.
+/** MP4 (AAC, ALAC) input.
 Copyright (c) 2016 Simon Zolin */
 
 #include <fmedia.h>

@@ -464,7 +464,7 @@ static int sndmod_untl_process(void *ctx, fmed_filt *d)
 
 	if (u->asis) {
 		if (pos >= u->until) {
-			dbglog(core, d->trk, "", "until_time is reached");
+			dbglog(core, d->trk, "until", "reached sample #%U", u->until);
 			return FMED_RLASTOUT;
 		}
 		d->datalen = 0;
@@ -474,7 +474,7 @@ static int sndmod_untl_process(void *ctx, fmed_filt *d)
 	samps = d->datalen / u->sampsize;
 	d->datalen = 0;
 	if (pos + samps >= u->until) {
-		dbglog(core, d->trk, "", "until_time is reached");
+		dbglog(core, d->trk, "until", "reached sample #%U", u->until);
 		d->outlen = (u->until > pos) ? (u->until - pos) * u->sampsize : 0;
 		return FMED_RLASTOUT;
 	}
@@ -494,11 +494,11 @@ typedef struct sndmod_peaks {
 		uint64 sum;
 		uint64 clipped;
 	} ch[2];
+	uint do_crc :1;
 } sndmod_peaks;
 
 static void* sndmod_peaks_open(fmed_filt *d)
 {
-	uint ich;
 	sndmod_peaks *p = ffmem_tcalloc1(sndmod_peaks);
 	if (p == NULL)
 		return NULL;
@@ -509,11 +509,7 @@ static void* sndmod_peaks_open(fmed_filt *d)
 		return NULL;
 	}
 
-	if (1 == fmed_getval("pcm_crc")) {
-		for (ich = 0;  ich != p->nch;  ich++) {
-			p->ch[ich].crc = ffcrc32_start();
-		}
-	}
+	p->do_crc = (1 == fmed_getval("pcm_crc"));
 	return p;
 }
 
@@ -564,8 +560,8 @@ static int sndmod_peaks_process(void *ctx, fmed_filt *d)
 			p->ch[ich].sum += sh;
 		}
 
-		if (p->ch[ich].crc != 0)
-			ffcrc32_updatestr(&p->ch[ich].crc, d->datani[ich], d->datalen / p->nch);
+		if (p->do_crc)
+			p->ch[ich].crc = crc32(d->datani[ich], d->datalen / p->nch, p->ch[ich].crc);
 	}
 
 	d->out = d->data;
@@ -579,9 +575,6 @@ static int sndmod_peaks_process(void *ctx, fmed_filt *d)
 
 		if (p->total != 0) {
 			for (ich = 0;  ich != p->nch;  ich++) {
-
-				if (p->ch[ich].crc != 0)
-					ffcrc32_finish(&p->ch[ich].crc);
 
 				double hi = ffpcm_gain2db(_ffpcm_16le_flt(p->ch[ich].high));
 				double avg = ffpcm_gain2db(_ffpcm_16le_flt(p->ch[ich].sum / p->total));

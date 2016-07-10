@@ -45,7 +45,7 @@ menu mfile {
 	}
 	item "Show Media Info" {
 		action SHOWINFO
-		hotkey "F4"
+		hotkey "I"
 	}
 	item "C&opy to Clipboard" {
 		action COPYFILE
