@@ -27,8 +27,8 @@ static void gui_media_savelist(void);
 static void gui_plist_recount(uint from);
 static void gui_media_remove(void);
 static fmed_que_entry* gui_list_getent(void);
+static void gui_goto_show(void);
 static void gui_go_set(void);
-static void gui_seek(uint cmd);
 static void gui_media_seek(gui_trk *g, uint cmd);
 static void gui_vol(uint id);
 static void gui_media_vol(gui_trk *g, uint id);
@@ -65,6 +65,7 @@ static const struct cmd cmds[] = {
 	{ SEEK,	F1,	&gui_seek },
 	{ FFWD,	F1,	&gui_seek },
 	{ RWND,	F1,	&gui_seek },
+	{ GOTO_SHOW,	F0,	&gui_goto_show },
 	{ GOPOS,	F1,	&gui_seek },
 	{ SETGOPOS,	F0,	&gui_go_set },
 
@@ -198,6 +199,7 @@ static void gui_action(ffui_wnd *wnd, int id)
 	case HIDE:
 		ffui_tray_show(&gg->wmain.tray_icon, 1);
 		ffui_show(&gg->wmain.wmain, 0);
+		ffui_show(&gg->wgoto.wgoto, 0);
 		break;
 
 	case SHOW:
@@ -300,11 +302,24 @@ static void gui_go_set(void)
 	gui_status(buf, n);
 }
 
+static void gui_goto_show(void)
+{
+	uint pos = ffui_trk_val(&gg->wmain.tpos);
+	ffarr s = {0};
+	ffstr_catfmt(&s, "%02u:%02u", pos / 60, pos % 60);
+	ffui_settextstr(&gg->wgoto.etime, &s);
+	ffarr_free(&s);
+	ffui_show(&gg->wgoto.wgoto, 1);
+}
+
 /*
 Note: if Left/Right key is pressed while trackbar is focused, SEEK command will be received after RWND/FFWD. */
-static void gui_seek(uint cmd)
+void gui_seek(uint cmd)
 {
 	switch (cmd) {
+	case GOTO:
+		break;
+
 	case FFWD:
 		ffui_trk_move(&gg->wmain.tpos, FFUI_TRK_PGUP);
 		break;

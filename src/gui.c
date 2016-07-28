@@ -88,6 +88,12 @@ static const ffui_ldr_ctl winfo_ctls[] = {
 	add(gui_winfo, pninfo),
 };
 
+static const ffui_ldr_ctl wgoto_ctls[] = {
+	add(gui_wgoto, wgoto),
+	add(gui_wgoto, etime),
+	add(gui_wgoto, bgo),
+};
+
 static const ffui_ldr_ctl wabout_ctls[] = {
 	add(gui_wabout, wabout),
 	add(gui_wabout, labout),
@@ -139,6 +145,7 @@ static const ffui_ldr_ctl top_ctls[] = {
 	FFUI_LDR_CTL3(ggui, wmain, wmain_ctls),
 	FFUI_LDR_CTL3(ggui, wconvert, wconvert_ctls),
 	FFUI_LDR_CTL3(ggui, winfo, winfo_ctls),
+	FFUI_LDR_CTL3(ggui, wgoto, wgoto_ctls),
 	FFUI_LDR_CTL3(ggui, wlog, wlog_ctls),
 	FFUI_LDR_CTL3(ggui, wuri, wuri_ctls),
 	FFUI_LDR_CTL3(ggui, wabout, wabout_ctls),
@@ -165,6 +172,8 @@ static const char *const scmds[] = {
 	"SEEKING",
 	"FFWD",
 	"RWND",
+	"GOTO_SHOW",
+	"GOTO",
 	"GOPOS",
 	"SETGOPOS",
 
@@ -450,6 +459,7 @@ static FFTHDCALL int gui_worker(void *param)
 	winfo_init();
 	gg->wlog.wlog.hide_on_close = 1;
 	wuri_init();
+	wgoto_init();
 
 	ffui_dlg_multisel(&gg->dlg);
 

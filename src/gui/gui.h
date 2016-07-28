@@ -41,6 +41,12 @@ typedef struct gui_winfo {
 	ffui_paned pninfo;
 } gui_winfo;
 
+typedef struct gui_wgoto {
+	ffui_wnd wgoto;
+	ffui_edit etime;
+	ffui_btn bgo;
+} gui_wgoto;
+
 typedef struct gui_wabout {
 	ffui_wnd wabout;
 	ffui_ctl labout;
@@ -112,6 +118,7 @@ typedef struct ggui {
 	gui_wmain wmain;
 	gui_wconvert wconvert;
 	gui_winfo winfo;
+	gui_wgoto wgoto;
 	gui_wabout wabout;
 	gui_wlog wlog;
 	gui_wuri wuri;
@@ -170,6 +177,8 @@ enum CMDS {
 	SEEKING,
 	FFWD,
 	RWND,
+	GOTO_SHOW,
+	GOTO,
 	GOPOS,
 	SETGOPOS,
 
@@ -270,12 +279,16 @@ void gui_que_new(void);
 void gui_que_del(void);
 void gui_que_sel(void);
 
+void gui_seek(uint cmd);
+
 void wconvert_init(void);
 void gui_showconvert(void);
 int gui_conf_convert(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
 
 void winfo_init(void);
 void gui_media_showinfo(void);
+
+void wgoto_init(void);
 
 void wuri_init(void);
 

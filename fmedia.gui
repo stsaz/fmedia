@@ -103,6 +103,10 @@ menu mplay {
 		action RWND
 		hotkey "Left"
 	}
+	item "Go To..." {
+		action GOTO_SHOW
+		hotkey "Ctrl+G"
+	}
 	item "Set Marker" {
 		action SETGOPOS
 		hotkey "Shift+G"
@@ -432,6 +436,30 @@ window winfo {
 		child vinfo {
 			resize cx cy
 		}
+	}
+}
+
+window wgoto {
+	parent wmain
+	title "Go To"
+	position 300 300 100 100
+	style popup
+	opacity 90
+	font {
+		name Arial
+		height 10
+	}
+
+	editbox etime {
+		position 0 0 100 25
+		style visible
+	}
+
+	button bgo {
+		position 0 25 50 25
+		style visible
+		text "Go!"
+		action GOTO
 	}
 }
 

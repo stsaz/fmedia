@@ -3,6 +3,7 @@ Copyright (c) 2016 Simon Zolin */
 
 #include <fmedia.h>
 #include <gui/gui.h>
+#include <FF/time.h>
 
 
 enum {
@@ -22,6 +23,8 @@ static void gui_conv_browse(void);
 static void gui_convert(void);
 
 static void gui_info_action(ffui_wnd *wnd, int id);
+
+static void gui_wgoto_action(ffui_wnd *wnd, int id);
 
 static void gui_wuri_action(ffui_wnd *wnd, int id);
 
@@ -434,6 +437,34 @@ void gui_media_showinfo(void)
 		ffui_view_set(&gg->winfo.vinfo, 1, &it);
 	}
 	ffui_redraw(&gg->winfo.vinfo, 1);
+}
+
+
+void wgoto_init()
+{
+	gg->wgoto.wgoto.hide_on_close = 1;
+	gg->wgoto.wgoto.on_action = &gui_wgoto_action;
+}
+
+static void gui_wgoto_action(ffui_wnd *wnd, int id)
+{
+	switch (id) {
+	case GOTO: {
+		ffstr s;
+		ffdtm dt;
+		fftime t;
+
+		ffui_textstr(&gg->wgoto.etime, &s);
+		if (s.len != fftime_fromstr(&dt, s.ptr, s.len, FFTIME_HMS_MSEC_VAR))
+			return;
+
+		fftime_join(&t, &dt, FFTIME_TZNODATE);
+		ffui_trk_set(&gg->wmain.tpos, t.s);
+		gui_seek(GOTO);
+		ffui_show(&gg->wgoto.wgoto, 0);
+		break;
+	}
+	}
 }
 
 
