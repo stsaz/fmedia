@@ -187,6 +187,8 @@ static const char *const scmds[] = {
 	"SHOWRECS",
 
 	"SHOWCONVERT",
+	"SETCONVPOS_SEEK",
+	"SETCONVPOS_UNTIL",
 	"OUTBROWSE",
 	"CONVERT",
 	"CVT_SETS_EDIT",

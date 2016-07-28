@@ -208,6 +208,30 @@ void gui_showconvert(void)
 	ffui_wnd_setfront(&gg->wconvert.wconvert);
 }
 
+void gui_setconvpos(uint cmd)
+{
+	char buf[64];
+	int pos = ffui_trk_val(&gg->wmain.tpos);
+	int r = ffs_fmt2(buf, sizeof(buf), "%02u:%02u", pos / 60, pos % 60);
+	if (r <= 0)
+		return;
+
+	ffui_viewitem it;
+	ffui_view_iteminit(&it);
+
+	const char *name = (cmd == SETCONVPOS_SEEK) ? "seek_time" : "until_time";
+	uint i;
+	for (i = 0;  i != FFCNT(cvt_sets);  i++) {
+		if (!ffsz_cmp(cvt_sets[i].settname, name))
+			break;
+	}
+
+	ffui_view_setindex(&it, i);
+	ffui_view_settext(&it, buf, r);
+	ffui_view_set(&gg->wconvert.vsets, VSETS_VAL, &it);
+	ffui_view_itemreset(&it);
+}
+
 static int gui_cvt_getsettings(cvt_sets_t *sets)
 {
 	uint k;

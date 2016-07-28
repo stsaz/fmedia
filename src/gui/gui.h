@@ -192,6 +192,8 @@ enum CMDS {
 	SHOWRECS,
 
 	SHOWCONVERT,
+	SETCONVPOS_SEEK,
+	SETCONVPOS_UNTIL,
 	OUTBROWSE,
 	CONVERT,
 	CVT_SETS_EDIT,
@@ -283,6 +285,7 @@ void gui_seek(uint cmd);
 
 void wconvert_init(void);
 void gui_showconvert(void);
+void gui_setconvpos(uint cmd);
 int gui_conf_convert(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
 
 void winfo_init(void);

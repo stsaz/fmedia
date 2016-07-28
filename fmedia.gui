@@ -148,6 +148,14 @@ menu mconvert {
 		action SHOWCONVERT
 		hotkey "Ctrl+T"
 	}
+	item "Set Seek Position" {
+		action SETCONVPOS_SEEK
+		hotkey "["
+	}
+	item "Set Until Position" {
+		action SETCONVPOS_UNTIL
+		hotkey "]"
+	}
 }
 
 menu mhelp {

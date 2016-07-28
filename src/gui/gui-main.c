@@ -78,6 +78,8 @@ static const struct cmd cmds[] = {
 	{ MIXREC,	F1 | CMD_FCORE,	&gui_rec },
 
 	{ SHOWCONVERT,	F0,	&gui_showconvert },
+	{ SETCONVPOS_SEEK,	F1,	&gui_setconvpos },
+	{ SETCONVPOS_UNTIL,	F1,	&gui_setconvpos },
 
 	{ OPEN,	F1 | CMD_FCORE,	&gui_media_open },
 	{ ADD,	F1 | CMD_FCORE,	&gui_media_open },
