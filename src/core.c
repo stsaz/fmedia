@@ -719,6 +719,8 @@ static void* trk_create(uint cmd, const char *fn)
 		trk_setval(src, "ogg-quality", fmed->ogg_qual * 10);
 	else if (fmed->mpeg_qual != 0xffff)
 		trk_setval(src, "mpeg-quality", fmed->mpeg_qual);
+	else if (fmed->aac_qual != (uint)-1)
+		trk_setval(src, "aac-quality", fmed->aac_qual);
 	else if (fmed->flac_complevel != 0xff)
 		trk_setval(src, "flac_complevel", fmed->flac_complevel);
 
@@ -1221,6 +1223,7 @@ fmed_core* core_init(fmedia **ptr)
 	core_insmod("#core.core", NULL);
 
 	fmed->ogg_qual = -255;
+	fmed->aac_qual = (uint)-1;
 	fmed->mpeg_qual = 0xffff;
 	fmed->flac_complevel = 0xff;
 	fmed->cue_gaps = 255;

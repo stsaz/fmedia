@@ -3,7 +3,7 @@ Copyright (c) 2016 Simon Zolin */
 
 #include <fmedia.h>
 
-#include <FF/audio/mp4.h>
+#include <FF/data/mp4.h>
 #include <FF/audio/alac.h>
 #include <FF/audio/aac.h>
 
@@ -41,6 +41,14 @@ static const char *const mp4_metanames[] = {
 	"composer",
 };
 
+static struct aac_out_conf_t {
+	uint aot;
+	uint qual;
+	uint afterburner;
+	uint bandwidth;
+} aac_out_conf;
+
+
 struct mp4;
 struct dec_iface_t {
 	int (*open)(struct mp4 *m, fmed_filt *d);
@@ -61,6 +69,13 @@ typedef struct mp4 {
 	const struct dec_iface_t *dec;
 } mp4;
 
+typedef struct mp4_out {
+	uint state;
+	ffpcm fmt;
+	ffmp4_cook mp;
+	ffaac_enc aac;
+} mp4_out;
+
 
 //FMEDIA MODULE
 static const void* mp4_iface(const char *name);
@@ -76,6 +91,15 @@ static void mp4_in_free(void *ctx);
 static int mp4_in_decode(void *ctx, fmed_filt *d);
 static const fmed_filter fmed_mp4_input = {
 	&mp4_in_create, &mp4_in_decode, &mp4_in_free
+};
+
+//AAC ENCODE
+static int aac_out_config(ffpars_ctx *ctx);
+static void* mp4_out_create(fmed_filt *d);
+static void mp4_out_free(void *ctx);
+static int mp4_out_decode(void *ctx, fmed_filt *d);
+static const fmed_filter mp4aac_output = {
+	&mp4_out_create, &mp4_out_decode, &mp4_out_free, &aac_out_config
 };
 
 static void mp4_meta(mp4 *m, fmed_filt *d);
@@ -95,6 +119,13 @@ static const struct dec_iface_t alac_dec_iface = {
 	&mp4alac_open, &mp4alac_close, &mp4alac_decode
 };
 
+static const ffpars_arg aac_out_conf_args[] = {
+	{ "profile",	FFPARS_TINT,  FFPARS_DSTOFF(struct aac_out_conf_t, aot) },
+	{ "quality",	FFPARS_TINT,  FFPARS_DSTOFF(struct aac_out_conf_t, qual) },
+	{ "afterburner",	FFPARS_TINT,  FFPARS_DSTOFF(struct aac_out_conf_t, afterburner) },
+	{ "bandwidth",	FFPARS_TINT,  FFPARS_DSTOFF(struct aac_out_conf_t, bandwidth) },
+};
+
 
 FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 {
@@ -108,6 +139,8 @@ static const void* mp4_iface(const char *name)
 {
 	if (!ffsz_cmp(name, "decode"))
 		return &fmed_mp4_input;
+	else if (!ffsz_cmp(name, "aac-encode"))
+		return &mp4aac_output;
 	return NULL;
 }
 
@@ -378,4 +411,139 @@ static int mp4alac_decode(mp4 *m, fmed_filt *d)
 	d->out = m->alac.pcm;
 	d->outlen = m->alac.pcmlen;
 	return FMED_RDATA;
+}
+
+
+static int aac_out_config(ffpars_ctx *ctx)
+{
+	aac_out_conf.aot = AAC_LC;
+	aac_out_conf.qual = 256;
+	aac_out_conf.afterburner = 1;
+	aac_out_conf.bandwidth = 0;
+	ffpars_setargs(ctx, &aac_out_conf, aac_out_conf_args, FFCNT(aac_out_conf_args));
+	return 0;
+}
+
+static void* mp4_out_create(fmed_filt *d)
+{
+	mp4_out *m = ffmem_tcalloc1(mp4_out);
+	if (m == NULL)
+		return NULL;
+	return m;
+}
+
+static void mp4_out_free(void *ctx)
+{
+	mp4_out *m = ctx;
+	ffaac_enc_close(&m->aac);
+	ffmp4_wclose(&m->mp);
+	ffmem_free(m);
+}
+
+static int mp4_out_decode(void *ctx, fmed_filt *d)
+{
+	mp4_out *m = ctx;
+	int r;
+
+	for (;;) {
+	switch (m->state) {
+
+	case 0: {
+		fmed_getpcm(d, &m->fmt);
+
+		if (m->fmt.format != FFPCM_16LE || 1 != fmed_getval("pcm_ileaved")) {
+			errlog(core, d->trk, NULL, "unsupported input PCM format");
+			return FMED_RERR;
+		}
+
+		int64 total_samples;
+		if (FMED_NULL == (total_samples = fmed_getval("total_samples"))) {
+			errlog(core, d->trk, NULL, "total_samples unknown");
+			return FMED_RERR;
+		}
+
+		int qual;
+		if (FMED_NULL != (qual = fmed_getval("aac-quality"))) {
+			if (qual > 5 && qual < 8000)
+				qual *= 1000;
+		} else
+			qual = aac_out_conf.qual;
+
+		m->aac.info.aot = aac_out_conf.aot;
+		m->aac.info.afterburner = aac_out_conf.afterburner;
+		m->aac.info.bandwidth = aac_out_conf.bandwidth;
+
+		if (0 != (r = ffaac_create(&m->aac, &m->fmt, qual))) {
+			errlog(core, d->trk, NULL, "ffaac_create(): %s", ffaac_enc_errstr(&m->aac));
+			return FMED_RERR;
+		}
+
+		uint delay_frames = m->aac.info.enc_delay / m->aac.info.frame_samples + !!(m->aac.info.enc_delay % m->aac.info.frame_samples);
+		total_samples += delay_frames * m->aac.info.frame_samples;
+		ffstr asc = ffaac_enc_conf(&m->aac);
+		if (0 != (r = ffmp4_create_aac(&m->mp, &m->fmt, &asc, total_samples, ffaac_enc_frame_samples(&m->aac)))) {
+			errlog(core, d->trk, NULL, "ffmp4_create_aac(): %s", ffmp4_werrstr(&m->mp));
+			return FMED_RERR;
+		}
+		m->state = 1;
+		// break
+	}
+
+	case 1:
+		if (d->flags & FMED_FLAST)
+			m->aac.fin = 1;
+		m->aac.pcm = (void*)d->data,  m->aac.pcmlen = d->datalen;
+		r = ffaac_encode(&m->aac);
+		switch (r) {
+		case FFAAC_RDONE:
+			m->mp.fin = 1;
+			m->state = 2;
+			continue;
+
+		case FFAAC_RMORE:
+			return FMED_RMORE;
+
+		case FFAAC_RDATA:
+			break;
+
+		case FFAAC_RERR:
+			errlog(core, d->trk, NULL, "ffaac_encode(): %s", ffaac_enc_errstr(&m->aac));
+			return FMED_RERR;
+		}
+		dbglog(core, d->trk, NULL, "encoded %L samples into %L bytes"
+			, (d->datalen - m->aac.pcmlen) / ffpcm_size1(&m->fmt), m->aac.datalen);
+		d->data = (void*)m->aac.pcm,  d->datalen = m->aac.pcmlen;
+		m->mp.data = m->aac.data,  m->mp.datalen = m->aac.datalen;
+		m->state = 2;
+		// break
+
+	case 2:
+		r = ffmp4_write(&m->mp);
+		switch (r) {
+		case FFMP4_RMORE:
+			m->state = 1;
+			continue;
+
+		case FFMP4_RSEEK:
+			fmed_setval("output_seek", m->mp.off);
+			continue;
+
+		case FFMP4_RDATA:
+			d->out = m->mp.out,  d->outlen = m->mp.outlen;
+			return FMED_RDATA;
+
+		case FFMP4_RDONE:
+			d->outlen = 0;
+			return FMED_RDONE;
+
+		case FFMP4_RWARN:
+			warnlog(core, d->trk, NULL, "ffmp4_write(): %s", ffmp4_werrstr(&m->mp));
+			continue;
+
+		case FFMP4_RERR:
+			errlog(core, d->trk, NULL, "ffmp4_write(): %s", ffmp4_werrstr(&m->mp));
+			return FMED_RERR;
+		}
+	}
+	}
 }

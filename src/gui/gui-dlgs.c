@@ -91,6 +91,7 @@ struct cvt_set {
 static const struct cvt_set cvt_sets[] = {
 	{ "ogg-quality", "OGG Vorbis Quality", "-1.0 .. 10.0", CVTF_FLT | CVTF_FLT10 | FFOFF(cvt_sets_t, ogg_quality) },
 	{ "mpeg-quality", "MPEG Quality", "VBR quality: 9..0 or CBR bitrate: 64..320", FFOFF(cvt_sets_t, mpg_quality) },
+	{ "aac-quality", "AAC Quality", "VBR quality: 1..5 or CBR bitrate: 8..800", FFOFF(cvt_sets_t, aac_quality) },
 	{ "flac_complevel", "FLAC Compression", "0..8", FFOFF(cvt_sets_t, flac_complevel) },
 
 	{ "conv_pcm_rate", "Sample rate (Hz)", "", CVTF_EMPTY | FFOFF(cvt_sets_t, conv_pcm_rate) },
@@ -110,6 +111,7 @@ static const char *const cvt_channels_str[] = { "mix", "left", "right" };
 static const ffpars_arg cvt_sets_conf[] = {
 	{ "ogg_quality",	FFPARS_TFLOAT, FFPARS_DSTOFF(cvt_sets_t, ogg_quality_f) },
 	{ "mpeg_quality",	FFPARS_TINT, FFPARS_DSTOFF(cvt_sets_t, mpg_quality) },
+	{ "aac_quality",	FFPARS_TINT, FFPARS_DSTOFF(cvt_sets_t, aac_quality) },
 	{ "flac_complevel",	FFPARS_TINT, FFPARS_DSTOFF(cvt_sets_t, flac_complevel) },
 
 	{ "pcm_rate",	FFPARS_TINT, FFPARS_DSTOFF(cvt_sets_t, conv_pcm_rate) },
@@ -127,6 +129,7 @@ static void gui_cvt_sets_init(cvt_sets_t *sets)
 
 	sets->ogg_quality_f = 5.0;
 	sets->mpg_quality = 2;
+	sets->aac_quality = 192;
 	sets->flac_complevel = 6;
 	sets->out_preserve_date = 1;
 }

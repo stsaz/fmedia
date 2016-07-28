@@ -33,7 +33,7 @@ INPUT
 FILTERS
 	. MPEG input/output
 	. OGG Vorbis input/output
-	. AAC input
+	. AAC input/output
 
 	Lossless:
 	. FLAC input/output

@@ -63,6 +63,8 @@ Other options:
 
 --mpeg-quality=VAL    Set MPEG encoding quality: 9..0 (VBR) or 64..320 (CBR)
 
+--aac-quality=VAL     Set AAC encoding quality: 1..5 (VBR) or 8..800 (CBR, kbit/s)
+
 --flac-compression=VAL  Set FLAC compression level: 0..8
 
 --cue-gaps=VAL    Control track pregaps

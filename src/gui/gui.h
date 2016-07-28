@@ -76,6 +76,7 @@ typedef struct cvt_sets_t {
 	float ogg_quality_f;
 	};
 	int mpg_quality;
+	int aac_quality;
 	int flac_complevel;
 
 	int conv_pcm_rate;

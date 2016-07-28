@@ -113,6 +113,7 @@ flac.$(SO): $(FLAC_O)
 MP4_O := $(OBJ_DIR)/mp4.o \
 	$(FF_O) \
 	$(FF_OBJ_DIR)/ffmp4.o \
+	$(FF_OBJ_DIR)/ffmp4-fmt.o \
 	$(FF_OBJ_DIR)/ffid3.o \
 	$(FF_OBJ_DIR)/ffalac.o \
 	$(FF_OBJ_DIR)/ffaac.o \
