@@ -4,6 +4,7 @@ Copyright (c) 2015 Simon Zolin */
 #include <core.h>
 
 #include <FF/path.h>
+#include <FF/gui/winapi.h>
 #include <FFOS/process.h>
 #include <FFOS/mem.h>
 
@@ -23,11 +24,36 @@ static inst_mode *imode;
 FF_IMP fmed_core* core_init(fmedia **ptr);
 FF_IMP void core_free(void);
 
+//LOG
+static void fgui_log(uint flags, fmed_logdata *ld);
+static const fmed_log fgui_logger = {
+	&fgui_log
+};
+
 static int pipe_listen(const char *name, inst_mode *imode);
 static void pipe_onaccept(void *udata);
 static int pipe_add_inputfiles(fffd ph);
 
 static void open_input(void);
+
+
+static void fgui_log(uint flags, fmed_logdata *ld)
+{
+	char buf[4096];
+	char *s = buf;
+	const char *end = buf + sizeof(buf) - FFSLEN("\r\n");
+
+	s += ffs_fmt(s, end, "%s %s %s: ", ld->stime, ld->level, ld->module);
+	if (ld->ctx != NULL)
+		s += ffs_fmt(s, end, "%S:\t", ld->ctx);
+	s += ffs_fmtv(s, end, ld->fmt, ld->va);
+	if (flags & FMED_LOG_SYS)
+		s += ffs_fmt(s, end, ": %E", fferr_last());
+	*s++ = '\r';
+	*s++ = '\n';
+
+	ffui_msgdlg_show("fmedia " FMED_VER, buf, s - buf, FFUI_MSGDLG_ERR);
+}
 
 
 static void open_input(void)
@@ -216,6 +242,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
 		return 1;
 	}
 
+	fmed->log = &fgui_logger;
 	fmed->gui = 1;
 	if (0 != core->sig(FMED_CONF))
 		goto end;

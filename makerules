@@ -197,9 +197,10 @@ gui.$(SO): $(GUI_O)
 BINGUI_O := core.$(SO) \
 	fmedia-gui.o \
 	$(FF_O) \
+	$(FF_OBJ_DIR)/ffgui-winapi.o \
 	$(RES)
 fmedia-gui.exe: $(BINGUI_O)
-	$(LD) $(BINGUI_O) $(LDFLAGS) -mwindows -o$@
+	$(LD) $(BINGUI_O) $(LDFLAGS) -lcomctl32 -lole32 -luuid -mwindows -o$@
 
 
 #
