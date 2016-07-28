@@ -31,6 +31,7 @@ INPUT
 	. ALSA Capture
 
 FILTERS
+	Lossy:
 	. MPEG input/output
 	. OGG Vorbis input/output
 	. AAC input/output

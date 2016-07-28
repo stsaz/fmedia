@@ -130,7 +130,7 @@ static void* m3u_open(fmed_filt *d)
 	m3u *m;
 	if (NULL == (m = ffmem_tcalloc1(m3u)))
 		return NULL;
-	ffpars_init(&m->p);
+	ffm3u_init(&m->p);
 	ffmem_tzero(&m->ent);
 	return m;
 }
@@ -201,12 +201,12 @@ static int m3u_process(void *ctx, fmed_filt *d)
 
 		if (r == FFPARS_MORE)
 			break;
-		else if (ffpars_iserr(r)) {
+		else if (ffpars_iserr(-r)) {
 			errlog(core, d->trk, "m3u", "parse error at line %u", m->p.line);
 			return FMED_RERR;
 		}
 
-		switch (m->p.type) {
+		switch (r) {
 		case FFM3U_DUR:
 			if (m->p.intval != -1)
 				m->ent.dur = m->p.intval * 1000;
@@ -230,7 +230,7 @@ add_meta:
 			*ffarr_push(&m->fmeta, byte) = 0;
 			break;
 
-		case FFM3U_NAME:
+		case FFM3U_URL:
 			{
 			if (0 != plist_fullname(d, &m->p.val, &m->ent.url))
 				return FMED_RERR;
@@ -316,7 +316,7 @@ static void* cue_open(fmed_filt *d)
 			c->gaps = cue_opts[val];
 	}
 
-	ffpars_init(&c->p);
+	ffcue_init(&c->p);
 	return c;
 }
 
@@ -363,9 +363,9 @@ static int cue_process(void *ctx, fmed_filt *d)
 			c->nmeta = c->metas.len;
 			goto add;
 
-		} else if (ffpars_iserr(r)) {
+		} else if (ffpars_iserr(-r)) {
 			errlog(core, d->trk, "cue", "parse error at line %u: %s"
-				, c->p.line, ffpars_errstr(r));
+				, c->p.line, ffpars_errstr(-r));
 			goto err;
 		}
 
@@ -380,7 +380,7 @@ static int cue_process(void *ctx, fmed_filt *d)
 			val.len = ffutf8_encode(val.ptr, val.cap, c->p.val.ptr, &len, codepage);
 		}
 
-		switch (c->p.type) {
+		switch (r) {
 		case FFCUE_TITLE:
 			ffstr_setcz(&metaname, "album");
 			goto add_metaname;
@@ -426,14 +426,14 @@ add_metaname:
 			break;
 		}
 
-		if (c->p.type == FFCUE_PERFORMER) {
+		if (r == FFCUE_PERFORMER) {
 			/* swap {FIRST_ENTRY_NAME, FIRST_ENTRY_VAL} <-> {"artist", ARTIST_VAL}
 			This allows to easily skip global artist key-value pair when track artist name is specified. */
 			have_glob_artist = 1;
 			_ffarr_swap(c->metas.ptr, c->metas.ptr + c->metas.len - 2, 2, sizeof(ffstr));
 		}
 
-		if (NULL == (ctrk = ffcue_index(&cu, c->p.type, (int)c->p.intval)))
+		if (NULL == (ctrk = ffcue_index(&cu, r, (int)c->p.intval)))
 			continue;
 
 add:

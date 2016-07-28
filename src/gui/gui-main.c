@@ -201,7 +201,9 @@ static void gui_action(ffui_wnd *wnd, int id)
 	case HIDE:
 		ffui_tray_show(&gg->wmain.tray_icon, 1);
 		ffui_show(&gg->wmain.wmain, 0);
+		ffui_show(&gg->winfo.winfo, 0);
 		ffui_show(&gg->wgoto.wgoto, 0);
+		ffui_show(&gg->wconvert.wconvert, 0);
 		break;
 
 	case SHOW:

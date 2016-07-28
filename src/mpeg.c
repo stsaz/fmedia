@@ -242,6 +242,8 @@ again:
 			return FMED_RLASTOUT;
 
 		case FFMPG_RHDR:
+			dbglog(core, d->trk, NULL, "preset:%s  tool:%s  xing-frames:%u"
+				, ffmpg_isvbr(&m->mpg) ? "VBR" : "CBR", m->mpg.lame.id, m->mpg.xing.frames);
 			fmed_setpcm(d, (void*)&m->mpg.fmt);
 			d->track->setvalstr(d->trk, "pcm_decoder", "MPEG");
 			fmed_setval("pcm_ileaved", m->mpg.fmt.ileaved);
@@ -266,13 +268,14 @@ again:
 					, ffid3_size(&m->mpg.id32tag.h));
 				continue;
 			}
-			warnlog(core, d->trk, "mpeg", "near sample %U: ffmpg_decode(): %s"
-				, ffmpg_cursample(&m->mpg), ffmpg_errstr(&m->mpg));
+			warnlog(core, d->trk, "mpeg", "ffmpg_decode(): %s. Near sample %U, offset %U"
+				, ffmpg_errstr(&m->mpg), ffmpg_cursample(&m->mpg), m->mpg.off);
 			break;
 
 		case FFMPG_RERR:
 		default:
-			errlog(core, d->trk, "mpeg", "ffmpg_decode(): %s", ffmpg_errstr(&m->mpg));
+			errlog(core, d->trk, "mpeg", "ffmpg_decode(): %s. Near sample %U, offset %U"
+				, ffmpg_errstr(&m->mpg), ffmpg_cursample(&m->mpg), m->mpg.off);
 			return FMED_RERR;
 		}
 	}

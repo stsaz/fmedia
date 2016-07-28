@@ -7,6 +7,26 @@ HISTORY OF FMEDIA
  "-" - bugfix
 
 
+fmedia v0.15 - Jul 28, 2016
+
+ + MP4 AAC output
+
+ * GUI: fmedia-gui.exe shows message dialog on startup error
+ + GUI: read conversion settings from config
+ + GUI: add "Go To" command
+ + GUI: convert: new commands "Set Seek Position", "Set Until Position"
+
+ * OGG decode: support partial packets
+ * MPEG decode: skip parse errors and continue from the next frame
+ * MP4: more descriptive error messages
+ - MP4: esds: support larger AAC config data
+ - MP4: stsc: fix segfault on invalid data
+ - MP4: parser stopped on reaching empty box which is supposed to have children
+
+ - core: fix segfault when converting audio using --mono
+ * file: create path for output file
+
+
 fmedia v0.14 - Jul 9, 2016
 
  - GUI: fix more potential threads races

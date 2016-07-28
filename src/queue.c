@@ -246,7 +246,7 @@ static void que_save(entry *first, const fflist_item *sentl, const char *fn)
 			s = &ss;
 		r |= ffm3u_add(&m3, FFM3U_TITLE, s->ptr, s->len);
 
-		r |= ffm3u_add(&m3, FFM3U_NAME, e->e.url.ptr, e->e.url.len);
+		r |= ffm3u_add(&m3, FFM3U_URL, e->e.url.ptr, e->e.url.len);
 
 		if (r != 0)
 			goto done;
