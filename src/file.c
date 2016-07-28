@@ -8,6 +8,7 @@ Copyright (c) 2015 Simon Zolin */
 #include <FFOS/file.h>
 #include <FFOS/asyncio.h>
 #include <FFOS/error.h>
+#include <FFOS/dir.h>
 #include <FF/path.h>
 
 
@@ -516,8 +517,20 @@ static void* fileout_open(fmed_filt *d)
 
 	f->fd = fffile_open(filename, mode | O_WRONLY | O_NOATIME);
 	if (f->fd == FF_BADFD) {
-		syserrlog(core, d->trk, "file", "%e: %s", FFERR_FOPEN, filename);
-		goto done;
+
+		if (fferr_nofile(fferr_last())) {
+			if (0 != ffdir_make_path((void*)filename)) {
+				syserrlog(core, d->trk, "file", "%e: for filename %s", FFERR_DIRMAKE, filename);
+				goto done;
+			}
+
+			f->fd = fffile_open(filename, mode | O_WRONLY | O_NOATIME);
+		}
+
+		if (f->fd == FF_BADFD) {
+			syserrlog(core, d->trk, "file", "%e: %s", FFERR_FOPEN, filename);
+			goto done;
+		}
 	}
 
 	if (NULL == ffarr_alloc(&f->buf, mod->out_conf.bsize)) {
