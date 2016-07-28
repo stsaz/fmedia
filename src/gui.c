@@ -49,6 +49,7 @@ static int gui_conf_rec_dir(ffparser_schem *ps, void *obj, ffstr *val);
 static const ffpars_arg gui_conf[] = {
 	{ "rec_dir",	FFPARS_TSTR | FFPARS_FSTRZ | FFPARS_FCOPY, FFPARS_DST(&gui_conf_rec_dir) },
 	{ "rec_format",	FFPARS_TSTR | FFPARS_FCOPY, FFPARS_DSTOFF(ggui, rec_format) },
+	{ "convert",	FFPARS_TOBJ, FFPARS_DST(&gui_conf_convert) },
 };
 
 //LOG

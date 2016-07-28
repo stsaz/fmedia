@@ -62,6 +62,30 @@ typedef struct gui_wuri {
 
 typedef struct gui_trk gui_trk;
 
+typedef struct cvt_sets_t {
+	uint init :1;
+
+	union {
+	int ogg_quality;
+	float ogg_quality_f;
+	};
+	int mpg_quality;
+	int flac_complevel;
+
+	int conv_pcm_rate;
+	int conv_channels;
+	union {
+	int gain;
+	float gain_f;
+	};
+	char *meta;
+	int seek;
+	int until;
+
+	int overwrite;
+	int out_preserve_date;
+} cvt_sets_t;
+
 typedef struct ggui {
 	fflock lktrk;
 	gui_trk *curtrk;
@@ -93,6 +117,7 @@ typedef struct ggui {
 	gui_wuri wuri;
 
 	ffthd th;
+	cvt_sets_t conv_sets;
 
 	uint wconv_init :1;
 } ggui;
@@ -247,6 +272,7 @@ void gui_que_sel(void);
 
 void wconvert_init(void);
 void gui_showconvert(void);
+int gui_conf_convert(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
 
 void winfo_init(void);
 void gui_media_showinfo(void);
