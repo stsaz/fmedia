@@ -284,40 +284,11 @@ static int flac_out_addmeta(flac_out *f, fmed_filt *d)
 
 static void* flac_out_create(fmed_filt *d)
 {
-	int val;
-	ffpcm fmt;
 	flac_out *f = ffmem_tcalloc1(flac_out);
 	if (f == NULL)
 		return NULL;
 	ffflac_enc_init(&f->fl);
-
-	fmed_getpcm(d, &fmt);
-	fmt.format = FFPCM_16LE;
-	f->state = 1;
-
-	f->fl.total_samples = fmed_getval("total_samples");
-	if ((int64)f->fl.total_samples == FMED_NULL)
-		f->fl.total_samples = 0;
-
-	f->fl.seektable_int = flac_out_conf.sktab_int * fmt.sample_rate;
-	f->fl.min_meta = flac_out_conf.min_meta_size;
-	val = fmed_getval("flac_complevel");
-	f->fl.level = (val != FMED_NULL) ? val : flac_out_conf.level;
-	if (!flac_out_conf.md5)
-		f->fl.opts |= FFFLAC_ENC_NOMD5;
-	if (0 != ffflac_create(&f->fl, &fmt)) {
-		errlog(core, d->trk, "flac", "ffflac_create(): %s", ffflac_enc_errstr(&f->fl));
-		goto fail;
-	}
-
-	if (0 != flac_out_addmeta(f, d))
-		goto fail;
-
 	return f;
-
-fail:
-	flac_out_free(f);
-	return NULL;
 }
 
 static void flac_out_free(void *ctx)
@@ -329,31 +300,64 @@ static void flac_out_free(void *ctx)
 
 static int flac_out_encode(void *ctx, fmed_filt *d)
 {
-	enum { I_DATA = 3 };
+	enum { I_FIRST, I_INIT, I_META, I_DATA0, I_DATA };
 	flac_out *f = ctx;
 	int r;
 
 	switch (f->state) {
-	case 1:
-		fmed_setval("conv_pcm_format", FFPCM_16LE_32);
+	case I_FIRST:
 		fmed_setval("conv_pcm_ileaved", 0);
-		f->state = 2;
-		return FMED_RMORE;
+		// break
 
-	case 2:
-		if (FFPCM_16LE_32 != fmed_getval("pcm_format") || 1 == fmed_getval("pcm_ileaved")) {
+	case I_INIT: {
+		int64 val;
+		ffpcm fmt;
+		fmed_getpcm(d, &fmt);
+
+		if (FMED_NULL != (val = fmed_getval("total_samples")))
+			f->fl.total_samples = val;
+
+		f->fl.seektable_int = flac_out_conf.sktab_int * fmt.sample_rate;
+		f->fl.min_meta = flac_out_conf.min_meta_size;
+		val = fmed_getval("flac_complevel");
+		f->fl.level = (val != FMED_NULL) ? val : flac_out_conf.level;
+		if (!flac_out_conf.md5)
+			f->fl.opts |= FFFLAC_ENC_NOMD5;
+
+		if (0 != ffflac_create(&f->fl, &fmt)) {
+			if (f->state == I_FIRST && f->fl.errtype == FLAC_EFMT) {
+				d->track->setval4(d->trk, "conv_pcm_format", fmt.format, FMED_TRK_FNO_OVWRITE);
+				f->state = I_INIT;
+				return FMED_RMORE;
+			}
+			errlog(core, d->trk, "flac", "ffflac_create(): %s", ffflac_enc_errstr(&f->fl));
+			return FMED_RERR;
+		}
+		// break
+
+	case I_META:
+		if (1 == fmed_getval("pcm_ileaved")) {
+			if (f->state == I_FIRST) {
+				f->state = I_META;
+				return FMED_RMORE;
+			}
 			errlog(core, d->trk, "flac", "unsupported input PCM format");
 			return FMED_RERR;
 		}
-		f->state = 0;
-		break;
 
-	case 0:
+		if (0 != flac_out_addmeta(f, d))
+			return FMED_RERR;
+
+		f->state = I_DATA0;
+		break;
+	}
+
+	case I_DATA0:
 	case I_DATA:
 		break;
 	}
 
-	f->fl.pcm = (const int**)d->datani;
+	f->fl.pcm = (const void**)d->datani;
 	f->fl.pcmlen = d->datalen;
 	if (d->flags & FMED_FLAST)
 		f->fl.fin = 1;
@@ -366,7 +370,7 @@ again:
 		return FMED_RMORE;
 
 	case FFFLAC_RDATA:
-		if (f->state == 0) {
+		if (f->state == I_DATA0) {
 			fmed_setval("output_size", ffflac_enc_size(&f->fl));
 			f->state = I_DATA;
 		}
