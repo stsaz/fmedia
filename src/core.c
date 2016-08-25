@@ -656,6 +656,9 @@ static int media_setout(fm_src *src)
 			return -1;
 		}
 
+		if (fmed->stream_copy)
+			trk_setval(src, "stream_copy", 1);
+
 		newfilter(src, "#file.out");
 
 	} else if (fmed->output != NULL) {

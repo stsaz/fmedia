@@ -436,7 +436,7 @@ static void* sndmod_untl_open(fmed_filt *d)
 	if (FMED_NULL != fmed_getval("total_samples"))
 		fmed_setval("total_samples", u->until);
 
-	if (1 == fmed_getval("data_asis"))
+	if (FMED_PNULL != d->track->getvalstr(d->trk, "data_asis"))
 		u->asis = 1;
 	return u;
 }

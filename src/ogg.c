@@ -149,16 +149,10 @@ static void ogg_close(void *ctx)
 If so, don't decode audio but just pass OGG pages as-is. */
 static int ogg_asis_check(fmed_ogg *o, fmed_filt *d)
 {
-	const char *out = d->track->getvalstr(d->trk, "output");
-	if (out == FMED_PNULL)
+	if (1 != fmed_getval("stream_copy"))
 		return 0;
 
-	ffstr ext = {0};
-	ffpath_splitname(out, ffsz_len(out), NULL, &ext);
-	if (!ffstr_eqcz(&ext, "ogg"))
-		return 0;
-
-	fmed_setval("data_asis", 1);
+	d->track->setvalstr(d->trk, "data_asis", "ogg");
 	int64 seek_time, samples = -1;
 	if (FMED_NULL != (seek_time = fmed_popval("seek_time")))
 		samples = ffpcm_samples(seek_time, ffogg_rate(&o->og));
@@ -340,8 +334,14 @@ static int ogg_out_config(ffpars_ctx *ctx)
 
 static void* ogg_out_open(fmed_filt *d)
 {
-	if (1 == fmed_getval("data_asis"))
+	const char *copyfmt;
+	if (FMED_PNULL != (copyfmt = d->track->getvalstr(d->trk, "data_asis"))) {
+		if (ffsz_cmp(copyfmt, "ogg")) {
+			errlog(core, d->trk, NULL, "unsupported input data format: %s", copyfmt);
+			return NULL;
+		}
 		return FMED_FILT_SKIP;
+	}
 
 	ogg_out *o = ffmem_tcalloc1(ogg_out);
 	if (o == NULL)

@@ -54,6 +54,7 @@ typedef struct fmedia {
 
 	ffbool repeat_all
 		, overwrite
+		, stream_copy
 		, rec
 		, debug
 		, mix

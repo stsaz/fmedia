@@ -72,6 +72,7 @@ static const ffpars_arg fmed_cmdline_args[] = {
 	, { "mpeg-quality",  FFPARS_TINT | FFPARS_F16BIT,  FFPARS_DSTOFF(fmedia, mpeg_qual) }
 	, { "aac-quality",  FFPARS_TINT,  FFPARS_DSTOFF(fmedia, aac_qual) }
 	, { "flac-compression",  FFPARS_TINT | FFPARS_F8BIT,  FFPARS_DSTOFF(fmedia, flac_complevel) }
+	, { "stream-copy",  FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmedia, stream_copy) }
 	, { "cue-gaps",  FFPARS_TINT | FFPARS_F8BIT,  FFPARS_DSTOFF(fmedia, cue_gaps) }
 	, { "pcm-crc",  FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmedia, pcm_crc) }
 	, { "pcm-peaks",  FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmedia, pcm_peaks) }
