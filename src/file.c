@@ -509,6 +509,10 @@ static FFINL char* fileout_getname(fmed_fileout *f, fmed_filt *d)
 	if (NULL == ffarr_append(&buf, "", 1))
 		goto done;
 	ffstr_acqstr3(&f->fname, &buf);
+
+	if (!ffstr_eq2(&f->fname, &fn))
+		d->track->setvalstr(d->trk, "output", f->fname.ptr);
+
 	return f->fname.ptr;
 
 done:
