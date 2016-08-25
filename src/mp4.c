@@ -68,9 +68,9 @@ static const fmed_filter fmed_mp4_input = {
 static int aac_out_config(ffpars_ctx *ctx);
 static void* mp4_out_create(fmed_filt *d);
 static void mp4_out_free(void *ctx);
-static int mp4_out_decode(void *ctx, fmed_filt *d);
+static int mp4_out_encode(void *ctx, fmed_filt *d);
 static const fmed_filter mp4aac_output = {
-	&mp4_out_create, &mp4_out_decode, &mp4_out_free, &aac_out_config
+	&mp4_out_create, &mp4_out_encode, &mp4_out_free, &aac_out_config
 };
 
 static void mp4_meta(mp4 *m, fmed_filt *d);
@@ -410,15 +410,23 @@ static void mp4_out_free(void *ctx)
 	ffmem_free(m);
 }
 
-static int mp4_out_decode(void *ctx, fmed_filt *d)
+static int mp4_out_encode(void *ctx, fmed_filt *d)
 {
 	mp4_out *m = ctx;
 	int r;
 
+	enum { I_CONV, I_INIT, I_ENC, I_MP4 };
+
 	for (;;) {
 	switch (m->state) {
 
-	case 0: {
+	case I_CONV:
+		fmed_setval("conv_pcm_format", FFPCM_16);
+		fmed_setval("conv_pcm_ileaved", 1);
+		m->state = I_INIT;
+		return FMED_RMORE;
+
+	case I_INIT: {
 		fmed_getpcm(d, &m->fmt);
 
 		if (m->fmt.format != FFPCM_16LE || 1 != fmed_getval("pcm_ileaved")) {
@@ -454,11 +462,11 @@ static int mp4_out_decode(void *ctx, fmed_filt *d)
 			errlog(core, d->trk, NULL, "ffmp4_create_aac(): %s", ffmp4_werrstr(&m->mp));
 			return FMED_RERR;
 		}
-		m->state = 1;
+		m->state = I_ENC;
 		// break
 	}
 
-	case 1:
+	case I_ENC:
 		if (d->flags & FMED_FLAST)
 			m->aac.fin = 1;
 		m->aac.pcm = (void*)d->data,  m->aac.pcmlen = d->datalen;
@@ -466,7 +474,7 @@ static int mp4_out_decode(void *ctx, fmed_filt *d)
 		switch (r) {
 		case FFAAC_RDONE:
 			m->mp.fin = 1;
-			m->state = 2;
+			m->state = I_MP4;
 			continue;
 
 		case FFAAC_RMORE:
@@ -483,14 +491,14 @@ static int mp4_out_decode(void *ctx, fmed_filt *d)
 			, (d->datalen - m->aac.pcmlen) / ffpcm_size1(&m->fmt), m->aac.datalen);
 		d->data = (void*)m->aac.pcm,  d->datalen = m->aac.pcmlen;
 		m->mp.data = m->aac.data,  m->mp.datalen = m->aac.datalen;
-		m->state = 2;
+		m->state = I_MP4;
 		// break
 
-	case 2:
+	case I_MP4:
 		r = ffmp4_write(&m->mp);
 		switch (r) {
 		case FFMP4_RMORE:
-			m->state = 1;
+			m->state = I_ENC;
 			continue;
 
 		case FFMP4_RSEEK:
