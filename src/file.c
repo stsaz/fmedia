@@ -24,7 +24,6 @@ struct file_out_conf_t {
 };
 
 typedef struct filemod {
-	const fmed_queue *qu;
 	struct file_in_conf_t in_conf;
 	struct file_out_conf_t out_conf;
 } filemod;
@@ -142,7 +141,6 @@ static int file_sig(uint signo)
 {
 	switch (signo) {
 	case FMED_OPEN:
-		mod->qu = core->getmod("#queue.queue");
 		break;
 	}
 	return 0;
@@ -425,15 +423,14 @@ static int fileout_config(ffpars_ctx *ctx)
 static FFINL char* fileout_getname(fmed_fileout *f, fmed_filt *d)
 {
 	ffsvar p;
-	ffstr *tstr, fn, val;
+	ffstr fn, val;
+	char *tstr;
 	ffarr buf = {0};
-	int r, fpath;
-	void *qent;
+	int r, fpath, have_dt = 0, istime;
+	ffdtm dt;
 
 	ffmem_tzero(&p);
 	ffstr_setz(&fn, d->track->getvalstr(d->trk, "output"));
-
-	qent = (void*)fmed_getval("queue_item");
 
 	while (fn.len != 0) {
 		size_t n = fn.len;
@@ -460,9 +457,30 @@ static FFINL char* fileout_getname(fmed_fileout *f, fmed_filt *d)
 				}
 				break;
 
-			} else if (NULL == (tstr = mod->qu->meta_find(qent, p.val.ptr, p.val.len)))
+			} else if ((istime = ffstr_eqcz(&p.val, "time"))
+				|| ffstr_eqcz(&p.val, "date")) {
+
+				if (!have_dt) {
+					// get time only once
+					fftime t;
+					fftime_now(&t);
+					fftime_split(&dt, &t, FFTIME_TZLOCAL);
+					have_dt = 1;
+				}
+
+				if (ffstr_eqcz(&p.val, "time")) {
+					if (0 == ffstr_catfmt(&buf, "%02u%02u%02u", dt.hour, dt.min, dt.sec))
+						goto done;
+				} else {
+					if (0 == ffstr_catfmt(&buf, "%04u%02u%02u", dt.year, dt.month, dt.day))
+						goto done;
+				}
 				continue;
-			val = *tstr;
+			}
+
+			if (FMED_PNULL == (tstr = d->track->getvalstr3(d->trk, &p.val, FMED_TRK_META | FMED_TRK_NAMESTR)))
+				continue;
+			ffstr_setz(&val, tstr);
 			break;
 
 		case FFSVAR_TEXT:

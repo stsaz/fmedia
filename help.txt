@@ -26,6 +26,8 @@ Options:
                   Supported variables:
                     $filepath: path to input file
                     $filename: name (without extension) of the input file
+                    $date: current date
+                    $time: current time
                   Filename may be generated automatically using meta info,
                     e.g.: --out "$tracknumber. $artist - $title.flac"
                     Note: bash (sh) users must escape $, or use '' instead of "".
