@@ -45,7 +45,6 @@ enum {
 	GUI_TRKINFO_DUR = 8,
 };
 static void gui_trk_setinfo(int idx, fmed_que_entry *ent, uint sec, uint flags);
-static int gui_newtab(void);
 
 
 void wmain_init(void)
@@ -54,7 +53,7 @@ void wmain_init(void)
 	gg->wmain.wmain.top = 1;
 	gg->wmain.wmain.on_action = &gui_action;
 	gg->wmain.wmain.onclose_id = ONCLOSE;
-	gui_newtab();
+	gui_newtab(0);
 	ffui_tray_settooltipz(&gg->wmain.tray_icon, "fmedia");
 	gg->wmain.vlist.colclick_id = SORT;
 	gg->wmain.wmain.on_dropfiles = &gui_on_dropfiles;
@@ -110,7 +109,7 @@ static const struct cmd cmds[] = {
 	{ CHANGES_SHOW,	F1,	&gui_showtextfile },
 };
 
-static const struct cmd cmd_play = { PLAY,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op };
+const struct cmd cmd_play = { PLAY,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op };
 static const struct cmd cmd_quit = { QUIT,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op };
 static const struct cmd cmd_savelist = { SAVELIST,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op };
 static const struct cmd cmd_seek = { SEEK, F1 | CMD_FCORE | CMD_FUDATA, &gui_corecmd_op };
@@ -637,14 +636,18 @@ void gui_media_removed(uint i)
 	ffui_redraw(&gg->wmain.vlist, 1);
 }
 
-static int gui_newtab(void)
+int gui_newtab(uint flags)
 {
 	char buf[32];
 	static uint tabs;
 	ffui_tabitem it = {0};
 
-	int n = ffs_fmt(buf, buf + sizeof(buf), "Playlist %u", ++tabs);
-	ffui_tab_settext(&it, buf, n);
+	if (flags & GUI_TAB_CONVERT) {
+		ffui_tab_settextz(&it, "Converting...");
+	} else {
+		int n = ffs_fmt(buf, buf + sizeof(buf), "Playlist %u", ++tabs);
+		ffui_tab_settext(&it, buf, n);
+	}
 	int itab = ffui_tab_append(&gg->wmain.tabs, &it);
 	ffui_tab_setactive(&gg->wmain.tabs, itab);
 	return itab;
@@ -652,7 +655,7 @@ static int gui_newtab(void)
 
 void gui_que_new(void)
 {
-	int itab = gui_newtab();
+	int itab = gui_newtab(0);
 	gg->qu->cmd(FMED_QUE_NEW, NULL);
 	ffui_view_clear(&gg->wmain.vlist);
 	gg->qu->cmd(FMED_QUE_SEL, (void*)(size_t)itab);

@@ -330,17 +330,21 @@ static void gui_convert(void)
 	ffui_viewitem it;
 	fmed_que_entry e, *qent, *inp;
 	ffstr fn, name;
-	void *play = NULL;
 	int64 val;
 	uint k;
+	ffarr ar = {0};
 
 	ffui_view_iteminit(&it);
 	ffui_textstr(&gg->wconvert.eout, &fn);
-	if (fn.len == 0)
+	if (fn.len == 0 || 0 == ffui_view_selcount(&gg->wmain.vlist))
 		return;
 
 	if (0 != gui_cvt_getsettings(&sets))
 		goto end;
+
+	int itab = gui_newtab(GUI_TAB_CONVERT);
+	gg->qu->cmd(FMED_QUE_NEW, NULL);
+	gg->qu->cmd(FMED_QUE_SEL, (void*)(size_t)itab);
 
 	while (-1 != (i = ffui_view_selnext(&gg->wmain.vlist, i))) {
 		ffui_view_iteminit(&it);
@@ -357,17 +361,16 @@ static void gui_convert(void)
 			continue;
 		}
 
+		if (NULL == _ffarr_append(&ar, &qent, 1, sizeof(qent)))
+			goto end;
+
 		ffstr sname, *sval;
 		size_t n;
 		for (n = 0;  NULL != (sval = gg->qu->meta(inp, n, &sname, FMED_QUE_NO_TMETA));  n++) {
 			gg->qu->meta_set(qent, sname.ptr, sname.len, sval->ptr, sval->len, 0);
 		}
 
-		gui_media_added(qent);
-
 		gg->qu->meta_set(qent, FFSTR("output"), fn.ptr, fn.len, FMED_QUE_TRKDICT);
-		if (play == NULL)
-			play = qent;
 
 		for (k = 0;  k != FFCNT(cvt_sets);  k++) {
 
@@ -392,11 +395,19 @@ static void gui_convert(void)
 		}
 	}
 
-	if (play != NULL) {
-		gg->play_id = play;
-		gui_corecmd_op(PLAY, NULL);
+	ffui_view_clear(&gg->wmain.vlist);
+	fmed_que_entry **pq;
+	FFARR_WALKT(&ar, pq, fmed_que_entry*) {
+		gui_media_added(*pq, 0);
 	}
+
+	if (ar.len != 0) {
+		qent = *(void**)ar.ptr;
+		gui_corecmd_add(&cmd_play, qent);
+	}
+
 end:
+	ffarr_free(&ar);
 	ffui_view_itemreset(&it);
 	ffstr_free(&fn);
 	cvt_sets_destroy(&sets);

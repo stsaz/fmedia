@@ -253,6 +253,8 @@ struct cmd {
 	void *func; // cmdfunc*
 };
 
+const struct cmd cmd_play;
+
 const struct cmd* getcmd(uint cmd, const struct cmd *cmds, uint n);
 
 
@@ -270,6 +272,12 @@ void gui_status(const char *s, size_t len);
 void gui_media_added(fmed_que_entry *ent, uint flags);
 void gui_media_removed(uint i);
 void gui_rec(uint cmd);
+
+enum {
+	GUI_TAB_CONVERT = 1,
+};
+int gui_newtab(uint flags);
+
 void gui_que_new(void);
 void gui_que_del(void);
 void gui_que_sel(void);
