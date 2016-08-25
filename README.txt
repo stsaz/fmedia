@@ -88,7 +88,7 @@ INSTALL ON LINUX
 
 Note: the file "fmedia-0/fmedia" is just a script that executes binary file "fmedia-0/fmedia-bin" with proper environment.  If the script doesn't work for some reason, call fmedia-bin directly:
 
-	env LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/fmedia-0 /usr/local/fmedia-0/fmedia-bin
+	env LD_LIBRARY_PATH=/usr/local/fmedia-0:$LD_LIBRARY_PATH /usr/local/fmedia-0/fmedia-bin
 
 ---------------
 BUILD ON LINUX
@@ -165,10 +165,22 @@ fmedia GUI is highly customizable, thanks to FF library that is used under the h
 ---------------
 USE-CASES
 ---------------
+
+PLAY
+
 Play files, directories, Internet-radio streams
 	fmedia ./file.ogg ./*.mp3
 	fmedia ./Music
 	fmedia http://radio-stream:80/
+
+Play (mix) multiple streams simultaneously
+	fmedia --mix ./file1.ogg ./file2.ogg
+
+Play wav file with a corrupted header
+	fmedia ./file.raw --fseek=44
+---------------
+
+CONVERT
 
 Convert
 	fmedia ./file.ogg --out=./file.wav
@@ -184,14 +196,23 @@ Convert file and override meta info (Use single quotes on Linux, double quotes o
 Extract several tracks from .cue file (Use single quotes on Linux, double quotes on Windows)
 	fmedia ./album.flac.cue --track=3,7,13 --out='$tracknumber. $artist - $title.flac'
 
+Split audio file
+	fmedia ./file.wav --seek=00:35 --until=01:35 --out=./file-1.wav
+
 Cut compressed audio without re-encoding
-	fmedia ./file.ogg --out=./out.ogg --seek=1:00 --until=2:00
+	fmedia ./file.ogg --out=./out.ogg --seek=1:00 --until=2:00 --stream-copy
 
-Mix multiple streams
-	fmedia --mix ./file1.ogg ./file2.ogg
+Change sound volume in an audio file
+	fmedia --gain=5.0 ./file.wav --out=./file-loud.wav
+---------------
 
-Record
+RECORD
+
+Capture audio from the default audio input device until stopped
 	fmedia --record --out=rec.flac
+
+Record with the specific audio format
+	fmedia --record -o rec.wav --format=int24 --channels=mono --rate=48000
 
 Record for 60 seconds then stop
 	fmedia --record --out=rec.flac --until=60
@@ -202,20 +223,20 @@ Record while playing
 Live output
 	fmedia --record
 
+Record audio from Internet radio (without re-encoding)
+	fmedia http://radio-stream:80/ -o ./radio.mp3 --stream-copy
+
+Play AND record audio from Internet radio into separate files (without re-encoding)
+	fmedia http://radio-stream:80/ --out-copy -o './$time. $artist - $title.mp3' --stream-copy
+---------------
+
+OTHER FUNCTIONS
+
 Print audio meta info
 	fmedia --info ./file.mp3
 
 Print audio meta info and all tags
 	fmedia --info --tags ./file.mp3
-
-Split audio file
-	fmedia ./file.wav --seek=00:35 --until=01:35 --out=./file-1.wav
-
-Play wav file with a corrupted header
-	fmedia ./file.raw --fseek=44
-
-Change sound volume in an audio file
-	fmedia --gain=5.0 ./file.wav --out=./file-loud.wav
 
 Show PCM information
 	fmedia input.ogg --pcm-peaks

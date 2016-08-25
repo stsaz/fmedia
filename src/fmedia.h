@@ -22,14 +22,21 @@ mixer                 mixer
 #include <FF/taskqueue.h>
 
 
-#define FMED_VER_MINOR  15
-#define FMED_VER  "0.15"
+#define FMED_VER_MINOR  16
+#define FMED_VER  "0.16"
+
+// CORE
+// TRACK
+// FILTER
+// LOG
+// QUEUE
+
+
+// CORE
 
 typedef struct fmed_core fmed_core;
 typedef struct fmed_mod fmed_mod;
 typedef struct fmed_filter fmed_filter;
-
-
 typedef const fmed_mod* (*fmed_getmod_t)(const fmed_core *core);
 
 enum FMED_SIG {
@@ -100,6 +107,8 @@ struct fmed_mod {
 	void (*destroy)(void);
 };
 
+
+// TRACK
 
 enum {
 	FMED_NULL = -1LL
@@ -177,6 +186,8 @@ typedef struct fmed_track {
 #define fmed_setval(name, val)  (d)->track->setval((d)->trk, name, val)
 
 
+// FILTER
+
 typedef void (*fmed_handler)(void *udata);
 
 enum FMED_F {
@@ -249,6 +260,8 @@ static FFINL void fmed_getpcm(const fmed_filt *d, ffpcm *fmt)
 }
 
 
+// LOG
+
 enum FMED_LOG {
 	FMED_LOG_DEBUG = 1,
 	FMED_LOG_INFO,
@@ -287,6 +300,8 @@ typedef struct fmed_log {
 	void (*log)(uint flags, fmed_logdata *ld);
 } fmed_log;
 
+
+// QUEUE
 
 typedef struct fmed_que_entry {
 	ffstr url;

@@ -5,6 +5,45 @@ HISTORY OF FMEDIA
  "+" - new feature
  "*" - change, update or a small improvement
  "-" - bugfix
+ "!" - broken compatibility
+
+
+fmedia v0.16 - Aug 24, 2016
+
+ + TUI: "pause" command
+ + GUI: new window with recording settings
+ + GUI: store recording settings in config
+ * GUI: preserve artist/title info on tab switching
+ * GUI: convert: add tracks into a new tab
+ * GUI: config: add convert.output setting
+ - GUI: fix potential segfault while initializing controls with invalid names
+
+ + WAV input: support meta tags
+ + MP4 output: support meta tags
+ * MP4 AAC output: support more input audio formats (not just int16) and non-interleaved input
+ * MP4 AAC: support AAC encoder delay and padding
+ - MP4 AAC: default setting for --aac-quality switch didn't work
+ + MPEG: support stream copy without re-encoding
+ * MPEG decode: support VBRI tag
+ * FLAC output: support other input audio formats with dynamic conversion
+ * OGG decode: sample-accurate seek
+ - OGG decode: fix invalid audio position of the target page after seeking
+ - OGG encode: flush OGG page with 255 segments
+
+ +  net.icy: write audio data to a file while playing
+ -  mixer: setting output format in config didn't work
+ +  fmedia: command line switches --format, --rate and --channels are used for both audio input and output
+ *! fmedia: rename --silent to --notui
+ +  fmedia: add --stream-copy, --out-copy command line switch
+ *! fmedia, WAV: --mono, --wav-format are removed.  Use --channels and --format instead.
+ *! core: conf: "input module" directive doesn't accept audio format settings
+    Add "record_format" directive for this purpose
+ *! core: conf: audio format string has changed: e.g. 16le -> int16
+ *  soundmod.conv: support immediate format conversion
+ *  soundmod.conv: left/right mono conversion doesn't require additional processing
+ -  soundmod.conv: conversion mono->stereo produced too quiet output
+ *  WASAPI input: support format/channels conversion
+ +  file: support "$date" and "$time" variables
 
 
 fmedia v0.15 - Jul 28, 2016

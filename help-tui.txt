@@ -2,7 +2,7 @@ fmedia Terminal UI commands:
 
 Key    Command
 --------------
-Space  Play
+Space  Play/Pause
 s      Stop
 n      Next track
 p      Previous track

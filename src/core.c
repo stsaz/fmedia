@@ -620,18 +620,20 @@ static int media_setout(fm_src *src)
 			newfilter(src, "#tui.tui");
 	}
 
-	if (fmed->volume != 100) {
-		double db;
-		if (fmed->volume < 100)
-			db = ffpcm_vol2db(fmed->volume, 48);
-		else
-			db = ffpcm_vol2db_inc(fmed->volume - 100, 25, 6);
-		trk_setval(src, "gain", db * 100);
+	if (!src->mxr_out) { //apply gain to mix-in tracks only
+		if (fmed->volume != 100) {
+			double db;
+			if (fmed->volume < 100)
+				db = ffpcm_vol2db(fmed->volume, 48);
+			else
+				db = ffpcm_vol2db_inc(fmed->volume - 100, 25, 6);
+			trk_setval(src, "gain", db * 100);
+		}
+		if (fmed->gain != 0) {
+			trk_setval(src, "gain", fmed->gain * 100);
+		}
+		newfilter(src, "#soundmod.gain");
 	}
-	if (fmed->gain != 0) {
-		trk_setval(src, "gain", fmed->gain * 100);
-	}
-	newfilter(src, "#soundmod.gain");
 
 	newfilter(src, "#soundmod.conv");
 	newfilter(src, "#soundmod.conv-soxr");
@@ -918,8 +920,10 @@ static void media_process(void *udata)
 
 		f = FF_GETPTR(fmed_f, sib, src->cur);
 
-		// dbglog(core, src, "core", "%s calling %s, input: %L"
-		// 	, (r == FFLIST_CUR_NEXT) ? ">>" : "<<", f->mod->name, f->d.datalen);
+#ifdef _DEBUG
+		dbglog(core, src, "core", "%s calling %s, input: %L"
+			, (r == FFLIST_CUR_NEXT) ? ">>" : "<<", f->mod->name, f->d.datalen);
+#endif
 		if (core->loglev & FMED_LOG_DEBUG) {
 			ffclk_get(&t1);
 		}
@@ -932,8 +936,10 @@ static void media_process(void *udata)
 			fftime_add(&f->clk, &t2);
 		}
 
-		// dbglog(core, src, "core", "%s returned: %s, output: %L"
-		// 	, f->mod->name, (e + 1 < FFCNT(fmed_retstr)) ? fmed_retstr[e + 1] : "", f->d.outlen);
+#ifdef _DEBUG
+		dbglog(core, src, "core", "%s returned: %s, output: %L"
+			, f->mod->name, ((uint)(e + 1) < FFCNT(fmed_retstr)) ? fmed_retstr[e + 1] : "", f->d.outlen);
+#endif
 
 		switch (e) {
 		case FMED_RSYSERR:
@@ -1150,10 +1156,11 @@ static int trk_cmd(void *trk, uint cmd)
 
 	switch (cmd) {
 	case FMED_TRACK_STOPALL_EXIT:
-		if (fmed->srcs.len == 0) {
+		if (fmed->srcs.len == 0 || fmed->stopped) {
 			core_sig(FMED_STOP);
 			break;
 		}
+		fmed->stopped = 1;
 		trk = (void*)-1;
 		// break
 

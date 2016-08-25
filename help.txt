@@ -2,97 +2,96 @@ Usage:
 fmedia [OPTIONS] [INPUT...]
 
 The default action is to play input files one by one.
+Typical track chain: QUEUE -> INPUT -> FILTERS -> ENCODING -> OUTPUT
 
-INPUT    Input file
+INPUT              Input file, directory, URL or a wildcard
 
-Options:
---gui   Run in graphical UI mode (Windows only)
+OPTIONS:
 
---repeat-all   Repeat all
---seek=TIME    Seek to time
---until=TIME   Stop at time
---fseek=BYTE   Set input file offset
+QUEUE:
+--track=N1[,N2...] Select specific track numbers in playlist
+--repeat-all       Repeat all
 
---track=N1[,N2...]    Select specific track numbers in playlist
+AUDIO DEVICES:
+--list-dev          List available sound devices and exit
+--dev=DEVNO         Use playback device
+--dev-capture=DEVNO Use capture device
 
--i, --info     Just show media information
---tags         Print all meta tags
+AUDIO FORMAT:
+By default these settings are used for output.  When recording, they apply for input.
+--format=STR       Set audio format (int8 | int16 | int24 | int32 | float32)
+--rate=INT         Set sample rate
+                   Note: some settings may not work together with sample rate conversion.
+--channels=STR     Set channels number
+                   Can convert stereo to mono:
+                    --channels=mono: mix all channels together
+                    --channels=left: use left channel only
+                    --channels=right: use right channel only
 
---mix          Play input files simultaneously.
-               Note: all inputs must have channels number and sample rate equal to the output.
+INPUT:
+--record           Capture audio.  Set default audio format in fmedia.conf::record_format.
+--mix              Play input files simultaneously.  Set audio format in fmedia.conf::mod_conf "mixer.out".
+                   Note: all inputs must have channels number and sample rate equal to the output.
+--seek=TIME        Seek to time: [MM:]SS[:MSC]
+--until=TIME       Stop at time
+--fseek=BYTE       Set input file offset
+-i, --info         Don't play but show media information
+--tags             Print all meta tags
+--meta='[clear;]NAME=STR;...'
+                   Set meta data
+                   If "clear;" is specified, skip all meta from input file.
 
--o, --out=[FILE].EXT  Don't play but write output to a file.
-                  Output format is chosen by "EXT".
-                  Supported variables:
-                    $filepath: path to input file
-                    $filename: name (without extension) of the input file
-                    $date: current date
-                    $time: current time
-                  Filename may be generated automatically using meta info,
-                    e.g.: --out "$tracknumber. $artist - $title.flac"
-                    Note: bash (sh) users must escape $, or use '' instead of "".
+FILTERS:
+--volume=INT       Set volume (0% .. 125%)
+--gain=FLT         Set gain/attenuation in dB
 
---outdir=DIR      Set output directory
+--pcm-peaks        Analyze PCM and print some details
+--pcm-crc          Print CRC of PCM data (must be used with --pcm-peaks)
+                   Useful for checking the results of lossless audio conversion.
 
---volume=VOL      Set volume (0% .. 125%)
---gain=dB         Set output gain in dB
+ENCODING:
+--ogg-quality=FLT  OGG Vorbis encoding quality: -1.0 .. 10.0
+--mpeg-quality=INT MPEG encoding quality: 9..0 (VBR) or 64..320 (CBR)
+--aac-quality=INT  AAC encoding quality: 1..5 (VBR) or 8..800 (CBR, kbit/s)
+--flac-level=INT   FLAC compression level: 0..8
+--stream-copy      Copy audio data without re-encoding.  Supported formats: OGG, MPEG.
 
---record       Record until stopped by user
+OUTPUT:
+-o, --out=[NAME].EXT
+                   Don't play but write output to a file (i.e. convert audio)
+                   Output format is chosen by "EXT" (see fmedia.conf::output_ext).
+                   Supported variables:
+                     $filepath: path to input file
+                     $filename: name (without extension) of the input file
+                     $date: current date
+                     $time: current time
+                   --out=.ogg is a short for --out="./$filename.ogg"
+                   Filename may be generated automatically using meta info,
+                     e.g.: --out "$tracknumber. $artist - $title.flac"
+                     Note: bash (sh) users must escape $, or use '' instead of "".
+--outdir=DIR       Set output directory
+-y, --overwrite    Overwrite output file
+--preserve-date    Set output file date/time equal to input file.
+--out-copy         Play AND copy data to output file specified by "--out" switch.
+                   Supported by modules: net.icy.
 
---list-dev           List available sound devices and exit
---dev=DEVNO          Use playback device
---dev-capture=DEVNO  Use capture device
+OTHER OPTIONS:
+--gui              Run in graphical UI mode (Windows only)
+--notui            Don't use terminal UI
+--debug            Print debug info to stdout
+-h, --help         Print help info and exit
 
--y, --overwrite  Overwrite output file
+--cue-gaps=INT     Control track pregaps
+                   0: skip pregaps:
+                     track01.index01 .. track02.index00
+                   1: (default), gap is added to the previous track:
+                     track01.index01 .. track02.index01
+                   2: gap is added to the previous track (but track01's pregap is preserved):
+                     track01.index00 .. track02.index01
+                     track02.index01 .. track03.index01
+                   3: gap is added to the beginning of the current track:
+                     track01.index00 .. track02.index00
 
---silent       Don't print anything to stdout
---debug        Print debug info to stdout
--h, --help     Print help info and exit
-
-
-Other options:
---mono=VAL        Convert stereo to mono.  Supported values:
-                  0: mix all channels together
-                  1: use left channel only
-                  2: use right channel only
-                  Note: can't be used together with sample rate conversion.
-
---rate=VAL  Set audio sample rate
-
---wav-format=VAL  Set output PCM format (16le | float)
-
---ogg-quality=VAL     Set OGG Vorbis encoding quality: -1.0 .. 10.0
-
---mpeg-quality=VAL    Set MPEG encoding quality: 9..0 (VBR) or 64..320 (CBR)
-
---aac-quality=VAL     Set AAC encoding quality: 1..5 (VBR) or 8..800 (CBR, kbit/s)
-
---flac-compression=VAL  Set FLAC compression level: 0..8
-
---cue-gaps=VAL    Control track pregaps
-                  0: skip pregaps:
-                    track01.index01 .. track02.index00
-
-                  1: (default), gap is added to the previous track:
-                    track01.index01 .. track02.index01
-
-                  2: gap is added to the previous track (but track01's pregap is preserved):
-                    track01.index00 .. track02.index01
-                    track02.index01 .. track03.index01
-
-                  3: gap is added to the beginning of the current track:
-                    track01.index00 .. track02.index00
-
---pcm-peaks  Analyze PCM and print some details.
---pcm-crc    Print CRC of PCM data (must be used with --pcm-peaks).
-             Useful for checking the results of lossless audio conversion.
-
---preserve-date  Set output file date/time equal to input file.
-
---meta='[clear;]NAME=VAL;NAME=VAL...'   Set meta data.
-                                        If "clear;" is specified, skip all meta from input file.
-
-
-Install:
---install    Windows: add fmedia directory into user's environment and create a desktop shortcut
---uninstall  Undo changes made by '--install'
+INSTALL:
+--install          Windows: add fmedia directory into user's environment and create a desktop shortcut
+--uninstall        Undo changes made by '--install'

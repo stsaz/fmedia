@@ -17,8 +17,6 @@ static const fmed_queue *qu;
 
 typedef struct fmed_mpeg {
 	ffmpg mpg;
-	ffstr title
-		, artist;
 	uint state;
 	uint have_id32tag :1
 		, fmt_set :1
@@ -135,8 +133,6 @@ static void* mpeg_open(fmed_filt *d)
 static void mpeg_close(void *ctx)
 {
 	fmed_mpeg *m = ctx;
-	ffstr_free(&m->title);
-	ffstr_free(&m->artist);
 	ffmpg_close(&m->mpg);
 	ffmem_free(m);
 }
@@ -471,7 +467,7 @@ static int mpeg_out_process(void *ctx, fmed_filt *d)
 		if (0 != (r = ffmpg_create(&m->mpg, &pcm, qual))) {
 
 			if (r == FFMPG_EFMT && m->state == 0) {
-				fmed_setval("conv_pcm_format", FFPCM_16LE);
+				fmed_setval("conv_pcm_format", pcm.format);
 				m->state = 1;
 				return FMED_RMORE;
 			}

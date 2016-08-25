@@ -39,7 +39,7 @@ typedef struct mix_in {
 } mix_in;
 
 static struct mix_conf_t {
-	ffpcm pcm;
+	ffpcmex pcm;
 	uint buf_size;
 } conf;
 #define pcmfmt  (conf.pcm)
@@ -195,6 +195,7 @@ static int mix_in_write(void *ctx, fmed_filt *d)
 			mx->err = 1;
 			return NULL;
 		}
+		pcmfmt.ileaved = fmed_getval("pcm_ileaved");
 		mi->state = 2;
 		break;
 	}
