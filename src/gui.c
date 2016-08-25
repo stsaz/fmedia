@@ -282,7 +282,7 @@ void gui_corecmd_op(uint cmd, void *udata)
 	switch (cmd) {
 	case PLAY:
 		gg->track->cmd(NULL, FMED_TRACK_STOPALL);
-		gg->qu->cmd(FMED_QUE_PLAY, gg->play_id);
+		gg->qu->cmd(FMED_QUE_PLAY, udata);
 		break;
 
 	case PAUSE:
@@ -364,7 +364,7 @@ static void gui_que_onchange(fmed_que_entry *e, uint flags)
 
 	switch (flags) {
 	case FMED_QUE_ONADD:
-		gui_media_added(e);
+		gui_media_added(e, 0);
 		break;
 
 	case FMED_QUE_ONRM:
@@ -383,7 +383,7 @@ void gui_media_add1(const char *fn)
 	ffstr_setz(&e.url, fn);
 	if (NULL == (pe = (void*)gg->qu->cmd2(FMED_QUE_ADD | FMED_QUE_NO_ONCHANGE, &e, 0)))
 		return;
-	gui_media_added(pe);
+	gui_media_added(pe, 0);
 }
 
 void gui_rec(uint cmd)
@@ -682,7 +682,6 @@ static void* gtrk_open(fmed_filt *d)
 	g->sample_rate = (int)fmed_getval("pcm_sample_rate");
 	total_samples = fmed_getval("total_samples");
 	g->total_time_sec = ffpcm_time(total_samples, g->sample_rate) / 1000;
-	ffui_trk_setrange(&gg->wmain.tpos, g->total_time_sec);
 
 	plid = (void*)fmed_getval("queue_item");
 	if (plid == FMED_PNULL)
@@ -707,6 +706,9 @@ static void gtrk_close(void *ctx)
 {
 	gui_trk *g = ctx;
 	core->task(&g->task, FMED_TASK_DEL);
+	fmed_que_entry *qent = (void*)gg->track->getval(g->trk, "queue_item");
+	gui_setmeta(NULL, qent);
+
 	if (gg->curtrk == g) {
 		fflk_lock(&gg->lktrk);
 		gg->curtrk = NULL;

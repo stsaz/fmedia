@@ -1,4 +1,4 @@
-# fmedia v0.13 GUI
+# fmedia v0.16 GUI
 
 menu mfile {
 	item "&Open..." {
@@ -195,7 +195,7 @@ menu mtray {
 }
 
 dialog dlg {
-	filter "Input (*.mp3;*.ogg;*.flac;*.m4a;*.mp4;*.wv;*.ape;*.wav;*.m3u;*.m3u8;*.cue)\x00*.mp3;*.ogg;*.flac;*.m4a;*.mp4;*.wv;*.ape;*.wav;*.m3u;*.m3u8;*.cue\x00Output (*.ogg;*.mp3;*.flac;*.wav)\x00*.ogg;*.mp3;*.flac;*.wav\x00Playlists (*.m3u8;*.m3u)\x00*.m3u8;*.m3u\x00All (*.*)\x00*.*\x00\x00"
+	filter "Input (*.mp3;*.ogg;*.flac;*.m4a;*.mp4;*.wv;*.ape;*.wav;*.m3u;*.m3u8;*.cue)\x00*.mp3;*.ogg;*.flac;*.m4a;*.mp4;*.wv;*.ape;*.wav;*.m3u;*.m3u8;*.cue\x00Output (*.ogg;*.mp3;*.flac;*.m4a;*.wav)\x00*.ogg;*.mp3;*.flac;*.m4a;*.wav\x00Playlists (*.m3u8;*.m3u)\x00*.m3u8;*.m3u\x00All (*.*)\x00*.*\x00\x00"
 }
 
 window wmain {
@@ -282,6 +282,7 @@ window wmain {
 	trackbar tpos {
 		position 0 20 300 20
 		style no_ticks both visible
+		range 0
 		page_size 5
 		onscrolling SEEKING
 		onscroll SEEK

@@ -346,6 +346,7 @@ static void tui_vol(tui *t, uint cmd)
 	else
 		db = ffpcm_vol2db_inc(gt->vol - 100, VOL_MAX - 100, VOL_HI) * 100;
 	gt->track->setval(t->trk, "gain", db);
+	fffile_fmt(ffstdout, NULL, "Volume: %.02FdB\n", (double)db / 100);
 }
 
 static void tui_rmfile(tui *t, uint cmd)

@@ -99,7 +99,6 @@ typedef struct ggui {
 	fflock lk;
 	const fmed_queue *qu;
 	const fmed_track *track;
-	void *play_id;
 	char *rec_dir;
 	ffstr rec_format;
 	uint load_err;
@@ -268,7 +267,7 @@ void gui_newtrack(gui_trk *g, fmed_filt *d, fmed_que_entry *plid);
 int gui_setmeta(gui_trk *g, fmed_que_entry *qent);
 void gui_clear(void);
 void gui_status(const char *s, size_t len);
-void gui_media_added(fmed_que_entry *ent);
+void gui_media_added(fmed_que_entry *ent, uint flags);
 void gui_media_removed(uint i);
 void gui_rec(uint cmd);
 void gui_que_new(void);

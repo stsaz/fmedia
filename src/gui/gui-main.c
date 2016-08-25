@@ -37,6 +37,14 @@ static void gui_showtextfile(uint cmd);
 static void gui_on_dropfiles(ffui_wnd *wnd, ffui_fdrop *df);
 static void gui_onclose(void);
 static void gui_media_addurl(uint id);
+
+enum {
+	GUI_TRKINFO_WNDCAPTION = 1,
+	GUI_TRKINFO_PLAYING = 2,
+	GUI_TRKINFO_STOPPED = 4,
+	GUI_TRKINFO_DUR = 8,
+};
+static void gui_trk_setinfo(int idx, fmed_que_entry *ent, uint sec, uint flags);
 static int gui_newtab(void);
 
 
@@ -102,9 +110,9 @@ static const struct cmd cmds[] = {
 	{ CHANGES_SHOW,	F1,	&gui_showtextfile },
 };
 
-static struct cmd cmd_play = { PLAY,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op };
-static struct cmd cmd_quit = { QUIT,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op };
-static struct cmd cmd_savelist = { SAVELIST,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op };
+static const struct cmd cmd_play = { PLAY,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op };
+static const struct cmd cmd_quit = { QUIT,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op };
+static const struct cmd cmd_savelist = { SAVELIST,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op };
 static const struct cmd cmd_seek = { SEEK, F1 | CMD_FCORE | CMD_FUDATA, &gui_corecmd_op };
 static const struct cmd cmd_vol = { VOL, F1 | CMD_FCORE | CMD_FUDATA, &gui_corecmd_op };
 
@@ -136,11 +144,13 @@ static void gui_action(ffui_wnd *wnd, int id)
 
 	switch (id) {
 
-	case PLAY:
-		if (NULL == (gg->play_id = gui_list_getent()))
+	case PLAY: {
+		void *play_id;
+		if (NULL == (play_id = gui_list_getent()))
 			break;
-		gui_corecmd_add(&cmd_play, NULL);
+		gui_corecmd_add(&cmd_play, play_id);
 		break;
+	}
 
 
 	case SEEKING:
@@ -492,9 +502,66 @@ end:
 	ffmem_free(notepad);
 }
 
-void gui_media_added(fmed_que_entry *ent)
+static void gui_trk_setinfo(int idx, fmed_que_entry *ent, uint sec, uint flags)
 {
-	ffstr name;
+	uint n;
+	char buf[255];
+	ffstr artist = {0}, title = {0}, *val;
+	ffui_viewitem it;
+	ffui_view_iteminit(&it);
+	ffui_view_setindex(&it, idx);
+
+	if (flags & GUI_TRKINFO_STOPPED) {
+		ffui_view_gettext(&it);
+		ffui_view_get(&gg->wmain.vlist, H_IDX, &it);
+		ffsyschar *s = ffui_view_textq(&it);
+		ffui_view_settext_q(&it, s + FFSLEN("> "));
+		ffui_view_set(&gg->wmain.vlist, H_IDX, &it);
+		return;
+
+	} else if (flags & GUI_TRKINFO_PLAYING) {
+		ffui_view_gettext(&it);
+		ffui_view_get(&gg->wmain.vlist, H_IDX, &it);
+		n = ffs_fmt(buf, buf + sizeof(buf), "> %q", ffui_view_textq(&it));
+		ffui_view_settext(&it, buf, n);
+		ffui_view_set(&gg->wmain.vlist, H_IDX, &it);
+	}
+
+	ffui_view_settextstr(&it, &ent->url);
+	ffui_view_set(&gg->wmain.vlist, H_FN, &it);
+
+	if (NULL != (val = gg->qu->meta_find(ent, FFSTR("artist"))))
+		artist = *val;
+
+	if (NULL == (val = gg->qu->meta_find(ent, FFSTR("title")))) {
+		//use filename as a title
+		ffpath_split2(ent->url.ptr, ent->url.len, NULL, &title);
+		ffpath_splitname(title.ptr, title.len, &title, NULL);
+	} else
+		title = *val;
+
+
+	ffui_view_settextstr(&it, &artist);
+	ffui_view_set(&gg->wmain.vlist, H_ART, &it);
+
+	ffui_view_settextstr(&it, &title);
+	ffui_view_set(&gg->wmain.vlist, H_TIT, &it);
+
+	if (flags & GUI_TRKINFO_DUR) {
+		n = ffs_fmt(buf, buf + sizeof(buf), "%u:%02u", sec / 60, sec % 60);
+		ffui_view_settext(&it, buf, n);
+		ffui_view_set(&gg->wmain.vlist, H_DUR, &it);
+	}
+
+	if (flags & GUI_TRKINFO_WNDCAPTION) {
+		n = ffs_fmt(buf, buf + sizeof(buf), "%S - %S - fmedia", &artist, &title);
+		ffui_settext(&gg->wmain.wmain, buf, n);
+	}
+}
+
+void gui_media_added(fmed_que_entry *ent, uint flags)
+{
+	char buf[255];
 	ffui_viewitem it;
 	ffmem_tzero(&it);
 
@@ -504,20 +571,17 @@ void gui_media_added(fmed_que_entry *ent)
 
 	if (idx == -1) {
 		gui_list_add(&it, (size_t)ent);
+		idx = it.item.iItem;
 	} else {
-		char buf[FFINT_MAXCHARS];
 		size_t n = ffs_fromint(idx + 2, buf, sizeof(buf), 0);
 		ffui_view_settext(&it, buf, n);
 		ffui_view_setparam(&it, (size_t)ent);
-		ffui_view_ins(&gg->wmain.vlist, idx + 1, &it);
+		ffui_view_ins(&gg->wmain.vlist, ++idx, &it);
 	}
 
-	ffui_view_settextstr(&it, &ent->url);
-	ffui_view_set(&gg->wmain.vlist, H_FN, &it);
-
-	ffpath_split2(ent->url.ptr, ent->url.len, NULL, &name);
-	ffui_view_settextstr(&it, &name);
-	ffui_view_set(&gg->wmain.vlist, H_TIT, &it);
+	if (ent->dur != 0)
+		flags |= GUI_TRKINFO_DUR;
+	gui_trk_setinfo(idx, ent, ent->dur / 1000, flags);
 }
 
 static void gui_media_open(uint id)
@@ -598,13 +662,17 @@ static void gui_showque(uint i)
 {
 	gg->qu->cmd(FMED_QUE_SEL, (void*)(size_t)i);
 
+	fmed_que_entry *active_qent = NULL;
+	if (gg->curtrk != NULL)
+		active_qent = (void*)gg->track->getval(gg->curtrk->trk, "queue_item");
+
 	ffui_redraw(&gg->wmain.vlist, 0);
 	ffui_view_clear(&gg->wmain.vlist);
 	fmed_que_entry *e = NULL;
 	for (;;) {
 		if (0 == gg->qu->cmd2(FMED_QUE_LIST, &e, 0))
 			break;
-		gui_media_added(e);
+		gui_media_added(e, (e == active_qent) ? GUI_TRKINFO_PLAYING : 0);
 	}
 	ffui_redraw(&gg->wmain.vlist, 1);
 }
@@ -707,6 +775,7 @@ void gui_clear(void)
 {
 	ffui_settextz(&gg->wmain.wmain, "fmedia");
 	ffui_trk_set(&gg->wmain.tpos, 0);
+	ffui_trk_setrange(&gg->wmain.tpos, 0);
 	ffui_settext(&gg->wmain.lpos, NULL, 0);
 	gui_status("", 0);
 }
@@ -728,34 +797,16 @@ static void gui_on_dropfiles(ffui_wnd *wnd, ffui_fdrop *df)
 /** Update window caption and playlist item with a new meta. */
 int gui_setmeta(gui_trk *g, fmed_que_entry *plid)
 {
-	ffui_viewitem it = {0};
-	char buf[1024];
-	size_t n;
-	ssize_t idx = -1;
-	ffstr *tstr, artist = {0}, stitle;
-
-	if (NULL != (tstr = gg->qu->meta_find(plid, FFSTR("artist"))))
-		artist = *tstr;
-
-	if (NULL == (tstr = gg->qu->meta_find(plid, FFSTR("title")))) {
-		//use filename as a title
-		ffpath_split2(plid->url.ptr, plid->url.len, NULL, &stitle);
-		ffpath_splitname(stitle.ptr, stitle.len, &stitle, NULL);
-	} else
-		stitle = *tstr;
-
-	n = ffs_fmt(buf, buf + sizeof(buf), "%S - %S - fmedia", &artist, &stitle);
-	ffui_settext(&gg->wmain.wmain, buf, n);
-
+	ssize_t idx;
 	if (-1 == (idx = ffui_view_search(&gg->wmain.vlist, (size_t)plid)))
 		return -1;
-	ffui_view_setindex(&it, idx);
 
-	ffui_view_settextstr(&it, &artist);
-	ffui_view_set(&gg->wmain.vlist, H_ART, &it);
+	if (g == NULL) {
+		gui_trk_setinfo(idx, plid, 0, GUI_TRKINFO_STOPPED);
+		return idx;
+	}
 
-	ffui_view_settextstr(&it, &stitle);
-	ffui_view_set(&gg->wmain.vlist, H_TIT, &it);
+	gui_trk_setinfo(idx, plid, g->total_time_sec, GUI_TRKINFO_WNDCAPTION | GUI_TRKINFO_PLAYING | GUI_TRKINFO_DUR);
 	return idx;
 }
 
@@ -771,17 +822,7 @@ void gui_newtrack(gui_trk *g, fmed_filt *d, fmed_que_entry *plid)
 	if (-1 == (idx = gui_setmeta(g, plid)))
 		return;
 	ffui_view_setindex(&it, idx);
-
 	ffui_view_focus(&it, 1);
-	ffui_view_set(&gg->wmain.vlist, H_IDX, &it);
-
-	ffui_view_settextstr(&it, &plid->url);
-	ffui_view_set(&gg->wmain.vlist, H_FN, &it);
-
-	n = ffs_fmt(buf, buf + sizeof(buf), "%u:%02u"
-		, g->total_time_sec / 60, g->total_time_sec % 60);
-	ffui_view_settext(&it, buf, n);
-	ffui_view_set(&gg->wmain.vlist, H_DUR, &it);
 
 	n = ffs_fmt(buf, buf + sizeof(buf), "%u kbps, %s, %u Hz, %u bit, %s"
 		, (int)((d->track->getval(d->trk, "bitrate") + 500) / 1000)
@@ -791,4 +832,6 @@ void gui_newtrack(gui_trk *g, fmed_filt *d, fmed_que_entry *plid)
 		, ffpcm_channelstr((int)d->track->getval(d->trk, "pcm_channels")));
 	ffui_view_settext(&it, buf, n);
 	ffui_view_set(&gg->wmain.vlist, H_INF, &it);
+
+	ffui_trk_setrange(&gg->wmain.tpos, g->total_time_sec);
 }
