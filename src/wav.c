@@ -5,11 +5,13 @@ Copyright (c) 2015 Simon Zolin */
 
 #include <FF/audio/wav.h>
 #include <FF/audio/pcm.h>
+#include <FF/data/mmtag.h>
 #include <FF/array.h>
 #include <FFOS/error.h>
 
 
 static const fmed_core *core;
+static const fmed_queue *qu;
 
 typedef struct fmed_wav {
 	ffwav wav;
@@ -76,6 +78,11 @@ static const void* wav_iface(const char *name)
 
 static int wav_sig(uint signo)
 {
+	switch (signo) {
+	case FMED_OPEN:
+		qu = core->getmod("#queue.queue");
+		break;
+	}
 	return 0;
 }
 
@@ -100,6 +107,16 @@ static void wav_close(void *ctx)
 	fmed_wav *w = ctx;
 	ffwav_close(&w->wav);
 	ffmem_free(w);
+}
+
+static void wav_meta(fmed_wav *w, fmed_filt *d)
+{
+	ffstr name, val;
+	if (w->wav.tag == -1)
+		return;
+	ffstr_setz(&name, ffmmtag_str[w->wav.tag]);
+	ffstr_set2(&val, &w->wav.tagval);
+	qu->meta_set((void*)fmed_getval("queue_item"), name.ptr, name.len, val.ptr, val.len, FMED_QUE_TMETA);
 }
 
 static int wav_process(void *ctx, fmed_filt *d)
@@ -128,6 +145,9 @@ again:
 		break;
 	}
 
+	if (d->flags & FMED_FLAST)
+		w->wav.fin = 1;
+
 	for (;;) {
 		r = ffwav_decode(&w->wav);
 		switch (r) {
@@ -140,8 +160,6 @@ again:
 			return FMED_RMORE;
 
 		case FFWAV_RDONE:
-			if (!(d->flags & FMED_FLAST))
-				errlog(core, d->trk, "wav", "skipping some data at the end of file");
 			d->outlen = 0;
 			return FMED_RDONE;
 
@@ -158,6 +176,10 @@ again:
 			fmed_setval("bitrate", w->wav.bitrate);
 			w->state = I_DATA;
 			goto again;
+
+		case FFWAV_RTAG:
+			wav_meta(w, d);
+			break;
 
 		case FFWAV_RSEEK:
 			fmed_setval("input_seek", ffwav_seekoff(&w->wav));
