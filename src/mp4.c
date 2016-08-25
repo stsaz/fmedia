@@ -74,6 +74,7 @@ static const fmed_filter mp4aac_output = {
 };
 
 static void mp4_meta(mp4 *m, fmed_filt *d);
+static int mp4_out_addmeta(mp4_out *m, fmed_filt *d);
 
 
 static int mp4aac_open(mp4 *m, fmed_filt *d);
@@ -410,6 +411,33 @@ static void mp4_out_free(void *ctx)
 	ffmem_free(m);
 }
 
+static int mp4_out_addmeta(mp4_out *m, fmed_filt *d)
+{
+	uint i;
+	ffstr name, *val;
+	void *qent;
+
+	if (FMED_PNULL == (qent = (void*)fmed_getval("queue_item")))
+		return 0;
+
+	for (i = 0;  NULL != (val = qu->meta(qent, i, &name, FMED_QUE_UNIQ));  i++) {
+		if (val == FMED_QUE_SKIP
+			|| ffstr_eqcz(&name, "vendor"))
+			continue;
+
+		int tag;
+		if (-1 == (tag = ffs_findarrz(ffmmtag_str, FFCNT(ffmmtag_str), name.ptr, name.len))) {
+			warnlog(core, d->trk, "mp4", "unsupported tag: %S", &name);
+			continue;
+		}
+
+		if (0 != ffmp4_addtag(&m->mp, tag, val->ptr, val->len)) {
+			warnlog(core, d->trk, "mp4", "can't add tag: %S", &name);
+		}
+	}
+	return 0;
+}
+
 static int mp4_out_encode(void *ctx, fmed_filt *d)
 {
 	mp4_out *m = ctx;
@@ -462,6 +490,10 @@ static int mp4_out_encode(void *ctx, fmed_filt *d)
 			errlog(core, d->trk, NULL, "ffmp4_create_aac(): %s", ffmp4_werrstr(&m->mp));
 			return FMED_RERR;
 		}
+
+		if (0 != mp4_out_addmeta(m, d))
+			return FMED_RERR;
+
 		m->state = I_ENC;
 		// break
 	}
