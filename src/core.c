@@ -597,7 +597,14 @@ static int media_setout(fm_src *src)
 	const char *s, *fn;
 	int type = trk_getval(src, "type");
 
-	if (type != FMED_TRK_TYPE_MIXIN) {
+	if (type == FMED_TRK_TYPE_NETIN) {
+		ffstr ext;
+		const char *input = trk_getvalstr(src, "input");
+		ffpath_splitname(input, ffsz_len(input), NULL, &ext);
+		if (NULL == media_modbyext(src, &fmed->inmap, &ext))
+			return -1;
+
+	} else if (type != FMED_TRK_TYPE_MIXIN) {
 		if (fmed->gui)
 			newfilter(src, "gui.gui");
 		else if (!fmed->silent)
@@ -767,6 +774,14 @@ static void* trk_create(uint cmd, const char *fn)
 		media_open_mix(src);
 		fmed->mix = 1;
 		break;
+
+	case FMED_TRACK_NET: {
+		if (NULL == ffarr_grow(&src->filters, 2 + nout, 0))
+			goto fail;
+		newfilter(src, "net.in");
+		trk_setval(src, "type", FMED_TRK_TYPE_NETIN);
+		break;
+	}
 	}
 
 	if (fmed->meta.len != 0)
