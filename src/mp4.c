@@ -433,11 +433,10 @@ static int mp4_out_decode(void *ctx, fmed_filt *d)
 		}
 
 		int qual;
-		if (FMED_NULL != (qual = fmed_getval("aac-quality"))) {
-			if (qual > 5 && qual < 8000)
-				qual *= 1000;
-		} else
+		if (FMED_NULL == (qual = fmed_getval("aac-quality")))
 			qual = aac_out_conf.qual;
+		if (qual > 5 && qual < 8000)
+			qual *= 1000;
 
 		m->aac.info.aot = aac_out_conf.aot;
 		m->aac.info.afterburner = aac_out_conf.afterburner;
