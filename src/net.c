@@ -25,12 +25,21 @@ typedef struct net_conf {
 
 typedef struct netmod {
 	const fmed_queue *qu;
+	const fmed_track *track;
 	fflist1 recycled_cons;
 	net_conf conf;
 } netmod;
 
 static netmod *net;
 static const fmed_core *core;
+
+typedef struct netin {
+	uint state;
+	ffarr d[2];
+	uint idx;
+	fftask task;
+	uint fin :1;
+} netin;
 
 typedef struct icy {
 	uint state;
@@ -57,11 +66,16 @@ typedef struct icy {
 
 	fficy icy;
 
+	netin *netin;
+	ffstr artist;
+	ffstr title;
+
 	uint buflock :1
 		, iowait :1 //waiting for I/O, all input data is consumed
 		, async :1
 		, err :1
 		, preload :1 //fill all buffers
+		, meta_changed :1
 		;
 } icy;
 
@@ -95,6 +109,17 @@ static int icy_conf_done(ffparser_schem *p, void *obj);
 
 static int icy_setmeta(icy *c, const ffstr *_data);
 
+static void* netin_open(fmed_filt *d);
+static int netin_process(void *ctx, fmed_filt *d);
+static void netin_close(void *ctx);
+static const fmed_filter fmed_netin = {
+	&netin_open, &netin_process, &netin_close
+};
+
+static void* netin_create(icy *c);
+static void netin_write(netin *n, const ffstr *data);
+
+
 enum {
 	UA_OFF,
 	UA_NAME,
@@ -124,6 +149,8 @@ static const ffpars_arg net_conf_args[] = {
 
 FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 {
+	if (net != NULL)
+		return &fmed_net_mod;
 	ffmem_init();
 	if (0 != ffskt_init(FFSKT_SIGPIPE | FFSKT_WSA | FFSKT_WSAFUNCS))
 		return NULL;
@@ -136,9 +163,10 @@ FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 
 static const void* net_iface(const char *name)
 {
-	if (!ffsz_cmp(name, "icy")) {
+	if (!ffsz_cmp(name, "icy"))
 		return &fmed_icy;
-	}
+	else if (!ffsz_cmp(name, "in"))
+		return &fmed_netin;
 	return NULL;
 }
 
@@ -148,6 +176,7 @@ static int net_sig(uint signo)
 	case FMED_OPEN:
 		if (NULL == (net->qu = core->getmod("#queue.queue")))
 			return 1;
+		net->track = core->getmod("#core.track");
 		break;
 	}
 	return 0;
@@ -156,6 +185,8 @@ static int net_sig(uint signo)
 static void net_destroy(void)
 {
 	icy *c;
+	if (net == NULL)
+		return;
 	while (NULL != (c = (void*)fflist1_pop(&net->recycled_cons))) {
 		ffmem_free(FF_GETPTR(icy, recycled, c));
 	}
@@ -242,6 +273,14 @@ static void icy_close(void *ctx)
 	ffmem_safefree(c->bufs);
 
 	ffstr_free(&c->hbuf);
+	ffstr_free(&c->artist);
+	ffstr_free(&c->title);
+
+	if (c->netin != NULL) {
+		netin_write(c->netin, NULL);
+		c->netin = NULL;
+	}
+
 	fflist1_push(&net->recycled_cons, &c->recycled);
 }
 
@@ -642,6 +681,19 @@ static int icy_process(void *ctx, fmed_filt *d)
 		}
 		switch (r) {
 		case FFICY_RDATA:
+			if (c->netin != NULL && c->meta_changed) {
+				c->meta_changed = 0;
+				netin_write(c->netin, NULL);
+				c->netin = NULL;
+			}
+
+			if (c->netin == NULL && FMED_NULL != net->track->getval(d->trk, "out-copy"))
+				c->netin = netin_create(c);
+
+			if (c->netin != NULL) {
+				netin_write(c->netin, &s);
+			}
+
 			d->out = s.ptr;
 			d->outlen = s.len;
 			return FMED_RDATA;
@@ -697,18 +749,104 @@ static int icy_setmeta(icy *c, const ffstr *_data)
 		}
 	}
 
+	ffstr_free(&c->artist);
+	ffstr_free(&c->title);
+
 	qent = (void*)c->d->track->getval(c->d->trk, "queue_item");
 	ffstr_setcz(&pair[0], "artist");
 	ffarr utf = {0};
 	ffutf8_strencode(&utf, artist.ptr, artist.len, FFU_WIN1252);
 	ffstr_set2(&pair[1], &utf);
 	net->qu->cmd2(FMED_QUE_METASET | (FMED_QUE_OVWRITE << 16), qent, (size_t)pair);
+	ffstr_acqstr3(&c->artist, &utf);
 
 	ffstr_setcz(&pair[0], "title");
 	ffutf8_strencode(&utf, title.ptr, title.len, FFU_WIN1252);
 	ffstr_set2(&pair[1], &utf);
 	net->qu->cmd2(FMED_QUE_METASET | (FMED_QUE_OVWRITE << 16), qent, (size_t)pair);
-	ffarr_free(&utf);
 	c->d->track->setval(c->d->trk, "meta-changed", 1);
+	ffstr_acqstr3(&c->title, &utf);
+	c->meta_changed = 1;
 	return 0;
+}
+
+
+enum { IN_WAIT = 1, IN_DATANEXT };
+
+static void* netin_create(icy *c)
+{
+	netin *n;
+	void *trk;
+	if (NULL == (n = ffmem_tcalloc1(netin)))
+		return NULL;
+
+	if (NULL == (trk = net->track->create(FMED_TRACK_NET, "")))
+		return NULL;
+
+	const char *output;
+	output = net->track->getvalstr(c->d->trk, "output");
+	net->track->setvalstr(trk, "output", output);
+
+	net->track->setvalstr(trk, "input", "?.mp3");
+	net->track->setval(trk, "netin_ptr", (size_t)n);
+
+	if (1 == net->track->getval(c->d->trk, "stream_copy"))
+		net->track->setval(trk, "stream_copy", 1);
+
+	net->track->setvalstr4(trk, "artist", (void*)&c->artist, FMED_TRK_META | FMED_TRK_VALSTR);
+	net->track->setvalstr4(trk, "title", (void*)&c->title, FMED_TRK_META | FMED_TRK_VALSTR);
+
+	net->track->cmd(trk, FMED_TRACK_START);
+	return n;
+}
+
+static void netin_write(netin *n, const ffstr *data)
+{
+	if (data == NULL)
+		n->fin = 1;
+	else
+		ffarr_append(&n->d[n->idx], data->ptr, data->len);
+	if (n->state == IN_WAIT)
+		core->task(&n->task, FMED_TASK_POST);
+}
+
+static void* netin_open(fmed_filt *d)
+{
+	netin *n;
+	n = (void*)fmed_getval("netin_ptr");
+	n->state = IN_DATANEXT;
+	n->task.param = d->trk;
+	n->task.handler = d->handler;
+	return n;
+}
+
+static void netin_close(void *ctx)
+{
+	netin *n = ctx;
+	ffarr_free(&n->d[0]);
+	ffarr_free(&n->d[1]);
+	ffmem_free(n);
+}
+
+static int netin_process(void *ctx, fmed_filt *d)
+{
+	netin *n = ctx;
+	switch (n->state) {
+	case IN_DATANEXT:
+		if (n->d[n->idx].len == 0 && !n->fin) {
+			n->state = IN_WAIT;
+			return FMED_RASYNC;
+		}
+		break;
+
+	case IN_WAIT:
+		break;
+	}
+	n->state = IN_DATANEXT;
+	d->out = n->d[n->idx].ptr,  d->outlen = n->d[n->idx].len;
+	n->d[n->idx].len = 0;
+	n->idx = (n->idx + 1) % 2;
+	if (n->fin)
+		return FMED_RDONE;
+	return FMED_RDATA;
 }
