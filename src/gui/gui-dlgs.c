@@ -97,23 +97,23 @@ static int gui_cvt_getsettings(const struct cvt_set *psets, uint nsets, void *se
 
 // gui -> core
 static const struct cvt_set cvt_sets[] = {
+	{ "conv_pcm_format", "Audio Format", "int8 | int16 | int24 | int32 | float32", CVTF_EMPTY | FFOFF(cvt_sets_t, format) },
+	{ "conv_pcm_rate", "Sample rate (Hz)", "", CVTF_EMPTY | FFOFF(cvt_sets_t, conv_pcm_rate) },
+	{ "conv_channels", "Channels", "2 (stereo) | 1 (mono) | left | right", CVTF_EMPTY | FFOFF(cvt_sets_t, channels) },
+
+	{ "gain", "Gain (dB)", "", CVTF_FLT | CVTF_FLT100 | CVTF_EMPTY | FFOFF(cvt_sets_t, gain) },
+	{ "seek_time", "Seek to", "[MM:]SS[.MSC]", CVTF_MSEC | CVTF_EMPTY | FFOFF(cvt_sets_t, seek) },
+	{ "until_time", "Stop at", "[MM:]SS[.MSC]", CVTF_MSEC | CVTF_EMPTY | FFOFF(cvt_sets_t, until) },
+
 	{ "ogg-quality", "OGG Vorbis Quality", "-1.0 .. 10.0", CVTF_FLT | CVTF_FLT10 | FFOFF(cvt_sets_t, ogg_quality) },
 	{ "mpeg-quality", "MPEG Quality", "VBR quality: 9..0 or CBR bitrate: 64..320", FFOFF(cvt_sets_t, mpg_quality) },
 	{ "aac-quality", "AAC Quality", "VBR quality: 1..5 or CBR bitrate: 8..800", FFOFF(cvt_sets_t, aac_quality) },
 	{ "flac_complevel", "FLAC Compression", "0..8", FFOFF(cvt_sets_t, flac_complevel) },
-
-	{ "conv_pcm_rate", "Sample rate (Hz)", "", CVTF_EMPTY | FFOFF(cvt_sets_t, conv_pcm_rate) },
-	{ "conv_channels", "Mono", "mix | left | right", CVTF_EMPTY | FFOFF(cvt_sets_t, conv_channels) },
-	{ "gain", "Gain (dB)", "", CVTF_FLT | CVTF_FLT100 | CVTF_EMPTY | FFOFF(cvt_sets_t, gain) },
 	{ "meta", "Meta Tags", "[clear;]NAME=VAL;...", CVTF_STR | CVTF_EMPTY | FFOFF(cvt_sets_t, meta) },
-	{ "seek_time", "Seek to", "[MM:]SS[.MSC]", CVTF_MSEC | CVTF_EMPTY | FFOFF(cvt_sets_t, seek) },
-	{ "until_time", "Stop at", "[MM:]SS[.MSC]", CVTF_MSEC | CVTF_EMPTY | FFOFF(cvt_sets_t, until) },
 
 	{ "overwrite", "Overwrite Output File", "0 or 1", FFOFF(cvt_sets_t, overwrite) },
 	{ "out_preserve_date", "Preserve Date", "0 or 1", FFOFF(cvt_sets_t, out_preserve_date) },
 };
-
-static const char *const cvt_channels_str[] = { "mix", "left", "right" };
 
 // conf -> gui
 static const ffpars_arg cvt_sets_conf[] = {
@@ -309,18 +309,15 @@ static int gui_cvt_getsettings(const struct cvt_set *psets, uint nsets, void *se
 			else if (st->flags & CVTF_FLT100)
 				val = d * 100;
 
-		} else if (ffstr_eqcz(&name, "pcm_format")) {
+		} else if (ffstr_eqcz(&name, "pcm_format")
+			|| ffstr_eqcz(&name, "conv_pcm_format")) {
 			if (0 > (val = ffpcm_fmt(txt, len)))
 				goto end;
 
-		} else if (ffstr_eqcz(&name, "pcm_channels")) {
+		} else if (ffstr_eqcz(&name, "pcm_channels")
+			|| ffstr_eqcz(&name, "conv_channels")) {
 			if (0 > (val = ffpcm_channels(txt, len)))
 				goto end;
-
-		} else if (ffstr_eqcz(&name, "conv_channels")) {
-			if (-1 == (val = ffs_ifindarrz(cvt_channels_str, FFCNT(cvt_channels_str), txt, len)))
-				goto end;
-			val = (val << 4) | 1;
 
 		} else {
 			if (len != ffs_toint(txt, len, &val, FFS_INT32))

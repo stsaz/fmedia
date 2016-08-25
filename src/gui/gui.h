@@ -91,8 +91,9 @@ typedef struct cvt_sets_t {
 	int aac_quality;
 	int flac_complevel;
 
+	int format;
 	int conv_pcm_rate;
-	int conv_channels;
+	int channels;
 	union {
 	int gain;
 	float gain_f;
