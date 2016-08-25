@@ -236,13 +236,14 @@ add_meta:
 				return FMED_RERR;
 			m->furl = 1;
 			m->ent.prev = cur;
-			cur = (void*)qu->cmd2(FMED_QUE_ADD, &m->ent, 0);
+			cur = (void*)qu->cmd2(FMED_QUE_ADD | FMED_QUE_NO_ONCHANGE, &m->ent, 0);
 			uint i;
 			const ffstr *meta = m->metas.ptr;
 			for (i = 0;  i != m->metas.len;  i += 2) {
 				ffstr pair[2] = { meta[i], meta[i + 1] };
 				qu->cmd2(FMED_QUE_METASET, cur, (size_t)pair);
 			}
+			qu->cmd2(FMED_QUE_ADD | FMED_QUE_ADD_DONE, cur, 0);
 			}
 
 			m3u_reset(m);
@@ -462,13 +463,14 @@ add:
 		}
 
 		c->ent.prev = cur;
-		cur = (void*)qu->cmd2(FMED_QUE_ADD, &c->ent, 0);
+		cur = (void*)qu->cmd2(FMED_QUE_ADD | FMED_QUE_NO_ONCHANGE, &c->ent, 0);
 
 		const ffstr *m = c->metas.ptr;
 		for (;  i != c->nmeta;  i += 2) {
 			ffstr pair[2] = { m[i], m[i + 1] };
 			qu->cmd2(FMED_QUE_METASET, cur, (size_t)pair);
 		}
+		qu->cmd2(FMED_QUE_ADD | FMED_QUE_ADD_DONE, cur, 0);
 
 next:
 		/* 'metas': GLOBAL TRACK_N TRACK_N+1

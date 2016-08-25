@@ -473,7 +473,14 @@ static fmed_que_entry* _que_add(fmed_que_entry *ent)
 
 static fmed_que_entry* que_add(fmed_que_entry *ent, uint flags)
 {
-	entry *e = ffmem_tcalloc1(entry);
+	entry *e;
+
+	if (flags & FMED_QUE_ADD_DONE) {
+		e = FF_GETPTR(entry, e, ent);
+		goto done;
+	}
+
+	e = ffmem_tcalloc1(entry);
 	if (e == NULL)
 		return NULL;
 
@@ -496,6 +503,7 @@ static fmed_que_entry* que_add(fmed_que_entry *ent, uint flags)
 	dbglog(core, NULL, "que", "added: (%d: %d-%d) %S"
 		, ent->dur, ent->from, ent->to, &ent->url);
 
+done:
 	if (!(flags & FMED_QUE_NO_ONCHANGE) && qu->onchange != NULL)
 		qu->onchange(&e->e, FMED_QUE_ONADD);
 	return &e->e;
