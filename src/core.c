@@ -648,8 +648,6 @@ static int media_setout(fm_src *src)
 	} else if (fmed->outfn.len != 0 && !fmed->rec) {
 		ffstr name, ext;
 		ffs_rsplit2by(fmed->outfn.ptr, fmed->outfn.len, '.', &name, &ext);
-		if (NULL == media_modbyext(src, &fmed->outmap, &ext))
-			return -1;
 
 		if (name.len != 0)
 			trk_setvalstr(src, "output", fmed->outfn.ptr);
@@ -672,8 +670,18 @@ static int media_setout(fm_src *src)
 			return -1;
 		}
 
+		if (fmed->out_copy) {
+			trk_setval(src, "out-copy", 1);
+			if (fmed->output != NULL)
+				newfilter1(src, fmed->output);
+			return 0;
+		}
+
 		if (fmed->stream_copy)
 			trk_setval(src, "stream_copy", 1);
+
+		if (NULL == media_modbyext(src, &fmed->outmap, &ext))
+			return -1;
 
 		newfilter(src, "#file.out");
 
