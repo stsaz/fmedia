@@ -78,6 +78,7 @@ static const ffui_ldr_ctl wconvert_ctls[] = {
 	add(gui_wconvert, vsets),
 	add(gui_wconvert, pnsets),
 	add(gui_wconvert, pnout),
+	{NULL, 0, NULL}
 };
 
 static const ffui_ldr_ctl wrec_ctls[] = {
@@ -88,29 +89,34 @@ static const ffui_ldr_ctl wrec_ctls[] = {
 	add(gui_wrec, vsets),
 	add(gui_wrec, pnsets),
 	add(gui_wrec, pnout),
+	{NULL, 0, NULL}
 };
 
 static const ffui_ldr_ctl winfo_ctls[] = {
 	add(gui_winfo, winfo),
 	add(gui_winfo, vinfo),
 	add(gui_winfo, pninfo),
+	{NULL, 0, NULL}
 };
 
 static const ffui_ldr_ctl wgoto_ctls[] = {
 	add(gui_wgoto, wgoto),
 	add(gui_wgoto, etime),
 	add(gui_wgoto, bgo),
+	{NULL, 0, NULL}
 };
 
 static const ffui_ldr_ctl wabout_ctls[] = {
 	add(gui_wabout, wabout),
 	add(gui_wabout, labout),
+	{NULL, 0, NULL}
 };
 
 static const ffui_ldr_ctl wlog_ctls[] = {
 	add(gui_wlog, wlog),
 	add(gui_wlog, pnlog),
 	add(gui_wlog, tlog),
+	{NULL, 0, NULL}
 };
 
 static const ffui_ldr_ctl wuri_ctls[] = {
@@ -119,6 +125,7 @@ static const ffui_ldr_ctl wuri_ctls[] = {
 	add(gui_wuri, bok),
 	add(gui_wuri, bcancel),
 	add(gui_wuri, pnuri),
+	{NULL, 0, NULL}
 };
 
 static const ffui_ldr_ctl wmain_ctls[] = {
@@ -139,6 +146,7 @@ static const ffui_ldr_ctl wmain_ctls[] = {
 	add(gui_wmain, pnlist),
 	add(gui_wmain, tray_icon),
 	add(gui_wmain, mm),
+	{NULL, 0, NULL}
 };
 
 static const ffui_ldr_ctl top_ctls[] = {
@@ -158,6 +166,7 @@ static const ffui_ldr_ctl top_ctls[] = {
 	FFUI_LDR_CTL3(ggui, wlog, wlog_ctls),
 	FFUI_LDR_CTL3(ggui, wuri, wuri_ctls),
 	FFUI_LDR_CTL3(ggui, wabout, wabout_ctls),
+	{NULL, 0, NULL}
 };
 
 #undef add
