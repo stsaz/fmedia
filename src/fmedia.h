@@ -130,6 +130,9 @@ enum FMED_TRK_TYPE {
 enum FMED_TRK_FVAL {
 	FMED_TRK_FACQUIRE = 2, //acquire pointer (value will be deleted with ffmem_free())
 	FMED_TRK_FNO_OVWRITE = 4, //don't overwrite if already exists
+	FMED_TRK_NAMESTR = 8,
+	FMED_TRK_VALSTR = 0x10,
+	FMED_TRK_META = 0x20,
 };
 
 #define FMED_TRK_ETMP  NULL // transient/system error
@@ -161,6 +164,8 @@ typedef struct fmed_track {
 	@flags: enum FMED_TRK_FVAL */
 	int64 (*setval4)(void *trk, const char *name, int64 val, uint flags);
 	char* (*setvalstr4)(void *trk, const char *name, const char *val, uint flags);
+
+	char* (*getvalstr3)(void *trk, const void *name, uint flags);
 } fmed_track;
 
 #define fmed_getval(name)  (d)->track->getval((d)->trk, name)

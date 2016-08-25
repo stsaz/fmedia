@@ -54,6 +54,7 @@ struct fm_src {
 	struct {FFARR(fmed_f)} filters;
 	fflist_cursor cur;
 	ffrbtree dict;
+	ffrbtree meta;
 
 	ffstr id;
 	char sid[FFSLEN("*") + FFINT_MAXCHARS];
@@ -107,9 +108,10 @@ static int trk_setval(void *trk, const char *name, int64 val);
 static int trk_setvalstr(void *trk, const char *name, const char *val);
 static int64 trk_setval4(void *trk, const char *name, int64 val, uint flags);
 static char* trk_setvalstr4(void *trk, const char *name, const char *val, uint flags);
+static char* trk_getvalstr3(void *trk, const void *name, uint flags);
 static const fmed_track _fmed_track = {
 	&trk_create, &trk_cmd,
-	&trk_popval, &trk_getval, &trk_getvalstr, &trk_setval, &trk_setvalstr, &trk_setval4, &trk_setvalstr4
+	&trk_popval, &trk_getval, &trk_getvalstr, &trk_setval, &trk_setvalstr, &trk_setval4, &trk_setvalstr4, &trk_getvalstr3
 };
 
 static const fmed_mod* fmed_getmod_core(const fmed_core *_core);
@@ -698,6 +700,7 @@ static void* trk_create(uint cmd, const char *fn)
 		return NULL;
 	ffchain_init(&src->filt_chain);
 	ffrbt_init(&src->dict);
+	ffrbt_init(&src->meta);
 
 	src->id.len = ffs_fmt(src->sid, src->sid + sizeof(src->sid), "*%u", ++fmed->srcid);
 	src->id.ptr = src->sid;
@@ -825,6 +828,12 @@ static void media_free(fm_src *src)
 	FFTREE_WALKSAFE(&src->dict, node, next) {
 		e = FF_GETPTR(dict_ent, nod, node);
 		ffrbt_rm(&src->dict, &e->nod);
+		dict_ent_free(e);
+	}
+
+	FFTREE_WALKSAFE(&src->meta, node, next) {
+		e = FF_GETPTR(dict_ent, nod, node);
+		ffrbt_rm(&src->meta, &e->nod);
 		dict_ent_free(e);
 	}
 
@@ -1010,10 +1019,10 @@ fin:
 }
 
 
-static dict_ent* dict_find(fm_src *src, const char *name)
+static dict_ent* dict_findstr(fm_src *src, const ffstr *name)
 {
 	dict_ent *ent;
-	uint crc = ffcrc32_getz(name, 0);
+	uint crc = ffcrc32_get(name->ptr, name->len);
 	ffrbt_node *nod;
 
 	nod = ffrbt_find(&src->dict, crc, NULL);
@@ -1021,10 +1030,17 @@ static dict_ent* dict_find(fm_src *src, const char *name)
 		return NULL;
 	ent = (dict_ent*)nod;
 
-	if (0 != ffsz_cmp(name, ent->name))
+	if (!ffstr_eqz(name, ent->name))
 		return NULL;
 
 	return ent;
+}
+
+static dict_ent* dict_find(fm_src *src, const char *name)
+{
+	ffstr s;
+	ffstr_setz(&s, name);
+	return dict_findstr(src, &s);
 }
 
 static dict_ent* dict_add(fm_src *src, const char *name, uint *f)
@@ -1032,8 +1048,9 @@ static dict_ent* dict_add(fm_src *src, const char *name, uint *f)
 	dict_ent *ent;
 	uint crc = ffcrc32_getz(name, 0);
 	ffrbt_node *nod, *parent;
+	ffrbtree *tree = (*f & FMED_TRK_META) ? &src->meta : &src->dict;
 
-	nod = ffrbt_find(&src->dict, crc, &parent);
+	nod = ffrbt_find(tree, crc, &parent);
 	if (nod != NULL) {
 		ent = (dict_ent*)nod;
 		if (0 != ffsz_cmp(name, ent->name)) {
@@ -1052,10 +1069,27 @@ static dict_ent* dict_add(fm_src *src, const char *name, uint *f)
 			return NULL;
 		}
 		ent->nod.key = crc;
-		ffrbt_insert(&src->dict, &ent->nod, parent);
+		ffrbt_insert(tree, &ent->nod, parent);
 		ent->name = name;
 		*f = 0;
 	}
+
+	return ent;
+}
+
+static dict_ent* meta_find(fm_src *src, const ffstr *name)
+{
+	dict_ent *ent;
+	uint crc = ffcrc32_get(name->ptr, name->len);
+	ffrbt_node *nod;
+
+	nod = ffrbt_find(&src->meta, crc, NULL);
+	if (nod == NULL)
+		return NULL;
+	ent = (dict_ent*)nod;
+
+	if (!ffstr_eqz(name, ent->name))
+		return NULL;
 
 	return ent;
 }
@@ -1137,6 +1171,37 @@ static const char* trk_getvalstr(void *trk, const char *name)
 	return FMED_PNULL;
 }
 
+static char* trk_getvalstr3(void *trk, const void *name, uint flags)
+{
+	fm_src *src = trk;
+	dict_ent *ent;
+	ffstr nm;
+
+	if (flags & FMED_TRK_NAMESTR)
+		ffstr_set2(&nm, (ffstr*)name);
+	else
+		ffstr_setz(&nm, (char*)name);
+
+	if (flags & FMED_TRK_META) {
+		ent = meta_find(src, &nm);
+		if (ent == NULL) {
+			void *qent;
+			if (NULL == (qent = (void*)trk_getval(src, "queue_item")))
+				return FMED_PNULL;
+			const fmed_queue *qu = core->getmod("#queue.queue");
+			ffstr *val;
+			if (NULL == (val = qu->meta_find(qent, nm.ptr, nm.len)))
+				return FMED_PNULL;
+			return val->ptr;
+		}
+	} else
+		ent = dict_findstr(src, &nm);
+	if (ent == NULL)
+		return FMED_PNULL;
+
+	return ent->pval;
+}
+
 static int trk_setval(void *trk, const char *name, int64 val)
 {
 	trk_setval4(trk, name, val, 0);
@@ -1146,7 +1211,7 @@ static int trk_setval(void *trk, const char *name, int64 val)
 static int64 trk_setval4(void *trk, const char *name, int64 val, uint flags)
 {
 	fm_src *src = trk;
-	uint st;
+	uint st = 0;
 	dict_ent *ent = dict_add(src, name, &st);
 	if (ent == NULL)
 		return FMED_NULL;
@@ -1168,9 +1233,32 @@ static char* trk_setvalstr4(void *trk, const char *name, const char *val, uint f
 {
 	fm_src *src = trk;
 	dict_ent *ent;
-	uint st;
+	uint st = flags;
 
-	ent = dict_add(src, name, &st);
+	if (flags & FMED_TRK_META) {
+		ent = dict_add(src, name, &st);
+		if (ent == NULL)
+			return NULL;
+
+		if (ent->acq)
+			ffmem_free(ent->pval);
+
+		if (flags & FMED_TRK_VALSTR) {
+			const ffstr *sval = (void*)val;
+			ent->pval = ffsz_alcopy(sval->ptr, sval->len);
+		} else
+			ent->pval = ffsz_alcopyz(val);
+
+		if (ent->pval == NULL)
+			return NULL;
+
+		ent->acq = 1;
+		dbglog(core, trk, "core", "set meta: %s = %s", name, ent->pval);
+		return ent->pval;
+
+	} else
+		ent = dict_add(src, name, &st);
+
 	if (ent == NULL
 		|| ((flags & FMED_TRK_FNO_OVWRITE) && st == 1)) {
 
