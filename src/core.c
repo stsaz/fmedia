@@ -48,6 +48,13 @@ typedef struct dict_ent {
 
 typedef struct fm_src fm_src;
 
+enum TRK_ST {
+	TRK_ST_STOPPED,
+	TRK_ST_ACTIVE,
+	TRK_ST_PAUSED,
+	TRK_ST_ERR,
+};
+
 struct fm_src {
 	fflist_item sib;
 	ffchain filt_chain;
@@ -59,8 +66,8 @@ struct fm_src {
 	ffstr id;
 	char sid[FFSLEN("*") + FFINT_MAXCHARS];
 
-	unsigned err :1
-		, capture :1
+	uint state; //enum TRK_ST
+	uint capture :1
 		, mxr_out :1;
 };
 
@@ -682,6 +689,7 @@ static int media_opened(fm_src *src)
 	}
 
 	fflist_ins(&fmed->srcs, &src->sib);
+	src->state = TRK_ST_ACTIVE;
 	return 0;
 }
 
@@ -777,6 +785,8 @@ static void media_stop(fm_src *src, uint flags)
 	FFARR_WALK(&src->filters, f) {
 		f->d.flags |= FMED_FSTOP;
 	}
+	if (src->state == TRK_ST_STOPPED)
+		media_free(src);
 }
 
 static void media_printtime(fm_src *src)
@@ -867,8 +877,12 @@ static void media_process(void *udata)
 	}
 
 	for (;;) {
-		if (src->err)
-			goto fin;
+
+		if (src->state != TRK_ST_ACTIVE) {
+			if (src->state == TRK_ST_ERR)
+				goto fin;
+			return;
+		}
 
 		f = FF_GETPTR(fmed_f, sib, src->cur);
 
@@ -894,7 +908,7 @@ static void media_process(void *udata)
 			syserrlog(core, src, f->mod->name, "%s", "system error");
 			// break
 		case FMED_RERR:
-			src->err = 1;
+			src->state = TRK_ST_ERR;
 			goto fin;
 
 		case FMED_RASYNC:
@@ -933,7 +947,7 @@ static void media_process(void *udata)
 
 		default:
 			errlog(core, src, "core", "unknown return code from module: %u", e);
-			src->err = 1;
+			src->state = TRK_ST_ERR;
 			goto fin;
 		}
 
@@ -949,7 +963,7 @@ shift:
 
 		case FFLIST_CUR_NOPREV:
 			errlog(core, src, "core", "module %s requires more input data", f->mod->name);
-			src->err = 1;
+			src->state = TRK_ST_ERR;
 			goto fin;
 
 		case FFLIST_CUR_NEXT:
@@ -967,7 +981,7 @@ next:
 				dbglog(core, src, "core", "creating context for %s...", nf->mod->name);
 				nf->ctx = nf->mod->f->open(&nf->d);
 				if (nf->ctx == NULL) {
-					src->err = 1;
+					src->state = TRK_ST_ERR;
 					goto fin;
 
 				} else if (nf->ctx == FMED_FILT_SKIP) {
@@ -1005,7 +1019,7 @@ next:
 	return;
 
 fin:
-	if (src->err)
+	if (src->state == TRK_ST_ERR)
 		trk_setval(src, "error", 1);
 
 	if (!fmed->gui) {
@@ -1056,7 +1070,7 @@ static dict_ent* dict_add(fm_src *src, const char *name, uint *f)
 		if (0 != ffsz_cmp(name, ent->name)) {
 			errlog(core, NULL, "core", "setval: CRC collision: %u, key: %s, with key: %s"
 				, crc, name, ent->name);
-			src->err = 1;
+			src->state = TRK_ST_ERR;
 			return NULL;
 		}
 		*f = 1;
@@ -1065,7 +1079,7 @@ static dict_ent* dict_add(fm_src *src, const char *name, uint *f)
 		ent = ffmem_tcalloc1(dict_ent);
 		if (ent == NULL) {
 			errlog(core, NULL, "core", "setval: %e", FFERR_BUFALOC);
-			src->err = 1;
+			src->state = TRK_ST_ERR;
 			return NULL;
 		}
 		ent->nod.key = crc;
@@ -1133,6 +1147,14 @@ static int trk_cmd(void *trk, uint cmd)
 			return -1;
 		}
 
+		media_process(src);
+		break;
+
+	case FMED_TRACK_PAUSE:
+		src->state = TRK_ST_PAUSED;
+		break;
+	case FMED_TRACK_UNPAUSE:
+		src->state = TRK_ST_ACTIVE;
 		media_process(src);
 		break;
 	}

@@ -114,6 +114,8 @@ enum FMED_TRACK {
 
 	FMED_TRACK_START,
 	FMED_TRACK_STOP,
+	FMED_TRACK_PAUSE,
+	FMED_TRACK_UNPAUSE,
 
 	/** @trk:
 	 . NULL: all playing
