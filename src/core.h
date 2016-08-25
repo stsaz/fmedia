@@ -50,6 +50,12 @@ typedef struct fmedia {
 	const fmed_modinfo *input;
 	ffpcm inp_pcm;
 
+	struct {
+	uint out_format;
+	uint out_rate;
+	byte out_channels;
+	};
+
 	char *usrconf_modname;
 
 	ffbool repeat_all
@@ -74,10 +80,7 @@ typedef struct fmedia {
 	ffstr meta;
 	float ogg_qual;
 	float gain;
-	uint wav_formt;
-	uint out_rate;
 	uint aac_qual;
-	byte out_channels;
 	byte flac_complevel;
 	byte cue_gaps;
 	byte pcm_crc;

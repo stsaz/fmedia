@@ -24,12 +24,12 @@ static int fmed_cmdline(int argc, char **argv, uint main_only);
 static int fmed_arg_usage(void);
 static int fmed_arg_skip(ffparser_schem *p, void *obj, const ffstr *val);
 static int fmed_arg_infile(ffparser_schem *p, void *obj, const ffstr *val);
-static int fmed_arg_pcmfmt(ffparser_schem *p, void *obj, const ffstr *val);
 static int fmed_arg_listdev(void);
 static int fmed_arg_seek(ffparser_schem *p, void *obj, const ffstr *val);
 static int fmed_arg_install(ffparser_schem *p, void *obj, const ffstr *val);
+static int fmed_arg_channels(ffparser_schem *p, void *obj, ffstr *val);
+static int fmed_arg_format(ffparser_schem *p, void *obj, ffstr *val);
 
-static int pcm_formatstr(const char *s, size_t len);
 static int open_input(void);
 static void fmed_onsig(void *udata);
 
@@ -64,9 +64,9 @@ static const ffpars_arg fmed_cmdline_args[] = {
 	, { "dev",  FFPARS_TINT,  FFPARS_DSTOFF(fmedia, playdev_name) }
 	, { "dev-capture",  FFPARS_TINT,  FFPARS_DSTOFF(fmedia, captdev_name) }
 
-	, { "mono",  FFPARS_TINT | FFPARS_F8BIT,  FFPARS_DSTOFF(fmedia, out_channels) }
+	, { "format",  FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_format) }
 	, { "rate",  FFPARS_TINT,  FFPARS_DSTOFF(fmedia, out_rate) }
-	, { "wav-format",  FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_pcmfmt) }
+	, { "channels",  FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_channels) }
 
 	, { "ogg-quality",  FFPARS_TFLOAT | FFPARS_FSIGN,  FFPARS_DSTOFF(fmedia, ogg_qual) }
 	, { "mpeg-quality",  FFPARS_TINT | FFPARS_F16BIT,  FFPARS_DSTOFF(fmedia, mpeg_qual) }
@@ -121,15 +121,6 @@ static int fmed_arg_usage(void)
 	return FFPARS_ELAST;
 }
 
-static int fmed_arg_pcmfmt(ffparser_schem *p, void *obj, const ffstr *val)
-{
-	int i;
-	if (-1 == (i = pcm_formatstr(val->ptr, val->len)))
-		return FFPARS_EBADVAL;
-	fmed->wav_formt = i;
-	return 0;
-}
-
 static int fmed_arg_infile(ffparser_schem *p, void *obj, const ffstr *val)
 {
 	char **fn;
@@ -144,6 +135,26 @@ static int fmed_arg_listdev(void)
 {
 	core->sig(FMED_LISTDEV);
 	return FFPARS_ELAST;
+}
+
+static int fmed_arg_format(ffparser_schem *p, void *obj, ffstr *val)
+{
+	fmedia *conf = obj;
+	int r;
+	if (0 > (r = ffpcm_fmt(val->ptr, val->len)))
+		return FFPARS_EBADVAL;
+	conf->out_format = r;
+	return 0;
+}
+
+static int fmed_arg_channels(ffparser_schem *p, void *obj, ffstr *val)
+{
+	fmedia *conf = obj;
+	int r;
+	if (0 > (r = ffpcm_channels(val->ptr, val->len)))
+		return FFPARS_EBADVAL;
+	conf->out_channels = r;
+	return 0;
 }
 
 static int fmed_arg_seek(ffparser_schem *p, void *obj, const ffstr *val)
@@ -235,17 +246,6 @@ fail:
 	ffpars_schemfree(&ps);
 	ffpars_free(&p);
 	return ret;
-}
-
-static int pcm_formatstr(const char *s, size_t len)
-{
-	if (ffs_eqcz(s, len, "16le"))
-		return FFPCM_16LE;
-	else if (ffs_eqcz(s, len, "32le"))
-		return FFPCM_32LE;
-	else if (ffs_eqcz(s, len, "float"))
-		return FFPCM_FLOAT;
-	return -1;
 }
 
 

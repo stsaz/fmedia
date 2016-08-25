@@ -210,9 +210,6 @@ static int wavout_process(void *ctx, fmed_filt *d)
 
 	switch (w->state) {
 	case 0:
-		if (FMED_NULL == (r = fmed_getval("wav-format")))
-			r = FFPCM_16LE;
-		fmed_setval("conv_pcm_format", r);
 		fmed_setval("conv_pcm_ileaved", 1);
 		w->state = 1;
 		return FMED_RMORE;

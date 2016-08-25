@@ -216,7 +216,7 @@ static int sndmod_conv_process(void *ctx, fmed_filt *d)
 {
 	sndmod_conv *c = ctx;
 	uint samples;
-	int r;
+	int r, fmt;
 
 	switch (c->state) {
 	case CONV_CONF:
@@ -226,6 +226,12 @@ static int sndmod_conv_process(void *ctx, fmed_filt *d)
 		if (1 == fmed_getval("pcm_ileaved"))
 			c->inpcm.ileaved = 1;
 		c->outpcm = c->inpcm;
+
+		if (FMED_NULL != (fmt = (int)fmed_popval("conv_pcm_format"))) {
+			c->outpcm.format = fmt;
+			fmed_setval("pcm_format", c->outpcm.format);
+		}
+
 		if (FMED_NULL != (r = fmed_popval("conv_channels"))) {
 			c->outpcm.channels = r;
 			fmed_setval("pcm_channels", r & FFPCM_CHMASK);

@@ -35,7 +35,9 @@ $(RES): $(SRCDIR)/../fmedia.rc $(PROJDIR)/fmedia.ico
 BIN_O := core.$(SO) \
 	$(OBJ_DIR)/main.o \
 	$(FF_O) \
-	$(FF_OBJ_DIR)/ffparse.o $(FF_OBJ_DIR)/ffpsarg.o
+	$(FF_OBJ_DIR)/ffpcm.o \
+	$(FF_OBJ_DIR)/ffparse.o \
+	$(FF_OBJ_DIR)/ffpsarg.o
 
 ifeq ($(OS),win)
 BIN_O += $(RES)

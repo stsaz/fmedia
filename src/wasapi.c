@@ -484,16 +484,20 @@ again:
 		if (r == AUDCLNT_E_UNSUPPORTED_FORMAT && try_open
 			&& memcmp(&fmt.format, &in_fmt, sizeof(fmt))) {
 
-			if (fmt.format != in_fmt.format)
+			if (fmt.format != in_fmt.format) {
+				d->track->setval4(d->trk, "conv_pcm_format", in_fmt.format, FMED_TRK_FNO_OVWRITE);
 				fmed_setval("pcm_format", fmt.format);
+			}
 
 			if (fmt.sample_rate != in_fmt.sample_rate) {
 				d->track->setval4(d->trk, "conv_pcm_rate", in_fmt.sample_rate, FMED_TRK_FNO_OVWRITE);
 				fmed_setval("pcm_sample_rate", fmt.sample_rate);
 			}
 
-			if (fmt.channels != in_fmt.channels)
+			if (fmt.channels != in_fmt.channels) {
+				d->track->setval4(d->trk, "conv_channels", in_fmt.channels, FMED_TRK_FNO_OVWRITE);
 				fmed_setval("pcm_channels", fmt.channels);
+			}
 
 			try_open = 0;
 			goto again;

@@ -170,8 +170,10 @@ static int fmed_conf_mod(ffparser_schem *p, void *obj, ffstr *val);
 static int fmed_conf_modconf(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
 static int fmed_conf_setmod(const fmed_modinfo **pmod, ffstr *val);
 static int fmed_conf_output(ffparser_schem *p, void *obj, ffstr *val);
-static int fmed_conf_input(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
+static int fmed_conf_input(ffparser_schem *p, void *obj, ffstr *val);
+static int fmed_conf_recfmt(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
 static int fmed_conf_inp_format(ffparser_schem *p, void *obj, ffstr *val);
+static int fmed_conf_inp_channels(ffparser_schem *p, void *obj, ffstr *val);
 static int fmed_conf_ext(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
 static int fmed_conf_ext_val(ffparser_schem *p, void *obj, ffstr *val);
 static int fmed_conf_codepage(ffparser_schem *p, void *obj, ffstr *val);
@@ -186,7 +188,8 @@ static const ffpars_arg fmed_conf_args[] = {
 	{ "mod",  FFPARS_TSTR | FFPARS_FNOTEMPTY | FFPARS_FSTRZ | FFPARS_FCOPY | FFPARS_FMULTI, FFPARS_DST(&fmed_conf_mod) }
 	, { "mod_conf",  FFPARS_TOBJ | FFPARS_FOBJ1 | FFPARS_FNOTEMPTY | FFPARS_FMULTI, FFPARS_DST(&fmed_conf_modconf) }
 	, { "output",  FFPARS_TSTR | FFPARS_FNOTEMPTY | FFPARS_FMULTI, FFPARS_DST(&fmed_conf_output) }
-	, { "input",  FFPARS_TOBJ | FFPARS_FOBJ1 | FFPARS_FMULTI, FFPARS_DST(&fmed_conf_input) }
+	, { "input",  FFPARS_TSTR | FFPARS_FNOTEMPTY | FFPARS_FMULTI, FFPARS_DST(&fmed_conf_input) }
+	, { "record_format",  FFPARS_TOBJ, FFPARS_DST(&fmed_conf_recfmt) }
 	, { "input_ext",  FFPARS_TOBJ, FFPARS_DST(&fmed_conf_ext) }
 	, { "output_ext",  FFPARS_TOBJ, FFPARS_DST(&fmed_conf_ext) }
 	, { "codepage",  FFPARS_TSTR, FFPARS_DST(&fmed_conf_codepage) }
@@ -272,43 +275,45 @@ static int fmed_conf_output(ffparser_schem *p, void *obj, ffstr *val)
 	return fmed_conf_setmod(&conf->output, val);
 }
 
-static int pcm_formatstr(const char *s, size_t len)
+static int fmed_conf_input(ffparser_schem *p, void *obj, ffstr *val)
 {
-	if (ffs_eqcz(s, len, "16le"))
-		return FFPCM_16LE;
-	else if (ffs_eqcz(s, len, "32le"))
-		return FFPCM_32LE;
-	else if (ffs_eqcz(s, len, "float"))
-		return FFPCM_FLOAT;
-	return -1;
+	fmed_config *conf = obj;
+
+	if (!allowed_mod(val))
+		return 0;
+
+	return fmed_conf_setmod(&conf->input, val);
 }
 
 static int fmed_conf_inp_format(ffparser_schem *p, void *obj, ffstr *val)
 {
 	fmed_config *conf = obj;
-	if (0 > (int)(conf->inp_pcm.format = pcm_formatstr(val->ptr, val->len)))
+	int r;
+	if (0 > (r = ffpcm_fmt(val->ptr, val->len)))
 		return FFPARS_EBADVAL;
+	conf->inp_pcm.format = r;
+	return 0;
+}
+
+static int fmed_conf_inp_channels(ffparser_schem *p, void *obj, ffstr *val)
+{
+	fmed_config *conf = obj;
+	int r;
+	if (0 > (r = ffpcm_channels(val->ptr, val->len)))
+		return FFPARS_EBADVAL;
+	conf->inp_pcm.channels = r;
 	return 0;
 }
 
 static const ffpars_arg fmed_conf_input_args[] = {
 	{ "format",  FFPARS_TSTR | FFPARS_FNOTEMPTY, FFPARS_DST(&fmed_conf_inp_format) }
-	, { "channels",  FFPARS_TINT | FFPARS_FNOTZERO, FFPARS_DSTOFF(fmedia, inp_pcm.channels) }
+	, { "channels",  FFPARS_TSTR | FFPARS_FNOTEMPTY, FFPARS_DST(&fmed_conf_inp_channels) }
 	, { "rate",  FFPARS_TINT | FFPARS_FNOTZERO, FFPARS_DSTOFF(fmedia, inp_pcm.sample_rate) }
 };
 
-static int fmed_conf_input(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
+static int fmed_conf_recfmt(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
 {
 	fmed_config *conf = obj;
-	int r;
-
-	if (!allowed_mod(&p->vals[0])) {
-		ffpars_ctx_skip(ctx);
-		return 0;
-	}
-
-	if (0 != (r = fmed_conf_setmod(&conf->input, &p->vals[0])))
-		return r;
 	ffpars_setargs(ctx, conf, fmed_conf_input_args, FFCNT(fmed_conf_input_args));
 	return 0;
 }
@@ -574,7 +579,11 @@ static void media_open_capt(fm_src *src)
 		trk_setval(src, "capture_device", fmed->captdev_name);
 
 	trk_setval(src, "pcm_format", fmed->inp_pcm.format);
-	trk_setval(src, "pcm_channels", fmed->inp_pcm.channels);
+
+	trk_setval(src, "pcm_channels", fmed->inp_pcm.channels & FFPCM_CHMASK);
+	if (fmed->inp_pcm.channels & ~FFPCM_CHMASK)
+		trk_setval(src, "conv_channels", fmed->inp_pcm.channels);
+
 	trk_setval(src, "pcm_sample_rate", fmed->inp_pcm.sample_rate);
 	newfilter1(src, fmed->input);
 
@@ -737,13 +746,13 @@ static void* trk_create(uint cmd, const char *fn)
 	if (fmed->overwrite)
 		trk_setval(src, "overwrite", 1);
 
-	if (fmed->out_channels != 0xff)
-		trk_setval(src, "conv_channels", (fmed->out_channels << 4) | 1);
+	if (fmed->out_format != 0)
+		trk_setval(src, "conv_pcm_format", fmed->out_format);
+	if (fmed->out_channels != 0)
+		trk_setval(src, "conv_channels", fmed->out_channels);
 	if (fmed->out_rate != 0)
 		trk_setval(src, "conv_pcm_rate", fmed->out_rate);
 
-	if (fmed->wav_formt != 255)
-		trk_setval(src, "wav-format", fmed->wav_formt);
 	if (fmed->ogg_qual != -255)
 		trk_setval(src, "ogg-quality", fmed->ogg_qual * 10);
 	else if (fmed->mpeg_qual != 0xffff)
@@ -1363,8 +1372,6 @@ fmed_core* core_init(fmedia **ptr)
 	fmed->mpeg_qual = 0xffff;
 	fmed->flac_complevel = 0xff;
 	fmed->cue_gaps = 255;
-	fmed->wav_formt = 255;
-	fmed->out_channels = 0xff;
 	fmed->codepage = FFU_WIN1252;
 	if (NULL == ffstr_copy(&fmed->outdir, FFSTR("."))) {
 		core_free();

@@ -81,14 +81,10 @@ static int mix_conf_close(ffparser_schem *p, void *obj);
 
 static int mix_conf_format(ffparser_schem *p, void *obj, ffstr *val)
 {
-	if (ffstr_eqcz(val, "16le"))
-		pcmfmt.format = FFPCM_16LE;
-	else if (ffstr_eqcz(val, "32le"))
-		pcmfmt.format = FFPCM_32LE;
-	else if (ffstr_eqcz(val, "float"))
-		pcmfmt.format = FFPCM_FLOAT;
-	else
+	int r;
+	if (0 > (r = ffpcm_fmt(val->ptr, val->len)))
 		return FFPARS_EBADVAL;
+	pcmfmt.format = r;
 	return 0;
 }
 
