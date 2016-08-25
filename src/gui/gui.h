@@ -152,11 +152,6 @@ struct gui_trk {
 	uint lastpos;
 	uint sample_rate;
 	uint total_time_sec;
-	uint gain;
-	uint seekpos;
-
-	fflock lkcmds;
-	ffarr cmds; //struct cmd[]
 
 	void *trk;
 	fftask task;
@@ -264,7 +259,6 @@ const struct cmd* getcmd(uint cmd, const struct cmd *cmds, uint n);
 
 
 void* gui_getctl(void *udata, const ffstr *name);
-void gui_addcmd(cmdfunc2 func, uint cmd);
 void gui_media_add1(const char *fn);
 
 void wmain_init(void);

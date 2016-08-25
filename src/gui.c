@@ -310,6 +310,21 @@ void gui_corecmd_op(uint cmd, void *udata)
 		break;
 
 
+	case SEEK:
+		if (gg->curtrk == NULL)
+			break;
+		gg->track->setval(gg->curtrk->trk, "seek_time", (size_t)udata * 1000);
+		gg->track->setval(gg->curtrk->trk, "snd_output_clear", 1);
+		gg->curtrk->goback = 1;
+		break;
+
+	case VOL:
+		if (gg->curtrk == NULL)
+			break;
+		gg->track->setval(gg->curtrk->trk, "gain", (ssize_t)udata);
+		break;
+
+
 	case CLEAR:
 		gg->qu->cmd(FMED_QUE_CLEAR, NULL);
 		ffui_view_clear(&gg->wmain.vlist);
@@ -326,20 +341,6 @@ void gui_corecmd_op(uint cmd, void *udata)
 		core->sig(FMED_STOP);
 		break;
 	}
-}
-
-void gui_addcmd(cmdfunc2 func, uint cmd)
-{
-	if (gg->curtrk == NULL)
-		return;
-
-	fflk_lock(&gg->curtrk->lkcmds);
-	struct cmd *pcmd = ffarr_push(&gg->curtrk->cmds, struct cmd);
-	if (pcmd != NULL) {
-		pcmd->cmd = cmd;
-		pcmd->func = func;
-	}
-	fflk_unlock(&gg->curtrk->lkcmds);
 }
 
 static void gui_que_onchange(fmed_que_entry *e, uint flags)
@@ -658,9 +659,7 @@ static void* gtrk_open(fmed_filt *d)
 	gui_trk *g = ffmem_tcalloc1(gui_trk);
 	if (g == NULL)
 		return NULL;
-	fflk_init(&g->lkcmds);
 	g->lastpos = (uint)-1;
-	g->seekpos = (uint)-1;
 	g->trk = d->trk;
 	g->task.handler = d->handler;
 	g->task.param = d->trk;
@@ -713,21 +712,9 @@ static int gtrk_process(void *ctx, fmed_filt *d)
 	uint playtime;
 	int val;
 
-	if (g->cmds.len != 0) {
-		uint i;
-		fflk_lock(&g->lkcmds);
-		const struct cmd *pcmd = (void*)g->cmds.ptr;
-		for (i = 0;  i != g->cmds.len;  i++) {
-			cmdfunc2 f = pcmd[i].func;
-			f(g, pcmd[i].cmd);
-		}
-		g->cmds.len = 0;
-		fflk_unlock(&g->lkcmds);
-
-		if (g->goback) {
-			g->goback = 0;
-			return FMED_RMORE;
-		}
+	if (g->goback) {
+		g->goback = 0;
+		return FMED_RMORE;
 	}
 
 	if (d->flags & FMED_FSTOP) {

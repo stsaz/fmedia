@@ -29,9 +29,7 @@ static void gui_media_remove(void);
 static fmed_que_entry* gui_list_getent(void);
 static void gui_goto_show(void);
 static void gui_go_set(void);
-static void gui_media_seek(gui_trk *g, uint cmd);
 static void gui_vol(uint id);
-static void gui_media_vol(gui_trk *g, uint id);
 static void gui_media_showdir(void);
 static void gui_media_copyfn(void);
 static void gui_media_fileop(uint cmd);
@@ -107,6 +105,8 @@ static struct cmd cmd_play = { PLAY,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_o
 static struct cmd cmd_play_cur = { PAUSE,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op };
 static struct cmd cmd_quit = { QUIT,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op };
 static struct cmd cmd_savelist = { SAVELIST,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op };
+static const struct cmd cmd_seek = { SEEK, F1 | CMD_FCORE | CMD_FUDATA, &gui_corecmd_op };
+static const struct cmd cmd_vol = { VOL, F1 | CMD_FCORE | CMD_FUDATA, &gui_corecmd_op };
 
 const struct cmd* getcmd(uint cmd, const struct cmd *cmds, uint n)
 {
@@ -320,6 +320,9 @@ static void gui_goto_show(void)
 Note: if Left/Right key is pressed while trackbar is focused, SEEK command will be received after RWND/FFWD. */
 void gui_seek(uint cmd)
 {
+	if (gg->curtrk == NULL || gg->curtrk->conversion)
+		return;
+
 	switch (cmd) {
 	case GOTO:
 		break;
@@ -340,21 +343,7 @@ void gui_seek(uint cmd)
 	}
 
 	uint pos = ffui_trk_val(&gg->wmain.tpos);
-
-	fflk_lock(&gg->lktrk);
-	if (gg->curtrk != NULL && pos != gg->curtrk->seekpos && !gg->curtrk->conversion) {
-		gg->curtrk->seekpos = pos;
-		gui_addcmd(&gui_media_seek, cmd);
-	}
-	fflk_unlock(&gg->lktrk);
-}
-
-static void gui_media_seek(gui_trk *g, uint cmd)
-{
-	gg->track->setval(g->trk, "seek_time", g->seekpos * 1000);
-	g->seekpos = (uint)-1;
-	gg->track->setval(g->trk, "snd_output_clear", 1);
-	g->goback = 1;
+	gui_corecmd_add(&cmd_seek, (void*)(size_t)pos);
 }
 
 static void gui_vol(uint id)
@@ -363,6 +352,9 @@ static void gui_vol(uint id)
 	uint pos;
 	double db;
 	size_t n;
+
+	if (gg->curtrk != NULL && gg->curtrk->conversion)
+		return;
 
 	switch (id) {
 	case VOLUP:
@@ -382,17 +374,7 @@ static void gui_vol(uint id)
 	n = ffs_fmt(buf, buf + sizeof(buf), "Volume: %.02FdB", db);
 	gui_status(buf, n);
 
-	fflk_lock(&gg->lktrk);
-	if (gg->curtrk != NULL && !gg->curtrk->conversion) {
-		gg->curtrk->gain = db * 100;
-		gui_addcmd(&gui_media_vol, id);
-	}
-	fflk_unlock(&gg->lktrk);
-}
-
-static void gui_media_vol(gui_trk *g, uint id)
-{
-	gg->track->setval(gg->curtrk->trk, "gain", g->gain);
+	gui_corecmd_add(&cmd_vol, (void*)(ssize_t)(db * 100));
 }
 
 static void gui_media_showdir(void)

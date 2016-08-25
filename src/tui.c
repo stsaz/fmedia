@@ -37,9 +37,6 @@ typedef struct tui {
 	ffstr3 buf;
 	double maxdb;
 
-	fflock lkcmds;
-	ffarr cmds; // queued commands from gtui.  tcmd[]
-
 	uint goback :1
 		, rec :1
 		, conversion :1
@@ -82,6 +79,7 @@ enum CMDS {
 
 	CMD_MASK = 0xff,
 
+	_CMD_F3 = 1 << 27, //use 'cmdfunc3'
 	_CMD_CURTRK = 1 << 28,
 	_CMD_CORE = 1 << 29,
 	_CMD_PLAYONLY = 1 << 30,
@@ -89,12 +87,8 @@ enum CMDS {
 };
 
 typedef void (*cmdfunc)(tui *t, uint cmd);
+typedef void (*cmdfunc3)(tui *t, uint cmd, void *udata);
 typedef void (*cmdfunc1)(uint cmd);
-
-typedef struct tcmd {
-	uint cmd; //enum CMDS
-	cmdfunc func;
-} tcmd;
 
 static const fmed_core *core;
 
@@ -120,12 +114,11 @@ static int tui_cmdloop(void *param);
 static void tui_help(uint cmd);
 static void tui_rmfile(tui *t, uint cmd);
 static void tui_vol(tui *t, uint cmd);
-static void tui_seek(tui *t, uint cmd);
-static void tui_addcmd(cmdfunc func, uint cmd);
+static void tui_seek(tui *t, uint cmd, void *udata);
 
 struct key;
 static void tui_corecmd(void *param);
-static void tui_corecmd_add(const struct key *k);
+static void tui_corecmd_add(const struct key *k, void *udata);
 
 
 static const ffpars_arg tui_conf_args[] = {
@@ -203,7 +196,6 @@ static void* tui_open(fmed_filt *d)
 	tui *t = ffmem_tcalloc1(tui);
 	if (t == NULL)
 		return NULL;
-	fflk_init(&t->lkcmds);
 	t->lastpos = (uint)-1;
 
 	int type = fmed_getval("type");
@@ -309,11 +301,11 @@ static void tui_info(tui *t, fmed_filt *d)
 	t->buf.len = 0;
 }
 
-static void tui_seek(tui *t, uint cmd)
+static void tui_seek(tui *t, uint cmd, void *udata)
 {
 	int64 pos = ffpcm_time(gt->track->getval(t->trk, "current_position"), t->sample_rate);
 	uint by;
-	switch (cmd & FFKEY_MODMASK) {
+	switch ((size_t)udata & FFKEY_MODMASK) {
 	case 0:
 		by = SEEK_STEP;
 		break;
@@ -326,7 +318,7 @@ static void tui_seek(tui *t, uint cmd)
 	default:
 		return;
 	}
-	if ((cmd & ~FFKEY_MODMASK) == CMD_SEEKRIGHT)
+	if (cmd == CMD_SEEKRIGHT)
 		pos += by;
 	else
 		pos = ffmax(pos - by, 0);
@@ -402,20 +394,9 @@ static int tui_process(void *ctx, fmed_filt *d)
 
 	uint nback = (uint)t->buf.len;
 
-	if (t->cmds.len != 0) {
-		uint i;
-		fflk_lock(&t->lkcmds);
-		const tcmd *pcmd = (void*)t->cmds.ptr;
-		for (i = 0;  i != t->cmds.len;  i++) {
-			pcmd[i].func(t, pcmd[i].cmd);
-		}
-		t->cmds.len = 0;
-		fflk_unlock(&t->lkcmds);
-
-		if (t->goback) {
-			t->goback = 0;
-			return FMED_RMORE;
-		}
+	if (t->goback) {
+		t->goback = 0;
+		return FMED_RMORE;
 	}
 
 	if (FMED_NULL != (val = fmed_popval("meta-changed"))) {
@@ -538,10 +519,10 @@ static struct key hotkeys[] = {
 	{ 'p',	CMD_PREV | _CMD_F1 | _CMD_CORE,	&tui_op },
 	{ 'q',	CMD_QUIT | _CMD_F1 | _CMD_CORE,	&tui_op },
 	{ 's',	CMD_STOP | _CMD_F1 | _CMD_CORE,	&tui_op },
-	{ FFKEY_UP,	CMD_VOLUP | _CMD_PLAYONLY,	&tui_vol },
-	{ FFKEY_DOWN,	CMD_VOLDOWN | _CMD_PLAYONLY,	&tui_vol },
-	{ FFKEY_RIGHT,	CMD_SEEKRIGHT | _CMD_PLAYONLY,	&tui_seek },
-	{ FFKEY_LEFT,	CMD_SEEKLEFT | _CMD_PLAYONLY,	&tui_seek },
+	{ FFKEY_UP,	CMD_VOLUP | _CMD_CURTRK | _CMD_CORE | _CMD_PLAYONLY,	&tui_vol },
+	{ FFKEY_DOWN,	CMD_VOLDOWN | _CMD_CURTRK | _CMD_CORE | _CMD_PLAYONLY,	&tui_vol },
+	{ FFKEY_RIGHT,	CMD_SEEKRIGHT | _CMD_F3 | _CMD_CORE | _CMD_PLAYONLY,	&tui_seek },
+	{ FFKEY_LEFT,	CMD_SEEKLEFT | _CMD_F3 | _CMD_CORE | _CMD_PLAYONLY,	&tui_seek },
 };
 
 static const struct key* key2cmd(int key)
@@ -563,6 +544,7 @@ static const struct key* key2cmd(int key)
 struct corecmd {
 	fftask tsk;
 	const struct key *k;
+	void *udata;
 };
 
 static void tui_help(uint cmd)
@@ -585,46 +567,31 @@ static void tui_help(uint cmd)
 		fffile_write(ffstdout, buf, n);
 }
 
-static void tui_addcmd(cmdfunc func, uint cmd)
-{
-	fflk_lock(&gt->lktrk);
-	if (gt->curtrk == NULL)
-		goto end;
-
-	if (cmd & _CMD_PLAYONLY) {
-		if (gt->curtrk->conversion)
-			goto end;
-		cmd &= ~_CMD_PLAYONLY;
-	}
-
-	fflk_lock(&gt->curtrk->lkcmds);
-	struct tcmd *pcmd = ffarr_push(&gt->curtrk->cmds, struct tcmd);
-	if (pcmd != NULL) {
-		pcmd->cmd = cmd;
-		pcmd->func = func;
-	}
-	fflk_unlock(&gt->curtrk->lkcmds);
-
-end:
-	fflk_unlock(&gt->lktrk);
-}
-
 static void tui_corecmd(void *param)
 {
 	struct corecmd *c = param;
+
+	if ((c->k->cmd & _CMD_PLAYONLY) && gt->curtrk != NULL && gt->curtrk->conversion)
+		goto done;
 
 	if (c->k->cmd & _CMD_F1) {
 		cmdfunc1 func1 = (void*)c->k->func;
 		func1(c->k->cmd & CMD_MASK);
 
+	} else if ((c->k->cmd & _CMD_F3) && gt->curtrk != NULL) {
+		cmdfunc3 func3 = (void*)c->k->func;
+		func3(gt->curtrk, c->k->cmd & CMD_MASK, c->udata);
+
 	} else if ((c->k->cmd & _CMD_CURTRK) && gt->curtrk != NULL) {
 		cmdfunc func = (void*)c->k->func;
 		func(gt->curtrk, c->k->cmd & CMD_MASK);
 	}
+
+done:
 	ffmem_free(c);
 }
 
-static void tui_corecmd_add(const struct key *k)
+static void tui_corecmd_add(const struct key *k, void *udata)
 {
 	struct corecmd *c = ffmem_tcalloc1(struct corecmd);
 	if (c == NULL) {
@@ -633,6 +600,7 @@ static void tui_corecmd_add(const struct key *k)
 	}
 	c->tsk.handler = &tui_corecmd;
 	c->tsk.param = c;
+	c->udata = udata;
 	c->k = k;
 	core->task(&c->tsk, FMED_TASK_POST);
 }
@@ -656,14 +624,14 @@ static int tui_cmdloop(void *param)
 			continue;
 
 		if (k->cmd & _CMD_CORE) {
-			tui_corecmd_add(k);
+			void *udata = NULL;
+			if (k->cmd & _CMD_F3)
+				udata = (void*)(size_t)key;
+			tui_corecmd_add(k, udata);
 
 		} else if (k->cmd & _CMD_F1) {
 			cmdfunc1 func1 = (void*)k->func;
 			func1(k->cmd & ~_CMD_F1);
-
-		} else {
-			tui_addcmd((void*)k->func, (k->cmd & ~_CMD_F1) | (key & FFKEY_MODMASK));
 		}
 	}
 	return 0;
