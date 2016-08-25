@@ -267,10 +267,9 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 
 	case I_DECODE:
 		r = m->dec->decode(m, d);
-		if (r == FMED_RMORE) {
-			m->state = I_DATA;
+		m->state = I_DATA;
+		if (r == FMED_RMORE)
 			continue;
-		}
 		return r;
 	}
 
@@ -282,6 +281,9 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 
 static int mp4aac_open(mp4 *m, fmed_filt *d)
 {
+	m->aac.enc_delay = m->mp.enc_delay;
+	m->aac.end_padding = m->mp.end_padding;
+	m->aac.total_samples = ffmp4_totalsamples(&m->mp);
 	if (0 != ffaac_open(&m->aac, m->mp.fmt.channels, m->mp.out, m->mp.outlen)) {
 		errlog(core, d->trk, "mp4", "ffaac_open(): %s", ffaac_errstr(&m->aac));
 		return FMED_RERR;
@@ -299,14 +301,12 @@ static void mp4aac_close(mp4 *m)
 
 static int mp4aac_decode(mp4 *m, fmed_filt *d)
 {
-	if (m->mp.outlen != 0) {
-		m->aac.data = m->mp.out;
-		m->aac.datalen = m->mp.outlen;
-		if (m->seek != (uint64)-1) {
-			ffalac_seek(&m->alac, m->seek);
-			m->seek = (uint64)-1;
-		}
-		m->mp.outlen = 0;
+	m->aac.data = m->mp.out;
+	m->aac.datalen = m->mp.outlen;
+	m->aac.cursample = ffmp4_cursample(&m->mp);
+	if (m->seek != (uint64)-1) {
+		ffaac_seek(&m->aac, m->seek);
+		m->seek = (uint64)-1;
 	}
 
 	int r;
@@ -319,8 +319,8 @@ static int mp4aac_decode(mp4 *m, fmed_filt *d)
 		return FMED_RMORE;
 
 	dbglog(core, d->trk, "mp4", "AAC: decoded %u samples (%U)"
-		, m->aac.pcmlen / ffpcm_size1(&m->aac.fmt), ffmp4_cursample(&m->mp));
-	fmed_setval("current_position", ffmp4_cursample(&m->mp));
+		, m->aac.pcmlen / ffpcm_size1(&m->aac.fmt), ffaac_cursample(&m->aac));
+	fmed_setval("current_position", ffaac_cursample(&m->aac));
 
 	d->data = (void*)m->mp.data;
 	d->datalen = m->mp.datalen;
@@ -353,15 +353,12 @@ static void mp4alac_close(mp4 *m)
 
 static int mp4alac_decode(mp4 *m, fmed_filt *d)
 {
-	if (m->mp.outlen != 0) {
-		m->alac.data = m->mp.out;
-		m->alac.datalen = m->mp.outlen;
-		m->alac.cursample = ffmp4_cursample(&m->mp);
-		if (m->seek != (uint64)-1) {
-			ffalac_seek(&m->alac, m->seek);
-			m->seek = (uint64)-1;
-		}
-		m->mp.outlen = 0;
+	m->alac.data = m->mp.out;
+	m->alac.datalen = m->mp.outlen;
+	m->alac.cursample = ffmp4_cursample(&m->mp);
+	if (m->seek != (uint64)-1) {
+		ffalac_seek(&m->alac, m->seek);
+		m->seek = (uint64)-1;
 	}
 
 	int r;
@@ -483,10 +480,11 @@ static int mp4_out_encode(void *ctx, fmed_filt *d)
 			return FMED_RERR;
 		}
 
-		uint delay_frames = m->aac.info.enc_delay / m->aac.info.frame_samples + !!(m->aac.info.enc_delay % m->aac.info.frame_samples);
-		total_samples += delay_frames * m->aac.info.frame_samples;
 		ffstr asc = ffaac_enc_conf(&m->aac);
-		if (0 != (r = ffmp4_create_aac(&m->mp, &m->fmt, &asc, total_samples, ffaac_enc_frame_samples(&m->aac)))) {
+		m->mp.info.total_samples = total_samples;
+		m->mp.info.frame_samples = ffaac_enc_frame_samples(&m->aac);
+		m->mp.info.enc_delay = m->aac.info.enc_delay;
+		if (0 != (r = ffmp4_create_aac(&m->mp, &m->fmt, &asc))) {
 			errlog(core, d->trk, NULL, "ffmp4_create_aac(): %s", ffmp4_werrstr(&m->mp));
 			return FMED_RERR;
 		}
