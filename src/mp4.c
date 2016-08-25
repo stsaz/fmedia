@@ -4,42 +4,13 @@ Copyright (c) 2016 Simon Zolin */
 #include <fmedia.h>
 
 #include <FF/data/mp4.h>
+#include <FF/data/mmtag.h>
 #include <FF/audio/alac.h>
 #include <FF/audio/aac.h>
 
 
 static const fmed_core *core;
 static const fmed_queue *qu;
-
-static const byte mp4_meta_ids[] = {
-	FFMP4_COMMENT,
-	FFMP4_ALBUM,
-	FFMP4_GENRE,
-	FFMP4_TITLE,
-	FFMP4_ARTIST,
-	FFMP4_ALBUMARTIST,
-	FFMP4_TRACKNO,
-	FFMP4_TRACKTOTAL,
-	FFMP4_YEAR,
-	FFMP4_TOOL,
-	FFMP4_LYRICS,
-	FFMP4_COMPOSER,
-};
-
-static const char *const mp4_metanames[] = {
-	"comment",
-	"album",
-	"genre",
-	"title",
-	"artist",
-	"albumartist",
-	"tracknumber",
-	"tracktotal",
-	"date",
-	"vendor",
-	"lyrics",
-	"composer",
-};
 
 static struct aac_out_conf_t {
 	uint aot;
@@ -186,11 +157,10 @@ static void mp4_in_free(void *ctx)
 
 static void mp4_meta(mp4 *m, fmed_filt *d)
 {
-	uint tag = 0;
 	ffstr name, val;
-	if (-1 == (int)(tag = ffint_find1(mp4_meta_ids, FFCNT(mp4_meta_ids), m->mp.tag)))
+	if (m->mp.tag == 0)
 		return;
-	ffstr_setz(&name, mp4_metanames[tag]);
+	ffstr_setz(&name, ffmmtag_str[m->mp.tag]);
 	val = m->mp.tagval;
 
 	dbglog(core, d->trk, "mp4", "tag: %S: %S", &name, &val);

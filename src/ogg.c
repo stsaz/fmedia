@@ -5,6 +5,7 @@ Copyright (c) 2015 Simon Zolin */
 
 #include <FF/audio/ogg.h>
 #include <FF/audio/pcm.h>
+#include <FF/data/mmtag.h>
 #include <FF/array.h>
 #include <FF/path.h>
 #include <FFOS/error.h>
@@ -281,7 +282,10 @@ again:
 		case FFOGG_RTAG: {
 			const ffvorbtag *vtag = &o->og.vtag;
 			dbglog(core, d->trk, "ogg", "%S: %S", &vtag->name, &vtag->val);
-			qu->meta_set((void*)fmed_getval("queue_item"), vtag->name.ptr, vtag->name.len, vtag->val.ptr, vtag->val.len, FMED_QUE_TMETA);
+			ffstr name = vtag->name;
+			if (vtag->tag != 0)
+				ffstr_setz(&name, ffmmtag_str[vtag->tag]);
+			qu->meta_set((void*)fmed_getval("queue_item"), name.ptr, name.len, vtag->val.ptr, vtag->val.len, FMED_QUE_TMETA);
 			}
 			break;
 

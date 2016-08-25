@@ -6,6 +6,7 @@ Copyright (c) 2015 Simon Zolin */
 #include <FF/audio/mpeg.h>
 #include <FF/audio/mp3lame.h>
 #include <FF/audio/pcm.h>
+#include <FF/data/mmtag.h>
 #include <FF/data/utf8.h>
 #include <FF/array.h>
 #include <FF/number.h>
@@ -14,39 +15,10 @@ Copyright (c) 2015 Simon Zolin */
 static const fmed_core *core;
 static const fmed_queue *qu;
 
-static const byte id3_meta_ids[] = {
-	FFID3_COMMENT,
-	FFID3_ALBUM,
-	FFID3_ALBUMARTIST,
-	FFID3_PUBLISHER,
-	FFID3_GENRE,
-	FFID3_RECTIME,
-	FFID3_TITLE,
-	FFID3_ARTIST,
-	FFID3_TRACKNO,
-	FFID3_TRACKTOTAL,
-	FFID3_YEAR,
-};
-
-static const char *const metanames[] = {
-	"comment",
-	"album",
-	"albumartist",
-	"publisher",
-	"genre",
-	"date",
-	"title",
-	"artist",
-	"tracknumber",
-	"tracktotal",
-	"date",
-};
-
 typedef struct fmed_mpeg {
 	ffmpg mpg;
 	ffstr title
 		, artist;
-	byte meta[FFCNT(metanames)];
 	uint state;
 	uint have_id32tag :1;
 } fmed_mpeg;
@@ -167,7 +139,6 @@ static void mpeg_close(void *ctx)
 static void mpeg_meta(fmed_mpeg *m, fmed_filt *d)
 {
 	ffstr name, val;
-	int tag;
 
 	if (m->mpg.is_id32tag) {
 		ffstr_set(&name, m->mpg.id32tag.fr.id, 4);
@@ -185,15 +156,14 @@ static void mpeg_meta(fmed_mpeg *m, fmed_filt *d)
 		}
 	}
 
-	tag = ffint_find1(id3_meta_ids, FFCNT(id3_meta_ids), m->mpg.tag);
-	if (tag != -1)
-		ffstr_setz(&name, metanames[tag]);
+	if (m->mpg.tag != 0)
+		ffstr_setz(&name, ffmmtag_str[m->mpg.tag]);
 
 	ffstr_set2(&val, &m->mpg.tagval);
 
 	dbglog(core, d->trk, "mpeg", "tag: %S: %S", &name, &val);
 
-	if (tag != -1)
+	if (m->mpg.tag != 0)
 		qu->meta_set((void*)fmed_getval("queue_item"), name.ptr, name.len, val.ptr, val.len, FMED_QUE_TMETA);
 }
 
@@ -332,12 +302,8 @@ static int mpeg_out_addmeta(mpeg_out *m, fmed_filt *d)
 
 	for (i = 0;  NULL != (val = qu->meta(qent, i, &name, FMED_QUE_UNIQ));  i++) {
 		if (val == FMED_QUE_SKIP
-			|| -1 == (r = ffs_findarrz(metanames, FFCNT(metanames), name.ptr, name.len)))
+			|| -1 == (r = ffs_findarrz(ffmmtag_str, FFCNT(ffmmtag_str), name.ptr, name.len)))
 			continue;
-
-		r = id3_meta_ids[r];
-		if (r == FFID3_RECTIME)
-			r = FFID3_YEAR;
 
 		if (0 != ffmpg_addtag(&m->mpg, r, val->ptr, val->len)) {
 			syserrlog(core, d->trk, "mpeg", "%s", "add meta tag");

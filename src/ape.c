@@ -4,30 +4,11 @@ Copyright (c) 2015 Simon Zolin */
 #include <fmedia.h>
 
 #include <FF/audio/ape.h>
+#include <FF/data/mmtag.h>
 
 
 static const fmed_core *core;
 static const fmed_queue *qu;
-
-static const byte id3_meta_ids[] = {
-	FFID3_COMMENT,
-	FFID3_ALBUM,
-	FFID3_GENRE,
-	FFID3_TITLE,
-	FFID3_ARTIST,
-	FFID3_TRACKNO,
-	FFID3_YEAR,
-};
-
-static const char *const id3_metanames[] = {
-	"comment",
-	"album",
-	"genre",
-	"title",
-	"artist",
-	"tracknumber",
-	"date",
-};
 
 typedef struct ape {
 	ffape ap;
@@ -111,7 +92,6 @@ static void ape_in_free(void *ctx)
 
 static void ape_meta(ape *a, fmed_filt *d)
 {
-	uint tag;
 	ffstr name, val;
 
 	if (a->ap.is_apetag) {
@@ -122,9 +102,8 @@ static void ape_meta(ape *a, fmed_filt *d)
 		}
 	}
 
-	tag = ffint_find1(id3_meta_ids, FFCNT(id3_meta_ids), a->ap.tag);
-	if ((int)tag >= 0)
-		ffstr_setz(&name, id3_metanames[tag]);
+	if (a->ap.tag != 0)
+		ffstr_setz(&name, ffmmtag_str[a->ap.tag]);
 	val = a->ap.tagval;
 	dbglog(core, d->trk, "ape", "tag: %S: %S", &name, &val);
 

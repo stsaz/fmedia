@@ -4,31 +4,12 @@ Copyright (c) 2015 Simon Zolin */
 #include <fmedia.h>
 
 #include <FF/audio/wavpack.h>
+#include <FF/data/mmtag.h>
 #include <FF/number.h>
 
 
 static const fmed_core *core;
 static const fmed_queue *qu;
-
-static const byte id3_meta_ids[] = {
-	FFID3_COMMENT,
-	FFID3_ALBUM,
-	FFID3_GENRE,
-	FFID3_TITLE,
-	FFID3_ARTIST,
-	FFID3_TRACKNO,
-	FFID3_YEAR,
-};
-
-static const char *const id3_metanames[] = {
-	"comment",
-	"album",
-	"genre",
-	"title",
-	"artist",
-	"tracknumber",
-	"date",
-};
 
 typedef struct wvpk {
 	ffwvpack wp;
@@ -111,7 +92,6 @@ static void wvpk_in_free(void *ctx)
 
 static void wvpk_meta(wvpk *w, fmed_filt *d)
 {
-	uint tag;
 	ffstr name, val;
 
 	if (w->wp.is_apetag) {
@@ -122,9 +102,8 @@ static void wvpk_meta(wvpk *w, fmed_filt *d)
 		}
 	}
 
-	tag = ffint_find1(id3_meta_ids, FFCNT(id3_meta_ids), w->wp.tag);
-	if ((int)tag >= 0)
-		ffstr_setz(&name, id3_metanames[tag]);
+	if (w->wp.tag != 0)
+		ffstr_setz(&name, ffmmtag_str[w->wp.tag]);
 	val = w->wp.tagval;
 	dbglog(core, d->trk, "wvpk", "tag: %S: %S", &name, &val);
 

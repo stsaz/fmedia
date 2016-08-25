@@ -4,6 +4,7 @@ Copyright (c) 2015 Simon Zolin */
 #include <fmedia.h>
 
 #include <FF/audio/flac.h>
+#include <FF/data/mmtag.h>
 
 
 static const fmed_core *core;
@@ -138,7 +139,10 @@ static void flac_meta(flac *f, fmed_filt *d)
 {
 	dbglog(core, d->trk, "flac", "%S: %S", &f->fl.vtag.name, &f->fl.vtag.val);
 
-	qu->meta_set((void*)fmed_getval("queue_item"), f->fl.vtag.name.ptr, f->fl.vtag.name.len
+	ffstr name = f->fl.vtag.name;
+	if (f->fl.vtag.tag != 0)
+		ffstr_setz(&name, ffmmtag_str[f->fl.vtag.tag]);
+	qu->meta_set((void*)fmed_getval("queue_item"), name.ptr, name.len
 		, f->fl.vtag.val.ptr, f->fl.vtag.val.len, FMED_QUE_TMETA);
 }
 
