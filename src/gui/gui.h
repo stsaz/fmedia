@@ -143,7 +143,6 @@ enum {
 
 enum ST {
 	ST_PLAYING = 1,
-	ST_PAUSE,
 	ST_PAUSED,
 };
 

@@ -389,6 +389,7 @@ static int wasapi_write(void *ctx, fmed_filt *d)
 	}
 
 	if (1 == d->track->popval(d->trk, "snd_output_pause")) {
+		d->track->cmd(d->trk, FMED_TRACK_PAUSE);
 		ffwas_stop(&mod->out);
 		return FMED_RMORE;
 	}

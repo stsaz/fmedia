@@ -286,7 +286,22 @@ void gui_corecmd_op(uint cmd, void *udata)
 		break;
 
 	case PAUSE:
-		gg->qu->cmd(FMED_QUE_PLAY, NULL);
+		if (gg->curtrk == NULL) {
+			gg->qu->cmd(FMED_QUE_PLAY, NULL);
+			break;
+		}
+
+		if (gg->curtrk->state == ST_PAUSED) {
+			gg->curtrk->state = ST_PLAYING;
+			gui_status(FFSTR(""));
+			gg->track->popval(gg->curtrk->trk, "snd_output_pause");
+			gg->track->cmd(gg->curtrk->trk, FMED_TRACK_UNPAUSE);
+			break;
+		}
+
+		gg->track->setval(gg->curtrk->trk, "snd_output_pause", 1);
+		gui_status(FFSTR("Paused"));
+		gg->curtrk->state = ST_PAUSED;
 		break;
 
 	case STOP:
@@ -684,9 +699,7 @@ static void* gtrk_open(fmed_filt *d)
 
 	gg->wmain.wmain.on_action(&gg->wmain.wmain, VOL);
 
-	fflk_lock(&gg->lk);
 	g->state = ST_PLAYING;
-	fflk_unlock(&gg->lk);
 	return g;
 }
 
@@ -721,22 +734,6 @@ static int gtrk_process(void *ctx, fmed_filt *d)
 		d->outlen = 0;
 		return FMED_RDONE;
 	}
-
-	fflk_lock(&gg->lk);
-	switch (g->state) {
-	case ST_PAUSE:
-		d->track->setval(d->trk, "snd_output_pause", 1);
-		g->state = ST_PAUSED;
-		fflk_unlock(&gg->lk);
-		d->outlen = 0;
-		return FMED_ROK;
-
-	case ST_PAUSED:
-		gui_status(FFSTR("Paused"));
-		fflk_unlock(&gg->lk);
-		return FMED_RASYNC;
-	}
-	fflk_unlock(&gg->lk);
 
 	if (FMED_NULL != (val = fmed_popval("meta-changed"))) {
 		void *qent = (void*)fmed_getval("queue_item");

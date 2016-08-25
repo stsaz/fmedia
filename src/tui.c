@@ -26,7 +26,6 @@ typedef struct gtui {
 static gtui *gt;
 
 typedef struct tui {
-	uint state;
 	void *trk;
 	uint64 total_samples;
 	uint64 played_samples;
@@ -40,6 +39,7 @@ typedef struct tui {
 	uint goback :1
 		, rec :1
 		, conversion :1
+		, paused :1
 		;
 } tui;
 
@@ -481,8 +481,20 @@ static void tui_op(uint cmd)
 		break;
 
 	case CMD_PLAY:
-		if (gt->curtrk == NULL)
+		if (gt->curtrk == NULL) {
 			gt->qu->cmd(FMED_QUE_PLAY, NULL);
+			break;
+		}
+
+		if (gt->curtrk->paused) {
+			gt->curtrk->paused = 0;
+			gt->track->popval(gt->curtrk->trk, "snd_output_pause");
+			gt->track->cmd(gt->curtrk->trk, FMED_TRACK_UNPAUSE);
+			break;
+		}
+
+		gt->track->setval(gt->curtrk->trk, "snd_output_pause", 1);
+		gt->curtrk->paused = 1;
 		break;
 
 	case CMD_QUIT:

@@ -55,6 +55,7 @@ void wmain_init(void)
 
 
 static const struct cmd cmds[] = {
+	{ PAUSE,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op },
 	{ STOP,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op },
 	{ STOP_AFTER,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op },
 	{ NEXT,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op },
@@ -102,7 +103,6 @@ static const struct cmd cmds[] = {
 };
 
 static struct cmd cmd_play = { PLAY,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op };
-static struct cmd cmd_play_cur = { PAUSE,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op };
 static struct cmd cmd_quit = { QUIT,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op };
 static struct cmd cmd_savelist = { SAVELIST,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op };
 static const struct cmd cmd_seek = { SEEK, F1 | CMD_FCORE | CMD_FUDATA, &gui_corecmd_op };
@@ -125,8 +125,6 @@ const struct cmd* getcmd(uint cmd, const struct cmd *cmds, uint n)
 
 static void gui_action(ffui_wnd *wnd, int id)
 {
-	gui_trk *g = gg->curtrk;
-
 	const struct cmd *cmd = getcmd(id, cmds, FFCNT(cmds));
 	if (cmd != NULL) {
 		if (cmd->flags & CMD_FCORE)
@@ -142,30 +140,6 @@ static void gui_action(ffui_wnd *wnd, int id)
 		if (NULL == (gg->play_id = gui_list_getent()))
 			break;
 		gui_corecmd_add(&cmd_play, NULL);
-		break;
-
-	case PAUSE:
-		if (g == NULL) {
-			gui_corecmd_add(&cmd_play_cur, NULL);
-			break;
-		}
-		fflk_lock(&gg->lk);
-		switch (g->state) {
-		case ST_PLAYING:
-			g->state = ST_PAUSE;
-			break;
-
-		case ST_PAUSE:
-			g->state = ST_PLAYING;
-			break;
-
-		case ST_PAUSED:
-			g->state = ST_PLAYING;
-			gui_status(FFSTR(""));
-			core->task(&g->task, FMED_TASK_POST);
-			break;
-		}
-		fflk_unlock(&gg->lk);
 		break;
 
 
