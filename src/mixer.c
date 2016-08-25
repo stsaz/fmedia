@@ -98,15 +98,15 @@ static const ffpars_arg mix_conf_args[] = {
 
 static int mix_conf_close(ffparser_schem *p, void *obj)
 {
-	conf.pcm.format = FFPCM_16LE;
-	conf.pcm.channels = 2;
-	conf.pcm.sample_rate = 44100;
 	conf.buf_size = ffpcm_bytes(&conf.pcm, conf.buf_size);
 	return 0;
 }
 
 static int mix_conf(ffpars_ctx *ctx)
 {
+	conf.pcm.format = FFPCM_16;
+	conf.pcm.channels = 2;
+	conf.pcm.sample_rate = 44100;
 	conf.buf_size = 1000;
 	ffpars_setargs(ctx, &conf, mix_conf_args, FFCNT(mix_conf_args));
 	return 0;
