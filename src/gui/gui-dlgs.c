@@ -3,7 +3,9 @@ Copyright (c) 2016 Simon Zolin */
 
 #include <fmedia.h>
 #include <gui/gui.h>
+
 #include <FF/time.h>
+#include <FFOS/process.h>
 
 
 enum {
@@ -21,6 +23,9 @@ enum {
 static void gui_cvt_action(ffui_wnd *wnd, int id);
 static void gui_conv_browse(void);
 static void gui_convert(void);
+
+static void gui_rec_action(ffui_wnd *wnd, int id);
+static void gui_rec_browse(void);
 
 static void gui_info_action(ffui_wnd *wnd, int id);
 
@@ -304,6 +309,14 @@ static int gui_cvt_getsettings(const struct cvt_set *psets, uint nsets, void *se
 			else if (st->flags & CVTF_FLT100)
 				val = d * 100;
 
+		} else if (ffstr_eqcz(&name, "pcm_format")) {
+			if (0 > (val = ffpcm_fmt(txt, len)))
+				goto end;
+
+		} else if (ffstr_eqcz(&name, "pcm_channels")) {
+			if (0 > (val = ffpcm_channels(txt, len)))
+				goto end;
+
 		} else if (ffstr_eqcz(&name, "conv_channels")) {
 			if (-1 == (val = ffs_ifindarrz(cvt_channels_str, FFCNT(cvt_channels_str), txt, len)))
 				goto end;
@@ -429,6 +442,176 @@ static void gui_conv_browse(void)
 		return;
 
 	ffui_settextz(&gg->wconvert.eout, fn);
+}
+
+
+void wrec_init()
+{
+	gg->wrec.wrec.hide_on_close = 1;
+	gg->wrec.wrec.on_action = &gui_rec_action;
+	gg->wrec.vsets.edit_id = CVT_SETS_EDITDONE;
+}
+
+// gui -> core
+static const struct cvt_set rec_sets[] = {
+	{ "pcm_format", "Audio Format", "int8 | int16 | int24 | int32 | float32", CVTF_EMPTY | FFOFF(rec_sets_t, format) },
+	{ "pcm_sample_rate", "Sample Rate (Hz)", "", CVTF_EMPTY | FFOFF(rec_sets_t, sample_rate) },
+	{ "pcm_channels", "Channels", "2 (stereo) | 1 (mono) | left | right", CVTF_EMPTY | FFOFF(rec_sets_t, channels) },
+	{ "gain", "Gain (dB)", "", CVTF_FLT | CVTF_FLT100 | CVTF_EMPTY | FFOFF(rec_sets_t, gain) },
+	{ "until_time", "Stop at", "[MM:]SS[.MSC]", CVTF_MSEC | CVTF_EMPTY | FFOFF(rec_sets_t, until) },
+
+	{ "ogg-quality", "OGG Vorbis Quality", "-1.0 .. 10.0", CVTF_FLT | CVTF_FLT10 | FFOFF(rec_sets_t, ogg_quality) },
+	{ "mpeg-quality", "MPEG Quality", "VBR quality: 9..0 or CBR bitrate: 64..320", FFOFF(rec_sets_t, mpg_quality) },
+	{ "flac_complevel", "FLAC Compression", "0..8", FFOFF(rec_sets_t, flac_complevel) },
+};
+
+// conf -> gui
+static const ffpars_arg rec_sets_conf[] = {
+	{ "output",	FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY, FFPARS_DSTOFF(rec_sets_t, output) },
+	{ "gain",	FFPARS_TFLOAT, FFPARS_DSTOFF(rec_sets_t, gain_f) },
+
+	{ "ogg_quality",	FFPARS_TFLOAT, FFPARS_DSTOFF(rec_sets_t, ogg_quality_f) },
+	{ "mpeg_quality",	FFPARS_TINT, FFPARS_DSTOFF(rec_sets_t, mpg_quality) },
+	{ "flac_complevel",	FFPARS_TINT, FFPARS_DSTOFF(rec_sets_t, flac_complevel) },
+};
+
+static void rec_sets_init(rec_sets_t *sets)
+{
+	sets->init = 1;
+
+	sets->ogg_quality_f = 5.0;
+	sets->mpg_quality = 2;
+	sets->flac_complevel = 6;
+}
+
+void rec_sets_destroy(rec_sets_t *sets)
+{
+	ffmem_safefree0(sets->output);
+}
+
+int gui_conf_rec(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
+{
+	rec_sets_init(&gg->rec_sets);
+	ffpars_setargs(ctx, &gg->rec_sets, rec_sets_conf, FFCNT(rec_sets_conf));
+	return 0;
+}
+
+void gui_rec_show(void)
+{
+	if (!gg->wrec_init) {
+		if (!gg->rec_sets.init)
+			rec_sets_init(&gg->rec_sets);
+
+		ffui_settextz(&gg->wrec.eout, gg->rec_sets.output);
+
+		ffui_viewitem it;
+		ffui_view_iteminit(&it);
+		ffarr s = {0};
+
+		uint i;
+		for (i = 0;  i != FFCNT(rec_sets);  i++) {
+			ffui_view_settextz(&it, rec_sets[i].name);
+			ffui_view_append(&gg->wrec.vsets, &it);
+
+			s.len = 0;
+			sett_tostr(&gg->rec_sets, &rec_sets[i], &s);
+			ffui_view_settextstr(&it, &s);
+			ffui_view_set(&gg->wrec.vsets, VSETS_VAL, &it);
+
+			ffui_view_settextz(&it, rec_sets[i].desc);
+			ffui_view_set(&gg->wrec.vsets, VSETS_DESC, &it);
+		}
+
+		ffarr_free(&s);
+		gg->wrec_init = 1;
+	}
+
+	ffui_show(&gg->wrec.wrec, 1);
+	ffui_wnd_setfront(&gg->wrec.wrec);
+}
+
+static const struct cmd rec_cmds[] = {
+	{ REC,	F1 | CMD_FCORE,	&gui_rec },
+	{ OUTBROWSE,	F0,	&gui_rec_browse },
+};
+
+static void gui_rec_browse(void)
+{
+	const char *fn;
+
+	ffui_dlg_nfilter(&gg->dlg, DLG_FILT_OUTPUT);
+	if (NULL == (fn = ffui_dlg_save(&gg->dlg, &gg->wrec.wrec, NULL, 0)))
+		return;
+
+	ffui_settextz(&gg->wrec.eout, fn);
+}
+
+static void gui_rec_action(ffui_wnd *wnd, int id)
+{
+	const struct cmd *cmd = getcmd(id, rec_cmds, FFCNT(rec_cmds));
+	if (cmd != NULL) {
+		if (cmd->flags & CMD_FCORE)
+			gui_corecmd_add(cmd, NULL);
+		else
+			gui_runcmd(cmd, NULL);
+		return;
+	}
+
+	switch (id) {
+	case CVT_SETS_EDIT: {
+		int i = ffui_view_selnext(&gg->wrec.vsets, -1);
+		ffui_view_edit(&gg->wrec.vsets, i, VSETS_VAL);
+		break;
+	}
+
+	case CVT_SETS_EDITDONE: {
+		int i = ffui_view_selnext(&gg->wrec.vsets, -1);
+		ffui_viewitem it;
+		ffui_view_iteminit(&it);
+		ffui_view_setindex(&it, i);
+		ffui_view_settextz(&it, gg->wrec.vsets.text);
+		ffui_view_set(&gg->wrec.vsets, VSETS_VAL, &it);
+		break;
+	}
+	}
+}
+
+int gui_rec_addsetts(void *trk)
+{
+	if (gg->wrec_init) {
+		rec_sets_destroy(&gg->rec_sets);
+		ffstr s;
+		ffui_textstr(&gg->wrec.eout, &s);
+		gg->rec_sets.output = s.ptr;
+
+		if (0 != gui_cvt_getsettings(rec_sets, FFCNT(rec_sets), &gg->rec_sets, &gg->wrec.vsets))
+			return -1;
+	}
+
+	char *exp;
+	if (NULL == (exp = ffenv_expand(NULL, 0, gg->rec_sets.output)))
+		return -1;
+	gg->track->setvalstr4(trk, "output", exp, FMED_TRK_FACQUIRE);
+
+	for (uint i = 0;  i != FFCNT(rec_sets);  i++) {
+
+		void *p = (char*)&gg->rec_sets + (rec_sets[i].flags & 0xffff);
+
+		if (rec_sets[i].flags & CVTF_STR) {
+			char **pstr = p;
+			if (*pstr == NULL)
+				continue;
+			gg->track->setvalstr4(trk, rec_sets[i].settname, *pstr, 0);
+			continue;
+		}
+
+		int *pint = p;
+		if (*pint == -1)
+			continue;
+		gg->track->setval(trk, rec_sets[i].settname, *pint);
+	}
+
+	return 0;
 }
 
 

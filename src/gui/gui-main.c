@@ -37,6 +37,7 @@ static void gui_showtextfile(uint cmd);
 static void gui_on_dropfiles(ffui_wnd *wnd, ffui_fdrop *df);
 static void gui_onclose(void);
 static void gui_media_addurl(uint id);
+static void gui_showrecdir(void);
 
 enum {
 	GUI_TRKINFO_WNDCAPTION = 1,
@@ -80,8 +81,10 @@ static const struct cmd cmds[] = {
 	{ VOLDOWN,	F1,	&gui_vol },
 
 	{ REC,	F1 | CMD_FCORE,	&gui_rec },
+	{ REC_SETS,	F0,	&gui_rec_show },
 	{ PLAYREC,	F1 | CMD_FCORE,	&gui_rec },
 	{ MIXREC,	F1 | CMD_FCORE,	&gui_rec },
+	{ SHOWRECS,	F0,	&gui_showrecdir },
 
 	{ SHOWCONVERT,	F0,	&gui_showconvert },
 	{ SETCONVPOS_SEEK,	F1,	&gui_setconvpos },
@@ -163,11 +166,6 @@ static void gui_action(ffui_wnd *wnd, int id)
 		break;
 
 
-	case SHOWRECS:
-		ffui_openfolder((const char *const *)&gg->rec_dir, 0);
-		break;
-
-
 	case SELALL:
 		ffui_view_sel(&gg->wmain.vlist, -1);
 		break;
@@ -187,6 +185,7 @@ static void gui_action(ffui_wnd *wnd, int id)
 		ffui_show(&gg->winfo.winfo, 0);
 		ffui_show(&gg->wgoto.wgoto, 0);
 		ffui_show(&gg->wconvert.wconvert, 0);
+		ffui_show(&gg->wrec.wrec, 0);
 		break;
 
 	case SHOW:
@@ -242,6 +241,7 @@ static int __stdcall gui_list_sortfunc(LPARAM p1, LPARAM p2, LPARAM udata)
 static const char *const setts[] = {
 	"wmain.placement", "wmain.tvol.value",
 	"wconvert.position", "wconvert.eout.text",
+	"wrec.position",
 	"winfo.position",
 	"wlog.position",
 };
@@ -368,6 +368,22 @@ static void gui_media_showdir(void)
 		return;
 
 	ffui_openfolder((const char *const *)&ent->url.ptr, 1);
+}
+
+static void gui_showrecdir(void)
+{
+	char *p, *exp;
+	ffstr dir;
+	ffpath_split2(gg->rec_sets.output, ffsz_len(gg->rec_sets.output), &dir, NULL);
+	if (NULL == (p = ffsz_alcopy(dir.ptr, dir.len)))
+		return;
+	if (NULL == (exp = ffenv_expand(NULL, 0, p)))
+		goto done;
+	ffui_openfolder((const char *const *)&exp, 0);
+
+done:
+	ffmem_safefree(p);
+	ffmem_safefree(exp);
 }
 
 /** Copy to clipboard filenames of selected items:

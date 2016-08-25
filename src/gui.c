@@ -45,10 +45,8 @@ static const fmed_filter fmed_gui = {
 	&gtrk_open, &gtrk_process, &gtrk_close, &gtrk_conf
 };
 
-static int gui_conf_rec_dir(ffparser_schem *ps, void *obj, ffstr *val);
 static const ffpars_arg gui_conf[] = {
-	{ "rec_dir",	FFPARS_TSTR | FFPARS_FSTRZ | FFPARS_FCOPY, FFPARS_DST(&gui_conf_rec_dir) },
-	{ "rec_format",	FFPARS_TSTR | FFPARS_FCOPY, FFPARS_DSTOFF(ggui, rec_format) },
+	{ "record",	FFPARS_TOBJ, FFPARS_DST(&gui_conf_rec) },
 	{ "convert",	FFPARS_TOBJ, FFPARS_DST(&gui_conf_convert) },
 };
 
@@ -80,6 +78,16 @@ static const ffui_ldr_ctl wconvert_ctls[] = {
 	add(gui_wconvert, vsets),
 	add(gui_wconvert, pnsets),
 	add(gui_wconvert, pnout),
+};
+
+static const ffui_ldr_ctl wrec_ctls[] = {
+	add(gui_wrec, wrec),
+	add(gui_wrec, mmrec),
+	add(gui_wrec, eout),
+	add(gui_wrec, boutbrowse),
+	add(gui_wrec, vsets),
+	add(gui_wrec, pnsets),
+	add(gui_wrec, pnout),
 };
 
 static const ffui_ldr_ctl winfo_ctls[] = {
@@ -144,6 +152,7 @@ static const ffui_ldr_ctl top_ctls[] = {
 
 	FFUI_LDR_CTL3(ggui, wmain, wmain_ctls),
 	FFUI_LDR_CTL3(ggui, wconvert, wconvert_ctls),
+	FFUI_LDR_CTL3(ggui, wrec, wrec_ctls),
 	FFUI_LDR_CTL3(ggui, winfo, winfo_ctls),
 	FFUI_LDR_CTL3(ggui, wgoto, wgoto_ctls),
 	FFUI_LDR_CTL3(ggui, wlog, wlog_ctls),
@@ -182,6 +191,7 @@ static const char *const scmds[] = {
 	"VOLDOWN",
 
 	"REC",
+	"REC_SETS",
 	"PLAYREC",
 	"MIXREC",
 	"SHOWRECS",
@@ -389,9 +399,6 @@ void gui_media_add1(const char *fn)
 void gui_rec(uint cmd)
 {
 	void *t;
-	ffstr3 nm = {0};
-	fftime now;
-	ffdtm dt;
 
 	if (gg->rec_trk != NULL) {
 		const char *fn = gg->track->getvalstr(gg->rec_trk, "output");
@@ -403,21 +410,13 @@ void gui_rec(uint cmd)
 		return;
 	}
 
-	if (0 != ffdir_make(gg->rec_dir) && fferr_last() != EEXIST) {
-		char buf[1024];
-		size_t n = ffs_fmt(buf, buf + sizeof(buf), "Can't create directory for recordings:\n%s", gg->rec_dir);
-		ffui_msgdlg_show("fmedia GUI", buf, n, FFUI_MSGDLG_ERR);
-		return;
-	}
-
 	if (NULL == (t = gg->track->create(FMED_TRACK_REC, NULL)))
 		return;
 
-	fftime_now(&now);
-	fftime_split(&dt, &now, FFTIME_TZLOCAL);
-	ffstr_catfmt(&nm, "%s%crec-%u-%02u-%02u_%02u%02u%02u.%S%Z"
-		, gg->rec_dir, FFPATH_SLASH, dt.year, dt.month, dt.day, dt.hour, dt.min, dt.sec, &gg->rec_format);
-	gg->track->setvalstr4(t, "output", nm.ptr, FMED_TRK_FACQUIRE);
+	if (0 != gui_rec_addsetts(t)) {
+		gg->track->cmd(t, FMED_TRACK_STOP);
+		return;
+	}
 
 	switch (cmd) {
 	case PLAYREC:
@@ -474,6 +473,7 @@ static FFTHDCALL int gui_worker(void *param)
 	wmain_init();
 	wabout_init();
 	wconvert_init();
+	wrec_init();
 	winfo_init();
 	gg->wlog.wlog.hide_on_close = 1;
 	wuri_init();
@@ -645,25 +645,15 @@ static void gui_destroy(void)
 		return;
 	ffui_wnd_close(&gg->wmain.wmain);
 	ffthd_join(gg->th, -1, NULL);
-	ffmem_safefree(gg->rec_dir);
 
-	ffstr_free(&gg->rec_format);
 	cvt_sets_destroy(&gg->conv_sets);
+	rec_sets_destroy(&gg->rec_sets);
 	ffmem_free(gg);
 }
 
 
-static int gui_conf_rec_dir(ffparser_schem *ps, void *obj, ffstr *val)
-{
-	if (NULL == (gg->rec_dir = ffenv_expand(NULL, 0, val->ptr)))
-		return FFPARS_ESYS;
-	ffmem_free(val->ptr);
-	return 0;
-}
-
 static int gtrk_conf(ffpars_ctx *ctx)
 {
-	ffstr_copy(&gg->rec_format, "wav", 3);
 	ffpars_setargs(ctx, gg, gui_conf, FFCNT(gui_conf));
 	return 0;
 }

@@ -35,6 +35,16 @@ typedef struct gui_wconvert {
 	ffui_paned pnout;
 } gui_wconvert;
 
+typedef struct gui_wrec {
+	ffui_wnd wrec;
+	ffui_menu mmrec;
+	ffui_edit eout;
+	ffui_btn boutbrowse;
+	ffui_view vsets;
+	ffui_paned pnsets;
+	ffui_paned pnout;
+} gui_wrec;
+
 typedef struct gui_winfo {
 	ffui_wnd winfo;
 	ffui_view vinfo;
@@ -97,14 +107,36 @@ typedef struct cvt_sets_t {
 
 void cvt_sets_destroy(cvt_sets_t *sets);
 
+typedef struct rec_sets_t {
+	uint init :1;
+
+	char *output;
+
+	union {
+	int ogg_quality;
+	float ogg_quality_f;
+	};
+	int mpg_quality;
+	int flac_complevel;
+
+	int format;
+	int sample_rate;
+	int channels;
+	union {
+	int gain;
+	float gain_f;
+	};
+	int until;
+} rec_sets_t;
+
+void rec_sets_destroy(rec_sets_t *sets);
+
 typedef struct ggui {
 	fflock lktrk;
 	gui_trk *curtrk;
 	fflock lk;
 	const fmed_queue *qu;
 	const fmed_track *track;
-	char *rec_dir;
-	ffstr rec_format;
 	uint load_err;
 
 	uint go_pos;
@@ -121,6 +153,7 @@ typedef struct ggui {
 
 	gui_wmain wmain;
 	gui_wconvert wconvert;
+	gui_wrec wrec;
 	gui_winfo winfo;
 	gui_wgoto wgoto;
 	gui_wabout wabout;
@@ -129,8 +162,11 @@ typedef struct ggui {
 
 	ffthd th;
 	cvt_sets_t conv_sets;
+	rec_sets_t rec_sets;
 
-	uint wconv_init :1;
+	uint wconv_init :1
+		, wrec_init :1
+		;
 } ggui;
 
 const fmed_core *core;
@@ -185,6 +221,7 @@ enum CMDS {
 	VOLDOWN,
 
 	REC,
+	REC_SETS,
 	PLAYREC,
 	MIXREC,
 	SHOWRECS,
@@ -292,6 +329,11 @@ void wconvert_init(void);
 void gui_showconvert(void);
 void gui_setconvpos(uint cmd);
 int gui_conf_convert(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
+
+int gui_conf_rec(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
+void wrec_init(void);
+void gui_rec_show(void);
+int gui_rec_addsetts(void *trk);
 
 void winfo_init(void);
 void gui_media_showinfo(void);

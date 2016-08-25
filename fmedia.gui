@@ -128,7 +128,11 @@ menu mplay {
 }
 
 menu mrec {
-	item "Sta&rt/Stop" {
+	item "&Record..." {
+		action REC_SETS
+		hotkey "Ctrl+Shift+R"
+	}
+	item "&Quick Start/Stop" {
 		action REC
 		hotkey "Ctrl+R"
 	}
@@ -377,6 +381,65 @@ window wconvert {
 	mainmenu mmconv {
 		item "&Convert!" {
 			action CONVERT
+		}
+	}
+
+	editbox eout {
+		position 0 0 200 25
+		style visible
+	}
+
+	button boutbrowse {
+		position 220 0 35 25
+		style visible
+		text "..."
+		action OUTBROWSE
+	}
+
+	listview vsets {
+		position 0 25 250 100
+		style edit_labels explorer_theme grid_lines visible
+
+		lclick CVT_SETS_EDIT
+
+		column Setting {
+		}
+		column Value {
+		}
+		column Description {
+		}
+	}
+
+	paned pnout {
+		child eout {
+			resize cx
+		}
+		child boutbrowse {
+			move x
+		}
+	}
+
+	paned pnsets {
+		child vsets {
+			resize cx cy
+		}
+	}
+}
+
+window wrec {
+	parent wmain
+	position 300 100 300 200
+	style popup
+	title "Record"
+
+	font {
+		name Arial
+		height 10
+	}
+
+	mainmenu mmrec {
+		item "&Start/Stop" {
+			action REC
 		}
 	}
 
