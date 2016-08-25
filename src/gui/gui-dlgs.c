@@ -87,6 +87,9 @@ struct cvt_set {
 	uint flags; //enum CVTF
 };
 
+static int sett_tostr(const void *sets, const struct cvt_set *sett, ffarr *dst);
+static int gui_cvt_getsettings(const struct cvt_set *psets, uint nsets, void *sets, ffui_view *vlist);
+
 // gui -> core
 static const struct cvt_set cvt_sets[] = {
 	{ "ogg-quality", "OGG Vorbis Quality", "-1.0 .. 10.0", CVTF_FLT | CVTF_FLT10 | FFOFF(cvt_sets_t, ogg_quality) },
@@ -109,6 +112,8 @@ static const char *const cvt_channels_str[] = { "mix", "left", "right" };
 
 // conf -> gui
 static const ffpars_arg cvt_sets_conf[] = {
+	{ "output",	FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY, FFPARS_DSTOFF(cvt_sets_t, output) },
+
 	{ "ogg_quality",	FFPARS_TFLOAT, FFPARS_DSTOFF(cvt_sets_t, ogg_quality_f) },
 	{ "mpeg_quality",	FFPARS_TINT, FFPARS_DSTOFF(cvt_sets_t, mpg_quality) },
 	{ "aac_quality",	FFPARS_TINT, FFPARS_DSTOFF(cvt_sets_t, aac_quality) },
@@ -123,8 +128,6 @@ static const ffpars_arg cvt_sets_conf[] = {
 
 static void gui_cvt_sets_init(cvt_sets_t *sets)
 {
-	if (sets->init)
-		return;
 	sets->init = 1;
 
 	sets->ogg_quality_f = 5.0;
@@ -141,9 +144,9 @@ int gui_conf_convert(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
 	return 0;
 }
 
-static int sett_tostr(const struct cvt_set *sett, ffarr *dst)
+static int sett_tostr(const void *sets, const struct cvt_set *sett, ffarr *dst)
 {
-	void *src = (char*)&gg->conv_sets + (sett->flags & 0xffff);
+	void *src = (char*)sets + (sett->flags & 0xffff);
 	if (sett->flags & CVTF_STR) {
 		if (src != NULL)
 			ffstr_catfmt(dst, "%s", (char*)src);
@@ -172,9 +175,10 @@ static int sett_tostr(const struct cvt_set *sett, ffarr *dst)
 	return 0;
 }
 
-static void cvt_sets_destroy(cvt_sets_t *sets)
+void cvt_sets_destroy(cvt_sets_t *sets)
 {
-	ffmem_safefree(sets->meta);
+	ffmem_safefree0(sets->output);
+	ffmem_safefree0(sets->meta);
 }
 
 void gui_showconvert(void)
@@ -183,7 +187,10 @@ void gui_showconvert(void)
 		return;
 
 	if (!gg->wconv_init) {
-		gui_cvt_sets_init(&gg->conv_sets);
+		if (!gg->conv_sets.init)
+			gui_cvt_sets_init(&gg->conv_sets);
+
+		ffui_settextz(&gg->wconvert.eout, gg->conv_sets.output);
 
 		ffui_viewitem it;
 		ffui_view_iteminit(&it);
@@ -195,7 +202,7 @@ void gui_showconvert(void)
 			ffui_view_append(&gg->wconvert.vsets, &it);
 
 			s.len = 0;
-			sett_tostr(&cvt_sets[i], &s);
+			sett_tostr(&gg->conv_sets, &cvt_sets[i], &s);
 			ffui_view_settextstr(&it, &s);
 			ffui_view_set(&gg->wconvert.vsets, VSETS_VAL, &it);
 
@@ -235,7 +242,7 @@ void gui_setconvpos(uint cmd)
 	ffui_view_itemreset(&it);
 }
 
-static int gui_cvt_getsettings(cvt_sets_t *sets)
+static int gui_cvt_getsettings(const struct cvt_set *psets, uint nsets, void *sets, ffui_view *vlist)
 {
 	uint k;
 	int val, rc = -1;
@@ -246,13 +253,13 @@ static int gui_cvt_getsettings(cvt_sets_t *sets)
 	ffstr name;
 	ffui_viewitem it;
 	ffui_view_iteminit(&it);
-	for (k = 0;  k != FFCNT(cvt_sets);  k++) {
-		st = &cvt_sets[k];
+	for (k = 0;  k != nsets;  k++) {
+		st = &psets[k];
 		ffstr_setz(&name, st->settname);
 
 		ffui_view_setindex(&it, k);
 		ffui_view_gettext(&it);
-		ffui_view_get(&gg->wconvert.vsets, VSETS_VAL, &it);
+		ffui_view_get(vlist, VSETS_VAL, &it);
 
 		if (NULL == (txt = ffsz_alcopyqz(ffui_view_textq(&it)))) {
 			syserrlog(core, NULL, "gui", "%e", FFERR_BUFALOC);
@@ -317,7 +324,7 @@ next:
 
 end:
 	if (rc != 0)
-		errlog(core, NULL, "gui", "%s: bad value", cvt_sets[k].name);
+		errlog(core, NULL, "gui", "%s: bad value", psets[k].name);
 	ffui_view_itemreset(&it);
 	return rc;
 }
@@ -325,7 +332,6 @@ end:
 /** Create new tracks for selected files.  Pass conversion settings to each track.  Start the first added track. */
 static void gui_convert(void)
 {
-	cvt_sets_t sets = {0};
 	int i = -1;
 	ffui_viewitem it;
 	fmed_que_entry e, *qent, *inp;
@@ -334,12 +340,15 @@ static void gui_convert(void)
 	uint k;
 	ffarr ar = {0};
 
+	cvt_sets_destroy(&gg->conv_sets);
+
 	ffui_view_iteminit(&it);
 	ffui_textstr(&gg->wconvert.eout, &fn);
+	gg->conv_sets.output = fn.ptr;
 	if (fn.len == 0 || 0 == ffui_view_selcount(&gg->wmain.vlist))
 		return;
 
-	if (0 != gui_cvt_getsettings(&sets))
+	if (0 != gui_cvt_getsettings(cvt_sets, FFCNT(cvt_sets), &gg->conv_sets, &gg->wconvert.vsets))
 		goto end;
 
 	int itab = gui_newtab(GUI_TAB_CONVERT);
@@ -376,7 +385,7 @@ static void gui_convert(void)
 
 			ffstr_setz(&name, cvt_sets[k].settname);
 
-			void *p = (char*)&sets + (cvt_sets[k].flags & 0xffff);
+			void *p = (char*)&gg->conv_sets + (cvt_sets[k].flags & 0xffff);
 
 			if (cvt_sets[k].flags & CVTF_STR) {
 				char **pstr = p;
@@ -409,8 +418,6 @@ static void gui_convert(void)
 end:
 	ffarr_free(&ar);
 	ffui_view_itemreset(&it);
-	ffstr_free(&fn);
-	cvt_sets_destroy(&sets);
 }
 
 static void gui_conv_browse(void)

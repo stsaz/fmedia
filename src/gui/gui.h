@@ -71,6 +71,8 @@ typedef struct gui_trk gui_trk;
 typedef struct cvt_sets_t {
 	uint init :1;
 
+	char *output;
+
 	union {
 	int ogg_quality;
 	float ogg_quality_f;
@@ -92,6 +94,8 @@ typedef struct cvt_sets_t {
 	int overwrite;
 	int out_preserve_date;
 } cvt_sets_t;
+
+void cvt_sets_destroy(cvt_sets_t *sets);
 
 typedef struct ggui {
 	fflock lktrk;

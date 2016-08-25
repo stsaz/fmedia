@@ -648,6 +648,7 @@ static void gui_destroy(void)
 	ffmem_safefree(gg->rec_dir);
 
 	ffstr_free(&gg->rec_format);
+	cvt_sets_destroy(&gg->conv_sets);
 	ffmem_free(gg);
 }
 
