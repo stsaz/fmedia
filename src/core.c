@@ -62,6 +62,7 @@ struct fm_src {
 	fflist_cursor cur;
 	ffrbtree dict;
 	ffrbtree meta;
+	fftime tstart;
 
 	ffstr id;
 	char sid[FFSLEN("*") + FFINT_MAXCHARS];
@@ -860,6 +861,13 @@ static void media_free(fm_src *src)
 	dict_ent *e;
 	fftree_node *node, *next;
 
+	if (fmed->print_time) {
+		fftime t2;
+		ffclk_get(&t2);
+		ffclk_diff(&src->tstart, &t2);
+		core->log(FMED_LOG_INFO, src, "core", "track processing time: %u.%06u", t2.s, t2.mcs);
+	}
+
 	dbglog(core, src, "core", "media: closing...");
 	FFARR_WALK(&src->filters, pf) {
 		if (pf->ctx != NULL)
@@ -1185,6 +1193,9 @@ static int trk_cmd(void *trk, uint cmd)
 			media_free(src);
 			return -1;
 		}
+
+		if (fmed->print_time)
+			ffclk_get(&src->tstart);
 
 		media_process(src);
 		break;

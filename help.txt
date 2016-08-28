@@ -78,6 +78,7 @@ OUTPUT:
 OTHER OPTIONS:
 --gui              Run in graphical UI mode (Windows only)
 --notui            Don't use terminal UI
+--print-time       Show the time spent for processing each track
 --debug            Print debug info to stdout
 -h, --help         Print help info and exit
 

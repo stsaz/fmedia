@@ -63,6 +63,7 @@ typedef struct fmedia {
 		, stream_copy
 		, out_copy
 		, rec
+		, print_time
 		, debug
 		, mix
 		, tags
