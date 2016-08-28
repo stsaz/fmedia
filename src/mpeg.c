@@ -399,12 +399,12 @@ static int mpeg_out_addmeta(mpeg_out *m, fmed_filt *d)
 
 	for (i = 0;  NULL != (val = qu->meta(qent, i, &name, FMED_QUE_UNIQ));  i++) {
 		if (val == FMED_QUE_SKIP
-			|| -1 == (r = ffs_findarrz(ffmmtag_str, FFCNT(ffmmtag_str), name.ptr, name.len)))
+			|| -1 == (r = ffs_findarrz(ffmmtag_str, FFCNT(ffmmtag_str), name.ptr, name.len))
+			|| r == FFMMTAG_VENDOR)
 			continue;
 
 		if (0 != ffmpg_addtag(&m->mpg, r, val->ptr, val->len)) {
-			syserrlog(core, d->trk, "mpeg", "%s", "add meta tag");
-			return -1;
+			warnlog(core, d->trk, "mpeg", "%s", "can't add tag: %S", &name);
 		}
 	}
 	return 0;
