@@ -103,23 +103,33 @@ static const ffpars_arg fmed_cmdline_main_args[] = {
 
 static int fmed_arg_usage(void)
 {
-	char buf[4096];
+	ffarr buf = {0};
 	ssize_t n;
-	char *fn;
-	fffd f;
+	char *fn = NULL;
+	fffd f = FF_BADFD;
+	int r = FFPARS_ESYS;
 
 	if (NULL == (fn = core->getpath(FFSTR("help.txt"))))
-		return FFPARS_ESYS;
+		goto done;
 
-	f = fffile_open(fn, O_RDONLY | O_NOATIME);
-	ffmem_free(fn);
-	if (f == FF_BADFD)
-		return FFPARS_ELAST;
-	n = fffile_read(f, buf, sizeof(buf));
-	fffile_close(f);
-	if (n > 0)
-		fffile_write(ffstdout, buf, n);
-	return FFPARS_ELAST;
+	if (FF_BADFD == (f = fffile_open(fn, O_RDONLY | O_NOATIME)))
+		goto done;
+
+	if (NULL == ffarr_alloc(&buf, fffile_size(f)))
+		goto done;
+
+	n = fffile_read(f, buf.ptr, buf.cap);
+	if (n <= 0)
+		goto done;
+
+	fffile_write(ffstdout, buf.ptr, n);
+	r = FFPARS_ELAST;
+
+done:
+	ffmem_safefree(fn);
+	FF_SAFECLOSE(f, FF_BADFD, fffile_close);
+	ffarr_free(&buf);
+	return r;
 }
 
 static int fmed_arg_infile(ffparser_schem *p, void *obj, const ffstr *val)
