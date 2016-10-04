@@ -21,6 +21,7 @@ struct file_in_conf_t {
 struct file_out_conf_t {
 	size_t bsize;
 	size_t prealoc;
+	uint file_del :1;
 };
 
 typedef struct filemod {
@@ -66,6 +67,7 @@ typedef struct fmed_fileout {
 	uint64 fsize
 		, prealocated;
 	fftime modtime;
+	uint ok :1;
 } fmed_fileout;
 
 
@@ -417,6 +419,7 @@ static int fileout_config(ffpars_ctx *ctx)
 {
 	mod->out_conf.bsize = 64 * 1024;
 	mod->out_conf.prealoc = 2 * 1024 * 1024;
+	mod->out_conf.file_del = 1;
 	ffpars_setargs(ctx, &mod->out_conf, file_out_conf_args, FFCNT(file_out_conf_args));
 	return 0;
 }
@@ -510,6 +513,7 @@ static FFINL char* fileout_getname(fmed_fileout *f, fmed_filt *d)
 	if (NULL == ffarr_append(&buf, "", 1))
 		goto done;
 	ffstr_acqstr3(&f->fname, &buf);
+	f->fname.len--;
 
 	if (!ffstr_eq2(&f->fname, &fn))
 		d->track->setvalstr(d->trk, "output", f->fname.ptr);
@@ -581,14 +585,25 @@ static void fileout_close(void *ctx)
 
 		fffile_trunc(f->fd, f->fsize);
 
-		if (f->modtime.s != 0)
-			fffile_settime(f->fd, &f->modtime);
+		if (!f->ok && mod->out_conf.file_del) {
 
-		if (0 != fffile_close(f->fd))
-			syserrlog(core, NULL, "file", "%e", FFERR_FCLOSE);
+			if (0 != fffile_close(f->fd))
+				syserrlog(core, NULL, "file", "%e", FFERR_FCLOSE);
 
-		core->log(FMED_LOG_INFO, NULL, "file", "saved file %s, %U kbytes"
-			, f->fname.ptr, f->fsize / 1024);
+			if (0 == fffile_rm(f->fname.ptr))
+				dbglog(core, NULL, "file", "removed file %S", &f->fname);
+
+		} else {
+
+			if (f->modtime.s != 0)
+				fffile_settime(f->fd, &f->modtime);
+
+			if (0 != fffile_close(f->fd))
+				syserrlog(core, NULL, "file", "%e", FFERR_FCLOSE);
+
+			core->log(FMED_LOG_INFO, NULL, "file", "saved file %S, %U kbytes"
+				, &f->fname, f->fsize / 1024);
+		}
 	}
 
 	ffstr_free(&f->fname);
@@ -672,8 +687,10 @@ static int fileout_write(void *ctx, fmed_filt *d)
 			break;
 	}
 
-	if (d->flags & FMED_FLAST)
+	if (d->flags & FMED_FLAST) {
+		f->ok = 1;
 		return FMED_RDONE;
+	}
 
 	return FMED_ROK;
 }
