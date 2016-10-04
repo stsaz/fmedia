@@ -139,6 +139,7 @@ typedef struct ggui {
 	const fmed_queue *qu;
 	const fmed_track *track;
 	uint load_err;
+	int vol;
 
 	uint go_pos;
 
@@ -325,6 +326,7 @@ void gui_que_new(void);
 void gui_que_del(void);
 void gui_que_sel(void);
 
+double gui_getvol(void);
 void gui_seek(uint cmd);
 
 void wconvert_init(void);

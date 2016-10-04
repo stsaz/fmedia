@@ -329,15 +329,23 @@ void gui_seek(uint cmd)
 	gui_corecmd_add(&cmd_seek, (void*)(size_t)pos);
 }
 
+/** Convert volume trackbar position to dB value. */
+double gui_getvol(void)
+{
+	double db;
+	uint pos = ffui_trk_val(&gg->wmain.tvol);
+	if (pos <= 100)
+		db = ffpcm_vol2db(pos, 48);
+	else
+		db = ffpcm_vol2db_inc(pos - 100, 25, 6);
+	return db;
+}
+
 static void gui_vol(uint id)
 {
 	char buf[64];
-	uint pos;
 	double db;
 	size_t n;
-
-	if (gg->curtrk != NULL && gg->curtrk->conversion)
-		return;
 
 	switch (id) {
 	case VOLUP:
@@ -349,15 +357,12 @@ static void gui_vol(uint id)
 		break;
 	}
 
-	pos = ffui_trk_val(&gg->wmain.tvol);
-	if (pos <= 100)
-		db = ffpcm_vol2db(pos, 48);
-	else
-		db = ffpcm_vol2db_inc(pos - 100, 25, 6);
+	db = gui_getvol();
 	n = ffs_fmt(buf, buf + sizeof(buf), "Volume: %.02FdB", db);
 	gui_status(buf, n);
+	gg->vol = db * 100;
 
-	gui_corecmd_add(&cmd_vol, (void*)(ssize_t)(db * 100));
+	gui_corecmd_add(&cmd_vol, NULL);
 }
 
 static void gui_media_showdir(void)

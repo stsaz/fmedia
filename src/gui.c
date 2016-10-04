@@ -352,9 +352,9 @@ void gui_corecmd_op(uint cmd, void *udata)
 		break;
 
 	case VOL:
-		if (gg->curtrk == NULL)
+		if (gg->curtrk == NULL || gg->curtrk->conversion)
 			break;
-		gg->curtrk->d->audio.gain = (ssize_t)udata;
+		gg->curtrk->d->audio.gain = gg->vol;
 		break;
 
 
@@ -488,6 +488,8 @@ static FFTHDCALL int gui_worker(void *param)
 	wgoto_init();
 
 	ffui_dlg_multisel(&gg->dlg);
+
+	gg->vol = gui_getvol() * 100;
 
 	fflk_unlock(&gg->lk);
 
@@ -697,7 +699,8 @@ static void* gtrk_open(fmed_filt *d)
 	if (FMED_PNULL != d->track->getvalstr(d->trk, "output"))
 		g->conversion = 1;
 
-	gg->wmain.wmain.on_action(&gg->wmain.wmain, VOL);
+	if (!g->conversion)
+		gui_corecmd_op(VOL, NULL);
 
 	g->state = ST_PLAYING;
 	return g;
