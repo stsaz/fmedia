@@ -205,9 +205,9 @@ static void* file_open(fmed_filt *d)
 		}
 	}
 
-	d->track->setval(d->trk, "total_size", f->fsize);
+	d->input.size = f->fsize;
 
-	if (FMED_NULL != fmed_getval("out_preserve_date")) {
+	if (d->out_preserve_date) {
 		fftime t = fffile_infomtime(&fi);
 		fmed_setval("output_time", fftime_mcs(&t));
 	}
@@ -252,9 +252,10 @@ static int file_getdata(void *ctx, fmed_filt *d)
 	if (f->err)
 		return FMED_RERR;
 
-	seek = d->track->popval(d->trk, "input_seek");
-	if ((int64)seek != FMED_NULL) {
+	if ((int64)d->input.seek != FMED_NULL) {
+		seek = d->input.seek;
 		f->seek = seek;
+		d->input.seek = FMED_NULL;
 		if (seek >= f->fsize) {
 			errlog(core, d->trk, "file", "too big seek position %U", f->seek);
 			return FMED_RERR;
@@ -524,7 +525,6 @@ static void* fileout_open(fmed_filt *d)
 {
 	const char *filename;
 	uint mode;
-	uint64 total_size;
 	fmed_fileout *f = ffmem_tcalloc1(fmed_fileout);
 	if (f == NULL)
 		return NULL;
@@ -533,10 +533,7 @@ static void* fileout_open(fmed_filt *d)
 	if (NULL == (filename = fileout_getname(f, d)))
 		goto done;
 
-	mode = FFO_CREATENEW;
-	if (1 == d->track->getval(d->trk, "overwrite"))
-		mode = O_CREAT;
-
+	mode = (d->out_overwrite) ? O_CREAT : FFO_CREATENEW;
 	f->fd = fffile_open(filename, mode | O_WRONLY | O_NOATIME);
 	if (f->fd == FF_BADFD) {
 
@@ -560,10 +557,9 @@ static void* fileout_open(fmed_filt *d)
 		goto done;
 	}
 
-	total_size = (uint64)d->track->getval(d->trk, "output_size");
-	if ((int64)total_size != FMED_NULL) {
-		if (0 == fffile_trunc(f->fd, total_size))
-			f->prealocated = total_size;
+	if ((int64)d->output.size != FMED_NULL) {
+		if (0 == fffile_trunc(f->fd, d->output.size))
+			f->prealocated = d->output.size;
 	}
 
 	int64 mtime;
@@ -626,8 +622,9 @@ static int fileout_write(void *ctx, fmed_filt *d)
 	ffstr dst;
 	int64 seek;
 
-	seek = d->track->popval(d->trk, "output_seek");
-	if (seek != FMED_NULL) {
+	if ((int64)d->output.seek != FMED_NULL) {
+		seek = d->output.seek;
+		d->output.seek = FMED_NULL;
 
 		if (f->buf.len != 0) {
 			if (-1 == fileout_writedata(f, f->buf.ptr, f->buf.len, d))

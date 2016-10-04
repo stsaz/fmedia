@@ -1,15 +1,16 @@
 /** Run fmedia with GUI.
 Copyright (c) 2015 Simon Zolin */
 
-#include <core.h>
+#include <core-cmd.h>
 
 #include <FF/path.h>
 #include <FF/gui/winapi.h>
 #include <FFOS/process.h>
 #include <FFOS/mem.h>
+#include <FFOS/asyncio.h>
 
 
-static fmedia *fmed;
+static fmed_cmd *fmed;
 static fmed_core *core;
 
 typedef struct inst_mode {
@@ -21,7 +22,7 @@ static inst_mode *imode;
 #define IM_PIPE_NAME  "fmedia"
 
 
-FF_IMP fmed_core* core_init(fmedia **ptr);
+FF_IMP fmed_core* core_init(fmed_cmd **ptr);
 FF_IMP void core_free(void);
 
 //LOG

@@ -125,14 +125,13 @@ static int ogg_conf(ffpars_ctx *ctx)
 
 static void* ogg_open(fmed_filt *d)
 {
-	int64 input_size;
 	fmed_ogg *o = ffmem_tcalloc1(fmed_ogg);
 	if (o == NULL)
 		return NULL;
 	ffogg_init(&o->og);
 
-	if (FMED_NULL != (input_size = fmed_getval("total_size")))
-		o->og.total_size = input_size;
+	if ((int64)d->input.size != FMED_NULL)
+		o->og.total_size = d->input.size;
 
 	if (ogg_in_conf.seekable)
 		o->og.seekable = 1;
@@ -154,9 +153,11 @@ static int ogg_asis_check(fmed_ogg *o, fmed_filt *d)
 		return 0;
 
 	d->track->setvalstr(d->trk, "data_asis", "ogg");
-	int64 seek_time, samples = -1;
-	if (FMED_NULL != (seek_time = fmed_popval("seek_time")))
-		samples = ffpcm_samples(seek_time, ffogg_rate(&o->og));
+	int64 samples = -1;
+	if ((int64)d->audio.seek != FMED_NULL) {
+		samples = ffpcm_samples(d->audio.seek, ffogg_rate(&o->og));
+		d->audio.seek = FMED_NULL;
+	}
 	ffogg_set_asis(&o->og, samples);
 	return 1;
 }
@@ -185,7 +186,7 @@ static int ogg_readasis(fmed_ogg *o, fmed_filt *d)
 		return FMED_RMORE;
 
 	case FFOGG_RSEEK:
-		fmed_setval("input_seek", o->og.off);
+		d->input.seek = o->og.off;
 		return FMED_RMORE;
 
 	case FFOGG_RWARN:
@@ -200,7 +201,7 @@ static int ogg_readasis(fmed_ogg *o, fmed_filt *d)
 	}
 
 data:
-	d->track->setval(d->trk, "current_position", ffogg_cursample(&o->og));
+	d->audio.pos = ffogg_cursample(&o->og);
 	d->data = o->og.data;
 	d->datalen = o->og.datalen;
 	ffogg_pagedata(&o->og, &d->out, &d->outlen);
@@ -212,7 +213,6 @@ static int ogg_decode(void *ctx, fmed_filt *d)
 	enum { I_HDR, I_DATA0, I_DATA, I_ASIS };
 	fmed_ogg *o = ctx;
 	int r;
-	int64 seek_time;
 
 	if (d->flags & FMED_FSTOP) {
 		d->outlen = 0;
@@ -231,7 +231,7 @@ again:
 		break;
 
 	case I_DATA0:
-		if (FMED_NULL != fmed_getval("input_info"))
+		if (d->input_info)
 			return FMED_ROK;
 		if (ogg_asis_check(o, d)) {
 			o->state = I_ASIS;
@@ -241,8 +241,10 @@ again:
 		// break
 
 	case I_DATA:
-		if (FMED_NULL != (seek_time = fmed_popval("seek_time")))
-			ffogg_seek(&o->og, ffpcm_samples(seek_time, ffogg_rate(&o->og)));
+		if ((int64)d->audio.seek != FMED_NULL) {
+			ffogg_seek(&o->og, ffpcm_samples(d->audio.seek, ffogg_rate(&o->og)));
+			d->audio.seek = FMED_NULL;
+		}
 		break;
 	}
 
@@ -258,7 +260,7 @@ again:
 			return FMED_RMORE;
 
 		case FFOGG_RPAGE:
-			d->track->setval(d->trk, "current_position", ffogg_cursample(&o->og));
+			d->audio.pos = ffogg_cursample(&o->og);
 			d->data = o->og.data;
 			d->datalen = o->og.datalen;
 			ffogg_pagedata(&o->og, &d->out, &d->outlen);
@@ -273,10 +275,10 @@ again:
 
 		case FFOGG_RHDR:
 			d->track->setvalstr(d->trk, "pcm_decoder", "Vorbis");
-			fmed_setval("pcm_format", FFPCM_FLOAT);
-			fmed_setval("pcm_channels", ffogg_channels(&o->og));
-			fmed_setval("pcm_sample_rate", ffogg_rate(&o->og));
-			fmed_setval("pcm_ileaved", 0);
+			d->audio.fmt.format = FFPCM_FLOAT;
+			d->audio.fmt.channels = ffogg_channels(&o->og);
+			d->audio.fmt.sample_rate = ffogg_rate(&o->og);
+			d->audio.fmt.ileaved = 0;
 			break;
 
 		case FFOGG_RTAG: {
@@ -297,13 +299,13 @@ again:
 			break;
 
 		case FFOGG_RINFO:
-			fmed_setval("total_samples", o->og.total_samples);
+			d->audio.total = o->og.total_samples;
 			fmed_setval("bitrate", ffogg_bitrate(&o->og));
 			o->state = I_DATA0;
 			goto again;
 
 		case FFOGG_RSEEK:
-			fmed_setval("input_seek", o->og.off);
+			d->input.seek = o->og.off;
 			return FMED_RMORE;
 
 		case FFOGG_RWARN:
@@ -320,7 +322,7 @@ again:
 data:
 	dbglog(core, d->trk, "ogg", "decoded %u PCM samples, page: %u, granule pos: %U"
 		, o->og.nsamples, ffogg_pageno(&o->og), ffogg_granulepos(&o->og));
-	d->track->setval(d->trk, "current_position", ffogg_cursample(&o->og));
+	d->audio.pos = ffogg_cursample(&o->og);
 
 	d->data = o->og.data;
 	d->datalen = o->og.datalen;
@@ -386,35 +388,29 @@ static int ogg_out_encode(void *ctx, fmed_filt *d)
 {
 	enum { I_CONF, I_CREAT, I_INPUT, I_ENCODE };
 	ogg_out *o = ctx;
-	int r, qual, il;
+	int r, qual;
 	ffpcm fmt;
 
 	switch (o->state) {
 	case I_CONF:
-		fmt.format = (int)fmed_getval("pcm_format");
-		if (fmt.format != FFPCM_FLOAT)
-			fmed_setval("conv_pcm_format", FFPCM_FLOAT);
+		if (d->audio.fmt.format != FFPCM_FLOAT || d->audio.fmt.ileaved) {
+			if (d->audio.fmt.format != FFPCM_FLOAT)
+				fmed_setval("conv_pcm_format", FFPCM_FLOAT);
 
-		il = (int)fmed_getval("pcm_ileaved");
-		if (il != 0)
-			fmed_setval("conv_pcm_ileaved", 0);
+			if (d->audio.fmt.ileaved)
+				fmed_setval("conv_pcm_ileaved", 0);
 
-		if (fmt.format != FFPCM_FLOAT || il != 0) {
 			o->state = I_CREAT;
 			return FMED_RMORE;
 		}
 		//break;
 
 	case I_CREAT:
-		fmt.format = (int)fmed_getval("pcm_format");
-		il = (int)fmed_getval("pcm_ileaved");
-		if (fmt.format != FFPCM_FLOAT || il != 0) {
+		ffpcm_fmtcopy(&fmt, &d->audio.fmt);
+		if (fmt.format != FFPCM_FLOAT || d->audio.fmt.ileaved) {
 			errlog(core, d->trk, "ogg", "input format must be PCM-float non-interleaved");
 			return FMED_RERR;
 		}
-
-		fmt.sample_rate = (int)fmed_getval("pcm_sample_rate");
-		fmt.channels = (int)fmed_getval("pcm_channels");
 
 		ogg_out_addmeta(o, d);
 
@@ -449,9 +445,8 @@ static int ogg_out_encode(void *ctx, fmed_filt *d)
 		case FFOGG_RDATA:
 			if (!o->hdr_done) {
 				o->hdr_done = 1;
-				int64 total_samples = fmed_getval("total_samples");
-				if (total_samples != FMED_NULL)
-					fmed_setval("output_size", ffogg_enc_size(&o->og, total_samples));
+				if ((int64)d->audio.total != FMED_NULL)
+					d->output.size = ffogg_enc_size(&o->og, d->audio.total - d->audio.pos);
 			}
 			goto data;
 

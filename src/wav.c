@@ -124,7 +124,6 @@ static int wav_process(void *ctx, fmed_filt *d)
 	enum { I_HDR, I_DATA };
 	fmed_wav *w = ctx;
 	int r;
-	int64 seek_time;
 
 	if (d->flags & FMED_FSTOP) {
 		d->outlen = 0;
@@ -140,8 +139,10 @@ again:
 		break;
 
 	case I_DATA:
-		if (FMED_NULL != (seek_time = fmed_popval("seek_time")))
-			ffwav_seek(&w->wav, ffpcm_samples(seek_time, ffwav_rate(&w->wav)));
+		if ((int64)d->audio.seek != FMED_NULL) {
+			ffwav_seek(&w->wav, ffpcm_samples(d->audio.seek, ffwav_rate(&w->wav)));
+			d->audio.seek = FMED_NULL;
+		}
 		break;
 	}
 
@@ -168,11 +169,9 @@ again:
 
 		case FFWAV_RHDR:
 			d->track->setvalstr(d->trk, "pcm_decoder", "WAVE");
-			fmed_setval("pcm_format", w->wav.fmt.format);
-			fmed_setval("pcm_channels", w->wav.fmt.channels);
-			fmed_setval("pcm_sample_rate", w->wav.fmt.sample_rate);
-			fmed_setval("pcm_ileaved", 1);
-			fmed_setval("total_samples", w->wav.total_samples);
+			ffpcm_fmtcopy(&d->audio.fmt, &w->wav.fmt);
+			d->audio.fmt.ileaved = 1;
+			d->audio.total = w->wav.total_samples;
 			fmed_setval("bitrate", w->wav.bitrate);
 			w->state = I_DATA;
 			goto again;
@@ -182,7 +181,7 @@ again:
 			break;
 
 		case FFWAV_RSEEK:
-			fmed_setval("input_seek", ffwav_seekoff(&w->wav));
+			d->input.seek = ffwav_seekoff(&w->wav);
 			return FMED_RMORE;
 
 		case FFWAV_RWARN:
@@ -197,7 +196,7 @@ again:
 	}
 
 data:
-	fmed_setval("current_position", ffwav_cursample(&w->wav));
+	d->audio.pos = ffwav_cursample(&w->wav);
 	d->data = w->wav.data;
 	d->datalen = w->wav.datalen;
 	d->out = w->wav.pcm;
@@ -237,11 +236,8 @@ static int wavout_process(void *ctx, fmed_filt *d)
 
 	case 1: {
 		ffpcm fmt;
-		fmed_getpcm(d, &fmt);
-		total_dur = d->track->getval(d->trk, "total_samples");
-		if ((int64)total_dur == FMED_NULL)
-			total_dur = 0;
-
+		ffpcm_fmtcopy(&fmt, &d->audio.fmt);
+		total_dur = ((int64)d->audio.total != FMED_NULL) ? d->audio.total : 0;
 		ffwav_create(&w->wav, &fmt, total_dur);
 
 		w->state = 2;
@@ -267,14 +263,14 @@ static int wavout_process(void *ctx, fmed_filt *d)
 		return FMED_RDONE;
 
 	case FFWAV_RHDR:
-		d->track->setval(d->trk, "output_size", ffwav_wsize(&w->wav));
+		d->output.size = ffwav_wsize(&w->wav);
 		// break
 
 	case FFWAV_RDATA:
 		goto data;
 
 	case FFWAV_RSEEK:
-		fmed_setval("output_seek", ffwav_wseekoff(&w->wav));
+		d->output.seek = ffwav_wseekoff(&w->wav);
 		continue;
 
 	case FFWAV_RERR:
@@ -293,21 +289,19 @@ data:
 
 static void* raw_open(fmed_filt *d)
 {
-	uint64 total_size;
 	raw *r = ffmem_tcalloc1(raw);
 	if (r == NULL) {
 		errlog(core, d->trk, "raw", "%e", FFERR_BUFALOC);
 		return NULL;
 	}
 
-	total_size = d->track->getval(d->trk, "total_size");
-	if ((int64)total_size != FMED_NULL)
-		d->track->setval(d->trk, "total_samples", total_size / ffpcm_size(FFPCM_16LE, 2));
+	if ((int64)d->input.size != FMED_NULL)
+		d->audio.total = d->input.size / ffpcm_size(FFPCM_16LE, 2);
 
 	d->track->setval(d->trk, "bitrate", 44100 * ffpcm_size(FFPCM_16LE, 2) * 8);
-	d->track->setval(d->trk, "pcm_format", FFPCM_16LE);
-	d->track->setval(d->trk, "pcm_channels", 2);
-	d->track->setval(d->trk, "pcm_sample_rate", 44100);
+	d->audio.fmt.format = FFPCM_16LE;
+	d->audio.fmt.channels = 2;
+	d->audio.fmt.sample_rate = 44100;
 	return r;
 }
 
@@ -331,7 +325,7 @@ static int raw_read(void *ctx, fmed_filt *d)
 	d->datalen = 0;
 
 	r->curpos += d->outlen / ffpcm_size(FFPCM_16LE, 2);
-	d->track->setval(d->trk, "current_position", r->curpos);
+	d->audio.pos = r->curpos;
 
 	if ((d->flags & FMED_FLAST) && d->datalen == 0)
 		return FMED_RDONE;

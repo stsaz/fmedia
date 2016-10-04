@@ -49,6 +49,7 @@ $(BIN): $(BIN_O)
 
 #
 CORE_O := $(OBJ_DIR)/core.o \
+	$(OBJ_DIR)/track.o \
 	$(OBJ_DIR)/file.o \
 	$(OBJ_DIR)/soundmod.o \
 	$(OBJ_DIR)/tui.o \
@@ -99,6 +100,7 @@ OGG_O := $(OBJ_DIR)/ogg.o \
 	$(FF_O) \
 	$(FF_OBJ_DIR)/ffpcm.o \
 	$(FF_OBJ_DIR)/ffogg.o \
+	$(FF_OBJ_DIR)/ffogg-fmt.o \
 	$(FF_OBJ_DIR)/ffmmtag.o \
 	$(FF_OBJ_DIR)/ffvorbistag.o
 ogg-vorbis.$(SO): $(OGG_O)

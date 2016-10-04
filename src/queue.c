@@ -12,6 +12,7 @@ typedef struct entry {
 	fmed_que_entry e;
 	fflist_item sib;
 
+	fmed_trk trk;
 	ffarr2 meta; //ffstr[]
 	ffarr2 tmeta; //ffstr[]. transient meta
 	ffarr2 dict; //ffstr[]
@@ -190,12 +191,18 @@ static void que_play(entry *ent)
 		return;
 	}
 
+	fmed_trk *t = qu->track->conf(trk);
+	qu->track->copy_info(t, &ent->trk);
+
+	if (qu->mixing)
+		t->type = FMED_TRK_TYPE_MIXIN;
+
 	if (e->dur != 0)
 		qu->track->setval(trk, "track_duration", e->dur);
 	if (e->from != 0)
 		qu->track->setval(trk, "seek_time_abs", e->from);
-	if (e->to != 0 && FMED_NULL == qu->track->getval(trk, "until_time"))
-		qu->track->setval(trk, "until_time", e->to - e->from);
+	if (e->to != 0 && FMED_NULL == t->audio.until)
+		t->audio.until = e->to - e->from;
 
 	ffstr *dict = ent->dict.ptr;
 	for (i = 0;  i != ent->dict.len;  i += 2) {
@@ -494,6 +501,9 @@ static fmed_que_entry* que_add(fmed_que_entry *ent, uint flags)
 	e->e.to = ent->to;
 	e->e.dur = ent->dur;
 	e->e.prev = ent->prev;
+
+	qu->track->copy_info(&e->trk, NULL);
+	e->e.trk = &e->trk;
 
 	fflk_lock(&qu->lk);
 	ffchain_append(&e->sib, (ent->prev != NULL) ? &FF_GETPTR(entry, e, ent->prev)->sib : qu->curlist->ents.last);

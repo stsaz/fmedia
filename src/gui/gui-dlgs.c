@@ -408,6 +408,18 @@ static void gui_convert(void)
 			int *pint = p;
 			if (*pint == -1)
 				continue;
+
+			if (ffstr_eqcz(&name, "gain"))
+				qent->trk->audio.gain = *pint;
+			else if (ffstr_eqcz(&name, "seek_time"))
+				qent->trk->audio.seek = *pint;
+			else if (ffstr_eqcz(&name, "until_time"))
+				qent->trk->audio.until = *pint;
+			else if (ffstr_eqcz(&name, "out_preserve_date"))
+				qent->trk->out_preserve_date = *pint;
+			else if (ffstr_eqcz(&name, "overwrite"))
+				qent->trk->out_overwrite = *pint;
+
 			val = *pint;
 			gg->qu->meta_set(qent, name.ptr, name.len
 				, (char*)&val, sizeof(int64), FMED_QUE_TRKDICT | FMED_QUE_NUM);
@@ -590,6 +602,8 @@ int gui_rec_addsetts(void *trk)
 		return -1;
 	gg->track->setvalstr4(trk, "output", exp, FMED_TRK_FACQUIRE);
 
+	fmed_trk *trkconf = gg->track->conf(trk);
+
 	for (uint i = 0;  i != FFCNT(rec_sets);  i++) {
 
 		void *p = (char*)&gg->rec_sets + (rec_sets[i].flags & 0xffff);
@@ -605,6 +619,18 @@ int gui_rec_addsetts(void *trk)
 		int *pint = p;
 		if (*pint == -1)
 			continue;
+
+		if (ffsz_eq(rec_sets[i].settname, "gain"))
+			trkconf->audio.gain = *pint;
+		else if (ffsz_eq(rec_sets[i].settname, "until_time"))
+			trkconf->audio.until = *pint;
+		else if (ffsz_eq(rec_sets[i].settname, "pcm_format"))
+			trkconf->audio.fmt.format = *pint;
+		else if (ffsz_eq(rec_sets[i].settname, "pcm_channels"))
+			trkconf->audio.fmt.channels = *pint;
+		else if (ffsz_eq(rec_sets[i].settname, "pcm_sample_rate"))
+			trkconf->audio.fmt.sample_rate = *pint;
+
 		gg->track->setval(trk, rec_sets[i].settname, *pint);
 	}
 

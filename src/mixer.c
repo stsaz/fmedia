@@ -188,14 +188,14 @@ static int mix_in_write(void *ctx, fmed_filt *d)
 		return FMED_RMORE;
 
 	case 1:
-		if (pcmfmt.format != d->track->getval(d->trk, "pcm_format")
-			|| pcmfmt.channels != d->track->getval(d->trk, "pcm_channels")
-			|| pcmfmt.sample_rate != d->track->getval(d->trk, "pcm_sample_rate")) {
+		if (pcmfmt.format != d->audio.fmt.format
+			|| pcmfmt.channels != d->audio.fmt.channels
+			|| pcmfmt.sample_rate != d->audio.fmt.sample_rate) {
 			errlog(core, d->trk, "mixer", "input format doesn't match output");
 			mx->err = 1;
 			return NULL;
 		}
-		pcmfmt.ileaved = fmed_getval("pcm_ileaved");
+		pcmfmt.ileaved = d->audio.fmt.ileaved;
 		mi->state = 2;
 		break;
 	}
@@ -240,10 +240,8 @@ static void* mix_open(fmed_filt *d)
 	m->first = 1;
 	m->sampsize = ffpcm_size(pcmfmt.format, pcmfmt.channels);
 
-	d->track->setval(d->trk, "pcm_format", pcmfmt.format);
-	d->track->setval(d->trk, "pcm_channels", pcmfmt.channels);
-	d->track->setval(d->trk, "pcm_sample_rate", pcmfmt.sample_rate);
-	d->track->setval(d->trk, "pcm_ileaved", 1);
+	ffpcm_fmtcopy(&d->audio.fmt, &pcmfmt);
+	d->audio.fmt.ileaved = 1;
 
 	m->trk_count = fmed_getval("mix_tracks");
 

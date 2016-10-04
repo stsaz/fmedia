@@ -127,7 +127,8 @@ enum FMED_TRACK {
 	FMED_TRACK_PAUSE,
 	FMED_TRACK_UNPAUSE,
 
-	/** @trk:
+	/** Stop active tracks.  Exit if recording.
+	@trk:
 	 . NULL: all playing
 	 . (void*)-1: all (playing and recording). */
 	FMED_TRACK_STOPALL,
@@ -137,6 +138,7 @@ enum FMED_TRACK {
 enum FMED_TRK_TYPE {
 	FMED_TRK_TYPE_REC = 1,
 	FMED_TRK_TYPE_MIXIN,
+	FMED_TRK_TYPE_MIXOUT,
 	FMED_TRK_TYPE_NETIN,
 };
 
@@ -151,11 +153,18 @@ enum FMED_TRK_FVAL {
 #define FMED_TRK_ETMP  NULL // transient/system error
 #define FMED_TRK_EFMT  ((void*)-1) // format is unsupported
 
+typedef struct fmed_trk fmed_trk;
+typedef fmed_trk fmed_filt;
+
 typedef struct fmed_track {
 	/**
 	@cmd: enum FMED_TRACK.
 	Return track ID;  FMED_TRK_E* on error. */
 	void* (*create)(uint cmd, const char *url);
+
+	fmed_trk* (*conf)(void *trk);
+
+	void (*copy_info)(fmed_trk *dst, const fmed_trk *src);
 
 	/**
 	@cmd: enum FMED_TRACK. */
@@ -179,6 +188,8 @@ typedef struct fmed_track {
 	char* (*setvalstr4)(void *trk, const char *name, const char *val, uint flags);
 
 	char* (*getvalstr3)(void *trk, const void *name, uint flags);
+
+	void (*loginfo)(void *trk, const ffstr **id, const char **module);
 } fmed_track;
 
 #define fmed_getval(name)  (d)->track->getval((d)->trk, name)
@@ -195,13 +206,39 @@ enum FMED_F {
 	FMED_FSTOP = 2, // track is being stopped
 };
 
-typedef struct fmed_filt {
+struct fmed_trk {
 	const fmed_track *track;
 	fmed_handler handler;
 	void *trk;
 
 	uint flags; //enum FMED_F
+	uint type; //enum FMED_TRK_TYPE
+	struct {
+		ffpcmex fmt;
+		uint64 pos; //samples
+		uint64 total; //samples
+		uint64 seek; //msec
+		int64 until; // >0: msec;  <0: CD frames (1/75 sec)
+		uint gain; //dB * 100
+	} audio;
+	struct {
+		uint64 size;
+		uint64 seek;
+	} input, output;
+	union {
+	uint bits;
+	struct {
+		uint input_info :1;
+		uint out_preserve_date :1;
+		uint out_overwrite :1;
+		uint snd_output_clear :1;
+		uint snd_output_pause :1;
+		uint meta_changed :1;
+		uint pcm_peaks_crc :1;
+	};
+	};
 
+//fmed_filt only:
 	size_t datalen;
 	union {
 	const char *data;
@@ -213,7 +250,7 @@ typedef struct fmed_filt {
 	const char *out;
 	void **outni;
 	};
-} fmed_filt;
+};
 
 enum FMED_R {
 	FMED_ROK //output data is ready.  The module will be called again if there's unprocessed input data.
@@ -245,28 +282,13 @@ struct fmed_filter {
 };
 
 
-static FFINL void fmed_setpcm(fmed_filt *d, const ffpcm *fmt)
-{
-	fmed_setval("pcm_format", fmt->format);
-	fmed_setval("pcm_channels", fmt->channels);
-	fmed_setval("pcm_sample_rate", fmt->sample_rate);
-}
-
-static FFINL void fmed_getpcm(const fmed_filt *d, ffpcm *fmt)
-{
-	fmt->format = fmed_getval("pcm_format");
-	fmt->channels = fmed_getval("pcm_channels");
-	fmt->sample_rate = fmed_getval("pcm_sample_rate");
-}
-
-
 // LOG
 
 enum FMED_LOG {
-	FMED_LOG_DEBUG = 1,
-	FMED_LOG_INFO,
+	FMED_LOG_ERR = 1,
 	FMED_LOG_WARN,
-	FMED_LOG_ERR,
+	FMED_LOG_INFO,
+	FMED_LOG_DEBUG,
 	_FMED_LOG_LEVMASK = 0x0f,
 
 	FMED_LOG_SYS = 0x10,
@@ -274,7 +296,7 @@ enum FMED_LOG {
 
 #define dbglog(core, trk, mod, ...) \
 do { \
-	if ((core)->loglev & FMED_LOG_DEBUG) \
+	if ((core)->loglev == FMED_LOG_DEBUG) \
 		(core)->log(FMED_LOG_DEBUG, trk, mod, __VA_ARGS__); \
 } while (0)
 
@@ -309,6 +331,7 @@ typedef struct fmed_que_entry {
 		, to;
 	int dur; //msec
 	void *prev;
+	fmed_trk *trk;
 } fmed_que_entry;
 
 enum FMED_QUE_EVT {

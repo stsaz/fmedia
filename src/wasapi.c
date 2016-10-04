@@ -237,9 +237,7 @@ static int wasapi_create(wasapi_out *w, fmed_filt *d)
 		&& FMED_NULL == (int)(w->devidx = (int)d->track->getval(d->trk, "playdev_name")))
 		w->devidx = wasapi_out_conf.idev;
 
-	fmt.format = fmed_getval("pcm_format");
-	fmt.channels = fmed_getval("pcm_channels");
-	fmt.sample_rate = fmed_getval("pcm_sample_rate");
+	ffpcm_fmtcopy(&fmt, &d->audio.fmt);
 
 	if (wasapi_out_conf.exclusive == EXCL_ALLOWED && FMED_NULL != (lowlat = d->track->getval(d->trk, "low_latency")))
 		excl = !!lowlat;
@@ -362,7 +360,7 @@ static int wasapi_write(void *ctx, fmed_filt *d)
 
 	switch (w->state) {
 	case WAS_TRYOPEN:
-		if (1 != fmed_getval("pcm_ileaved"))
+		if (!d->audio.fmt.ileaved)
 			fmed_setval("conv_pcm_ileaved", 1);
 		// break
 
@@ -381,14 +379,16 @@ static int wasapi_write(void *ctx, fmed_filt *d)
 		return FMED_RDONE;
 	}
 
-	if (1 == d->track->popval(d->trk, "snd_output_clear")) {
+	if (d->snd_output_clear) {
+		d->snd_output_clear = 0;
 		ffwas_stop(&mod->out);
 		ffwas_clear(&mod->out);
 		ffwas_async(&mod->out, 0);
 		return FMED_RMORE;
 	}
 
-	if (1 == d->track->popval(d->trk, "snd_output_pause")) {
+	if (d->snd_output_pause) {
+		d->snd_output_pause = 0;
 		d->track->cmd(d->trk, FMED_TRACK_PAUSE);
 		ffwas_stop(&mod->out);
 		return FMED_RMORE;
@@ -472,9 +472,7 @@ static void* wasapi_in_open(fmed_filt *d)
 
 	w->wa.handler = &wasapi_oncapt;
 	w->wa.udata = w;
-	fmt.format = (int)fmed_getval("pcm_format");
-	fmt.channels = (int)fmed_getval("pcm_channels");
-	fmt.sample_rate = (int)fmed_getval("pcm_sample_rate");
+	ffpcm_fmtcopy(&fmt, &d->audio.fmt);
 	in_fmt = fmt;
 
 again:
@@ -487,17 +485,17 @@ again:
 
 			if (fmt.format != in_fmt.format) {
 				d->track->setval4(d->trk, "conv_pcm_format", in_fmt.format, FMED_TRK_FNO_OVWRITE);
-				fmed_setval("pcm_format", fmt.format);
+				d->audio.fmt.format = fmt.format;
 			}
 
 			if (fmt.sample_rate != in_fmt.sample_rate) {
 				d->track->setval4(d->trk, "conv_pcm_rate", in_fmt.sample_rate, FMED_TRK_FNO_OVWRITE);
-				fmed_setval("pcm_sample_rate", fmt.sample_rate);
+				d->audio.fmt.sample_rate = fmt.sample_rate;
 			}
 
 			if (fmt.channels != in_fmt.channels) {
 				d->track->setval4(d->trk, "conv_channels", in_fmt.channels, FMED_TRK_FNO_OVWRITE);
-				fmed_setval("pcm_channels", fmt.channels);
+				d->audio.fmt.channels = fmt.channels;
 			}
 
 			try_open = 0;
@@ -522,7 +520,7 @@ again:
 			+ w->wa.bufsize;
 
 	ffwas_devdestroy(&dev);
-	fmed_setval("pcm_ileaved", 1);
+	d->audio.fmt.ileaved = 1;
 	return w;
 
 fail:
@@ -579,6 +577,6 @@ static int wasapi_in_read(void *ctx, fmed_filt *d)
 	}
 
 	w->total_samps += d->outlen / w->wa.frsize;
-	fmed_setval("current_position", w->total_samps);
+	d->audio.pos = w->total_samps;
 	return FMED_ROK;
 }

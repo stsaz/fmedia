@@ -75,8 +75,8 @@ static void* wvpk_in_create(fmed_filt *d)
 		return NULL;
 	w->wp.options = FFWVPK_O_ID3V1 | FFWVPK_O_APETAG;
 
-	if (FMED_NULL != (val = fmed_getval("total_size")))
-		w->wp.total_size = val;
+	if ((int64)d->input.size != FMED_NULL)
+		w->wp.total_size = d->input.size;
 
 	if (FMED_NULL != (val = fmed_getval("seek_time_abs")))
 		w->abs_seek = val;
@@ -115,7 +115,6 @@ static int wvpk_in_decode(void *ctx, fmed_filt *d)
 	enum { I_HDR, I_DATA };
 	wvpk *w = ctx;
 	int r;
-	int64 seek_time;
 
 	if (d->flags & FMED_FSTOP) {
 		d->outlen = 0;
@@ -133,8 +132,10 @@ again:
 		break;
 
 	case I_DATA:
-		if (FMED_NULL != (seek_time = fmed_popval("seek_time")))
-			ffwvpk_seek(&w->wp, w->abs_seek + ffpcm_samples(seek_time, w->wp.fmt.sample_rate));
+		if ((int64)d->audio.seek != FMED_NULL) {
+			ffwvpk_seek(&w->wp, w->abs_seek + ffpcm_samples(d->audio.seek, w->wp.fmt.sample_rate));
+			d->audio.seek = FMED_NULL;
+		}
 		break;
 	}
 
@@ -151,10 +152,8 @@ again:
 
 		case FFWVPK_RHDR:
 			d->track->setvalstr(d->trk, "pcm_decoder", "WavPack");
-			fmed_setval("pcm_format", w->wp.fmt.format);
-			fmed_setval("pcm_channels", w->wp.fmt.channels);
-			fmed_setval("pcm_sample_rate", w->wp.fmt.sample_rate);
-			fmed_setval("pcm_ileaved", 1);
+			ffpcm_fmtcopy(&d->audio.fmt, &w->wp.fmt);
+			d->audio.fmt.ileaved = 1;
 			fmed_setval("bitrate", ffwvpk_bitrate(&w->wp));
 
 			if (w->abs_seek > 0)
@@ -162,7 +161,7 @@ again:
 			else if (w->abs_seek < 0)
 				w->abs_seek = -w->abs_seek * w->wp.fmt.sample_rate / 75;
 
-			fmed_setval("total_samples", ffwvpk_total_samples(&w->wp) - w->abs_seek);
+			d->audio.total = ffwvpk_total_samples(&w->wp) - w->abs_seek;
 			break;
 
 		case FFWVPK_RTAG:
@@ -175,7 +174,7 @@ again:
 				, ffwvpk_comp_levelstr[w->wp.info.comp_level], (int)w->wp.info.block_samples
 				, w->wp.info.md5);
 
-			if (FMED_NULL != fmed_getval("input_info"))
+			if (d->input_info)
 				return FMED_ROK;
 
 			w->state = I_DATA;
@@ -187,7 +186,7 @@ again:
 			goto data;
 
 		case FFWVPK_RSEEK:
-			fmed_setval("input_seek", ffwvpk_seekoff(&w->wp));
+			d->input.seek = ffwvpk_seekoff(&w->wp);
 			return FMED_RMORE;
 
 		case FFWVPK_RDONE:
@@ -208,7 +207,7 @@ again:
 data:
 	dbglog(core, d->trk, "wvpk", "decoded %L samples (%U)"
 		, (size_t)w->wp.pcmlen / ffpcm_size1(&w->wp.fmt), ffwvpk_cursample(&w->wp));
-	fmed_setval("current_position", ffwvpk_cursample(&w->wp) - w->abs_seek);
+	d->audio.pos = ffwvpk_cursample(&w->wp) - w->abs_seek;
 
 	d->data = (void*)w->wp.data;
 	d->datalen = w->wp.datalen;

@@ -133,7 +133,6 @@ static void mp4_destroy(void)
 
 static void* mp4_in_create(fmed_filt *d)
 {
-	int64 val;
 	mp4 *m = ffmem_tcalloc1(mp4);
 	if (m == NULL)
 		return NULL;
@@ -141,8 +140,8 @@ static void* mp4_in_create(fmed_filt *d)
 	ffmp4_init(&m->mp);
 	m->seek = (uint64)-1;
 
-	if (FMED_NULL != (val = fmed_getval("total_size")))
-		m->mp.total_size = val;
+	if ((int64)d->input.size != FMED_NULL)
+		m->mp.total_size = d->input.size;
 
 	return m;
 }
@@ -174,7 +173,6 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 	enum { I_HDR, I_DATA, I_DECODE, };
 	mp4 *m = ctx;
 	int r;
-	int64 val;
 
 	if (d->flags & FMED_FSTOP) {
 		d->outlen = 0;
@@ -189,9 +187,10 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 	switch (m->state) {
 
 	case I_DATA:
-		if (FMED_NULL != (val = fmed_popval("seek_time"))) {
-			m->seek = ffpcm_samples(val, m->mp.fmt.sample_rate);
+		if ((int64)d->audio.seek != FMED_NULL) {
+			m->seek = ffpcm_samples(d->audio.seek, m->mp.fmt.sample_rate);
 			ffmp4_seek(&m->mp, m->seek);
+			d->audio.seek = FMED_NULL;
 		}
 
 	case I_HDR:
@@ -207,11 +206,9 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 
 		case FFMP4_RHDR:
 			d->track->setvalstr(d->trk, "pcm_decoder", ffmp4_codec(m->mp.codec));
-			fmed_setval("pcm_format", m->mp.fmt.format);
-			fmed_setval("pcm_channels", m->mp.fmt.channels);
-			fmed_setval("pcm_sample_rate", m->mp.fmt.sample_rate);
+			ffpcm_fmtcopy(&d->audio.fmt, &m->mp.fmt);
 
-			fmed_setval("total_samples", ffmp4_totalsamples(&m->mp));
+			d->audio.total = ffmp4_totalsamples(&m->mp);
 
 			if (m->mp.codec == FFMP4_ALAC)
 				m->dec = &alac_dec_iface;
@@ -225,10 +222,10 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 			if (0 != (r = m->dec->open(m, d)))
 				return r;
 
-			if (FMED_NULL != fmed_getval("input_info"))
+			if (d->input_info)
 				break;
 
-			fmed_setval("pcm_ileaved", 1);
+			d->audio.fmt.ileaved = 1;
 			break;
 
 		case FFMP4_RTAG:
@@ -236,7 +233,7 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 			break;
 
 		case FFMP4_RMETAFIN:
-			if (FMED_NULL != fmed_getval("input_info"))
+			if (d->input_info)
 				return FMED_ROK;
 
 			m->state = I_DATA;
@@ -251,7 +248,7 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 			return FMED_RLASTOUT;
 
 		case FFMP4_RSEEK:
-			fmed_setval("input_seek", m->mp.off);
+			d->input.seek = m->mp.off;
 			return FMED_RMORE;
 
 		case FFMP4_RWARN:
@@ -320,7 +317,7 @@ static int mp4aac_decode(mp4 *m, fmed_filt *d)
 
 	dbglog(core, d->trk, "mp4", "AAC: decoded %u samples (%U)"
 		, m->aac.pcmlen / ffpcm_size1(&m->aac.fmt), ffaac_cursample(&m->aac));
-	fmed_setval("current_position", ffaac_cursample(&m->aac));
+	d->audio.pos = ffaac_cursample(&m->aac);
 
 	d->data = (void*)m->mp.data;
 	d->datalen = m->mp.datalen;
@@ -372,7 +369,7 @@ static int mp4alac_decode(mp4 *m, fmed_filt *d)
 
 	dbglog(core, d->trk, "mp4", "ALAC: decoded %u samples (%U)"
 		, m->alac.pcmlen / ffpcm_size1(&m->alac.fmt), ffalac_cursample(&m->alac));
-	fmed_setval("current_position", ffalac_cursample(&m->alac));
+	d->audio.pos = ffalac_cursample(&m->alac);
 
 	d->data = (void*)m->mp.data;
 	d->datalen = m->mp.datalen;
@@ -452,15 +449,14 @@ static int mp4_out_encode(void *ctx, fmed_filt *d)
 		return FMED_RMORE;
 
 	case I_INIT: {
-		fmed_getpcm(d, &m->fmt);
+		ffpcm_fmtcopy(&m->fmt, &d->audio.fmt);
 
-		if (m->fmt.format != FFPCM_16LE || 1 != fmed_getval("pcm_ileaved")) {
+		if (m->fmt.format != FFPCM_16LE || !d->audio.fmt.ileaved) {
 			errlog(core, d->trk, NULL, "unsupported input PCM format");
 			return FMED_RERR;
 		}
 
-		int64 total_samples;
-		if (FMED_NULL == (total_samples = fmed_getval("total_samples"))) {
+		if ((int64)d->audio.total == FMED_NULL) {
 			errlog(core, d->trk, NULL, "total_samples unknown");
 			return FMED_RERR;
 		}
@@ -481,7 +477,7 @@ static int mp4_out_encode(void *ctx, fmed_filt *d)
 		}
 
 		ffstr asc = ffaac_enc_conf(&m->aac);
-		m->mp.info.total_samples = total_samples;
+		m->mp.info.total_samples = d->audio.total;
 		m->mp.info.frame_samples = ffaac_enc_frame_samples(&m->aac);
 		m->mp.info.enc_delay = m->aac.info.enc_delay;
 		if (0 != (r = ffmp4_create_aac(&m->mp, &m->fmt, &asc))) {
@@ -532,7 +528,7 @@ static int mp4_out_encode(void *ctx, fmed_filt *d)
 			continue;
 
 		case FFMP4_RSEEK:
-			fmed_setval("output_seek", m->mp.off);
+			d->output.seek = m->mp.off;
 			continue;
 
 		case FFMP4_RDATA:

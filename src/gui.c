@@ -313,12 +313,12 @@ void gui_corecmd_op(uint cmd, void *udata)
 		if (gg->curtrk->state == ST_PAUSED) {
 			gg->curtrk->state = ST_PLAYING;
 			gui_status(FFSTR(""));
-			gg->track->popval(gg->curtrk->trk, "snd_output_pause");
+			gg->curtrk->d->snd_output_pause = 0;
 			gg->track->cmd(gg->curtrk->trk, FMED_TRACK_UNPAUSE);
 			break;
 		}
 
-		gg->track->setval(gg->curtrk->trk, "snd_output_pause", 1);
+		gg->curtrk->d->snd_output_pause = 1;
 		gui_status(FFSTR("Paused"));
 		gg->curtrk->state = ST_PAUSED;
 		break;
@@ -347,15 +347,15 @@ void gui_corecmd_op(uint cmd, void *udata)
 	case SEEK:
 		if (gg->curtrk == NULL)
 			break;
-		gg->track->setval(gg->curtrk->trk, "seek_time", (size_t)udata * 1000);
-		gg->track->setval(gg->curtrk->trk, "snd_output_clear", 1);
+		gg->curtrk->d->audio.seek = (size_t)udata * 1000;
+		gg->curtrk->d->snd_output_clear = 1;
 		gg->curtrk->goback = 1;
 		break;
 
 	case VOL:
 		if (gg->curtrk == NULL)
 			break;
-		gg->track->setval(gg->curtrk->trk, "gain", (ssize_t)udata);
+		gg->curtrk->d->audio.gain = (ssize_t)udata;
 		break;
 
 
@@ -670,18 +670,17 @@ static int gtrk_conf(ffpars_ctx *ctx)
 static void* gtrk_open(fmed_filt *d)
 {
 	fmed_que_entry *plid;
-	int64 total_samples;
 	gui_trk *g = ffmem_tcalloc1(gui_trk);
 	if (g == NULL)
 		return NULL;
 	g->lastpos = (uint)-1;
+	g->d = d;
 	g->trk = d->trk;
 	g->task.handler = d->handler;
 	g->task.param = d->trk;
 
-	g->sample_rate = (int)fmed_getval("pcm_sample_rate");
-	total_samples = fmed_getval("total_samples");
-	g->total_time_sec = ffpcm_time(total_samples, g->sample_rate) / 1000;
+	g->sample_rate = d->audio.fmt.sample_rate;
+	g->total_time_sec = ffpcm_time(d->audio.total, g->sample_rate) / 1000;
 
 	plid = (void*)fmed_getval("queue_item");
 	if (plid == FMED_PNULL)
@@ -725,7 +724,6 @@ static int gtrk_process(void *ctx, fmed_filt *d)
 	size_t n;
 	int64 playpos;
 	uint playtime;
-	int val;
 
 	if (g->goback) {
 		g->goback = 0;
@@ -737,12 +735,13 @@ static int gtrk_process(void *ctx, fmed_filt *d)
 		return FMED_RDONE;
 	}
 
-	if (FMED_NULL != (val = fmed_popval("meta-changed"))) {
+	if (d->meta_changed) {
+		d->meta_changed = 0;
 		void *qent = (void*)fmed_getval("queue_item");
 		gui_setmeta(g, qent);
 	}
 
-	playpos = fmed_getval("current_position");
+	playpos = d->audio.pos;
 	if (playpos == FMED_NULL) {
 		d->out = d->data;
 		d->outlen = d->datalen;

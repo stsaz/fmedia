@@ -269,9 +269,7 @@ static int alsa_create(alsa_out *a, fmed_filt *d)
 	if (FMED_NULL == (int)(a->devidx = (int)d->track->getval(d->trk, "playdev_name")))
 		a->devidx = alsa_out_conf.idev;
 
-	fmt.format = fmed_getval("pcm_format");
-	fmt.channels = fmed_getval("pcm_channels");
-	fmt.sample_rate = fmed_getval("pcm_sample_rate");
+	ffpcm_fmtcopy(&fmt, &d->audio.fmt);
 
 	if (mod->out_valid) {
 
@@ -343,7 +341,7 @@ static int alsa_write(void *ctx, fmed_filt *d)
 
 	switch (a->state) {
 	case I_OPEN:
-		if (1 == fmed_getval("pcm_ileaved"))
+		if (d->audio.fmt.ileaved)
 			fmed_setval("conv_pcm_ileaved", 0);
 		if (0 != (r = alsa_create(a, d)))
 			return r;
@@ -359,7 +357,8 @@ static int alsa_write(void *ctx, fmed_filt *d)
 		return FMED_RDONE;
 	}
 
-	if (1 == d->track->popval(d->trk, "snd_output_clear")) {
+	if (d->snd_output_clear) {
+		d->snd_output_clear = 0;
 		ffalsa_stop(&mod->out);
 		ffalsa_clear(&mod->out);
 		ffalsa_async(&mod->out, 0);
@@ -367,7 +366,8 @@ static int alsa_write(void *ctx, fmed_filt *d)
 		return FMED_RMORE;
 	}
 
-	if (1 == d->track->popval(d->trk, "snd_output_pause")) {
+	if (d->snd_output_pause) {
+		d->snd_output_pause = 0;
 		d->track->cmd(d->trk, FMED_TRACK_PAUSE);
 		ffalsa_stop(&mod->out);
 		return FMED_RMORE;
@@ -445,9 +445,7 @@ static void* alsa_in_open(fmed_filt *d)
 
 	ain->snd.handler = &alsa_in_oncapt;
 	ain->snd.udata = a;
-	fmt.format = (int)fmed_getval("pcm_format");
-	fmt.channels = (int)fmed_getval("pcm_channels");
-	fmt.sample_rate = (int)fmed_getval("pcm_sample_rate");
+	ffpcm_fmtcopy(&fmt, &d->audio.fmt);
 	r = ffalsa_capt_open(&ain->snd, dev.id, &fmt, alsa_in_conf.buflen);
 
 	ffalsa_devdestroy(&dev);
@@ -507,6 +505,6 @@ static int alsa_in_read(void *ctx, fmed_filt *d)
 
 	dbglog(core, d->trk, "alsa", "read %L bytes", d->outlen);
 	a->total_samps += d->outlen / ain->snd.frsize;
-	fmed_setval("current_position", a->total_samps);
+	d->audio.pos = a->total_samps;
 	return FMED_ROK;
 }

@@ -5,14 +5,19 @@ Copyright (c) 2015 Simon Zolin */
 
 #include <FF/crc.h>
 #include <FF/path.h>
-#include <FF/filemap.h>
 #include <FF/data/conf.h>
 #include <FF/data/utf8.h>
 #include <FF/time.h>
+#include <FF/sys/filemap.h>
 #include <FFOS/error.h>
 #include <FFOS/process.h>
 #include <FFOS/timer.h>
 
+
+typedef struct inmap_item {
+	const fmed_modinfo *mod;
+	char ext[0];
+} inmap_item;
 
 typedef struct core_mod {
 	//fmed_modinfo:
@@ -26,55 +31,8 @@ typedef struct core_mod {
 	char name_s[0];
 } core_mod;
 
-typedef struct fmed_f {
-	fflist_item sib;
-	void *ctx;
-	fmed_filt d;
-	const fmed_modinfo *mod;
-	fftime clk;
-	unsigned opened :1
-		, noskip :1;
-} fmed_f;
 
-typedef struct dict_ent {
-	ffrbt_node nod;
-	const char *name;
-	union {
-		int64 val;
-		void *pval;
-	};
-	uint acq :1;
-} dict_ent;
-
-typedef struct fm_src fm_src;
-
-enum TRK_ST {
-	TRK_ST_STOPPED,
-	TRK_ST_ACTIVE,
-	TRK_ST_PAUSED,
-	TRK_ST_ERR,
-};
-
-struct fm_src {
-	fflist_item sib;
-	ffchain filt_chain;
-	struct {FFARR(fmed_f)} filters;
-	fflist_cursor cur;
-	ffrbtree dict;
-	ffrbtree meta;
-	fftime tstart;
-
-	ffstr id;
-	char sid[FFSLEN("*") + FFINT_MAXCHARS];
-
-	uint state; //enum TRK_ST
-	uint capture :1
-		, mxr_out :1;
-};
-
-
-static fmedia *fmed;
-typedef fmedia fmed_config;
+fmedia *fmed;
 
 enum {
 	FMED_KQ_EVS = 100,
@@ -88,39 +46,8 @@ enum {
 #endif
 
 
-FF_EXP fmed_core* core_init(fmedia **ptr);
+FF_EXP fmed_core* core_init(fmed_cmd **ptr);
 FF_EXP void core_free(void);
-
-static int media_setout(fm_src *src);
-static int media_opened(fm_src *src);
-static fmed_f* newfilter(fm_src *src, const char *modname);
-static fmed_f* newfilter1(fm_src *src, const fmed_modinfo *mod);
-static int media_open(fm_src *src, const char *fn);
-static void media_open_capt(fm_src *src);
-static void media_open_mix(fm_src *src);
-static void media_free(fm_src *src);
-static void media_process(void *udata);
-static void media_stop(fm_src *src, uint flags);
-static fmed_f* media_modbyext(fm_src *src, const ffstr3 *map, const ffstr *ext);
-static void media_printtime(fm_src *src);
-
-static dict_ent* dict_add(fm_src *src, const char *name, uint *f);
-static void dict_ent_free(dict_ent *e);
-
-static void* trk_create(uint cmd, const char *url);
-static int trk_cmd(void *trk, uint cmd);
-static int64 trk_popval(void *trk, const char *name);
-static int64 trk_getval(void *trk, const char *name);
-static const char* trk_getvalstr(void *trk, const char *name);
-static int trk_setval(void *trk, const char *name, int64 val);
-static int trk_setvalstr(void *trk, const char *name, const char *val);
-static int64 trk_setval4(void *trk, const char *name, int64 val, uint flags);
-static char* trk_setvalstr4(void *trk, const char *name, const char *val, uint flags);
-static char* trk_getvalstr3(void *trk, const void *name, uint flags);
-static const fmed_track _fmed_track = {
-	&trk_create, &trk_cmd,
-	&trk_popval, &trk_getval, &trk_getvalstr, &trk_setval, &trk_setvalstr, &trk_setval4, &trk_setvalstr4, &trk_getvalstr3
-};
 
 static const fmed_mod* fmed_getmod_core(const fmed_core *_core);
 extern const fmed_mod* fmed_getmod_file(const fmed_core *_core);
@@ -129,7 +56,6 @@ extern const fmed_mod* fmed_getmod_sndmod(const fmed_core *_core);
 extern const fmed_mod* fmed_getmod_queue(const fmed_core *_core);
 
 static int core_open(void);
-static void core_playdone(void);
 static int core_sigmods(uint signo);
 static const fmed_modinfo* core_getmodinfo(const ffstr *name);
 
@@ -140,6 +66,7 @@ static const fmed_mod fmed_core_mod = {
 	&core_iface, &core_sig2, &core_destroy
 };
 
+// CORE
 static int64 core_getval(const char *name);
 static void core_log(uint flags, void *trk, const char *module, const char *fmt, ...);
 static char* core_getpath(const char *name, size_t len);
@@ -156,7 +83,7 @@ static fmed_core _fmed_core = {
 	&core_getmod, &core_insmod,
 	&core_task,
 };
-static fmed_core *core = &_fmed_core;
+fmed_core *core = &_fmed_core;
 
 //LOG
 static void log_dummy_func(uint flags, fmed_logdata *ld)
@@ -183,7 +110,7 @@ static int fmed_conf_codepage(ffparser_schem *p, void *obj, ffstr *val);
 static const char *const im_enumstr[] = {
 	"off", "add", "play", "clear_play"
 };
-static const ffpars_enumlist im_enum = { im_enumstr, FFCNT(im_enumstr), FFPARS_DSTOFF(fmedia, instance_mode) };
+static const ffpars_enumlist im_enum = { im_enumstr, FFCNT(im_enumstr), FFPARS_DSTOFF(fmed_config, instance_mode) };
 
 static const ffpars_arg fmed_conf_args[] = {
 	{ "mod",  FFPARS_TSTR | FFPARS_FNOTEMPTY | FFPARS_FSTRZ | FFPARS_FCOPY | FFPARS_FMULTI, FFPARS_DST(&fmed_conf_mod) }
@@ -218,9 +145,7 @@ static int allowed_mod(const ffstr *name)
 
 static int fmed_conf_mod(ffparser_schem *p, void *obj, ffstr *val)
 {
-	fmed_config *conf = obj;
-
-	if (ffstr_eqcz(val, "#tui.tui") && (conf->silent || conf->gui))
+	if (ffstr_eqcz(val, "#tui.tui") && (fmed->cmd.notui || fmed->cmd.gui))
 		goto done;
 
 	if (NULL == core->insmod(val->ptr, NULL))
@@ -241,7 +166,7 @@ static int fmed_conf_modconf(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
 		return 0;
 	}
 
-	if (ffstr_eqcz(name, "gui.gui") && !fmed->gui) {
+	if (ffstr_eqcz(name, "gui.gui") && !fmed->cmd.gui) {
 		ffpars_ctx_skip(ctx);
 		return 0;
 	}
@@ -309,7 +234,7 @@ static int fmed_conf_inp_channels(ffparser_schem *p, void *obj, ffstr *val)
 static const ffpars_arg fmed_conf_input_args[] = {
 	{ "format",  FFPARS_TSTR | FFPARS_FNOTEMPTY, FFPARS_DST(&fmed_conf_inp_format) }
 	, { "channels",  FFPARS_TSTR | FFPARS_FNOTEMPTY, FFPARS_DST(&fmed_conf_inp_channels) }
-	, { "rate",  FFPARS_TINT | FFPARS_FNOTZERO, FFPARS_DSTOFF(fmedia, inp_pcm.sample_rate) }
+	, { "rate",  FFPARS_TINT | FFPARS_FNOTZERO, FFPARS_DSTOFF(fmed_config, inp_pcm.sample_rate) }
 };
 
 static int fmed_conf_recfmt(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
@@ -330,7 +255,7 @@ static int fmed_conf_ext_val(ffparser_schem *p, void *obj, ffstr *val)
 		if (mod == NULL) {
 			return FFPARS_EBADVAL;
 		}
-		fmed->inmap_curmod = mod;
+		fmed->conf.inmap_curmod = mod;
 		return 0;
 	}
 
@@ -339,7 +264,7 @@ static int fmed_conf_ext_val(ffparser_schem *p, void *obj, ffstr *val)
 		return FFPARS_ESYS;
 	it = (void*)(map->ptr + map->len);
 	map->len += n;
-	it->mod = fmed->inmap_curmod;
+	it->mod = fmed->conf.inmap_curmod;
 	ffsz_fcopy(it->ext, val->ptr, val->len);
 	return 0;
 }
@@ -371,6 +296,7 @@ static int fmed_conf_codepage(ffparser_schem *p, void *obj, ffstr *val)
 /** Process "so.modname" part from "so.modname.key value" */
 static int fmed_confusr_mod(ffparser_schem *ps, void *obj, ffpars_ctx *ctx)
 {
+	fmed_config *conf = obj;
 	ffstr *val = &ps->vals[0];
 	const fmed_modinfo *mod;
 
@@ -378,21 +304,21 @@ static int fmed_confusr_mod(ffparser_schem *ps, void *obj, ffpars_ctx *ctx)
 		return FFPARS_EUKNKEY;
 
 	if (ffstr_eqcz(val, "core"))
-		ffpars_setargs(ctx, fmed, fmed_conf_args, FFCNT(fmed_conf_args));
+		ffpars_setargs(ctx, conf, fmed_conf_args, FFCNT(fmed_conf_args));
 
-	else if (fmed->usrconf_modname == NULL) {
-		if (NULL == (fmed->usrconf_modname = ffsz_alcopy(val->ptr, val->len)))
+	else if (conf->usrconf_modname == NULL) {
+		if (NULL == (conf->usrconf_modname = ffsz_alcopy(val->ptr, val->len)))
 			return FFPARS_ESYS;
-		ffpars_setargs(ctx, fmed, fmed_confusr_args, FFCNT(fmed_confusr_args));
+		ffpars_setargs(ctx, &fmed->conf, fmed_confusr_args, FFCNT(fmed_confusr_args));
 
 	} else {
 		ffstr3 s = {0};
-		if (0 == ffstr_catfmt(&s, "%s.%S", fmed->usrconf_modname, val))
+		if (0 == ffstr_catfmt(&s, "%s.%S", conf->usrconf_modname, val))
 			return FFPARS_ESYS;
 		mod = core_getmodinfo((ffstr*)&s);
 
-		ffmem_free(fmed->usrconf_modname);
-		fmed->usrconf_modname = NULL;
+		ffmem_free(conf->usrconf_modname);
+		conf->usrconf_modname = NULL;
 		ffarr_free(&s);
 
 		if (mod == NULL || mod->f->conf == NULL)
@@ -416,7 +342,7 @@ static int fmed_conf(uint userconf)
 	char *filename;
 
 	if (userconf == 1) {
-		ffpars_setargs(&ctx, fmed, fmed_confusr_args, FFCNT(fmed_confusr_args));
+		ffpars_setargs(&ctx, &fmed->conf, fmed_confusr_args, FFCNT(fmed_confusr_args));
 		ffconf_scheminit(&ps, &pconf, &ctx);
 
 		if (NULL == (filename = ffenv_expand(NULL, 0, USR_CONF)))
@@ -431,7 +357,7 @@ static int fmed_conf(uint userconf)
 
 	} else {
 
-		ffpars_setargs(&ctx, fmed, fmed_conf_args, FFCNT(fmed_conf_args));
+		ffpars_setargs(&ctx, &fmed->conf, fmed_conf_args, FFCNT(fmed_conf_args));
 		ffconf_scheminit(&ps, &pconf, &ctx);
 
 		if (NULL == (filename = core->getpath(FFSTR("fmedia.conf"))))
@@ -492,936 +418,93 @@ fail:
 }
 
 
-static fmed_f* newfilter1(fm_src *src, const fmed_modinfo *mod)
-{
-	fmed_f *f = ffarr_push(&src->filters, fmed_f);
-	FF_ASSERT(f != NULL);
-	ffmem_tzero(f);
-	f->d.track = &_fmed_track;
-	f->d.handler = &media_process;
-	f->d.trk = src;
-	if (mod != NULL)
-		f->mod = mod;
-	return f;
-}
-
-static fmed_f* newfilter(fm_src *src, const char *modname)
-{
-	const fmed_modinfo *mod;
-	ffstr s;
-	ffstr_setz(&s, modname);
-	mod = core_getmodinfo(&s);
-	return newfilter1(src, mod);
-}
-
-static fmed_f* media_modbyext(fm_src *src, const ffstr3 *map, const ffstr *ext)
-{
-	const inmap_item *it = (void*)map->ptr;
-	while (it != (void*)(map->ptr + map->len)) {
-		size_t len = ffsz_len(it->ext);
-		if (ffstr_ieq(ext, it->ext, len)) {
-			return newfilter1(src, it->mod);
-		}
-		it = (void*)((char*)it + sizeof(inmap_item) + len + 1);
-	}
-
-	errlog(core, NULL, "core", "unknown file format: %S", ext);
-	return NULL;
-}
-
-static int media_open(fm_src *src, const char *fn)
-{
-	ffstr ext;
-	fffileinfo fi;
-
-	trk_setvalstr(src, "input", fn);
-	newfilter(src, "#queue.track");
-
-	if (0 == fffile_infofn(fn, &fi) && fffile_isdir(fffile_infoattr(&fi))) {
-		newfilter(src, "plist.dir");
-		return 0;
-	}
-
-	if (fmed->info)
-		trk_setval(src, "input_info", 1);
-
-	if (fmed->fseek)
-		trk_setval(src, "input_seek", fmed->fseek);
-
-	if (fmed->trackno != NULL) {
-		trk_setvalstr4(src, "input_trackno", fmed->trackno, FMED_TRK_FACQUIRE);
-		fmed->trackno = NULL;
-	}
-
-	if (ffs_match(fn, ffsz_len(fn), "http", 4)) {
-		newfilter(src, "net.icy");
-		ffstr_setz(&ext, "mp3");
-		if (NULL == media_modbyext(src, &fmed->inmap, &ext))
-			return 1;
-	} else {
-		newfilter(src, "#file.in");
-
-		ffpath_splitname(fn, ffsz_len(fn), NULL, &ext);
-		if (NULL == media_modbyext(src, &fmed->inmap, &ext))
-			return 1;
-	}
-
-	newfilter(src, "#soundmod.until");
-
-	if (fmed->mix && !src->mxr_out)
-		trk_setval(src, "type", FMED_TRK_TYPE_MIXIN);
-
-	return 0;
-}
-
-static void media_open_capt(fm_src *src)
-{
-	if (fmed->captdev_name != 0)
-		trk_setval(src, "capture_device", fmed->captdev_name);
-
-	trk_setval(src, "pcm_format", fmed->inp_pcm.format);
-
-	trk_setval(src, "pcm_channels", fmed->inp_pcm.channels & FFPCM_CHMASK);
-	if (fmed->inp_pcm.channels & ~FFPCM_CHMASK)
-		trk_setval(src, "conv_channels", fmed->inp_pcm.channels);
-
-	trk_setval(src, "pcm_sample_rate", fmed->inp_pcm.sample_rate);
-	newfilter1(src, fmed->input);
-
-	newfilter(src, "#soundmod.until");
-	newfilter(src, "#soundmod.rtpeak");
-
-	src->capture = 1;
-	trk_setval(src, "type", FMED_TRK_TYPE_REC);
-}
-
-static void media_open_mix(fm_src *src)
-{
-	newfilter(src, "#queue.track");
-	newfilter(src, "mixer.out");
-	src->mxr_out = 1;
-}
-
-static int media_setout(fm_src *src)
-{
-	const char *s, *fn;
-	int type = trk_getval(src, "type");
-
-	if (type == FMED_TRK_TYPE_NETIN) {
-		ffstr ext;
-		const char *input = trk_getvalstr(src, "input");
-		ffpath_splitname(input, ffsz_len(input), NULL, &ext);
-		if (NULL == media_modbyext(src, &fmed->inmap, &ext))
-			return -1;
-
-	} else if (type != FMED_TRK_TYPE_MIXIN) {
-		if (fmed->gui)
-			newfilter(src, "gui.gui");
-		else if (!fmed->silent)
-			newfilter(src, "#tui.tui");
-	}
-
-	if (!src->mxr_out) { //apply gain to mix-in tracks only
-		if (fmed->volume != 100) {
-			double db;
-			if (fmed->volume < 100)
-				db = ffpcm_vol2db(fmed->volume, 48);
-			else
-				db = ffpcm_vol2db_inc(fmed->volume - 100, 25, 6);
-			trk_setval(src, "gain", db * 100);
-		}
-		if (fmed->gain != 0) {
-			trk_setval(src, "gain", fmed->gain * 100);
-		}
-		newfilter(src, "#soundmod.gain");
-	}
-
-	newfilter(src, "#soundmod.conv");
-	newfilter(src, "#soundmod.conv-soxr");
-
-	if (fmed->preserve_date)
-		trk_setval(src, "out_preserve_date", 1);
-
-	if (type == FMED_TRK_TYPE_MIXIN) {
-		newfilter(src, "mixer.in");
-
-	} else if (fmed->pcm_peaks) {
-		if (fmed->pcm_crc)
-			trk_setval(src, "pcm_crc", 1);
-		newfilter(src, "#soundmod.peaks");
-
-	} else if (FMED_PNULL != (s = trk_getvalstr(src, "output"))) {
-		ffstr name, ext;
-		ffpath_splitname(s, ffsz_len(s), &name, &ext);
-		if (NULL == media_modbyext(src, &fmed->outmap, &ext))
-			return -1;
-		newfilter(src, "#file.out");
-
-	} else if (fmed->outfn.len != 0 && !fmed->rec) {
-		ffstr name, ext;
-		ffs_rsplit2by(fmed->outfn.ptr, fmed->outfn.len, '.', &name, &ext);
-
-		if (name.len != 0)
-			trk_setvalstr(src, "output", fmed->outfn.ptr);
-
-		else if (FMED_PNULL != (fn = trk_getvalstr(src, "input"))) {
-
-			ffstr fname;
-			ffstr3 outfn = {0};
-
-			ffpath_split2(fn, ffsz_len(fn), NULL, &fname);
-			ffpath_splitname(fname.ptr, fname.len, &name, NULL);
-
-			if (0 == ffstr_catfmt(&outfn, "%S/%S.%S%Z"
-				, &fmed->outdir, &name, &ext))
-				return -1;
-			trk_setvalstr4(src, "output", outfn.ptr, FMED_TRK_FACQUIRE);
-
-		} else {
-			errlog(core, src, "core", "--out must be set");
-			return -1;
-		}
-
-		if (fmed->out_copy) {
-			trk_setval(src, "out-copy", 1);
-			if (fmed->output != NULL)
-				newfilter1(src, fmed->output);
-			return 0;
-		}
-
-		if (fmed->stream_copy)
-			trk_setval(src, "stream_copy", 1);
-
-		if (NULL == media_modbyext(src, &fmed->outmap, &ext))
-			return -1;
-
-		newfilter(src, "#file.out");
-
-	} else if (fmed->output != NULL) {
-		newfilter1(src, fmed->output);
-	}
-
-	return 0;
-}
-
-static int media_opened(fm_src *src)
-{
-	fmed_f *f;
-	FFARR_WALK(&src->filters, f) {
-
-		if (f->mod == NULL)
-			return -1;
-
-		ffchain_add(&src->filt_chain, &f->sib);
-	}
-
-	fflist_ins(&fmed->srcs, &src->sib);
-	src->state = TRK_ST_ACTIVE;
-	return 0;
-}
-
-/*
-Example of a typical chain:
- #queue.track
- -> INPUT
- -> DECODER -> (#soundmod.until) -> UI -> #soundmod.gain -> (#soundmod.conv/conv-soxr) -> (ENCODER)
- -> OUTPUT
-*/
-static void* trk_create(uint cmd, const char *fn)
-{
-	uint nout = 5;
-	fm_src *src = ffmem_tcalloc1(fm_src);
-	if (src == NULL)
-		return NULL;
-	ffchain_init(&src->filt_chain);
-	ffrbt_init(&src->dict);
-	ffrbt_init(&src->meta);
-
-	src->id.len = ffs_fmt(src->sid, src->sid + sizeof(src->sid), "*%u", ++fmed->srcid);
-	src->id.ptr = src->sid;
-
-	if (fmed->playdev_name != 0)
-		trk_setval(src, "playdev_name", fmed->playdev_name);
-
-	if (fmed->seek_time != 0)
-		trk_setval(src, "seek_time", fmed->seek_time);
-
-	if (fmed->overwrite)
-		trk_setval(src, "overwrite", 1);
-
-	if (fmed->out_format != 0)
-		trk_setval(src, "conv_pcm_format", fmed->out_format);
-	if (fmed->out_channels != 0)
-		trk_setval(src, "conv_channels", fmed->out_channels);
-	if (fmed->out_rate != 0)
-		trk_setval(src, "conv_pcm_rate", fmed->out_rate);
-
-	if (fmed->ogg_qual != -255)
-		trk_setval(src, "ogg-quality", fmed->ogg_qual * 10);
-	else if (fmed->mpeg_qual != 0xffff)
-		trk_setval(src, "mpeg-quality", fmed->mpeg_qual);
-	else if (fmed->aac_qual != (uint)-1)
-		trk_setval(src, "aac-quality", fmed->aac_qual);
-	else if (fmed->flac_complevel != 0xff)
-		trk_setval(src, "flac_complevel", fmed->flac_complevel);
-
-	if (fmed->until_time != 0) {
-		trk_setval(src, "until_time", fmed->until_time);
-	}
-
-	if (fmed->rec)
-		trk_setval(src, "low_latency", 1);
-
-	switch (cmd) {
-	case FMED_TRACK_OPEN:
-		if (NULL == ffarr_grow(&src->filters, 6 + nout, 0))
-			goto fail;
-		if (0 != media_open(src, fn)) {
-			media_free(src);
-			return FMED_TRK_EFMT;
-		}
-		break;
-
-	case FMED_TRACK_REC:
-		if (NULL == ffarr_grow(&src->filters, 2 + nout, 0))
-			goto fail;
-		media_open_capt(src);
-		break;
-
-	case FMED_TRACK_MIX:
-		if (NULL == ffarr_grow(&src->filters, 2 + nout, 0))
-			goto fail;
-		media_open_mix(src);
-		fmed->mix = 1;
-		break;
-
-	case FMED_TRACK_NET: {
-		if (NULL == ffarr_grow(&src->filters, 2 + nout, 0))
-			goto fail;
-		newfilter(src, "net.in");
-		trk_setval(src, "type", FMED_TRK_TYPE_NETIN);
-		break;
-	}
-	}
-
-	if (fmed->meta.len != 0)
-		trk_setvalstr(src, "meta", fmed->meta.ptr);
-	return src;
-
-fail:
-	media_free(src);
-	return NULL;
-}
-
-static void media_stop(fm_src *src, uint flags)
-{
-	fmed_f *f;
-	trk_setval(src, "stopped", flags);
-	FFARR_WALK(&src->filters, f) {
-		f->d.flags |= FMED_FSTOP;
-	}
-	if (src->state == TRK_ST_STOPPED)
-		media_free(src);
-}
-
-static void media_printtime(fm_src *src)
-{
-	fmed_f *pf;
-	ffstr3 s = {0};
-	fftime all = {0};
-
-	FFARR_WALK(&src->filters, pf) {
-		fftime_add(&all, &pf->clk);
-	}
-	if (all.s == 0 && all.mcs == 0)
-		return;
-	ffstr_catfmt(&s, "time: %u.%06u.  ", all.s, all.mcs);
-
-	FFARR_WALK(&src->filters, pf) {
-		ffstr_catfmt(&s, "%s: %u.%06u (%u%%), "
-			, pf->mod->name, pf->clk.s, pf->clk.mcs, fftime_mcs(&pf->clk) * 100 / fftime_mcs(&all));
-	}
-	if (s.len > FFSLEN(", "))
-		s.len -= FFSLEN(", ");
-
-	dbglog(core, src, "core", "%S", &s);
-	ffarr_free(&s);
-}
-
-static void dict_ent_free(dict_ent *e)
-{
-	if (e->acq)
-		ffmem_free(e->pval);
-	ffmem_free(e);
-}
-
-static void media_free(fm_src *src)
-{
-	fmed_f *pf;
-	dict_ent *e;
-	fftree_node *node, *next;
-
-	if (fmed->print_time) {
-		fftime t2;
-		ffclk_get(&t2);
-		ffclk_diff(&src->tstart, &t2);
-		core->log(FMED_LOG_INFO, src, "core", "track processing time: %u.%06u", t2.s, t2.mcs);
-	}
-
-	dbglog(core, src, "core", "media: closing...");
-	FFARR_WALK(&src->filters, pf) {
-		if (pf->ctx != NULL)
-			pf->mod->f->close(pf->ctx);
-	}
-
-	if (core->loglev & FMED_LOG_DEBUG)
-		media_printtime(src);
-
-	FFTREE_WALKSAFE(&src->dict, node, next) {
-		e = FF_GETPTR(dict_ent, nod, node);
-		ffrbt_rm(&src->dict, &e->nod);
-		dict_ent_free(e);
-	}
-
-	FFTREE_WALKSAFE(&src->meta, node, next) {
-		e = FF_GETPTR(dict_ent, nod, node);
-		ffrbt_rm(&src->meta, &e->nod);
-		dict_ent_free(e);
-	}
-
-	if (fflist_exists(&fmed->srcs, &src->sib))
-		fflist_rm(&fmed->srcs, &src->sib);
-
-	if (src->mxr_out)
-		fmed->mix = 0;
-
-	dbglog(core, src, "core", "media: closed");
-	ffmem_free(src);
-}
-
-// enum FMED_R
-static const char *const fmed_retstr[] = {
-	"err", "ok", "data", "more", "async", "done", "done-prev", "last-out", "fin", "syserr",
-};
-
-static void media_process(void *udata)
-{
-	fm_src *src = udata;
-	fmed_f *nf;
-	fmed_f *f;
-	int r = FFLIST_CUR_NEXT, e;
-	fftime t1, t2;
-
-	if (src->cur == NULL) {
-		src->cur = &src->filters.ptr->sib;
-		f = FF_GETPTR(fmed_f, sib, src->cur);
-		goto next;
-	}
-
-	for (;;) {
-
-		if (src->state != TRK_ST_ACTIVE) {
-			if (src->state == TRK_ST_ERR)
-				goto fin;
-			return;
-		}
-
-		f = FF_GETPTR(fmed_f, sib, src->cur);
-
-#ifdef _DEBUG
-		dbglog(core, src, "core", "%s calling %s, input: %L"
-			, (r == FFLIST_CUR_NEXT) ? ">>" : "<<", f->mod->name, f->d.datalen);
-#endif
-		if (core->loglev & FMED_LOG_DEBUG) {
-			ffclk_get(&t1);
-		}
-
-		e = f->mod->f->process(f->ctx, &f->d);
-
-		if (core->loglev & FMED_LOG_DEBUG) {
-			ffclk_get(&t2);
-			ffclk_diff(&t1, &t2);
-			fftime_add(&f->clk, &t2);
-		}
-
-#ifdef _DEBUG
-		dbglog(core, src, "core", "%s returned: %s, output: %L"
-			, f->mod->name, ((uint)(e + 1) < FFCNT(fmed_retstr)) ? fmed_retstr[e + 1] : "", f->d.outlen);
-#endif
-
-		switch (e) {
-		case FMED_RSYSERR:
-			syserrlog(core, src, f->mod->name, "%s", "system error");
-			// break
-		case FMED_RERR:
-			src->state = TRK_ST_ERR;
-			goto fin;
-
-		case FMED_RASYNC:
-			return;
-
-		case FMED_RMORE:
-			r = FFLIST_CUR_PREV;
-			break;
-
-		case FMED_ROK:
-			r = FFLIST_CUR_NEXT;
-			break;
-
-		case FMED_RDATA:
-			f->noskip = 1;
-			r = FFLIST_CUR_NEXT | FFLIST_CUR_SAMEIFBOUNCE;
-			break;
-
-		case FMED_RDONE:
-			f->d.datalen = 0;
-			r = FFLIST_CUR_NEXT | FFLIST_CUR_RM;
-			break;
-
-		case FMED_RDONE_PREV:
-			f->d.datalen = 0;
-			r = FFLIST_CUR_PREV | FFLIST_CUR_RM;
-			break;
-
-		case FMED_RLASTOUT:
-			f->d.datalen = 0;
-			r = FFLIST_CUR_NEXT | FFLIST_CUR_RM | FFLIST_CUR_RMPREV;
-			break;
-
-		case FMED_RFIN:
-			goto fin;
-
-		default:
-			errlog(core, src, "core", "unknown return code from module: %u", e);
-			src->state = TRK_ST_ERR;
-			goto fin;
-		}
-
-		if (f->d.datalen != 0)
-			r |= FFLIST_CUR_SAMEIFBOUNCE;
-
-shift:
-		r = fflist_curshift(&src->cur, r | FFLIST_CUR_BOUNCE, ffchain_sentl(&src->filt_chain));
-
-		switch (r) {
-		case FFLIST_CUR_NONEXT:
-			goto fin; //done
-
-		case FFLIST_CUR_NOPREV:
-			errlog(core, src, "core", "module %s requires more input data", f->mod->name);
-			src->state = TRK_ST_ERR;
-			goto fin;
-
-		case FFLIST_CUR_NEXT:
-next:
-			nf = FF_GETPTR(fmed_f, sib, src->cur);
-			nf->d.data = f->d.out;
-			nf->d.datalen = f->d.outlen;
-			if (src->cur->prev == ffchain_sentl(&src->filt_chain))
-				nf->d.flags |= FMED_FLAST;
-
-			if (!nf->opened) {
-				if (f->d.flags & FMED_FSTOP)
-					goto fin; // calling the rest of the chain is pointless
-
-				dbglog(core, src, "core", "creating context for %s...", nf->mod->name);
-				nf->ctx = nf->mod->f->open(&nf->d);
-				if (nf->ctx == NULL) {
-					src->state = TRK_ST_ERR;
-					goto fin;
-
-				} else if (nf->ctx == FMED_FILT_SKIP) {
-					dbglog(core, src, "core", "%s is skipped", nf->mod->name);
-					nf->ctx = NULL; //don't call fmed_filter.close()
-					nf->d.out = f->d.out;
-					nf->d.outlen = f->d.outlen;
-					f = nf;
-					r = FFLIST_CUR_NEXT | FFLIST_CUR_RM;
-					goto shift;
-				}
-
-				dbglog(core, src, "core", "context for %s created", nf->mod->name);
-				nf->opened = 1;
-			}
-			break;
-
-		case FFLIST_CUR_SAME:
-		case FFLIST_CUR_PREV:
-			nf = FF_GETPTR(fmed_f, sib, src->cur);
-			if (nf->noskip) {
-				nf->noskip = 0;
-			} else if (nf->d.datalen == 0 && !(nf->d.flags & FMED_FLAST)) {
-				r = FFLIST_CUR_PREV;
-				f = nf;
-				goto shift;
-			}
-			break;
-
-		default:
-			FF_ASSERT(0);
-		}
-	}
-
-	return;
-
-fin:
-	if (src->state == TRK_ST_ERR)
-		trk_setval(src, "error", 1);
-
-	if (!fmed->gui) {
-		if (src->capture) {
-			fmed->recording = 0;
-			core_playdone();
-		}
-	}
-
-	media_free(src);
-}
-
-
-static dict_ent* dict_findstr(fm_src *src, const ffstr *name)
-{
-	dict_ent *ent;
-	uint crc = ffcrc32_get(name->ptr, name->len);
-	ffrbt_node *nod;
-
-	nod = ffrbt_find(&src->dict, crc, NULL);
-	if (nod == NULL)
-		return NULL;
-	ent = (dict_ent*)nod;
-
-	if (!ffstr_eqz(name, ent->name))
-		return NULL;
-
-	return ent;
-}
-
-static dict_ent* dict_find(fm_src *src, const char *name)
-{
-	ffstr s;
-	ffstr_setz(&s, name);
-	return dict_findstr(src, &s);
-}
-
-static dict_ent* dict_add(fm_src *src, const char *name, uint *f)
-{
-	dict_ent *ent;
-	uint crc = ffcrc32_getz(name, 0);
-	ffrbt_node *nod, *parent;
-	ffrbtree *tree = (*f & FMED_TRK_META) ? &src->meta : &src->dict;
-
-	nod = ffrbt_find(tree, crc, &parent);
-	if (nod != NULL) {
-		ent = (dict_ent*)nod;
-		if (0 != ffsz_cmp(name, ent->name)) {
-			errlog(core, NULL, "core", "setval: CRC collision: %u, key: %s, with key: %s"
-				, crc, name, ent->name);
-			src->state = TRK_ST_ERR;
-			return NULL;
-		}
-		*f = 1;
-
-	} else {
-		ent = ffmem_tcalloc1(dict_ent);
-		if (ent == NULL) {
-			errlog(core, NULL, "core", "setval: %e", FFERR_BUFALOC);
-			src->state = TRK_ST_ERR;
-			return NULL;
-		}
-		ent->nod.key = crc;
-		ffrbt_insert(tree, &ent->nod, parent);
-		ent->name = name;
-		*f = 0;
-	}
-
-	return ent;
-}
-
-static dict_ent* meta_find(fm_src *src, const ffstr *name)
-{
-	dict_ent *ent;
-	uint crc = ffcrc32_get(name->ptr, name->len);
-	ffrbt_node *nod;
-
-	nod = ffrbt_find(&src->meta, crc, NULL);
-	if (nod == NULL)
-		return NULL;
-	ent = (dict_ent*)nod;
-
-	if (!ffstr_eqz(name, ent->name))
-		return NULL;
-
-	return ent;
-}
-
-
-static int trk_cmd(void *trk, uint cmd)
-{
-	fm_src *src = trk;
-	fflist_item *next;
-
-	dbglog(core, NULL, "track", "received command:%u, trk:%p", cmd, trk);
-
-	switch (cmd) {
-	case FMED_TRACK_STOPALL_EXIT:
-		if (fmed->srcs.len == 0 || fmed->stopped) {
-			core_sig(FMED_STOP);
-			break;
-		}
-		fmed->stopped = 1;
-		trk = (void*)-1;
-		// break
-
-	case FMED_TRACK_STOPALL:
-		FFLIST_WALKSAFE(&fmed->srcs, src, sib, next) {
-			if (src->capture && trk == NULL)
-				continue;
-
-			media_stop(src, cmd);
-		}
-		break;
-
-	case FMED_TRACK_STOP:
-		media_stop(src, FMED_TRACK_STOP);
-		break;
-
-	case FMED_TRACK_START:
-		if (0 != media_setout(src)) {
-			trk_setval(src, "error", 1);
-		}
-		if (0 != media_opened(src)) {
-			media_free(src);
-			return -1;
-		}
-
-		if (fmed->print_time)
-			ffclk_get(&src->tstart);
-
-		media_process(src);
-		break;
-
-	case FMED_TRACK_PAUSE:
-		src->state = TRK_ST_PAUSED;
-		break;
-	case FMED_TRACK_UNPAUSE:
-		src->state = TRK_ST_ACTIVE;
-		media_process(src);
-		break;
-	}
-	return 0;
-}
-
-static int64 trk_popval(void *trk, const char *name)
-{
-	fm_src *src = trk;
-	dict_ent *ent = dict_find(src, name);
-	if (ent != NULL) {
-		int64 val = ent->val;
-		ffrbt_rm(&src->dict, &ent->nod);
-		dict_ent_free(ent);
-		return val;
-	}
-
-	return FMED_NULL;
-}
-
-static int64 trk_getval(void *trk, const char *name)
-{
-	fm_src *src = trk;
-	dict_ent *ent = dict_find(src, name);
-	if (ent != NULL)
-		return ent->val;
-	return FMED_NULL;
-}
-
-static const char* trk_getvalstr(void *trk, const char *name)
-{
-	fm_src *src = trk;
-	dict_ent *ent = dict_find(src, name);
-	if (ent != NULL)
-		return ent->pval;
-	return FMED_PNULL;
-}
-
-static char* trk_getvalstr3(void *trk, const void *name, uint flags)
-{
-	fm_src *src = trk;
-	dict_ent *ent;
-	ffstr nm;
-
-	if (flags & FMED_TRK_NAMESTR)
-		ffstr_set2(&nm, (ffstr*)name);
-	else
-		ffstr_setz(&nm, (char*)name);
-
-	if (flags & FMED_TRK_META) {
-		ent = meta_find(src, &nm);
-		if (ent == NULL) {
-			void *qent;
-			if (NULL == (qent = (void*)trk_getval(src, "queue_item")))
-				return FMED_PNULL;
-			const fmed_queue *qu = core->getmod("#queue.queue");
-			ffstr *val;
-			if (NULL == (val = qu->meta_find(qent, nm.ptr, nm.len)))
-				return FMED_PNULL;
-			return val->ptr;
-		}
-	} else
-		ent = dict_findstr(src, &nm);
-	if (ent == NULL)
-		return FMED_PNULL;
-
-	return ent->pval;
-}
-
-static int trk_setval(void *trk, const char *name, int64 val)
-{
-	trk_setval4(trk, name, val, 0);
-	return 0;
-}
-
-static int64 trk_setval4(void *trk, const char *name, int64 val, uint flags)
-{
-	fm_src *src = trk;
-	uint st = 0;
-	dict_ent *ent = dict_add(src, name, &st);
-	if (ent == NULL)
-		return FMED_NULL;
-
-	if ((flags & FMED_TRK_FNO_OVWRITE) && st == 1)
-		return ent->val;
-
-	if (ent->acq) {
-		ffmem_free(ent->pval);
-		ent->acq = 0;
-	}
-
-	ent->val = val;
-	dbglog(core, trk, "core", "setval: %s = %D", name, val);
-	return val;
-}
-
-static char* trk_setvalstr4(void *trk, const char *name, const char *val, uint flags)
-{
-	fm_src *src = trk;
-	dict_ent *ent;
-	uint st = flags;
-
-	if (flags & FMED_TRK_META) {
-		ent = dict_add(src, name, &st);
-		if (ent == NULL)
-			return NULL;
-
-		if (ent->acq)
-			ffmem_free(ent->pval);
-
-		if (flags & FMED_TRK_VALSTR) {
-			const ffstr *sval = (void*)val;
-			ent->pval = ffsz_alcopy(sval->ptr, sval->len);
-		} else
-			ent->pval = ffsz_alcopyz(val);
-
-		if (ent->pval == NULL)
-			return NULL;
-
-		ent->acq = 1;
-		dbglog(core, trk, "core", "set meta: %s = %s", name, ent->pval);
-		return ent->pval;
-
-	} else
-		ent = dict_add(src, name, &st);
-
-	if (ent == NULL
-		|| ((flags & FMED_TRK_FNO_OVWRITE) && st == 1)) {
-
-		if (flags & FMED_TRK_FACQUIRE)
-			ffmem_free((char*)val);
-		return (ent != NULL) ? ent->pval : NULL;
-	}
-
-	if (ent->acq)
-		ffmem_free(ent->pval);
-	ent->acq = (flags & FMED_TRK_FACQUIRE) ? 1 : 0;
-
-	ent->pval = (void*)val;
-
-	dbglog(core, trk, "core", "setval: %s = %s", name, val);
-	return ent->pval;
-}
-
-static int trk_setvalstr(void *trk, const char *name, const char *val)
-{
-	trk_setvalstr4(trk, name, val, 0);
-	return 0;
-}
-
-
-static void core_playdone(void)
-{
-	if (!fmed->recording) {
-		fmed->stopped = 1;
-		ffkqu_post(fmed->kq, &fmed->evposted, NULL);
-	}
-}
-
 static void core_posted(void *udata)
 {
 }
 
 
-fmed_core* core_init(fmedia **ptr)
+static int cmd_init(fmed_cmd *cmd)
+{
+	cmd->ogg_qual = -255;
+	cmd->aac_qual = (uint)-1;
+	cmd->mpeg_qual = 0xffff;
+	cmd->flac_complevel = 0xff;
+
+	cmd->volume = 100;
+	cmd->cue_gaps = 255;
+	if (NULL == ffstr_copy(&cmd->outdir, FFSTR(".")))
+		return -1;
+	return 0;
+}
+
+static void cmd_destroy(fmed_cmd *cmd)
+{
+	uint i;
+	char **fn;
+
+	fn = (char**)cmd->in_files.ptr;
+	for (i = 0;  i < cmd->in_files.len;  i++, fn++) {
+		ffmem_free(*fn);
+	}
+	ffarr_free(&cmd->in_files);
+	ffstr_free(&cmd->outfn);
+	ffstr_free(&cmd->outdir);
+
+	ffstr_free(&cmd->meta);
+	ffmem_safefree(cmd->trackno);
+
+	ffstr_free(&cmd->root);
+}
+
+static int conf_init(fmed_config *conf)
+{
+	conf->codepage = FFU_WIN1252;
+	return 0;
+}
+
+static void conf_destroy(fmed_config *conf)
+{
+	ffarr_free(&conf->inmap);
+	ffarr_free(&conf->outmap);
+}
+
+
+fmed_core* core_init(fmed_cmd **ptr)
 {
 	ffmem_init();
 	fflk_setup();
 	fmed = ffmem_tcalloc1(fmedia);
 	if (fmed == NULL)
 		return NULL;
-	fmed->log = &log_dummy;
+	fmed->cmd.log = &log_dummy;
 
-	fmed->volume = 100;
 	fmed->kq = FF_BADFD;
 	fftask_init(&fmed->taskmgr);
-	fflist_init(&fmed->srcs);
+	fflist_init(&fmed->trks);
 	fflist_init(&fmed->mods);
 	core_insmod("#core.core", NULL);
 
-	fmed->ogg_qual = -255;
-	fmed->aac_qual = (uint)-1;
-	fmed->mpeg_qual = 0xffff;
-	fmed->flac_complevel = 0xff;
-	fmed->cue_gaps = 255;
-	fmed->codepage = FFU_WIN1252;
-	if (NULL == ffstr_copy(&fmed->outdir, FFSTR("."))) {
+	if (0 != cmd_init(&fmed->cmd)
+		|| 0 != conf_init(&fmed->conf)) {
 		core_free();
 		return NULL;
 	}
 
-	*ptr = fmed;
+	*ptr = &fmed->cmd;
 	return core;
 }
 
 void core_free(void)
 {
-	uint i;
-	fflist_item *next;
-	char **fn;
 	core_mod *mod;
+	fflist_item *next;
 
-	trk_cmd(NULL, FMED_TRACK_STOPALL);
+	_fmed_track.cmd(NULL, FMED_TRACK_STOPALL);
 
-	fn = (char**)fmed->in_files.ptr;
-	for (i = 0;  i < fmed->in_files.len;  i++, fn++) {
-		ffmem_free(*fn);
+	if (fmed->kq != FF_BADFD) {
+		ffkqu_post_attach(FF_BADFD);
+		ffkqu_close(fmed->kq);
 	}
-	ffarr_free(&fmed->in_files);
-	ffstr_free(&fmed->outfn);
-	ffstr_free(&fmed->outdir);
-
-	ffstr_free(&fmed->meta);
-	ffmem_safefree(fmed->trackno);
-
-	ffarr_free(&fmed->inmap);
-	ffarr_free(&fmed->outmap);
 
 	FFLIST_WALKSAFE(&fmed->mods, mod, sib, next) {
 		mod->m->destroy();
@@ -1430,12 +513,9 @@ void core_free(void)
 		ffmem_free(mod);
 	}
 
-	if (fmed->kq != FF_BADFD) {
-		ffkqu_post_attach(FF_BADFD);
-		ffkqu_close(fmed->kq);
-	}
+	cmd_destroy(&fmed->cmd);
+	conf_destroy(&fmed->conf);
 
-	ffstr_free(&fmed->root);
 	ffmem_free(fmed);
 	fmed = NULL;
 }
@@ -1550,6 +630,21 @@ static const fmed_modinfo* core_getmodinfo(const ffstr *name)
 	return NULL;
 }
 
+const fmed_modinfo* core_modbyext(const ffstr3 *map, const ffstr *ext)
+{
+	const inmap_item *it = (void*)map->ptr;
+	while (it != (void*)(map->ptr + map->len)) {
+		size_t len = ffsz_len(it->ext);
+		if (ffstr_ieq(ext, it->ext, len)) {
+			return it->mod;
+		}
+		it = (void*)((char*)it + sizeof(inmap_item) + len + 1);
+	}
+
+	errlog(core, NULL, "core", "unknown file format: %S", ext);
+	return NULL;
+}
+
 static int core_open(void)
 {
 	if (FF_BADFD == (fmed->kq = ffkqu_create())) {
@@ -1560,11 +655,6 @@ static int core_open(void)
 	ffkqu_post_attach(fmed->kq);
 
 	fmed->pkqutime = ffkqu_settm(&fmed->kqutime, (uint)-1);
-
-	if (fmed->rec) {
-		fmed->recording = 1;
-	}
-
 	ffkev_init(&fmed->evposted);
 	fmed->evposted.oneshot = 0;
 	fmed->evposted.handler = &core_posted;
@@ -1601,7 +691,7 @@ void core_work(void)
 static char* core_getpath(const char *name, size_t len)
 {
 	ffstr3 s = {0};
-	if (0 == ffstr_catfmt(&s, "%S%*s%Z", &fmed->root, len, name)) {
+	if (0 == ffstr_catfmt(&s, "%S%*s%Z", &fmed->cmd.root, len, name)) {
 		ffarr_free(&s);
 		return NULL;
 	}
@@ -1625,7 +715,7 @@ static int core_sig(uint signo)
 	switch (signo) {
 
 	case FMED_CONF:
-		core->loglev = fmed->debug ? FMED_LOG_DEBUG : 0;
+		core->loglev = fmed->cmd.debug ? FMED_LOG_DEBUG : FMED_LOG_INFO;
 		if (0 != fmed_conf(0))
 			return 1;
 		if (0 != fmed_conf(1))
@@ -1645,7 +735,8 @@ static int core_sig(uint signo)
 
 	case FMED_STOP:
 		core_sigmods(signo);
-		core_playdone();
+		fmed->stopped = 1;
+		ffkqu_post(fmed->kq, &fmed->evposted, NULL);
 		break;
 
 	case FMED_LISTDEV:
@@ -1677,29 +768,28 @@ static void core_task(fftask *task, uint cmd)
 static int64 core_getval(const char *name)
 {
 	if (!ffsz_cmp(name, "repeat_all"))
-		return fmed->repeat_all;
+		return fmed->cmd.repeat_all;
 	else if (!ffsz_cmp(name, "codepage"))
-		return fmed->codepage;
+		return fmed->conf.codepage;
 	else if (!ffsz_cmp(name, "gui"))
-		return fmed->gui;
+		return fmed->cmd.gui;
 	else if (!ffsz_cmp(name, "next_if_error"))
-		return fmed->silent;
+		return fmed->cmd.notui;
 	else if (!ffsz_cmp(name, "show_tags"))
-		return fmed->tags;
-	else if (!ffsz_cmp(name, "cue_gaps") && fmed->cue_gaps != 255)
-		return fmed->cue_gaps;
+		return fmed->cmd.tags;
+	else if (!ffsz_cmp(name, "cue_gaps") && fmed->cmd.cue_gaps != 255)
+		return fmed->cmd.cue_gaps;
 	else if (!ffsz_cmp(name, "instance_mode"))
-		return fmed->instance_mode;
+		return fmed->conf.instance_mode;
 	return FMED_NULL;
 }
 
 static const char *const loglevs[] = {
-	"debug", "info", "warning", "error",
+	"error", "warning", "info", "debug",
 };
 
 static void core_log(uint flags, void *trk, const char *module, const char *fmt, ...)
 {
-	fm_src *src = trk;
 	char stime[32];
 	ffdtm dt;
 	fftime t;
@@ -1720,19 +810,20 @@ static void core_log(uint flags, void *trk, const char *module, const char *fmt,
 	FF_ASSERT(lev != 0);
 	ld.level = loglevs[lev - 1];
 
-	if (module == NULL && src != NULL && src->cur != NULL) {
-		const fmed_f *f = FF_GETPTR(fmed_f, sib, src->cur);
-		module = f->mod->name;
-	}
+	ld.ctx = NULL;
 	ld.module = module;
+	if (trk != NULL) {
+		_fmed_track.loginfo(trk, &ld.ctx, &module);
+		if (ld.module == NULL)
+			ld.module = module;
+	}
 
 	if (flags & FMED_LOG_SYS)
 		fferr_set(e);
 
-	ld.ctx = (src != NULL) ? &src->id : NULL;
 	ld.fmt = fmt;
 	va_start(ld.va, fmt);
-	fmed->log->log(flags, &ld);
+	fmed->cmd.log->log(flags, &ld);
 	va_end(ld.va);
 }
 

@@ -192,6 +192,7 @@ struct gui_trk {
 	uint sample_rate;
 	uint total_time_sec;
 
+	fmed_filt *d;
 	void *trk;
 	fftask task;
 

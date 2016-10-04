@@ -108,7 +108,7 @@ static void flac_destroy(void)
 static void* flac_in_create(fmed_filt *d)
 {
 	int r;
-	int64 total_size, val;
+	int64 val;
 	flac *f = ffmem_tcalloc1(flac);
 	if (f == NULL)
 		return NULL;
@@ -120,8 +120,8 @@ static void* flac_in_create(fmed_filt *d)
 		return NULL;
 	}
 
-	if (FMED_NULL != (total_size = fmed_getval("total_size")))
-		f->fl.total_size = total_size;
+	if ((int64)d->input.size != FMED_NULL)
+		f->fl.total_size = d->input.size;
 
 	if (FMED_NULL != (val = fmed_getval("seek_time_abs")))
 		f->abs_seek = val;
@@ -151,7 +151,6 @@ static int flac_in_decode(void *ctx, fmed_filt *d)
 	enum { I_HDR, I_DATA };
 	flac *f = ctx;
 	int r;
-	int64 seek_time;
 
 	if (d->flags & FMED_FSTOP) {
 		d->outlen = 0;
@@ -169,8 +168,10 @@ again:
 		break;
 
 	case I_DATA:
-		if (FMED_NULL != (seek_time = fmed_popval("seek_time")))
-			ffflac_seek(&f->fl, f->abs_seek + ffpcm_samples(seek_time, f->fl.fmt.sample_rate));
+		if ((int64)d->audio.seek != FMED_NULL) {
+			ffflac_seek(&f->fl, f->abs_seek + ffpcm_samples(d->audio.seek, f->fl.fmt.sample_rate));
+			d->audio.seek = FMED_NULL;
+		}
 		break;
 	}
 
@@ -187,10 +188,8 @@ again:
 
 		case FFFLAC_RHDR:
 			d->track->setvalstr(d->trk, "pcm_decoder", "FLAC");
-			fmed_setval("pcm_format", f->fl.fmt.format);
-			fmed_setval("pcm_channels", f->fl.fmt.channels);
-			fmed_setval("pcm_sample_rate", f->fl.fmt.sample_rate);
-			fmed_setval("pcm_ileaved", 0);
+			ffpcm_fmtcopy(&d->audio.fmt, &f->fl.fmt);
+			d->audio.fmt.ileaved = 0;
 
 			if (f->abs_seek != 0) {
 				if (f->abs_seek > 0)
@@ -199,7 +198,7 @@ again:
 					f->abs_seek = -f->abs_seek * f->fl.fmt.sample_rate / 75;
 			}
 
-			fmed_setval("total_samples", ffflac_totalsamples(&f->fl) - f->abs_seek);
+			d->audio.total = ffflac_totalsamples(&f->fl) - f->abs_seek;
 			break;
 
 		case FFFLAC_RTAG:
@@ -212,7 +211,7 @@ again:
 				, f->fl.info.md5, (int)f->fl.sktab.len, (int)f->fl.framesoff);
 			fmed_setval("bitrate", ffflac_bitrate(&f->fl));
 
-			if (FMED_NULL != fmed_getval("input_info"))
+			if (d->input_info)
 				return FMED_ROK;
 
 			f->state = I_DATA;
@@ -224,7 +223,7 @@ again:
 			goto data;
 
 		case FFFLAC_RSEEK:
-			fmed_setval("input_seek", f->fl.off);
+			d->input.seek = f->fl.off;
 			return FMED_RMORE;
 
 		case FFFLAC_RDONE:
@@ -245,7 +244,7 @@ again:
 data:
 	dbglog(core, d->trk, "flac", "decoded %L samples (%U)"
 		, f->fl.pcmlen / ffpcm_size1(&f->fl.fmt), ffflac_cursample(&f->fl));
-	fmed_setval("current_position", ffflac_cursample(&f->fl) - f->abs_seek);
+	d->audio.pos = ffflac_cursample(&f->fl) - f->abs_seek;
 
 	d->data = (void*)f->fl.data;
 	d->datalen = f->fl.datalen;
@@ -312,10 +311,10 @@ static int flac_out_encode(void *ctx, fmed_filt *d)
 	case I_INIT: {
 		int64 val;
 		ffpcm fmt;
-		fmed_getpcm(d, &fmt);
+		ffpcm_fmtcopy(&fmt, &d->audio.fmt);
 
-		if (FMED_NULL != (val = fmed_getval("total_samples")))
-			f->fl.total_samples = val;
+		if ((int64)d->audio.total != FMED_NULL)
+			f->fl.total_samples = d->audio.total - d->audio.pos;
 
 		f->fl.seektable_int = flac_out_conf.sktab_int * fmt.sample_rate;
 		f->fl.min_meta = flac_out_conf.min_meta_size;
@@ -336,7 +335,7 @@ static int flac_out_encode(void *ctx, fmed_filt *d)
 		// break
 
 	case I_META:
-		if (1 == fmed_getval("pcm_ileaved")) {
+		if (d->audio.fmt.ileaved) {
 			if (f->state == I_FIRST) {
 				f->state = I_META;
 				return FMED_RMORE;
@@ -371,7 +370,7 @@ again:
 
 	case FFFLAC_RDATA:
 		if (f->state == I_DATA0) {
-			fmed_setval("output_size", ffflac_enc_size(&f->fl));
+			d->output.size = ffflac_enc_size(&f->fl);
 			f->state = I_DATA;
 		}
 		break;
@@ -380,7 +379,7 @@ again:
 		break;
 
 	case FFFLAC_RSEEK:
-		fmed_setval("output_seek", f->fl.seekoff);
+		d->output.seek = f->fl.seekoff;
 		goto again;
 
 	case FFFLAC_RERR:

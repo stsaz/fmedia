@@ -764,7 +764,7 @@ static int icy_setmeta(icy *c, const ffstr *_data)
 	ffutf8_strencode(&utf, title.ptr, title.len, FFU_WIN1252);
 	ffstr_set2(&pair[1], &utf);
 	net->qu->cmd2(FMED_QUE_METASET | (FMED_QUE_OVWRITE << 16), qent, (size_t)pair);
-	c->d->track->setval(c->d->trk, "meta-changed", 1);
+	c->d->meta_changed = 1;
 	ffstr_acqstr3(&c->title, &utf);
 	c->meta_changed = 1;
 	return 0;

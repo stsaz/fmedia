@@ -68,15 +68,15 @@ static void ape_destroy(void)
 
 static void* ape_in_create(fmed_filt *d)
 {
-	int64 total_size, val;
+	int64 val;
 	ape *a = ffmem_tcalloc1(ape);
 	if (a == NULL)
 		return NULL;
 
 	a->ap.options = FFAPE_O_ID3V1 | FFAPE_O_APETAG;
 
-	if (FMED_NULL != (total_size = fmed_getval("total_size")))
-		a->ap.total_size = total_size;
+	if ((int64)d->input.size != FMED_NULL)
+		a->ap.total_size = d->input.size;
 
 	if (FMED_NULL != (val = fmed_getval("seek_time_abs")))
 		a->abs_seek = val;
@@ -115,7 +115,6 @@ static int ape_in_decode(void *ctx, fmed_filt *d)
 	enum { I_HDR, I_DATA };
 	ape *a = ctx;
 	int r;
-	int64 seek_time;
 
 	if (d->flags & FMED_FSTOP) {
 		d->outlen = 0;
@@ -133,8 +132,10 @@ again:
 		break;
 
 	case I_DATA:
-		if (FMED_NULL != (seek_time = fmed_popval("seek_time")))
-			ffape_seek(&a->ap, a->abs_seek + ffpcm_samples(seek_time, a->ap.info.fmt.sample_rate));
+		if ((int64)d->audio.seek != FMED_NULL) {
+			ffape_seek(&a->ap, a->abs_seek + ffpcm_samples(d->audio.seek, a->ap.info.fmt.sample_rate));
+			d->audio.seek = FMED_NULL;
+		}
 		break;
 	}
 
@@ -151,10 +152,8 @@ again:
 
 		case FFAPE_RHDR:
 			d->track->setvalstr(d->trk, "pcm_decoder", "APE");
-			fmed_setval("pcm_format", a->ap.info.fmt.format);
-			fmed_setval("pcm_channels", a->ap.info.fmt.channels);
-			fmed_setval("pcm_sample_rate", a->ap.info.fmt.sample_rate);
-			fmed_setval("pcm_ileaved", 1);
+			ffpcm_fmtcopy(&d->audio.fmt, &a->ap.info.fmt);
+			d->audio.fmt.ileaved = 1;
 
 			if (a->abs_seek != 0) {
 				if (a->abs_seek > 0)
@@ -163,7 +162,7 @@ again:
 					a->abs_seek = -a->abs_seek * a->ap.info.fmt.sample_rate / 75;
 			}
 
-			fmed_setval("total_samples", ffape_totalsamples(&a->ap) - a->abs_seek);
+			d->audio.total = ffape_totalsamples(&a->ap) - a->abs_seek;
 			break;
 
 		case FFAPE_RTAG:
@@ -176,7 +175,7 @@ again:
 				, a->ap.info.md5, (int)a->ap.info.seekpoints, (int)a->ap.froff);
 			fmed_setval("bitrate", ffape_bitrate(&a->ap));
 
-			if (FMED_NULL != fmed_getval("input_info"))
+			if (d->input_info)
 				return FMED_ROK;
 
 			a->state = I_DATA;
@@ -192,7 +191,7 @@ again:
 			return FMED_RLASTOUT;
 
 		case FFAPE_RSEEK:
-			fmed_setval("input_seek", a->ap.off);
+			d->input.seek = a->ap.off;
 			return FMED_RMORE;
 
 		case FFAPE_RWARN:
@@ -209,7 +208,7 @@ again:
 data:
 	dbglog(core, d->trk, "ape", "decoded %L samples (%U)"
 		, a->ap.pcmlen / ffpcm_size1(&a->ap.info.fmt), ffape_cursample(&a->ap));
-	fmed_setval("current_position", ffape_cursample(&a->ap) - a->abs_seek);
+	d->audio.pos = ffape_cursample(&a->ap) - a->abs_seek;
 
 	d->data = (void*)a->ap.data;
 	d->datalen = a->ap.datalen;

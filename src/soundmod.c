@@ -167,17 +167,17 @@ static int sndmod_conv_prepare(sndmod_conv *c, fmed_filt *d)
 
 	if (fmt != FMED_NULL) {
 		c->outpcm.format = fmt;
-		fmed_setval("pcm_format", c->outpcm.format);
+		d->audio.fmt.format = c->outpcm.format;
 	}
 
 	if (il != FMED_NULL) {
 		c->outpcm.ileaved = il;
-		fmed_setval("pcm_ileaved", c->outpcm.ileaved);
+		d->audio.fmt.ileaved = c->outpcm.ileaved;
 	}
 
 	if (FMED_NULL != (val = fmed_popval("conv_channels"))) {
 		c->outpcm.channels = val;
-		fmed_setval("pcm_channels", val & FFPCM_CHMASK);
+		d->audio.fmt.channels = val & FFPCM_CHMASK;
 	}
 
 	if (!ffmemcmp(&c->outpcm, &c->inpcm, sizeof(ffpcmex))) {
@@ -187,7 +187,7 @@ static int sndmod_conv_prepare(sndmod_conv *c, fmed_filt *d)
 	}
 
 	int r = ffpcm_convert(&c->outpcm, NULL, &c->inpcm, NULL, 0);
-	if (r != 0 || (core->loglev & FMED_LOG_DEBUG)) {
+	if (r != 0 || (core->loglev == FMED_LOG_DEBUG)) {
 		log_pcmconv("conv", r, &c->inpcm, &c->outpcm, d->trk);
 		if (r != 0)
 			return FMED_RERR;
@@ -220,21 +220,17 @@ static int sndmod_conv_process(void *ctx, fmed_filt *d)
 
 	switch (c->state) {
 	case CONV_CONF:
-		c->inpcm.format = (int)fmed_getval("pcm_format");
-		c->inpcm.sample_rate = (int)fmed_getval("pcm_sample_rate");
-		c->inpcm.channels = (int)fmed_getval("pcm_channels");
-		if (1 == fmed_getval("pcm_ileaved"))
-			c->inpcm.ileaved = 1;
+		c->inpcm = d->audio.fmt;
 		c->outpcm = c->inpcm;
 
 		if (FMED_NULL != (fmt = (int)fmed_popval("conv_pcm_format"))) {
 			c->outpcm.format = fmt;
-			fmed_setval("pcm_format", c->outpcm.format);
+			d->audio.fmt.format = c->outpcm.format;
 		}
 
 		if (FMED_NULL != (r = fmed_popval("conv_channels"))) {
 			c->outpcm.channels = r;
-			fmed_setval("pcm_channels", r & FFPCM_CHMASK);
+			d->audio.fmt.channels = r & FFPCM_CHMASK;
 		}
 
 		d->outlen = 0;
@@ -302,9 +298,9 @@ static int sndmod_soxr_process(void *ctx, fmed_filt *d)
 
 	switch (c->state) {
 	case 0:
-		c->inpcm.sample_rate = (int)fmed_getval("pcm_sample_rate");
+		c->inpcm.sample_rate = d->audio.fmt.sample_rate;
 		if (FMED_NULL != (int)(outpcm.sample_rate = (int)fmed_getval("conv_pcm_rate")))
-			fmed_setval("pcm_sample_rate", outpcm.sample_rate);
+			d->audio.fmt.sample_rate = outpcm.sample_rate;
 		d->outlen = 0;
 		c->state = 1;
 		return FMED_RDATA;
@@ -316,24 +312,20 @@ static int sndmod_soxr_process(void *ctx, fmed_filt *d)
 		if (FMED_NULL != fmed_getval("conv_channels"))
 			return FMED_RMORE; // "conv" module will handle channel conversion
 
-		inpcm.format = (int)fmed_getval("pcm_format");
-		inpcm.channels = (int)fmed_getval("pcm_channels");
-		inpcm.sample_rate = c->inpcm.sample_rate;
-		if (1 == fmed_getval("pcm_ileaved"))
-			inpcm.ileaved = 1;
+		inpcm = d->audio.fmt;
 		outpcm = inpcm;
 
 		outpcm.sample_rate = (int)fmed_popval("conv_pcm_rate");
-		fmed_setval("pcm_sample_rate", outpcm.sample_rate);
+		d->audio.fmt.sample_rate = outpcm.sample_rate;
 
 		if (FMED_NULL != (val = (int)fmed_popval("conv_pcm_format"))) {
 			outpcm.format = val;
-			fmed_setval("pcm_format", outpcm.format);
+			d->audio.fmt.format = outpcm.format;
 		}
 
 		if (FMED_NULL != (val = (int)fmed_popval("conv_pcm_ileaved"))) {
 			outpcm.ileaved = val;
-			fmed_setval("pcm_ileaved", outpcm.ileaved);
+			d->audio.fmt.ileaved = outpcm.ileaved;
 		}
 
 		if (!ffmemcmp(&outpcm, &inpcm, sizeof(ffpcmex))) {
@@ -344,7 +336,7 @@ static int sndmod_soxr_process(void *ctx, fmed_filt *d)
 
 		// c->soxr.dither = 1;
 		if (0 != (val = ffsoxr_create(&c->soxr, &inpcm, &outpcm))
-			|| (core->loglev & FMED_LOG_DEBUG)) {
+			|| (core->loglev == FMED_LOG_DEBUG)) {
 			log_pcmconv("soxr", val, &inpcm, &outpcm, d->trk);
 			if (val != 0)
 				return FMED_RERR;
@@ -385,9 +377,7 @@ static void* sndmod_gain_open(fmed_filt *d)
 	ffpcmex *pcm = ffmem_tcalloc1(ffpcmex);
 	if (pcm == NULL)
 		return NULL;
-	pcm->format = (int)fmed_getval("pcm_format");
-	pcm->channels = (int)fmed_getval("pcm_channels");
-	pcm->ileaved = (int)fmed_getval("pcm_ileaved");
+	*pcm = d->audio.fmt;
 	return pcm;
 }
 
@@ -400,7 +390,7 @@ static void sndmod_gain_close(void *ctx)
 static int sndmod_gain_process(void *ctx, fmed_filt *d)
 {
 	ffpcmex *pcm = ctx;
-	int db = (int)fmed_getval("gain");
+	int db = d->audio.gain;
 	if (db != FMED_NULL)
 		ffpcm_gain(pcm, ffpcm_db2gain((double)db / 100), d->data, (void*)d->data, d->datalen / ffpcm_size1(pcm));
 
@@ -421,26 +411,23 @@ typedef struct sndmod_untl {
 
 static void* sndmod_untl_open(fmed_filt *d)
 {
-	int64 val, rate;
+	int64 val;
 	sndmod_untl *u;
 
-	if (FMED_NULL == (val = fmed_getval("until_time")))
+	if (FMED_NULL == (val = d->audio.until))
 		return FMED_FILT_SKIP;
-
-	rate = fmed_getval("pcm_sample_rate");
 
 	if (NULL == (u = ffmem_tcalloc1(sndmod_untl)))
 		return NULL;
 	if (val > 0)
-		u->until = ffpcm_samples(val, rate);
+		u->until = ffpcm_samples(val, d->audio.fmt.sample_rate);
 	else
-		u->until = -val * rate / 75;
+		u->until = -val * d->audio.fmt.sample_rate / 75;
 
-	val = fmed_getval("pcm_format");
-	u->sampsize = ffpcm_size(val, fmed_getval("pcm_channels"));
+	u->sampsize = ffpcm_size(d->audio.fmt.format, d->audio.fmt.channels);
 
-	if (FMED_NULL != fmed_getval("total_samples"))
-		fmed_setval("total_samples", u->until);
+	if ((int64)d->audio.total != FMED_NULL)
+		d->audio.total = u->until;
 
 	if (FMED_PNULL != d->track->getvalstr(d->trk, "data_asis"))
 		u->asis = 1;
@@ -465,7 +452,7 @@ static int sndmod_untl_process(void *ctx, fmed_filt *d)
 	if (d->flags & FMED_FLAST)
 		return FMED_RDONE;
 
-	if (FMED_NULL == (int64)(pos = fmed_getval("current_position")))
+	if (FMED_NULL == (int64)(pos = d->audio.pos))
 		return FMED_RDONE;
 
 	if (u->asis) {
@@ -509,13 +496,13 @@ static void* sndmod_peaks_open(fmed_filt *d)
 	if (p == NULL)
 		return NULL;
 
-	p->nch = fmed_getval("pcm_channels");
+	p->nch = d->audio.fmt.channels;
 	if (p->nch > 2) {
 		ffmem_free(p);
 		return NULL;
 	}
 
-	p->do_crc = (1 == fmed_getval("pcm_crc"));
+	p->do_crc = d->pcm_peaks_crc;
 	return p;
 }
 
@@ -538,8 +525,8 @@ static int sndmod_peaks_process(void *ctx, fmed_filt *d)
 		return FMED_RMORE;
 
 	case 1:
-		if (1 == fmed_getval("pcm_ileaved")
-			|| FFPCM_16LE != fmed_getval("pcm_format")) {
+		if (d->audio.fmt.ileaved
+			|| d->audio.fmt.format != FFPCM_16LE) {
 			errlog(core, d->trk, "peaks", "input must be non-interleaved 16LE PCM");
 			return FMED_RERR;
 		}
@@ -608,10 +595,7 @@ static void* sndmod_rtpeak_open(fmed_filt *d)
 	sndmod_rtpeak *p = ffmem_tcalloc1(sndmod_rtpeak);
 	if (p == NULL)
 		return NULL;
-	p->fmt.format = fmed_getval("pcm_format");
-	p->fmt.channels = fmed_getval("pcm_channels");
-	p->fmt.sample_rate = fmed_getval("pcm_sample_rate");
-	p->fmt.ileaved = (1 == fmed_getval("pcm_ileaved"));
+	p->fmt = d->audio.fmt;
 	float t;
 	if (0 != ffpcm_peak(&p->fmt, NULL, 0, &t)) {
 		errlog(core, d->trk, "rtpeak", "ffpcm_peak(): unsupported format");

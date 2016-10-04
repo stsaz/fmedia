@@ -116,17 +116,16 @@ static int mpeg_config(ffpars_ctx *ctx)
 
 static void* mpeg_open(fmed_filt *d)
 {
-	int64 total_size;
 	fmed_mpeg *m = ffmem_tcalloc1(fmed_mpeg);
 	if (m == NULL)
 		return NULL;
 	ffmpg_init(&m->mpg);
-	if (FMED_NULL != fmed_getval("total_size"))
-		m->mpg.options = FFMPG_O_ID3V2 | FFMPG_O_APETAG | FFMPG_O_ID3V1;
 	m->mpg.codepage = core->getval("codepage");
 
-	if (FMED_NULL != (total_size = fmed_getval("total_size")))
-		m->mpg.total_size = total_size;
+	if ((int64)d->input.size != FMED_NULL) {
+		m->mpg.total_size = d->input.size;
+		m->mpg.options = FFMPG_O_ID3V2 | FFMPG_O_APETAG | FFMPG_O_ID3V1;
+	}
 	return m;
 }
 
@@ -201,7 +200,7 @@ static int mpeg_copy_read(fmed_mpeg *m, fmed_filt *d)
 		return FMED_RMORE;
 
 	case FFMPG_RSEEK:
-		fmed_setval("input_seek", m->mpg.off);
+		d->input.seek = m->mpg.off;
 		return FMED_RMORE;
 
 	case FFMPG_RWARN:
@@ -219,18 +218,18 @@ data:
 	if (!m->fmt_set) {
 		m->fmt_set = 1;
 		m->mpg.fmt.format = FFPCM_16;
-		fmed_setpcm(d, (void*)&m->mpg.fmt);
+		ffpcm_fmtcopy(&d->audio.fmt, &m->mpg.fmt);
 		fmed_setval("bitrate", ffmpg_bitrate(&m->mpg));
-		fmed_setval("total_samples", m->mpg.total_samples);
+		d->audio.total = m->mpg.total_samples;
 
-		int64 seek_time, samples;
-		if (FMED_NULL != (seek_time = fmed_popval("seek_time"))) {
-			samples = ffpcm_samples(seek_time, m->mpg.fmt.sample_rate);
+		if ((int64)d->audio.seek != FMED_NULL) {
+			int64 samples = ffpcm_samples(d->audio.seek, m->mpg.fmt.sample_rate);
 			ffmpg_seek(&m->mpg, samples);
+			d->audio.seek = FMED_NULL;
 		}
 	}
 
-	d->track->setval(d->trk, "current_position", ffmpg_cursample(&m->mpg));
+	d->audio.pos = ffmpg_cursample(&m->mpg);
 	dbglog(core, d->trk, NULL, "passed %L bytes", m->mpg.datalen);
 	d->data = m->mpg.data,  d->datalen = m->mpg.datalen;
 	ffstr s = ffmpg_framedata(&m->mpg);
@@ -243,7 +242,6 @@ static int mpeg_process(void *ctx, fmed_filt *d)
 	enum { I_CHK_ASIS, I_HDR, I_DATA, I_ASIS };
 	fmed_mpeg *m = ctx;
 	int r;
-	int64 seek_time;
 
 	if (d->flags & FMED_FSTOP) {
 		d->outlen = 0;
@@ -271,8 +269,10 @@ again:
 		break;
 
 	case I_DATA:
-		if (FMED_NULL != (seek_time = fmed_popval("seek_time")))
-			ffmpg_seek(&m->mpg, ffpcm_samples(seek_time, m->mpg.fmt.sample_rate));
+		if ((int64)d->audio.seek != FMED_NULL) {
+			ffmpg_seek(&m->mpg, ffpcm_samples(d->audio.seek, m->mpg.fmt.sample_rate));
+			d->audio.seek = FMED_NULL;
+		}
 		break;
 	}
 
@@ -297,11 +297,12 @@ again:
 		case FFMPG_RHDR:
 			dbglog(core, d->trk, NULL, "preset:%s  tool:%s  xing-frames:%u"
 				, ffmpg_isvbr(&m->mpg) ? "VBR" : "CBR", m->mpg.lame.id, m->mpg.xing.frames);
-			fmed_setpcm(d, (void*)&m->mpg.fmt);
+			ffpcm_fmtcopy(&d->audio.fmt, &m->mpg.fmt);
+
 			d->track->setvalstr(d->trk, "pcm_decoder", "MPEG");
-			fmed_setval("pcm_ileaved", m->mpg.fmt.ileaved);
+			d->audio.fmt.ileaved = m->mpg.fmt.ileaved;
 			fmed_setval("bitrate", ffmpg_bitrate(&m->mpg));
-			fmed_setval("total_samples", m->mpg.total_samples);
+			d->audio.total = m->mpg.total_samples;
 			m->state = I_DATA;
 			goto again;
 
@@ -310,7 +311,7 @@ again:
 			break;
 
 		case FFMPG_RSEEK:
-			fmed_setval("input_seek", ffmpg_seekoff(&m->mpg));
+			d->input.seek = ffmpg_seekoff(&m->mpg);
 			return FMED_RMORE;
 
 		case FFMPG_RWARN:
@@ -341,7 +342,7 @@ data:
 	else
 		d->outni = (void**)m->mpg.pcm;
 	d->outlen = m->mpg.pcmlen;
-	fmed_setval("current_position", ffmpg_cursample(&m->mpg));
+	d->audio.pos = ffmpg_cursample(&m->mpg);
 
 	dbglog(core, d->trk, "mpeg", "output: %L PCM samples"
 		, d->outlen / ffpcm_size1(&m->mpg.fmt));
@@ -426,7 +427,7 @@ static int mpeg_out_copy(mpeg_out *m, fmed_filt *d)
 			goto data;
 
 		case FFMPG_RSEEK:
-			fmed_setval("output_seek", ffmpg_enc_seekoff(&m->mpg));
+			d->output.seek = ffmpg_enc_seekoff(&m->mpg);
 			break;
 
 		case FFMPG_RDONE:
@@ -456,14 +457,12 @@ static int mpeg_out_process(void *ctx, fmed_filt *d)
 	switch (m->state) {
 	case 0:
 	case 1:
-		pcm.format = (int)fmed_getval("pcm_format");
-		pcm.sample_rate = (int)fmed_getval("pcm_sample_rate");
-		pcm.channels = (int)fmed_getval("pcm_channels");
+		ffpcm_fmtcopy(&pcm, &d->audio.fmt);
+		m->mpg.ileaved = d->audio.fmt.ileaved;
 
 		if (FMED_NULL == (qual = (int)fmed_getval("mpeg-quality")))
 			qual = mpeg_out_conf.qual;
 
-		m->mpg.ileaved = fmed_getval("pcm_ileaved");
 		if (0 != (r = ffmpg_create(&m->mpg, &pcm, qual))) {
 
 			if (r == FFMPG_EFMT && m->state == 0) {
@@ -512,7 +511,7 @@ static int mpeg_out_process(void *ctx, fmed_filt *d)
 			break;
 
 		case FFMPG_RSEEK:
-			fmed_setval("output_seek", ffmpg_enc_seekoff(&m->mpg));
+			d->output.seek = ffmpg_enc_seekoff(&m->mpg);
 			break;
 
 		case FFMPG_RDONE:

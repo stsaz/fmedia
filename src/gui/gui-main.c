@@ -847,8 +847,8 @@ void gui_newtrack(gui_trk *g, fmed_filt *d, fmed_que_entry *plid)
 		, (int)((d->track->getval(d->trk, "bitrate") + 500) / 1000)
 		, (FMED_PNULL != (sval = d->track->getvalstr(d->trk, "pcm_decoder"))) ? sval : ""
 		, g->sample_rate
-		, ffpcm_bits(d->track->getval(d->trk, "pcm_format"))
-		, ffpcm_channelstr((int)d->track->getval(d->trk, "pcm_channels")));
+		, ffpcm_bits(d->audio.fmt.format)
+		, ffpcm_channelstr(d->audio.fmt.channels));
 	ffui_view_settext(&it, buf, n);
 	ffui_view_set(&gg->wmain.vlist, H_INF, &it);
 

@@ -207,9 +207,7 @@ static void* dsnd_open(fmed_filt *d)
 
 	ds->snd.handler = &dsnd_onplay;
 	ds->snd.udata = ds;
-	fmt.format = (int)d->track->getval(d->trk, "pcm_format");
-	fmt.channels = (int)d->track->getval(d->trk, "pcm_channels");
-	fmt.sample_rate = (int)d->track->getval(d->trk, "pcm_sample_rate");
+	ffpcm_fmtcopy(&fmt, &d->audio.fmt);
 	e = ffdsnd_open(&ds->snd, dev->id, &fmt, dsnd_out_conf.buflen);
 
 	ffdsnd_devenumfree(dhead);
@@ -247,21 +245,22 @@ static int dsnd_write(void *ctx, fmed_filt *d)
 	}
 
 	if (!ds->ileaved) {
-		int il = (int)fmed_getval("pcm_ileaved");
-		if (il != 1) {
+		if (!d->audio.fmt.ileaved) {
 			fmed_setval("conv_pcm_ileaved", 1);
 			return FMED_RMORE;
 		}
 		ds->ileaved = 1;
 	}
 
-	if (1 == d->track->popval(d->trk, "snd_output_clear")) {
+	if (d->snd_output_clear) {
+		d->snd_output_clear = 0;
 		ffdsnd_pause(&ds->snd);
 		ffdsnd_clear(&ds->snd);
 		return FMED_RMORE;
 	}
 
-	if (1 == d->track->popval(d->trk, "snd_output_pause")) {
+	if (d->snd_output_pause) {
+		d->snd_output_pause = 0;
 		d->track->cmd(d->trk, FMED_TRACK_PAUSE);
 		ffdsnd_pause(&ds->snd);
 		return FMED_RMORE;
@@ -333,9 +332,7 @@ static void* dsnd_in_open(fmed_filt *d)
 
 	ds->snd.handler = &dsnd_in_onplay;
 	ds->snd.udata = ds;
-	fmt.format = (int)d->track->getval(d->trk, "pcm_format");
-	fmt.channels = (int)d->track->getval(d->trk, "pcm_channels");
-	fmt.sample_rate = (int)d->track->getval(d->trk, "pcm_sample_rate");
+	ffpcm_fmtcopy(&fmt, &d->audio.fmt);
 	r = ffdsnd_capt_open(&ds->snd, dev->id, &fmt, dsnd_in_conf.buflen);
 
 	ffdsnd_devenumfree(dhead);
@@ -353,7 +350,7 @@ static void* dsnd_in_open(fmed_filt *d)
 
 	dbglog(core, d->trk, "dsound", "opened capture buffer %u bytes", ds->snd.bufsize);
 
-	fmed_setval("pcm_ileaved", 1);
+	d->audio.fmt.ileaved = 1;
 	return ds;
 
 fail:

@@ -1,7 +1,7 @@
-/** fmedia config.
+/** fmedia terminal startup.
 Copyright (c) 2015 Simon Zolin */
 
-#include <core.h>
+#include <core-cmd.h>
 
 #include <FF/audio/pcm.h>
 #include <FF/data/psarg.h>
@@ -14,10 +14,10 @@ Copyright (c) 2015 Simon Zolin */
 #include <FFOS/process.h>
 
 
-static fmedia *fmed;
+static fmed_cmd *fmed;
 static fmed_core *core;
 
-FF_IMP fmed_core* core_init(fmedia **ptr);
+FF_IMP fmed_core* core_init(fmed_cmd **ptr);
 FF_IMP void core_free(void);
 
 static int fmed_cmdline(int argc, char **argv, uint main_only);
@@ -41,62 +41,71 @@ static const fmed_log std_logger = {
 
 
 static const ffpars_arg fmed_cmdline_args[] = {
-	{ "",  FFPARS_TSTR | FFPARS_FCOPY | FFPARS_FNOTEMPTY | FFPARS_FSTRZ | FFPARS_FMULTI,  FFPARS_DST(&fmed_arg_infile) }
+	{ "",	FFPARS_TSTR | FFPARS_FCOPY | FFPARS_FNOTEMPTY | FFPARS_FSTRZ | FFPARS_FMULTI,  FFPARS_DST(&fmed_arg_infile) },
 
-	, { "mix",  FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmedia, mix) }
-	, { "repeat-all",  FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmedia, repeat_all) }
-	, { "seek",  FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_seek) }
-	, { "fseek",  FFPARS_TINT | FFPARS_F64BIT,  FFPARS_DSTOFF(fmedia, fseek) }
-	, { "until",  FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_seek) }
-	, { "track",  FFPARS_TCHARPTR | FFPARS_FCOPY | FFPARS_FNOTEMPTY | FFPARS_FSTRZ,  FFPARS_DSTOFF(fmedia, trackno) }
-	, { "volume",  FFPARS_TINT | FFPARS_F8BIT,  FFPARS_DSTOFF(fmedia, volume) }
-	, { "gain",  FFPARS_TFLOAT | FFPARS_FSIGN,  FFPARS_DSTOFF(fmedia, gain) }
+	//QUEUE
+	{ "repeat-all",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, repeat_all) },
+	{ "track",	FFPARS_TCHARPTR | FFPARS_FCOPY | FFPARS_FNOTEMPTY | FFPARS_FSTRZ,  FFPARS_DSTOFF(fmed_cmd, trackno) },
 
-	, { "info",  FFPARS_SETVAL('i') | FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmedia, info) }
-	, { "tags",  FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmedia, tags) }
+	//AUDIO DEVICES
+	{ "list-dev",	FFPARS_TBOOL | FFPARS_FALONE,  FFPARS_DST(&fmed_arg_listdev) },
+	{ "dev",	FFPARS_TINT,  FFPARS_DSTOFF(fmed_cmd, playdev_name) },
+	{ "dev-capture",	FFPARS_TINT,  FFPARS_DSTOFF(fmed_cmd, captdev_name) },
 
-	, { "out",  FFPARS_SETVAL('o') | FFPARS_TSTR | FFPARS_FCOPY | FFPARS_FNOTEMPTY | FFPARS_FSTRZ,  FFPARS_DSTOFF(fmedia, outfn) }
-	, { "outdir",  FFPARS_TSTR | FFPARS_FCOPY | FFPARS_FNOTEMPTY | FFPARS_FSTRZ,  FFPARS_DSTOFF(fmedia, outdir) }
+	//AUDIO FORMAT
+	{ "format",	FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_format) },
+	{ "rate",	FFPARS_TINT,  FFPARS_DSTOFF(fmed_cmd, out_rate) },
+	{ "channels",	FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_channels) },
 
-	, { "record",  FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmedia, rec) }
+	//INPUT
+	{ "record",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, rec) },
+	{ "mix",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, mix) },
+	{ "seek",	FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_seek) },
+	{ "until",	FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_seek) },
+	{ "fseek",	FFPARS_TINT | FFPARS_F64BIT,  FFPARS_DSTOFF(fmed_cmd, fseek) },
+	{ "info",	FFPARS_SETVAL('i') | FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, info) },
+	{ "tags",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, tags) },
+	{ "meta",	FFPARS_TSTR | FFPARS_FCOPY | FFPARS_FSTRZ,  FFPARS_DSTOFF(fmed_cmd, meta) },
 
-	, { "list-dev",  FFPARS_TBOOL | FFPARS_FALONE,  FFPARS_DST(&fmed_arg_listdev) }
-	, { "dev",  FFPARS_TINT,  FFPARS_DSTOFF(fmedia, playdev_name) }
-	, { "dev-capture",  FFPARS_TINT,  FFPARS_DSTOFF(fmedia, captdev_name) }
+	//FILTERS
+	{ "volume",	FFPARS_TINT | FFPARS_F8BIT,  FFPARS_DSTOFF(fmed_cmd, volume) },
+	{ "gain",	FFPARS_TFLOAT | FFPARS_FSIGN,  FFPARS_DSTOFF(fmed_cmd, gain) },
+	{ "pcm-peaks",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, pcm_peaks) },
+	{ "pcm-crc",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, pcm_crc) },
 
-	, { "format",  FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_format) }
-	, { "rate",  FFPARS_TINT,  FFPARS_DSTOFF(fmedia, out_rate) }
-	, { "channels",  FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_channels) }
+	//ENCODING
+	{ "ogg-quality",	FFPARS_TFLOAT | FFPARS_FSIGN,  FFPARS_DSTOFF(fmed_cmd, ogg_qual) },
+	{ "mpeg-quality",	FFPARS_TINT | FFPARS_F16BIT,  FFPARS_DSTOFF(fmed_cmd, mpeg_qual) },
+	{ "aac-quality",	FFPARS_TINT,  FFPARS_DSTOFF(fmed_cmd, aac_qual) },
+	{ "flac-compression",	FFPARS_TINT | FFPARS_F8BIT,  FFPARS_DSTOFF(fmed_cmd, flac_complevel) },
+	{ "stream-copy",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, stream_copy) },
 
-	, { "ogg-quality",  FFPARS_TFLOAT | FFPARS_FSIGN,  FFPARS_DSTOFF(fmedia, ogg_qual) }
-	, { "mpeg-quality",  FFPARS_TINT | FFPARS_F16BIT,  FFPARS_DSTOFF(fmedia, mpeg_qual) }
-	, { "aac-quality",  FFPARS_TINT,  FFPARS_DSTOFF(fmedia, aac_qual) }
-	, { "flac-compression",  FFPARS_TINT | FFPARS_F8BIT,  FFPARS_DSTOFF(fmedia, flac_complevel) }
-	, { "stream-copy",  FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmedia, stream_copy) }
-	, { "out-copy",  FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmedia, out_copy) }
-	, { "cue-gaps",  FFPARS_TINT | FFPARS_F8BIT,  FFPARS_DSTOFF(fmedia, cue_gaps) }
-	, { "pcm-crc",  FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmedia, pcm_crc) }
-	, { "pcm-peaks",  FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmedia, pcm_peaks) }
-	, { "preserve-date",  FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmedia, preserve_date) }
-	, { "meta",  FFPARS_TSTR | FFPARS_FCOPY | FFPARS_FSTRZ,  FFPARS_DSTOFF(fmedia, meta) }
+	//OUTPUT
+	{ "out",	FFPARS_SETVAL('o') | FFPARS_TSTR | FFPARS_FCOPY | FFPARS_FNOTEMPTY | FFPARS_FSTRZ,  FFPARS_DSTOFF(fmed_cmd, outfn) },
+	{ "outdir",	FFPARS_TSTR | FFPARS_FCOPY | FFPARS_FNOTEMPTY | FFPARS_FSTRZ,  FFPARS_DSTOFF(fmed_cmd, outdir) },
+	{ "overwrite",	FFPARS_SETVAL('y') | FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, overwrite) },
+	{ "out-copy",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, out_copy) },
+	{ "preserve-date",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, preserve_date) },
 
-	, { "overwrite",  FFPARS_SETVAL('y') | FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmedia, overwrite) }
-	, { "notui",  FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmedia, silent) }
-	, { "gui",  FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmedia, gui) }
-	, { "print-time",  FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmedia, print_time) }
-	, { "debug",  FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmedia, debug) }
-	, { "help",  FFPARS_SETVAL('h') | FFPARS_TBOOL | FFPARS_FALONE,  FFPARS_DST(&fmed_arg_usage) }
-	,
-	{ "install",  FFPARS_TBOOL | FFPARS_FALONE,  FFPARS_DST(&fmed_arg_install) },
-	{ "uninstall",  FFPARS_TBOOL | FFPARS_FALONE,  FFPARS_DST(&fmed_arg_install) },
+	//OTHER OPTIONS
+	{ "notui",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, notui) },
+	{ "gui",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, gui) },
+	{ "print-time",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, print_time) },
+	{ "debug",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, debug) },
+	{ "help",	FFPARS_SETVAL('h') | FFPARS_TBOOL | FFPARS_FALONE,  FFPARS_DST(&fmed_arg_usage) },
+	{ "cue-gaps",	FFPARS_TINT | FFPARS_F8BIT,  FFPARS_DSTOFF(fmed_cmd, cue_gaps) },
+
+	//INSTALL
+	{ "install",	FFPARS_TBOOL | FFPARS_FALONE,  FFPARS_DST(&fmed_arg_install) },
+	{ "uninstall",	FFPARS_TBOOL | FFPARS_FALONE,  FFPARS_DST(&fmed_arg_install) },
 };
 
 static const ffpars_arg fmed_cmdline_main_args[] = {
 	{ "",	FFPARS_TSTR | FFPARS_FMULTI,  FFPARS_DST(&fmed_arg_skip) },
 	{ "*",	FFPARS_TSTR | FFPARS_FMULTI,  FFPARS_DST(&fmed_arg_skip) },
-	{ "notui",  FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmedia, silent) },
-	{ "gui",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmedia, gui) },
-	{ "debug",  FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmedia, debug) },
+	{ "notui",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, notui) },
+	{ "gui",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, gui) },
+	{ "debug",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, debug) },
 	{ "help",	FFPARS_SETVAL('h') | FFPARS_TBOOL | FFPARS_FALONE,  FFPARS_DST(&fmed_arg_usage) },
 };
 
@@ -150,7 +159,7 @@ static int fmed_arg_listdev(void)
 
 static int fmed_arg_format(ffparser_schem *p, void *obj, ffstr *val)
 {
-	fmedia *conf = obj;
+	fmed_cmd *conf = obj;
 	int r;
 	if (0 > (r = ffpcm_fmt(val->ptr, val->len)))
 		return FFPARS_EBADVAL;
@@ -160,7 +169,7 @@ static int fmed_arg_format(ffparser_schem *p, void *obj, ffstr *val)
 
 static int fmed_arg_channels(ffparser_schem *p, void *obj, ffstr *val)
 {
-	fmedia *conf = obj;
+	fmed_cmd *conf = obj;
 	int r;
 	if (0 > (r = ffpcm_channels(val->ptr, val->len)))
 		return FFPARS_EBADVAL;
@@ -279,7 +288,7 @@ static void std_log(uint flags, fmed_logdata *ld)
 	*s++ = '\n';
 
 	uint lev = flags & _FMED_LOG_LEVMASK;
-	fffd fd = (lev == FMED_LOG_DEBUG || lev == FMED_LOG_INFO) ? ffstdout : ffstderr;
+	fffd fd = (lev > FMED_LOG_WARN) ? ffstdout : ffstderr;
 	ffstd_write(fd, buf, s - buf);
 }
 
@@ -327,6 +336,39 @@ static int open_input_wcard(const fmed_queue *qu, char *src)
 }
 #endif
 
+static void qu_setval(const fmed_queue *qu, fmed_que_entry *qe, const char *name, int64 val)
+{
+	qu->meta_set(qe, name, ffsz_len(name), (void*)&val, sizeof(int64), FMED_QUE_TRKDICT | FMED_QUE_NUM);
+}
+
+static void trk_prep(fmed_trk *trk)
+{
+	trk->input_info = fmed->info;
+	if (fmed->fseek != 0)
+		trk->input.seek = fmed->fseek;
+	if (fmed->seek_time != 0)
+		trk->audio.seek = fmed->seek_time;
+	if (fmed->until_time != 0)
+		trk->audio.until = fmed->until_time;
+
+	trk->out_overwrite = fmed->overwrite;
+	trk->out_preserve_date = fmed->preserve_date;
+
+	trk->pcm_peaks_crc = fmed->pcm_crc;
+
+	if (fmed->volume != 100) {
+		double db;
+		if (fmed->volume < 100)
+			db = ffpcm_vol2db(fmed->volume, 48);
+		else
+			db = ffpcm_vol2db_inc(fmed->volume - 100, 25, 6);
+		trk->audio.gain = db * 100;
+	}
+
+	if (fmed->gain != 0)
+		trk->audio.gain = fmed->gain * 100;
+}
+
 static int open_input(void)
 {
 	char **pfn;
@@ -335,6 +377,12 @@ static int open_input(void)
 	uint added = 0;
 	if (NULL == (qu = core->getmod("#queue.queue")))
 		goto end;
+	if (NULL == (track = core->getmod("#core.track")))
+		goto end;
+
+	fmed_trk trkinfo;
+	track->copy_info(&trkinfo, NULL);
+	trk_prep(&trkinfo);
 
 	FFARR_WALK(&fmed->in_files, pfn) {
 
@@ -346,11 +394,41 @@ static int open_input(void)
 		}
 #endif
 
-		fmed_que_entry e;
+		fmed_que_entry e, *qe;
 		ffmem_tzero(&e);
 		ffstr_setz(&e.url, *pfn);
-		qu->add(&e);
+		qe = qu->add(&e);
 		ffmem_free(*pfn);
+
+		track->copy_info(qe->trk, &trkinfo);
+
+		if (fmed->trackno != NULL) {
+			qu->meta_set(qe, FFSTR("input_trackno"), fmed->trackno, ffsz_len(fmed->trackno), FMED_QUE_TRKDICT);
+			ffmem_free0(fmed->trackno);
+		}
+
+		if (fmed->playdev_name != 0)
+			qu_setval(qu, qe, "playdev_name", fmed->playdev_name);
+
+		if (fmed->out_format != 0)
+			qu_setval(qu, qe, "conv_pcm_format", fmed->out_format);
+		if (fmed->out_channels != 0)
+			qu_setval(qu, qe, "conv_channels", fmed->out_channels);
+		if (fmed->out_rate != 0)
+			qu_setval(qu, qe, "conv_pcm_rate", fmed->out_rate);
+
+		if (fmed->ogg_qual != -255)
+			qu_setval(qu, qe, "ogg-quality", fmed->ogg_qual * 10);
+		else if (fmed->mpeg_qual != 0xffff)
+			qu_setval(qu, qe, "mpeg-quality", fmed->mpeg_qual);
+		else if (fmed->aac_qual != (uint)-1)
+			qu_setval(qu, qe, "aac-quality", fmed->aac_qual);
+		else if (fmed->flac_complevel != 0xff)
+			qu_setval(qu, qe, "flac_complevel", fmed->flac_complevel);
+
+		if (fmed->rec)
+			qu_setval(qu, qe, "low_latency", 1);
+
 		added++;
 	}
 	ffarr_free(&fmed->in_files);
@@ -364,14 +442,21 @@ static int open_input(void)
 
 	if (fmed->rec) {
 		void *trk;
-		if (NULL == (track = core->getmod("#core.track")))
-			goto end;
 		if (NULL == (trk = track->create(FMED_TRACK_REC, NULL)))
 			goto end;
+		fmed_trk *ti = track->conf(trk);
+		ffpcmex fmt = ti->audio.fmt;
+		track->copy_info(ti, &trkinfo);
+		ti->audio.fmt = fmt;
 
-		if (fmed->outfn.len != 0) {
+		if (fmed->captdev_name != 0)
+			track->setval(trk, "capture_device", fmed->captdev_name);
+
+		if (fmed->outfn.len != 0)
 			track->setvalstr(trk, "output", fmed->outfn.ptr);
-		}
+
+		if (fmed->rec)
+			track->setval(trk, "low_latency", 1);
 
 		track->cmd(trk, FMED_TRACK_START);
 	}

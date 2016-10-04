@@ -26,6 +26,7 @@ typedef struct gtui {
 static gtui *gt;
 
 typedef struct tui {
+	fmed_filt *d;
 	void *trk;
 	uint64 total_samples;
 	uint64 played_samples;
@@ -197,17 +198,17 @@ static void* tui_open(fmed_filt *d)
 	if (t == NULL)
 		return NULL;
 	t->lastpos = (uint)-1;
+	t->d = d;
 
-	int type = fmed_getval("type");
-	if (type == FMED_TRK_TYPE_REC) {
+	if (d->type == FMED_TRK_TYPE_REC) {
 		t->rec = 1;
 		t->maxdb = -MINDB;
 	}
 
-	t->total_samples = d->track->getval(d->trk, "total_samples");
+	t->total_samples = d->audio.total;
 	tui_info(t, d);
 
-	if (FMED_NULL != d->track->getval(d->trk, "input_info")) {
+	if (d->input_info) {
 		tui_close(t);
 		return FMED_FILT_DUMMY;
 	}
@@ -258,7 +259,7 @@ static void tui_info(tui *t, fmed_filt *d)
 	ffpcm fmt;
 	fmed_que_entry *qent;
 
-	fmed_getpcm(d, &fmt);
+	ffpcm_fmtcopy(&fmt, &d->audio.fmt);
 	t->sample_rate = fmt.sample_rate;
 	t->sampsize = ffpcm_size1(&fmt);
 
@@ -271,9 +272,7 @@ static void tui_info(tui *t, fmed_filt *d)
 	tmsec = (uint)(total_time / 1000);
 	t->total_time_sec = tmsec;
 
-	tsize = d->track->getval(d->trk, "total_size");
-	if ((int64)tsize == FMED_NULL)
-		tsize = 0;
+	tsize = ((int64)d->input.size != FMED_NULL) ? d->input.size : 0;
 
 	if (NULL != (tstr = gt->qu->meta_find(qent, "artist", -1)))
 		artist = *tstr;
@@ -303,7 +302,7 @@ static void tui_info(tui *t, fmed_filt *d)
 
 static void tui_seek(tui *t, uint cmd, void *udata)
 {
-	int64 pos = ffpcm_time(gt->track->getval(t->trk, "current_position"), t->sample_rate);
+	int64 pos = (uint64)t->lastpos * 1000;
 	uint by;
 	switch ((size_t)udata & FFKEY_MODMASK) {
 	case 0:
@@ -322,8 +321,8 @@ static void tui_seek(tui *t, uint cmd, void *udata)
 		pos += by;
 	else
 		pos = ffmax(pos - by, 0);
-	gt->track->setval(t->trk, "seek_time", pos);
-	gt->track->setval(t->trk, "snd_output_clear", 1);
+	t->d->audio.seek = pos;
+	t->d->snd_output_clear = 1;
 	t->goback = 1;
 }
 
@@ -345,7 +344,7 @@ static void tui_vol(tui *t, uint cmd)
 		db = ffpcm_vol2db(gt->vol, VOL_LO) * 100;
 	else
 		db = ffpcm_vol2db_inc(gt->vol - 100, VOL_MAX - 100, VOL_HI) * 100;
-	gt->track->setval(t->trk, "gain", db);
+	t->d->audio.gain = db;
 	fffile_fmt(ffstdout, NULL, "Volume: %.02FdB\n", (double)db / 100);
 }
 
@@ -388,7 +387,7 @@ static int tui_process(void *ctx, fmed_filt *d)
 	int64 playpos;
 	uint playtime;
 	uint dots = 70;
-	int pk, val;
+	int pk;
 
 	if (ctx == FMED_FILT_DUMMY)
 		return FMED_RFIN;
@@ -400,14 +399,15 @@ static int tui_process(void *ctx, fmed_filt *d)
 		return FMED_RMORE;
 	}
 
-	if (FMED_NULL != (val = fmed_popval("meta-changed"))) {
+	if (d->meta_changed) {
+		d->meta_changed = 0;
 		tui_info(t, d);
 	}
 
-	if (core->loglev & FMED_LOG_DEBUG)
+	if (core->loglev == FMED_LOG_DEBUG)
 		nback = 0;
 
-	if (FMED_NULL == (playpos = fmed_getval("current_position")))
+	if (FMED_NULL == (playpos = d->audio.pos))
 		playpos = t->played_samples;
 	playtime = (uint)(ffpcm_time(playpos, t->sample_rate) / 1000);
 	if (playtime == t->lastpos) {
@@ -489,12 +489,12 @@ static void tui_op(uint cmd)
 
 		if (gt->curtrk->paused) {
 			gt->curtrk->paused = 0;
-			gt->track->popval(gt->curtrk->trk, "snd_output_pause");
+			gt->curtrk->d->snd_output_pause = 0;
 			gt->track->cmd(gt->curtrk->trk, FMED_TRACK_UNPAUSE);
 			break;
 		}
 
-		gt->track->setval(gt->curtrk->trk, "snd_output_pause", 1);
+		gt->curtrk->d->snd_output_pause = 1;
 		gt->curtrk->paused = 1;
 		break;
 
