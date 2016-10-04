@@ -16,6 +16,7 @@ struct file_in_conf_t {
 	uint nbufs;
 	size_t bsize;
 	size_t align;
+	byte directio;
 };
 
 struct file_out_conf_t {
@@ -102,6 +103,7 @@ static const ffpars_arg file_in_conf_args[] = {
 	{ "buffer_size",  FFPARS_TSIZE | FFPARS_FNOTZERO,  FFPARS_DSTOFF(struct file_in_conf_t, bsize) }
 	, { "buffers",  FFPARS_TINT | FFPARS_F8BIT,  FFPARS_DSTOFF(struct file_in_conf_t, nbufs) }
 	, { "align",  FFPARS_TBOOL | FFPARS_F8BIT,  FFPARS_DSTOFF(struct file_in_conf_t, align) }
+	, { "direct_io",  FFPARS_TBOOL | FFPARS_F8BIT,  FFPARS_DSTOFF(struct file_in_conf_t, directio) }
 };
 
 
@@ -168,6 +170,7 @@ static int file_conf(ffpars_ctx *ctx)
 	mod->in_conf.align = 4096;
 	mod->in_conf.bsize = 64 * 1024;
 	mod->in_conf.nbufs = 2;
+	mod->in_conf.directio = 1;
 	ffpars_setargs(ctx, &mod->in_conf, file_in_conf_args, FFCNT(file_in_conf_args));
 	return 0;
 }
@@ -187,7 +190,26 @@ static void* file_open(fmed_filt *d)
 	if (NULL == (f->data = ffmem_tcalloc(databuf, mod->in_conf.nbufs)))
 		goto done;
 
-	f->fd = fffile_opendirect(f->fn, O_RDONLY | O_NONBLOCK | O_NOATIME | FFO_NODOSNAME);
+	uint flags = O_RDONLY | O_NOATIME | O_NONBLOCK | FFO_NODOSNAME;
+	flags |= (mod->in_conf.directio) ? O_DIRECT : 0;
+	for (;;) {
+		f->fd = fffile_open(f->fn, flags);
+
+#ifdef FF_LINUX
+		if (f->fd == FF_BADFD && fferr_last() == EINVAL && (flags & O_DIRECT)) {
+			flags &= ~O_DIRECT;
+			continue;
+		}
+
+		if (f->fd == FF_BADFD && fferr_last() == EPERM && (flags & O_NOATIME)) {
+			flags &= ~O_NOATIME;
+			continue;
+		}
+#endif
+
+		break;
+	}
+
 	if (f->fd == FF_BADFD) {
 		syserrlog(core, d->trk, "file", "%e: %s", FFERR_FOPEN, f->fn);
 		goto done;
@@ -202,7 +224,7 @@ static void* file_open(fmed_filt *d)
 
 	ffaio_finit(&f->ftask, f->fd, f);
 	f->ftask.kev.udata = f;
-	if (0 != ffaio_fattach(&f->ftask, core->kq)) {
+	if (0 != ffaio_fattach(&f->ftask, core->kq, !!(flags & O_DIRECT))) {
 		syserrlog(core, d->trk, "file", "%e: %s", FFERR_KQUATT, f->fn);
 		goto done;
 	}
