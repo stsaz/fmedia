@@ -355,7 +355,7 @@ static void trk_stop(fm_trk *t, uint flags)
 {
 	trk_setval(t, "stopped", flags);
 	t->props.flags |= FMED_FSTOP;
-	if (t->state == TRK_ST_STOPPED)
+	if (t->state != TRK_ST_ACTIVE)
 		trk_free(t);
 }
 
