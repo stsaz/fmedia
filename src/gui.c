@@ -448,7 +448,7 @@ void gui_rec(uint cmd)
 
 static FFTHDCALL int gui_worker(void *param)
 {
-	char *fn, *fnconf;
+	char *fn = NULL, *fnconf = NULL;
 	ffui_loader ldr;
 	ffui_init();
 	ffui_wnd_initstyle();
@@ -456,10 +456,8 @@ static FFTHDCALL int gui_worker(void *param)
 
 	if (NULL == (fn = core->getpath(FFSTR("./fmedia.gui"))))
 		goto err;
-	if (NULL == (fnconf = ffenv_expand(NULL, 0, GUI_USRCONF))) {
-		ffmem_free(fn);
+	if (NULL == (fnconf = ffenv_expand(NULL, 0, GUI_USRCONF)))
 		goto err;
-	}
 	ldr.getctl = &gui_getctl;
 	ldr.getcmd = &gui_getcmd;
 	ldr.udata = gg;
@@ -469,14 +467,12 @@ static FFTHDCALL int gui_worker(void *param)
 		errlog(core, NULL, "gui", "%S", &msg);
 		ffui_msgdlg_show("fmedia GUI", msg.ptr, msg.len, FFUI_MSGDLG_ERR);
 		ffarr_free(&msg);
-		ffmem_free(fn);
-		ffmem_free(fnconf);
 		ffui_ldr_fin(&ldr);
 		goto err;
 	}
 	ffui_ldr_loadconf(&ldr, fnconf);
-	ffmem_free(fn);
-	ffmem_free(fnconf);
+	ffmem_free0(fn);
+	ffmem_free0(fnconf);
 	ffui_ldr_fin(&ldr);
 
 	wmain_init();
@@ -500,7 +496,8 @@ static FFTHDCALL int gui_worker(void *param)
 err:
 	gg->load_err = 1;
 	fflk_unlock(&gg->lk);
-
+	ffmem_safefree(fn);
+	ffmem_safefree(fnconf);
 done:
 	ffui_dlg_destroy(&gg->dlg);
 	ffui_wnd_destroy(&gg->wmain.wmain);
