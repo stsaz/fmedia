@@ -20,8 +20,9 @@ struct file_in_conf_t {
 
 struct file_out_conf_t {
 	size_t bsize;
-	size_t prealoc;
+	size_t prealloc;
 	uint file_del :1;
+	uint prealloc_grow :1;
 };
 
 typedef struct filemod {
@@ -65,7 +66,8 @@ typedef struct fmed_fileout {
 	fffd fd;
 	ffarr buf;
 	uint64 fsize
-		, prealocated;
+		, preallocated;
+	uint64 prealloc_by;
 	fftime modtime;
 	uint ok :1;
 } fmed_fileout;
@@ -111,7 +113,7 @@ static char* fileout_getname(fmed_fileout *f, fmed_filt *d);
 
 static const ffpars_arg file_out_conf_args[] = {
 	{ "buffer_size",  FFPARS_TSIZE | FFPARS_FNOTZERO,  FFPARS_DSTOFF(struct file_out_conf_t, bsize) }
-	, { "preallocate",  FFPARS_TSIZE | FFPARS_FNOTZERO,  FFPARS_DSTOFF(struct file_out_conf_t, prealoc) }
+	, { "preallocate",  FFPARS_TSIZE | FFPARS_FNOTZERO,  FFPARS_DSTOFF(struct file_out_conf_t, prealloc) }
 };
 
 
@@ -418,7 +420,8 @@ static void file_read(void *udata)
 static int fileout_config(ffpars_ctx *ctx)
 {
 	mod->out_conf.bsize = 64 * 1024;
-	mod->out_conf.prealoc = 2 * 1024 * 1024;
+	mod->out_conf.prealloc = 1 * 1024 * 1024;
+	mod->out_conf.prealloc_grow = 1;
 	mod->out_conf.file_del = 1;
 	ffpars_setargs(ctx, &mod->out_conf, file_out_conf_args, FFCNT(file_out_conf_args));
 	return 0;
@@ -563,13 +566,14 @@ static void* fileout_open(fmed_filt *d)
 
 	if ((int64)d->output.size != FMED_NULL) {
 		if (0 == fffile_trunc(f->fd, d->output.size))
-			f->prealocated = d->output.size;
+			f->preallocated = d->output.size;
 	}
 
 	int64 mtime;
 	if (FMED_NULL != (mtime = fmed_getval("output_time")))
 		fftime_setmcs(&f->modtime, mtime);
 
+	f->prealloc_by = mod->out_conf.prealloc;
 	return f;
 
 done:
@@ -614,9 +618,15 @@ static void fileout_close(void *ctx)
 static int fileout_writedata(fmed_fileout *f, const char *data, size_t len, fmed_filt *d)
 {
 	size_t r;
-	if (f->fsize + len > f->prealocated) {
-		if (0 == fffile_trunc(f->fd, f->prealocated + mod->out_conf.prealoc))
-			f->prealocated += mod->out_conf.prealoc;
+	if (f->fsize + len > f->preallocated) {
+		uint64 n = ff_align_ceil(f->fsize + len, f->prealloc_by);
+		if (0 == fffile_trunc(f->fd, n)) {
+
+			if (mod->out_conf.prealloc_grow)
+				f->prealloc_by += f->prealloc_by;
+
+			f->preallocated = n;
+		}
 	}
 
 	r = fffile_write(f->fd, data, len);
