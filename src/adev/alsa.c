@@ -40,6 +40,7 @@ enum { I_OPEN, I_DATA };
 static struct alsa_out_conf_t {
 	uint idev;
 	uint buflen;
+	uint nfy_rate;
 } alsa_out_conf;
 
 //FMEDIA MODULE
@@ -65,6 +66,7 @@ static const fmed_filter fmed_alsa_out = {
 static const ffpars_arg alsa_out_conf_args[] = {
 	{ "device_index",	FFPARS_TINT,  FFPARS_DSTOFF(struct alsa_out_conf_t, idev) },
 	{ "buffer_length",	FFPARS_TINT | FFPARS_FNOTZERO,  FFPARS_DSTOFF(struct alsa_out_conf_t, buflen) },
+	{ "notify_rate",	FFPARS_TINT,  FFPARS_DSTOFF(struct alsa_out_conf_t, nfy_rate) },
 };
 
 static void alsa_onplay(void *udata);
@@ -207,6 +209,7 @@ static int alsa_out_config(ffpars_ctx *ctx)
 {
 	alsa_out_conf.idev = 0;
 	alsa_out_conf.buflen = 500;
+	alsa_out_conf.nfy_rate = 0;
 	ffpars_setargs(ctx, &alsa_out_conf, alsa_out_conf_args, FFCNT(alsa_out_conf_args));
 	return 0;
 }
@@ -304,6 +307,8 @@ static int alsa_create(alsa_out *a, fmed_filt *d)
 
 	mod->out.handler = &alsa_onplay;
 	mod->out.autostart = 1;
+	if (alsa_out_conf.nfy_rate != 0)
+		mod->out.nfy_interval = ffpcm_samples(alsa_out_conf.buflen / alsa_out_conf.nfy_rate, fmt.sample_rate);
 	r = ffalsa_open(&mod->out, a->dev.id, &fmt, alsa_out_conf.buflen);
 
 	if (r != 0) {
