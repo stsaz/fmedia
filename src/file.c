@@ -70,6 +70,12 @@ typedef struct fmed_fileout {
 	uint64 prealloc_by;
 	fftime modtime;
 	uint ok :1;
+
+	struct {
+		uint nmwrite;
+		uint nfwrite;
+		uint nprealloc;
+	} stat;
 } fmed_fileout;
 
 
@@ -565,8 +571,10 @@ static void* fileout_open(fmed_filt *d)
 	}
 
 	if ((int64)d->output.size != FMED_NULL) {
-		if (0 == fffile_trunc(f->fd, d->output.size))
+		if (0 == fffile_trunc(f->fd, d->output.size)) {
 			f->preallocated = d->output.size;
+			f->stat.nprealloc++;
+		}
 	}
 
 	int64 mtime;
@@ -612,6 +620,8 @@ static void fileout_close(void *ctx)
 
 	ffstr_free(&f->fname);
 	ffarr_free(&f->buf);
+	dbglog(core, NULL, "file", "mem write#:%u  file write#:%u  prealloc#:%u"
+		, f->stat.nmwrite, f->stat.nfwrite, f->stat.nprealloc);
 	ffmem_free(f);
 }
 
@@ -626,6 +636,7 @@ static int fileout_writedata(fmed_fileout *f, const char *data, size_t len, fmed
 				f->prealloc_by += f->prealloc_by;
 
 			f->preallocated = n;
+			f->stat.nprealloc++;
 		}
 	}
 
@@ -634,6 +645,7 @@ static int fileout_writedata(fmed_fileout *f, const char *data, size_t len, fmed
 		syserrlog(core, d->trk, "file", "%e: %s", FFERR_WRITE, f->fname.ptr);
 		return -1;
 	}
+	f->stat.nfwrite++;
 
 	dbglog(core, d->trk, "file", "written %L bytes at offset %U (%L pending)", r, f->fsize, d->datalen);
 	f->fsize += r;
@@ -666,6 +678,7 @@ static int fileout_write(void *ctx, fmed_filt *d)
 			syserrlog(core, d->trk, "file", "%e: %s", FFERR_WRITE, f->fname.ptr);
 			return -1;
 		}
+		f->stat.nfwrite++;
 
 		dbglog(core, d->trk, "file", "written %L bytes at offset %U", d->datalen, seek);
 
@@ -686,6 +699,7 @@ static int fileout_write(void *ctx, fmed_filt *d)
 		d->data += r;
 		d->datalen -= r;
 		if (dst.len == 0) {
+			f->stat.nmwrite++;
 			if (!(d->flags & FMED_FLAST) || f->buf.len == 0)
 				break;
 			ffstr_set(&dst, f->buf.ptr, f->buf.len);
