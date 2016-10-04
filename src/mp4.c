@@ -101,7 +101,6 @@ static const ffpars_arg aac_out_conf_args[] = {
 
 FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 {
-	ffmem_init();
 	core = _core;
 	return &fmed_mp4_mod;
 }
@@ -119,6 +118,10 @@ static const void* mp4_iface(const char *name)
 static int mp4_sig(uint signo)
 {
 	switch (signo) {
+	case FMED_SIG_INIT:
+		ffmem_init();
+		return 0;
+
 	case FMED_OPEN:
 		qu = core->getmod("#queue.queue");
 		break;

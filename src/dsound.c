@@ -9,7 +9,6 @@ Copyright (c) 2015 Simon Zolin */
 
 
 static const fmed_core *core;
-static byte refcount;
 
 typedef struct dsnd_out {
 	ffdsnd_buf snd;
@@ -80,10 +79,7 @@ static const ffpars_arg dsnd_in_conf_args[] = {
 
 FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 {
-	ffmem_init();
 	core = _core;
-	if (refcount++ == 0 && 0 != ffdsnd_init())
-		return NULL;
 	return &fmed_dsnd_mod;
 }
 
@@ -91,13 +87,8 @@ FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 static const void* dsnd_iface(const char *name)
 {
 	if (!ffsz_cmp(name, "out")) {
-		dsnd_out_conf.idev = 0;
-		dsnd_out_conf.buflen = 500;
 		return &fmed_dsnd_out;
-
 	} else if (!ffsz_cmp(name, "in")) {
-		dsnd_in_conf.idev = 0;
-		dsnd_in_conf.buflen = 500;
 		return &fmed_dsnd_in;
 	}
 	return NULL;
@@ -106,6 +97,12 @@ static const void* dsnd_iface(const char *name)
 static int dsnd_sig(uint signo)
 {
 	switch (signo) {
+	case FMED_SIG_INIT:
+		ffmem_init();
+		if (0 != ffdsnd_init())
+			return -1;
+		return 0;
+
 	case FMED_LISTDEV:
 		return dsnd_listdev();
 	}
@@ -114,8 +111,7 @@ static int dsnd_sig(uint signo)
 
 static void dsnd_destroy(void)
 {
-	if (--refcount == 0)
-		ffdsnd_uninit();
+	ffdsnd_uninit();
 }
 
 static int dsnd_listdev(void)
@@ -181,6 +177,8 @@ static void dsnd_onplay(void *udata)
 
 static int dsnd_out_config(ffpars_ctx *ctx)
 {
+	dsnd_out_conf.idev = 0;
+	dsnd_out_conf.buflen = 500;
 	ffpars_setargs(ctx, &dsnd_out_conf, dsnd_out_conf_args, FFCNT(dsnd_out_conf_args));
 	return 0;
 }
@@ -306,6 +304,8 @@ static int dsnd_write(void *ctx, fmed_filt *d)
 
 static int dsnd_in_config(ffpars_ctx *ctx)
 {
+	dsnd_in_conf.idev = 0;
+	dsnd_in_conf.buflen = 500;
 	ffpars_setargs(ctx, &dsnd_in_conf, dsnd_in_conf_args, FFCNT(dsnd_in_conf_args));
 	return 0;
 }

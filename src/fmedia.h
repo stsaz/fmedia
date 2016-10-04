@@ -40,6 +40,7 @@ typedef struct fmed_filter fmed_filter;
 typedef const fmed_mod* (*fmed_getmod_t)(const fmed_core *core);
 
 enum FMED_SIG {
+	FMED_SIG_INIT, //initialize module data
 	FMED_OPEN
 	, FMED_CONF
 	, FMED_START

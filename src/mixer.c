@@ -115,7 +115,6 @@ static int mix_conf(ffpars_ctx *ctx)
 
 FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 {
-	ffmem_init();
 	core = _core;
 	return &fmed_mix_mod;
 }
@@ -132,6 +131,11 @@ static const void* mix_iface(const char *name)
 
 static int mix_sig(uint signo)
 {
+	switch (signo) {
+	case FMED_SIG_INIT:
+		ffmem_init();
+		return 0;
+	}
 	return 0;
 }
 

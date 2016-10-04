@@ -137,7 +137,6 @@ const fmed_mod* fmed_getmod_tui(const fmed_core *_core)
 static const void* tui_iface(const char *name)
 {
 	if (!ffsz_cmp(name, "tui")) {
-		tui_conf.echo_off = 1;
 		return &fmed_tui;
 	}
 	return NULL;
@@ -188,6 +187,7 @@ static void tui_destroy(void)
 
 static int tui_config(ffpars_ctx *conf)
 {
+	tui_conf.echo_off = 1;
 	ffpars_setargs(conf, &tui_conf, tui_conf_args, FFCNT(tui_conf_args));
 	return 0;
 }

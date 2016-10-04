@@ -59,7 +59,6 @@ static const fmed_filter fmed_raw_input = {
 
 FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 {
-	ffmem_init();
 	core = _core;
 	return &fmed_wav_mod;
 }
@@ -79,6 +78,10 @@ static const void* wav_iface(const char *name)
 static int wav_sig(uint signo)
 {
 	switch (signo) {
+	case FMED_SIG_INIT:
+		ffmem_init();
+		return 0;
+
 	case FMED_OPEN:
 		qu = core->getmod("#queue.queue");
 		break;

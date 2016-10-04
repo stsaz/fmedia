@@ -19,6 +19,13 @@ typedef struct inmap_item {
 	char ext[0];
 } inmap_item;
 
+typedef struct core_modinfo {
+	//fmed_modinfo:
+	char *name;
+	void *dl; //ffdl
+	const fmed_mod *m;
+} core_modinfo;
+
 typedef struct core_mod {
 	//fmed_modinfo:
 	char *name;
@@ -26,7 +33,6 @@ typedef struct core_mod {
 	const fmed_mod *m;
 	const fmed_filter *f;
 
-	ffstr mname;
 	fflist_item sib;
 	char name_s[0];
 } core_mod;
@@ -57,6 +63,7 @@ extern const fmed_mod* fmed_getmod_queue(const fmed_core *_core);
 
 static int core_open(void);
 static int core_sigmods(uint signo);
+static core_modinfo* core_findmod(const ffstr *name);
 static const fmed_modinfo* core_getmodinfo(const ffstr *name);
 
 static const void* core_iface(const char *name);
@@ -507,11 +514,18 @@ void core_free(void)
 	}
 
 	FFLIST_WALKSAFE(&fmed->mods, mod, sib, next) {
-		mod->m->destroy();
-		if (mod->dl != NULL)
-			ffdl_close(mod->dl);
 		ffmem_free(mod);
 	}
+
+	core_modinfo *minfo;
+	FFARR_WALKT(&fmed->bmods, minfo, core_modinfo) {
+		ffmem_safefree(minfo->name);
+		if (minfo->m != NULL)
+			minfo->m->destroy();
+		if (minfo->dl != NULL)
+			ffdl_close(minfo->dl);
+	}
+	ffarr_free(&fmed->bmods);
 
 	cmd_destroy(&fmed->cmd);
 	conf_destroy(&fmed->conf);
@@ -536,6 +550,10 @@ static const fmed_modinfo* core_insmod(const char *sname, ffpars_ctx *ctx)
 		goto fail;
 	}
 
+	core_modinfo *minfo;
+	if (NULL != (minfo = core_findmod(&s)))
+		goto iface;
+
 	if (s.ptr[0] == '#') {
 		if (ffstr_eqcz(&s, "#core"))
 			getmod = &fmed_getmod_core;
@@ -557,7 +575,7 @@ static const fmed_modinfo* core_insmod(const char *sname, ffpars_ctx *ctx)
 		char fn[FF_MAXFN];
 		ffs_fmt(fn, fn + sizeof(fn), "%S.%s%Z", &s, FFDL_EXT);
 
-		dbglog(core, NULL, "core", "loading module %s from %s", sname, fn);
+		dbglog(core, NULL, "core", "loading module %s", fn);
 
 		dl = ffdl_open(fn, 0);
 		if (dl == NULL) {
@@ -572,18 +590,27 @@ static const fmed_modinfo* core_insmod(const char *sname, ffpars_ctx *ctx)
 		}
 	}
 
-	mod->m = getmod(core);
-	if (mod->m == NULL)
+	if (NULL == ffarr_growT(&fmed->bmods, 1, 4, core_modinfo))
+		goto fail;
+	minfo = ffarr_push(&fmed->bmods, core_modinfo);
+	minfo->name = ffsz_alcopy(s.ptr, s.len);
+	minfo->dl = dl;
+	minfo->m = getmod(core);
+	if (minfo->name == NULL || minfo->m == NULL)
 		goto fail;
 
-	mod->f = mod->m->iface(modname.ptr);
+	if (0 != minfo->m->sig(FMED_SIG_INIT))
+		goto fail;
+
+iface:
+	mod->dl = dl;
+	mod->m = minfo->m;
+	mod->f = minfo->m->iface(modname.ptr);
 	if (mod->f == NULL)
 		goto fail;
 
-	mod->dl = dl;
 	ffsz_fcopy(mod->name_s, sname, sname_len);
 	mod->name = mod->name_s;
-	ffstr_set(&mod->mname, mod->name, s.len);
 	fflist_ins(&fmed->mods, &mod->sib);
 
 	if (ctx != NULL)
@@ -598,24 +625,31 @@ fail:
 	return NULL;
 }
 
+static core_modinfo* core_findmod(const ffstr *name)
+{
+	core_modinfo *mod;
+	FFARR_WALKT(&fmed->bmods, mod, core_modinfo) {
+		if (ffstr_eqz(name, mod->name))
+			return mod;
+	}
+	return NULL;
+}
+
 static const void* core_getmod(const char *name)
 {
-	core_mod *mod;
 	ffstr smod, iface;
 	ffs_split2by(name, ffsz_len(name), '.', &smod, &iface);
 
-	FFLIST_WALK(&fmed->mods, mod, sib) {
-		if (!ffstr_eq2(&smod, &mod->mname))
-			continue;
-
-		if (iface.len != 0)
-			return mod->m->iface(iface.ptr);
-
-		return (fmed_modinfo*)mod;
+	core_modinfo *mod;
+	mod = core_findmod(&smod);
+	if (mod == NULL) {
+		errlog(core, NULL, "core", "module not found: %s", name);
+		return NULL;
 	}
+	if (iface.len == 0)
+		return mod;
 
-	errlog(core, NULL, "core", "module not found: %s", name);
-	return NULL;
+	return mod->m->iface(iface.ptr);
 }
 
 static const fmed_modinfo* core_getmodinfo(const ffstr *name)
@@ -700,8 +734,8 @@ static char* core_getpath(const char *name, size_t len)
 
 static int core_sigmods(uint signo)
 {
-	core_mod *mod;
-	FFLIST_WALK(&fmed->mods, mod, sib) {
+	core_modinfo *mod;
+	FFARR_WALKT(&fmed->bmods, mod, core_modinfo) {
 		if (0 != mod->m->sig(signo))
 			return 1;
 	}

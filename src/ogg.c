@@ -77,11 +77,6 @@ static const ffpars_arg ogg_out_conf_args[] = {
 
 FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 {
-	fftime t;
-	fftime_now(&t);
-	ffrnd_seed(t.s);
-
-	ffmem_init();
 	core = _core;
 	return &fmed_ogg_mod;
 }
@@ -90,13 +85,8 @@ FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 static const void* ogg_iface(const char *name)
 {
 	if (!ffsz_cmp(name, "decode")) {
-		ogg_in_conf.seekable = 1;
 		return &fmed_ogg_input;
-
 	} else if (!ffsz_cmp(name, "encode")) {
-		ogg_out_conf.min_tag_size = 1000;
-		ogg_out_conf.page_size = 8 * 1024;
-		ogg_out_conf.qual = 5.0;
 		return &fmed_ogg_output;
 	}
 	return NULL;
@@ -105,6 +95,14 @@ static const void* ogg_iface(const char *name)
 static int ogg_sig(uint signo)
 {
 	switch (signo) {
+	case FMED_SIG_INIT: {
+		ffmem_init();
+		fftime t;
+		fftime_now(&t);
+		ffrnd_seed(t.s);
+		return 0;
+	}
+
 	case FMED_OPEN:
 		qu = core->getmod("#queue.queue");
 		break;
@@ -119,6 +117,7 @@ static void ogg_destroy(void)
 
 static int ogg_conf(ffpars_ctx *ctx)
 {
+	ogg_in_conf.seekable = 1;
 	ffpars_setargs(ctx, &ogg_in_conf, ogg_in_conf_args, FFCNT(ogg_in_conf_args));
 	return 0;
 }
@@ -334,6 +333,9 @@ data:
 
 static int ogg_out_config(ffpars_ctx *ctx)
 {
+	ogg_out_conf.min_tag_size = 1000;
+	ogg_out_conf.page_size = 8 * 1024;
+	ogg_out_conf.qual = 5.0;
 	ffpars_setargs(ctx, &ogg_out_conf, ogg_out_conf_args, FFCNT(ogg_out_conf_args));
 	return 0;
 }

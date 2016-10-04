@@ -75,7 +75,6 @@ static int plist_fullname(fmed_filt *d, const ffstr *name, ffstr *dst);
 
 FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 {
-	ffmem_init();
 	core = _core;
 	return &fmed_plist_mod;
 }
@@ -95,6 +94,10 @@ static const void* plist_iface(const char *name)
 static int plist_sig(uint signo)
 {
 	switch (signo) {
+	case FMED_SIG_INIT:
+		ffmem_init();
+		return 0;
+
 	case FMED_OPEN:
 		if (NULL == (qu = core->getmod("#queue.queue")))
 			return 1;

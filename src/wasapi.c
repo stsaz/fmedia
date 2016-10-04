@@ -109,8 +109,6 @@ static const ffpars_arg wasapi_in_conf_args[] = {
 
 FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 {
-	ffmem_init();
-	ffwas_init();
 	core = _core;
 	return &fmed_wasapi_mod;
 }
@@ -119,16 +117,8 @@ FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 static const void* wasapi_iface(const char *name)
 {
 	if (!ffsz_cmp(name, "out")) {
-		wasapi_out_conf.idev = 0;
-		wasapi_out_conf.exclusive = EXCL_DISABLED;
-		wasapi_out_conf.buflen = 500;
 		return &fmed_wasapi_out;
-
 	} else if (!ffsz_cmp(name, "in")) {
-		wasapi_in_conf.idev = 0;
-		wasapi_in_conf.exclusive = EXCL_DISABLED;
-		wasapi_in_conf.latency_autocorrect = 0;
-		wasapi_in_conf.buflen = 100;
 		return &fmed_wasapi_in;
 	}
 	return NULL;
@@ -137,6 +127,11 @@ static const void* wasapi_iface(const char *name)
 static int wasapi_sig(uint signo)
 {
 	switch (signo) {
+	case FMED_SIG_INIT:
+		ffmem_init();
+		ffwas_init();
+		return 0;
+
 	case FMED_OPEN:
 		if (NULL == (mod = ffmem_tcalloc1(wasapi_mod)))
 			return -1;
@@ -211,6 +206,9 @@ static int wasapi_devbyidx(ffwas_dev *d, uint idev, uint flags)
 
 static int wasapi_out_config(ffpars_ctx *ctx)
 {
+	wasapi_out_conf.idev = 0;
+	wasapi_out_conf.exclusive = EXCL_DISABLED;
+	wasapi_out_conf.buflen = 500;
 	ffpars_setargs(ctx, &wasapi_out_conf, wasapi_out_conf_args, FFCNT(wasapi_out_conf_args));
 	return 0;
 }
@@ -439,6 +437,10 @@ err:
 
 static int wasapi_in_config(ffpars_ctx *ctx)
 {
+	wasapi_in_conf.idev = 0;
+	wasapi_in_conf.exclusive = EXCL_DISABLED;
+	wasapi_in_conf.latency_autocorrect = 0;
+	wasapi_in_conf.buflen = 100;
 	ffpars_setargs(ctx, &wasapi_in_conf, wasapi_in_conf_args, FFCNT(wasapi_in_conf_args));
 	return 0;
 }

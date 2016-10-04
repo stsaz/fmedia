@@ -78,7 +78,6 @@ static const ffpars_arg mpeg_out_conf_args[] = {
 
 FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 {
-	ffmem_init();
 	core = _core;
 	return &fmed_mpeg_mod;
 }
@@ -96,6 +95,10 @@ static const void* mpeg_iface(const char *name)
 static int mpeg_sig(uint signo)
 {
 	switch (signo) {
+	case FMED_SIG_INIT:
+		ffmem_init();
+		return 0;
+
 	case FMED_OPEN:
 		qu = core->getmod("#queue.queue");
 		break;

@@ -149,14 +149,7 @@ static const ffpars_arg net_conf_args[] = {
 
 FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 {
-	if (net != NULL)
-		return &fmed_net_mod;
-	ffmem_init();
-	if (0 != ffskt_init(FFSKT_SIGPIPE | FFSKT_WSA | FFSKT_WSAFUNCS))
-		return NULL;
 	core = _core;
-	if (NULL == (net = ffmem_tcalloc1(netmod)))
-		return NULL;
 	return &fmed_net_mod;
 }
 
@@ -173,6 +166,14 @@ static const void* net_iface(const char *name)
 static int net_sig(uint signo)
 {
 	switch (signo) {
+	case FMED_SIG_INIT:
+		ffmem_init();
+		if (0 != ffskt_init(FFSKT_SIGPIPE | FFSKT_WSA | FFSKT_WSAFUNCS))
+			return -1;
+		if (NULL == (net = ffmem_tcalloc1(netmod)))
+			return -1;
+		return 0;
+
 	case FMED_OPEN:
 		if (NULL == (net->qu = core->getmod("#queue.queue")))
 			return 1;

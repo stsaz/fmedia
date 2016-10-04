@@ -69,7 +69,6 @@ static const ffpars_arg flac_out_conf_args[] = {
 
 FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 {
-	ffmem_init();
 	core = _core;
 	return &fmed_flac_mod;
 }
@@ -79,12 +78,7 @@ static const void* flac_iface(const char *name)
 {
 	if (!ffsz_cmp(name, "decode"))
 		return &fmed_flac_input;
-
 	else if (!ffsz_cmp(name, "encode")) {
-		flac_out_conf.level = 6;
-		flac_out_conf.md5 = 1;
-		flac_out_conf.sktab_int = 1;
-		flac_out_conf.min_meta_size = 1000;
 		return &fmed_flac_output;
 	}
 	return NULL;
@@ -93,6 +87,10 @@ static const void* flac_iface(const char *name)
 static int flac_sig(uint signo)
 {
 	switch (signo) {
+	case FMED_SIG_INIT:
+		ffmem_init();
+		return 0;
+
 	case FMED_OPEN:
 		qu = core->getmod("#queue.queue");
 		break;
@@ -256,6 +254,10 @@ data:
 
 static int flac_out_config(ffpars_ctx *conf)
 {
+	flac_out_conf.level = 6;
+	flac_out_conf.md5 = 1;
+	flac_out_conf.sktab_int = 1;
+	flac_out_conf.min_meta_size = 1000;
 	ffpars_setargs(conf, &flac_out_conf, flac_out_conf_args, FFCNT(flac_out_conf_args));
 	return 0;
 }

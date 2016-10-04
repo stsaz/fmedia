@@ -59,7 +59,6 @@ static const fmed_log gui_logger = {
 
 FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 {
-	ffmem_init();
 	core = _core;
 	return &fmed_gui_mod;
 }
@@ -509,12 +508,7 @@ done:
 static const void* gui_iface(const char *name)
 {
 	if (!ffsz_cmp(name, "gui")) {
-		if (NULL == (gg = ffmem_tcalloc1(ggui)))
-			return NULL;
-		gg->go_pos = (uint)-1;
-
 		return &fmed_gui;
-
 	} else if (!ffsz_cmp(name, "log")) {
 		return &gui_logger;
 	}
@@ -614,11 +608,19 @@ end:
 static int gui_sig(uint signo)
 {
 	switch (signo) {
+	case FMED_SIG_INIT:
+		ffmem_init();
+		if (NULL == (gg = ffmem_tcalloc1(ggui)))
+			return -1;
+		gg->go_pos = (uint)-1;
+		fflk_init(&gg->lktrk);
+		fflk_init(&gg->lk);
+		return 0;
+
 	case FMED_OPEN:
 		if (NULL == (gg->qu = core->getmod("#queue.queue"))) {
 			return 1;
 		}
-		fflk_init(&gg->lktrk);
 		gg->qu->cmd(FMED_QUE_SETONCHANGE, &gui_que_onchange);
 
 		if (NULL == (gg->track = core->getmod("#core.track"))) {

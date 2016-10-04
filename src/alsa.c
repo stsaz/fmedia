@@ -108,7 +108,6 @@ static void alsa_in_oncapt(void *udata);
 
 FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 {
-	ffmem_init();
 	core = _core;
 	return &fmed_alsa_mod;
 }
@@ -117,13 +116,8 @@ FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 static const void* alsa_iface(const char *name)
 {
 	if (!ffsz_cmp(name, "out")) {
-		alsa_out_conf.idev = 0;
-		alsa_out_conf.buflen = 500;
 		return &fmed_alsa_out;
-
 	} else if (!ffsz_cmp(name, "in")) {
-		alsa_in_conf.idev = 0;
-		alsa_in_conf.buflen = 500;
 		return &fmed_alsa_in;
 	}
 	return NULL;
@@ -132,6 +126,10 @@ static const void* alsa_iface(const char *name)
 static int alsa_sig(uint signo)
 {
 	switch (signo) {
+	case FMED_SIG_INIT:
+		ffmem_init();
+		return 0;
+
 	case FMED_OPEN:
 		if (NULL == (mod = ffmem_tcalloc1(alsa_mod)))
 			return -1;
@@ -207,6 +205,8 @@ fail:
 
 static int alsa_out_config(ffpars_ctx *ctx)
 {
+	alsa_out_conf.idev = 0;
+	alsa_out_conf.buflen = 500;
 	ffpars_setargs(ctx, &alsa_out_conf, alsa_out_conf_args, FFCNT(alsa_out_conf_args));
 	return 0;
 }
@@ -420,6 +420,8 @@ err:
 
 static int alsa_in_config(ffpars_ctx *ctx)
 {
+	alsa_in_conf.idev = 0;
+	alsa_in_conf.buflen = 500;
 	ffpars_setargs(ctx, &alsa_in_conf, alsa_in_conf_args, FFCNT(alsa_in_conf_args));
 	return 0;
 }
