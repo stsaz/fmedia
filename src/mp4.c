@@ -483,6 +483,7 @@ static int mp4_out_encode(void *ctx, fmed_filt *d)
 		m->mp.info.total_samples = d->audio.total - d->audio.pos;
 		m->mp.info.frame_samples = ffaac_enc_frame_samples(&m->aac);
 		m->mp.info.enc_delay = m->aac.info.enc_delay;
+		m->mp.info.bitrate = ffaac_bitrate(&m->aac, qual);
 		if (0 != (r = ffmp4_create_aac(&m->mp, &m->fmt, &asc))) {
 			errlog(core, d->trk, NULL, "ffmp4_create_aac(): %s", ffmp4_werrstr(&m->mp));
 			return FMED_RERR;
@@ -490,6 +491,8 @@ static int mp4_out_encode(void *ctx, fmed_filt *d)
 
 		if (0 != mp4_out_addmeta(m, d))
 			return FMED_RERR;
+
+		d->output.size = ffmp4_wsize(&m->mp);
 
 		m->state = I_ENC;
 		// break
