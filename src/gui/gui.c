@@ -689,6 +689,7 @@ static void* gtrk_open(fmed_filt *d)
 		return FMED_FILT_SKIP; //tracks being recorded are not started from "queue"
 
 	gui_newtrack(g, d, plid);
+	d->meta_changed = 0;
 
 	fflk_lock(&gg->lktrk);
 	gg->curtrk = g;

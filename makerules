@@ -9,7 +9,7 @@ ifeq ($(OS),linux)
 
 BINS += alsa.$(SO)
 
-else
+else ifeq ($(OS),win)
 #windows:
 
 BINS += direct-sound.$(SO) wasapi.$(SO) \
@@ -25,7 +25,13 @@ include $(FF)/makerules
 include $(FF3PT)/makerules
 FF_O := $(FFOS_OBJ) $(FF_OBJ) $(FF_OBJ_DIR)/ffutf8.o
 
-$(OBJ_DIR)/%.o: $(SRCDIR)/%.c $(SRCDIR)/fmedia.h $(SRCDIR)/core.h $(FF_HDR) $(FF_AUDIO_HDR)
+$(OBJ_DIR)/%.o: $(SRCDIR)/%.c $(SRCDIR)/fmedia.h $(SRCDIR)/core-cmd.h $(SRCDIR)/core.h $(FF_HDR) $(FF_AUDIO_HDR)
+	$(C)  $(CFLAGS) $<  -o$@
+
+$(OBJ_DIR)/%.o: $(SRCDIR)/adev/%.c $(SRCDIR)/fmedia.h $(SRCDIR)/core.h $(FF_HDR) $(FF_AUDIO_HDR)
+	$(C)  $(CFLAGS) $<  -o$@
+
+$(OBJ_DIR)/%.o: $(SRCDIR)/acodec/%.c $(SRCDIR)/fmedia.h $(SRCDIR)/core.h $(FF_HDR) $(FF_AUDIO_HDR)
 	$(C)  $(CFLAGS) $<  -o$@
 
 $(RES): $(SRCDIR)/../fmedia.rc $(PROJDIR)/fmedia.ico
@@ -44,7 +50,7 @@ BIN_O += $(RES)
 endif
 
 $(BIN): $(BIN_O)
-	$(LD)  $(BIN_O) $(LDFLAGS) $(LD_LPTHREAD) -o$@
+	$(LD)  $(BIN_O) $(LDFLAGS) $(LD_LPTHREAD) -lm -o$@
 
 
 #
@@ -195,8 +201,6 @@ alsa.$(SO): $(ALSA_O)
 
 
 #
-$(OBJ_DIR)/gui.o: $(SRCDIR)/gui.c $(SRCDIR)/gui/gui.h $(SRCDIR)/fmedia.h $(FF_GUIHDR)
-	$(C) $(CFLAGS)  $< -o$@
 $(OBJ_DIR)/%.o: $(SRCDIR)/gui/%.c $(SRCDIR)/gui/gui.h $(SRCDIR)/fmedia.h $(FF_GUIHDR)
 	$(C) $(CFLAGS)  $< -o$@
 

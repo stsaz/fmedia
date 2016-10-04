@@ -17,13 +17,13 @@ mixer                 mixer
 
 #include <FF/audio/pcm.h>
 #include <FF/data/parse.h>
+#include <FF/sys/taskqueue.h>
 #include <FFOS/file.h>
 #include <FFOS/error.h>
-#include <FF/taskqueue.h>
 
 
-#define FMED_VER_MINOR  16
-#define FMED_VER  "0.16"
+#define FMED_VER_MINOR  17
+#define FMED_VER  "0.17"
 
 // CORE
 // TRACK

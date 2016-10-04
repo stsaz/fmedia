@@ -8,6 +8,29 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v0.17 - Oct 3, 2016
+ * GUI: move playlist menu items from File to List
+ * GUI convert: add "stream_copy" setting
+ - GUI: support DPI settings for listview columns width
+ - GUI: volume setting wasn't active on the first audio data (v0.16 bug)
+
+ * MP4 write: write bitrate value into esds box
+ + MP4 write: write trackno/tracktotal
+ + MP4/AAC write: preallocate output space
+ + MPEG write: preallocate output space
+ - MPEG stream copy: fix double Xing tags
+ - MPEG read: fix invalid current sample number by accounting for encoder/decoder delays
+ - PCM int24, FLAC write: fix invalid negative 24-bit integer handling
+ - WAV read: fix bad PCM format parse from wave file with extended header (FF v16.08 bug)
+ + ALSA out: add config setting "notify_rate"
+
+ - queue: fix segfault on stopping track whose playlist has been closed before
+ + file read: "direct_io" config setting
+ * file write: preallocation size can grow as output file grows
+ * file write: delete file if an error has occurred in track chain
+ - core: module data could be initialized twice, resulting in mem leak and slower startup time
+
+
 fmedia v0.16 - Aug 24, 2016
 
  + TUI: "pause" command

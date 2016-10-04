@@ -197,7 +197,7 @@ static int mix_in_write(void *ctx, fmed_filt *d)
 			|| pcmfmt.sample_rate != d->audio.fmt.sample_rate) {
 			errlog(core, d->trk, "mixer", "input format doesn't match output");
 			mx->err = 1;
-			return NULL;
+			return FMED_RERR;
 		}
 		pcmfmt.ileaved = d->audio.fmt.ileaved;
 		mi->state = 2;

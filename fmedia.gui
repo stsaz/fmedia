@@ -1,4 +1,4 @@
-# fmedia v0.16 GUI
+# fmedia v0.17 GUI
 
 menu mfile {
 	item "&Open..." {
@@ -68,7 +68,7 @@ menu mlist {
 		action REMOVE
 		hotkey "Delete"
 	}
-	item "&Clear List" {
+	item "&Clear" {
 		action CLEAR
 	}
 }
@@ -540,18 +540,17 @@ window wgoto {
 
 window wabout {
 	parent wmain
-	title "fmedia"
-	position 300 300 300 200
+	title "About fmedia"
+	position 300 300 350 200
 	style popup
 	opacity 90
 
 	label labout {
-		position 15 15 300 60
+		position 15 15 400 150
 		style visible
 		font {
 			name Arial
-			height 13
-			style bold
+			height 12
 		}
 	}
 }

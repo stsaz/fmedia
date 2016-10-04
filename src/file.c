@@ -102,7 +102,7 @@ static void file_read(void *udata);
 static const ffpars_arg file_in_conf_args[] = {
 	{ "buffer_size",  FFPARS_TSIZE | FFPARS_FNOTZERO,  FFPARS_DSTOFF(struct file_in_conf_t, bsize) }
 	, { "buffers",  FFPARS_TINT | FFPARS_F8BIT,  FFPARS_DSTOFF(struct file_in_conf_t, nbufs) }
-	, { "align",  FFPARS_TBOOL | FFPARS_F8BIT,  FFPARS_DSTOFF(struct file_in_conf_t, align) }
+	, { "align",  FFPARS_TSIZE | FFPARS_FNOTZERO,  FFPARS_DSTOFF(struct file_in_conf_t, align) }
 	, { "direct_io",  FFPARS_TBOOL | FFPARS_F8BIT,  FFPARS_DSTOFF(struct file_in_conf_t, directio) }
 };
 
@@ -559,7 +559,6 @@ done:
 static void* fileout_open(fmed_filt *d)
 {
 	const char *filename;
-	uint mode;
 	fmed_fileout *f = ffmem_tcalloc1(fmed_fileout);
 	if (f == NULL)
 		return NULL;
@@ -568,8 +567,9 @@ static void* fileout_open(fmed_filt *d)
 	if (NULL == (filename = fileout_getname(f, d)))
 		goto done;
 
-	mode = (d->out_overwrite) ? O_CREAT : FFO_CREATENEW;
-	f->fd = fffile_open(filename, mode | O_WRONLY | O_NOATIME);
+	uint flags = (d->out_overwrite) ? O_CREAT : FFO_CREATENEW;
+	flags |= O_WRONLY;
+	f->fd = fffile_open(filename, flags);
 	if (f->fd == FF_BADFD) {
 
 		if (fferr_nofile(fferr_last())) {
@@ -578,7 +578,7 @@ static void* fileout_open(fmed_filt *d)
 				goto done;
 			}
 
-			f->fd = fffile_open(filename, mode | O_WRONLY | O_NOATIME);
+			f->fd = fffile_open(filename, flags);
 		}
 
 		if (f->fd == FF_BADFD) {

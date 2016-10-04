@@ -356,8 +356,10 @@ static void gui_convert(void)
 	ffui_view_iteminit(&it);
 	ffui_textstr(&gg->wconvert.eout, &fn);
 	gg->conv_sets.output = fn.ptr;
-	if (fn.len == 0 || 0 == ffui_view_selcount(&gg->wmain.vlist))
+	if (fn.len == 0 || 0 == ffui_view_selcount(&gg->wmain.vlist)) {
+		errlog(core, NULL, "gui", "convert: no files selected");
 		return;
+	}
 
 	if (0 != gui_cvt_getsettings(cvt_sets, FFCNT(cvt_sets), &gg->conv_sets, &gg->wconvert.vsets))
 		goto end;
@@ -722,7 +724,10 @@ static void gui_wgoto_action(ffui_wnd *wnd, int id)
 
 void wabout_init(void)
 {
-	ffui_settextz(&gg->wabout.labout, "fmedia v" FMED_VER "\nhttp://fmedia.firmdev.com");
+	ffui_settextz(&gg->wabout.labout,
+		"fmedia v" FMED_VER "\n\n"
+		"Fast media player, recorder, converter\n\n"
+		"http://fmedia.firmdev.com");
 	gg->wabout.wabout.hide_on_close = 1;
 }
 

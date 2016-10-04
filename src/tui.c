@@ -207,6 +207,7 @@ static void* tui_open(fmed_filt *d)
 
 	t->total_samples = d->audio.total;
 	tui_info(t, d);
+	d->meta_changed = 0;
 
 	if (d->input_info) {
 		tui_close(t);
@@ -620,8 +621,10 @@ static void tui_corecmd_add(const struct key *k, void *udata)
 
 static int tui_cmdloop(void *param)
 {
-	ffstd_ev ev = {0};
+	ffstd_ev ev;
 	int r;
+
+	ffmem_tzero(&ev);
 
 	for (;;) {
 		r = ffstd_event(ffstdin, &ev);

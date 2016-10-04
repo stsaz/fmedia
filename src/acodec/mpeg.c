@@ -233,10 +233,10 @@ data:
 	}
 
 	d->audio.pos = ffmpg_cursample(&m->mpg);
-	dbglog(core, d->trk, NULL, "passed %L bytes", m->mpg.datalen);
 	d->data = m->mpg.data,  d->datalen = m->mpg.datalen;
 	ffstr s = ffmpg_framedata(&m->mpg);
 	d->out = s.ptr,  d->outlen = s.len;
+	dbglog(core, d->trk, NULL, "passed %L bytes", s.len);
 	return FMED_RDATA;
 }
 
@@ -446,7 +446,7 @@ static int mpeg_out_copy(mpeg_out *m, fmed_filt *d)
 data:
 	d->out = frame.ptr,  d->outlen = frame.len;
 	dbglog(core, d->trk, "mpeg", "output: %L bytes"
-		, m->mpg.datalen);
+		, frame.len);
 	d->datalen = 0;
 	return FMED_RDATA;
 }
