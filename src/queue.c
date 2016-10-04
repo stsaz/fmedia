@@ -8,10 +8,13 @@ Copyright (c) 2015 Simon Zolin */
 
 static const fmed_core *core;
 
+typedef struct plist plist;
+
 typedef struct entry {
 	fmed_que_entry e;
 	fflist_item sib;
 
+	plist *plist;
 	fmed_trk trk;
 	ffarr2 meta; //ffstr[]
 	ffarr2 tmeta; //ffstr[]. transient meta
@@ -24,10 +27,11 @@ typedef struct entry {
 		;
 } entry;
 
-typedef struct plist {
+struct plist {
 	fflist_item sib;
 	fflist ents; //entry[]
-} plist;
+	uint rm :1;
+};
 
 typedef struct que {
 	fflock lk;
@@ -71,6 +75,7 @@ static fmed_que_entry* que_add(fmed_que_entry *ent, uint flags);
 static void que_meta_set(fmed_que_entry *ent, const ffstr *name, const ffstr *val, uint flags);
 static void que_play(entry *e);
 static void que_save(entry *first, const fflist_item *sentl, const char *fn);
+static void ent_rm(entry *e);
 static void ent_free(entry *e);
 static void que_taskfunc(void *udata);
 static void que_task_add(uint cmd);
@@ -121,6 +126,19 @@ static int que_sig(uint signo)
 		break;
 	}
 	return 0;
+}
+
+static void ent_rm(entry *e)
+{
+	if (e->active) {
+		e->rm = 1;
+		return;
+	}
+
+	if (qu->cur == e)
+		qu->cur = NULL;
+	fflist_rm(&e->plist->ents, &e->sib);
+	ent_free(e);
 }
 
 static void ent_free(entry *e)
@@ -387,13 +405,7 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 		if (!(flags & FMED_QUE_NO_ONCHANGE) && qu->onchange != NULL)
 			qu->onchange(&e->e, FMED_QUE_ONRM);
 
-		if (!e->active) {
-			if (qu->cur == e)
-				qu->cur = NULL;
-			fflist_rm(ents, &e->sib);
-			ent_free(e);
-		} else
-			e->rm = 1;
+		ent_rm(e);
 		break;
 
 	case FMED_QUE_METASET:
@@ -410,7 +422,7 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 
 	case FMED_QUE_CLEAR:
 		qu->cur = NULL;
-		FFLIST_ENUMSAFE(ents, ent_free, entry, sib);
+		FFLIST_ENUMSAFE(ents, ent_rm, entry, sib);
 		fflist_init(ents);
 		dbglog(core, NULL, "que", "cleared");
 		break;
@@ -432,7 +444,11 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 
 	case FMED_QUE_DEL:
 		fflist_rm(&qu->plists, &qu->curlist->sib);
-		plist_free(qu->curlist);
+		FFLIST_ENUMSAFE(&qu->curlist->ents, ent_rm, entry, sib);
+		if (fflist_empty(&qu->curlist->ents))
+			ffmem_free(qu->curlist);
+		else
+			qu->curlist->rm = 1;
 		qu->curlist = NULL;
 		break;
 
@@ -490,6 +506,7 @@ static fmed_que_entry* que_add(fmed_que_entry *ent, uint flags)
 	e = ffmem_tcalloc1(entry);
 	if (e == NULL)
 		return NULL;
+	e->plist = qu->curlist;
 
 	if (NULL == (e->e.url.ptr = ffsz_alcopy(ent->url.ptr, ent->url.len))) {
 		ent_free(e);
@@ -752,7 +769,9 @@ done:
 	if (t->e->rm) {
 		if (qu->cur == t->e)
 			qu->cur = NULL;
-		fflist_rm(&qu->curlist->ents, &t->e->sib);
+		fflist_rm(&t->e->plist->ents, &t->e->sib);
+		if (t->e->plist->rm)
+			ffmem_free(t->e->plist);
 		ent_free(t->e);
 	}
 
