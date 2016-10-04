@@ -519,7 +519,23 @@ static fmed_que_entry* que_add(fmed_que_entry *ent, uint flags)
 	e->e.dur = ent->dur;
 	e->e.prev = ent->prev;
 
-	qu->track->copy_info(&e->trk, NULL);
+	if ((flags & FMED_QUE_COPY_PROPS) && ent->prev != NULL) {
+		entry *prev = FF_GETPTR(entry, e, ent->prev);
+		qu->track->copy_info(&e->trk, &prev->trk);
+
+		ffstr *dict = prev->dict.ptr;
+		for (uint i = 0;  i != prev->dict.len;  i += 2) {
+			if ((ssize_t)dict[i + 1].len >= 0)
+				que_meta_set(&e->e, &dict[i], &dict[i + 1], FMED_QUE_TRKDICT);
+			else {
+				ffstr s;
+				ffstr_set(&s, dict[i + 1].ptr, sizeof(int64));
+				que_meta_set(&e->e, &dict[i], &s, FMED_QUE_TRKDICT | FMED_QUE_NUM);
+			}
+		}
+
+	} else
+		qu->track->copy_info(&e->trk, NULL);
 	e->e.trk = &e->trk;
 
 	fflk_lock(&qu->lk);

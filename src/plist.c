@@ -239,7 +239,7 @@ add_meta:
 				return FMED_RERR;
 			m->furl = 1;
 			m->ent.prev = cur;
-			cur = (void*)qu->cmd2(FMED_QUE_ADD | FMED_QUE_NO_ONCHANGE, &m->ent, 0);
+			cur = (void*)qu->cmd2(FMED_QUE_ADD | FMED_QUE_NO_ONCHANGE | FMED_QUE_COPY_PROPS, &m->ent, 0);
 			uint i;
 			const ffstr *meta = m->metas.ptr;
 			for (i = 0;  i != m->metas.len;  i += 2) {
@@ -466,7 +466,7 @@ add:
 		}
 
 		c->ent.prev = cur;
-		cur = (void*)qu->cmd2(FMED_QUE_ADD | FMED_QUE_NO_ONCHANGE, &c->ent, 0);
+		cur = (void*)qu->cmd2(FMED_QUE_ADD | FMED_QUE_NO_ONCHANGE | FMED_QUE_COPY_PROPS, &c->ent, 0);
 
 		const ffstr *m = c->metas.ptr;
 		for (;  i != c->nmeta;  i += 2) {
@@ -513,7 +513,7 @@ static void* dir_open(fmed_filt *d)
 		ffmem_tzero(&e);
 		ffstr_setz(&e.url, fn);
 		e.prev = cur;
-		cur = (void*)qu->cmd2(FMED_QUE_ADD, &e, 0);
+		cur = (void*)qu->cmd2(FMED_QUE_ADD | FMED_QUE_COPY_PROPS, &e, 0);
 	}
 
 	ffdir_expclose(&dr);

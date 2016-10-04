@@ -367,6 +367,7 @@ enum FMED_QUE_CMDF {
 	_FMED_QUE_FMASK = 0xffff0000,
 	FMED_QUE_NO_ONCHANGE = 0x10000,
 	FMED_QUE_ADD_DONE = 0x20000,
+	FMED_QUE_COPY_PROPS = 0x40000, //copy track properties from fmed_que_entry.prev
 };
 
 enum FMED_QUE_META_F {
