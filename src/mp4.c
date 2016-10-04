@@ -480,7 +480,7 @@ static int mp4_out_encode(void *ctx, fmed_filt *d)
 		}
 
 		ffstr asc = ffaac_enc_conf(&m->aac);
-		m->mp.info.total_samples = d->audio.total;
+		m->mp.info.total_samples = d->audio.total - d->audio.pos;
 		m->mp.info.frame_samples = ffaac_enc_frame_samples(&m->aac);
 		m->mp.info.enc_delay = m->aac.info.enc_delay;
 		if (0 != (r = ffmp4_create_aac(&m->mp, &m->fmt, &asc))) {
