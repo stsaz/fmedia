@@ -150,6 +150,7 @@ static const ffui_ldr_ctl wmain_ctls[] = {
 
 static const ffui_ldr_ctl top_ctls[] = {
 	add(ggui, mfile),
+	add(ggui, mlist),
 	add(ggui, mplay),
 	add(ggui, mrec),
 	add(ggui, mconvert),

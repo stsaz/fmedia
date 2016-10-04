@@ -15,34 +15,6 @@ menu mfile {
 	}
 	item "-" {
 	}
-	item "&New Tab" {
-		action QUE_NEW
-		hotkey "Ctrl+N"
-	}
-	item "Close Tab" {
-		action QUE_DEL
-		hotkey "Ctrl+W"
-	}
-	item "&Save Playlist..." {
-		action SAVELIST
-		hotkey "Ctrl+S"
-	}
-	item "Select &All" {
-		action SELALL
-		hotkey "Ctrl+A"
-	}
-	item "In&vert Selection" {
-		action SELINVERT
-	}
-	item "&Remove" {
-		action REMOVE
-		hotkey "Delete"
-	}
-	item "&Clear List" {
-		action CLEAR
-	}
-	item "-" {
-	}
 	item "Show Media Info" {
 		action SHOWINFO
 		hotkey "I"
@@ -69,6 +41,35 @@ menu mfile {
 	}
 	item "E&xit" {
 		action QUIT
+	}
+}
+
+menu mlist {
+	item "&New Tab" {
+		action QUE_NEW
+		hotkey "Ctrl+N"
+	}
+	item "Close Tab" {
+		action QUE_DEL
+		hotkey "Ctrl+W"
+	}
+	item "&Save Playlist..." {
+		action SAVELIST
+		hotkey "Ctrl+S"
+	}
+	item "Select &All" {
+		action SELALL
+		hotkey "Ctrl+A"
+	}
+	item "In&vert Selection" {
+		action SELINVERT
+	}
+	item "&Remove" {
+		action REMOVE
+		hotkey "Delete"
+	}
+	item "&Clear List" {
+		action CLEAR
 	}
 }
 
@@ -218,6 +219,9 @@ window wmain {
 	mainmenu mm {
 		item "&File" {
 			submenu mfile
+		}
+		item "&List" {
+			submenu mlist
 		}
 		item "&Playback" {
 			submenu mplay

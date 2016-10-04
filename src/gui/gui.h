@@ -147,6 +147,7 @@ typedef struct ggui {
 	void *rec_trk;
 
 	ffui_menu mfile
+		, mlist
 		, mplay
 		, mrec
 		, mconvert
