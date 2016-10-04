@@ -109,6 +109,7 @@ static const struct cvt_set cvt_sets[] = {
 	{ "mpeg-quality", "MPEG Quality", "VBR quality: 9..0 or CBR bitrate: 64..320", FFOFF(cvt_sets_t, mpg_quality) },
 	{ "aac-quality", "AAC Quality", "VBR quality: 1..5 or CBR bitrate: 8..800", FFOFF(cvt_sets_t, aac_quality) },
 	{ "flac_complevel", "FLAC Compression", "0..8", FFOFF(cvt_sets_t, flac_complevel) },
+	{ "stream_copy", "Stream copy", "Don't re-encode OGG/MP3 data (0 or 1)", FFOFF(cvt_sets_t, stream_copy) },
 	{ "meta", "Meta Tags", "[clear;]NAME=VAL;...", CVTF_STR | CVTF_EMPTY | FFOFF(cvt_sets_t, meta) },
 
 	{ "overwrite", "Overwrite Output File", "0 or 1", FFOFF(cvt_sets_t, overwrite) },

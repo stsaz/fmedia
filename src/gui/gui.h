@@ -90,6 +90,7 @@ typedef struct cvt_sets_t {
 	int mpg_quality;
 	int aac_quality;
 	int flac_complevel;
+	int stream_copy;
 
 	int format;
 	int conv_pcm_rate;
