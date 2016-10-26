@@ -38,7 +38,6 @@ static void ape_meta(ape *a, fmed_filt *d);
 
 FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 {
-	ffmem_init();
 	core = _core;
 	return &fmed_ape_mod;
 }
@@ -54,6 +53,10 @@ static const void* ape_iface(const char *name)
 static int ape_sig(uint signo)
 {
 	switch (signo) {
+	case FMED_SIG_INIT:
+		ffmem_init();
+		return 0;
+
 	case FMED_OPEN:
 		qu = core->getmod("#queue.queue");
 		break;

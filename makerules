@@ -2,6 +2,8 @@
 OBJ_DIR := .
 BINS := $(BIN) core.$(SO) net.$(SO) \
 	ogg-vorbis.$(SO) mpeg.$(SO) wav.$(SO) flac.$(SO) mp4.$(SO) wavpack.$(SO) ape.$(SO) \
+	aac.$(SO) \
+	alac.$(SO) \
 	plist.$(SO) \
 	mixer.$(SO)
 
@@ -131,12 +133,10 @@ MP4_O := $(OBJ_DIR)/mp4.o \
 	$(FF_OBJ_DIR)/ffmp4.o \
 	$(FF_OBJ_DIR)/ffmp4-fmt.o \
 	$(FF_OBJ_DIR)/ffid3.o \
-	$(FF_OBJ_DIR)/ffalac.o \
-	$(FF_OBJ_DIR)/ffaac.o \
 	$(FF_OBJ_DIR)/ffmmtag.o \
 	$(FF_OBJ_DIR)/ffpcm.o
 mp4.$(SO): $(MP4_O)
-	$(LD) -shared $(MP4_O) $(LDFLAGS) -lALAC-ff -lfdk-aac-ff -o$@
+	$(LD) -shared $(MP4_O) $(LDFLAGS)  -o$@
 
 
 #
@@ -161,6 +161,24 @@ APE_O := $(OBJ_DIR)/ape.o \
 	$(FF_OBJ_DIR)/ffpcm.o
 ape.$(SO): $(APE_O)
 	$(LD) -shared $(APE_O) $(LDFLAGS) -lMAC-ff  -o$@
+
+
+#
+AAC_O := $(OBJ_DIR)/aac.o \
+	$(FF_O) \
+	$(FF_OBJ_DIR)/ffaac.o \
+	$(FF_OBJ_DIR)/ffpcm.o
+aac.$(SO): $(AAC_O)
+	$(LD) -shared $(AAC_O) $(LDFLAGS) -lfdk-aac-ff  -o$@
+
+
+#
+ALAC_O := $(OBJ_DIR)/alac.o \
+	$(FF_O) \
+	$(FF_OBJ_DIR)/ffalac.o \
+	$(FF_OBJ_DIR)/ffpcm.o
+alac.$(SO): $(ALAC_O)
+	$(LD) -shared $(ALAC_O) $(LDFLAGS) -lALAC-ff  -o$@
 
 
 #
