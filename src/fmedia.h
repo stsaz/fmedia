@@ -211,6 +211,7 @@ typedef void (*fmed_handler)(void *udata);
 enum FMED_F {
 	FMED_FLAST = 1, // the last chunk of input data
 	FMED_FSTOP = 2, // track is being stopped
+	FMED_FFWD = 4,
 };
 
 struct fmed_trk {

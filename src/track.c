@@ -20,15 +20,12 @@ typedef struct fmed_f {
 	struct {
 		size_t datalen;
 		const char *data;
-
-		size_t outlen;
-		const char *out;
 	} d;
 	const char *name;
 	const fmed_filter *filt;
 	fftime clk;
 	unsigned opened :1
-		, noskip :1;
+		, want_input :1;
 } fmed_f;
 
 typedef struct dict_ent {
@@ -275,6 +272,7 @@ static int trk_opened(fm_trk *t)
 
 	fflist_ins(&fmed->trks, &t->sib);
 	t->state = TRK_ST_ACTIVE;
+	t->cur = &t->filters.ptr->sib;
 	return 0;
 }
 
@@ -454,13 +452,6 @@ static void trk_process(void *udata)
 	fmed_f *f;
 	int r = FFLIST_CUR_NEXT, e;
 	fftime t1, t2;
-
-	if (t->cur == NULL) {
-		t->cur = &t->filters.ptr->sib;
-		f = FF_GETPTR(fmed_f, sib, t->cur);
-		goto next;
-	}
-
 	size_t ntasks = fmed->taskmgr.tasks.len;
 
 	for (;;) {
@@ -486,16 +477,36 @@ static void trk_process(void *udata)
 			ffclk_get(&t1);
 		}
 
-		if (t->cur->prev == ffchain_sentl(&t->filt_chain))
-			t->props.flags |= FMED_FLAST;
-		else
-			t->props.flags &= ~FMED_FLAST;
+		ffint_bitmask(&t->props.flags, FMED_FFWD, (r == FFLIST_CUR_NEXT));
+		ffint_bitmask(&t->props.flags, FMED_FLAST, (t->cur->prev == ffchain_sentl(&t->filt_chain)));
 
 		t->props.data = f->d.data,  t->props.datalen = f->d.datalen;
-		t->props.out = f->d.out,  t->props.outlen = f->d.outlen;
+
+		if (!f->opened) {
+			if (t->props.flags & FMED_FSTOP)
+				goto fin;
+
+			dbglog(core, t, "core", "creating context for %s...", f->name);
+			f->ctx = f->filt->open(&t->props);
+			f->d.data = t->props.data,  f->d.datalen = t->props.datalen;
+			if (f->ctx == NULL) {
+				t->state = TRK_ST_ERR;
+				goto fin;
+
+			} else if (f->ctx == FMED_FILT_SKIP) {
+				dbglog(core, t, "core", "%s is skipped", f->name);
+				f->ctx = NULL; //don't call fmed_filter.close()
+				r = FFLIST_CUR_NEXT | FFLIST_CUR_RM;
+				t->props.out = t->props.data,  t->props.outlen = t->props.datalen;
+				goto shift;
+			}
+
+			dbglog(core, t, "core", "context for %s created", f->name);
+			f->opened = 1;
+		}
+
 		e = f->filt->process(f->ctx, &t->props);
 		f->d.data = t->props.data,  f->d.datalen = t->props.datalen;
-		f->d.out = t->props.out,  f->d.outlen = t->props.outlen;
 
 		if (core->loglev == FMED_LOG_DEBUG) {
 			ffclk_get(&t2);
@@ -505,7 +516,7 @@ static void trk_process(void *udata)
 
 #ifdef _DEBUG
 		dbglog(core, t, "core", "%s returned: %s, output: %L"
-			, f->name, ((uint)(e + 1) < FFCNT(fmed_retstr)) ? fmed_retstr[e + 1] : "", f->d.outlen);
+			, f->name, ((uint)(e + 1) < FFCNT(fmed_retstr)) ? fmed_retstr[e + 1] : "", t->props.outlen);
 #endif
 
 		switch (e) {
@@ -524,11 +535,11 @@ static void trk_process(void *udata)
 			break;
 
 		case FMED_ROK:
+			f->want_input = 1;
 			r = FFLIST_CUR_NEXT;
 			break;
 
 		case FMED_RDATA:
-			f->noskip = 1;
 			r = FFLIST_CUR_NEXT | FFLIST_CUR_SAMEIFBOUNCE;
 			break;
 
@@ -572,46 +583,21 @@ shift:
 			goto fin;
 
 		case FFLIST_CUR_NEXT:
-next:
 			nf = FF_GETPTR(fmed_f, sib, t->cur);
-			nf->d.data = f->d.out;
-			nf->d.datalen = f->d.outlen;
-
-			if (!nf->opened) {
-				if (t->props.flags & FMED_FSTOP)
-					goto fin; // calling the rest of the chain is pointless
-
-				dbglog(core, t, "core", "creating context for %s...", nf->name);
-				nf->ctx = nf->filt->open(&t->props);
-				if (nf->ctx == NULL) {
-					t->state = TRK_ST_ERR;
-					goto fin;
-
-				} else if (nf->ctx == FMED_FILT_SKIP) {
-					dbglog(core, t, "core", "%s is skipped", nf->name);
-					nf->ctx = NULL; //don't call fmed_filter.close()
-					nf->d.out = f->d.out;
-					nf->d.outlen = f->d.outlen;
-					f = nf;
-					r = FFLIST_CUR_NEXT | FFLIST_CUR_RM;
-					goto shift;
-				}
-
-				dbglog(core, t, "core", "context for %s created", nf->name);
-				nf->opened = 1;
-			}
+			nf->d.data = t->props.out,  nf->d.datalen = t->props.outlen;
+			t->props.outlen = 0;
 			break;
 
 		case FFLIST_CUR_SAME:
 		case FFLIST_CUR_PREV:
 			nf = FF_GETPTR(fmed_f, sib, t->cur);
-			if (nf->noskip) {
-				nf->noskip = 0;
-			} else if (nf->d.datalen == 0 && &nf->sib != ffchain_first(&t->filt_chain)) {
+			if (nf->want_input && nf->d.datalen == 0 && &nf->sib != ffchain_first(&t->filt_chain)) {
+				nf->want_input = 0;
 				r = FFLIST_CUR_PREV;
 				f = nf;
 				goto shift;
 			}
+			nf->want_input = 0;
 			break;
 
 		default:
