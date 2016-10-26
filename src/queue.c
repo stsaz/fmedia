@@ -292,7 +292,7 @@ done:
 static entry* que_getnext(entry *from)
 {
 	ffchain_item *it;
-	fflist *ents = &qu->curlist->ents;
+	fflist *ents = (from == NULL) ? &qu->curlist->ents : &from->plist->ents;
 
 	it = (from == NULL) ? ents->first : from->sib.next;
 	if (it == fflist_sentl(ents)) {
