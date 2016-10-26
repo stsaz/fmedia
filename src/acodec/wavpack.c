@@ -157,7 +157,7 @@ again:
 			d->track->setvalstr(d->trk, "pcm_decoder", "WavPack");
 			ffpcm_fmtcopy(&d->audio.fmt, &w->wp.fmt);
 			d->audio.fmt.ileaved = 1;
-			fmed_setval("bitrate", ffwvpk_bitrate(&w->wp));
+			d->audio.bitrate = ffwvpk_bitrate(&w->wp);
 
 			if (w->abs_seek > 0)
 				w->abs_seek = ffpcm_samples(w->abs_seek, w->wp.fmt.sample_rate);

@@ -173,7 +173,7 @@ again:
 			dbglog(core, d->trk, "ape", "version:%u  compression:%s  blocksize:%u  MD5:%16xb  seek-table:%u  meta-length:%u"
 				, a->ap.info.version, ffape_comp_levelstr[a->ap.info.comp_level], (int)a->ap.info.frame_blocks
 				, a->ap.info.md5, (int)a->ap.info.seekpoints, (int)a->ap.froff);
-			fmed_setval("bitrate", ffape_bitrate(&a->ap));
+			d->audio.bitrate = ffape_bitrate(&a->ap);
 
 			if (d->input_info)
 				return FMED_ROK;

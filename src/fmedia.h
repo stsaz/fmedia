@@ -228,6 +228,7 @@ struct fmed_trk {
 		uint64 seek; //msec
 		int64 until; // >0: msec;  <0: CD frames (1/75 sec)
 		uint gain; //dB * 100
+		uint bitrate; //bit/s
 	} audio;
 	struct {
 		uint64 size;

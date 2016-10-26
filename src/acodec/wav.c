@@ -175,7 +175,7 @@ again:
 			ffpcm_fmtcopy(&d->audio.fmt, &w->wav.fmt);
 			d->audio.fmt.ileaved = 1;
 			d->audio.total = w->wav.total_samples;
-			fmed_setval("bitrate", w->wav.bitrate);
+			d->audio.bitrate = w->wav.bitrate;
 			w->state = I_DATA;
 			goto again;
 
@@ -301,7 +301,7 @@ static void* raw_open(fmed_filt *d)
 	if ((int64)d->input.size != FMED_NULL)
 		d->audio.total = d->input.size / ffpcm_size(FFPCM_16LE, 2);
 
-	d->track->setval(d->trk, "bitrate", 44100 * ffpcm_size(FFPCM_16LE, 2) * 8);
+	d->audio.bitrate = 44100 * ffpcm_size(FFPCM_16LE, 2) * 8;
 	d->audio.fmt.format = FFPCM_16LE;
 	d->audio.fmt.channels = 2;
 	d->audio.fmt.sample_rate = 44100;

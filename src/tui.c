@@ -288,7 +288,7 @@ static void tui_info(tui *t, fmed_filt *d)
 		, (double)tsize / (1024 * 1024)
 		, tmsec / 60, tmsec % 60, (uint)(total_time % 1000)
 		, t->total_samples
-		, (int)((d->track->getval(d->trk, "bitrate") + 500) / 1000)
+		, (d->audio.bitrate + 500) / 1000
 		, fmt.sample_rate
 		, ffpcm_bits(fmt.format)
 		, ffpcm_channelstr(fmt.channels));

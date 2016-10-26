@@ -207,7 +207,7 @@ again:
 			dbglog(core, d->trk, "flac", "blocksize:%u..%u  framesize:%u..%u  MD5:%16xb  seek-table:%u  meta-length:%u"
 				, (int)f->fl.info.minblock, (int)f->fl.info.maxblock, (int)f->fl.info.minframe, (int)f->fl.info.maxframe
 				, f->fl.info.md5, (int)f->fl.sktab.len, (int)f->fl.framesoff);
-			fmed_setval("bitrate", ffflac_bitrate(&f->fl));
+			d->audio.bitrate = ffflac_bitrate(&f->fl);
 
 			if (d->input_info)
 				return FMED_ROK;

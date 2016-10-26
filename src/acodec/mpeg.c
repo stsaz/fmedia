@@ -222,7 +222,7 @@ data:
 		m->fmt_set = 1;
 		m->mpg.fmt.format = FFPCM_16;
 		ffpcm_fmtcopy(&d->audio.fmt, &m->mpg.fmt);
-		fmed_setval("bitrate", ffmpg_bitrate(&m->mpg));
+		d->audio.bitrate = ffmpg_bitrate(&m->mpg);
 		d->audio.total = m->mpg.total_samples;
 
 		if ((int64)d->audio.seek != FMED_NULL) {
@@ -304,7 +304,7 @@ again:
 
 			d->track->setvalstr(d->trk, "pcm_decoder", "MPEG");
 			d->audio.fmt.ileaved = m->mpg.fmt.ileaved;
-			fmed_setval("bitrate", ffmpg_bitrate(&m->mpg));
+			d->audio.bitrate = ffmpg_bitrate(&m->mpg);
 			d->audio.total = m->mpg.total_samples;
 			m->state = I_DATA;
 			goto again;
