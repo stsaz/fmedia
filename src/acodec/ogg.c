@@ -22,9 +22,8 @@ typedef struct fmed_ogg {
 } fmed_ogg;
 
 typedef struct ogg_out {
-	ffogg_enc og;
+	ffogg_cook og;
 	uint state;
-	uint hdr_done :1;
 } ogg_out;
 
 static struct ogg_in_conf_t {
@@ -32,9 +31,7 @@ static struct ogg_in_conf_t {
 } ogg_in_conf;
 
 static struct ogg_out_conf_t {
-	ushort min_tag_size;
-	ushort page_size;
-	float qual;
+	ushort max_page_duration;
 } ogg_out_conf;
 
 
@@ -69,9 +66,7 @@ static const fmed_filter fmed_ogg_output = {
 };
 
 static const ffpars_arg ogg_out_conf_args[] = {
-	{ "min_tag_size",  FFPARS_TINT | FFPARS_F16BIT,  FFPARS_DSTOFF(struct ogg_out_conf_t, min_tag_size) },
-	{ "page_size",  FFPARS_TSIZE | FFPARS_F16BIT | FFPARS_FNOTZERO,  FFPARS_DSTOFF(struct ogg_out_conf_t, page_size) },
-	{ "quality",  FFPARS_TFLOAT | FFPARS_FSIGN,  FFPARS_DSTOFF(struct ogg_out_conf_t, qual) }
+	{ "max_page_duration",  FFPARS_TINT | FFPARS_F16BIT,  FFPARS_DSTOFF(struct ogg_out_conf_t, max_page_duration) },
 };
 
 
@@ -84,9 +79,9 @@ FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 
 static const void* ogg_iface(const char *name)
 {
-	if (!ffsz_cmp(name, "decode")) {
+	if (!ffsz_cmp(name, "input")) {
 		return &fmed_ogg_input;
-	} else if (!ffsz_cmp(name, "encode")) {
+	} else if (!ffsz_cmp(name, "output")) {
 		return &fmed_ogg_output;
 	}
 	return NULL;
@@ -333,9 +328,7 @@ data:
 
 static int ogg_out_config(ffpars_ctx *ctx)
 {
-	ogg_out_conf.min_tag_size = 1000;
-	ogg_out_conf.page_size = 8 * 1024;
-	ogg_out_conf.qual = 5.0;
+	ogg_out_conf.max_page_duration = 1000;
 	ffpars_setargs(ctx, &ogg_out_conf, ogg_out_conf_args, FFCNT(ogg_out_conf_args));
 	return 0;
 }
@@ -354,85 +347,36 @@ static void* ogg_out_open(fmed_filt *d)
 	ogg_out *o = ffmem_tcalloc1(ogg_out);
 	if (o == NULL)
 		return NULL;
-
-	ffogg_enc_init(&o->og);
-	o->og.min_tagsize = ogg_out_conf.min_tag_size;
 	return o;
 }
 
 static void ogg_out_close(void *ctx)
 {
 	ogg_out *o = ctx;
-	ffogg_enc_close(&o->og);
+	ffogg_wclose(&o->og);
 	ffmem_free(o);
-}
-
-static int ogg_out_addmeta(ogg_out *o, fmed_filt *d)
-{
-	uint i;
-	ffstr name, *val;
-	void *qent;
-
-	if (FMED_PNULL == (qent = (void*)fmed_getval("queue_item")))
-		return 0;
-
-	for (i = 0;  NULL != (val = qu->meta(qent, i, &name, FMED_QUE_UNIQ));  i++) {
-		if (val == FMED_QUE_SKIP
-			|| ffstr_eqcz(&name, "vendor"))
-			continue;
-		if (0 != ffogg_addtag(&o->og, name.ptr, val->ptr, val->len))
-			warnlog(core, d->trk, "ogg", "can't add tag: %S", &name);
-	}
-	return 0;
 }
 
 static int ogg_out_encode(void *ctx, fmed_filt *d)
 {
-	enum { I_CONF, I_CREAT, I_INPUT, I_ENCODE };
+	enum { I_CONF, I_CREAT, I_ENCODE };
 	ogg_out *o = ctx;
-	int r, qual;
-	ffpcm fmt;
+	int r;
 
 	switch (o->state) {
 	case I_CONF:
-		if (d->audio.fmt.format != FFPCM_FLOAT || d->audio.fmt.ileaved) {
-			if (d->audio.fmt.format != FFPCM_FLOAT)
-				fmed_setval("conv_pcm_format", FFPCM_FLOAT);
-
-			if (d->audio.fmt.ileaved)
-				fmed_setval("conv_pcm_ileaved", 0);
-
-			o->state = I_CREAT;
-			return FMED_RMORE;
-		}
-		//break;
-
-	case I_CREAT:
-		ffpcm_fmtcopy(&fmt, &d->audio.fmt);
-		if (fmt.format != FFPCM_FLOAT || d->audio.fmt.ileaved) {
-			errlog(core, d->trk, "ogg", "input format must be PCM-float non-interleaved");
+		if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT_PREV, "vorbis.encode")) {
 			return FMED_RERR;
 		}
+		o->state = I_CREAT;
+		return FMED_RMORE;
 
-		ogg_out_addmeta(o, d);
-
-		qual = (int)fmed_getval("ogg-quality");
-		if (qual == FMED_NULL)
-			qual = ogg_out_conf.qual * 10;
-
-		o->og.max_pagesize = ogg_out_conf.page_size;
-		if (0 != (r = ffogg_create(&o->og, &fmt, qual, ffrnd_get()))) {
+	case I_CREAT:
+		if (0 != (r = ffogg_create(&o->og, ffrnd_get()))) {
 			errlog(core, d->trk, "ogg", "ffogg_create() failed: %s", ffogg_errstr(r));
 			return FMED_RERR;
 		}
-		//o->state = I_INPUT;
-		//break;
-
-	case I_INPUT:
-		o->og.pcm = (const float**)d->data;
-		o->og.pcmlen = d->datalen;
-		if (d->flags & FMED_FLAST)
-			o->og.fin = 1;
+		o->og.max_pagedelta = ffpcm_samples(ogg_out_conf.max_page_duration, d->audio.convfmt.sample_rate);
 		o->state = I_ENCODE;
 		//break;
 
@@ -440,35 +384,37 @@ static int ogg_out_encode(void *ctx, fmed_filt *d)
 		break;
 	}
 
-	for (;;) {
-		r = ffogg_encode(&o->og);
-		switch (r) {
+	if (d->flags & FMED_FFWD) {
+		o->og.fin = !!(d->flags & FMED_FLAST);
+		o->og.flush = (1 == fmed_getval("ogg_flush"));
+		o->og.pkt_endpos = fmed_getval("ogg_granpos");
+		ffstr_set(&o->og.pkt, d->data, d->datalen);
+		d->datalen = 0;
+	}
 
-		case FFOGG_RDATA:
-			if (!o->hdr_done) {
-				o->hdr_done = 1;
-				if ((int64)d->audio.total != FMED_NULL)
-					d->output.size = ffogg_enc_size(&o->og, d->audio.total - d->audio.pos);
-			}
-			goto data;
+	r = ffogg_write(&o->og);
+	switch (r) {
 
-		case FFOGG_RDONE:
-			d->outlen = 0;
-			return FMED_RLASTOUT;
+	case FFOGG_RDONE:
+		core->log(FMED_LOG_INFO, d->trk, NULL, "OGG: packets:%U, pages:%U, overhead: %.2F%%"
+			, o->og.stat.npkts, o->og.stat.npages
+			, (double)o->og.stat.total_ogg * 100 / (o->og.stat.total_payload + o->og.stat.total_ogg));
+		// break
 
-		case FFOGG_RMORE:
-			o->state = I_INPUT;
-			return FMED_RMORE;
+	case FFOGG_RDATA:
+		fmed_setval("ogg_flush", 0);
+		goto data;
 
-		default:
-			errlog(core, d->trk, "ogg", "ffogg_encode() failed: %s", ffogg_errstr(o->og.err));
-			return FMED_RERR;
-		}
+	case FFOGG_RMORE:
+		return FMED_RMORE;
+
+	default:
+		errlog(core, d->trk, "ogg", "ffogg_write() failed: %s", ffogg_errstr(o->og.err));
+		return FMED_RERR;
 	}
 
 data:
-	d->out = o->og.data;
-	d->outlen = o->og.datalen;
+	d->out = o->og.out.ptr,  d->outlen = o->og.out.len;
 
 	dbglog(core, d->trk, "ogg", "output: %L bytes, page: %u"
 		, (size_t)d->outlen, o->og.page.number);
