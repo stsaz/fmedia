@@ -853,11 +853,11 @@ void gui_newtrack(gui_trk *g, fmed_filt *d, fmed_que_entry *plid)
 	ffui_view_setindex(&it, idx);
 	ffui_view_focus(&it, 1);
 
-	n = ffs_fmt(buf, buf + sizeof(buf), "%u kbps, %s, %u Hz, %u bit, %s"
+	n = ffs_fmt(buf, buf + sizeof(buf), "%u kbps, %s, %u Hz, %s, %s"
 		, (d->audio.bitrate + 500) / 1000
 		, (FMED_PNULL != (sval = d->track->getvalstr(d->trk, "pcm_decoder"))) ? sval : ""
 		, g->sample_rate
-		, ffpcm_bits(d->audio.fmt.format)
+		, ffpcm_fmtstr(d->audio.fmt.format)
 		, ffpcm_channelstr(d->audio.fmt.channels));
 	ffui_view_settext(&it, buf, n);
 	ffui_view_set(&gg->wmain.vlist, H_INF, &it);

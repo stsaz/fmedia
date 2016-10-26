@@ -6,7 +6,7 @@ PROJDIR := $(ROOT)/fmedia
 SRCDIR := $(PROJDIR)/src
 VER :=
 OS :=
-OPT := LTO
+OPT := LTO3
 
 FFOS := $(ROOT)/ffos
 FF := $(ROOT)/ff
@@ -17,12 +17,14 @@ include $(FFOS)/makeconf
 ifeq ($(OS),win)
 BIN := fmedia.exe
 INSTDIR := fmedia
+CFLAGS += -DFF_WIN=0x0502
 else
 BIN := fmedia-bin
 INSTDIR := fmedia-0
 endif
 
 FF_OBJ_DIR := ./ff-obj
+FFOS_CFLAGS := $(CFLAGS) -pthread
 FF_CFLAGS := $(CFLAGS)
 FF3PTLIB := $(FF3PT)/$(OS)-$(ARCH)
 FF3PT_CFLAGS := $(CFLAGS)

@@ -22,8 +22,8 @@ mixer                 mixer
 #include <FFOS/error.h>
 
 
-#define FMED_VER_MINOR  17
-#define FMED_VER  "0.17"
+#define FMED_VER_MINOR  18
+#define FMED_VER  "0.18"
 
 // CORE
 // TRACK

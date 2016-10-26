@@ -3,6 +3,9 @@ OVERVIEW
 ---------------
 fmedia is a fast asynchronous media player/recorder/converter for Windows and Linux.  Its goal is to provide smooth playback even if input device is very slow and unresponsive.  The architecure allows to extend the functionality of the application in any way: adding a new audio input/output format, a new DSP filter or even a new GUI.  fmedia is very small and fast: it has low CPU & memory consumption making it ideal to listen to music or process audio files while running on a notebook's battery.
 
+fmedia can decode: .mp3, .ogg, .opus, .m4a/.mp4 (AAC, ALAC), .flac, .ape, .wv, .wav.
+fmedia can encode into: .mp3, .ogg, .opus, .m4a (AAC), .flac, .wav.
+
 Note: it's beta version - not tested well enough, not all functions will work as expected.  See section "USE-CASES" to have an idea of which features should work.
 
 Contents:
@@ -31,12 +34,17 @@ INPUT
 	. ALSA Capture
 
 FILTERS
-	Lossy:
+	Containers:
+	. MP4 input/output
+	. OGG input/output
+
+	Lossy codecs:
 	. MPEG input/output
-	. OGG Vorbis input/output
+	. Vorbis input/output
+	. Opus input
 	. AAC input/output
 
-	Lossless:
+	Lossless codecs:
 	. FLAC input/output
 	. ALAC input
 	. WavPack input
@@ -125,7 +133,7 @@ Per-user configuration settings are also supported, they must be stored in "fmed
 
 Settings for a module must be in format "so.module.key value", e.g. to overwrite the global setting for OGG Vorbis encoding quality you should write:
 
-	ogg-vorbis.encode.quality "7.0"
+	vorbis.encode.quality "7.0"
 
 Core configuration settings start with "core.", e.g. set codepage for non-Unicode text:
 

@@ -194,6 +194,11 @@ static int tui_config(ffpars_ctx *conf)
 
 static void* tui_open(fmed_filt *d)
 {
+	if (d->audio.fmt.format == 0) {
+		errlog(core, d->trk, NULL, "audio format isn't set");
+		return NULL;
+	}
+
 	tui *t = ffmem_tcalloc1(tui);
 	if (t == NULL)
 		return NULL;
@@ -282,7 +287,7 @@ static void tui_info(tui *t, fmed_filt *d)
 		title = *tstr;
 
 	t->buf.len = 0;
-	ffstr_catfmt(&t->buf, "\n\"%S - %S\" %s %.02F MB, %u:%02u.%03u (%,U samples), %u kbps, %u Hz, %u bit, %s\n\n"
+	ffstr_catfmt(&t->buf, "\n\"%S - %S\" %s %.02F MB, %u:%02u.%03u (%,U samples), %u kbps, %u Hz, %s, %s\n\n"
 		, &artist, &title
 		, input
 		, (double)tsize / (1024 * 1024)
@@ -290,7 +295,7 @@ static void tui_info(tui *t, fmed_filt *d)
 		, t->total_samples
 		, (d->audio.bitrate + 500) / 1000
 		, fmt.sample_rate
-		, ffpcm_bits(fmt.format)
+		, ffpcm_fmtstr(fmt.format)
 		, ffpcm_channelstr(fmt.channels));
 
 	if (1 == core->getval("show_tags")) {

@@ -8,7 +8,29 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v0.18 - Oct 26, 2016
+
+ +  Opus decode/encode
+ *! OGG: "ogg-vorbis" module is split into "ogg" and "vorbis"
+    fmedia: rename "--ogg-quality" to "--vorbis.quality"
+    OGG stream copy is disabled in this version
+ -  OGG read: couldn't parse the last page in small OGG files
+
+ + GUI: add "Reset Volume" command
+ * TUI,GUI: print audio format (e.g. "int16" instead of "16 bit")
+ - TUI: print error when audio format isn't set
+
+ - fmedia: TUI commands didn't work while converting files in synchronous mode
+ - fmedia: conversion with --rate didn't work
+ * fmedia: support Windows XP
+ - core: fix potential segfault on exit
+ - core: queue: segfault on song end if its playlist was closed
+ - core: conf: fix segfault after trying to add module that doesn't exist (v0.17 bug)
+ - core: command line arguments didn't work with wildcard input files on Windows (v0.17 bug)
+
+
 fmedia v0.17 - Oct 3, 2016
+
  * GUI: move playlist menu items from File to List
  * GUI convert: add "stream_copy" setting
  - GUI: support DPI settings for listview columns width

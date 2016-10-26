@@ -55,7 +55,7 @@ BIN_O += $(RES)
 endif
 
 $(BIN): $(BIN_O)
-	$(LD)  $(BIN_O) $(LDFLAGS) $(LD_LPTHREAD) -lm -o$@
+	$(LD)  $(BIN_O) $(LDFLAGS) $(LD_LPTHREAD) -lm -lsoxr-ff -o$@
 
 
 #
