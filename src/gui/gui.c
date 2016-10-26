@@ -198,6 +198,7 @@ static const char *const scmds[] = {
 	"VOL",
 	"VOLUP",
 	"VOLDOWN",
+	"VOLRESET",
 
 	"REC",
 	"REC_SETS",

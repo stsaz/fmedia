@@ -126,6 +126,9 @@ menu mplay {
 		action VOLDOWN
 		hotkey "Down"
 	}
+	item "Reset Volume" {
+		action VOLRESET
+	}
 }
 
 menu mrec {

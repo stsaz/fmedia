@@ -79,6 +79,7 @@ static const struct cmd cmds[] = {
 	{ VOL,	F1,	&gui_vol },
 	{ VOLUP,	F1,	&gui_vol },
 	{ VOLDOWN,	F1,	&gui_vol },
+	{ VOLRESET,	F1,	&gui_vol },
 
 	{ REC,	F1 | CMD_FCORE,	&gui_rec },
 	{ REC_SETS,	F0,	&gui_rec_show },
@@ -354,6 +355,10 @@ static void gui_vol(uint id)
 
 	case VOLDOWN:
 		ffui_trk_move(&gg->wmain.tvol, FFUI_TRK_PGDN);
+		break;
+
+	case VOLRESET:
+		ffui_trk_set(&gg->wmain.tvol, 100);
 		break;
 	}
 

@@ -226,6 +226,7 @@ enum CMDS {
 	VOL,
 	VOLUP,
 	VOLDOWN,
+	VOLRESET,
 
 	REC,
 	REC_SETS,
