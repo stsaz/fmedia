@@ -86,6 +86,7 @@ static void* trk_create(uint cmd, const char *url);
 static fmed_trk* trk_conf(void *trk);
 static void trk_copy_info(fmed_trk *dst, const fmed_trk *src);
 static int trk_cmd(void *trk, uint cmd);
+static int trk_cmd2(void *trk, uint cmd, void *param);
 static void trk_loginfo(void *trk, const ffstr **id, const char **module);
 static int64 trk_popval(void *trk, const char *name);
 static int64 trk_getval(void *trk, const char *name);
@@ -96,7 +97,7 @@ static int64 trk_setval4(void *trk, const char *name, int64 val, uint flags);
 static char* trk_setvalstr4(void *trk, const char *name, const char *val, uint flags);
 static char* trk_getvalstr3(void *trk, const void *name, uint flags);
 const fmed_track _fmed_track = {
-	&trk_create, &trk_conf, &trk_copy_info, &trk_cmd,
+	&trk_create, &trk_conf, &trk_copy_info, &trk_cmd, &trk_cmd2,
 	&trk_popval, &trk_getval, &trk_getvalstr, &trk_setval, &trk_setvalstr, &trk_setval4, &trk_setvalstr4, &trk_getvalstr3,
 	&trk_loginfo,
 };
@@ -756,6 +757,37 @@ static int trk_cmd(void *trk, uint cmd)
 		t->state = TRK_ST_ACTIVE;
 		trk_process(t);
 		break;
+	}
+	return 0;
+}
+
+static int trk_cmd2(void *trk, uint cmd, void *param)
+{
+	fm_trk *t = trk;
+	switch (cmd) {
+	case FMED_TRACK_ADDFILT:
+	case FMED_TRACK_ADDFILT_PREV: {
+		FF_ASSERT(t->filters.cap != t->filters.len);
+		if (NULL == ffarr_grow(&t->filters, 1, 4)) {
+			syserrlog(core, t, "core", "%e", FFERR_BUFALOC);
+			return -1;
+		}
+
+		fmed_f *f = ffarr_end(&t->filters);
+		ffmem_tzero(f);
+		f->name = param;
+		if (NULL == (f->filt = core->getmod(param)))
+			return -1;
+		t->filters.len++;
+
+		if (cmd == FMED_TRACK_ADDFILT)
+			ffchain_append(&f->sib, t->cur);
+		else
+			ffchain_prepend(&f->sib, t->cur);
+
+		dbglog(core, t, "core", "added module %s to chain", f->name);
+		break;
+	}
 	}
 	return 0;
 }

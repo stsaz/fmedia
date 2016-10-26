@@ -134,6 +134,11 @@ enum FMED_TRACK {
 	 . (void*)-1: all (playing and recording). */
 	FMED_TRACK_STOPALL,
 	FMED_TRACK_STOPALL_EXIT,
+
+	/** Add new filter to the track chain.
+	@param: char *filter_name */
+	FMED_TRACK_ADDFILT,
+	FMED_TRACK_ADDFILT_PREV,
 };
 
 enum FMED_TRK_TYPE {
@@ -170,6 +175,7 @@ typedef struct fmed_track {
 	/**
 	@cmd: enum FMED_TRACK. */
 	int (*cmd)(void *trk, uint cmd);
+	int (*cmd2)(void *trk, uint cmd, void *param);
 
 	int64 (*popval)(void *trk, const char *name);
 
