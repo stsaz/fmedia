@@ -1,22 +1,14 @@
-/** MP4 (AAC, ALAC) input.
+/** MP4 input/output.
 Copyright (c) 2016 Simon Zolin */
 
 #include <fmedia.h>
 
 #include <FF/data/mp4.h>
 #include <FF/data/mmtag.h>
-#include <FF/audio/aac.h>
 
 
 static const fmed_core *core;
 static const fmed_queue *qu;
-
-static struct aac_out_conf_t {
-	uint aot;
-	uint qual;
-	uint afterburner;
-	uint bandwidth;
-} aac_out_conf;
 
 
 typedef struct mp4 {
@@ -26,9 +18,7 @@ typedef struct mp4 {
 
 typedef struct mp4_out {
 	uint state;
-	ffpcm fmt;
 	ffmp4_cook mp;
-	ffaac_enc aac;
 } mp4_out;
 
 
@@ -48,25 +38,16 @@ static const fmed_filter fmed_mp4_input = {
 	&mp4_in_create, &mp4_in_decode, &mp4_in_free
 };
 
-//AAC ENCODE
-static int aac_out_config(ffpars_ctx *ctx);
+//OUTPUT
 static void* mp4_out_create(fmed_filt *d);
 static void mp4_out_free(void *ctx);
 static int mp4_out_encode(void *ctx, fmed_filt *d);
-static const fmed_filter mp4aac_output = {
-	&mp4_out_create, &mp4_out_encode, &mp4_out_free, &aac_out_config
+static const fmed_filter mp4_output = {
+	&mp4_out_create, &mp4_out_encode, &mp4_out_free
 };
 
 static void mp4_meta(mp4 *m, fmed_filt *d);
 static int mp4_out_addmeta(mp4_out *m, fmed_filt *d);
-
-
-static const ffpars_arg aac_out_conf_args[] = {
-	{ "profile",	FFPARS_TINT,  FFPARS_DSTOFF(struct aac_out_conf_t, aot) },
-	{ "quality",	FFPARS_TINT,  FFPARS_DSTOFF(struct aac_out_conf_t, qual) },
-	{ "afterburner",	FFPARS_TINT,  FFPARS_DSTOFF(struct aac_out_conf_t, afterburner) },
-	{ "bandwidth",	FFPARS_TINT,  FFPARS_DSTOFF(struct aac_out_conf_t, bandwidth) },
-};
 
 
 FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
@@ -80,8 +61,8 @@ static const void* mp4_iface(const char *name)
 {
 	if (!ffsz_cmp(name, "input"))
 		return &fmed_mp4_input;
-	else if (!ffsz_cmp(name, "aac-encode"))
-		return &mp4aac_output;
+	else if (!ffsz_cmp(name, "output"))
+		return &mp4_output;
 	return NULL;
 }
 
@@ -244,16 +225,6 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 }
 
 
-static int aac_out_config(ffpars_ctx *ctx)
-{
-	aac_out_conf.aot = AAC_LC;
-	aac_out_conf.qual = 256;
-	aac_out_conf.afterburner = 1;
-	aac_out_conf.bandwidth = 0;
-	ffpars_setargs(ctx, &aac_out_conf, aac_out_conf_args, FFCNT(aac_out_conf_args));
-	return 0;
-}
-
 static void* mp4_out_create(fmed_filt *d)
 {
 	mp4_out *m = ffmem_tcalloc1(mp4_out);
@@ -265,7 +236,6 @@ static void* mp4_out_create(fmed_filt *d)
 static void mp4_out_free(void *ctx)
 {
 	mp4_out *m = ctx;
-	ffaac_enc_close(&m->aac);
 	ffmp4_wclose(&m->mp);
 	ffmem_free(m);
 }
@@ -297,56 +267,43 @@ static int mp4_out_addmeta(mp4_out *m, fmed_filt *d)
 	return 0;
 }
 
+/* Encoding process:
+. Add encoder filter to the chain
+. Get encoder config data
+. Initialize MP4 output
+. Wrap encoded audio data into MP4 */
 static int mp4_out_encode(void *ctx, fmed_filt *d)
 {
 	mp4_out *m = ctx;
 	int r;
 
-	enum { I_CONV, I_INIT, I_ENC, I_MP4 };
+	enum { I_INIT_ENC, I_INIT, I_MP4 };
 
-	for (;;) {
 	switch (m->state) {
 
-	case I_CONV:
-		fmed_setval("conv_pcm_format", FFPCM_16);
-		fmed_setval("conv_pcm_ileaved", 1);
+	case I_INIT_ENC:
+		if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT_PREV, "aac.encode"))
+			return FMED_RERR;
 		m->state = I_INIT;
 		return FMED_RMORE;
 
 	case I_INIT: {
-		ffpcm_fmtcopy(&m->fmt, &d->audio.fmt);
-
-		if (m->fmt.format != FFPCM_16LE || !d->audio.fmt.ileaved) {
-			errlog(core, d->trk, NULL, "unsupported input PCM format");
-			return FMED_RERR;
-		}
-
 		if ((int64)d->audio.total == FMED_NULL) {
 			errlog(core, d->trk, NULL, "total_samples unknown");
 			return FMED_RERR;
 		}
 
-		int qual;
-		if (FMED_NULL == (qual = fmed_getval("aac-quality")))
-			qual = aac_out_conf.qual;
-		if (qual > 5 && qual < 8000)
-			qual *= 1000;
+		ffstr asc;
+		ffstr_set(&asc, d->data, d->datalen);
+		d->datalen = 0;
+		ffpcm fmt;
+		ffpcm_fmtcopy(&fmt, &d->audio.convfmt);
 
-		m->aac.info.aot = aac_out_conf.aot;
-		m->aac.info.afterburner = aac_out_conf.afterburner;
-		m->aac.info.bandwidth = aac_out_conf.bandwidth;
-
-		if (0 != (r = ffaac_create(&m->aac, &m->fmt, qual))) {
-			errlog(core, d->trk, NULL, "ffaac_create(): %s", ffaac_enc_errstr(&m->aac));
-			return FMED_RERR;
-		}
-
-		ffstr asc = ffaac_enc_conf(&m->aac);
 		m->mp.info.total_samples = d->audio.total - d->audio.pos;
-		m->mp.info.frame_samples = ffaac_enc_frame_samples(&m->aac);
-		m->mp.info.enc_delay = m->aac.info.enc_delay;
-		m->mp.info.bitrate = ffaac_bitrate(&m->aac, qual);
-		if (0 != (r = ffmp4_create_aac(&m->mp, &m->fmt, &asc))) {
+		m->mp.info.frame_samples = fmed_getval("audio_frame_samples");
+		m->mp.info.enc_delay = fmed_getval("audio_enc_delay");
+		m->mp.info.bitrate = fmed_getval("audio_bitrate");
+		if (0 != (r = ffmp4_create_aac(&m->mp, &fmt, &asc))) {
 			errlog(core, d->trk, NULL, "ffmp4_create_aac(): %s", ffmp4_werrstr(&m->mp));
 			return FMED_RERR;
 		}
@@ -356,44 +313,24 @@ static int mp4_out_encode(void *ctx, fmed_filt *d)
 
 		d->output.size = ffmp4_wsize(&m->mp);
 
-		m->state = I_ENC;
-		// break
-	}
-
-	case I_ENC:
-		if (d->flags & FMED_FLAST)
-			m->aac.fin = 1;
-		m->aac.pcm = (void*)d->data,  m->aac.pcmlen = d->datalen;
-		r = ffaac_encode(&m->aac);
-		switch (r) {
-		case FFAAC_RDONE:
-			m->mp.fin = 1;
-			m->state = I_MP4;
-			continue;
-
-		case FFAAC_RMORE:
-			return FMED_RMORE;
-
-		case FFAAC_RDATA:
-			break;
-
-		case FFAAC_RERR:
-			errlog(core, d->trk, NULL, "ffaac_encode(): %s", ffaac_enc_errstr(&m->aac));
-			return FMED_RERR;
-		}
-		dbglog(core, d->trk, NULL, "encoded %L samples into %L bytes"
-			, (d->datalen - m->aac.pcmlen) / ffpcm_size1(&m->fmt), m->aac.datalen);
-		d->data = (void*)m->aac.pcm,  d->datalen = m->aac.pcmlen;
-		m->mp.data = m->aac.data,  m->mp.datalen = m->aac.datalen;
 		m->state = I_MP4;
 		// break
+	}
+	}
 
-	case I_MP4:
+	if (d->flags & FMED_FLAST)
+		m->mp.fin = 1;
+
+	if (d->datalen != 0) {
+		m->mp.data = d->data,  m->mp.datalen = d->datalen;
+		d->datalen = 0;
+	}
+
+	for (;;) {
 		r = ffmp4_write(&m->mp);
 		switch (r) {
 		case FFMP4_RMORE:
-			m->state = I_ENC;
-			continue;
+			return FMED_RMORE;
 
 		case FFMP4_RSEEK:
 			d->output.seek = m->mp.off;
@@ -415,6 +352,5 @@ static int mp4_out_encode(void *ctx, fmed_filt *d)
 			errlog(core, d->trk, NULL, "ffmp4_write(): %s", ffmp4_werrstr(&m->mp));
 			return FMED_RERR;
 		}
-	}
 	}
 }
