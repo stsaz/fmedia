@@ -354,6 +354,13 @@ static void trk_prep(fmed_trk *trk)
 	trk->out_overwrite = fmed->overwrite;
 	trk->out_preserve_date = fmed->preserve_date;
 
+	if (fmed->out_format != 0)
+		trk->audio.convfmt.format = fmed->out_format;
+	if (fmed->out_channels != 0)
+		trk->audio.convfmt.channels = fmed->out_channels;
+	if (fmed->out_rate != 0)
+		trk->audio.convfmt.sample_rate = fmed->out_rate;
+
 	trk->pcm_peaks_crc = fmed->pcm_crc;
 
 	if (fmed->volume != 100) {
@@ -409,13 +416,6 @@ static void open_input(void *udata)
 
 		if (fmed->playdev_name != 0)
 			qu_setval(qu, qe, "playdev_name", fmed->playdev_name);
-
-		if (fmed->out_format != 0)
-			qu_setval(qu, qe, "conv_pcm_format", fmed->out_format);
-		if (fmed->out_channels != 0)
-			qu_setval(qu, qe, "conv_channels", fmed->out_channels);
-		if (fmed->out_rate != 0)
-			qu_setval(qu, qe, "conv_pcm_rate", fmed->out_rate);
 
 		if (fmed->ogg_qual != -255)
 			qu_setval(qu, qe, "ogg-quality", fmed->ogg_qual * 10);

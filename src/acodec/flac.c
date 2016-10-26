@@ -307,13 +307,12 @@ static int flac_out_encode(void *ctx, fmed_filt *d)
 
 	switch (f->state) {
 	case I_FIRST:
-		fmed_setval("conv_pcm_ileaved", 0);
 		// break
 
 	case I_INIT: {
 		int64 val;
 		ffpcm fmt;
-		ffpcm_fmtcopy(&fmt, &d->audio.fmt);
+		ffpcm_fmtcopy(&fmt, &d->audio.convfmt);
 
 		if ((int64)d->audio.total != FMED_NULL)
 			f->fl.total_samples = d->audio.total - d->audio.pos;
@@ -326,8 +325,10 @@ static int flac_out_encode(void *ctx, fmed_filt *d)
 			f->fl.opts |= FFFLAC_ENC_NOMD5;
 
 		if (0 != ffflac_create(&f->fl, &fmt)) {
-			if (f->state == I_FIRST && f->fl.errtype == FLAC_EFMT) {
-				d->track->setval4(d->trk, "conv_pcm_format", fmt.format, FMED_TRK_FNO_OVWRITE);
+			if (f->state == I_FIRST && f->fl.errtype == FLAC_EFMT
+				&& d->audio.convfmt.format == d->audio.fmt.format) {
+				d->audio.convfmt.format = fmt.format;
+				d->audio.convfmt.ileaved = 0;
 				f->state = I_INIT;
 				return FMED_RMORE;
 			}
@@ -337,8 +338,9 @@ static int flac_out_encode(void *ctx, fmed_filt *d)
 		// break
 
 	case I_META:
-		if (d->audio.fmt.ileaved) {
+		if (d->audio.convfmt.ileaved) {
 			if (f->state == I_FIRST) {
+				d->audio.convfmt.ileaved = 0;
 				f->state = I_META;
 				return FMED_RMORE;
 			}

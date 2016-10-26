@@ -168,7 +168,7 @@ static void trk_open_capt(fm_trk *t)
 	ffpcm_fmtcopy(&t->props.audio.fmt, &fmed->conf.inp_pcm);
 
 	if (fmed->conf.inp_pcm.channels & ~FFPCM_CHMASK) {
-		trk_setval(t, "conv_channels", fmed->conf.inp_pcm.channels);
+		t->props.audio.convfmt.channels = fmed->conf.inp_pcm.channels;
 		t->props.audio.fmt.channels = fmed->conf.inp_pcm.channels & FFPCM_CHMASK;
 	}
 
@@ -341,7 +341,9 @@ static void trk_copy_info(fmed_trk *dst, const fmed_trk *src)
 {
 	if (src == NULL) {
 		ffmem_tzero(dst);
-		memset(&dst->audio, 0xff, sizeof(dst->audio)); //FMED_NULL
+		dst->audio.total = FMED_NULL;
+		dst->audio.seek = FMED_NULL;
+		dst->audio.until = FMED_NULL;
 		memset(&dst->input, 0xff, sizeof(dst->input));
 		memset(&dst->output, 0xff, sizeof(dst->output));
 		return;

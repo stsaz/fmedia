@@ -272,7 +272,7 @@ static int alsa_create(alsa_out *a, fmed_filt *d)
 	if (FMED_NULL == (int)(a->devidx = (int)d->track->getval(d->trk, "playdev_name")))
 		a->devidx = alsa_out_conf.idev;
 
-	ffpcm_fmtcopy(&fmt, &d->audio.fmt);
+	ffpcm_fmtcopy(&fmt, &d->audio.convfmt);
 
 	if (mod->out_valid) {
 
@@ -346,8 +346,7 @@ static int alsa_write(void *ctx, fmed_filt *d)
 
 	switch (a->state) {
 	case I_OPEN:
-		if (d->audio.fmt.ileaved)
-			fmed_setval("conv_pcm_ileaved", 0);
+		d->audio.convfmt.ileaved = 0;
 		if (0 != (r = alsa_create(a, d)))
 			return r;
 		a->state = I_DATA;

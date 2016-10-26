@@ -422,6 +422,12 @@ static void gui_convert(void)
 				qent->trk->out_preserve_date = *pint;
 			else if (ffstr_eqcz(&name, "overwrite"))
 				qent->trk->out_overwrite = *pint;
+			else if (ffstr_eqcz(&name, "conv_pcm_format"))
+				qent->trk->audio.convfmt.format = *pint;
+			else if (ffstr_eqcz(&name, "conv_pcm_channels"))
+				qent->trk->audio.convfmt.channels = *pint;
+			else if (ffstr_eqcz(&name, "conv_pcm_sample_rate"))
+				qent->trk->audio.convfmt.sample_rate = *pint;
 
 			val = *pint;
 			gg->qu->meta_set(qent, name.ptr, name.len

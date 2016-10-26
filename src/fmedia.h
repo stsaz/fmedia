@@ -223,6 +223,7 @@ struct fmed_trk {
 	uint type; //enum FMED_TRK_TYPE
 	struct {
 		ffpcmex fmt;
+		ffpcmex convfmt; //format of audio data produced by converter filter
 		uint64 pos; //samples
 		uint64 total; //samples
 		uint64 seek; //msec

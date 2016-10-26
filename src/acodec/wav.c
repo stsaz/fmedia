@@ -233,13 +233,13 @@ static int wavout_process(void *ctx, fmed_filt *d)
 
 	switch (w->state) {
 	case 0:
-		fmed_setval("conv_pcm_ileaved", 1);
+		d->audio.convfmt.ileaved = 1;
 		w->state = 1;
 		return FMED_RMORE;
 
 	case 1: {
 		ffpcm fmt;
-		ffpcm_fmtcopy(&fmt, &d->audio.fmt);
+		ffpcm_fmtcopy(&fmt, &d->audio.convfmt);
 		total_dur = ((int64)d->audio.total != FMED_NULL) ? d->audio.total : 0;
 		ffwav_create(&w->wav, &fmt, total_dur);
 

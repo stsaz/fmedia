@@ -8,16 +8,6 @@ Copyright (c) 2015 Simon Zolin */
 #include <FF/array.h>
 #include <FF/crc.h>
 
-/*
-PCM conversion preparation:
- . INPUT -> conv -> conv-soxr -> OUTPUT
-
-                                newfmt+rate
- . INPUT -- [conv] -- conv-soxr      <-     OUTPUT
-
-                                newfmt
- . INPUT -- conv <- [conv-soxr]   <-   OUTPUT
-*/
 
 static const fmed_core *core;
 
@@ -159,31 +149,31 @@ static void log_pcmconv(const char *module, int r, const ffpcmex *in, const ffpc
 
 static int sndmod_conv_prepare(sndmod_conv *c, fmed_filt *d)
 {
-	int il, fmt, val;
 	size_t cap;
 
-	fmt = (int)fmed_popval("conv_pcm_format");
-	il = (int)fmed_popval("conv_pcm_ileaved");
+	c->outpcm.format = d->audio.convfmt.format;
+	c->outpcm.ileaved = d->audio.convfmt.ileaved;
+	if (d->audio.convfmt.channels != (c->outpcm.channels & FFPCM_CHMASK))
+		c->outpcm.channels = d->audio.convfmt.channels;
 
-	if (fmt != FMED_NULL) {
-		c->outpcm.format = fmt;
-		d->audio.fmt.format = c->outpcm.format;
-	}
-
-	if (il != FMED_NULL) {
-		c->outpcm.ileaved = il;
-		d->audio.fmt.ileaved = c->outpcm.ileaved;
-	}
-
-	if (FMED_NULL != (val = fmed_popval("conv_channels"))) {
-		c->outpcm.channels = val;
-		d->audio.fmt.channels = val & FFPCM_CHMASK;
-	}
-
-	if (!ffmemcmp(&c->outpcm, &c->inpcm, sizeof(ffpcmex))) {
+	if (c->inpcm.format == c->outpcm.format
+		&& c->inpcm.channels == c->outpcm.channels
+		&& c->inpcm.ileaved == c->outpcm.ileaved) {
 		d->out = d->data;
 		d->outlen = d->datalen;
 		return FMED_RDONE; //the second call of the module - no conversion is needed
+	}
+
+	if (c->inpcm.sample_rate != d->audio.convfmt.sample_rate) {
+		if (c->inpcm.channels == c->outpcm.channels) {
+			d->out = d->data;
+			d->outlen = d->datalen;
+			return FMED_RDONE;
+		}
+
+		c->outpcm.format = FFPCM_FLOAT;
+		c->outpcm.sample_rate = c->inpcm.sample_rate;
+		c->outpcm.ileaved = 0;
 	}
 
 	int r = ffpcm_convert(&c->outpcm, NULL, &c->inpcm, NULL, 0);
@@ -212,26 +202,35 @@ static int sndmod_conv_prepare(sndmod_conv *c, fmed_filt *d)
 	return FMED_ROK;
 }
 
+/* PCM conversion filter is initialized in 2 steps:
+
+1. The first time the converter is called, it just sets output audio format and returns with no data.
+The conversion format may be already set by previous filters - the converter preserves those settings.
+The next filters in chain may set the format they need, and then they ask for actual audio data.
+
+2. The second time the converter is called, it checks whether conversion settings are supported and starts to convert audio data.
+If input and output format settings are equal, the converter exits.
+This filter can't convert sample rate - the next filter in chain must deal with it.
+*/
 static int sndmod_conv_process(void *ctx, fmed_filt *d)
 {
 	sndmod_conv *c = ctx;
 	uint samples;
-	int r, fmt;
+	int r;
 
 	switch (c->state) {
 	case CONV_CONF:
 		c->inpcm = d->audio.fmt;
-		c->outpcm = c->inpcm;
-
-		if (FMED_NULL != (fmt = (int)fmed_popval("conv_pcm_format"))) {
-			c->outpcm.format = fmt;
-			d->audio.fmt.format = c->outpcm.format;
-		}
-
-		if (FMED_NULL != (r = fmed_popval("conv_channels"))) {
-			c->outpcm.channels = r;
-			d->audio.fmt.channels = r & FFPCM_CHMASK;
-		}
+		c->outpcm = d->audio.convfmt;
+		if (d->audio.convfmt.format == 0)
+			c->outpcm.format = d->audio.fmt.format;
+		if (d->audio.convfmt.channels == 0)
+			c->outpcm.channels = d->audio.fmt.channels;
+		if (d->audio.convfmt.sample_rate == 0)
+			c->outpcm.sample_rate = d->audio.fmt.sample_rate;
+		c->outpcm.ileaved = d->audio.fmt.ileaved;
+		d->audio.convfmt = c->outpcm;
+		d->audio.convfmt.channels = (c->outpcm.channels & FFPCM_CHMASK);
 
 		d->outlen = 0;
 		c->state = CONV_CHK;
@@ -239,7 +238,7 @@ static int sndmod_conv_process(void *ctx, fmed_filt *d)
 
 	case CONV_CHK:
 		r = sndmod_conv_prepare(c, d);
-		if (c->state != 2)
+		if (c->state != CONV_DATA)
 			return r;
 		break;
 
@@ -290,6 +289,13 @@ static void sndmod_soxr_close(void *ctx)
 	ffmem_free(c);
 }
 
+/* How PCM sample rate conversion filter is initialized:
+1. Return with no data so the next filters can set sample rate they need.
+
+2. The second time the filter is called, check conversion sample rate.  If it equals to the input, then exit.
+This filter converts both format and sample rate.
+Previous filter must deal with channel conversion.  In this case the input format is float32/ni.
+*/
 static int sndmod_soxr_process(void *ctx, fmed_filt *d)
 {
 	sndmod_soxr *c = ctx;
@@ -298,40 +304,27 @@ static int sndmod_soxr_process(void *ctx, fmed_filt *d)
 
 	switch (c->state) {
 	case 0:
-		c->inpcm.sample_rate = d->audio.fmt.sample_rate;
-		if (FMED_NULL != (int)(outpcm.sample_rate = (int)fmed_getval("conv_pcm_rate")))
-			d->audio.fmt.sample_rate = outpcm.sample_rate;
 		d->outlen = 0;
 		c->state = 1;
 		return FMED_RDATA;
 
 	case 1:
-		if (FMED_NULL == fmed_getval("conv_pcm_rate"))
+		if (d->audio.convfmt.sample_rate == d->audio.fmt.sample_rate)
 			return FMED_RDONE_PREV;
 
-		if (FMED_NULL != fmed_getval("conv_channels"))
+		if (d->audio.convfmt.channels != d->audio.fmt.channels) {
+			c->state = 2;
 			return FMED_RMORE; // "conv" module will handle channel conversion
+		}
+		// break
 
+	case 2:
 		inpcm = d->audio.fmt;
-		outpcm = inpcm;
-
-		outpcm.sample_rate = (int)fmed_popval("conv_pcm_rate");
-		d->audio.fmt.sample_rate = outpcm.sample_rate;
-
-		if (FMED_NULL != (val = (int)fmed_popval("conv_pcm_format"))) {
-			outpcm.format = val;
-			d->audio.fmt.format = outpcm.format;
-		}
-
-		if (FMED_NULL != (val = (int)fmed_popval("conv_pcm_ileaved"))) {
-			outpcm.ileaved = val;
-			d->audio.fmt.ileaved = outpcm.ileaved;
-		}
-
-		if (!ffmemcmp(&outpcm, &inpcm, sizeof(ffpcmex))) {
-			d->out = d->data;
-			d->outlen = d->datalen;
-			return FMED_RDONE;
+		outpcm = d->audio.convfmt;
+		if (c->state == 2) {
+			inpcm.format = FFPCM_FLOAT;
+			inpcm.channels = outpcm.channels;
+			inpcm.ileaved = 0;
 		}
 
 		// c->soxr.dither = 1;
@@ -342,10 +335,10 @@ static int sndmod_soxr_process(void *ctx, fmed_filt *d)
 				return FMED_RERR;
 		}
 
-		c->state = 2;
+		c->state = 3;
 		break;
 
-	case 2:
+	case 3:
 		break;
 	}
 
@@ -496,7 +489,7 @@ static void* sndmod_peaks_open(fmed_filt *d)
 	if (p == NULL)
 		return NULL;
 
-	p->nch = d->audio.fmt.channels;
+	p->nch = d->audio.convfmt.channels;
 	if (p->nch > 2) {
 		ffmem_free(p);
 		return NULL;
@@ -519,14 +512,14 @@ static int sndmod_peaks_process(void *ctx, fmed_filt *d)
 
 	switch (p->state) {
 	case 0:
-		fmed_setval("conv_pcm_ileaved", 0);
-		fmed_setval("conv_pcm_format", FFPCM_16LE);
+		d->audio.convfmt.ileaved = 0;
+		d->audio.convfmt.format = FFPCM_16LE;
 		p->state = 1;
 		return FMED_RMORE;
 
 	case 1:
-		if (d->audio.fmt.ileaved
-			|| d->audio.fmt.format != FFPCM_16LE) {
+		if (d->audio.convfmt.ileaved
+			|| d->audio.convfmt.format != FFPCM_16LE) {
 			errlog(core, d->trk, "peaks", "input must be non-interleaved 16LE PCM");
 			return FMED_RERR;
 		}

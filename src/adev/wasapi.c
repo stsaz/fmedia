@@ -235,7 +235,7 @@ static int wasapi_create(wasapi_out *w, fmed_filt *d)
 		&& FMED_NULL == (int)(w->devidx = (int)d->track->getval(d->trk, "playdev_name")))
 		w->devidx = wasapi_out_conf.idev;
 
-	ffpcm_fmtcopy(&fmt, &d->audio.fmt);
+	ffpcm_fmtcopy(&fmt, &d->audio.convfmt);
 
 	if (wasapi_out_conf.exclusive == EXCL_ALLOWED && FMED_NULL != (lowlat = d->track->getval(d->trk, "low_latency")))
 		excl = !!lowlat;
@@ -258,7 +258,7 @@ static int wasapi_create(wasapi_out *w, fmed_filt *d)
 
 			if (!excl && fmt.sample_rate != mod->fmt.sample_rate) {
 				fmt.sample_rate = mod->fmt.sample_rate;
-				fmed_setval("conv_pcm_rate", mod->fmt.sample_rate);
+				d->audio.convfmt.sample_rate = mod->fmt.sample_rate;
 			}
 
 			ffwas_stop(&mod->out);
@@ -292,13 +292,13 @@ static int wasapi_create(wasapi_out *w, fmed_filt *d)
 			&& memcmp(&fmt, &in_fmt, sizeof(fmt))) {
 
 			if (fmt.format != in_fmt.format)
-				fmed_setval("conv_pcm_format", fmt.format);
+				d->audio.convfmt.format = fmt.format;
 
 			if (fmt.sample_rate != in_fmt.sample_rate)
-				fmed_setval("conv_pcm_rate", fmt.sample_rate);
+				d->audio.convfmt.sample_rate = fmt.sample_rate;
 
 			if (fmt.channels != in_fmt.channels)
-				fmed_setval("conv_channels", fmt.channels);
+				d->audio.convfmt.channels = fmt.channels;
 			w->state = WAS_OPEN;
 			return FMED_RMORE;
 		}
@@ -358,8 +358,7 @@ static int wasapi_write(void *ctx, fmed_filt *d)
 
 	switch (w->state) {
 	case WAS_TRYOPEN:
-		if (!d->audio.fmt.ileaved)
-			fmed_setval("conv_pcm_ileaved", 1);
+		d->audio.convfmt.ileaved = 1;
 		// break
 
 	case WAS_OPEN:
@@ -486,17 +485,20 @@ again:
 			&& memcmp(&fmt.format, &in_fmt, sizeof(fmt))) {
 
 			if (fmt.format != in_fmt.format) {
-				d->track->setval4(d->trk, "conv_pcm_format", in_fmt.format, FMED_TRK_FNO_OVWRITE);
+				if (d->audio.convfmt.format == 0)
+					d->audio.convfmt.format = in_fmt.format;
 				d->audio.fmt.format = fmt.format;
 			}
 
 			if (fmt.sample_rate != in_fmt.sample_rate) {
-				d->track->setval4(d->trk, "conv_pcm_rate", in_fmt.sample_rate, FMED_TRK_FNO_OVWRITE);
+				if (d->audio.convfmt.sample_rate == 0)
+					d->audio.convfmt.sample_rate = in_fmt.sample_rate;
 				d->audio.fmt.sample_rate = fmt.sample_rate;
 			}
 
 			if (fmt.channels != in_fmt.channels) {
-				d->track->setval4(d->trk, "conv_channels", in_fmt.channels, FMED_TRK_FNO_OVWRITE);
+				if (d->audio.convfmt.channels == 0)
+					d->audio.convfmt.channels = in_fmt.channels;
 				d->audio.fmt.channels = fmt.channels;
 			}
 

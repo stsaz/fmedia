@@ -205,7 +205,7 @@ static void* dsnd_open(fmed_filt *d)
 
 	ds->snd.handler = &dsnd_onplay;
 	ds->snd.udata = ds;
-	ffpcm_fmtcopy(&fmt, &d->audio.fmt);
+	ffpcm_fmtcopy(&fmt, &d->audio.convfmt);
 	e = ffdsnd_open(&ds->snd, dev->id, &fmt, dsnd_out_conf.buflen);
 
 	ffdsnd_devenumfree(dhead);
@@ -243,8 +243,8 @@ static int dsnd_write(void *ctx, fmed_filt *d)
 	}
 
 	if (!ds->ileaved) {
-		if (!d->audio.fmt.ileaved) {
-			fmed_setval("conv_pcm_ileaved", 1);
+		if (!d->audio.convfmt.ileaved) {
+			d->audio.convfmt.ileaved = 1;
 			return FMED_RMORE;
 		}
 		ds->ileaved = 1;

@@ -460,8 +460,8 @@ static int mpeg_out_process(void *ctx, fmed_filt *d)
 	switch (m->state) {
 	case 0:
 	case 1:
-		ffpcm_fmtcopy(&pcm, &d->audio.fmt);
-		m->mpg.ileaved = d->audio.fmt.ileaved;
+		ffpcm_fmtcopy(&pcm, &d->audio.convfmt);
+		m->mpg.ileaved = d->audio.convfmt.ileaved;
 
 		if (FMED_NULL == (qual = (int)fmed_getval("mpeg-quality")))
 			qual = mpeg_out_conf.qual;
@@ -469,7 +469,7 @@ static int mpeg_out_process(void *ctx, fmed_filt *d)
 		if (0 != (r = ffmpg_create(&m->mpg, &pcm, qual))) {
 
 			if (r == FFMPG_EFMT && m->state == 0) {
-				fmed_setval("conv_pcm_format", pcm.format);
+				d->audio.convfmt.format = pcm.format;
 				m->state = 1;
 				return FMED_RMORE;
 			}

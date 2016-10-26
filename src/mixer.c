@@ -186,20 +186,20 @@ static int mix_in_write(void *ctx, fmed_filt *d)
 
 	switch (mi->state) {
 	case 0:
-		d->track->setval(d->trk, "conv_pcm_format", pcmfmt.format);
-		d->track->setval(d->trk, "conv_pcm_ileaved", 1);
+		d->audio.convfmt.format = pcmfmt.format;
+		d->audio.convfmt.ileaved = 1;
 		mi->state = 1;
 		return FMED_RMORE;
 
 	case 1:
-		if (pcmfmt.format != d->audio.fmt.format
-			|| pcmfmt.channels != d->audio.fmt.channels
-			|| pcmfmt.sample_rate != d->audio.fmt.sample_rate) {
+		if (pcmfmt.format != d->audio.convfmt.format
+			|| pcmfmt.channels != d->audio.convfmt.channels
+			|| pcmfmt.sample_rate != d->audio.convfmt.sample_rate) {
 			errlog(core, d->trk, "mixer", "input format doesn't match output");
 			mx->err = 1;
 			return FMED_RERR;
 		}
-		pcmfmt.ileaved = d->audio.fmt.ileaved;
+		pcmfmt.ileaved = d->audio.convfmt.ileaved;
 		mi->state = 2;
 		break;
 	}
