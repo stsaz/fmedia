@@ -75,6 +75,7 @@ static const ffpars_arg fmed_cmdline_args[] = {
 
 	//ENCODING
 	{ "vorbis.quality",	FFPARS_TFLOAT | FFPARS_FSIGN,  FFPARS_DSTOFF(fmed_cmd, vorbis_qual) },
+	{ "opus.bitrate",	FFPARS_TINT,  FFPARS_DSTOFF(fmed_cmd, opus_brate) },
 	{ "mpeg-quality",	FFPARS_TINT | FFPARS_F16BIT,  FFPARS_DSTOFF(fmed_cmd, mpeg_qual) },
 	{ "aac-quality",	FFPARS_TINT,  FFPARS_DSTOFF(fmed_cmd, aac_qual) },
 	{ "flac-compression",	FFPARS_TINT | FFPARS_F8BIT,  FFPARS_DSTOFF(fmed_cmd, flac_complevel) },
@@ -425,6 +426,9 @@ static void open_input(void *udata)
 			qu_setval(qu, qe, "aac-quality", fmed->aac_qual);
 		else if (fmed->flac_complevel != 0xff)
 			qu_setval(qu, qe, "flac_complevel", fmed->flac_complevel);
+
+		if (fmed->opus_brate != 0)
+			qu_setval(qu, qe, "opus.bitrate", fmed->opus_brate);
 
 		if (fmed->rec)
 			qu_setval(qu, qe, "low_latency", 1);

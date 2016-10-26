@@ -87,6 +87,7 @@ typedef struct cvt_sets_t {
 	int vorbis_quality;
 	float vorbis_quality_f;
 	};
+	uint opus_bitrate;
 	int mpg_quality;
 	int aac_quality;
 	int flac_complevel;
@@ -118,6 +119,7 @@ typedef struct rec_sets_t {
 	int vorbis_quality;
 	float vorbis_quality_f;
 	};
+	uint opus_bitrate;
 	int mpg_quality;
 	int flac_complevel;
 

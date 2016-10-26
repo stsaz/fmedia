@@ -200,7 +200,7 @@ menu mtray {
 }
 
 dialog dlg {
-	filter "Input (*.mp3;*.ogg;*.flac;*.m4a;*.mp4;*.wv;*.ape;*.wav;*.m3u;*.m3u8;*.cue)\x00*.mp3;*.ogg;*.flac;*.m4a;*.mp4;*.wv;*.ape;*.wav;*.m3u;*.m3u8;*.cue\x00Output (*.ogg;*.mp3;*.flac;*.m4a;*.wav)\x00*.ogg;*.mp3;*.flac;*.m4a;*.wav\x00Playlists (*.m3u8;*.m3u)\x00*.m3u8;*.m3u\x00All (*.*)\x00*.*\x00\x00"
+	filter "Input (*.mp3;*.ogg;*.opus;*.flac;*.m4a;*.mp4;*.wv;*.ape;*.wav;*.m3u;*.m3u8;*.cue)\x00*.mp3;*.ogg;*.opus;*.flac;*.m4a;*.mp4;*.wv;*.ape;*.wav;*.m3u;*.m3u8;*.cue\x00Output (*.ogg;*.opus;*.mp3;*.flac;*.m4a;*.wav)\x00*.ogg;*.opus;*.mp3;*.flac;*.m4a;*.wav\x00Playlists (*.m3u8;*.m3u)\x00*.m3u8;*.m3u\x00All (*.*)\x00*.*\x00\x00"
 }
 
 window wmain {

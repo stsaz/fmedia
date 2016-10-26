@@ -137,6 +137,7 @@ static void ogg_close(void *ctx)
 
 static const char *const ogg_mods[][2] = {
 	{ "vorbis.decode", "opus.decode" },
+	{ "vorbis.encode", "opus.encode" },
 };
 
 static const char* ogg_codec_mod(const char *fn, uint is_encoder)
@@ -279,12 +280,14 @@ static int ogg_out_encode(void *ctx, fmed_filt *d)
 	int r;
 
 	switch (o->state) {
-	case I_CONF:
-		if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT_PREV, "vorbis.encode")) {
+	case I_CONF: {
+		const char *enc = ogg_codec_mod(d->track->getvalstr(d->trk, "output"), 1);
+		if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT_PREV, (void*)enc)) {
 			return FMED_RERR;
 		}
 		o->state = I_CREAT;
 		return FMED_RMORE;
+	}
 
 	case I_CREAT:
 		if (0 != (r = ffogg_create(&o->og, ffrnd_get()))) {

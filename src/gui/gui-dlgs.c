@@ -106,6 +106,7 @@ static const struct cvt_set cvt_sets[] = {
 	{ "until_time", "Stop at", "[MM:]SS[.MSC]", CVTF_MSEC | CVTF_EMPTY | FFOFF(cvt_sets_t, until) },
 
 	{ "vorbis.quality", "Vorbis Quality", "-1.0 .. 10.0", CVTF_FLT | CVTF_FLT10 | FFOFF(cvt_sets_t, vorbis_quality) },
+	{ "opus.bitrate", "Opus Bitrate", "6..510", FFOFF(cvt_sets_t, opus_bitrate) },
 	{ "mpeg-quality", "MPEG Quality", "VBR quality: 9..0 or CBR bitrate: 64..320", FFOFF(cvt_sets_t, mpg_quality) },
 	{ "aac-quality", "AAC Quality", "VBR quality: 1..5 or CBR bitrate: 8..800", FFOFF(cvt_sets_t, aac_quality) },
 	{ "flac_complevel", "FLAC Compression", "0..8", FFOFF(cvt_sets_t, flac_complevel) },
@@ -121,6 +122,7 @@ static const ffpars_arg cvt_sets_conf[] = {
 	{ "output",	FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY, FFPARS_DSTOFF(cvt_sets_t, output) },
 
 	{ "vorbis_quality",	FFPARS_TFLOAT, FFPARS_DSTOFF(cvt_sets_t, vorbis_quality_f) },
+	{ "opus_bitrate",	FFPARS_TINT, FFPARS_DSTOFF(rec_sets_t, opus_bitrate) },
 	{ "mpeg_quality",	FFPARS_TINT, FFPARS_DSTOFF(cvt_sets_t, mpg_quality) },
 	{ "aac_quality",	FFPARS_TINT, FFPARS_DSTOFF(cvt_sets_t, aac_quality) },
 	{ "flac_complevel",	FFPARS_TINT, FFPARS_DSTOFF(cvt_sets_t, flac_complevel) },
@@ -137,6 +139,7 @@ static void gui_cvt_sets_init(cvt_sets_t *sets)
 	sets->init = 1;
 
 	sets->vorbis_quality_f = 5.0;
+	sets->opus_bitrate = 128;
 	sets->mpg_quality = 2;
 	sets->aac_quality = 192;
 	sets->flac_complevel = 6;
@@ -479,6 +482,7 @@ static const struct cvt_set rec_sets[] = {
 	{ "until_time", "Stop at", "[MM:]SS[.MSC]", CVTF_MSEC | CVTF_EMPTY | FFOFF(rec_sets_t, until) },
 
 	{ "vorbis.quality", "Vorbis Quality", "-1.0 .. 10.0", CVTF_FLT | CVTF_FLT10 | FFOFF(rec_sets_t, vorbis_quality) },
+	{ "opus.bitrate", "Opus Bitrate", "6..510", FFOFF(rec_sets_t, opus_bitrate) },
 	{ "mpeg-quality", "MPEG Quality", "VBR quality: 9..0 or CBR bitrate: 64..320", FFOFF(rec_sets_t, mpg_quality) },
 	{ "flac_complevel", "FLAC Compression", "0..8", FFOFF(rec_sets_t, flac_complevel) },
 };
@@ -489,6 +493,7 @@ static const ffpars_arg rec_sets_conf[] = {
 	{ "gain",	FFPARS_TFLOAT, FFPARS_DSTOFF(rec_sets_t, gain_f) },
 
 	{ "vorbis_quality",	FFPARS_TFLOAT, FFPARS_DSTOFF(rec_sets_t, vorbis_quality_f) },
+	{ "opus_bitrate",	FFPARS_TINT, FFPARS_DSTOFF(rec_sets_t, opus_bitrate) },
 	{ "mpeg_quality",	FFPARS_TINT, FFPARS_DSTOFF(rec_sets_t, mpg_quality) },
 	{ "flac_complevel",	FFPARS_TINT, FFPARS_DSTOFF(rec_sets_t, flac_complevel) },
 };
@@ -498,6 +503,7 @@ static void rec_sets_init(rec_sets_t *sets)
 	sets->init = 1;
 
 	sets->vorbis_quality_f = 5.0;
+	sets->opus_bitrate = 128;
 	sets->mpg_quality = 2;
 	sets->flac_complevel = 6;
 }

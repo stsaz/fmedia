@@ -40,6 +40,7 @@ typedef struct fmed_cmd {
 	byte pcm_crc;
 
 	float vorbis_qual;
+	uint opus_brate;
 	uint aac_qual;
 	ushort mpeg_qual;
 	byte flac_complevel;
