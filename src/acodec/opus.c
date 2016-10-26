@@ -199,6 +199,14 @@ static int opus_in_decode(void *ctx, fmed_filt *d)
 		const ffvorbtag *vtag = &o->opus.vtag;
 		dbglog(core, d->trk, NULL, "%S: %S", &vtag->name, &vtag->val);
 		ffstr name = vtag->name;
+
+		if (ffstr_eqcz(&name, "AUDIO_TOTAL")) {
+			uint64 total;
+			if (ffstr_toint(&vtag->val, &total, FFS_INT64))
+				d->audio.total = total;
+			break;
+		}
+
 		if (vtag->tag != 0)
 			ffstr_setz(&name, ffmmtag_str[vtag->tag]);
 		qu->meta_set((void*)fmed_getval("queue_item"), name.ptr, name.len, vtag->val.ptr, vtag->val.len, FMED_QUE_TMETA);
@@ -267,6 +275,15 @@ static int opus_out_addmeta(opus_out *o, fmed_filt *d)
 		if (0 != ffopus_addtag(&o->opus, name.ptr, val->ptr, val->len))
 			warnlog(core, d->trk, NULL, "can't add tag: %S", &name);
 	}
+
+	if ((int64)d->audio.total != FMED_NULL) {
+		char buf[64];
+		uint64 total = d->audio.total * d->audio.convfmt.sample_rate / d->audio.fmt.sample_rate;
+		uint n = ffs_fromint(total, buf, sizeof(buf), 0);
+		if (0 != ffopus_addtag(&o->opus, "AUDIO_TOTAL", buf, n))
+			warnlog(core, d->trk, NULL, "can't add tag: %s", "AUDIO_TOTAL");
+	}
+
 	return 0;
 }
 
