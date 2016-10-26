@@ -4,6 +4,7 @@ BINS := $(BIN) core.$(SO) net.$(SO) \
 	mpeg.$(SO) wav.$(SO) flac.$(SO) mp4.$(SO) wavpack.$(SO) ape.$(SO) \
 	ogg.$(SO) \
 	vorbis.$(SO) \
+	opus.$(SO) \
 	aac.$(SO) \
 	alac.$(SO) \
 	plist.$(SO) \
@@ -123,6 +124,16 @@ VORBIS_O := $(OBJ_DIR)/vorbis.o \
 	$(FF_OBJ_DIR)/ffvorbistag.o
 vorbis.$(SO): $(VORBIS_O)
 	$(LD) -shared $(VORBIS_O) $(LDFLAGS) -logg-ff -lvorbis-ff -lvorbisenc-ff  -o$@
+
+
+#
+OPUS_O := $(OBJ_DIR)/opus.o \
+	$(FF_O) \
+	$(FF_OBJ_DIR)/ffopus.o \
+	$(FF_OBJ_DIR)/ffmmtag.o \
+	$(FF_OBJ_DIR)/ffvorbistag.o
+opus.$(SO): $(OPUS_O)
+	$(LD) -shared $(OPUS_O) $(LDFLAGS) -lopus-ff  -o$@
 
 
 #
@@ -275,6 +286,7 @@ installd: all
 		$(INSTDIR)/
 	$(CP) \
 		$(FF3PTLIB)/libogg-ff.$(SO) $(FF3PTLIB)/libvorbis-ff.$(SO) $(FF3PTLIB)/libvorbisenc-ff.$(SO) \
+		$(FF3PTLIB)/libopus-ff.$(SO) \
 		$(FF3PTLIB)/libmpg123-ff.$(SO) $(FF3PTLIB)/libmp3lame-ff.$(SO) \
 		$(FF3PTLIB)/libFLAC-ff.$(SO) $(FF3PTLIB)/libwavpack-ff.$(SO) $(FF3PTLIB)/libMAC-ff.$(SO) \
 		$(FF3PTLIB)/libfdk-aac-ff.$(SO) \

@@ -159,12 +159,14 @@ static int ogg_decode(void *ctx, fmed_filt *d)
 	}
 
 	switch (o->state) {
-	case I_DEC:
-		if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, "vorbis.decode")) {
+	case I_DEC: {
+		const char *dec = ogg_codec_mod(d->track->getvalstr(d->trk, "input"), 0);
+		if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, (void*)dec)) {
 			return FMED_RERR;
 		}
 		o->state = I_DATA;
 		//break
+	}
 
 	case I_DATA:
 		break;
