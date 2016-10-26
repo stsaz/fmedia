@@ -4,6 +4,7 @@ Copyright (c) 2016 Simon Zolin */
 #include <fmedia.h>
 
 #include <FF/audio/vorbis.h>
+#include <FF/data/mmtag.h>
 
 
 static const fmed_core *core;
@@ -15,6 +16,14 @@ static int vorbis_sig(uint signo);
 static void vorbis_destroy(void);
 static const fmed_mod fmed_vorbis_mod = {
 	&vorbis_iface, &vorbis_sig, &vorbis_destroy
+};
+
+//DECODE
+static void* vorbis_open(fmed_filt *d);
+static void vorbis_close(void *ctx);
+static int vorbis_in_decode(void *ctx, fmed_filt *d);
+static const fmed_filter vorbis_input = {
+	&vorbis_open, &vorbis_in_decode, &vorbis_close
 };
 
 //ENCODE CONFIG
@@ -47,7 +56,9 @@ FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 
 static const void* vorbis_iface(const char *name)
 {
-	if (!ffsz_cmp(name, "encode"))
+	if (!ffsz_cmp(name, "decode"))
+		return &vorbis_input;
+	else if (!ffsz_cmp(name, "encode"))
 		return &vorbis_output;
 	return NULL;
 }
@@ -68,6 +79,136 @@ static int vorbis_sig(uint signo)
 
 static void vorbis_destroy(void)
 {
+}
+
+
+typedef struct vorbis_in {
+	uint state;
+	uint64 pagepos;
+	ffvorbis vorbis;
+} vorbis_in;
+
+static void* vorbis_open(fmed_filt *d)
+{
+	vorbis_in *v;
+	if (NULL == (v = ffmem_tcalloc1(vorbis_in)))
+		return NULL;
+
+	if (0 != ffvorbis_open(&v->vorbis)) {
+		errlog(core, d->trk, NULL, "ffvorbis_open(): %s", ffvorbis_errstr(&v->vorbis));
+		ffmem_free(v);
+		return NULL;
+	}
+	return v;
+}
+
+static void vorbis_close(void *ctx)
+{
+	vorbis_in *v = ctx;
+	ffvorbis_close(&v->vorbis);
+	ffmem_free(v);
+}
+
+static int vorbis_in_decode(void *ctx, fmed_filt *d)
+{
+	enum { R_HDR, R_TAGS, R_BOOK, R_DATA1, R_DATA };
+	vorbis_in *v = ctx;
+
+	switch (v->state) {
+	case R_HDR:
+	case R_TAGS:
+	case R_BOOK:
+		if (!(d->flags & FMED_FFWD))
+			return FMED_RMORE;
+
+		v->state++;
+		break;
+
+	case R_DATA1:
+		if (d->input_info)
+			return FMED_RDONE;
+
+		if ((int64)d->audio.total != FMED_NULL)
+			v->vorbis.total_samples = d->audio.total;
+		v->state = R_DATA;
+		// break
+
+	case R_DATA:
+		if ((d->flags & FMED_FFWD) && (int64)d->audio.seek != FMED_NULL) {
+			uint64 seek = ffpcm_samples(d->audio.seek, d->audio.fmt.sample_rate);
+			ffvorbis_seek(&v->vorbis, seek);
+			d->audio.seek = FMED_NULL;
+		}
+		break;
+	}
+
+	int r;
+	ffstr in = {0};
+	if (d->flags & FMED_FFWD) {
+		ffstr_set(&in, d->data, d->datalen);
+		d->datalen = 0;
+		v->vorbis.fin = !!(d->flags & FMED_FLAST);
+
+		if (v->pagepos != d->audio.pos) {
+			v->vorbis.cursample = d->audio.pos;
+			v->pagepos = d->audio.pos;
+		}
+	}
+
+	for (;;) {
+
+	r = ffvorbis_decode(&v->vorbis, in.ptr, in.len);
+
+	switch (r) {
+
+	case FFVORBIS_RDATA:
+		goto data;
+
+	case FFVORBIS_RERR:
+		errlog(core, d->trk, NULL, "ffvorbis_decode(): %s", ffvorbis_errstr(&v->vorbis));
+		return FMED_RERR;
+
+	case FFVORBIS_RWARN:
+		warnlog(core, d->trk, NULL, "ffvorbis_decode(): %s", ffvorbis_errstr(&v->vorbis));
+		// break
+
+	case FFVORBIS_RMORE:
+		if (d->flags & FMED_FLAST) {
+			d->outlen = 0;
+			return FMED_RDONE;
+		}
+		return FMED_RMORE;
+
+	case FFVORBIS_RHDR:
+		d->track->setvalstr(d->trk, "pcm_decoder", "Vorbis");
+		d->audio.fmt.format = FFPCM_FLOAT;
+		d->audio.fmt.channels = ffvorbis_channels(&v->vorbis);
+		d->audio.fmt.sample_rate = ffvorbis_rate(&v->vorbis);
+		d->audio.fmt.ileaved = 0;
+		d->audio.bitrate = ffvorbis_bitrate(&v->vorbis);
+		return FMED_RMORE;
+
+	case FFVORBIS_RTAG: {
+		const ffvorbtag *vtag = &v->vorbis.vtag;
+		dbglog(core, d->trk, NULL, "%S: %S", &vtag->name, &vtag->val);
+		ffstr name = vtag->name;
+		if (vtag->tag != 0)
+			ffstr_setz(&name, ffmmtag_str[vtag->tag]);
+		qu->meta_set((void*)fmed_getval("queue_item"), name.ptr, name.len, vtag->val.ptr, vtag->val.len, FMED_QUE_TMETA);
+		break;
+	}
+
+	case FFVORBIS_RHDRFIN:
+		return FMED_RMORE;
+	}
+	}
+
+data:
+	dbglog(core, d->trk, NULL, "decoded %L samples (at %U)"
+		, v->vorbis.pcmlen / ffpcm_size(FFPCM_FLOAT, ffvorbis_channels(&v->vorbis)), ffvorbis_cursample(&v->vorbis));
+	d->audio.pos = ffvorbis_cursample(&v->vorbis);
+	d->out = (void*)v->vorbis.pcm,  d->outlen = v->vorbis.pcmlen;
+	return FMED_RDATA;
 }
 
 

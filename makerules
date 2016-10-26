@@ -1,7 +1,9 @@
 
 OBJ_DIR := .
 BINS := $(BIN) core.$(SO) net.$(SO) \
-	ogg-vorbis.$(SO) mpeg.$(SO) wav.$(SO) flac.$(SO) mp4.$(SO) wavpack.$(SO) ape.$(SO) \
+	mpeg.$(SO) wav.$(SO) flac.$(SO) mp4.$(SO) wavpack.$(SO) ape.$(SO) \
+	ogg.$(SO) \
+	vorbis.$(SO) \
 	aac.$(SO) \
 	alac.$(SO) \
 	plist.$(SO) \
@@ -108,11 +110,19 @@ OGG_O := $(OBJ_DIR)/ogg.o \
 	$(FF_O) \
 	$(FF_OBJ_DIR)/ffpcm.o \
 	$(FF_OBJ_DIR)/ffogg.o \
-	$(FF_OBJ_DIR)/ffogg-fmt.o \
+	$(FF_OBJ_DIR)/ffogg-fmt.o
+ogg.$(SO): $(OGG_O)
+	$(LD) -shared $(OGG_O) $(LDFLAGS)  -o$@
+
+
+#
+VORBIS_O := $(OBJ_DIR)/vorbis.o \
+	$(FF_O) \
+	$(FF_OBJ_DIR)/ffvorbis.o \
 	$(FF_OBJ_DIR)/ffmmtag.o \
 	$(FF_OBJ_DIR)/ffvorbistag.o
-ogg-vorbis.$(SO): $(OGG_O)
-	$(LD) -shared $(OGG_O) $(LDFLAGS) -logg-ff -lvorbis-ff -lvorbisenc-ff  -o$@
+vorbis.$(SO): $(VORBIS_O)
+	$(LD) -shared $(VORBIS_O) $(LDFLAGS) -logg-ff -lvorbis-ff -lvorbisenc-ff  -o$@
 
 
 #
