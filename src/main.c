@@ -311,9 +311,11 @@ static void fmed_onsig(void *udata)
 	track->cmd((void*)-1, FMED_TRACK_STOPALL_EXIT);
 }
 
+static void qu_setprops(const fmed_queue *qu, fmed_que_entry *qe);
+
 #ifdef FF_WIN
 /** Add to queue filenames expanded by wildcard. */
-static int open_input_wcard(const fmed_queue *qu, char *src)
+static int open_input_wcard(const fmed_queue *qu, char *src, const fmed_track *track, const fmed_trk *trkinfo)
 {
 	ffdirexp de;
 
@@ -327,10 +329,12 @@ static int open_input_wcard(const fmed_queue *qu, char *src)
 
 	const char *fn;
 	while (NULL != (fn = ffdir_expread(&de))) {
-		fmed_que_entry e;
+		fmed_que_entry e, *qe;
 		ffmem_tzero(&e);
 		ffstr_setz(&e.url, fn);
-		qu->add(&e);
+		qe = qu->add(&e);
+		track->copy_info(qe->trk, trkinfo);
+		qu_setprops(qu, qe);
 	}
 	ffdir_expclose(&de);
 	return 0;
@@ -340,6 +344,32 @@ static int open_input_wcard(const fmed_queue *qu, char *src)
 static void qu_setval(const fmed_queue *qu, fmed_que_entry *qe, const char *name, int64 val)
 {
 	qu->meta_set(qe, name, ffsz_len(name), (void*)&val, sizeof(int64), FMED_QUE_TRKDICT | FMED_QUE_NUM);
+}
+
+static void qu_setprops(const fmed_queue *qu, fmed_que_entry *qe)
+{
+	if (fmed->trackno != NULL) {
+		qu->meta_set(qe, FFSTR("input_trackno"), fmed->trackno, ffsz_len(fmed->trackno), FMED_QUE_TRKDICT);
+		ffmem_free0(fmed->trackno);
+	}
+
+	if (fmed->playdev_name != 0)
+		qu_setval(qu, qe, "playdev_name", fmed->playdev_name);
+
+	if (fmed->vorbis_qual != -255)
+		qu_setval(qu, qe, "vorbis.quality", fmed->vorbis_qual * 10);
+	else if (fmed->mpeg_qual != 0xffff)
+		qu_setval(qu, qe, "mpeg-quality", fmed->mpeg_qual);
+	else if (fmed->aac_qual != (uint)-1)
+		qu_setval(qu, qe, "aac-quality", fmed->aac_qual);
+	else if (fmed->flac_complevel != 0xff)
+		qu_setval(qu, qe, "flac_complevel", fmed->flac_complevel);
+
+	if (fmed->opus_brate != 0)
+		qu_setval(qu, qe, "opus.bitrate", fmed->opus_brate);
+
+	if (fmed->rec)
+		qu_setval(qu, qe, "low_latency", 1);
 }
 
 static void trk_prep(fmed_trk *trk)
@@ -395,7 +425,7 @@ static void open_input(void *udata)
 	FFARR_WALK(&fmed->in_files, pfn) {
 
 #ifdef FF_WIN
-		if (0 == open_input_wcard(qu, *pfn)) {
+		if (0 == open_input_wcard(qu, *pfn, track, &trkinfo)) {
 			added = 1;
 			ffmem_free(*pfn);
 			continue;
@@ -409,29 +439,7 @@ static void open_input(void *udata)
 		ffmem_free(*pfn);
 
 		track->copy_info(qe->trk, &trkinfo);
-
-		if (fmed->trackno != NULL) {
-			qu->meta_set(qe, FFSTR("input_trackno"), fmed->trackno, ffsz_len(fmed->trackno), FMED_QUE_TRKDICT);
-			ffmem_free0(fmed->trackno);
-		}
-
-		if (fmed->playdev_name != 0)
-			qu_setval(qu, qe, "playdev_name", fmed->playdev_name);
-
-		if (fmed->vorbis_qual != -255)
-			qu_setval(qu, qe, "vorbis.quality", fmed->vorbis_qual * 10);
-		else if (fmed->mpeg_qual != 0xffff)
-			qu_setval(qu, qe, "mpeg-quality", fmed->mpeg_qual);
-		else if (fmed->aac_qual != (uint)-1)
-			qu_setval(qu, qe, "aac-quality", fmed->aac_qual);
-		else if (fmed->flac_complevel != 0xff)
-			qu_setval(qu, qe, "flac_complevel", fmed->flac_complevel);
-
-		if (fmed->opus_brate != 0)
-			qu_setval(qu, qe, "opus.bitrate", fmed->opus_brate);
-
-		if (fmed->rec)
-			qu_setval(qu, qe, "low_latency", 1);
+		qu_setprops(qu, qe);
 
 		added++;
 	}
