@@ -432,7 +432,7 @@ static void core_posted(void *udata)
 
 static int cmd_init(fmed_cmd *cmd)
 {
-	cmd->ogg_qual = -255;
+	cmd->vorbis_qual = -255;
 	cmd->aac_qual = (uint)-1;
 	cmd->mpeg_qual = 0xffff;
 	cmd->flac_complevel = 0xff;

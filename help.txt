@@ -50,7 +50,8 @@ FILTERS:
                    Useful for checking the results of lossless audio conversion.
 
 ENCODING:
---ogg-quality=FLT  OGG Vorbis encoding quality: -1.0 .. 10.0
+--vorbis.quality=FLT
+                   Vorbis encoding quality: -1.0 .. 10.0
 --mpeg-quality=INT MPEG encoding quality: 9..0 (VBR) or 64..320 (CBR)
 --aac-quality=INT  AAC encoding quality: 1..5 (VBR) or 8..800 (CBR, kbit/s)
 --flac-level=INT   FLAC compression level: 0..8

@@ -74,7 +74,7 @@ static const ffpars_arg fmed_cmdline_args[] = {
 	{ "pcm-crc",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, pcm_crc) },
 
 	//ENCODING
-	{ "ogg-quality",	FFPARS_TFLOAT | FFPARS_FSIGN,  FFPARS_DSTOFF(fmed_cmd, ogg_qual) },
+	{ "vorbis.quality",	FFPARS_TFLOAT | FFPARS_FSIGN,  FFPARS_DSTOFF(fmed_cmd, vorbis_qual) },
 	{ "mpeg-quality",	FFPARS_TINT | FFPARS_F16BIT,  FFPARS_DSTOFF(fmed_cmd, mpeg_qual) },
 	{ "aac-quality",	FFPARS_TINT,  FFPARS_DSTOFF(fmed_cmd, aac_qual) },
 	{ "flac-compression",	FFPARS_TINT | FFPARS_F8BIT,  FFPARS_DSTOFF(fmed_cmd, flac_complevel) },
@@ -417,8 +417,8 @@ static void open_input(void *udata)
 		if (fmed->playdev_name != 0)
 			qu_setval(qu, qe, "playdev_name", fmed->playdev_name);
 
-		if (fmed->ogg_qual != -255)
-			qu_setval(qu, qe, "ogg-quality", fmed->ogg_qual * 10);
+		if (fmed->vorbis_qual != -255)
+			qu_setval(qu, qe, "vorbis.quality", fmed->vorbis_qual * 10);
 		else if (fmed->mpeg_qual != 0xffff)
 			qu_setval(qu, qe, "mpeg-quality", fmed->mpeg_qual);
 		else if (fmed->aac_qual != (uint)-1)

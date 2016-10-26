@@ -84,8 +84,8 @@ typedef struct cvt_sets_t {
 	char *output;
 
 	union {
-	int ogg_quality;
-	float ogg_quality_f;
+	int vorbis_quality;
+	float vorbis_quality_f;
 	};
 	int mpg_quality;
 	int aac_quality;
@@ -115,8 +115,8 @@ typedef struct rec_sets_t {
 	char *output;
 
 	union {
-	int ogg_quality;
-	float ogg_quality_f;
+	int vorbis_quality;
+	float vorbis_quality_f;
 	};
 	int mpg_quality;
 	int flac_complevel;
