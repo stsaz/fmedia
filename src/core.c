@@ -592,7 +592,7 @@ static const fmed_modinfo* core_insmod(const char *sname, ffpars_ctx *ctx)
 
 	if (NULL == ffarr_growT(&fmed->bmods, 1, 4, core_modinfo))
 		goto fail;
-	minfo = ffarr_push(&fmed->bmods, core_modinfo);
+	minfo = ffarr_endT(&fmed->bmods, core_modinfo);
 	minfo->name = ffsz_alcopy(s.ptr, s.len);
 	minfo->dl = dl;
 	minfo->m = getmod(core);
@@ -601,13 +601,16 @@ static const fmed_modinfo* core_insmod(const char *sname, ffpars_ctx *ctx)
 
 	if (0 != minfo->m->sig(FMED_SIG_INIT))
 		goto fail;
+	fmed->bmods.len++;
 
 iface:
 	mod->dl = dl;
 	mod->m = minfo->m;
 	mod->f = minfo->m->iface(modname.ptr);
-	if (mod->f == NULL)
-		goto fail;
+	if (mod->f == NULL) {
+		errlog(core, NULL, "core", "can't initialize %s", sname);
+		goto fail2;
+	}
 
 	ffsz_fcopy(mod->name_s, sname, sname_len);
 	mod->name = mod->name_s;
@@ -621,6 +624,7 @@ iface:
 fail:
 	if (dl != NULL)
 		ffdl_close(dl);
+fail2:
 	ffmem_free(mod);
 	return NULL;
 }
