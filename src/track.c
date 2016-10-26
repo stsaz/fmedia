@@ -57,6 +57,7 @@ typedef struct fm_trk {
 	ffrbtree dict;
 	ffrbtree meta;
 	fftime tstart;
+	fftask tsk;
 
 	ffstr id;
 	char sid[FFSLEN("*") + FFINT_MAXCHARS];
@@ -291,6 +292,7 @@ static void* trk_create(uint cmd, const char *fn)
 	ffchain_init(&t->filt_chain);
 	ffrbt_init(&t->dict);
 	ffrbt_init(&t->meta);
+	fftask_set(&t->tsk, &trk_process, t);
 
 	trk_copy_info(&t->props, NULL);
 	t->props.track = &_fmed_track;
@@ -458,11 +460,18 @@ static void trk_process(void *udata)
 		goto next;
 	}
 
+	size_t ntasks = fmed->taskmgr.tasks.len;
+
 	for (;;) {
 
 		if (t->state != TRK_ST_ACTIVE) {
 			if (t->state == TRK_ST_ERR)
 				goto fin;
+			return;
+		}
+
+		if (fmed->taskmgr.tasks.len != ntasks) {
+			core->task(&t->tsk, FMED_TASK_POST);
 			return;
 		}
 

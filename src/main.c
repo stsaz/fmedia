@@ -30,7 +30,7 @@ static int fmed_arg_install(ffparser_schem *p, void *obj, const ffstr *val);
 static int fmed_arg_channels(ffparser_schem *p, void *obj, ffstr *val);
 static int fmed_arg_format(ffparser_schem *p, void *obj, ffstr *val);
 
-static int open_input(void);
+static void open_input(void *udata);
 static void fmed_onsig(void *udata);
 
 //LOG
@@ -369,7 +369,7 @@ static void trk_prep(fmed_trk *trk)
 		trk->audio.gain = fmed->gain * 100;
 }
 
-static int open_input(void)
+static void open_input(void *udata)
 {
 	char **pfn;
 	const fmed_track *track;
@@ -462,12 +462,12 @@ static int open_input(void)
 	}
 
 	if (added == 0 && !fmed->rec && !fmed->gui)
-		return 1;
+		core->sig(FMED_STOP);
 
-	return 0;
+	return;
 
 end:
-	return 1;
+	return;
 }
 
 int main(int argc, char **argv)
@@ -520,8 +520,8 @@ int main(int argc, char **argv)
 		goto end;
 	}
 
-	if (0 != open_input())
-		goto end;
+	fftask_set(&fmed->tsk_start, &open_input, NULL);
+	core->task(&fmed->tsk_start, FMED_TASK_POST);
 
 	core->sig(FMED_START);
 
