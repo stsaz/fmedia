@@ -467,6 +467,18 @@ static void open_input(void *udata)
 		if (fmed->outfn.len != 0)
 			track->setvalstr(trk, "output", fmed->outfn.ptr);
 
+		if (fmed->vorbis_qual != -255)
+			track->setval(trk, "vorbis.quality", fmed->vorbis_qual * 10);
+		else if (fmed->mpeg_qual != 0xffff)
+			track->setval(trk, "mpeg-quality", fmed->mpeg_qual);
+		else if (fmed->aac_qual != (uint)-1)
+			track->setval(trk, "aac-quality", fmed->aac_qual);
+		else if (fmed->flac_complevel != 0xff)
+			track->setval(trk, "flac_complevel", fmed->flac_complevel);
+
+		if (fmed->opus_brate != 0)
+			track->setval(trk, "opus.bitrate", fmed->opus_brate);
+
 		if (fmed->rec)
 			track->setval(trk, "low_latency", 1);
 
