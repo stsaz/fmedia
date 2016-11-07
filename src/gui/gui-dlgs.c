@@ -524,6 +524,8 @@ static const ffpars_arg rec_sets_conf[] = {
 static void rec_sets_init(rec_sets_t *sets)
 {
 	sets->init = 1;
+	sets->format = sets->sample_rate = sets->channels = SETT_EMPTY_INT;
+	sets->gain_f = 0.0;
 
 	sets->vorbis_quality_f = 5.0;
 	sets->opus_bitrate = 128;
