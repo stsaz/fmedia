@@ -171,6 +171,7 @@ typedef struct ggui {
 	rec_sets_t rec_sets;
 
 	byte minimize_to_tray;
+	byte portable_conf;
 	uint wconv_init :1
 		, wrec_init :1
 		;
@@ -186,6 +187,7 @@ enum {
 };
 
 #define GUI_USRCONF  "%APPDATA%/fmedia/fmedia.gui.conf"
+#define GUI_USRCONF_PORT  "./fmedia.gui.conf"
 
 enum ST {
 	ST_PLAYING = 1,
@@ -322,6 +324,7 @@ void gui_status(const char *s, size_t len);
 void gui_media_added(fmed_que_entry *ent, uint flags);
 void gui_media_removed(uint i);
 void gui_rec(uint cmd);
+char* gui_usrconf_filename(void);
 
 enum {
 	GUI_TAB_CONVERT = 1,

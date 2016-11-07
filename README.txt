@@ -169,6 +169,8 @@ fmedia GUI is provided by a separate module - gui.dll.  It is written in such a 
 
 fmedia GUI is highly customizable, thanks to FF library that is used under the hood.  FF UI technology allows you to modify properties of every UI control: windows, buttons, menus, tray icons and more.  You may resize controls, set different styling, change any text, hotkeys, etc.  All this information is stored within "fmedia.gui" which is a plain text file.  After you make some changes in fmedia.gui, save it and then restart fmedia.
 
+By default fmedia GUI saves its state in file "%APPDATA%\fmedia\fmedia.gui.conf".  You can change this by setting "portable_conf" to "true" in fmedia.conf.  After that, "fmedia.gui.conf" will be stored in program directory (e.g. "C:\Program Files\fmedia\fmedia.gui.conf"), thus making fmedia completely portable.
+
 
 ---------------
 USE-CASES

@@ -48,6 +48,7 @@ static const fmed_filter fmed_gui = {
 static const ffpars_arg gui_conf[] = {
 	{ "record",	FFPARS_TOBJ, FFPARS_DST(&gui_conf_rec) },
 	{ "convert",	FFPARS_TOBJ, FFPARS_DST(&gui_conf_convert) },
+	{ "portable_conf",	FFPARS_TBOOL | FFPARS_F8BIT, FFPARS_DSTOFF(ggui, portable_conf) },
 	{ "minimize_to_tray",	FFPARS_TBOOL | FFPARS_F8BIT, FFPARS_DSTOFF(ggui, minimize_to_tray) },
 };
 
@@ -448,6 +449,13 @@ void gui_rec(uint cmd)
 }
 
 
+char* gui_usrconf_filename(void)
+{
+	if (!gg->portable_conf)
+		return ffenv_expand(NULL, 0, GUI_USRCONF);
+	return core->getpath(FFSTR(GUI_USRCONF_PORT));
+}
+
 static FFTHDCALL int gui_worker(void *param)
 {
 	char *fn = NULL, *fnconf = NULL;
@@ -458,7 +466,7 @@ static FFTHDCALL int gui_worker(void *param)
 
 	if (NULL == (fn = core->getpath(FFSTR("./fmedia.gui"))))
 		goto err;
-	if (NULL == (fnconf = ffenv_expand(NULL, 0, GUI_USRCONF)))
+	if (NULL == (fnconf = gui_usrconf_filename()))
 		goto err;
 	ldr.getctl = &gui_getctl;
 	ldr.getcmd = &gui_getcmd;

@@ -253,7 +253,7 @@ static void gui_onclose(void)
 	char *fn;
 	ffui_loaderw ldr = {0};
 
-	if (NULL == (fn = ffenv_expand(NULL, 0, GUI_USRCONF)))
+	if (NULL == (fn = gui_usrconf_filename()))
 		return;
 
 	ldr.getctl = &gui_getctl;
