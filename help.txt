@@ -78,6 +78,7 @@ OUTPUT:
                    Supported by modules: net.icy.
 
 OTHER OPTIONS:
+--conf=FN          Set configuration file (default: "fmedia.conf" from the program directory)
 --gui              Run in graphical UI mode (Windows only)
 --notui            Don't use terminal UI
 --print-time       Show the time spent for processing each track

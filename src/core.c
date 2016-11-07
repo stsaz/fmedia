@@ -367,7 +367,9 @@ static int fmed_conf(uint userconf)
 		ffpars_setargs(&ctx, &fmed->conf, fmed_conf_args, FFCNT(fmed_conf_args));
 		ffconf_scheminit(&ps, &pconf, &ctx);
 
-		if (NULL == (filename = core->getpath(FFSTR("fmedia.conf"))))
+		if (fmed->cmd.conf_fn != NULL)
+			filename = fmed->cmd.conf_fn;
+		else if (NULL == (filename = core->getpath(FFSTR("fmedia.conf"))))
 			return -1;
 
 		if (FF_BADFD == (f = fffile_open(filename, O_RDONLY))) {
@@ -459,6 +461,7 @@ static void cmd_destroy(fmed_cmd *cmd)
 
 	ffstr_free(&cmd->meta);
 	ffmem_safefree(cmd->trackno);
+	ffmem_safefree(cmd->conf_fn);
 
 	ffstr_free(&cmd->root);
 }

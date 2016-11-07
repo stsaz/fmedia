@@ -46,6 +46,7 @@ typedef struct fmed_cmd {
 	byte flac_complevel;
 	ffbool stream_copy;
 
+	char *conf_fn;
 	ffbool notui;
 	ffbool gui;
 	ffbool print_time;
@@ -57,4 +58,6 @@ typedef struct fmed_cmd {
 	ffbool overwrite;
 	ffbool out_copy;
 	ffbool preserve_date;
+
+	ffstr dummy;
 } fmed_cmd;

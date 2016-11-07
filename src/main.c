@@ -89,6 +89,7 @@ static const ffpars_arg fmed_cmdline_args[] = {
 	{ "preserve-date",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, preserve_date) },
 
 	//OTHER OPTIONS
+	{ "conf",	FFPARS_TSTR,  FFPARS_DSTOFF(fmed_cmd, dummy) },
 	{ "notui",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, notui) },
 	{ "gui",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, gui) },
 	{ "print-time",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, print_time) },
@@ -104,6 +105,7 @@ static const ffpars_arg fmed_cmdline_args[] = {
 static const ffpars_arg fmed_cmdline_main_args[] = {
 	{ "",	FFPARS_TSTR | FFPARS_FMULTI,  FFPARS_DST(&fmed_arg_skip) },
 	{ "*",	FFPARS_TSTR | FFPARS_FMULTI,  FFPARS_DST(&fmed_arg_skip) },
+	{ "conf",	FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY | FFPARS_FNOTEMPTY,  FFPARS_DSTOFF(fmed_cmd, conf_fn) },
 	{ "notui",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, notui) },
 	{ "gui",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, gui) },
 	{ "debug",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, debug) },
@@ -533,6 +535,8 @@ int main(int argc, char **argv)
 
 	if (0 != core->sig(FMED_CONF))
 		goto end;
+
+	ffmem_safefree(fmed->conf_fn);
 
 	if (0 != fmed_cmdline(argc, argv, 0))
 		goto end;
