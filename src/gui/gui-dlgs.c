@@ -476,7 +476,7 @@ static const struct cvt_set rec_sets[] = {
 	{ "pcm_sample_rate", "Sample Rate (Hz)", "", CVTF_EMPTY | FFOFF(rec_sets_t, sample_rate) },
 	{ "pcm_channels", "Channels", "2 (stereo) | 1 (mono) | left | right", CVTF_EMPTY | FFOFF(rec_sets_t, channels) },
 	{ "gain", "Gain (dB)", "", CVTF_FLT | CVTF_FLT100 | CVTF_EMPTY | FFOFF(rec_sets_t, gain) },
-	{ "until_time", "Stop at", "[MM:]SS[.MSC]", CVTF_MSEC | CVTF_EMPTY | FFOFF(rec_sets_t, until) },
+	// { "until_time", "Stop at", "[MM:]SS[.MSC]", CVTF_MSEC | CVTF_EMPTY | FFOFF(rec_sets_t, until) },
 
 	{ "vorbis.quality", "Vorbis Quality", "-1.0 .. 10.0", CVTF_FLT | CVTF_FLT10 | FFOFF(rec_sets_t, vorbis_quality) },
 	{ "opus.bitrate", "Opus Bitrate", "6..510", FFOFF(rec_sets_t, opus_bitrate) },
