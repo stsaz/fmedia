@@ -451,6 +451,7 @@ static int sndmod_untl_process(void *ctx, fmed_filt *d)
 	if (u->asis) {
 		if (pos >= u->until) {
 			dbglog(core, d->trk, "until", "reached sample #%U", u->until);
+			d->outlen = 0;
 			return FMED_RLASTOUT;
 		}
 		d->datalen = 0;

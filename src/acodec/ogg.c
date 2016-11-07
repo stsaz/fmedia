@@ -16,6 +16,7 @@ typedef struct fmed_ogg {
 	uint state;
 	uint seek_ready :1;
 	uint seek_done :1;
+	uint stmcopy :1;
 } fmed_ogg;
 
 typedef struct ogg_out {
@@ -125,6 +126,11 @@ static void* ogg_open(fmed_filt *d)
 
 	if (ogg_in_conf.seekable)
 		o->og.seekable = 1;
+
+	if (1 == fmed_getval("stream_copy")) {
+		d->track->setvalstr(d->trk, "data_asis", "ogg");
+		o->stmcopy = 1;
+	}
 	return o;
 }
 
@@ -184,6 +190,8 @@ static int ogg_decode(void *ctx, fmed_filt *d)
 		if (o->seek_ready && (int64)d->audio.seek != FMED_NULL && !o->seek_done) {
 			o->seek_done = 1;
 			ffogg_seek(&o->og, ffpcm_samples(d->audio.seek, d->audio.fmt.sample_rate));
+			if (o->stmcopy)
+				d->audio.seek = FMED_NULL;
 		}
 
 		r = ffogg_read(&o->og);
@@ -235,6 +243,15 @@ data:
 	dbglog(core, d->trk, "ogg", "packet #%u, %L bytes, page #%u, granule pos: %U"
 		, o->og.pktno, o->og.out.len, ffogg_pageno(&o->og), ffogg_granulepos(&o->og));
 
+	if (o->stmcopy) {
+		uint64 set_gpos = (uint64)-1;
+		if (ffogg_page_last_pkt(&o->og)) {
+			fmed_setval("ogg_flush", 1);
+			set_gpos = ffogg_granulepos(&o->og);
+		}
+		fmed_setval("ogg_granpos", set_gpos);
+	}
+
 	d->audio.pos = ffogg_cursample(&o->og);
 	o->seek_done = 0;
 	d->out = o->og.out.ptr,  d->outlen = o->og.out.len;
@@ -251,15 +268,6 @@ static int ogg_out_config(ffpars_ctx *ctx)
 
 static void* ogg_out_open(fmed_filt *d)
 {
-	const char *copyfmt;
-	if (FMED_PNULL != (copyfmt = d->track->getvalstr(d->trk, "data_asis"))) {
-		if (ffsz_cmp(copyfmt, "ogg")) {
-			errlog(core, d->trk, NULL, "unsupported input data format: %s", copyfmt);
-			return NULL;
-		}
-		return FMED_FILT_SKIP;
-	}
-
 	ogg_out *o = ffmem_tcalloc1(ogg_out);
 	if (o == NULL)
 		return NULL;
@@ -281,6 +289,23 @@ static int ogg_out_encode(void *ctx, fmed_filt *d)
 
 	switch (o->state) {
 	case I_CONF: {
+		const char *copyfmt;
+		if (FMED_PNULL != (copyfmt = d->track->getvalstr(d->trk, "data_asis"))) {
+			if (ffsz_cmp(copyfmt, "ogg")) {
+				errlog(core, d->trk, NULL, "unsupported input data format: %s", copyfmt);
+				return FMED_RERR;
+			}
+
+			if (0 != (r = ffogg_create(&o->og, ffrnd_get()))) {
+				errlog(core, d->trk, "ogg", "ffogg_create() failed: %s", ffogg_errstr(r));
+				return FMED_RERR;
+			}
+			o->og.allow_partial = 1;
+
+			o->state = I_ENCODE;
+			break;
+		}
+
 		const char *enc = ogg_codec_mod(d->track->getvalstr(d->trk, "output"), 1);
 		if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT_PREV, (void*)enc)) {
 			return FMED_RERR;

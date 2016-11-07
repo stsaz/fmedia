@@ -86,6 +86,7 @@ typedef struct vorbis_in {
 	uint state;
 	uint64 pagepos;
 	ffvorbis vorbis;
+	uint stmcopy :1;
 } vorbis_in;
 
 static void* vorbis_open(fmed_filt *d)
@@ -99,6 +100,9 @@ static void* vorbis_open(fmed_filt *d)
 		ffmem_free(v);
 		return NULL;
 	}
+
+	v->stmcopy = (FMED_PNULL != d->track->getvalstr(d->trk, "data_asis"));
+
 	return v;
 }
 
@@ -186,6 +190,12 @@ static int vorbis_in_decode(void *ctx, fmed_filt *d)
 		d->audio.fmt.sample_rate = ffvorbis_rate(&v->vorbis);
 		d->audio.fmt.ileaved = 0;
 		d->audio.bitrate = ffvorbis_bitrate(&v->vorbis);
+
+		if (v->stmcopy) {
+			d->out = in.ptr,  d->outlen = in.len;
+			return FMED_RDATA; //HDR packet
+		}
+
 		return FMED_RMORE;
 
 	case FFVORBIS_RTAG: {
@@ -207,6 +217,10 @@ static int vorbis_in_decode(void *ctx, fmed_filt *d)
 	}
 
 	case FFVORBIS_RHDRFIN:
+		if (v->stmcopy) {
+			d->out = in.ptr,  d->outlen = in.len;
+			return FMED_RDONE; //TAGS packet
+		}
 		return FMED_RMORE;
 	}
 	}
