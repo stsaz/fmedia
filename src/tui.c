@@ -21,6 +21,7 @@ typedef struct gtui {
 	uint vol;
 
 	ffthd th;
+	uint rec :1;
 } gtui;
 
 static gtui *gt;
@@ -207,6 +208,7 @@ static void* tui_open(fmed_filt *d)
 
 	if (d->type == FMED_TRK_TYPE_REC) {
 		t->rec = 1;
+		gt->rec = 1;
 		t->maxdb = -MINDB;
 		core->log(FMED_LOG_USER, d->trk, NULL, "Recording... Press \"s\" to stop.");
 	}
@@ -244,6 +246,8 @@ static void tui_close(void *ctx)
 		fflk_lock(&gt->lktrk);
 		gt->curtrk = NULL;
 		fflk_unlock(&gt->lktrk);
+		if (t->rec)
+			gt->rec = 0;
 	}
 	ffarr_free(&t->buf);
 	ffmem_free(t);
@@ -405,6 +409,9 @@ static int tui_process(void *ctx, fmed_filt *d)
 		d->meta_changed = 0;
 		tui_info(t, d);
 	}
+
+	if (gt->rec && !t->rec)
+		goto done; //don't show playback bar while recording in another track
 
 	if (core->loglev == FMED_LOG_DEBUG)
 		nback = 0;
