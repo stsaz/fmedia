@@ -37,6 +37,7 @@ typedef struct fmedia {
 	ffkqu_time kqutime;
 
 	uint stopped :1
+		, stop_sig :1
 		;
 
 	ffarr bmods; //fmed_modinfo[]

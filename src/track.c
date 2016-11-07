@@ -436,7 +436,8 @@ static void trk_free(fm_trk *t)
 	dbglog(core, t, "core", "media: closed");
 	ffmem_free(t);
 
-	if (type == FMED_TRK_TYPE_REC && !fmed->cmd.gui)
+	if ((type == FMED_TRK_TYPE_REC && !fmed->cmd.gui)
+		|| (fmed->stop_sig && fmed->trks.len == 0))
 		core->sig(FMED_STOP);
 }
 
@@ -702,11 +703,11 @@ static int trk_cmd(void *trk, uint cmd)
 
 	switch (cmd) {
 	case FMED_TRACK_STOPALL_EXIT:
-		if (fmed->trks.len == 0 || fmed->stopped) {
+		if (fmed->trks.len == 0 || fmed->stop_sig) {
 			core->sig(FMED_STOP);
 			break;
 		}
-		fmed->stopped = 1;
+		fmed->stop_sig = 1;
 		trk = (void*)-1;
 		// break
 
