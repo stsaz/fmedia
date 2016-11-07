@@ -17,11 +17,10 @@ static const fmed_core *core;
 const fmed_queue *qu;
 
 typedef struct m3u {
-	ffparser p;
+	ffparser m3u;
 	fmed_que_entry ent;
-	struct { FFARR(ffstr) } metas;
-	struct { FFARR(byte) } fmeta;
-	uint furl :1;
+	ffpls_entry pls_ent;
+	fmed_que_entry *qu_cur;
 } m3u;
 
 typedef struct pls_in {
@@ -84,8 +83,6 @@ static const fmed_filter fmed_dir_input = {
 	&dir_open, &dir_process, &dir_close
 };
 
-static void m3u_reset(m3u *m);
-static void m3u_copy(m3u *m);
 static int plist_fullname(fmed_filt *d, const ffstr *name, ffstr *dst);
 
 
@@ -156,135 +153,77 @@ static void* m3u_open(fmed_filt *d)
 	m3u *m;
 	if (NULL == (m = ffmem_tcalloc1(m3u)))
 		return NULL;
-	ffm3u_init(&m->p);
-	ffmem_tzero(&m->ent);
+	ffm3u_init(&m->m3u);
+	m->qu_cur = (void*)fmed_getval("queue_item");
 	return m;
 }
 
 static void m3u_close(void *ctx)
 {
 	m3u *m = ctx;
-	ffpars_free(&m->p);
-	m3u_reset(m);
-	ffarr_free(&m->metas);
-	ffarr_free(&m->fmeta);
+	ffpars_free(&m->m3u);
+	ffpls_entry_free(&m->pls_ent);
 	ffmem_free(m);
-}
-
-static void m3u_reset(m3u *m)
-{
-	ffstr *meta;
-	uint i = 0;
-
-	if (m->furl)
-		ffstr_free(&m->ent.url);
-
-	FFARR_WALK(&m->metas, meta) {
-		if (m->fmeta.ptr[i++] == 1)
-			ffstr_free(meta);
-	}
-	m->metas.len = 0;
-	m->fmeta.len = 0;
-
-	ffmem_tzero(&m->ent);
-}
-
-static void m3u_copy(m3u *m)
-{
-	uint i = 0;
-	ffstr *meta;
-
-	if (!m->furl && m->ent.url.len != 0) {
-		ffstr_alcopystr(&m->ent.url, &m->ent.url);
-		m->furl = 1;
-	}
-
-	FFARR_WALK(&m->metas, meta) {
-		if (!m->fmeta.ptr[i]) {
-			ffstr_alcopystr(meta, meta);
-			m->fmeta.ptr[i] = 1;
-		}
-		i++;
-	}
 }
 
 static int m3u_process(void *ctx, fmed_filt *d)
 {
 	m3u *m = ctx;
-	size_t n;
-	int r;
-	ffstr metaname;
-	fmed_que_entry *first, *cur;
+	int r, r2;
+	ffstr data;
 
-	first = (void*)fmed_getval("queue_item");
-	cur = first;
+	ffstr_set(&data, d->data, d->datalen);
+	d->datalen = 0;
 
 	for (;;) {
-		n = d->datalen;
-		r = ffm3u_parse(&m->p, d->data, &n);
-		d->data += n;
-		d->datalen -= n;
 
-		if (r == FFPARS_MORE)
-			break;
-		else if (ffpars_iserr(-r)) {
-			errlog(core, d->trk, "m3u", "parse error at line %u", m->p.line);
+	r = ffm3u_parse(&m->m3u, &data);
+
+	if (r == FFPARS_MORE && (d->flags & FMED_FLAST))
+		r = FFPLS_FIN;
+
+	r2 = ffm3u_entry_get(&m->pls_ent, r, &m->m3u.val);
+
+	if (r2 == 1) {
+		fmed_que_entry ent, *cur;
+		ffstr meta[2];
+		ffmem_tzero(&ent);
+
+		if (0 != plist_fullname(d, (ffstr*)&m->pls_ent.url, &ent.url))
 			return FMED_RERR;
-		}
 
-		switch (r) {
-		case FFM3U_DUR:
-			if (m->p.intval != -1)
-				m->ent.dur = m->p.intval * 1000;
-			break;
+		if (m->pls_ent.duration != -1)
+			ent.dur = m->pls_ent.duration * 1000;
 
-		case FFM3U_ARTIST:
-			ffstr_setcz(&metaname, "artist");
-			goto add_meta;
+		ent.prev = m->qu_cur;
+		cur = (void*)qu->cmd2(FMED_QUE_ADD | FMED_QUE_NO_ONCHANGE | FMED_QUE_COPY_PROPS, &ent, 0);
+		ffstr_free(&ent.url);
 
-		case FFM3U_TITLE:
-			ffstr_setcz(&metaname, "title");
-add_meta:
-			if (NULL == ffarr_grow(&m->metas, 2, 0)
-				|| NULL == ffarr_grow(&m->fmeta, 2, 0))
-				return FMED_RERR;
+		ffstr_setcz(&meta[0], "artist");
+		ffstr_set2(&meta[1], &m->pls_ent.artist);
+		qu->cmd2(FMED_QUE_METASET, cur, (size_t)meta);
 
-			*ffarr_push(&m->metas, ffstr) = metaname;
-			*ffarr_push(&m->fmeta, byte) = 0;
+		ffstr_setcz(&meta[0], "title");
+		ffstr_set2(&meta[1], &m->pls_ent.title);
+		qu->cmd2(FMED_QUE_METASET, cur, (size_t)meta);
 
-			*ffarr_push(&m->metas, ffstr) = m->p.val;
-			*ffarr_push(&m->fmeta, byte) = 0;
-			break;
-
-		case FFM3U_URL:
-			{
-			if (0 != plist_fullname(d, &m->p.val, &m->ent.url))
-				return FMED_RERR;
-			m->furl = 1;
-			m->ent.prev = cur;
-			cur = (void*)qu->cmd2(FMED_QUE_ADD | FMED_QUE_NO_ONCHANGE | FMED_QUE_COPY_PROPS, &m->ent, 0);
-			uint i;
-			const ffstr *meta = m->metas.ptr;
-			for (i = 0;  i != m->metas.len;  i += 2) {
-				ffstr pair[2] = { meta[i], meta[i + 1] };
-				qu->cmd2(FMED_QUE_METASET, cur, (size_t)pair);
-			}
-			qu->cmd2(FMED_QUE_ADD | FMED_QUE_ADD_DONE, cur, 0);
-			}
-
-			m3u_reset(m);
-			break;
-		}
+		qu->cmd2(FMED_QUE_ADD | FMED_QUE_ADD_DONE, cur, 0);
+		m->qu_cur = cur;
 	}
 
-	if (d->flags & FMED_FLAST) {
-		qu->cmd(FMED_QUE_RM, first);
+	if (r == FFPLS_FIN) {
+		qu->cmd(FMED_QUE_RM, (void*)fmed_getval("queue_item"));
 		return FMED_RFIN;
+
+	} else if (r == FFPARS_MORE) {
+		return FMED_RMORE;
+
+	} else if (ffpars_iserr(-r)) {
+		errlog(core, d->trk, "m3u", "parse error at line %u", m->m3u.line);
+		return FMED_RERR;
 	}
 
-	m3u_copy(m);
-
-	return FMED_RMORE;
+	}
 }
 
 
