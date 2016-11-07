@@ -170,6 +170,8 @@ typedef struct ggui {
 	cvt_sets_t conv_sets;
 	rec_sets_t rec_sets;
 
+	byte seek_step_delta;
+	byte seek_leap_delta;
 	byte minimize_to_tray;
 	byte portable_conf;
 	uint wconv_init :1
@@ -221,6 +223,8 @@ enum CMDS {
 	SEEKING,
 	FFWD,
 	RWND,
+	LEAP_FWD,
+	LEAP_BACK,
 	GOTO_SHOW,
 	GOTO,
 	GOPOS,

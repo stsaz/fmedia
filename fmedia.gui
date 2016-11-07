@@ -104,6 +104,14 @@ menu mplay {
 		action RWND
 		hotkey "Left"
 	}
+	item "Leap Forward" {
+		action LEAP_FWD
+		hotkey "Ctrl+Right"
+	}
+	item "Leap Back" {
+		action LEAP_BACK
+		hotkey "Ctrl+Left"
+	}
 	item "Go To..." {
 		action GOTO_SHOW
 		hotkey "Ctrl+G"
@@ -294,7 +302,7 @@ window wmain {
 		position 0 20 300 20
 		style no_ticks both visible
 		range 0
-		page_size 5
+		page_size 15
 		onscrolling SEEKING
 		onscroll SEEK
 	}

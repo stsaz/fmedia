@@ -73,6 +73,8 @@ static const struct cmd cmds[] = {
 	{ SEEK,	F1,	&gui_seek },
 	{ FFWD,	F1,	&gui_seek },
 	{ RWND,	F1,	&gui_seek },
+	{ LEAP_FWD,	F1,	&gui_seek },
+	{ LEAP_BACK,	F1,	&gui_seek },
 	{ GOTO_SHOW,	F0,	&gui_goto_show },
 	{ GOPOS,	F1,	&gui_seek },
 	{ SETGOPOS,	F0,	&gui_go_set },
@@ -305,29 +307,47 @@ static void gui_goto_show(void)
 Note: if Left/Right key is pressed while trackbar is focused, SEEK command will be received after RWND/FFWD. */
 void gui_seek(uint cmd)
 {
+	uint pos;
+	int delta;
 	if (gg->curtrk == NULL || gg->curtrk->conversion)
 		return;
 
 	switch (cmd) {
+	default:
 	case GOTO:
+		pos = ffui_trk_val(&gg->wmain.tpos);
 		break;
 
 	case FFWD:
-		ffui_trk_move(&gg->wmain.tpos, FFUI_TRK_PGUP);
-		break;
+		delta = gg->seek_step_delta;
+		goto use_delta;
 
 	case RWND:
-		ffui_trk_move(&gg->wmain.tpos, FFUI_TRK_PGDN);
+		delta = -(int)gg->seek_step_delta;
+		goto use_delta;
+
+	case LEAP_FWD:
+		delta = gg->seek_leap_delta;
+		goto use_delta;
+
+	case LEAP_BACK:
+		delta = -(int)gg->seek_leap_delta;
+		goto use_delta;
+
+use_delta:
+		pos = ffui_trk_val(&gg->wmain.tpos);
+		pos = ffmax((int)pos + delta, 0);
+		ffui_trk_set(&gg->wmain.tpos, pos);
 		break;
 
 	case GOPOS:
 		if (gg->go_pos == (uint)-1)
 			return;
-		ffui_trk_set(&gg->wmain.tpos, gg->go_pos);
+		pos = gg->go_pos;
+		ffui_trk_set(&gg->wmain.tpos, pos);
 		break;
 	}
 
-	uint pos = ffui_trk_val(&gg->wmain.tpos);
 	gui_corecmd_add(&cmd_seek, (void*)(size_t)pos);
 }
 

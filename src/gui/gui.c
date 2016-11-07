@@ -50,6 +50,8 @@ static const ffpars_arg gui_conf[] = {
 	{ "convert",	FFPARS_TOBJ, FFPARS_DST(&gui_conf_convert) },
 	{ "portable_conf",	FFPARS_TBOOL | FFPARS_F8BIT, FFPARS_DSTOFF(ggui, portable_conf) },
 	{ "minimize_to_tray",	FFPARS_TBOOL | FFPARS_F8BIT, FFPARS_DSTOFF(ggui, minimize_to_tray) },
+	{ "seek_step",	FFPARS_TINT | FFPARS_F8BIT | FFPARS_FNOTZERO, FFPARS_DSTOFF(ggui, seek_step_delta) },
+	{ "seek_leap",	FFPARS_TINT | FFPARS_F8BIT | FFPARS_FNOTZERO, FFPARS_DSTOFF(ggui, seek_leap_delta) },
 };
 
 //LOG
@@ -192,6 +194,8 @@ static const char *const scmds[] = {
 	"SEEKING",
 	"FFWD",
 	"RWND",
+	"LEAP_FWD",
+	"LEAP_BACK",
 	"GOTO_SHOW",
 	"GOTO",
 	"GOPOS",
@@ -675,6 +679,8 @@ static void gui_destroy(void)
 
 static int gtrk_conf(ffpars_ctx *ctx)
 {
+	gg->seek_step_delta = 5;
+	gg->seek_leap_delta = 60;
 	ffpars_setargs(ctx, gg, gui_conf, FFCNT(gui_conf));
 	return 0;
 }
