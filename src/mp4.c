@@ -288,18 +288,14 @@ static int mp4_out_encode(void *ctx, fmed_filt *d)
 		return FMED_RMORE;
 
 	case I_INIT: {
-		if ((int64)d->audio.total == FMED_NULL) {
-			errlog(core, d->trk, NULL, "total_samples unknown");
-			return FMED_RERR;
-		}
-
 		ffstr asc;
 		ffstr_set(&asc, d->data, d->datalen);
 		d->datalen = 0;
 		ffpcm fmt;
 		ffpcm_fmtcopy(&fmt, &d->audio.convfmt);
 
-		m->mp.info.total_samples = d->audio.total - d->audio.pos;
+		if ((int64)d->audio.total != FMED_NULL)
+			m->mp.info.total_samples = d->audio.total - d->audio.pos;
 		m->mp.info.frame_samples = fmed_getval("audio_frame_samples");
 		m->mp.info.enc_delay = fmed_getval("audio_enc_delay");
 		m->mp.info.bitrate = fmed_getval("audio_bitrate");
