@@ -338,6 +338,9 @@ static int mp4_out_encode(void *ctx, fmed_filt *d)
 
 		case FFMP4_RDONE:
 			d->outlen = 0;
+			core->log(FMED_LOG_INFO, d->trk, NULL, "MP4: frames:%u, overhead: %.2F%%"
+				, m->mp.frameno
+				, (double)m->mp.mp4_size * 100 / (m->mp.mp4_size + m->mp.mdat_size));
 			return FMED_RDONE;
 
 		case FFMP4_RWARN:

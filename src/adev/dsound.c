@@ -3,7 +3,7 @@ Copyright (c) 2015 Simon Zolin */
 
 #include <fmedia.h>
 
-#include <FF/audio/dsound.h>
+#include <FF/adev/dsound.h>
 #include <FF/array.h>
 #include <FFOS/mem.h>
 

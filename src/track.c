@@ -404,10 +404,10 @@ static void trk_free(fm_trk *t)
 		fftime t2;
 		ffclk_get(&t2);
 		ffclk_diff(&t->tstart, &t2);
-		core->log(FMED_LOG_INFO, t, "core", "track processing time: %u.%06u", t2.s, t2.mcs);
+		core->log(FMED_LOG_INFO, t, "track", "processing time: %u.%06u", t2.s, t2.mcs);
 	}
 
-	dbglog(core, t, "core", "media: closing...");
+	dbglog(core, t, "track", "closing...");
 	FFARR_WALK(&t->filters, pf) {
 		if (pf->ctx != NULL) {
 			t->cur = &pf->sib;
@@ -433,7 +433,7 @@ static void trk_free(fm_trk *t)
 	if (fflist_exists(&fmed->trks, &t->sib))
 		fflist_rm(&fmed->trks, &t->sib);
 
-	dbglog(core, t, "core", "media: closed");
+	dbglog(core, t, "track", "closed");
 	ffmem_free(t);
 
 	if ((type == FMED_TRK_TYPE_REC && !fmed->cmd.gui)

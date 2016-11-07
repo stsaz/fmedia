@@ -28,7 +28,7 @@ typedef struct gui_wmain {
 typedef struct gui_wconvert {
 	ffui_wnd wconvert;
 	ffui_menu mmconv;
-	ffui_edit eout;
+	ffui_combx eout;
 	ffui_btn boutbrowse;
 	ffui_view vsets;
 	ffui_paned pnsets;

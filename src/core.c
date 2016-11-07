@@ -377,6 +377,8 @@ static int fmed_conf(uint userconf)
 		}
 	}
 
+	dbglog(core, NULL, "core", "reading config file %s", filename);
+
 	if (NULL == (buf = ffmem_alloc(CONF_MBUF))) {
 		goto err;
 	}

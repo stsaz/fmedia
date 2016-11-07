@@ -248,6 +248,7 @@ GUI_O := $(OBJ_DIR)/gui.o $(OBJ_DIR)/gui-main.o $(OBJ_DIR)/gui-dlgs.o \
 	$(FF_O) \
 	$(FF_OBJ_DIR)/ffparse.o $(FF_OBJ_DIR)/ffconf.o \
 	$(FF_OBJ_DIR)/ffpcm.o \
+	$(FF_OBJ_DIR)/ffpic.o \
 	$(FF_GUI_OBJ)
 gui.$(SO): $(GUI_O)
 	$(LD) -shared $(GUI_O) $(LDFLAGS) -lshell32 -luxtheme -lcomctl32 -lcomdlg32 -lgdi32 -lole32 -luuid -o$@

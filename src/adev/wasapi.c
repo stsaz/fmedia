@@ -3,7 +3,7 @@ Copyright (c) 2015 Simon Zolin */
 
 #include <fmedia.h>
 
-#include <FF/audio/wasapi.h>
+#include <FF/adev/wasapi.h>
 #include <FF/array.h>
 #include <FFOS/mem.h>
 
@@ -284,6 +284,8 @@ static int wasapi_create(wasapi_out *w, fmed_filt *d)
 	mod->out.handler = &wasapi_onplay;
 	mod->out.autostart = 1;
 	in_fmt = fmt;
+	dbglog(core, d->trk, NULL, "opening device #%u, fmt:%s/%u/%u, excl:%u"
+		, w->dev.idx, ffpcm_fmtstr(fmt.format), fmt.sample_rate, fmt.channels, mod->out.excl);
 	r = ffwas_open(&mod->out, w->dev.id, &fmt, wasapi_out_conf.buflen);
 
 	if (r != 0) {
@@ -477,6 +479,8 @@ static void* wasapi_in_open(fmed_filt *d)
 	in_fmt = fmt;
 
 again:
+	dbglog(core, d->trk, NULL, "opening device #%u, fmt:%s/%u/%u, excl:%u"
+		, dev.idx, ffpcm_fmtstr(fmt.format), fmt.sample_rate, fmt.channels, w->wa.excl);
 	r = ffwas_capt_open(&w->wa, dev.id, &fmt, wasapi_in_conf.buflen);
 
 	if (r != 0) {
@@ -517,7 +521,7 @@ again:
 	}
 
 	dbglog(core, d->trk, "wasapi", "opened capture buffer %ums"
-		, ffpcm_bytes2time(&fmt, ffwas_bufsize(&mod->out)));
+		, ffpcm_bytes2time(&fmt, ffwas_bufsize(&w->wa)));
 
 	if (wasapi_in_conf.latency_autocorrect)
 		w->latcorr = ffpcm_samples(wasapi_out_conf.buflen, fmt.sample_rate) * ffpcm_size1(&fmt)

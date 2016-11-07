@@ -8,6 +8,36 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v0.19 - Nov 7, 2016
+
+ + GUI: conf: add "minimize_to_tray", "portable_conf", "seek_step", "seek_leap" settings
+ + GUI: add "Leap Forward", "Leap Back" commands
+ - GUI: seek to the beginning when requested to seek to <0 target sample
+ - GUI: play next track on inactive tab doesn't set main window caption
+ - GUI convert: channels and rate settings didn't work (v0.18 bug)
+ - GUI: "Quick Start" recording didn't work until window with recording settings is initialized (v0.16 bug)
+ - TUI: don't show playback bar of another track while recording
+
+ * MP4 write: support recording to MP4/AAC
+ - MP4 write: write "mdat" size in non-streaming mode
+ - Vorbis: support stream copy (v0.18 bug)
+ + Opus: support stream copy
+ - Opus decode: fix segfault on Opus packet decoding error
+ - Opus decode: too much memory was allocated for decoding buffer
+ - OGG read: handle the last page with granule position = -1
+
+ + plist: support .pls playlist input
+ - plist: M3U read: support URLs in playlist
+
+ - DirectSound: TUI wasn't updating on recording
+ * DirectSound: --until can be used together with --record
+
+ + fmedia: add --conf command line argument
+ * core.rtpeak: support int24 and int32 for peak metering while recording
+ - core: Ctrl+C or Q command didn't stop recording properly (v0.17 bug)
+ - queue: recording while playing couldn't save output file properly in some cases
+
+
 fmedia v0.18 - Oct 27, 2016
 
  +  Opus decode/encode

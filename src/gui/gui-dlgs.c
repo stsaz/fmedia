@@ -127,7 +127,7 @@ static const ffpars_arg cvt_sets_conf[] = {
 	{ "output",	FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY, FFPARS_DSTOFF(cvt_sets_t, output) },
 
 	{ "vorbis_quality",	FFPARS_TFLOAT, FFPARS_DSTOFF(cvt_sets_t, vorbis_quality_f) },
-	{ "opus_bitrate",	FFPARS_TINT, FFPARS_DSTOFF(rec_sets_t, opus_bitrate) },
+	{ "opus_bitrate",	FFPARS_TINT, FFPARS_DSTOFF(cvt_sets_t, opus_bitrate) },
 	{ "mpeg_quality",	FFPARS_TINT, FFPARS_DSTOFF(cvt_sets_t, mpg_quality) },
 	{ "aac_quality",	FFPARS_TINT, FFPARS_DSTOFF(cvt_sets_t, aac_quality) },
 	{ "flac_complevel",	FFPARS_TINT, FFPARS_DSTOFF(cvt_sets_t, flac_complevel) },
@@ -454,10 +454,11 @@ static void gui_convert(void)
 				qent->trk->audio.convfmt.channels = *pint;
 			else if (ffstr_eqcz(&name, "conv_pcm_rate"))
 				qent->trk->audio.convfmt.sample_rate = *pint;
-
-			val = *pint;
-			gg->qu->meta_set(qent, name.ptr, name.len
-				, (char*)&val, sizeof(int64), FMED_QUE_TRKDICT | FMED_QUE_NUM);
+			else {
+				val = *pint;
+				gg->qu->meta_set(qent, name.ptr, name.len
+					, (char*)&val, sizeof(int64), FMED_QUE_TRKDICT | FMED_QUE_NUM);
+			}
 		}
 	}
 
@@ -670,8 +671,8 @@ int gui_rec_addsetts(void *trk)
 			trkconf->audio.fmt.channels = *pint;
 		else if (ffsz_eq(rec_sets[i].settname, "pcm_sample_rate"))
 			trkconf->audio.fmt.sample_rate = *pint;
-
-		gg->track->setval(trk, rec_sets[i].settname, *pint);
+		else
+			gg->track->setval(trk, rec_sets[i].settname, *pint);
 	}
 
 	return 0;

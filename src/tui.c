@@ -292,13 +292,14 @@ static void tui_info(tui *t, fmed_filt *d)
 		title = *tstr;
 
 	t->buf.len = 0;
-	ffstr_catfmt(&t->buf, "\n\"%S - %S\" %s %.02F MB, %u:%02u.%03u (%,U samples), %u kbps, %u Hz, %s, %s\n\n"
+	ffstr_catfmt(&t->buf, "\n\"%S - %S\" %s %.02F MB, %u:%02u.%03u (%,U samples), %u kbps, %s, %u Hz, %s, %s\n\n"
 		, &artist, &title
 		, input
 		, (double)tsize / (1024 * 1024)
 		, tmsec / 60, tmsec % 60, (uint)(total_time % 1000)
 		, t->total_samples
 		, (d->audio.bitrate + 500) / 1000
+		, d->track->getvalstr(d->trk, "pcm_decoder")
 		, fmt.sample_rate
 		, ffpcm_fmtstr(fmt.format)
 		, ffpcm_channelstr(fmt.channels));
@@ -467,8 +468,10 @@ done:
 	d->outlen = d->datalen;
 	d->datalen = 0;
 
-	if (d->flags & FMED_FLAST)
+	if (d->flags & FMED_FLAST) {
+		fffile_write(ffstderr, "\n", 1);
 		return FMED_RDONE;
+	}
 	return FMED_ROK;
 }
 

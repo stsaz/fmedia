@@ -360,7 +360,7 @@ data:
 	d->out = o->og.out.ptr,  d->outlen = o->og.out.len;
 
 	dbglog(core, d->trk, "ogg", "output: %L bytes, page: %u"
-		, (size_t)d->outlen, o->og.page.number);
+		, (size_t)d->outlen, o->og.page.number - 1);
 
 	return (r == FFOGG_RDONE) ? FMED_RLASTOUT : FMED_RDATA;
 }

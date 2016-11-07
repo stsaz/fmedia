@@ -3,7 +3,7 @@ Copyright (c) 2015 Simon Zolin */
 
 #include <fmedia.h>
 
-#include <FF/audio/alsa.h>
+#include <FF/adev/alsa.h>
 
 
 static const fmed_core *core;

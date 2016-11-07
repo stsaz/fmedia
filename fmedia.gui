@@ -399,7 +399,7 @@ window wconvert {
 		}
 	}
 
-	editbox eout {
+	combobox eout {
 		position 0 0 200 25
 		style visible
 	}

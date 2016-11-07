@@ -1,7 +1,7 @@
 ---------------
 OVERVIEW
 ---------------
-fmedia is a fast asynchronous media player/recorder/converter for Windows and Linux.  Its goal is to provide smooth playback even if input device is very slow and unresponsive.  The architecure allows to extend the functionality of the application in any way: adding a new audio input/output format, a new DSP filter or even a new GUI.  fmedia is very small and fast: it has low CPU & memory consumption making it ideal to listen to music or process audio files while running on a notebook's battery.
+fmedia is a fast asynchronous media player/recorder/converter for Windows and Linux.  Its goal is to provide smooth playback even if input device is very slow and unresponsive.  The architecture allows to extend the functionality of the application in any way: adding a new audio input/output format, a new DSP filter or even a new GUI.  fmedia is very small and fast: it has low CPU & memory consumption making it ideal to listen to music or process audio files while running on a notebook's battery.
 
 fmedia can decode: .mp3, .ogg, .opus, .m4a/.mp4 (AAC, ALAC), .flac, .ape, .wv, .wav.
 fmedia can encode into: .mp3, .ogg, .opus, .m4a (AAC), .flac, .wav.
@@ -18,6 +18,7 @@ Contents:
 	. TERMINAL UI
 	. GRAPHICAL UI
 	. USE-CASES
+	. FOR DEVELOPERS
 	. BUG REPORT
 
 
@@ -41,7 +42,7 @@ FILTERS
 	Lossy codecs:
 	. MPEG input/output
 	. Vorbis input/output
-	. Opus input
+	. Opus input/output
 	. AAC input/output
 
 	Lossless codecs:
@@ -53,7 +54,7 @@ FILTERS
 	. RAW input
 
 	Playlists:
-	. M3U input
+	. M3U, PLS input
 	. CUE input
 	. Directory input
 
@@ -149,6 +150,7 @@ TERMINAL UI
 ---------------
 By default fmedia runs with a terminal UI, which shows information about the currently playing audio track and the currently playing audio position.  User commands such as seeking are also supported, all supported commands are described in file "help-tui.txt".
 
+
 ---------------
 GRAPHICAL UI
 ---------------
@@ -193,8 +195,8 @@ Play wav file with a corrupted header
 CONVERT
 
 Convert
-	fmedia ./file.ogg --out=./file.wav
-	fmedia ./file.wav --out=./file.ogg --ogg-quality=7.0
+	fmedia ./file.ogg --out=./file.wav --format=int16
+	fmedia ./file.wav --out=./file.ogg --vorbis.quality=7.0
 	fmedia ./file.wav --out=./file.mp3 --mpeg-quality=0 --rate=48000
 
 Convert all .wav files from the current directory to .ogg
@@ -250,6 +252,57 @@ Print audio meta info and all tags
 
 Show PCM information
 	fmedia input.ogg --pcm-peaks
+
+
+---------------
+FOR DEVELOPERS
+---------------
+
+YOUR APPLICATION BASED ON FMEDIA.
+fmedia can be used as a sound library: you can freely use its abilities in your own software.  And you don't have to build fmedia by yourself to use its features.  All you need to do is link your binary file with core.so (or core.dll) and you'll be able to do everything that fmedia can: playback, record and convert audio from your application.
+
+
+SUPPORT NEW FORMAT.
+You may add support for a new audio format into fmedia.  To do that you have to add your module into "fmedia.conf" and add an appropriate file extension into "input_ext" or "output_ext" section.
+
+For example, after you have built your module (e.g. xyz.so), add it into "fmedia.conf":
+
+	mod "xyz.decode"
+
+Then associate it with ".xyz" file extension:
+
+	input_ext {
+		...
+		"xyz.decode" xyz
+	}
+
+fmedia will call module "xyz.decode" each time user orders fmedia to play "*.xyz" files.
+
+See fmedia source code for more details.  For example, main.c::main() will show you how fmedia command line binary initializes core module.  See acodec/wav.c for an example on how to write a simple filter for fmedia.
+
+
+LOW-LEVEL INTERFACE.
+If you'd like to use low level interfaces, take a look at FF library source code, as well as FF-3pt.  Together they provide you with an easy interface that you can use to work with a large set of file formats, decode or encode audio and much more.  fmedia itself is built upon FF library - it's completely free and open-source.
+
+
+PARTICIPATE.
+You are welcome to participate in fmedia's development.  Send suggestions, improvements, bug reports, patches - anything that can help the project!
+
+Understanding the top-level source code hierarchy can help you to get involved into fmedia quicker.  The source code consists of the 3 levels of these 4 separate repositories:
+
+	---------------
+	    fmedia
+	---------------
+	      FF
+	---------------
+	 FFOS | FF-3pt
+	---------------
+
+Each of them plays its own part:
+	. FFOS provides cross-platform abilities.  Code based on FFOS can run on Windows, Linux and FreeBSD.
+	. FF-3pt provides simple access to 3rd party libraries such as libFLAC.
+	. FF contains all low/mid level interfaces that can be reused between different applications.
+	. fmedia contains application code, it's largely based on all FF libraries.
 
 
 ---------------
