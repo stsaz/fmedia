@@ -206,6 +206,7 @@ alac.$(SO): $(ALAC_O)
 PLIST_O := $(OBJ_DIR)/plist.o \
 	$(FF_O) \
 	$(FF_OBJ_DIR)/ffparse.o $(FF_OBJ_DIR)/ffm3u.o $(FF_OBJ_DIR)/ffcue.o \
+	$(FF_OBJ_DIR)/ffpls.o \
 	$(FF_OBJ_DIR)/ffpcm.o
 plist.$(SO): $(PLIST_O)
 	$(LD) -shared $(PLIST_O) $(LDFLAGS)  -o$@

@@ -1,10 +1,12 @@
-/** Directory input.  M3U input.  CUE input.
+/** Directory input.  M3U, PLS input.  CUE input.
 Copyright (c) 2015 Simon Zolin */
 
 #include <fmedia.h>
 
 #include <FF/data/m3u.h>
+#include <FF/data/pls.h>
 #include <FF/data/cue.h>
+#include <FF/net/url.h>
 #include <FF/path.h>
 #include <FF/dir.h>
 #include <FF/data/utf8.h>
@@ -21,6 +23,12 @@ typedef struct m3u {
 	struct { FFARR(byte) } fmeta;
 	uint furl :1;
 } m3u;
+
+typedef struct pls_in {
+	ffpls pls;
+	ffpls_entry pls_ent;
+	fmed_que_entry *qu_cur;
+} pls_in;
 
 typedef struct cue {
 	ffparser p;
@@ -48,6 +56,14 @@ static void m3u_close(void *ctx);
 static int m3u_process(void *ctx, fmed_filt *d);
 static const fmed_filter fmed_m3u_input = {
 	&m3u_open, &m3u_process, &m3u_close
+};
+
+//PLS INPUT
+static void* pls_open(fmed_filt *d);
+static void pls_close(void *ctx);
+static int pls_process(void *ctx, fmed_filt *d);
+static const fmed_filter fmed_pls_input = {
+	&pls_open, &pls_process, &pls_close
 };
 
 //CUE INPUT
@@ -84,6 +100,8 @@ static const void* plist_iface(const char *name)
 {
 	if (!ffsz_cmp(name, "m3u"))
 		return &fmed_m3u_input;
+	else if (!ffsz_cmp(name, "pls"))
+		return &fmed_pls_input;
 	else if (!ffsz_cmp(name, "cue"))
 		return &fmed_cue_input;
 	else if (!ffsz_cmp(name, "dir"))
@@ -111,16 +129,21 @@ static void plist_destroy(void)
 }
 
 
+/** Get absolute filename. */
 static int plist_fullname(fmed_filt *d, const ffstr *name, ffstr *dst)
 {
 	const char *fn;
 	ffstr path = {0};
 	ffstr3 s = {0};
-	if (!ffpath_abs(name->ptr, name->len)) {
+
+	if (0 == ffuri_scheme(name->ptr, name->len)
+		&& !ffpath_abs(name->ptr, name->len)) {
+
 		fn = d->track->getvalstr(d->trk, "input");
 		if (NULL != ffpath_split2(fn, ffsz_len(fn), &path, NULL))
 			path.len++;
 	}
+
 	if (0 == ffstr_catfmt(&s, "%S%S", &path, name))
 		return 1;
 	ffstr_acqstr3(dst, &s);
@@ -262,6 +285,81 @@ add_meta:
 	m3u_copy(m);
 
 	return FMED_RMORE;
+}
+
+
+static void* pls_open(fmed_filt *d)
+{
+	pls_in *p;
+	if (NULL == (p = ffmem_tcalloc1(pls_in)))
+		return NULL;
+	ffpls_init(&p->pls);
+	p->qu_cur = (void*)fmed_getval("queue_item");
+	return p;
+}
+
+static void pls_close(void *ctx)
+{
+	pls_in *p = ctx;
+	ffpars_free(&p->pls.pars);
+	ffpls_entry_free(&p->pls_ent);
+	ffmem_free(p);
+}
+
+static int pls_process(void *ctx, fmed_filt *d)
+{
+	pls_in *p = ctx;
+	int r, r2;
+	ffstr data;
+
+	ffstr_set(&data, d->data, d->datalen);
+	d->datalen = 0;
+
+	for (;;) {
+
+	r = ffpls_parse(&p->pls, &data);
+
+	if (r == FFPARS_MORE && (d->flags & FMED_FLAST))
+		r = FFPLS_FIN;
+
+	r2 = ffpls_entry_get(&p->pls_ent, r, &p->pls.pars.val);
+
+	if (r2 == 1) {
+		fmed_que_entry ent, *cur;
+		ffstr meta[2];
+		ffmem_tzero(&ent);
+
+		if (0 != plist_fullname(d, (ffstr*)&p->pls_ent.url, &ent.url))
+			return FMED_RERR;
+
+		if (p->pls_ent.duration != -1)
+			ent.dur = p->pls_ent.duration * 1000;
+
+		ent.prev = p->qu_cur;
+		cur = (void*)qu->cmd2(FMED_QUE_ADD | FMED_QUE_NO_ONCHANGE | FMED_QUE_COPY_PROPS, &ent, 0);
+		ffstr_free(&ent.url);
+
+		ffstr_setcz(&meta[0], "title");
+		ffstr_set2(&meta[1], &p->pls_ent.title);
+		qu->cmd2(FMED_QUE_METASET, cur, (size_t)meta);
+
+		qu->cmd2(FMED_QUE_ADD | FMED_QUE_ADD_DONE, cur, 0);
+		p->qu_cur = cur;
+	}
+
+	if (r == FFPLS_FIN) {
+		qu->cmd(FMED_QUE_RM, (void*)fmed_getval("queue_item"));
+		return FMED_RFIN;
+
+	} else if (r == FFPARS_MORE) {
+		return FMED_RMORE;
+
+	} else if (ffpars_iserr(-r)) {
+		errlog(core, d->trk, "pls", "parse error at line %u", p->pls.pars.line);
+		return FMED_RERR;
+	}
+
+	}
 }
 
 
