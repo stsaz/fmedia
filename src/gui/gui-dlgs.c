@@ -87,6 +87,8 @@ enum CVTF {
 	CVTF_FLT100 = 0x200000,
 };
 
+#define SETT_EMPTY_INT  ((int)0x80000000)
+
 struct cvt_set {
 	const char *settname;
 	const char *name;
@@ -95,6 +97,7 @@ struct cvt_set {
 };
 
 static int sett_tostr(const void *sets, const struct cvt_set *sett, ffarr *dst);
+static int sett_fromstr(const struct cvt_set *st, void *p, ffstr *data);
 static int gui_cvt_getsettings(const struct cvt_set *psets, uint nsets, void *sets, ffui_view *vlist);
 
 // gui -> core
@@ -139,12 +142,17 @@ static const ffpars_arg cvt_sets_conf[] = {
 static void gui_cvt_sets_init(cvt_sets_t *sets)
 {
 	sets->init = 1;
+	sets->format = sets->conv_pcm_rate = sets->channels = SETT_EMPTY_INT;
+	sets->gain_f = 0.0;
+	sets->seek = sets->until = SETT_EMPTY_INT;
 
 	sets->vorbis_quality_f = 5.0;
 	sets->opus_bitrate = 128;
 	sets->mpg_quality = 2;
 	sets->aac_quality = 192;
 	sets->flac_complevel = 6;
+	sets->stream_copy = 0;
+	sets->overwrite = 0;
 	sets->out_preserve_date = 1;
 }
 
@@ -155,6 +163,7 @@ int gui_conf_convert(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
 	return 0;
 }
 
+/** Setting's value -> string. */
 static int sett_tostr(const void *sets, const struct cvt_set *sett, ffarr *dst)
 {
 	void *src = (char*)sets + (sett->flags & 0xffff);
@@ -178,11 +187,72 @@ static int sett_tostr(const void *sets, const struct cvt_set *sett, ffarr *dst)
 	} else {
 		int i = *(int*)src;
 
-		if ((sett->flags & CVTF_EMPTY) && i == 0)
+		if ((sett->flags & CVTF_EMPTY) && i == SETT_EMPTY_INT)
 			return 0;
 
 		ffstr_catfmt(dst, "%d", i);
 	}
+	return 0;
+}
+
+/** Setting's string value -> internal representation. */
+static int sett_fromstr(const struct cvt_set *st, void *p, ffstr *data)
+{
+	int *pint = p;
+	int val;
+	double d;
+	ffstr name;
+	ffstr_setz(&name, st->settname);
+
+	if (st->flags & CVTF_STR) {
+		char **pstr = p;
+		if ((st->flags & CVTF_EMPTY) && data->len == 0) {
+			*pstr = NULL;
+			return 0;
+		}
+		*pstr = data->ptr;
+		return 1;
+	}
+
+	if ((st->flags & CVTF_EMPTY) && data->len == 0) {
+		*pint = SETT_EMPTY_INT;
+		return 0;
+	}
+
+	if (st->flags & CVTF_MSEC) {
+		ffdtm dt;
+		fftime t;
+		if (data->len != fftime_fromstr(&dt, data->ptr, data->len, FFTIME_HMS_MSEC_VAR))
+			return -1;
+
+		fftime_join(&t, &dt, FFTIME_TZNODATE);
+		val = fftime_ms(&t);
+
+	} else if (st->flags & CVTF_FLT) {
+		if (data->len != ffs_tofloat(data->ptr, data->len, &d, 0))
+			return -1;
+
+		if (st->flags & CVTF_FLT10)
+			val = d * 10;
+		else if (st->flags & CVTF_FLT100)
+			val = d * 100;
+
+	} else if (ffstr_eqcz(&name, "pcm_format")
+		|| ffstr_eqcz(&name, "conv_pcm_format")) {
+		if (0 > (val = ffpcm_fmt(data->ptr, data->len)))
+			return -1;
+
+	} else if (ffstr_eqcz(&name, "pcm_channels")
+		|| ffstr_eqcz(&name, "conv_channels")) {
+		if (0 > (val = ffpcm_channels(data->ptr, data->len)))
+			return -1;
+
+	} else {
+		if (data->len != ffs_toint(data->ptr, data->len, &val, FFS_INT32))
+			return -1;
+	}
+
+	*pint = val;
 	return 0;
 }
 
@@ -250,20 +320,19 @@ void gui_setconvpos(uint cmd)
 	ffui_view_itemreset(&it);
 }
 
+
+/** Convert settings from GUI to the representation specified by their format. */
 static int gui_cvt_getsettings(const struct cvt_set *psets, uint nsets, void *sets, ffui_view *vlist)
 {
 	uint k;
 	int val, rc = -1;
-	double d;
 	char *txt;
 	size_t len;
 	const struct cvt_set *st;
-	ffstr name;
 	ffui_viewitem it;
 	ffui_view_iteminit(&it);
 	for (k = 0;  k != nsets;  k++) {
 		st = &psets[k];
-		ffstr_setz(&name, st->settname);
 
 		ffui_view_setindex(&it, k);
 		ffui_view_gettext(&it);
@@ -277,59 +346,14 @@ static int gui_cvt_getsettings(const struct cvt_set *psets, uint nsets, void *se
 		len = ffsz_len(txt);
 
 		void *p = (char*)sets + (st->flags & 0xffff);
-		if (st->flags & CVTF_STR) {
-			char **pstr = p;
-			if ((st->flags & CVTF_EMPTY) && len == 0) {
-				*pstr = NULL;
-				goto next;
-			}
-			*pstr = txt;
+		ffstr data;
+		ffstr_set(&data, txt, len);
+		val = sett_fromstr(st, p, &data);
+		if (val < 0)
+			goto end;
+		else if (val > 0)
 			continue;
-		}
 
-		int *pint = p;
-
-		if ((st->flags & CVTF_EMPTY) && len == 0) {
-			*pint = -1;
-			goto next;
-		}
-
-		if (st->flags & CVTF_MSEC) {
-			ffdtm dt;
-			fftime t;
-			if (len != fftime_fromstr(&dt, txt, len, FFTIME_HMS_MSEC_VAR))
-				return FFPARS_EBADVAL;
-
-			fftime_join(&t, &dt, FFTIME_TZNODATE);
-			val = fftime_ms(&t);
-
-		} else if (st->flags & CVTF_FLT) {
-			if (len != ffs_tofloat(txt, len, &d, 0))
-				goto end;
-
-			if (st->flags & CVTF_FLT10)
-				val = d * 10;
-			else if (st->flags & CVTF_FLT100)
-				val = d * 100;
-
-		} else if (ffstr_eqcz(&name, "pcm_format")
-			|| ffstr_eqcz(&name, "conv_pcm_format")) {
-			if (0 > (val = ffpcm_fmt(txt, len)))
-				goto end;
-
-		} else if (ffstr_eqcz(&name, "pcm_channels")
-			|| ffstr_eqcz(&name, "conv_channels")) {
-			if (0 > (val = ffpcm_channels(txt, len)))
-				goto end;
-
-		} else {
-			if (len != ffs_toint(txt, len, &val, FFS_INT32))
-				goto end;
-		}
-
-		*pint = val;
-
-next:
 		ffmem_free(txt);
 	}
 
@@ -411,7 +435,7 @@ static void gui_convert(void)
 			}
 
 			int *pint = p;
-			if (*pint == -1)
+			if (*pint == SETT_EMPTY_INT)
 				continue;
 
 			if (ffstr_eqcz(&name, "gain"))
@@ -631,7 +655,7 @@ int gui_rec_addsetts(void *trk)
 		}
 
 		int *pint = p;
-		if (*pint == -1)
+		if (*pint == SETT_EMPTY_INT)
 			continue;
 
 		if (ffsz_eq(rec_sets[i].settname, "gain"))
