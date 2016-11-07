@@ -746,6 +746,11 @@ static int trk_cmd(void *trk, uint cmd)
 		t->state = TRK_ST_ACTIVE;
 		trk_process(t);
 		break;
+
+	case FMED_TRACK_LAST:
+		if (!fmed->cmd.gui && !fmed->cmd.rec)
+			core->sig(FMED_STOP);
+		break;
 	}
 	return 0;
 }

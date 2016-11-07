@@ -135,6 +135,8 @@ enum FMED_TRACK {
 	FMED_TRACK_STOPALL,
 	FMED_TRACK_STOPALL_EXIT,
 
+	FMED_TRACK_LAST, //the last track in queue is finished
+
 	/** Add new filter to the track chain.
 	@param: char *filter_name */
 	FMED_TRACK_ADDFILT,

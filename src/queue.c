@@ -301,8 +301,7 @@ static entry* que_getnext(entry *from)
 
 		if (it == fflist_sentl(ents)) {
 			dbglog(core, NULL, "que", "no next file in playlist");
-			if (qu->quit_if_done)
-				core->sig(FMED_STOP);
+			qu->track->cmd(NULL, FMED_TRACK_LAST);
 			return NULL;
 		}
 
@@ -763,11 +762,6 @@ static void que_trk_close(void *ctx)
 
 	if (stopped == FMED_NULL && (err == FMED_NULL || qu->next_if_err))
 		next = que_getnext(t->e);
-
-	else if (stopped == FMED_TRACK_STOPALL_EXIT) {
-		core->sig(FMED_STOP);
-		goto done;
-	}
 
 	if (t->e->stop_after) {
 		t->e->stop_after = 0;
