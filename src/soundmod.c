@@ -611,7 +611,7 @@ static int sndmod_rtpeak_process(void *ctx, fmed_filt *d)
 	float maxpeak;
 	ffpcm_peak(&p->fmt, d->data, d->datalen / ffpcm_size1(&p->fmt), &maxpeak);
 	double db = ffpcm_gain2db(maxpeak);
-	fmed_setval("pcm_peak", (uint)(db * 100));
+	d->audio.maxpeak = db;
 
 	d->out = d->data;
 	d->outlen = d->datalen;

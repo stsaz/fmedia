@@ -372,11 +372,7 @@ static void tui_rmfile(tui *t, uint cmd)
 
 static void tui_print_peak(tui *t, fmed_filt *d)
 {
-	int pk;
-	if (FMED_NULL == (pk = (int)fmed_getval("pcm_peak")))
-		return;
-
-	double db = ((double)pk) / 100;
+	double db = d->audio.maxpeak;
 	if (db < -MINDB)
 		db = -MINDB;
 	if (t->maxdb < db)
@@ -394,7 +390,6 @@ static int tui_process(void *ctx, fmed_filt *d)
 	int64 playpos;
 	uint playtime;
 	uint dots = 70;
-	int pk;
 
 	if (ctx == FMED_FILT_DUMMY)
 		return FMED_RFIN;
@@ -419,9 +414,8 @@ static int tui_process(void *ctx, fmed_filt *d)
 	playtime = (uint)(ffpcm_time(playpos, t->sample_rate) / 1000);
 	if (playtime == t->lastpos) {
 
-		if (t->rec
-			&& FMED_NULL != (pk = (int)fmed_getval("pcm_peak"))) {
-			double db = ((double)pk) / 100;
+		if (t->rec) {
+			double db = d->audio.maxpeak;
 			if (db < -40)
 				db = -40;
 			if (t->maxdb < db)
