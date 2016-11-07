@@ -426,9 +426,9 @@ static void gui_convert(void)
 				qent->trk->out_overwrite = *pint;
 			else if (ffstr_eqcz(&name, "conv_pcm_format"))
 				qent->trk->audio.convfmt.format = *pint;
-			else if (ffstr_eqcz(&name, "conv_pcm_channels"))
+			else if (ffstr_eqcz(&name, "conv_channels"))
 				qent->trk->audio.convfmt.channels = *pint;
-			else if (ffstr_eqcz(&name, "conv_pcm_sample_rate"))
+			else if (ffstr_eqcz(&name, "conv_pcm_rate"))
 				qent->trk->audio.convfmt.sample_rate = *pint;
 
 			val = *pint;
