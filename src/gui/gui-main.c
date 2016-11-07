@@ -561,8 +561,10 @@ static void gui_trk_setinfo(int idx, fmed_que_entry *ent, uint sec, uint flags)
 		ffui_view_gettext(&it);
 		ffui_view_get(&gg->wmain.vlist, H_IDX, &it);
 		ffsyschar *s = ffui_view_textq(&it);
-		ffui_view_settext_q(&it, s + FFSLEN("> "));
-		ffui_view_set(&gg->wmain.vlist, H_IDX, &it);
+		if (s[0] == '>') {
+			ffui_view_settext_q(&it, s + FFSLEN("> "));
+			ffui_view_set(&gg->wmain.vlist, H_IDX, &it);
+		}
 		return;
 
 	} else if (flags & GUI_TRKINFO_PLAYING) {
@@ -597,6 +599,24 @@ static void gui_trk_setinfo(int idx, fmed_que_entry *ent, uint sec, uint flags)
 		n = ffs_fmt(buf, buf + sizeof(buf), "%u:%02u", sec / 60, sec % 60);
 		ffui_view_settext(&it, buf, n);
 		ffui_view_set(&gg->wmain.vlist, H_DUR, &it);
+	}
+}
+
+static void gui_trk_setinfo2(fmed_que_entry *ent, uint flags)
+{
+	uint n;
+	char buf[255];
+	ffstr artist = {0}, title = {0}, *val;
+
+	if (NULL != (val = gg->qu->meta_find(ent, FFSTR("artist"))))
+		artist = *val;
+
+	if (NULL != (val = gg->qu->meta_find(ent, FFSTR("title"))))
+		title = *val;
+	else {
+		//use filename as a title
+		ffpath_split2(ent->url.ptr, ent->url.len, NULL, &title);
+		ffpath_splitname(title.ptr, title.len, &title, NULL);
 	}
 
 	if (flags & GUI_TRKINFO_WNDCAPTION) {
@@ -848,15 +868,16 @@ static void gui_on_dropfiles(ffui_wnd *wnd, ffui_fdrop *df)
 int gui_setmeta(gui_trk *g, fmed_que_entry *plid)
 {
 	ssize_t idx;
-	if (-1 == (idx = ffui_view_search(&gg->wmain.vlist, (size_t)plid)))
-		return -1;
+	if (-1 != (idx = ffui_view_search(&gg->wmain.vlist, (size_t)plid))) {
+		if (g == NULL) {
+			gui_trk_setinfo(idx, plid, 0, GUI_TRKINFO_STOPPED);
+			return idx;
+		}
 
-	if (g == NULL) {
-		gui_trk_setinfo(idx, plid, 0, GUI_TRKINFO_STOPPED);
-		return idx;
+		gui_trk_setinfo(idx, plid, g->total_time_sec, GUI_TRKINFO_PLAYING | GUI_TRKINFO_DUR);
 	}
 
-	gui_trk_setinfo(idx, plid, g->total_time_sec, GUI_TRKINFO_WNDCAPTION | GUI_TRKINFO_PLAYING | GUI_TRKINFO_DUR);
+	gui_trk_setinfo2(plid, GUI_TRKINFO_WNDCAPTION);
 	return idx;
 }
 
@@ -870,7 +891,7 @@ void gui_newtrack(gui_trk *g, fmed_filt *d, fmed_que_entry *plid)
 	ssize_t idx;
 
 	if (-1 == (idx = gui_setmeta(g, plid)))
-		return;
+		goto done;
 	ffui_view_setindex(&it, idx);
 	ffui_view_focus(&it, 1);
 
@@ -883,5 +904,6 @@ void gui_newtrack(gui_trk *g, fmed_filt *d, fmed_que_entry *plid)
 	ffui_view_settext(&it, buf, n);
 	ffui_view_set(&gg->wmain.vlist, H_INF, &it);
 
+done:
 	ffui_trk_setrange(&gg->wmain.tpos, g->total_time_sec);
 }
