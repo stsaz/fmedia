@@ -24,6 +24,7 @@ mixer                 mixer
 
 #define FMED_VER_MINOR  18
 #define FMED_VER  "0.18"
+#define FMED_HOMEPAGE  "http://fmedia.firmdev.com"
 
 // CORE
 // TRACK

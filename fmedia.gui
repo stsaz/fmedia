@@ -557,12 +557,24 @@ window wabout {
 	opacity 90
 
 	label labout {
-		position 15 15 400 150
+		position 15 15 350 80
 		style visible
 		font {
 			name Arial
 			height 12
 		}
+	}
+
+	label lurl {
+		position 15 135 350 25
+		style visible
+		font {
+			name Arial
+			height 12
+			style underline
+		}
+		color blue
+		onclick OPEN_HOMEPAGE
 	}
 }
 

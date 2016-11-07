@@ -12,7 +12,7 @@ typedef struct gui_wmain {
 		, bstop
 		, bprev
 		, bnext;
-	ffui_ctl lpos;
+	ffui_label lpos;
 	ffui_tab tabs;
 	ffui_trkbar tpos
 		, tvol;
@@ -59,7 +59,8 @@ typedef struct gui_wgoto {
 
 typedef struct gui_wabout {
 	ffui_wnd wabout;
-	ffui_ctl labout;
+	ffui_label labout;
+	ffui_label lurl;
 } gui_wabout;
 
 typedef struct gui_wlog {
@@ -277,6 +278,7 @@ enum CMDS {
 	FMEDGUI_EDIT,
 	README_SHOW,
 	CHANGES_SHOW,
+	OPEN_HOMEPAGE,
 
 	URL_ADD,
 	URL_CLOSE,

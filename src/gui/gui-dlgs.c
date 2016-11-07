@@ -31,6 +31,8 @@ static void gui_info_action(ffui_wnd *wnd, int id);
 
 static void gui_wgoto_action(ffui_wnd *wnd, int id);
 
+static void gui_wabout_action(ffui_wnd *wnd, int id);
+
 static void gui_wuri_action(ffui_wnd *wnd, int id);
 
 
@@ -735,9 +737,22 @@ void wabout_init(void)
 {
 	ffui_settextz(&gg->wabout.labout,
 		"fmedia v" FMED_VER "\n\n"
-		"Fast media player, recorder, converter\n\n"
-		"http://fmedia.firmdev.com");
+		"Fast media player, recorder, converter");
+	ffui_settextz(&gg->wabout.lurl, FMED_HOMEPAGE);
 	gg->wabout.wabout.hide_on_close = 1;
+	gg->wabout.wabout.on_action = &gui_wabout_action;
+}
+
+static void gui_wabout_action(ffui_wnd *wnd, int id)
+{
+	switch (id) {
+	case OPEN_HOMEPAGE: {
+		ssize_t i = (ssize_t)ShellExecute(NULL, TEXT("open"), TEXT(FMED_HOMEPAGE), NULL, NULL, SW_SHOWNORMAL);
+		if (i <= 32)
+			syserrlog(core, NULL, "gui", "ShellExecute()");
+		break;
+	}
+	}
 }
 
 

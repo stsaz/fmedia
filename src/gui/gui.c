@@ -112,6 +112,7 @@ static const ffui_ldr_ctl wgoto_ctls[] = {
 static const ffui_ldr_ctl wabout_ctls[] = {
 	add(gui_wabout, wabout),
 	add(gui_wabout, labout),
+	add(gui_wabout, lurl),
 	{NULL, 0, NULL}
 };
 
@@ -248,6 +249,8 @@ static const char *const scmds[] = {
 	"FMEDGUI_EDIT",
 	"README_SHOW",
 	"CHANGES_SHOW",
+
+	"OPEN_HOMEPAGE",
 
 	"URL_ADD",
 	"URL_CLOSE",
