@@ -54,6 +54,7 @@ void wmain_init(void)
 	gg->wmain.wmain.top = 1;
 	gg->wmain.wmain.on_action = &gui_action;
 	gg->wmain.wmain.onclose_id = ONCLOSE;
+	gg->wmain.wmain.onminimize_id = (gg->minimize_to_tray) ? HIDE : 0;
 	gui_newtab(0);
 	ffui_tray_settooltipz(&gg->wmain.tray_icon, "fmedia");
 	gg->wmain.vlist.colclick_id = SORT;

@@ -170,6 +170,7 @@ typedef struct ggui {
 	cvt_sets_t conv_sets;
 	rec_sets_t rec_sets;
 
+	byte minimize_to_tray;
 	uint wconv_init :1
 		, wrec_init :1
 		;
