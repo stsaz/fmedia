@@ -20,6 +20,8 @@ typedef struct dsnd_out {
 typedef struct dsnd_in {
 	ffdsnd_capt snd;
 	fftask task;
+	uint frsize;
+	uint64 total_samps;
 	unsigned async :1;
 } dsnd_in;
 
@@ -350,6 +352,7 @@ static void* dsnd_in_open(fmed_filt *d)
 
 	dbglog(core, d->trk, "dsound", "opened capture buffer %u bytes", ds->snd.bufsize);
 
+	ds->frsize = ffpcm_size1(&fmt);
 	d->audio.fmt.ileaved = 1;
 	return ds;
 
@@ -398,5 +401,7 @@ static int dsnd_in_read(void *ctx, fmed_filt *d)
 	}
 
 	dbglog(core, d->trk, "dsound", "read %L bytes", d->outlen);
+	ds->total_samps += d->outlen / ds->frsize;
+	d->audio.pos = ds->total_samps;
 	return FMED_ROK;
 }
