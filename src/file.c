@@ -635,7 +635,7 @@ static void fileout_close(void *ctx)
 			if (0 != fffile_close(f->fd))
 				syserrlog(core, NULL, "file", "%e", FFERR_FCLOSE);
 
-			core->log(FMED_LOG_INFO, NULL, "file", "saved file %S, %U kbytes"
+			core->log(FMED_LOG_USER, NULL, "file", "saved file %S, %U kbytes"
 				, &f->fname, f->fsize / 1024);
 		}
 	}

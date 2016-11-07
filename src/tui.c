@@ -208,6 +208,7 @@ static void* tui_open(fmed_filt *d)
 	if (d->type == FMED_TRK_TYPE_REC) {
 		t->rec = 1;
 		t->maxdb = -MINDB;
+		core->log(FMED_LOG_USER, d->trk, NULL, "Recording... Press \"s\" to stop.");
 	}
 
 	t->total_samples = d->audio.total;

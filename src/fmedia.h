@@ -297,6 +297,7 @@ struct fmed_filter {
 enum FMED_LOG {
 	FMED_LOG_ERR = 1,
 	FMED_LOG_WARN,
+	FMED_LOG_USER,
 	FMED_LOG_INFO,
 	FMED_LOG_DEBUG,
 	_FMED_LOG_LEVMASK = 0x0f,

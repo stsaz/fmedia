@@ -823,7 +823,7 @@ static int64 core_getval(const char *name)
 }
 
 static const char *const loglevs[] = {
-	"error", "warning", "info", "debug",
+	"error", "warning", "info", "info", "debug",
 };
 
 static void core_log(uint flags, void *trk, const char *module, const char *fmt, ...)
