@@ -192,9 +192,6 @@ void cvt_sets_destroy(cvt_sets_t *sets)
 
 void gui_showconvert(void)
 {
-	if (0 == ffui_view_selcount(&gg->wmain.vlist))
-		return;
-
 	if (!gg->wconv_init) {
 		if (!gg->conv_sets.init)
 			gui_cvt_sets_init(&gg->conv_sets);
