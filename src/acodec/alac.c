@@ -69,6 +69,7 @@ static void* alac_open(fmed_filt *d)
 		ffmem_free(a);
 		return NULL;
 	}
+	a->alac.total_samples = d->audio.total;
 	d->datalen = 0;
 
 	if (0 != memcmp(&a->alac.fmt, &d->audio.fmt, sizeof(a->alac.fmt)))
