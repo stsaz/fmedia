@@ -77,6 +77,7 @@ static void* alac_open(fmed_filt *d)
 	if (a->alac.bitrate != 0)
 		d->audio.bitrate = a->alac.bitrate;
 	d->audio.fmt.ileaved = 1;
+	d->track->setvalstr(d->trk, "pcm_decoder", "ALAC");
 	return a;
 }
 

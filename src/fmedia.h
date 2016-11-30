@@ -249,6 +249,7 @@ struct fmed_trk {
 		uint snd_output_pause :1;
 		uint meta_changed :1;
 		uint pcm_peaks_crc :1;
+		uint raw_data :1;
 	};
 	};
 
@@ -294,6 +295,14 @@ struct fmed_filter {
 
 	int (*conf)(ffpars_ctx *ctx);
 };
+
+static FFINL int64 fmed_popval_def(fmed_filt *d, const char *name, int64 def)
+{
+	int64 n;
+	if (FMED_NULL != (n = d->track->popval(d->trk, name)))
+		return n;
+	return def;
+}
 
 
 // LOG

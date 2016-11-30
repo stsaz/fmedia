@@ -90,8 +90,8 @@ static void* aac_open(fmed_filt *d)
 	if (NULL == (a = ffmem_tcalloc1(aac_in)))
 		return NULL;
 
-	a->aac.enc_delay = fmed_popval("audio_enc_delay");
-	a->aac.end_padding = fmed_popval("audio_end_padding");
+	a->aac.enc_delay = fmed_popval_def(d, "audio_enc_delay", 0);
+	a->aac.end_padding = fmed_popval_def(d, "audio_end_padding", 0);
 	a->aac.total_samples = d->audio.total;
 	if (0 != ffaac_open(&a->aac, d->audio.fmt.channels, d->data, d->datalen)) {
 		errlog(core, d->trk, NULL, "ffaac_open(): %s", ffaac_errstr(&a->aac));
@@ -99,7 +99,9 @@ static void* aac_open(fmed_filt *d)
 		return NULL;
 	}
 	d->datalen = 0;
+	d->audio.fmt.format = a->aac.fmt.format;
 	d->audio.fmt.ileaved = 1;
+	d->track->setvalstr(d->trk, "pcm_decoder", "AAC");
 	return a;
 }
 

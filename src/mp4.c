@@ -155,7 +155,6 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 			return FMED_RMORE;
 
 		case FFMP4_RHDR: {
-			d->track->setvalstr(d->trk, "pcm_decoder", ffmp4_codec(m->mp.codec));
 			ffpcm_fmtcopy(&d->audio.fmt, &m->mp.fmt);
 
 			d->audio.total = ffmp4_totalsamples(&m->mp);
@@ -181,6 +180,7 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 			}
 			if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, (void*)filt))
 				return FMED_RERR;
+			d->raw_data = 1;
 			d->data = m->mp.data,  d->datalen = m->mp.datalen;
 			d->out = m->mp.out,  d->outlen = m->mp.outlen;
 			return FMED_RDATA;
