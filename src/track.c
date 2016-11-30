@@ -844,7 +844,7 @@ static char* trk_getvalstr3(void *trk, const void *name, uint flags)
 		ent = meta_find(t, &nm);
 		if (ent == NULL) {
 			void *qent;
-			if (NULL == (qent = (void*)trk_getval(t, "queue_item")))
+			if (FMED_PNULL == (qent = (void*)trk_getval(t, "queue_item")))
 				return FMED_PNULL;
 			const fmed_queue *qu = core->getmod("#queue.queue");
 			ffstr *val;
