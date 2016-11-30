@@ -455,13 +455,30 @@ static int fileout_config(ffpars_ctx *ctx)
 	return 0;
 }
 
+enum VARS {
+	VAR_DATE,
+	VAR_FNAME,
+	VAR_FPATH,
+	VAR_TIME,
+	VAR_TIMEMS,
+};
+
+static const char* const vars[] = {
+	"date",
+	"filename",
+	"filepath",
+	"time",
+	"timems",
+};
+
 static FFINL char* fileout_getname(fmed_fileout *f, fmed_filt *d)
 {
 	ffsvar p;
-	ffstr fn, val;
+	ffstr fn, val, fdir, fname;
 	char *tstr;
+	const char *in;
 	ffarr buf = {0};
-	int r, fpath, have_dt = 0, istime;
+	int r, have_dt = 0, ivar;
 	ffdtm dt;
 
 	ffmem_tzero(&p);
@@ -474,27 +491,25 @@ static FFINL char* fileout_getname(fmed_fileout *f, fmed_filt *d)
 
 		switch (r) {
 		case FFSVAR_S:
-			if ((fpath = ffstr_eqcz(&p.val, "filepath"))
-				|| ffstr_eqcz(&p.val, "filename")) {
-
-				const char *in;
-				ffstr dir, name;
-				if (NULL == (in = d->track->getvalstr(d->trk, "input"))
-					|| (NULL == ffpath_split2(in, ffsz_len(in), &dir, &name) && fpath))
-					goto done;
-
-				if (fpath) {
-					if (NULL == ffarr_append(&buf, dir.ptr, dir.len))
-						goto done;
+			if (0 > (ivar = ffszarr_findsorted(vars, FFCNT(vars), p.val.ptr, p.val.len))) {
+				if (FMED_PNULL == (tstr = d->track->getvalstr3(d->trk, &p.val, FMED_TRK_META | FMED_TRK_NAMESTR)))
 					continue;
-				} else {
-					ffpath_splitname(name.ptr, name.len, &val, NULL);
-				}
+				ffstr_setz(&val, tstr);
+				goto data;
+			}
+
+			switch (ivar) {
+
+			case VAR_FPATH:
+			case VAR_FNAME:
+				if (NULL == (in = d->track->getvalstr(d->trk, "input")))
+					goto done;
+				ffpath_split2(in, ffsz_len(in), &fdir, &fname);
 				break;
 
-			} else if ((istime = ffstr_eqcz(&p.val, "time"))
-				|| ffstr_eqcz(&p.val, "date")) {
-
+			case VAR_DATE:
+			case VAR_TIME:
+			case VAR_TIMEMS:
 				if (!have_dt) {
 					// get time only once
 					fftime t;
@@ -502,21 +517,39 @@ static FFINL char* fileout_getname(fmed_fileout *f, fmed_filt *d)
 					fftime_split(&dt, &t, FFTIME_TZLOCAL);
 					have_dt = 1;
 				}
-
-				if (ffstr_eqcz(&p.val, "time")) {
-					if (0 == ffstr_catfmt(&buf, "%02u%02u%02u", dt.hour, dt.min, dt.sec))
-						goto done;
-				} else {
-					if (0 == ffstr_catfmt(&buf, "%04u%02u%02u", dt.year, dt.month, dt.day))
-						goto done;
-				}
-				continue;
+				break;
 			}
 
-			if (FMED_PNULL == (tstr = d->track->getvalstr3(d->trk, &p.val, FMED_TRK_META | FMED_TRK_NAMESTR)))
-				continue;
-			ffstr_setz(&val, tstr);
-			break;
+			switch (ivar) {
+
+			case VAR_FPATH:
+				if (fdir.len == 0)
+					goto done;
+				if (NULL == ffarr_append(&buf, fdir.ptr, fdir.len))
+					goto syserr;
+				break;
+
+			case VAR_FNAME:
+				ffpath_splitname(fname.ptr, fname.len, &val, NULL);
+				goto data;
+
+			case VAR_DATE:
+				if (0 == ffstr_catfmt(&buf, "%04u%02u%02u", dt.year, dt.month, dt.day))
+					goto syserr;
+				break;
+
+			case VAR_TIME:
+				if (0 == ffstr_catfmt(&buf, "%02u%02u%02u", dt.hour, dt.min, dt.sec))
+					goto syserr;
+				break;
+
+			case VAR_TIMEMS:
+				if (0 == ffstr_catfmt(&buf, "%02u%02u%02u-%03u", dt.hour, dt.min, dt.sec, dt.msec))
+					goto syserr;
+				break;
+			}
+
+			continue;
 
 		case FFSVAR_TEXT:
 			val = p.val;
@@ -526,8 +559,9 @@ static FFINL char* fileout_getname(fmed_fileout *f, fmed_filt *d)
 			goto done;
 		}
 
+data:
 		if (NULL == ffarr_grow(&buf, val.len, 0))
-			goto done;
+			goto syserr;
 
 		switch (r) {
 		case FFSVAR_S:
@@ -542,7 +576,7 @@ static FFINL char* fileout_getname(fmed_fileout *f, fmed_filt *d)
 	}
 
 	if (NULL == ffarr_append(&buf, "", 1))
-		goto done;
+		goto syserr;
 	ffstr_acqstr3(&f->fname, &buf);
 	f->fname.len--;
 
@@ -550,6 +584,9 @@ static FFINL char* fileout_getname(fmed_fileout *f, fmed_filt *d)
 		d->track->setvalstr(d->trk, "output", f->fname.ptr);
 
 	return f->fname.ptr;
+
+syserr:
+	syserrlog(core, d->trk, NULL, "%e", FFERR_BUFALOC);
 
 done:
 	ffarr_free(&buf);
