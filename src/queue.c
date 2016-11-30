@@ -422,7 +422,6 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 	case FMED_QUE_CLEAR:
 		qu->cur = NULL;
 		FFLIST_ENUMSAFE(ents, ent_rm, entry, sib);
-		fflist_init(ents);
 		dbglog(core, NULL, "que", "cleared");
 		break;
 
