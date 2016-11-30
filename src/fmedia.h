@@ -31,6 +31,7 @@ mixer                 mixer
 // FILTER
 // LOG
 // QUEUE
+// GLOBCMD
 
 
 // CORE
@@ -429,3 +430,18 @@ typedef struct fmed_queue {
 enum FMED_GUI_SIG {
 	FMED_GUI_SHOW = 1 << 31,
 };
+
+
+// GLOBCMD
+
+enum FMED_GLOBCMD {
+	FMED_GLOBCMD_OPEN,
+	FMED_GLOBCMD_START,
+};
+
+typedef struct fmed_globcmd_iface {
+	/**
+	@cmd: enum FMED_GLOBCMD. */
+	int (*ctl)(uint cmd);
+	int (*write)(const void *data, size_t len);
+} fmed_globcmd_iface;

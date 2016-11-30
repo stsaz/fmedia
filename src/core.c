@@ -60,6 +60,7 @@ extern const fmed_mod* fmed_getmod_file(const fmed_core *_core);
 extern const fmed_mod* fmed_getmod_tui(const fmed_core *_core);
 extern const fmed_mod* fmed_getmod_sndmod(const fmed_core *_core);
 extern const fmed_mod* fmed_getmod_queue(const fmed_core *_core);
+extern const fmed_mod* fmed_getmod_globcmd(const fmed_core *_core);
 
 static int core_open(void);
 static int core_sigmods(uint signo);
@@ -465,6 +466,7 @@ static void cmd_destroy(fmed_cmd *cmd)
 	ffmem_safefree(cmd->trackno);
 	ffmem_safefree(cmd->conf_fn);
 
+	ffstr_free(&cmd->globcmd);
 	ffstr_free(&cmd->root);
 }
 
@@ -546,6 +548,7 @@ static const fmed_modinfo* core_insmod(const char *sname, ffpars_ctx *ctx)
 	ffstr s, modname;
 	size_t sname_len = ffsz_len(sname);
 	core_mod *mod = ffmem_calloc(1, sizeof(core_mod) + sname_len + 1);
+	ffbool is_filter = 1;
 	if (mod == NULL)
 		return NULL;
 
@@ -570,7 +573,10 @@ static const fmed_modinfo* core_insmod(const char *sname, ffpars_ctx *ctx)
 			getmod = &fmed_getmod_tui;
 		else if (ffstr_eqcz(&s, "#queue"))
 			getmod = &fmed_getmod_queue;
-		else {
+		else if (ffstr_eqcz(&s, "#globcmd")) {
+			getmod = &fmed_getmod_globcmd;
+			is_filter = 0;
+		} else {
 			fferr_set(EINVAL);
 			goto fail;
 		}
@@ -611,10 +617,12 @@ static const fmed_modinfo* core_insmod(const char *sname, ffpars_ctx *ctx)
 iface:
 	mod->dl = dl;
 	mod->m = minfo->m;
-	mod->f = minfo->m->iface(modname.ptr);
-	if (mod->f == NULL) {
-		errlog(core, NULL, "core", "can't initialize %s", sname);
-		goto fail2;
+	if (is_filter) {
+		mod->f = minfo->m->iface(modname.ptr);
+		if (mod->f == NULL) {
+			errlog(core, NULL, "core", "can't initialize %s", sname);
+			goto fail2;
+		}
 	}
 
 	ffsz_fcopy(mod->name_s, sname, sname_len);
