@@ -315,7 +315,7 @@ static int flac_out_encode(void *ctx, fmed_filt *d)
 		ffpcm_fmtcopy(&fmt, &d->audio.convfmt);
 
 		if ((int64)d->audio.total != FMED_NULL)
-			f->fl.total_samples = d->audio.total - d->audio.pos;
+			f->fl.total_samples = (d->audio.total - d->audio.pos) * d->audio.convfmt.sample_rate / d->audio.fmt.sample_rate;
 
 		f->fl.seektable_int = flac_out_conf.sktab_int * fmt.sample_rate;
 		f->fl.min_meta = flac_out_conf.min_meta_size;

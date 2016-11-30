@@ -310,7 +310,7 @@ static int mp4_out_encode(void *ctx, fmed_filt *d)
 		ffpcm_fmtcopy(&fmt, &d->audio.convfmt);
 
 		if ((int64)d->audio.total != FMED_NULL)
-			m->mp.info.total_samples = d->audio.total - d->audio.pos;
+			m->mp.info.total_samples = ((d->audio.total - d->audio.pos) * d->audio.convfmt.sample_rate / d->audio.fmt.sample_rate);
 		m->mp.info.frame_samples = fmed_getval("audio_frame_samples");
 		m->mp.info.enc_delay = fmed_getval("audio_enc_delay");
 		m->mp.info.bitrate = fmed_getval("audio_bitrate");

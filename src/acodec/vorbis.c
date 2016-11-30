@@ -324,8 +324,10 @@ static int vorbis_out_encode(void *ctx, fmed_filt *d)
 		v->vorbis.min_tagsize = vorbis_out_conf.min_tag_size;
 		vorbis_out_addmeta(v, d);
 
-		if ((int64)d->audio.total != FMED_NULL)
-			d->output.size = (d->audio.total / d->audio.convfmt.sample_rate) / ffvorbis_enc_bitrate(&v->vorbis, qual);
+		if ((int64)d->audio.total != FMED_NULL) {
+			uint64 total = ((d->audio.total - d->audio.pos) * d->audio.convfmt.sample_rate / d->audio.fmt.sample_rate);
+			d->output.size = ffvorbis_enc_size(&v->vorbis, total);
+		}
 
 		v->state = W_DATA;
 		break;

@@ -485,8 +485,10 @@ static int mpeg_out_process(void *ctx, fmed_filt *d)
 		if (0 != mpeg_out_addmeta(m, d))
 			return FMED_RERR;
 
-		if ((int64)d->audio.total != FMED_NULL)
-			d->output.size = ffmpg_enc_size(&m->mpg, d->audio.total - d->audio.pos);
+		if ((int64)d->audio.total != FMED_NULL) {
+			uint64 total = (d->audio.total - d->audio.pos) * d->audio.convfmt.sample_rate / d->audio.fmt.sample_rate;
+			d->output.size = ffmpg_enc_size(&m->mpg, total);
+		}
 
 		m->state = 2;
 		// break

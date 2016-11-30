@@ -228,7 +228,7 @@ static void wavout_close(void *ctx)
 static int wavout_process(void *ctx, fmed_filt *d)
 {
 	wavout *w = ctx;
-	uint64 total_dur;
+	uint64 total_dur = 0;
 	int r;
 
 	switch (w->state) {
@@ -240,7 +240,8 @@ static int wavout_process(void *ctx, fmed_filt *d)
 	case 1: {
 		ffpcm fmt;
 		ffpcm_fmtcopy(&fmt, &d->audio.convfmt);
-		total_dur = ((int64)d->audio.total != FMED_NULL) ? d->audio.total : 0;
+		if ((int64)d->audio.total != FMED_NULL)
+			total_dur = ((d->audio.total - d->audio.pos) * d->audio.convfmt.sample_rate / d->audio.fmt.sample_rate);
 		ffwav_create(&w->wav, &fmt, total_dur);
 
 		w->state = 2;

@@ -339,8 +339,10 @@ static int opus_out_encode(void *ctx, fmed_filt *d)
 		o->opus.min_tagsize = opus_out_conf.min_tag_size;
 		opus_out_addmeta(o, d);
 
-		if ((int64)d->audio.total != FMED_NULL)
-			d->output.size = (d->audio.total / d->audio.convfmt.sample_rate) / brate;
+		if ((int64)d->audio.total != FMED_NULL) {
+			uint64 total = ((d->audio.total - d->audio.pos) * d->audio.convfmt.sample_rate / d->audio.fmt.sample_rate);
+			d->output.size = ffopus_enc_size(&o->opus, total);
+		}
 
 		o->state = W_DATA;
 		break;
