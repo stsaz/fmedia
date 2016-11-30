@@ -125,10 +125,12 @@ static void* mpeg_open(fmed_filt *d)
 	ffmpg_init(&m->mpg);
 	m->mpg.codepage = core->getval("codepage");
 
-	if ((int64)d->input.size != FMED_NULL) {
+	if ((int64)d->input.size != FMED_NULL && !d->raw_data) {
 		m->mpg.total_size = d->input.size;
 		m->mpg.options = FFMPG_O_ID3V2 | FFMPG_O_APETAG | FFMPG_O_ID3V1;
 	}
+
+	d->datalen = 0;
 	return m;
 }
 
@@ -305,7 +307,8 @@ again:
 			d->track->setvalstr(d->trk, "pcm_decoder", "MPEG");
 			d->audio.fmt.ileaved = m->mpg.fmt.ileaved;
 			d->audio.bitrate = ffmpg_bitrate(&m->mpg);
-			d->audio.total = m->mpg.total_samples;
+			if (!d->raw_data)
+				d->audio.total = m->mpg.total_samples;
 			m->state = I_DATA;
 			goto again;
 

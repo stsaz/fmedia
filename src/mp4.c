@@ -170,8 +170,12 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 				fmed_setval("audio_enc_delay", m->mp.enc_delay);
 				fmed_setval("audio_end_padding", m->mp.end_padding);
 				d->audio.bitrate = (m->mp.aac_brate != 0) ? m->mp.aac_brate : ffmp4_bitrate(&m->mp);
-			}
-			else {
+
+			} else if (m->mp.codec == FFMP4_MPEG1) {
+				filt = "mpeg.decode";
+				d->audio.bitrate = (m->mp.aac_brate != 0) ? m->mp.aac_brate : 0;
+
+			} else {
 				errlog(core, d->trk, "mp4", "%s: decoding unsupported", ffmp4_codec(m->mp.codec));
 				return FMED_RERR;
 			}
