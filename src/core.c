@@ -325,13 +325,15 @@ static int fmed_confusr_mod(ffparser_schem *ps, void *obj, ffpars_ctx *ctx)
 			return FFPARS_ESYS;
 		mod = core_getmodinfo((ffstr*)&s);
 
+		if (!(mod == NULL || mod->m->conf == NULL))
+			mod->m->conf(conf->usrconf_modname, ctx);
+
 		ffmem_free(conf->usrconf_modname);
 		conf->usrconf_modname = NULL;
 		ffarr_free(&s);
 
-		if (mod == NULL || mod->f->conf == NULL)
+		if (mod == NULL || mod->m->conf == NULL)
 			return FFPARS_EINTL;
-		mod->f->conf(ctx);
 	}
 
 	return 0;
@@ -630,7 +632,8 @@ iface:
 	fflist_ins(&fmed->mods, &mod->sib);
 
 	if (ctx != NULL)
-		mod->f->conf(ctx);
+		if (0 != minfo->m->conf(modname.ptr, ctx))
+			goto fail;
 
 	return (fmed_modinfo*)mod;
 

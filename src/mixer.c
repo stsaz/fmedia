@@ -50,10 +50,11 @@ static const fmed_core *core;
 
 //FMEDIA MODULE
 static const void* mix_iface(const char *name);
+static int mix_conf(const char *name, ffpars_ctx *ctx);
 static int mix_sig(uint signo);
 static void mix_destroy(void);
 static const fmed_mod fmed_mix_mod = {
-	&mix_iface, &mix_sig, &mix_destroy
+	&mix_iface, &mix_sig, &mix_destroy, &mix_conf
 };
 
 //INPUT
@@ -68,9 +69,9 @@ static const fmed_filter fmed_mix_in = {
 static void* mix_open(fmed_filt *d);
 static int mix_read(void *ctx, fmed_filt *d);
 static void mix_close(void *ctx);
-static int mix_conf(ffpars_ctx *ctx);
+static int mix_out_conf(ffpars_ctx *ctx);
 static const fmed_filter fmed_mix_out = {
-	&mix_open, &mix_read, &mix_close, &mix_conf
+	&mix_open, &mix_read, &mix_close
 };
 
 static uint mix_write(mxr *m, uint off, const fmed_filt *d);
@@ -102,7 +103,7 @@ static int mix_conf_close(ffparser_schem *p, void *obj)
 	return 0;
 }
 
-static int mix_conf(ffpars_ctx *ctx)
+static int mix_out_conf(ffpars_ctx *ctx)
 {
 	conf.pcm.format = FFPCM_16;
 	conf.pcm.channels = 2;
@@ -127,6 +128,13 @@ static const void* mix_iface(const char *name)
 	else if (!ffsz_cmp(name, "out"))
 		return &fmed_mix_out;
 	return NULL;
+}
+
+static int mix_conf(const char *name, ffpars_ctx *ctx)
+{
+	if (!ffsz_cmp(name, "out"))
+		return mix_out_conf(ctx);
+	return -1;
 }
 
 static int mix_sig(uint signo)

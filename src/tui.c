@@ -96,10 +96,11 @@ static const fmed_core *core;
 
 //FMEDIA MODULE
 static const void* tui_iface(const char *name);
+static int tui_mod_conf(const char *name, ffpars_ctx *conf);
 static int tui_sig(uint signo);
 static void tui_destroy(void);
 static const fmed_mod fmed_tui_mod = {
-	&tui_iface, &tui_sig, &tui_destroy
+	&tui_iface, &tui_sig, &tui_destroy, &tui_mod_conf
 };
 
 static void* tui_open(fmed_filt *d);
@@ -107,7 +108,7 @@ static int tui_process(void *ctx, fmed_filt *d);
 static void tui_close(void *ctx);
 static int tui_config(ffpars_ctx *conf);
 static const fmed_filter fmed_tui = {
-	&tui_open, &tui_process, &tui_close, &tui_config
+	&tui_open, &tui_process, &tui_close
 };
 
 static void tui_print_peak(tui *t, fmed_filt *d);
@@ -141,6 +142,13 @@ static const void* tui_iface(const char *name)
 		return &fmed_tui;
 	}
 	return NULL;
+}
+
+static int tui_mod_conf(const char *name, ffpars_ctx *ctx)
+{
+	if (!ffsz_cmp(name, "tui"))
+		return tui_config(ctx);
+	return -1;
 }
 
 static int tui_sig(uint signo)

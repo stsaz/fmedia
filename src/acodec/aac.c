@@ -10,10 +10,11 @@ static const fmed_core *core;
 
 //FMEDIA MODULE
 static const void* aac_iface(const char *name);
+static int aac_conf(const char *name, ffpars_ctx *ctx);
 static int aac_sig(uint signo);
 static void aac_destroy(void);
 static const fmed_mod fmed_aac_mod = {
-	&aac_iface, &aac_sig, &aac_destroy
+	&aac_iface, &aac_sig, &aac_destroy, &aac_conf
 };
 
 //DECODE
@@ -45,7 +46,7 @@ static void* aac_out_create(fmed_filt *d);
 static void aac_out_free(void *ctx);
 static int aac_out_encode(void *ctx, fmed_filt *d);
 static const fmed_filter aac_output = {
-	&aac_out_create, &aac_out_encode, &aac_out_free, &aac_out_config
+	&aac_out_create, &aac_out_encode, &aac_out_free
 };
 
 
@@ -63,6 +64,13 @@ static const void* aac_iface(const char *name)
 	else if (!ffsz_cmp(name, "encode"))
 		return &aac_output;
 	return NULL;
+}
+
+static int aac_conf(const char *name, ffpars_ctx *ctx)
+{
+	if (!ffsz_cmp(name, "encode"))
+		return aac_out_config(ctx);
+	return -1;
 }
 
 static int aac_sig(uint signo)

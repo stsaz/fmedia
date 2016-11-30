@@ -35,19 +35,20 @@ static struct ogg_out_conf_t {
 
 //FMEDIA MODULE
 static const void* ogg_iface(const char *name);
+static int ogg_conf(const char *name, ffpars_ctx *ctx);
 static int ogg_sig(uint signo);
 static void ogg_destroy(void);
 static const fmed_mod fmed_ogg_mod = {
-	&ogg_iface, &ogg_sig, &ogg_destroy
+	&ogg_iface, &ogg_sig, &ogg_destroy, &ogg_conf
 };
 
 //DECODE
 static void* ogg_open(fmed_filt *d);
 static void ogg_close(void *ctx);
 static int ogg_decode(void *ctx, fmed_filt *d);
-static int ogg_conf(ffpars_ctx *ctx);
+static int ogg_dec_conf(ffpars_ctx *ctx);
 static const fmed_filter fmed_ogg_input = {
-	&ogg_open, &ogg_decode, &ogg_close, &ogg_conf
+	&ogg_open, &ogg_decode, &ogg_close
 };
 
 static const ffpars_arg ogg_in_conf_args[] = {
@@ -60,7 +61,7 @@ static void ogg_out_close(void *ctx);
 static int ogg_out_encode(void *ctx, fmed_filt *d);
 static int ogg_out_config(ffpars_ctx *ctx);
 static const fmed_filter fmed_ogg_output = {
-	&ogg_out_open, &ogg_out_encode, &ogg_out_close, &ogg_out_config
+	&ogg_out_open, &ogg_out_encode, &ogg_out_close
 };
 
 static const ffpars_arg ogg_out_conf_args[] = {
@@ -85,6 +86,15 @@ static const void* ogg_iface(const char *name)
 	return NULL;
 }
 
+static int ogg_conf(const char *name, ffpars_ctx *ctx)
+{
+	if (!ffsz_cmp(name, "input"))
+		return ogg_dec_conf(ctx);
+	else if (!ffsz_cmp(name, "output"))
+		return ogg_out_config(ctx);
+	return -1;
+}
+
 static int ogg_sig(uint signo)
 {
 	switch (signo) {
@@ -107,7 +117,7 @@ static void ogg_destroy(void)
 }
 
 
-static int ogg_conf(ffpars_ctx *ctx)
+static int ogg_dec_conf(ffpars_ctx *ctx)
 {
 	ogg_in_conf.seekable = 1;
 	ffpars_setargs(ctx, &ogg_in_conf, ogg_in_conf_args, FFCNT(ogg_in_conf_args));

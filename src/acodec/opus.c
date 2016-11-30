@@ -12,10 +12,11 @@ static const fmed_queue *qu;
 
 //FMEDIA MODULE
 static const void* opus_iface(const char *name);
+static int opus_mod_conf(const char *name, ffpars_ctx *ctx);
 static int opus_sig(uint signo);
 static void opus_destroy(void);
 static const fmed_mod fmed_opus_mod = {
-	&opus_iface, &opus_sig, &opus_destroy
+	&opus_iface, &opus_sig, &opus_destroy, &opus_mod_conf
 };
 
 //DECODE
@@ -49,7 +50,7 @@ static void* opus_out_create(fmed_filt *d);
 static void opus_out_free(void *ctx);
 static int opus_out_encode(void *ctx, fmed_filt *d);
 static const fmed_filter opus_output = {
-	&opus_out_create, &opus_out_encode, &opus_out_free, &opus_out_config
+	&opus_out_create, &opus_out_encode, &opus_out_free
 };
 
 
@@ -68,6 +69,14 @@ static const void* opus_iface(const char *name)
 		return &opus_output;
 	return NULL;
 }
+
+static int opus_mod_conf(const char *name, ffpars_ctx *ctx)
+{
+	if (!ffsz_cmp(name, "encode"))
+		return opus_out_config(ctx);
+	return -1;
+}
+
 
 static int opus_sig(uint signo)
 {

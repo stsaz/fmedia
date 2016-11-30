@@ -108,6 +108,8 @@ struct fmed_mod {
 	int (*sig)(uint signo);
 
 	void (*destroy)(void);
+
+	int (*conf)(const char *name, ffpars_ctx *ctx);
 };
 
 
@@ -293,8 +295,6 @@ struct fmed_filter {
 	int (*process)(void *ctx, fmed_filt *d);
 
 	void (*close)(void *ctx);
-
-	int (*conf)(ffpars_ctx *ctx);
 };
 
 static FFINL int64 fmed_popval_def(fmed_filt *d, const char *name, int64 def)

@@ -12,10 +12,11 @@ static const fmed_queue *qu;
 
 //FMEDIA MODULE
 static const void* vorbis_iface(const char *name);
+static int vorbis_conf(const char *name, ffpars_ctx *ctx);
 static int vorbis_sig(uint signo);
 static void vorbis_destroy(void);
 static const fmed_mod fmed_vorbis_mod = {
-	&vorbis_iface, &vorbis_sig, &vorbis_destroy
+	&vorbis_iface, &vorbis_sig, &vorbis_destroy, &vorbis_conf
 };
 
 //DECODE
@@ -43,7 +44,7 @@ static void* vorbis_out_create(fmed_filt *d);
 static void vorbis_out_free(void *ctx);
 static int vorbis_out_encode(void *ctx, fmed_filt *d);
 static const fmed_filter vorbis_output = {
-	&vorbis_out_create, &vorbis_out_encode, &vorbis_out_free, &vorbis_out_config
+	&vorbis_out_create, &vorbis_out_encode, &vorbis_out_free
 };
 
 
@@ -61,6 +62,13 @@ static const void* vorbis_iface(const char *name)
 	else if (!ffsz_cmp(name, "encode"))
 		return &vorbis_output;
 	return NULL;
+}
+
+static int vorbis_conf(const char *name, ffpars_ctx *ctx)
+{
+	if (!ffsz_cmp(name, "encode"))
+		return vorbis_out_config(ctx);
+	return -1;
 }
 
 static int vorbis_sig(uint signo)

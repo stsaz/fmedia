@@ -39,10 +39,11 @@ static struct mpeg_out_conf_t {
 
 //FMEDIA MODULE
 static const void* mpeg_iface(const char *name);
+static int mpeg_mod_conf(const char *name, ffpars_ctx *ctx);
 static int mpeg_sig(uint signo);
 static void mpeg_destroy(void);
 static const fmed_mod fmed_mpeg_mod = {
-	&mpeg_iface, &mpeg_sig, &mpeg_destroy
+	&mpeg_iface, &mpeg_sig, &mpeg_destroy, &mpeg_mod_conf
 };
 
 //DECODE
@@ -51,7 +52,7 @@ static void mpeg_close(void *ctx);
 static int mpeg_process(void *ctx, fmed_filt *d);
 static int mpeg_config(ffpars_ctx *ctx);
 static const fmed_filter fmed_mpeg_input = {
-	&mpeg_open, &mpeg_process, &mpeg_close, &mpeg_config
+	&mpeg_open, &mpeg_process, &mpeg_close
 };
 
 static void mpeg_meta(fmed_mpeg *m, fmed_filt *d);
@@ -64,7 +65,7 @@ static void mpeg_out_close(void *ctx);
 static int mpeg_out_process(void *ctx, fmed_filt *d);
 static int mpeg_out_config(ffpars_ctx *ctx);
 static const fmed_filter fmed_mpeg_output = {
-	&mpeg_out_open, &mpeg_out_process, &mpeg_out_close, &mpeg_out_config
+	&mpeg_out_open, &mpeg_out_process, &mpeg_out_close
 };
 
 static int mpeg_out_addmeta(mpeg_out *m, fmed_filt *d);
@@ -90,6 +91,15 @@ static const void* mpeg_iface(const char *name)
 	else if (!ffsz_cmp(name, "encode"))
 		return &fmed_mpeg_output;
 	return NULL;
+}
+
+static int mpeg_mod_conf(const char *name, ffpars_ctx *ctx)
+{
+	if (!ffsz_cmp(name, "decode"))
+		return mpeg_config(ctx);
+	else if (!ffsz_cmp(name, "encode"))
+		return mpeg_out_config(ctx);
+	return -1;
 }
 
 static int mpeg_sig(uint signo)

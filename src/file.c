@@ -82,19 +82,20 @@ typedef struct fmed_fileout {
 
 //FMEDIA MODULE
 static const void* file_iface(const char *name);
+static int file_conf(const char *name, ffpars_ctx *ctx);
 static int file_sig(uint signo);
 static void file_destroy(void);
 static const fmed_mod fmed_file_mod = {
-	&file_iface, &file_sig, &file_destroy
+	&file_iface, &file_sig, &file_destroy, &file_conf
 };
 
 //INPUT
 static void* file_open(fmed_filt *d);
 static int file_getdata(void *ctx, fmed_filt *d);
 static void file_close(void *ctx);
-static int file_conf(ffpars_ctx *ctx);
+static int file_in_conf(ffpars_ctx *ctx);
 static const fmed_filter fmed_file_input = {
-	&file_open, &file_getdata, &file_close, &file_conf
+	&file_open, &file_getdata, &file_close
 };
 
 static void file_read(void *udata);
@@ -113,7 +114,7 @@ static int fileout_write(void *ctx, fmed_filt *d);
 static void fileout_close(void *ctx);
 static int fileout_config(ffpars_ctx *ctx);
 static const fmed_filter fmed_file_output = {
-	&fileout_open, &fileout_write, &fileout_close, &fileout_config
+	&fileout_open, &fileout_write, &fileout_close
 };
 
 static int fileout_writedata(fmed_fileout *f, const char *data, size_t len, fmed_filt *d);
@@ -149,6 +150,15 @@ static const void* file_iface(const char *name)
 	return NULL;
 }
 
+static int file_conf(const char *name, ffpars_ctx *ctx)
+{
+	if (!ffsz_cmp(name, "in"))
+		return file_in_conf(ctx);
+	else if (!ffsz_cmp(name, "out"))
+		return fileout_config(ctx);
+	return -1;
+}
+
 static int file_sig(uint signo)
 {
 	switch (signo) {
@@ -165,7 +175,7 @@ static void file_destroy(void)
 }
 
 
-static int file_conf(ffpars_ctx *ctx)
+static int file_in_conf(ffpars_ctx *ctx)
 {
 	mod->in_conf.align = 4096;
 	mod->in_conf.bsize = 64 * 1024;

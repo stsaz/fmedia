@@ -25,10 +25,11 @@ ggui *gg;
 
 //FMEDIA MODULE
 static const void* gui_iface(const char *name);
+static int gui_conf(const char *name, ffpars_ctx *ctx);
 static int gui_sig(uint signo);
 static void gui_destroy(void);
 static const fmed_mod fmed_gui_mod = {
-	&gui_iface, &gui_sig, &gui_destroy
+	&gui_iface, &gui_sig, &gui_destroy, &gui_conf
 };
 
 static int gui_install(uint sig);
@@ -42,10 +43,10 @@ static int gtrk_process(void *ctx, fmed_filt *d);
 static void gtrk_close(void *ctx);
 static int gtrk_conf(ffpars_ctx *ctx);
 static const fmed_filter fmed_gui = {
-	&gtrk_open, &gtrk_process, &gtrk_close, &gtrk_conf
+	&gtrk_open, &gtrk_process, &gtrk_close
 };
 
-static const ffpars_arg gui_conf[] = {
+static const ffpars_arg gui_conf_args[] = {
 	{ "record",	FFPARS_TOBJ, FFPARS_DST(&gui_conf_rec) },
 	{ "convert",	FFPARS_TOBJ, FFPARS_DST(&gui_conf_convert) },
 	{ "portable_conf",	FFPARS_TBOOL | FFPARS_F8BIT, FFPARS_DSTOFF(ggui, portable_conf) },
@@ -533,6 +534,14 @@ static const void* gui_iface(const char *name)
 	return NULL;
 }
 
+static int gui_conf(const char *name, ffpars_ctx *ctx)
+{
+	if (!ffsz_cmp(name, "gui"))
+		return gtrk_conf(ctx);
+	return -1;
+}
+
+
 /**
 1. HKCU\Environment\PATH = [...;] FMEDIA_PATH [;...]
 2. Desktop shortcut to fmedia-gui.exe
@@ -685,7 +694,7 @@ static int gtrk_conf(ffpars_ctx *ctx)
 {
 	gg->seek_step_delta = 5;
 	gg->seek_leap_delta = 60;
-	ffpars_setargs(ctx, gg, gui_conf, FFCNT(gui_conf));
+	ffpars_setargs(ctx, gg, gui_conf_args, FFCNT(gui_conf_args));
 	return 0;
 }
 

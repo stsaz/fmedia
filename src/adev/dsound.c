@@ -38,10 +38,11 @@ static struct dsnd_in_conf_t {
 
 //FMEDIA MODULE
 static const void* dsnd_iface(const char *name);
+static int dsnd_conf(const char *name, ffpars_ctx *ctx);
 static int dsnd_sig(uint signo);
 static void dsnd_destroy(void);
 static const fmed_mod fmed_dsnd_mod = {
-	&dsnd_iface, &dsnd_sig, &dsnd_destroy
+	&dsnd_iface, &dsnd_sig, &dsnd_destroy, &dsnd_conf
 };
 
 static int dsnd_listdev(void);
@@ -52,7 +53,7 @@ static int dsnd_write(void *ctx, fmed_filt *d);
 static void dsnd_close(void *ctx);
 static int dsnd_out_config(ffpars_ctx *ctx);
 static const fmed_filter fmed_dsnd_out = {
-	&dsnd_open, &dsnd_write, &dsnd_close, &dsnd_out_config
+	&dsnd_open, &dsnd_write, &dsnd_close
 };
 
 static const ffpars_arg dsnd_out_conf_args[] = {
@@ -68,7 +69,7 @@ static int dsnd_in_read(void *ctx, fmed_filt *d);
 static void dsnd_in_close(void *ctx);
 static int dsnd_in_config(ffpars_ctx *ctx);
 static const fmed_filter fmed_dsnd_in = {
-	&dsnd_in_open, &dsnd_in_read, &dsnd_in_close, &dsnd_in_config
+	&dsnd_in_open, &dsnd_in_read, &dsnd_in_close
 };
 
 static void dsnd_in_onplay(void *udata);
@@ -94,6 +95,15 @@ static const void* dsnd_iface(const char *name)
 		return &fmed_dsnd_in;
 	}
 	return NULL;
+}
+
+static int dsnd_conf(const char *name, ffpars_ctx *ctx)
+{
+	if (!ffsz_cmp(name, "out"))
+		return dsnd_out_config(ctx);
+	else if (!ffsz_cmp(name, "in"))
+		return dsnd_in_config(ctx);
+	return -1;
 }
 
 static int dsnd_sig(uint signo)

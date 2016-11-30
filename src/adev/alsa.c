@@ -45,10 +45,11 @@ static struct alsa_out_conf_t {
 
 //FMEDIA MODULE
 static const void* alsa_iface(const char *name);
+static int alsa_conf(const char *name, ffpars_ctx *ctx);
 static int alsa_sig(uint signo);
 static void alsa_destroy(void);
 static const fmed_mod fmed_alsa_mod = {
-	&alsa_iface, &alsa_sig, &alsa_destroy
+	&alsa_iface, &alsa_sig, &alsa_destroy, &alsa_conf
 };
 
 static int alsa_listdev(void);
@@ -60,7 +61,7 @@ static int alsa_write(void *ctx, fmed_filt *d);
 static void alsa_close(void *ctx);
 static int alsa_out_config(ffpars_ctx *ctx);
 static const fmed_filter fmed_alsa_out = {
-	&alsa_open, &alsa_write, &alsa_close, &alsa_out_config
+	&alsa_open, &alsa_write, &alsa_close
 };
 
 static const ffpars_arg alsa_out_conf_args[] = {
@@ -77,7 +78,7 @@ static int alsa_in_read(void *ctx, fmed_filt *d);
 static void alsa_in_close(void *ctx);
 static int alsa_in_config(ffpars_ctx *ctx);
 static const fmed_filter fmed_alsa_in = {
-	&alsa_in_open, &alsa_in_read, &alsa_in_close, &alsa_in_config
+	&alsa_in_open, &alsa_in_read, &alsa_in_close
 };
 
 typedef struct alsa_mod_in {
@@ -123,6 +124,15 @@ static const void* alsa_iface(const char *name)
 		return &fmed_alsa_in;
 	}
 	return NULL;
+}
+
+static int alsa_conf(const char *name, ffpars_ctx *ctx)
+{
+	if (!ffsz_cmp(name, "out"))
+		return alsa_out_config(ctx);
+	else if (!ffsz_cmp(name, "in"))
+		return alsa_in_config(ctx);
+	return -1;
 }
 
 static int alsa_sig(uint signo)

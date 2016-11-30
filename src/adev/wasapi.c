@@ -64,10 +64,11 @@ static struct wasapi_in_conf_t {
 
 //FMEDIA MODULE
 static const void* wasapi_iface(const char *name);
+static int wasapi_conf(const char *name, ffpars_ctx *ctx);
 static int wasapi_sig(uint signo);
 static void wasapi_destroy(void);
 static const fmed_mod fmed_wasapi_mod = {
-	&wasapi_iface, &wasapi_sig, &wasapi_destroy
+	&wasapi_iface, &wasapi_sig, &wasapi_destroy, &wasapi_conf
 };
 
 static int wasapi_listdev(void);
@@ -78,7 +79,7 @@ static int wasapi_write(void *ctx, fmed_filt *d);
 static void wasapi_close(void *ctx);
 static int wasapi_out_config(ffpars_ctx *ctx);
 static const fmed_filter fmed_wasapi_out = {
-	&wasapi_open, &wasapi_write, &wasapi_close, &wasapi_out_config
+	&wasapi_open, &wasapi_write, &wasapi_close
 };
 
 static const ffpars_arg wasapi_out_conf_args[] = {
@@ -93,7 +94,7 @@ static int wasapi_in_read(void *ctx, fmed_filt *d);
 static void wasapi_in_close(void *ctx);
 static int wasapi_in_config(ffpars_ctx *ctx);
 static const fmed_filter fmed_wasapi_in = {
-	&wasapi_in_open, &wasapi_in_read, &wasapi_in_close, &wasapi_in_config
+	&wasapi_in_open, &wasapi_in_read, &wasapi_in_close
 };
 
 static void wasapi_onplay(void *udata);
@@ -122,6 +123,15 @@ static const void* wasapi_iface(const char *name)
 		return &fmed_wasapi_in;
 	}
 	return NULL;
+}
+
+static int wasapi_conf(const char *name, ffpars_ctx *ctx)
+{
+	if (!ffsz_cmp(name, "out"))
+		return wasapi_out_config(ctx);
+	else if (!ffsz_cmp(name, "in"))
+		return wasapi_in_config(ctx);
+	return -1;
 }
 
 static int wasapi_sig(uint signo)

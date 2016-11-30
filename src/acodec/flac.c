@@ -31,10 +31,11 @@ static struct flac_out_conf_t {
 
 //FMEDIA MODULE
 static const void* flac_iface(const char *name);
+static int flac_mod_conf(const char *name, ffpars_ctx *conf);
 static int flac_sig(uint signo);
 static void flac_destroy(void);
 static const fmed_mod fmed_flac_mod = {
-	&flac_iface, &flac_sig, &flac_destroy
+	&flac_iface, &flac_sig, &flac_destroy, &flac_mod_conf
 };
 
 //DECODE
@@ -53,7 +54,7 @@ static void flac_out_free(void *ctx);
 static int flac_out_encode(void *ctx, fmed_filt *d);
 static int flac_out_config(ffpars_ctx *conf);
 static const fmed_filter fmed_flac_output = {
-	&flac_out_create, &flac_out_encode, &flac_out_free, &flac_out_config
+	&flac_out_create, &flac_out_encode, &flac_out_free
 };
 
 static int flac_out_addmeta(flac_out *f, fmed_filt *d);
@@ -82,6 +83,13 @@ static const void* flac_iface(const char *name)
 		return &fmed_flac_output;
 	}
 	return NULL;
+}
+
+static int flac_mod_conf(const char *name, ffpars_ctx *ctx)
+{
+	if (!ffsz_cmp(name, "encode"))
+		return flac_out_config(ctx);
+	return -1;
 }
 
 static int flac_sig(uint signo)

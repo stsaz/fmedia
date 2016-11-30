@@ -81,10 +81,11 @@ typedef struct icy {
 
 //FMEDIA MODULE
 static const void* net_iface(const char *name);
+static int net_mod_conf(const char *name, ffpars_ctx *ctx);
 static int net_sig(uint signo);
 static void net_destroy(void);
 static const fmed_mod fmed_net_mod = {
-	&net_iface, &net_sig, &net_destroy
+	&net_iface, &net_sig, &net_destroy, &net_mod_conf
 };
 
 static int tcp_prepare(icy *c, ffaddr *a);
@@ -102,7 +103,7 @@ static int icy_process(void *ctx, fmed_filt *d);
 static void icy_close(void *ctx);
 static int icy_config(ffpars_ctx *ctx);
 static const fmed_filter fmed_icy = {
-	&icy_open, &icy_process, &icy_close, &icy_config
+	&icy_open, &icy_process, &icy_close
 };
 
 static int icy_conf_done(ffparser_schem *p, void *obj);
@@ -161,6 +162,13 @@ static const void* net_iface(const char *name)
 	else if (!ffsz_cmp(name, "in"))
 		return &fmed_netin;
 	return NULL;
+}
+
+static int net_mod_conf(const char *name, ffpars_ctx *ctx)
+{
+	if (!ffsz_cmp(name, "icy"))
+		return icy_config(ctx);
+	return -1;
 }
 
 static int net_sig(uint signo)
