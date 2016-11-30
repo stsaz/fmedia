@@ -197,6 +197,31 @@ menu mhelp {
 	}
 }
 
+menu mlist_popup {
+	item "Play" {
+		style default
+		action PLAY
+	}
+	item "&Remove" {
+		action REMOVE
+	}
+	item "Show Media Info" {
+		action SHOWINFO
+	}
+	item "C&opy to Clipboard" {
+		action COPYFILE
+	}
+	item "Copy File&name to Clipboard" {
+		action COPYFN
+	}
+	item "Open Fo&lder" {
+		action SHOWDIR
+	}
+	item "&Delete From Disk" {
+		action DELFILE
+	}
+}
+
 menu mtray {
 	item "fmedia" {
 		style default
@@ -326,7 +351,7 @@ window wmain {
 		position 0 65 360 175
 		style explorer_theme grid_lines multi_select visible
 		dblclick PLAY
-		popupmenu mfile
+		popupmenu mlist_popup
 
 		column "#" {
 			width 35

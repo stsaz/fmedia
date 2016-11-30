@@ -155,7 +155,8 @@ typedef struct ggui {
 		, mrec
 		, mconvert
 		, mhelp
-		, mtray;
+		, mtray
+		, mlist_popup;
 	ffui_dialog dlg;
 
 	gui_wmain wmain;

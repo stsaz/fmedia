@@ -161,6 +161,7 @@ static const ffui_ldr_ctl top_ctls[] = {
 	add(ggui, mconvert),
 	add(ggui, mhelp),
 	add(ggui, mtray),
+	add(ggui, mlist_popup),
 	add(ggui, dlg),
 
 	FFUI_LDR_CTL3(ggui, wmain, wmain_ctls),
