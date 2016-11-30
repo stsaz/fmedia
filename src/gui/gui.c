@@ -691,6 +691,11 @@ static int gtrk_conf(ffpars_ctx *ctx)
 
 static void* gtrk_open(fmed_filt *d)
 {
+	if (d->audio.fmt.format == 0) {
+		errlog(core, d->trk, NULL, "audio format isn't set");
+		return NULL;
+	}
+
 	fmed_que_entry *plid;
 	gui_trk *g = ffmem_tcalloc1(gui_trk);
 	if (g == NULL)
