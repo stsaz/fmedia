@@ -79,6 +79,14 @@ OUTPUT:
                    Supported by modules: net.icy.
 
 OTHER OPTIONS:
+--globcmd=STR      Send commands to another running fmedia process.
+                   Supported commands:
+                     listen: Start listening for incoming commands
+                     play INPUT... : Add items to queue and start playing the first added
+                     add INPUT... : Add items to queue
+                     clear: Clear the current queue
+                     stop: Stop all active tracks
+
 --conf=FN          Set configuration file (default: "fmedia.conf" from the program directory)
 --gui              Run in graphical UI mode (Windows only)
 --notui            Don't use terminal UI

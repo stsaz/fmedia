@@ -46,6 +46,7 @@ typedef struct fmed_cmd {
 	byte flac_complevel;
 	ffbool stream_copy;
 
+	ffstr globcmd;
 	char *conf_fn;
 	ffbool notui;
 	ffbool gui;

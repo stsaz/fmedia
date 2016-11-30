@@ -5,6 +5,7 @@ Copyright (c) 2015 Simon Zolin */
 
 #include <FF/audio/pcm.h>
 #include <FF/data/psarg.h>
+#include <FF/data/conf.h>
 #include <FF/data/utf8.h>
 #include <FF/dir.h>
 #include <FF/path.h>
@@ -89,6 +90,7 @@ static const ffpars_arg fmed_cmdline_args[] = {
 	{ "preserve-date",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, preserve_date) },
 
 	//OTHER OPTIONS
+	{ "globcmd",	FFPARS_TSTR | FFPARS_FCOPY | FFPARS_FNOTEMPTY,  FFPARS_DSTOFF(fmed_cmd, globcmd) },
 	{ "conf",	FFPARS_TSTR,  FFPARS_DSTOFF(fmed_cmd, dummy) },
 	{ "notui",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, notui) },
 	{ "gui",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, gui) },
@@ -498,6 +500,20 @@ end:
 	return;
 }
 
+static int gcmd_send(const fmed_globcmd_iface *globcmd)
+{
+	int r = -1;
+
+	if (0 != globcmd->write(fmed->globcmd.ptr, fmed->globcmd.len)) {
+		goto end;
+	}
+
+	r = 0;
+end:
+	ffstr_free(&fmed->globcmd);
+	return r;
+}
+
 int main(int argc, char **argv)
 {
 	ffsignal sigs_task = {0};
@@ -541,8 +557,26 @@ int main(int argc, char **argv)
 	if (0 != fmed_cmdline(argc, argv, 0))
 		goto end;
 
+	const fmed_globcmd_iface *globcmd = NULL;
+	ffbool gcmd_listen = 0;
+	if (fmed->globcmd.len != 0
+		&& NULL != (globcmd = core->getmod("#globcmd.globcmd"))) {
+
+		if (ffstr_eqcz(&fmed->globcmd, "listen"))
+			gcmd_listen = 1;
+
+		else if (0 == globcmd->ctl(FMED_GLOBCMD_OPEN)) {
+			gcmd_send(globcmd);
+			goto end;
+		}
+	}
+
 	if (0 != core->sig(FMED_OPEN))
 		goto end;
+
+	if (gcmd_listen) {
+		globcmd->ctl(FMED_GLOBCMD_START);
+	}
 
 	sigs_task.udata = &sigs_task;
 	if (0 != ffsig_ctl(&sigs_task, core->kq, sigs, FFCNT(sigs), &fmed_onsig)) {

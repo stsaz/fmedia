@@ -274,12 +274,14 @@ enum CMDS {
 	CMD_ADD,
 	CMD_CLEAR,
 	CMD_PLAY,
+	CMD_STOP,
 };
 
 static const char* const cmds_str[] = {
 	"add", // "add INPUT..."
 	"clear",
 	"play", // "play INPUT..."
+	"stop",
 };
 
 /** Parse commands.  Format:
@@ -321,6 +323,14 @@ static int globcmd_parse(cmd_parser *c, const ffstr *in)
 
 			case CMD_ADD:
 				break;
+
+			case CMD_STOP: {
+				const fmed_track *track;
+				if (NULL == (track = core->getmod("#core.track")))
+					break;
+				track->cmd((void*)-1, FMED_TRACK_STOPALL);
+				break;
+			}
 			}
 			break;
 
