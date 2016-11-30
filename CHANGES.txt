@@ -8,7 +8,7 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
-fmedia v0.20 - Nov 29, 2016
+fmedia v0.20 - Nov 30, 2016
 
  + MKA/MKV input (no seeking)
  + AVI input (no seeking)
@@ -21,6 +21,8 @@ fmedia v0.20 - Nov 29, 2016
 
  * GUI: add AAC quality setting for recording
  - GUI: segfault on trying to open empty/corrupted file
+
+ - plist: CUE/M3U/PLS: filenames with spaces didn't work (v0.19 bug)
 
  + fmedia: add --globcmd argument for controlling fmedia running in another process
  * file output: new variable $timems can be used while naming files
