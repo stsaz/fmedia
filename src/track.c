@@ -418,6 +418,8 @@ static void trk_free(fm_trk *t)
 	if (core->loglev == FMED_LOG_DEBUG)
 		trk_printtime(t);
 
+	ffarr_free(&t->filters);
+
 	FFTREE_WALKSAFE(&t->dict, node, next) {
 		e = FF_GETPTR(dict_ent, nod, node);
 		ffrbt_rm(&t->dict, &e->nod);
