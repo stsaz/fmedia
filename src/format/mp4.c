@@ -14,6 +14,7 @@ static const fmed_queue *qu;
 typedef struct mp4 {
 	ffmp4 mp;
 	uint state;
+	uint seeking :1;
 } mp4;
 
 typedef struct mp4_out {
@@ -121,7 +122,7 @@ static void mp4_meta(mp4 *m, fmed_filt *d)
 
 static int mp4_in_decode(void *ctx, fmed_filt *d)
 {
-	enum { I_HDR, I_DATA, };
+	enum { I_HDR, I_DATA1, I_DATA, };
 	mp4 *m = ctx;
 	int r;
 
@@ -137,10 +138,16 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 
 	switch (m->state) {
 
+	case I_DATA1:
 	case I_DATA:
-		if ((int64)d->audio.seek != FMED_NULL) {
+		if ((int64)d->audio.seek != FMED_NULL && !m->seeking) {
+			m->seeking = 1;
 			uint64 seek = ffpcm_samples(d->audio.seek, m->mp.fmt.sample_rate);
 			ffmp4_seek(&m->mp, seek);
+		}
+		if (m->state == I_DATA1) {
+			m->state = I_DATA;
+			return FMED_RDATA;
 		}
 
 	case I_HDR:
@@ -183,7 +190,8 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 			d->raw_data = 1;
 			d->data = m->mp.data,  d->datalen = m->mp.datalen;
 			d->out = m->mp.out,  d->outlen = m->mp.outlen;
-			return FMED_RDATA;
+			m->state = I_DATA1;
+			continue;
 		}
 
 		case FFMP4_RTAG:
@@ -199,8 +207,11 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 
 		case FFMP4_RDATA:
 			d->audio.pos = ffmp4_cursample(&m->mp);
+			dbglog(core, d->trk, NULL, "passing %L bytes at position #%U"
+				, m->mp.outlen, d->audio.pos);
 			d->data = m->mp.data,  d->datalen = m->mp.datalen;
 			d->out = m->mp.out,  d->outlen = m->mp.outlen;
+			m->seeking = 0;
 			return FMED_RDATA;
 
 		case FFMP4_RDONE:
