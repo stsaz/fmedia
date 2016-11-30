@@ -68,10 +68,9 @@ OUTPUT:
                      $date: current date
                      $time: current time
                      $timems: current time with milliseconds
-                   --out=.ogg is a short for --out="./$filename.ogg"
+                   --out=.ogg is a short for --out='./$filename.ogg'
                    Filename may be generated automatically using meta info,
-                     e.g.: --out "$tracknumber. $artist - $title.flac"
-                     Note: bash (sh) users must escape $, or use '' instead of "".
+                     e.g.: --out '$tracknumber. $artist - $title.flac'
 --outdir=DIR       Set output directory
 -y, --overwrite    Overwrite output file
 --preserve-date    Set output file date/time equal to input file.

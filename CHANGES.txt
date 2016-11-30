@@ -8,6 +8,28 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v0.20 - Nov 29, 2016
+
+ + MKA/MKV input (no seeking)
+ + AVI input (no seeking)
+ * MP4 read: support MPEG input
+ - MP4 read: fix AAC, ALAC seeking (v0.18 bug)
+ - MP4 write: the first entry in stsz or stco might be corrupted when writing in streaming mode
+ * ALAC decode: truncate last audio frame to match container's total audio length
+ - encoders: accurate total samples estimation when sample rate conversion is used
+ - OGG read: handle pages with granule position = -1
+
+ * GUI: add AAC quality setting for recording
+ - GUI: segfault on trying to open empty/corrupted file
+
+ + fmedia: add --globcmd argument for controlling fmedia running in another process
+ * file output: new variable $timems can be used while naming files
+ - core: fix filters chain mem leak
+ - core: segfault on stopping active track whose queue was cleared
+ - core: bad output for mono->stereo channel conversion (FF v16.08 bug)
+ - core: fix segfault on processing unknown $-variable when --record is used (v0.16 bug)
+
+
 fmedia v0.19 - Nov 7, 2016
 
  + GUI: conf: add "minimize_to_tray", "portable_conf", "seek_step", "seek_leap" settings

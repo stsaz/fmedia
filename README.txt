@@ -3,7 +3,7 @@ OVERVIEW
 ---------------
 fmedia is a fast asynchronous media player/recorder/converter for Windows and Linux.  Its goal is to provide smooth playback even if input device is very slow and unresponsive.  The architecture allows to extend the functionality of the application in any way: adding a new audio input/output format, a new DSP filter or even a new GUI.  fmedia is very small and fast: it has low CPU & memory consumption making it ideal to listen to music or process audio files while running on a notebook's battery.
 
-fmedia can decode: .mp3, .ogg, .opus, .m4a/.mp4 (AAC, ALAC), .flac, .ape, .wv, .wav.
+fmedia can decode: .mp3, .ogg (Vorbis), .opus, .m4a/.mp4 (AAC, ALAC, MPEG), .mka/.mkv (AAC, ALAC, MPEG, Vorbis), .avi (AAC, MPEG), .flac, .ape, .wv, .wav.
 fmedia can encode into: .mp3, .ogg, .opus, .m4a (AAC), .flac, .wav.
 
 Note: it's beta version - not tested well enough, not all functions will work as expected.  See section "USE-CASES" to have an idea of which features should work.
@@ -13,6 +13,7 @@ Contents:
 	. INSTALL ON WINDOWS
 	. INSTALL ON LINUX
 	. BUILD ON LINUX
+	. BUILD ON LINUX FOR WINDOWS
 	. CONFIG
 	. EXTRACT TRACKS FROM FLAC.CUE
 	. TERMINAL UI
@@ -37,7 +38,9 @@ INPUT
 FILTERS
 	Containers:
 	. MP4 input/output
+	. MKV input
 	. OGG input/output
+	. AVI input
 
 	Lossy codecs:
 	. MPEG input/output
@@ -121,7 +124,26 @@ BUILD ON LINUX
 	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:../ff-3pt/linux-amd64
 	make install
 
+	You can explicitly specify path to each of FF source repositories, e.g.:
+	make install FFOS=~/ffos FF=~/ff FF3PT=~/ff-3pt
+
 4. Ready!  You can copy the directory ./fmedia-0 anywhere you want (see section "INSTALL ON LINUX").
+
+
+---------------
+BUILD ON LINUX FOR WINDOWS
+---------------
+
+1-2. See section "BUILD ON LINUX".
+
+3. Build with mingw:
+
+	cd fmedia
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:../ff-3pt/win-x64
+	mingw64-make OS=win CPREFIX=x86_64-w64-mingw32- install
+
+4. Ready!
+
 
 ---------------
 CONFIG
@@ -178,6 +200,16 @@ By default fmedia GUI saves its state in file "%APPDATA%\fmedia\fmedia.gui.conf"
 USE-CASES
 ---------------
 
+Note the difference between UNIX and Windows terminals when you use special characters and spaces:
+
+	. Use single quotes ('') on Linux (sh, bash), e.g.:
+		fmedia './my file.ogg'
+		fmedia file.wav -o '$filename.ogg'
+
+	. Use double quotes ("") on Windows (cmd.exe), e.g.:
+		fmedia "./my file.ogg"
+
+
 PLAY
 
 Play files, directories, Internet-radio streams
@@ -202,10 +234,10 @@ Convert
 Convert all .wav files from the current directory to .ogg
 	fmedia ./*.wav --out=.ogg --outdir=.
 
-Convert file and override meta info (Use single quotes on Linux, double quotes on Windows)
+Convert file and override meta info
 	fmedia ./file.flac --out=.ogg --meta='artist=Artist Name;comment=My Comment'
 
-Extract several tracks from .cue file (Use single quotes on Linux, double quotes on Windows)
+Extract several tracks from .cue file
 	fmedia ./album.flac.cue --track=3,7,13 --out='$tracknumber. $artist - $title.flac'
 
 Split audio file
@@ -213,6 +245,9 @@ Split audio file
 
 Cut compressed audio without re-encoding
 	fmedia ./file.ogg --out=./out.ogg --seek=1:00 --until=2:00 --stream-copy
+
+Copy left channel's audio from a stereo source
+	fmedia ./stereo.ogg -o left.wav --channels=left
 
 Change sound volume in an audio file
 	fmedia --gain=5.0 ./file.wav --out=./file-loud.wav

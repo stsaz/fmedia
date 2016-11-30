@@ -3,6 +3,8 @@ OBJ_DIR := .
 BINS := $(BIN) core.$(SO) net.$(SO) \
 	mpeg.$(SO) wav.$(SO) flac.$(SO) mp4.$(SO) wavpack.$(SO) ape.$(SO) \
 	ogg.$(SO) \
+	avi.$(SO) \
+	mkv.$(SO) \
 	vorbis.$(SO) \
 	opus.$(SO) \
 	aac.$(SO) \
@@ -39,6 +41,9 @@ $(OBJ_DIR)/%.o: $(SRCDIR)/adev/%.c $(SRCDIR)/fmedia.h $(SRCDIR)/core.h $(FF_HDR)
 $(OBJ_DIR)/%.o: $(SRCDIR)/acodec/%.c $(SRCDIR)/fmedia.h $(SRCDIR)/core.h $(FF_HDR) $(FF_AUDIO_HDR)
 	$(C)  $(CFLAGS) $<  -o$@
 
+$(OBJ_DIR)/%.o: $(SRCDIR)/format/%.c $(SRCDIR)/fmedia.h $(SRCDIR)/core.h $(FF_HDR) $(FF_AUDIO_HDR)
+	$(C)  $(CFLAGS) $<  -o$@
+
 $(RES): $(SRCDIR)/../fmedia.rc $(PROJDIR)/fmedia.ico
 	$(WINDRES) -I$(SRCDIR) -I$(FF) -I$(FFOS) $(PROJDIR)/fmedia.rc $@
 
@@ -48,6 +53,7 @@ BIN_O := core.$(SO) \
 	$(FF_O) \
 	$(FF_OBJ_DIR)/ffpcm.o \
 	$(FF_OBJ_DIR)/ffparse.o \
+	$(FF_OBJ_DIR)/ffconf.o \
 	$(FF_OBJ_DIR)/ffpsarg.o
 
 ifeq ($(OS),win)
@@ -65,6 +71,7 @@ CORE_O := $(OBJ_DIR)/core.o \
 	$(OBJ_DIR)/soundmod.o \
 	$(OBJ_DIR)/tui.o \
 	$(OBJ_DIR)/queue.o \
+	$(OBJ_DIR)/globcmd.o \
 	$(FF_O) \
 	$(FF_OBJ_DIR)/ffparse.o $(FF_OBJ_DIR)/ffconf.o \
 	$(FF_OBJ_DIR)/ffsoxr.o \
@@ -114,6 +121,26 @@ OGG_O := $(OBJ_DIR)/ogg.o \
 	$(FF_OBJ_DIR)/ffogg-fmt.o
 ogg.$(SO): $(OGG_O)
 	$(LD) -shared $(OGG_O) $(LDFLAGS)  -o$@
+
+
+#
+AVI_O := $(OBJ_DIR)/avi.o \
+	$(FF_O) \
+	$(FF_OBJ_DIR)/ffmmtag.o \
+	$(FF_OBJ_DIR)/ffpcm.o \
+	$(FF_OBJ_DIR)/ffavi.o
+avi.$(SO): $(AVI_O)
+	$(LD) -shared $(AVI_O) $(LDFLAGS)  -o$@
+
+
+#
+MKV_O := $(OBJ_DIR)/mkv.o \
+	$(FF_O) \
+	$(FF_OBJ_DIR)/ffmmtag.o \
+	$(FF_OBJ_DIR)/ffpcm.o \
+	$(FF_OBJ_DIR)/ffmkv.o
+mkv.$(SO): $(MKV_O)
+	$(LD) -shared $(MKV_O) $(LDFLAGS)  -o$@
 
 
 #
@@ -256,6 +283,9 @@ gui.$(SO): $(GUI_O)
 BINGUI_O := core.$(SO) \
 	fmedia-gui.o \
 	$(FF_O) \
+	$(FF_OBJ_DIR)/ffconf.o \
+	$(FF_OBJ_DIR)/ffpsarg.o \
+	$(FF_OBJ_DIR)/ffparse.o \
 	$(FF_OBJ_DIR)/ffgui-winapi.o \
 	$(RES)
 fmedia-gui.exe: $(BINGUI_O)

@@ -147,7 +147,7 @@ static int vorbis_in_decode(void *ctx, fmed_filt *d)
 
 	case R_DATA:
 		if ((d->flags & FMED_FFWD) && (int64)d->audio.seek != FMED_NULL) {
-			uint64 seek = ffpcm_samples(d->audio.seek, d->audio.fmt.sample_rate);
+			uint64 seek = ffpcm_samples(d->audio.seek, ffvorbis_rate(&v->vorbis));
 			ffvorbis_seek(&v->vorbis, seek);
 			d->audio.seek = FMED_NULL;
 		}

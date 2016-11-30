@@ -446,7 +446,7 @@ static int cmd_init(fmed_cmd *cmd)
 
 	cmd->volume = 100;
 	cmd->cue_gaps = 255;
-	if (NULL == ffstr_copy(&cmd->outdir, FFSTR(".")))
+	if (NULL == ffstr_copy(&cmd->outdir, ".", 1))
 		return -1;
 	return 0;
 }

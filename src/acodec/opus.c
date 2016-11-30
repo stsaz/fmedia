@@ -100,6 +100,7 @@ static void opus_destroy(void)
 typedef struct opus_in {
 	uint state;
 	ffopus opus;
+	uint sampsize;
 	uint64 pagepos;
 	uint stmcopy :1;
 } opus_in;
@@ -156,7 +157,7 @@ static int opus_in_decode(void *ctx, fmed_filt *d)
 
 	case R_DATA:
 		if ((d->flags & FMED_FFWD) && (int64)d->audio.seek != FMED_NULL) {
-			uint64 seek = ffpcm_samples(d->audio.seek, d->audio.fmt.sample_rate);
+			uint64 seek = ffpcm_samples(d->audio.seek, o->opus.info.rate);
 			ffopus_seek(&o->opus, seek);
 			d->audio.seek = FMED_NULL;
 		}
@@ -205,6 +206,7 @@ static int opus_in_decode(void *ctx, fmed_filt *d)
 		d->audio.fmt.channels = o->opus.info.channels;
 		d->audio.fmt.sample_rate = o->opus.info.rate;
 		d->audio.fmt.ileaved = 1;
+		o->sampsize = ffpcm_size1(&d->audio.fmt);
 
 		if (o->stmcopy) {
 			d->out = in.ptr,  d->outlen = in.len;
@@ -243,7 +245,7 @@ static int opus_in_decode(void *ctx, fmed_filt *d)
 data:
 	pos = ffopus_pos(&o->opus);
 	dbglog(core, d->trk, NULL, "decoded %u samples (%U)"
-		, o->opus.pcm.len / ffpcm_size1(&d->audio.fmt), pos);
+		, o->opus.pcm.len / o->sampsize, pos);
 	d->audio.pos = pos - o->opus.pcm.len / ffpcm_size1(&d->audio.fmt);
 	d->out = o->opus.pcm.ptr,  d->outlen = o->opus.pcm.len;
 	return FMED_RDATA;

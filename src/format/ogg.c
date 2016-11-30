@@ -13,6 +13,7 @@ static const fmed_core *core;
 
 typedef struct fmed_ogg {
 	ffogg og;
+	uint sample_rate;
 	uint state;
 	uint seek_ready :1;
 	uint seek_done :1;
@@ -199,7 +200,7 @@ static int ogg_decode(void *ctx, fmed_filt *d)
 
 		if (o->seek_ready && (int64)d->audio.seek != FMED_NULL && !o->seek_done) {
 			o->seek_done = 1;
-			ffogg_seek(&o->og, ffpcm_samples(d->audio.seek, d->audio.fmt.sample_rate));
+			ffogg_seek(&o->og, ffpcm_samples(d->audio.seek, o->sample_rate));
 			if (o->stmcopy)
 				d->audio.seek = FMED_NULL;
 		}
@@ -229,6 +230,7 @@ static int ogg_decode(void *ctx, fmed_filt *d)
 
 		case FFOGG_RINFO:
 			d->audio.total = o->og.total_samples;
+			o->sample_rate = d->audio.fmt.sample_rate;
 			o->seek_ready = 1;
 			d->audio.bitrate = ffogg_bitrate(&o->og, d->audio.fmt.sample_rate);
 			break;
@@ -262,7 +264,8 @@ data:
 		fmed_setval("ogg_granpos", set_gpos);
 	}
 
-	d->audio.pos = ffogg_cursample(&o->og);
+	if (ffogg_cursample(&o->og) != (uint64)-1)
+		d->audio.pos = ffogg_cursample(&o->og);
 	o->seek_done = 0;
 	d->out = o->og.out.ptr,  d->outlen = o->og.out.len;
 	return FMED_RDATA;

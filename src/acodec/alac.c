@@ -77,6 +77,7 @@ static void* alac_open(fmed_filt *d)
 
 	if (a->alac.bitrate != 0)
 		d->audio.bitrate = a->alac.bitrate;
+	ffpcm_fmtcopy(&d->audio.fmt, &a->alac.fmt);
 	d->audio.fmt.ileaved = 1;
 	d->track->setvalstr(d->trk, "pcm_decoder", "ALAC");
 	return a;
@@ -103,7 +104,7 @@ static int alac_in_decode(void *ctx, fmed_filt *d)
 	}
 
 	if ((d->flags & FMED_FFWD) && (int64)d->audio.seek != FMED_NULL) {
-		uint64 seek = ffpcm_samples(d->audio.seek, d->audio.fmt.sample_rate);
+		uint64 seek = ffpcm_samples(d->audio.seek, a->alac.fmt.sample_rate);
 		ffalac_seek(&a->alac, seek);
 		d->audio.seek = FMED_NULL;
 	}

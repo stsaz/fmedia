@@ -122,6 +122,7 @@ typedef struct rec_sets_t {
 	};
 	uint opus_bitrate;
 	int mpg_quality;
+	int aac_quality;
 	int flac_complevel;
 
 	int format;

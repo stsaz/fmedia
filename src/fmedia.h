@@ -22,8 +22,8 @@ mixer                 mixer
 #include <FFOS/error.h>
 
 
-#define FMED_VER_MINOR  19
-#define FMED_VER  "0.19"
+#define FMED_VER_MINOR  20
+#define FMED_VER  "0.20"
 #define FMED_HOMEPAGE  "http://fmedia.firmdev.com"
 
 // CORE
@@ -229,6 +229,7 @@ struct fmed_trk {
 	uint type; //enum FMED_TRK_TYPE
 	struct {
 		ffpcmex fmt;
+		ffpcmex convfmt_in; //the format used as input to the next converter (e.g. for conv -> soxr)
 		ffpcmex convfmt; //format of audio data produced by converter filter
 		uint64 pos; //samples
 		uint64 total; //samples

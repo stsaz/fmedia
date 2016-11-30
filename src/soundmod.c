@@ -150,30 +150,57 @@ static void log_pcmconv(const char *module, int r, const ffpcmex *in, const ffpc
 static int sndmod_conv_prepare(sndmod_conv *c, fmed_filt *d)
 {
 	size_t cap;
+	const ffpcmex *in = &c->inpcm, *out = &d->audio.convfmt;
 
-	c->outpcm.format = d->audio.convfmt.format;
-	c->outpcm.ileaved = d->audio.convfmt.ileaved;
-	if (d->audio.convfmt.channels != (c->outpcm.channels & FFPCM_CHMASK))
-		c->outpcm.channels = d->audio.convfmt.channels;
+	if ((in->format != c->outpcm.format && c->outpcm.format != out->format)
+		|| (in->channels != c->outpcm.channels && (c->outpcm.channels & FFPCM_CHMASK) != out->channels)
+		|| (in->sample_rate != c->outpcm.sample_rate && c->outpcm.sample_rate != out->sample_rate))
+		warnlog(core, d->trk, NULL, "conversion format was overwritten by output filters: %s/%u/%u"
+			, ffpcm_fmtstr(out->format), out->channels, out->sample_rate);
 
-	if (c->inpcm.format == c->outpcm.format
-		&& c->inpcm.channels == c->outpcm.channels
-		&& c->inpcm.ileaved == c->outpcm.ileaved) {
-		d->out = d->data;
-		d->outlen = d->datalen;
-		return FMED_RDONE; //the second call of the module - no conversion is needed
-	}
+	if (in->sample_rate != out->sample_rate) {
 
-	if (c->inpcm.sample_rate != d->audio.convfmt.sample_rate) {
-		if (c->inpcm.channels == c->outpcm.channels) {
+		if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, "#soundmod.conv-soxr"))
+			return FMED_RERR;
+
+		if (in->channels == out->channels) {
+			// The next filter will convert format and sample rate:
+			// soxr
+			d->audio.convfmt_in = *in;
 			d->out = d->data;
 			d->outlen = d->datalen;
 			return FMED_RDONE;
 		}
 
+		// This filter will convert channels, the next filter will convert format and sample rate:
+		// conv -> soxr
 		c->outpcm.format = FFPCM_FLOAT;
-		c->outpcm.sample_rate = c->inpcm.sample_rate;
+		c->outpcm.channels = out->channels;
+		c->outpcm.sample_rate = in->sample_rate;
 		c->outpcm.ileaved = 0;
+
+		d->audio.convfmt_in = c->outpcm;
+		d->audio.convfmt_in.channels = (c->outpcm.channels & FFPCM_CHMASK);
+		d->audio.convfmt.channels = (c->outpcm.channels & FFPCM_CHMASK);
+
+	} else {
+		// This filter will convert format and channels:
+		// conv
+
+		if (in->format == out->format
+			&& in->channels == out->channels
+			&& in->ileaved == out->ileaved) {
+			d->out = d->data;
+			d->outlen = d->datalen;
+			return FMED_RDONE; //no conversion is needed
+		}
+
+		c->outpcm.format = out->format;
+		c->outpcm.channels = out->channels;
+		c->outpcm.ileaved = out->ileaved;
+
+		d->audio.convfmt = c->outpcm;
+		d->audio.convfmt.channels = (c->outpcm.channels & FFPCM_CHMASK);
 	}
 
 	int r = ffpcm_convert(&c->outpcm, NULL, &c->inpcm, NULL, 0);
@@ -289,10 +316,7 @@ static void sndmod_soxr_close(void *ctx)
 	ffmem_free(c);
 }
 
-/* How PCM sample rate conversion filter is initialized:
-1. Return with no data so the next filters can set sample rate they need.
-
-2. The second time the filter is called, check conversion sample rate.  If it equals to the input, then exit.
+/*
 This filter converts both format and sample rate.
 Previous filter must deal with channel conversion.  In this case the input format is float32/ni.
 */
@@ -304,28 +328,8 @@ static int sndmod_soxr_process(void *ctx, fmed_filt *d)
 
 	switch (c->state) {
 	case 0:
-		d->outlen = 0;
-		c->state = 1;
-		return FMED_RDATA;
-
-	case 1:
-		if (d->audio.convfmt.sample_rate == d->audio.fmt.sample_rate)
-			return FMED_RDONE_PREV;
-
-		if (d->audio.convfmt.channels != d->audio.fmt.channels) {
-			c->state = 2;
-			return FMED_RMORE; // "conv" module will handle channel conversion
-		}
-		// break
-
-	case 2:
-		inpcm = d->audio.fmt;
+		inpcm = d->audio.convfmt_in;
 		outpcm = d->audio.convfmt;
-		if (c->state == 2) {
-			inpcm.format = FFPCM_FLOAT;
-			inpcm.channels = outpcm.channels;
-			inpcm.ileaved = 0;
-		}
 
 		// c->soxr.dither = 1;
 		if (0 != (val = ffsoxr_create(&c->soxr, &inpcm, &outpcm))

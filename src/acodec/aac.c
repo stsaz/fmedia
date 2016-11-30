@@ -90,6 +90,7 @@ static void aac_destroy(void)
 
 typedef struct aac_in {
 	ffaac aac;
+	uint sample_rate;
 } aac_in;
 
 static void* aac_open(fmed_filt *d)
@@ -109,6 +110,7 @@ static void* aac_open(fmed_filt *d)
 	d->datalen = 0;
 	d->audio.fmt.format = a->aac.fmt.format;
 	d->audio.fmt.ileaved = 1;
+	a->sample_rate = d->audio.fmt.sample_rate;
 	d->track->setvalstr(d->trk, "pcm_decoder", "AAC");
 	return a;
 }
@@ -134,7 +136,7 @@ static int aac_decode(void *ctx, fmed_filt *d)
 	}
 
 	if ((d->flags & FMED_FFWD) && (int64)d->audio.seek != FMED_NULL) {
-		uint64 seek = ffpcm_samples(d->audio.seek, d->audio.fmt.sample_rate);
+		uint64 seek = ffpcm_samples(d->audio.seek, a->sample_rate);
 		ffaac_seek(&a->aac, seek);
 		d->audio.seek = FMED_NULL;
 	}

@@ -14,6 +14,10 @@ Copyright (c) 2016 Simon Zolin */
 #include <FFOS/timer.h>
 
 
+enum {
+	N_RUNTIME_FILTERS = 4, //allow up to this number of filters to be added while track is running
+};
+
 typedef struct fmed_f {
 	fflist_item sib;
 	void *ctx;
@@ -201,7 +205,6 @@ static int trk_setout(fm_trk *t)
 	}
 
 	addfilter(t, "#soundmod.conv");
-	addfilter(t, "#soundmod.conv-soxr");
 
 	if (t->props.type == FMED_TRK_TYPE_MIXIN) {
 		addfilter(t, "mixer.in");
@@ -266,6 +269,10 @@ static int trk_setout(fm_trk *t)
 static int trk_opened(fm_trk *t)
 {
 	fmed_f *f;
+
+	if (NULL == ffarr_grow(&t->filters, N_RUNTIME_FILTERS, 0))
+		return -1;
+
 	FFARR_WALK(&t->filters, f) {
 		ffchain_add(&t->filt_chain, &f->sib);
 	}
@@ -760,15 +767,11 @@ static int trk_cmd(void *trk, uint cmd)
 static int trk_cmd2(void *trk, uint cmd, void *param)
 {
 	fm_trk *t = trk;
+
 	switch (cmd) {
 	case FMED_TRACK_ADDFILT:
 	case FMED_TRACK_ADDFILT_PREV: {
 		FF_ASSERT(t->filters.cap != t->filters.len);
-		if (NULL == ffarr_grow(&t->filters, 1, 4)) {
-			syserrlog(core, t, "core", "%e", FFERR_BUFALOC);
-			return -1;
-		}
-
 		fmed_f *f = ffarr_end(&t->filters);
 		ffmem_tzero(f);
 		f->name = param;

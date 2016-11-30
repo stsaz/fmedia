@@ -781,9 +781,7 @@ static int gtrk_process(void *ctx, fmed_filt *d)
 
 	playpos = d->audio.pos;
 	if (playpos == FMED_NULL) {
-		d->out = d->data;
-		d->outlen = d->datalen;
-		return FMED_RDONE;
+		goto done;
 	}
 
 	playtime = (uint)(ffpcm_time(playpos, g->sample_rate) / 1000);
