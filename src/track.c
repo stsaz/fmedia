@@ -29,6 +29,7 @@ typedef struct fmed_f {
 	const fmed_filter *filt;
 	fftime clk;
 	unsigned opened :1
+		, newdata :1
 		, want_input :1;
 } fmed_f;
 
@@ -462,7 +463,7 @@ static void trk_process(void *udata)
 	fm_trk *t = udata;
 	fmed_f *nf;
 	fmed_f *f;
-	int r = FFLIST_CUR_NEXT, e;
+	int r, e;
 	fftime t1, t2;
 	size_t ntasks = fmed->taskmgr.tasks.len;
 
@@ -483,13 +484,14 @@ static void trk_process(void *udata)
 
 #ifdef _DEBUG
 		dbglog(core, t, "core", "%s calling %s, input: %L"
-			, (r == FFLIST_CUR_NEXT) ? ">>" : "<<", f->name, f->d.datalen);
+			, (f->newdata) ? ">>" : "<<", f->name, f->d.datalen);
 #endif
 		if (core->loglev == FMED_LOG_DEBUG) {
 			ffclk_get(&t1);
 		}
 
-		ffint_bitmask(&t->props.flags, FMED_FFWD, (r == FFLIST_CUR_NEXT));
+		ffint_bitmask(&t->props.flags, FMED_FFWD, f->newdata);
+		f->newdata = 0;
 		ffint_bitmask(&t->props.flags, FMED_FLAST, (t->cur->prev == ffchain_sentl(&t->filt_chain)));
 
 		t->props.data = f->d.data,  t->props.datalen = f->d.datalen;
@@ -598,6 +600,7 @@ shift:
 			nf = FF_GETPTR(fmed_f, sib, t->cur);
 			nf->d.data = t->props.out,  nf->d.datalen = t->props.outlen;
 			t->props.outlen = 0;
+			nf->newdata = 1;
 			break;
 
 		case FFLIST_CUR_SAME:
