@@ -140,7 +140,6 @@ static void* mpeg_open(fmed_filt *d)
 		m->mpg.options = FFMPG_O_ID3V2 | FFMPG_O_APETAG | FFMPG_O_ID3V1;
 	}
 
-	d->datalen = 0;
 	return m;
 }
 

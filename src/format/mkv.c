@@ -183,7 +183,8 @@ again:
 				ffstr_set2(&m->mkv_vorbis.data, &m->mkv.info.asc);
 				m->state = I_VORBIS_HDR;
 				goto again;
-			}
+			} else if (m->mkv.info.format == FFMKV_AUDIO_MPEG)
+				m->mkv.info.asc.len = 0;
 
 			d->out = m->mkv.info.asc.ptr,  d->outlen = m->mkv.info.asc.len;
 			m->state = I_DATA;
