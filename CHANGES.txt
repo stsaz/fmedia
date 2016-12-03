@@ -8,7 +8,7 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
-fmedia v0.20 - Nov 30, 2016
+fmedia v0.20 - Dec 3, 2016
 
  + MKA/MKV input (no seeking)
  + AVI input (no seeking)
@@ -18,6 +18,7 @@ fmedia v0.20 - Nov 30, 2016
  * ALAC decode: truncate last audio frame to match container's total audio length
  - encoders: accurate total samples estimation when sample rate conversion is used
  - OGG read: handle pages with granule position = -1
+ - MPEG read: fix inaccurate seeking
 
  * GUI: add AAC quality setting for recording
  - GUI: segfault on trying to open empty/corrupted file
@@ -30,6 +31,7 @@ fmedia v0.20 - Nov 30, 2016
  - core: segfault on stopping active track whose queue was cleared
  - core: bad output for mono->stereo channel conversion (FF v16.08 bug)
  - core: fix segfault on processing unknown $-variable when --record is used (v0.16 bug)
+ - core: arbitrary block of data could be skipped after a command is sent to core (v0.18 bug)
 
 
 fmedia v0.19 - Nov 7, 2016

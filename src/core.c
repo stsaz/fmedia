@@ -701,6 +701,9 @@ const fmed_modinfo* core_modbyext(const ffstr3 *map, const ffstr *ext)
 
 static int core_open(void)
 {
+#if defined FF_WIN && FF_WIN < 0x0600
+	ffkqu_init();
+#endif
 	if (FF_BADFD == (fmed->kq = ffkqu_create())) {
 		syserrlog(core, NULL, "core", "%e", FFERR_KQUCREAT);
 		return 1;
