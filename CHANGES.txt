@@ -8,6 +8,19 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v0.21 - Dec 11, 2016
+
+ + GUI: add "To Next Playlist" command into popup menu
+ - GUI: "instance_mode clear_play" didn't work: playlist wasn't updated properly
+
+ - FLAC encode: the last block of data wasn't written (v16.08 bug)
+
+ * file output: support $year variable (album year)
+ * file output: $-vars: replace more bad characters;  trim trailing whitespace
+ - queue: fix segfault on "Previous" command if track being played is inside inactive playlist
+ - fmedia: --track argument didn't work if multiple tracks are specified out of order
+
+
 fmedia v0.20 - Dec 3, 2016
 
  + MKA/MKV input (no seeking)

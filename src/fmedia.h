@@ -22,8 +22,8 @@ mixer                 mixer
 #include <FFOS/error.h>
 
 
-#define FMED_VER_MINOR  20
-#define FMED_VER  "0.20"
+#define FMED_VER_MINOR  21
+#define FMED_VER  "0.21"
 #define FMED_HOMEPAGE  "http://fmedia.firmdev.com"
 
 // CORE
