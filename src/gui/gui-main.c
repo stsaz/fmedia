@@ -26,6 +26,7 @@ static void gui_media_open(uint id);
 static void gui_media_savelist(void);
 static void gui_plist_recount(uint from);
 static void gui_media_remove(void);
+static void gui_tonxtlist(void);
 static fmed_que_entry* gui_list_getent(void);
 static void gui_goto_show(void);
 static void gui_go_set(void);
@@ -103,6 +104,7 @@ static const struct cmd cmds[] = {
 	{ SAVELIST,	F0,	&gui_media_savelist },
 	{ REMOVE,	F0 | CMD_FCORE,	&gui_media_remove },
 	{ CLEAR,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op },
+	{ TO_NXTLIST,	F0 | CMD_FCORE,	&gui_tonxtlist },
 	{ SHOWDIR,	F0,	&gui_media_showdir },
 	{ COPYFN,	F0,	&gui_media_copyfn },
 	{ COPYFILE,	F1,	&gui_media_fileop },
@@ -716,7 +718,8 @@ int gui_newtab(uint flags)
 		ffui_tab_settext(&it, buf, n);
 	}
 	int itab = ffui_tab_append(&gg->wmain.tabs, &it);
-	ffui_tab_setactive(&gg->wmain.tabs, itab);
+	if (!(flags & GUI_TAB_NOSEL))
+		ffui_tab_setactive(&gg->wmain.tabs, itab);
 	return itab;
 }
 
@@ -810,6 +813,41 @@ static void gui_media_remove(void)
 	if (first != -1)
 		gui_plist_recount(first);
 	ffui_redraw(&gg->wmain.vlist, 1);
+}
+
+static void gui_tonxtlist(void)
+{
+	int i = -1, sel;
+	ffui_viewitem it;
+	fmed_que_entry e = {0}, *ent;
+
+	if (0 == ffui_view_selcount(&gg->wmain.vlist))
+		return;
+
+	if (-1 == (sel = ffui_tab_active(&gg->wmain.tabs)))
+		return;
+
+	if (sel + 1 == ffui_tab_count(&gg->wmain.tabs)) {
+		gui_newtab(GUI_TAB_NOSEL);
+		gg->qu->cmd(FMED_QUE_NEW, NULL);
+	}
+
+	gg->qu->cmd(FMED_QUE_SEL, (void*)(size_t)sel + 1);
+
+	while (-1 != (i = ffui_view_selnext(&gg->wmain.vlist, i))) {
+		ffui_view_iteminit(&it);
+		ffui_view_setindex(&it, i);
+		ffui_view_setparam(&it, 0);
+		ffui_view_get(&gg->wmain.vlist, 0, &it);
+		ent = (void*)ffui_view_param(&it);
+		e.url = ent->url;
+		e.from = ent->from;
+		e.to = ent->to;
+
+		gg->qu->cmd(FMED_QUE_ADD | FMED_QUE_NO_ONCHANGE, &e);
+	}
+
+	gg->qu->cmd(FMED_QUE_SEL, (void*)(size_t)sel);
 }
 
 static fmed_que_entry* gui_list_getent(void)

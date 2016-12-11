@@ -208,6 +208,9 @@ menu mlist_popup {
 	item "Show Media Info" {
 		action SHOWINFO
 	}
+	item "To Next Playlist" {
+		action TO_NXTLIST
+	}
 	item "C&opy to Clipboard" {
 		action COPYFILE
 	}

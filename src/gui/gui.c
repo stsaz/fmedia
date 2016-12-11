@@ -234,6 +234,7 @@ static const char *const scmds[] = {
 	"SELALL",
 	"SELINVERT",
 	"SORT",
+	"TO_NXTLIST",
 	"SHOWDIR",
 	"COPYFN",
 	"COPYFILE",

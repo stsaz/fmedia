@@ -263,6 +263,7 @@ enum CMDS {
 	SELALL,
 	SELINVERT,
 	SORT,
+	TO_NXTLIST,
 	SHOWDIR,
 	COPYFN,
 	COPYFILE,
@@ -336,6 +337,7 @@ char* gui_usrconf_filename(void);
 
 enum {
 	GUI_TAB_CONVERT = 1,
+	GUI_TAB_NOSEL = 2,
 };
 int gui_newtab(uint flags);
 
