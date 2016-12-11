@@ -385,7 +385,7 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 		break;
 
 	case FMED_QUE_PREV:
-		if (qu->cur == NULL || qu->cur->sib.prev == fflist_sentl(ents)) {
+		if (qu->cur == NULL || qu->cur->sib.prev == fflist_sentl(&qu->cur->plist->ents)) {
 			qu->cur = NULL;
 			dbglog(core, NULL, "que", "no previous file in playlist");
 			break;
