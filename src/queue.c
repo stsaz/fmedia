@@ -423,6 +423,8 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 		qu->cur = NULL;
 		FFLIST_ENUMSAFE(ents, ent_rm, entry, sib);
 		dbglog(core, NULL, "que", "cleared");
+		if (!(flags & FMED_QUE_NO_ONCHANGE) && qu->onchange != NULL)
+			qu->onchange(NULL, FMED_QUE_ONCLEAR);
 		break;
 
 	case FMED_QUE_SETONCHANGE:

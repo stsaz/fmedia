@@ -372,7 +372,7 @@ void gui_corecmd_op(uint cmd, void *udata)
 
 
 	case CLEAR:
-		gg->qu->cmd(FMED_QUE_CLEAR, NULL);
+		gg->qu->cmd(FMED_QUE_CLEAR | FMED_QUE_NO_ONCHANGE, NULL);
 		ffui_view_clear(&gg->wmain.vlist);
 		break;
 
@@ -402,6 +402,10 @@ static void gui_que_onchange(fmed_que_entry *e, uint flags)
 		if (-1 == (idx = ffui_view_search(&gg->wmain.vlist, (size_t)e)))
 			break;
 		gui_media_removed(idx);
+		break;
+
+	case FMED_QUE_ONCLEAR:
+		ffui_view_clear(&gg->wmain.vlist);
 		break;
 	}
 }

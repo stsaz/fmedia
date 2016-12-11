@@ -877,6 +877,9 @@ int gui_setmeta(gui_trk *g, fmed_que_entry *plid)
 		gui_trk_setinfo(idx, plid, g->total_time_sec, GUI_TRKINFO_PLAYING | GUI_TRKINFO_DUR);
 	}
 
+	if (g == NULL)
+		return -1;
+
 	gui_trk_setinfo2(plid, GUI_TRKINFO_WNDCAPTION);
 	return idx;
 }

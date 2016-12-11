@@ -416,7 +416,7 @@ static void trk_free(fm_trk *t)
 	}
 
 	dbglog(core, t, "track", "closing...");
-	FFARR_WALK(&t->filters, pf) {
+	FFARR_RWALK(&t->filters, pf) {
 		if (pf->ctx != NULL) {
 			t->cur = &pf->sib;
 			pf->filt->close(pf->ctx);

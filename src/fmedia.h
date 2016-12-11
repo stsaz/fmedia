@@ -363,6 +363,7 @@ typedef struct fmed_que_entry {
 enum FMED_QUE_EVT {
 	FMED_QUE_ONADD,
 	FMED_QUE_ONRM,
+	FMED_QUE_ONCLEAR,
 };
 
 /** @flags: enum FMED_QUE_EVT. */
