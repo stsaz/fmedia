@@ -471,6 +471,7 @@ enum VARS {
 	VAR_FPATH,
 	VAR_TIME,
 	VAR_TIMEMS,
+	VAR_YEAR,
 };
 
 static const char* const vars[] = {
@@ -479,6 +480,7 @@ static const char* const vars[] = {
 	"filepath",
 	"time",
 	"timems",
+	"year",
 };
 
 static FFINL char* fileout_getname(fmed_fileout *f, fmed_filt *d)
@@ -557,6 +559,13 @@ static FFINL char* fileout_getname(fmed_fileout *f, fmed_filt *d)
 				if (0 == ffstr_catfmt(&buf, "%02u%02u%02u-%03u", dt.hour, dt.min, dt.sec, dt.msec))
 					goto syserr;
 				break;
+
+			case VAR_YEAR:
+				ffstr_setcz(&val, "date");
+				if (FMED_PNULL == (tstr = d->track->getvalstr3(d->trk, &val, FMED_TRK_META | FMED_TRK_NAMESTR)))
+					continue;
+				ffstr_setz(&val, tstr);
+				goto data;
 			}
 
 			continue;
