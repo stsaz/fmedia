@@ -33,15 +33,18 @@ typedef struct netmod {
 static netmod *net;
 static const fmed_core *core;
 
+typedef struct icy icy;
+
 typedef struct netin {
 	uint state;
 	ffarr d[2];
 	uint idx;
 	fftask task;
 	uint fin :1;
+	icy *c;
 } netin;
 
-typedef struct icy {
+struct icy {
 	uint state;
 	fmed_filt *d;
 
@@ -75,9 +78,8 @@ typedef struct icy {
 		, async :1
 		, err :1
 		, preload :1 //fill all buffers
-		, meta_changed :1
 		;
-} icy;
+};
 
 //FMEDIA MODULE
 static const void* net_iface(const char *name);
@@ -290,6 +292,9 @@ static void icy_close(void *ctx)
 		c->netin = NULL;
 	}
 
+	uint inst = c->aio.instance;
+	ffmem_tzero(c);
+	c->aio.instance = inst;
 	fflist1_push(&net->recycled_cons, &c->recycled);
 }
 
@@ -690,15 +695,6 @@ static int icy_process(void *ctx, fmed_filt *d)
 		}
 		switch (r) {
 		case FFICY_RDATA:
-			if (c->netin != NULL && c->meta_changed) {
-				c->meta_changed = 0;
-				netin_write(c->netin, NULL);
-				c->netin = NULL;
-			}
-
-			if (c->netin == NULL && FMED_NULL != net->track->getval(d->trk, "out-copy"))
-				c->netin = netin_create(c);
-
 			if (c->netin != NULL) {
 				netin_write(c->netin, &s);
 			}
@@ -775,7 +771,14 @@ static int icy_setmeta(icy *c, const ffstr *_data)
 	net->qu->cmd2(FMED_QUE_METASET | (FMED_QUE_OVWRITE << 16), qent, (size_t)pair);
 	c->d->meta_changed = 1;
 	ffstr_acqstr3(&c->title, &utf);
-	c->meta_changed = 1;
+
+	if (c->netin != NULL) {
+		netin_write(c->netin, NULL);
+		c->netin = NULL;
+	}
+
+	if (c->netin == NULL && FMED_NULL != net->track->getval(c->d->trk, "out-copy"))
+		c->netin = netin_create(c);
 	return 0;
 }
 
@@ -798,6 +801,7 @@ static void* netin_create(icy *c)
 
 	net->track->setvalstr(trk, "input", "?.mp3");
 	net->track->setval(trk, "netin_ptr", (size_t)n);
+	n->c = c;
 
 	if (1 == net->track->getval(c->d->trk, "stream_copy"))
 		net->track->setval(trk, "stream_copy", 1);
@@ -834,6 +838,8 @@ static void netin_close(void *ctx)
 	netin *n = ctx;
 	ffarr_free(&n->d[0]);
 	ffarr_free(&n->d[1]);
+	core->task(&n->task, FMED_TASK_DEL);
+	n->c->netin = NULL;
 	ffmem_free(n);
 }
 
