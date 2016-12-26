@@ -381,7 +381,7 @@ static int wasapi_write(void *ctx, fmed_filt *d)
 		if (0 != (r = wasapi_create(w, d)))
 			return r;
 		w->state = WAS_DATA;
-		return FMED_RMORE;
+		break;
 
 	case WAS_DATA:
 		break;
