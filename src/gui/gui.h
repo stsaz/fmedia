@@ -147,7 +147,7 @@ typedef struct ggui {
 	int vol;
 
 	uint go_pos;
-
+	ffarr filenames; //char*[]
 	void *rec_trk;
 
 	ffui_menu mfile

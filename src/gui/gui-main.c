@@ -22,6 +22,7 @@ enum LIST_HDR {
 static void gui_action(ffui_wnd *wnd, int id);
 static void gui_list_add(ffui_viewitem *it, size_t par);
 static int __stdcall gui_list_sortfunc(LPARAM p1, LPARAM p2, LPARAM udata);
+static void gui_media_opendlg(uint id);
 static void gui_media_open(uint id);
 static void gui_media_savelist(void);
 static void gui_plist_recount(uint from);
@@ -95,8 +96,8 @@ static const struct cmd cmds[] = {
 	{ SETCONVPOS_SEEK,	F1,	&gui_setconvpos },
 	{ SETCONVPOS_UNTIL,	F1,	&gui_setconvpos },
 
-	{ OPEN,	F1 | CMD_FCORE,	&gui_media_open },
-	{ ADD,	F1 | CMD_FCORE,	&gui_media_open },
+	{ OPEN,	F1,	&gui_media_opendlg },
+	{ ADD,	F1,	&gui_media_opendlg },
 	{ ADDURL,	F1,	&gui_media_addurl },
 	{ QUE_NEW,	F0 | CMD_FCORE,	&gui_que_new },
 	{ QUE_DEL,	F0 | CMD_FCORE,	&gui_que_del },
@@ -118,6 +119,8 @@ static const struct cmd cmds[] = {
 	{ CHANGES_SHOW,	F1,	&gui_showtextfile },
 };
 
+static const struct cmd cmd_open = { OPEN,	F1 | CMD_FCORE,	&gui_media_open };
+static const struct cmd cmd_add = { ADD,	F1 | CMD_FCORE,	&gui_media_open };
 const struct cmd cmd_play = { PLAY,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op };
 static const struct cmd cmd_quit = { QUIT,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op };
 static const struct cmd cmd_savelist = { SAVELIST,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op };
@@ -652,28 +655,53 @@ void gui_media_added(fmed_que_entry *ent, uint flags)
 	gui_trk_setinfo(idx, ent, ent->dur / 1000, flags);
 }
 
-static void gui_media_open(uint id)
+static void gui_media_opendlg(uint id)
 {
-	const char *fn;
+	const char *fn, **ps;
 
 	ffui_dlg_nfilter(&gg->dlg, DLG_FILT_INPUT);
 	if (NULL == (fn = ffui_dlg_open(&gg->dlg, &gg->wmain.wmain)))
 		return;
 
+	ffarr_free(&gg->filenames);
+
+	do {
+		if (NULL == (ps = ffarr_push(&gg->filenames, const char*)))
+			goto err;
+		if (NULL == (*ps = ffsz_alcopyz(fn)))
+			goto err;
+	} while (NULL != (fn = ffui_dlg_nextname(&gg->dlg)));
+
 	if (id == OPEN)
-		gg->qu->cmd(FMED_QUE_CLEAR, NULL);
+		gui_corecmd_add(&cmd_open, NULL);
+	else
+		gui_corecmd_add(&cmd_add, NULL);
+
+	return;
+
+err:
+	ffarr_free(&gg->filenames);
+}
+
+static void gui_media_open(uint id)
+{
+	const char **pfn;
 
 	ffui_redraw(&gg->wmain.vlist, 0);
 
-	do {
-		gui_media_add1(fn);
+	if (id == OPEN)
+		gui_corecmd_op(CLEAR, NULL);
 
-	} while (NULL != (fn = ffui_dlg_nextname(&gg->dlg)));
+	FFARR_WALKT(&gg->filenames, pfn, const char*) {
+		gui_media_add1(*pfn);
+	}
 
 	ffui_redraw(&gg->wmain.vlist, 1);
 
 	if (id == OPEN)
 		gui_corecmd_op(NEXT, NULL);
+
+	ffarr_free(&gg->filenames);
 }
 
 static void gui_media_addurl(uint id)

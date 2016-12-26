@@ -686,6 +686,7 @@ static void gui_destroy(void)
 {
 	if (gg == NULL)
 		return;
+	ffarr_free(&gg->filenames);
 	ffui_wnd_close(&gg->wmain.wmain);
 	ffthd_join(gg->th, -1, NULL);
 
