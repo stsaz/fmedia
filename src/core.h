@@ -23,6 +23,7 @@ typedef struct fmed_config {
 	ffstr3 outmap; //inmap_item[]
 	const fmed_modinfo *inmap_curmod;
 	char *usrconf_modname;
+	uint skip_line :1;
 } fmed_config;
 
 typedef struct fmedia {

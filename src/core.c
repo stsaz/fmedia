@@ -33,6 +33,7 @@ typedef struct core_mod {
 	const fmed_mod *m;
 	const fmed_filter *f;
 
+	ffpars_ctx conf_ctx;
 	fflist_item sib;
 	char name_s[0];
 } core_mod;
@@ -141,10 +142,10 @@ static const ffpars_arg fmed_conf_args[] = {
 	{ "include",  FFPARS_TSTR | FFPARS_FNOTEMPTY, FFPARS_DST(&fmed_conf_include) },
 };
 
-static int fmed_confusr_mod(ffparser_schem *ps, void *obj, ffpars_ctx *ctx);
+static int fmed_confusr_mod(ffparser_schem *ps, void *obj, ffstr *val);
 
 static const ffpars_arg fmed_confusr_args[] = {
-	{ "*",	FFPARS_TOBJ | FFPARS_FOBJ1 | FFPARS_FMULTI, FFPARS_DST(&fmed_confusr_mod) },
+	{ "*",	FFPARS_TSTR | FFPARS_FMULTI, FFPARS_DST(&fmed_confusr_mod) },
 };
 
 
@@ -326,38 +327,54 @@ end:
 }
 
 /** Process "so.modname" part from "so.modname.key value" */
-static int fmed_confusr_mod(ffparser_schem *ps, void *obj, ffpars_ctx *ctx)
+static int fmed_confusr_mod(ffparser_schem *ps, void *obj, ffstr *val)
 {
 	fmed_config *conf = obj;
-	ffstr *val = &ps->vals[0];
-	const fmed_modinfo *mod;
+	const core_mod *mod;
+	int r;
+
+	if (conf->skip_line) {
+		if (ps->p->type == FFCONF_TVAL) {
+			conf->skip_line = 0;
+		}
+		return 0;
+	}
 
 	if (ps->p->type != FFCONF_TKEYCTX)
 		return FFPARS_EUKNKEY;
 
 	if (ffstr_eqcz(val, "core"))
-		ffpars_setargs(ctx, conf, fmed_conf_args, FFCNT(fmed_conf_args));
+		ffpars_setctx(ps, conf, fmed_conf_args, FFCNT(fmed_conf_args));
 
 	else if (conf->usrconf_modname == NULL) {
+		if (ffstr_eqcz(val, "gui") && !fmed->cmd.gui) {
+			conf->skip_line = 1;
+			return 0;
+		}
 		if (NULL == (conf->usrconf_modname = ffsz_alcopy(val->ptr, val->len)))
 			return FFPARS_ESYS;
-		ffpars_setargs(ctx, &fmed->conf, fmed_confusr_args, FFCNT(fmed_confusr_args));
 
 	} else {
+		r = 0;
 		ffstr3 s = {0};
 		if (0 == ffstr_catfmt(&s, "%s.%S", conf->usrconf_modname, val))
 			return FFPARS_ESYS;
-		mod = core_getmodinfo((ffstr*)&s);
+		if (NULL == (mod = (void*)core_getmodinfo((ffstr*)&s))) {
+			r = FFPARS_EBADVAL;
+			goto end;
+		}
 
-		if (!(mod == NULL || mod->m->conf == NULL))
-			mod->m->conf(conf->usrconf_modname, ctx);
+		if (mod->conf_ctx.args == NULL) {
+			r = FFPARS_EBADVAL;
+			goto end;
+		}
+		ffpars_setctx(ps, mod->conf_ctx.obj, mod->conf_ctx.args, mod->conf_ctx.nargs);
 
-		ffmem_free(conf->usrconf_modname);
-		conf->usrconf_modname = NULL;
+end:
+		ffmem_free0(conf->usrconf_modname);
 		ffarr_free(&s);
-
-		if (mod == NULL || mod->m->conf == NULL)
-			return FFPARS_EINTL;
+		if (r != 0)
+			return r;
 	}
 
 	return 0;
@@ -663,9 +680,11 @@ iface:
 	mod->name = mod->name_s;
 	fflist_ins(&fmed->mods, &mod->sib);
 
-	if (ctx != NULL)
+	if (ctx != NULL) {
 		if (0 != minfo->m->conf(modname.ptr, ctx))
 			goto fail;
+		mod->conf_ctx = *ctx;
+	}
 
 	return (fmed_modinfo*)mod;
 
