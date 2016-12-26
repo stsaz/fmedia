@@ -176,9 +176,7 @@ static void mpeg_meta(fmed_mpeg *m, fmed_filt *d)
 	ffstr_set2(&val, &m->mpg.tagval);
 
 	dbglog(core, d->trk, "mpeg", "tag: %S: %S", &name, &val);
-
-	if (m->mpg.tag != 0)
-		qu->meta_set((void*)fmed_getval("queue_item"), name.ptr, name.len, val.ptr, val.len, FMED_QUE_TMETA);
+	qu->meta_set((void*)fmed_getval("queue_item"), name.ptr, name.len, val.ptr, val.len, FMED_QUE_TMETA);
 }
 
 static int mpeg_copy_prep(fmed_mpeg *m, fmed_filt *d)
