@@ -71,6 +71,10 @@ menu mlist {
 	item "&Clear" {
 		action CLEAR
 	}
+	item "&Filter..." {
+		action FILTER_SHOW
+		hotkey "Ctrl+F"
+	}
 }
 
 menu mplay {
@@ -660,6 +664,46 @@ window wuri {
 	paned pnuri {
 		child turi {
 			resize cx
+		}
+	}
+}
+
+window wfilter {
+	parent wmain
+	title "Filter Tracks"
+	position 300 300 300 100
+	style popup
+	opacity 90
+	font {
+		name Arial
+		height 10
+	}
+
+	editbox ttext {
+		position 0 0 150 25
+		style visible
+		onchange FILTER_APPLY
+	}
+
+	button breset {
+		position 150 0 50 25
+		style visible
+		text "Reset"
+		action FILTER_RESET
+	}
+
+	checkbox cbfilename {
+		position 0 35 150 25
+		style visible checked
+		text "Search in file names"
+	}
+
+	paned pntext {
+		child ttext {
+			resize cx
+		}
+		child breset {
+			move x
 		}
 	}
 }

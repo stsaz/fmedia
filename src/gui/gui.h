@@ -77,6 +77,14 @@ typedef struct gui_wuri {
 	ffui_paned pnuri;
 } gui_wuri;
 
+typedef struct gui_wfilter {
+	ffui_wnd wnd;
+	ffui_edit ttext;
+	ffui_chbox cbfilename;
+	ffui_btn breset;
+	ffui_paned pntext;
+} gui_wfilter;
+
 typedef struct gui_trk gui_trk;
 
 typedef struct cvt_sets_t {
@@ -168,6 +176,7 @@ typedef struct ggui {
 	gui_wabout wabout;
 	gui_wlog wlog;
 	gui_wuri wuri;
+	gui_wfilter wfilter;
 
 	ffthd th;
 	cvt_sets_t conv_sets;
@@ -270,6 +279,9 @@ enum CMDS {
 	DELFILE,
 	SHOWINFO,
 	INFOEDIT,
+	FILTER_SHOW,
+	FILTER_APPLY,
+	FILTER_RESET,
 
 	HIDE,
 	SHOW,
@@ -335,6 +347,14 @@ void gui_media_removed(uint i);
 void gui_rec(uint cmd);
 char* gui_usrconf_filename(void);
 
+enum GUI_FILT {
+	GUI_FILT_URL = 1,
+	GUI_FILT_META = 2,
+};
+/**
+@flags: enum GUI_FILT. */
+void gui_filter(const ffstr *text, uint flags);
+
 enum {
 	GUI_TAB_CONVERT = 1,
 	GUI_TAB_NOSEL = 2,
@@ -364,5 +384,7 @@ void gui_media_showinfo(void);
 void wgoto_init(void);
 
 void wuri_init(void);
+
+void wfilter_init(void);
 
 void wabout_init(void);

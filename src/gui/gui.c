@@ -133,6 +133,15 @@ static const ffui_ldr_ctl wuri_ctls[] = {
 	{NULL, 0, NULL}
 };
 
+static const ffui_ldr_ctl wfilter_ctls[] = {
+	add(gui_wfilter, wnd),
+	add(gui_wfilter, ttext),
+	add(gui_wfilter, cbfilename),
+	add(gui_wfilter, breset),
+	add(gui_wfilter, pntext),
+	{NULL, 0, NULL}
+};
+
 static const ffui_ldr_ctl wmain_ctls[] = {
 	add(gui_wmain, wmain),
 	add(gui_wmain, bpause),
@@ -172,6 +181,7 @@ static const ffui_ldr_ctl top_ctls[] = {
 	FFUI_LDR_CTL3(ggui, wgoto, wgoto_ctls),
 	FFUI_LDR_CTL3(ggui, wlog, wlog_ctls),
 	FFUI_LDR_CTL3(ggui, wuri, wuri_ctls),
+	FFUI_LDR_CTL3(ggui, wfilter, wfilter_ctls),
 	FFUI_LDR_CTL3(ggui, wabout, wabout_ctls),
 	{NULL, 0, NULL}
 };
@@ -241,6 +251,9 @@ static const char *const scmds[] = {
 	"DELFILE",
 	"SHOWINFO",
 	"INFOEDIT",
+	"FILTER_SHOW",
+	"FILTER_APPLY",
+	"FILTER_RESET",
 
 	"HIDE",
 	"SHOW",
@@ -506,6 +519,7 @@ static FFTHDCALL int gui_worker(void *param)
 	winfo_init();
 	gg->wlog.wlog.hide_on_close = 1;
 	wuri_init();
+	wfilter_init();
 	wgoto_init();
 
 	ffui_dlg_multisel(&gg->dlg);

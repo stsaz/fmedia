@@ -35,6 +35,8 @@ static void gui_wabout_action(ffui_wnd *wnd, int id);
 
 static void gui_wuri_action(ffui_wnd *wnd, int id);
 
+static void gui_wfilter_action(ffui_wnd *wnd, int id);
+
 
 void wconvert_init()
 {
@@ -806,6 +808,33 @@ static void gui_wuri_action(ffui_wnd *wnd, int id)
 
 	case URL_CLOSE:
 		ffui_show(&gg->wuri.wuri, 0);
+		break;
+	}
+}
+
+
+void wfilter_init(void)
+{
+	gg->wfilter.wnd.hide_on_close = 1;
+	gg->wfilter.wnd.on_action = &gui_wfilter_action;
+}
+
+static void gui_wfilter_action(ffui_wnd *wnd, int id)
+{
+	ffstr s;
+	switch (id) {
+	case FILTER_APPLY: {
+		ffui_textstr(&gg->wfilter.ttext, &s);
+		uint flags = GUI_FILT_META;
+		if (ffui_chbox_checked(&gg->wfilter.cbfilename))
+			flags |= GUI_FILT_URL;
+		gui_filter(&s, flags);
+		ffstr_free(&s);
+		break;
+	}
+
+	case FILTER_RESET:
+		ffui_cleartext(&gg->wfilter.ttext);
 		break;
 	}
 }

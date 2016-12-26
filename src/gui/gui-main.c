@@ -40,6 +40,7 @@ static void gui_on_dropfiles(ffui_wnd *wnd, ffui_fdrop *df);
 static void gui_onclose(void);
 static void gui_media_addurl(uint id);
 static void gui_showrecdir(void);
+static void gui_filt_show(void);
 
 enum {
 	GUI_TRKINFO_WNDCAPTION = 1,
@@ -111,6 +112,7 @@ static const struct cmd cmds[] = {
 	{ COPYFILE,	F1,	&gui_media_fileop },
 	{ DELFILE,	F1 | CMD_FCORE,	&gui_media_fileop },
 	{ SHOWINFO,	F0 | CMD_FCORE,	&gui_media_showinfo },
+	{ FILTER_SHOW,	F0,	&gui_filt_show },
 
 	{ CONF_EDIT,	F1,	&gui_showtextfile },
 	{ USRCONF_EDIT,	F1,	&gui_showtextfile },
@@ -253,6 +255,7 @@ static const char *const setts[] = {
 	"wrec.position",
 	"winfo.position",
 	"wlog.position",
+	"wfilter.position",
 };
 
 static void gui_onclose(void)
@@ -927,6 +930,63 @@ static void gui_on_dropfiles(ffui_wnd *wnd, ffui_fdrop *df)
 	}
 
 	ffui_redraw(&gg->wmain.vlist, 1);
+}
+
+static void gui_filt_show(void)
+{
+	ffui_show(&gg->wfilter.wnd, 1);
+}
+
+void gui_filter(const ffstr *text, uint flags)
+{
+	fmed_que_entry *active_qent = NULL, *e = NULL;
+	ffstr *meta, name;
+	uint nfilt = 0, nall = 0, inc = 0;
+
+	ffui_redraw(&gg->wmain.vlist, 0);
+	ffui_view_clear(&gg->wmain.vlist);
+
+	if (gg->curtrk != NULL)
+		active_qent = (void*)gg->track->getval(gg->curtrk->trk, "queue_item");
+
+	for (;;) {
+
+		if (0 == gg->qu->cmd2(FMED_QUE_LIST, &e, 0))
+			break;
+
+		if (text->len == 0)
+			inc = 1;
+
+		else if ((flags & GUI_FILT_URL) && -1 != ffstr_ifind(&e->url, text->ptr, text->len))
+			inc = 1;
+
+		else if (flags & GUI_FILT_META) {
+
+			for (uint i = 0;  NULL != (meta = gg->qu->meta(e, i, &name, 0));  i++) {
+				if (-1 != ffstr_ifind(meta, text->ptr, text->len)) {
+					inc = 1;
+					break;
+				}
+			}
+		}
+
+		if (inc) {
+			inc = 0;
+			gui_media_added(e, (e == active_qent) ? GUI_TRKINFO_PLAYING : 0);
+			nfilt++;
+		}
+
+		nall++;
+	}
+
+	ffui_redraw(&gg->wmain.vlist, 1);
+
+	if (text->len != 0) {
+		char buf[128];
+		size_t n = ffs_fmt(buf, buf + sizeof(buf), "Filter: %u (%u)", nfilt, nall);
+		gui_status(buf, n);
+	} else
+		gui_status(NULL, 0);
 }
 
 
