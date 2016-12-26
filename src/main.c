@@ -55,6 +55,7 @@ static const ffpars_arg fmed_cmdline_args[] = {
 	{ "list-dev",	FFPARS_TBOOL | FFPARS_FALONE,  FFPARS_DST(&fmed_arg_listdev) },
 	{ "dev",	FFPARS_TINT,  FFPARS_DSTOFF(fmed_cmd, playdev_name) },
 	{ "dev-capture",	FFPARS_TINT,  FFPARS_DSTOFF(fmed_cmd, captdev_name) },
+	{ "dev-loopback",	FFPARS_TINT,  FFPARS_DSTOFF(fmed_cmd, lbdev_name) },
 
 	//AUDIO FORMAT
 	{ "format",	FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_format) },
@@ -497,7 +498,9 @@ static void open_input(void *udata)
 		track->copy_info(ti, &trkinfo);
 		ti->audio.fmt = fmt;
 
-		if (fmed->captdev_name != 0)
+		if (fmed->lbdev_name != (uint)-1)
+			track->setval(trk, "loopback_device", fmed->lbdev_name);
+		else if (fmed->captdev_name != 0)
 			track->setval(trk, "capture_device", fmed->captdev_name);
 
 		if (fmed->outfn.len != 0)

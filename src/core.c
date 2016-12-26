@@ -490,6 +490,7 @@ static int cmd_init(fmed_cmd *cmd)
 	cmd->mpeg_qual = 0xffff;
 	cmd->flac_complevel = 0xff;
 
+	cmd->lbdev_name = (uint)-1;
 	cmd->volume = 100;
 	cmd->cue_gaps = 255;
 	return 0;

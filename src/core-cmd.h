@@ -18,6 +18,7 @@ typedef struct fmed_cmd {
 
 	uint playdev_name;
 	uint captdev_name;
+	uint lbdev_name;
 
 	struct {
 	uint out_format;
