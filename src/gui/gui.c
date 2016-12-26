@@ -36,6 +36,7 @@ static int gui_install(uint sig);
 
 static FFTHDCALL int gui_worker(void *param);
 static void gui_que_onchange(fmed_que_entry *e, uint flags);
+static void gui_ghk_reg(void);
 
 //GUI-TRACK
 static void* gtrk_open(fmed_filt *d);
@@ -46,6 +47,23 @@ static const fmed_filter fmed_gui = {
 	&gtrk_open, &gtrk_process, &gtrk_close
 };
 
+struct ghk_ent {
+	uint cmd;
+	uint hk;
+};
+
+static int gui_conf_ghk_add(ffparser_schem *p, void *obj, ffstr *val);
+
+static const ffpars_arg gui_conf_ghk_args[] = {
+	{ "*",	FFPARS_TSTR | FFPARS_FWITHKEY, FFPARS_DST(&gui_conf_ghk_add) },
+};
+
+static int gui_conf_ghk(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
+{
+	ffpars_setargs(ctx, gg, gui_conf_ghk_args, FFCNT(gui_conf_ghk_args));
+	return 0;
+}
+
 static const ffpars_arg gui_conf_args[] = {
 	{ "record",	FFPARS_TOBJ, FFPARS_DST(&gui_conf_rec) },
 	{ "convert",	FFPARS_TOBJ, FFPARS_DST(&gui_conf_convert) },
@@ -53,6 +71,7 @@ static const ffpars_arg gui_conf_args[] = {
 	{ "minimize_to_tray",	FFPARS_TBOOL | FFPARS_F8BIT, FFPARS_DSTOFF(ggui, minimize_to_tray) },
 	{ "seek_step",	FFPARS_TINT | FFPARS_F8BIT | FFPARS_FNOTZERO, FFPARS_DSTOFF(ggui, seek_step_delta) },
 	{ "seek_leap",	FFPARS_TINT | FFPARS_F8BIT | FFPARS_FNOTZERO, FFPARS_DSTOFF(ggui, seek_leap_delta) },
+	{ "global_hotkeys",	FFPARS_TOBJ, FFPARS_DST(&gui_conf_ghk) },
 };
 
 //LOG
@@ -71,6 +90,30 @@ FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 
 static void gui_corecmd(void *param);
 static int gui_getcmd(void *udata, const ffstr *name);
+
+
+/** Add command/hotkey pair into temporary array.*/
+static int gui_conf_ghk_add(ffparser_schem *p, void *obj, ffstr *val)
+{
+	const ffstr *cmd = &p->vals[0];
+	struct ghk_ent *e;
+
+	if (NULL == (e = ffarr_pushgrowT(&gg->ghks, 4, struct ghk_ent)))
+		return FFPARS_ESYS;
+
+	if (0 == (e->cmd = gui_getcmd(NULL, cmd))) {
+		warnlog(core, NULL, "gui", "invalid command: %S", cmd);
+		return FFPARS_EBADVAL;
+	}
+
+	if (0 == (e->hk = ffui_hotkey_parse(val->ptr, val->len))) {
+		warnlog(core, NULL, "gui", "invalid hotkey: %S", val);
+		return FFPARS_EBADVAL;
+	}
+
+	return 0;
+}
+
 
 #define add  FFUI_LDR_CTL
 
@@ -476,6 +519,25 @@ void gui_rec(uint cmd)
 }
 
 
+static void gui_ghk_reg(void)
+{
+	struct ghk_ent *e;
+	uint i = 0;
+	(void)i;
+
+	FFARR_WALKT(&gg->ghks, e, struct ghk_ent) {
+		i++;
+		if (0 != ffui_wnd_ghotkey_reg(&gg->wmain.wmain, e->hk, e->cmd)) {
+			warnlog(core, NULL, "gui", "can't register global hotkey #%u", i);
+			continue;
+		}
+
+		dbglog(core, NULL, "gui", "registered global hotkey #%u", i);
+	}
+
+	ffarr_free(&gg->ghks);
+}
+
 char* gui_usrconf_filename(void)
 {
 	if (!gg->portable_conf)
@@ -527,6 +589,8 @@ static FFTHDCALL int gui_worker(void *param)
 	gg->vol = gui_getvol() * 100;
 
 	fflk_unlock(&gg->lk);
+
+	gui_ghk_reg();
 
 	ffui_run();
 	goto done;
@@ -700,6 +764,8 @@ static void gui_destroy(void)
 {
 	if (gg == NULL)
 		return;
+
+	ffarr_free(&gg->ghks);
 	ffarr_free(&gg->filenames);
 	ffui_wnd_close(&gg->wmain.wmain);
 	ffthd_join(gg->th, -1, NULL);

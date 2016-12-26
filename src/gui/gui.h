@@ -184,6 +184,8 @@ typedef struct ggui {
 	cvt_sets_t conv_sets;
 	rec_sets_t rec_sets;
 
+	ffarr ghks; //struct ghk_ent[]
+
 	byte seek_step_delta;
 	byte seek_leap_delta;
 	byte minimize_to_tray;
