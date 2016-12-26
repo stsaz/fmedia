@@ -107,9 +107,9 @@ const fmed_track _fmed_track = {
 
 static fmed_f* _addfilter1(fm_trk *t)
 {
-	if (NULL == ffarr_grow(&t->filters, 1, 4))
+	fmed_f *f;
+	if (NULL == (f = ffarr_pushgrowT((ffarr*)&t->filters, 4, fmed_f)))
 		return NULL;
-	fmed_f *f = ffarr_push(&t->filters, fmed_f);
 	ffmem_tzero(f);
 	return f;
 }
@@ -118,7 +118,7 @@ static fmed_f* addfilter1(fm_trk *t, const fmed_modinfo *mod)
 {
 	fmed_f *f = _addfilter1(t);
 	f->name = mod->name;
-	f->filt = mod->f;
+	f->filt = mod->iface;
 	return f;
 }
 
@@ -312,7 +312,6 @@ static void* trk_create(uint cmd, const char *fn)
 		break;
 
 	case FMED_TRACK_NET:
-		addfilter(t, "net.in");
 		t->props.type = FMED_TRK_TYPE_NETIN;
 		break;
 	}

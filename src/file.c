@@ -752,7 +752,7 @@ static void fileout_close(void *ctx)
 static int fileout_writedata(fmed_fileout *f, const char *data, size_t len, fmed_filt *d)
 {
 	size_t r;
-	if (f->fsize + len > f->preallocated) {
+	if (f->prealloc_by != 0 && f->fsize + len > f->preallocated) {
 		uint64 n = ff_align_ceil(f->fsize + len, f->prealloc_by);
 		if (0 == fffile_trunc(f->fd, n)) {
 
@@ -792,6 +792,8 @@ static int fileout_write(void *ctx, fmed_filt *d)
 				return FMED_RERR;
 			f->buf.len = 0;
 		}
+
+		dbglog(core, d->trk, NULL, "seeking to %xU...", seek);
 
 		if (0 > fffile_seek(f->fd, seek, SEEK_SET)) {
 			syserrlog(core, d->trk, "file", "%e: %s", FFERR_FSEEK, f->fname.ptr);

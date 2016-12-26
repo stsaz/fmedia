@@ -199,13 +199,17 @@ static int m3u_process(void *ctx, fmed_filt *d)
 		cur = (void*)qu->cmd2(FMED_QUE_ADD | FMED_QUE_NO_ONCHANGE | FMED_QUE_COPY_PROPS, &ent, 0);
 		ffstr_free(&ent.url);
 
-		ffstr_setcz(&meta[0], "artist");
-		ffstr_set2(&meta[1], &m->pls_ent.artist);
-		qu->cmd2(FMED_QUE_METASET, cur, (size_t)meta);
+		if (m->pls_ent.artist.len != 0) {
+			ffstr_setcz(&meta[0], "artist");
+			ffstr_set2(&meta[1], &m->pls_ent.artist);
+			qu->cmd2(FMED_QUE_METASET, cur, (size_t)meta);
+		}
 
-		ffstr_setcz(&meta[0], "title");
-		ffstr_set2(&meta[1], &m->pls_ent.title);
-		qu->cmd2(FMED_QUE_METASET, cur, (size_t)meta);
+		if (m->pls_ent.title.len != 0) {
+			ffstr_setcz(&meta[0], "title");
+			ffstr_set2(&meta[1], &m->pls_ent.title);
+			qu->cmd2(FMED_QUE_METASET, cur, (size_t)meta);
+		}
 
 		qu->cmd2(FMED_QUE_ADD | FMED_QUE_ADD_DONE, cur, 0);
 		m->qu_cur = cur;
@@ -278,9 +282,11 @@ static int pls_process(void *ctx, fmed_filt *d)
 		cur = (void*)qu->cmd2(FMED_QUE_ADD | FMED_QUE_NO_ONCHANGE | FMED_QUE_COPY_PROPS, &ent, 0);
 		ffstr_free(&ent.url);
 
-		ffstr_setcz(&meta[0], "title");
-		ffstr_set2(&meta[1], &p->pls_ent.title);
-		qu->cmd2(FMED_QUE_METASET, cur, (size_t)meta);
+		if (p->pls_ent.title.len != 0) {
+			ffstr_setcz(&meta[0], "title");
+			ffstr_set2(&meta[1], &p->pls_ent.title);
+			qu->cmd2(FMED_QUE_METASET, cur, (size_t)meta);
+		}
 
 		qu->cmd2(FMED_QUE_ADD | FMED_QUE_ADD_DONE, cur, 0);
 		p->qu_cur = cur;
@@ -436,7 +442,7 @@ static int cue_process(void *ctx, fmed_filt *d)
 			goto add_metaname;
 
 		case FFCUE_TRK_PERFORMER:
-			artist_trk++;
+			artist_trk = 1;
 		case FFCUE_PERFORMER:
 			ffstr_setcz(&metaname, "artist");
 
@@ -497,9 +503,9 @@ add:
 		c->ent.dur = (ctrk->to != 0) ? (ctrk->to - ctrk->from) * 1000 / 75 : 0;
 
 		uint i = 0;
-		if (have_glob_artist && artist_trk != 0) {
+		if (have_glob_artist && artist_trk) {
 			i += 2; // skip global artist
-			artist_trk--;
+			artist_trk = 0;
 		}
 
 		c->ent.prev = cur;

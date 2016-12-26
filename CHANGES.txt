@@ -8,12 +8,43 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v0.22 - Dec 25, 2016
+
+ + WASAPI: support loopback mode (record from playback)
+ + fmedia: add "--dev-loopback" argument
+ + core: support reading from stdin (@stdin.EXT) (WAV) (synchronous)
+ + core: support writing to stdout (--out=@stdout.EXT) (WAV, FLAC, OGG)
+ *! fmedia: --outdir argument was removed.  Use --out instead.
+
+ + GUI: new command "Filter" to search/filter tracks in playlist
+ + GUI: global hotkeys can be assigned to fmedia commands ("global_hotkeys" setting in fmedia.conf)
+ + GUI: show icon in tray while recording ("status_tray" config setting)
+ * GUI: record: support "Stop after" setting
+ * GUI: record: add "Capture Device Number" setting
+ * GUI: Open/Add modal dialog doesn't block main thread
+ - GUI: recording: correctly update GUI if recording was finished with an error
+
+ * WAV: support "data" chunk with unknown size
+ - WavPack: APE tags weren't recognized
+ - MPEG read: unknown ID3v2 tags were skipped
+ - MPEG read: segfault on unknown APE tag
+ - WASAPI playback: the first block of mono audio data was skipped
+
+ + conf: support "include" keyword to include additional configuration files
+   User settings may be stored in fmedia-user.conf
+ - conf: when using a setting from user conf file, the module's other settings were reset to default (v0.17 bug)
+ - net.icy: 2nd opened track didn't work
+ - net.icy: "--out-copy": didn't recover from errors properly
+ - queue: meta data from file has higher priority than artist/title from .m3u
+ - queue: "Next" after "Clear" didn't work
+
+
 fmedia v0.21 - Dec 11, 2016
 
  + GUI: add "To Next Playlist" command into popup menu
  - GUI: "instance_mode clear_play" didn't work: playlist wasn't updated properly
 
- - FLAC encode: the last block of data wasn't written (v16.08 bug)
+ - FLAC encode: the last block of data wasn't written (FF v16.08 bug)
 
  * file output: support $year variable (album year)
  * file output: $-vars: replace more bad characters;  trim trailing whitespace

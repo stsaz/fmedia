@@ -44,6 +44,7 @@ typedef struct fmedia {
 	ffarr bmods; //fmed_modinfo[]
 	fflist mods; //core_mod[]
 
+	ffstr root;
 	fmed_config conf;
 	fmed_cmd cmd;
 	fmed_props props;

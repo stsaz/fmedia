@@ -157,7 +157,8 @@ again:
 		switch (r) {
 		case FFWAV_RMORE:
 			if (d->flags & FMED_FLAST) {
-				errlog(core, d->trk, "wav", "file is incomplete");
+				if (!w->wav.inf_data)
+					errlog(core, d->trk, "wav", "file is incomplete");
 				d->outlen = 0;
 				return FMED_RDONE;
 			}

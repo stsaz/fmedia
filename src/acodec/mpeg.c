@@ -230,6 +230,10 @@ again:
 
 		case FFMPG_RMORE:
 			if (d->flags & FMED_FLAST) {
+				if (!ffmpg_hdrok(&m->mpg)) {
+					errlog(core, d->trk, NULL, "no MPEG header");
+					return FMED_RERR;
+				}
 				d->outlen = 0;
 				return FMED_RDONE;
 			}

@@ -31,7 +31,7 @@ typedef struct core_mod {
 	char *name;
 	void *dl; //ffdl
 	const fmed_mod *m;
-	const fmed_filter *f;
+	const void *iface;
 
 	ffpars_ctx conf_ctx;
 	fflist_item sib;
@@ -42,8 +42,8 @@ typedef struct core_mod {
 fmedia *fmed;
 
 enum {
-	FMED_KQ_EVS = 100,
-	CONF_MBUF = 4096,
+	FMED_KQ_EVS = 8,
+	CONF_MBUF = 2 * 4096,
 };
 
 #ifdef FF_UNIX
@@ -53,7 +53,7 @@ enum {
 #endif
 
 
-FF_EXP fmed_core* core_init(fmed_cmd **ptr);
+FF_EXP fmed_core* core_init(fmed_cmd **ptr, char **argv);
 FF_EXP void core_free(void);
 
 static const fmed_mod* fmed_getmod_core(const fmed_core *_core);
@@ -164,9 +164,6 @@ static int allowed_mod(const ffstr *name)
 
 static int fmed_conf_mod(ffparser_schem *p, void *obj, ffstr *val)
 {
-	if (ffstr_eqcz(val, "#tui.tui") && (fmed->cmd.notui || fmed->cmd.gui))
-		goto done;
-
 	if (ffstr_matchcz(val, "gui.") && !fmed->cmd.gui)
 		goto done;
 
@@ -184,6 +181,11 @@ static int fmed_conf_modconf(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
 	char *zname;
 
 	if (!allowed_mod(name)) {
+		ffpars_ctx_skip(ctx);
+		return 0;
+	}
+
+	if (ffstr_eqcz(name, "#tui.tui") && (fmed->cmd.notui || fmed->cmd.gui)) {
 		ffpars_ctx_skip(ctx);
 		return 0;
 	}
@@ -445,9 +447,7 @@ static int fmed_conf_fn(const char *filename, uint flags)
 		ffstr_set(&s, buf, n);
 
 		while (s.len != 0) {
-			n = s.len;
-			r = ffconf_parse(&pconf, s.ptr, &n);
-			ffstr_shift(&s, n);
+			r = ffconf_parsestr(&pconf, &s);
 			r = ffconf_schemrun(&ps);
 
 			if (ffpars_iserr(r))
@@ -516,7 +516,6 @@ static void cmd_destroy(fmed_cmd *cmd)
 	ffmem_safefree(cmd->conf_fn);
 
 	ffstr_free(&cmd->globcmd);
-	ffstr_free(&cmd->root);
 }
 
 static int conf_init(fmed_config *conf)
@@ -532,7 +531,7 @@ static void conf_destroy(fmed_config *conf)
 }
 
 
-fmed_core* core_init(fmed_cmd **ptr)
+fmed_core* core_init(fmed_cmd **ptr, char **argv)
 {
 	ffmem_init();
 	fflk_setup();
@@ -549,13 +548,27 @@ fmed_core* core_init(fmed_cmd **ptr)
 
 	if (0 != cmd_init(&fmed->cmd)
 		|| 0 != conf_init(&fmed->conf)) {
-		core_free();
-		return NULL;
+		goto err;
 	}
 
+	char fn[FF_MAXPATH];
+	ffstr path;
+	const char *p;
+	if (NULL == (p = ffps_filename(fn, sizeof(fn), argv[0])))
+		goto err;
+	if (NULL == ffpath_split2(p, ffsz_len(p), &path, NULL))
+		goto err;
+	if (NULL == ffstr_copy(&fmed->root, path.ptr, path.len + FFSLEN("/")))
+		goto err;
+
 	*ptr = &fmed->cmd;
+	core->loglev = FMED_LOG_INFO;
 	core->props = &fmed->props;
 	return core;
+
+err:
+	core_free();
+	return NULL;
 }
 
 void core_free(void)
@@ -586,6 +599,7 @@ void core_free(void)
 
 	cmd_destroy(&fmed->cmd);
 	conf_destroy(&fmed->conf);
+	ffstr_free(&fmed->root);
 
 	ffmem_free(fmed);
 	fmed = NULL;
@@ -598,7 +612,6 @@ static const fmed_modinfo* core_insmod(const char *sname, ffpars_ctx *ctx)
 	ffstr s, modname;
 	size_t sname_len = ffsz_len(sname);
 	core_mod *mod = ffmem_calloc(1, sizeof(core_mod) + sname_len + 1);
-	ffbool is_filter = 1;
 	if (mod == NULL)
 		return NULL;
 
@@ -625,7 +638,6 @@ static const fmed_modinfo* core_insmod(const char *sname, ffpars_ctx *ctx)
 			getmod = &fmed_getmod_queue;
 		else if (ffstr_eqcz(&s, "#globcmd")) {
 			getmod = &fmed_getmod_globcmd;
-			is_filter = 0;
 		} else {
 			fferr_set(EINVAL);
 			goto fail;
@@ -667,12 +679,9 @@ static const fmed_modinfo* core_insmod(const char *sname, ffpars_ctx *ctx)
 iface:
 	mod->dl = dl;
 	mod->m = minfo->m;
-	if (is_filter) {
-		mod->f = minfo->m->iface(modname.ptr);
-		if (mod->f == NULL) {
-			errlog(core, NULL, "core", "can't initialize %s", sname);
-			goto fail2;
-		}
+	if (NULL == (mod->iface = minfo->m->iface(modname.ptr))) {
+		errlog(core, NULL, "core", "can't initialize %s", sname);
+		goto fail2;
 	}
 
 	ffsz_fcopy(mod->name_s, sname, sname_len);
@@ -836,7 +845,7 @@ void core_work(void)
 static char* core_getpath(const char *name, size_t len)
 {
 	ffstr3 s = {0};
-	if (0 == ffstr_catfmt(&s, "%S%*s%Z", &fmed->cmd.root, len, name)) {
+	if (0 == ffstr_catfmt(&s, "%S%*s%Z", &fmed->root, len, name)) {
 		ffarr_free(&s);
 		return NULL;
 	}
@@ -860,7 +869,6 @@ static int core_sig(uint signo)
 	switch (signo) {
 
 	case FMED_CONF:
-		core->loglev = fmed->cmd.debug ? FMED_LOG_DEBUG : FMED_LOG_INFO;
 		if (0 != fmed_conf())
 			return 1;
 		break;

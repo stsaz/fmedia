@@ -1,4 +1,4 @@
-# fmedia v0.20 GUI
+# fmedia v0.22 GUI
 
 menu mfile {
 	item "&Open..." {
@@ -375,6 +375,10 @@ window wmain {
 		}
 		column Info {
 		}
+		column Date {
+		}
+		column Album {
+		}
 		column Filename {
 		}
 	}
@@ -557,7 +561,7 @@ window winfo {
 window wgoto {
 	parent wmain
 	title "Go To"
-	position 300 300 100 100
+	position 300 300 100 120
 	style popup
 	opacity 90
 	font {
@@ -566,12 +570,12 @@ window wgoto {
 	}
 
 	editbox etime {
-		position 0 0 100 25
+		position 10 10 100 25
 		style visible
 	}
 
 	button bgo {
-		position 0 25 50 25
+		position 10 40 50 25
 		style visible
 		text "Go!"
 		action GOTO

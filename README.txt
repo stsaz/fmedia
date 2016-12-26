@@ -75,6 +75,7 @@ OUTPUT
 	. WASAPI Playback
 	. ALSA Playback
 
+
 ---------------
 INSTALL ON WINDOWS
 ---------------
@@ -87,6 +88,7 @@ INSTALL ON WINDOWS
 	This command will:
 	. add fmedia directory into user's environment
 	. create a desktop shortcut to fmedia-gui.exe
+
 
 ---------------
 INSTALL ON LINUX
@@ -102,6 +104,7 @@ INSTALL ON LINUX
 Note: the file "fmedia-0/fmedia" is just a script that executes binary file "fmedia-0/fmedia-bin" with proper environment.  If the script doesn't work for some reason, call fmedia-bin directly:
 
 	env LD_LIBRARY_PATH=/usr/local/fmedia-0:$LD_LIBRARY_PATH /usr/local/fmedia-0/fmedia-bin
+
 
 ---------------
 BUILD ON LINUX
@@ -134,7 +137,6 @@ BUILD ON LINUX
 ---------------
 BUILD ON LINUX FOR WINDOWS
 ---------------
-
 1-2. See section "BUILD ON LINUX".
 
 3. Build with mingw:
@@ -165,10 +167,12 @@ Core configuration settings start with "core.", e.g. set codepage for non-Unicod
 
 	core.codepage win1252
 
+
 ---------------
 EXTRACT TRACKS FROM flac.cue
 ---------------
 If you're extracting a track from the album using CUE sheet, please note, that a track isn't exactly copied but first decoded to PCM and then re-encoded with FLAC.  Luckily, this behaviour won't result in any audio quality loss since FLAC is a lossless codec.  However, fmedia doesn't support pictures (album covers) in FLAC header, so they won't be copied into the output file.
+
 
 ---------------
 TERMINAL UI
@@ -235,7 +239,7 @@ Convert
 	fmedia ./file.wav --out=./file.mp3 --mpeg-quality=0 --rate=48000
 
 Convert all .wav files from the current directory to .ogg
-	fmedia ./*.wav --out=.ogg --outdir=.
+	fmedia ./*.wav --out=.ogg
 
 Convert file and override meta info
 	fmedia ./file.flac --out=.ogg --meta='artist=Artist Name;comment=My Comment'
@@ -320,7 +324,7 @@ See fmedia source code for more details.  For example, main.c::main() will show 
 
 
 LOW-LEVEL INTERFACE.
-If you'd like to use low level interfaces, take a look at FF library source code, as well as FF-3pt.  Together they provide you with an easy interface that you can use to work with a large set of file formats, decode or encode audio and much more.  fmedia itself is built upon FF library - it's completely free and open-source.
+If you'd like to use low level interfaces, take a look at the source code of FF & FF-3pt libraries.  Together they provide you with an easy interface that you can use to work with a large set of file formats, decode or encode audio and much more.  fmedia itself is built upon FF library - it's completely free and open-source.
 
 
 PARTICIPATE.
@@ -351,6 +355,13 @@ If you encounter a bug, please report it: the more issues will be reported by us
 	fmedia --debug OPTIONS INPUT_FILES...
 
 It will print a lot of information about what fmedia is doing.  This info or a screenshot would be very helpful.
+
+
+---------------
+LICENSE
+---------------
+The code provided here is free for use in open-source and proprietary projects.
+You may distribute, redistribute, modify the whole code or the parts of it, just keep the original copyright statement inside the files.
 
 
 ---------------

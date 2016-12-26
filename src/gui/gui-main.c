@@ -16,6 +16,8 @@ enum LIST_HDR {
 	H_TIT,
 	H_DUR,
 	H_INF,
+	H_DATE,
+	H_ALBUM,
 	H_FN,
 };
 
@@ -612,6 +614,16 @@ static void gui_trk_setinfo(int idx, fmed_que_entry *ent, uint sec, uint flags)
 		ffpath_splitname(title.ptr, title.len, &title, NULL);
 	} else
 		title = *val;
+
+	if (NULL != (val = gg->qu->meta_find(ent, FFSTR("date")))) {
+		ffui_view_settextstr(&it, val);
+		ffui_view_set(&gg->wmain.vlist, H_DATE, &it);
+	}
+
+	if (NULL != (val = gg->qu->meta_find(ent, FFSTR("album")))) {
+		ffui_view_settextstr(&it, val);
+		ffui_view_set(&gg->wmain.vlist, H_ALBUM, &it);
+	}
 
 
 	ffui_view_settextstr(&it, &artist);

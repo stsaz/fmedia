@@ -795,6 +795,9 @@ static void* netin_create(icy *c)
 	if (NULL == (trk = net->track->create(FMED_TRACK_NET, "")))
 		return NULL;
 
+	if (0 != net->track->cmd2(trk, FMED_TRACK_ADDFILT_BEGIN, "net.in"))
+		return NULL;
+
 	const char *output;
 	output = net->track->getvalstr(c->d->trk, "output");
 	net->track->setvalstr(trk, "output", output);

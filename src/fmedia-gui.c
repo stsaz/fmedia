@@ -11,10 +11,10 @@ Copyright (c) 2015 Simon Zolin */
 #include <FFOS/mem.h>
 
 
-static fmed_cmd *fmed;
+static fmed_cmd *gcmd;
 static fmed_core *core;
 
-FF_IMP fmed_core* core_init(fmed_cmd **ptr);
+FF_IMP fmed_core* core_init(fmed_cmd **ptr, char **argv);
 FF_IMP void core_free(void);
 
 //LOG
@@ -136,28 +136,18 @@ end:
 
 int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
 {
+	char *argv[1] = { NULL };
 	ffmem_init();
 
-	if (NULL == (core = core_init(&fmed)))
+	if (NULL == (core = core_init(&gcmd, argv)))
 		return 1;
 
-	{
-	char fn[FF_MAXPATH];
-	ffstr path;
-	const char *p = ffps_filename(fn, sizeof(fn), NULL);
-	if (p == NULL)
-		return 1;
-	ffpath_split2(p, ffsz_len(p), &path, NULL);
-	if (NULL == ffstr_copy(&fmed->root, path.ptr, path.len + FFSLEN("/")))
-		return 1;
-	}
-
-	fmed->log = &fgui_logger;
-	fmed->gui = 1;
+	gcmd->log = &fgui_logger;
+	gcmd->gui = 1;
 	if (0 != core->sig(FMED_CONF))
 		goto end;
 
-	if (NULL == (fmed->log = core->getmod("gui.log")))
+	if (NULL == (gcmd->log = core->getmod("gui.log")))
 		goto end;
 
 	int im = core->getval("instance_mode");

@@ -19,7 +19,7 @@ static fmed_cmd *gcmd;
 #define fmed  gcmd
 static fmed_core *core;
 
-FF_IMP fmed_core* core_init(fmed_cmd **ptr);
+FF_IMP fmed_core* core_init(fmed_cmd **ptr, char **argv);
 FF_IMP void core_free(void);
 
 static int fmed_cmdline(int argc, char **argv, uint main_only);
@@ -558,21 +558,9 @@ int main(int argc, char **argv)
 
 	ffsig_mask(SIG_BLOCK, sigs_block, FFCNT(sigs_block));
 
-	if (NULL == (core = core_init(&fmed)))
+	if (NULL == (core = core_init(&fmed, argv)))
 		return 1;
 	fmed->log = &std_logger;
-
-	{
-	char fn[FF_MAXPATH];
-	ffstr path;
-	const char *p = ffps_filename(fn, sizeof(fn), argv[0]);
-	if (p == NULL)
-		return 1;
-	if (NULL == ffpath_split2(p, ffsz_len(p), &path, NULL))
-		return 1;
-	if (NULL == ffstr_copy(&fmed->root, path.ptr, path.len + FFSLEN("/")))
-		return 1;
-	}
 
 	if (argc == 1) {
 		fmed_arg_usage();
@@ -581,6 +569,9 @@ int main(int argc, char **argv)
 
 	if (0 != fmed_cmdline(argc, argv, 1))
 		goto end;
+
+	if (fmed->debug)
+		core->loglev = FMED_LOG_DEBUG;
 
 	if (0 != core->sig(FMED_CONF))
 		goto end;

@@ -22,8 +22,8 @@ mixer                 mixer
 #include <FFOS/error.h>
 
 
-#define FMED_VER_MINOR  21
-#define FMED_VER  "0.21"
+#define FMED_VER_MINOR  22
+#define FMED_VER  "0.22"
 #define FMED_HOMEPAGE  "http://fmedia.firmdev.com"
 
 // CORE
@@ -63,7 +63,7 @@ typedef struct fmed_modinfo {
 	char *name;
 	void *dl; //ffdl
 	const fmed_mod *m;
-	const fmed_filter *f;
+	const void *iface;
 } fmed_modinfo;
 
 enum FMED_GETMOD {

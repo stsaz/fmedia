@@ -333,7 +333,7 @@ ifneq ($(OS),win)
 
 else
 
-	$(CP) ./fmedia-gui.exe $(PROJDIR)/fmedia.gui $(PROJDIR)/fmedia.ico $(PROJDIR)/*.manifest \
+	$(CP) ./fmedia-gui.exe $(PROJDIR)/fmedia.gui $(PROJDIR)/fmedia*.ico $(PROJDIR)/*.manifest \
 		$(INSTDIR)/
 	unix2dos $(INSTDIR)/*.txt $(INSTDIR)/*.conf $(INSTDIR)/*.gui $(INSTDIR)/*.manifest
 	chmod 644 $(INSTDIR)/*
