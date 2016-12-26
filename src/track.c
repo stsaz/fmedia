@@ -772,6 +772,20 @@ static int trk_cmd2(void *trk, uint cmd, void *param)
 	fm_trk *t = trk;
 
 	switch (cmd) {
+	case FMED_TRACK_ADDFILT_BEGIN: {
+		fmed_f *f;
+		if (NULL == ffarr_growT((ffarr*)&t->filters, 1, 4, fmed_f))
+			return -1;
+		memmove(t->filters.ptr + 1, t->filters.ptr, t->filters.len * sizeof(fmed_f));
+		f = t->filters.ptr;
+		t->filters.len++;
+		f->name = param;
+		if (NULL == (f->filt = core->getmod(param)))
+			return -1;
+		dbglog(core, t, "core", "added module %s to chain", f->name);
+		break;
+	}
+
 	case FMED_TRACK_ADDFILT:
 	case FMED_TRACK_ADDFILT_PREV: {
 		FF_ASSERT(t->filters.cap != t->filters.len);

@@ -145,6 +145,7 @@ enum FMED_TRACK {
 	@param: char *filter_name */
 	FMED_TRACK_ADDFILT,
 	FMED_TRACK_ADDFILT_PREV,
+	FMED_TRACK_ADDFILT_BEGIN,
 };
 
 enum FMED_TRK_TYPE {
