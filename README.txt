@@ -151,6 +151,8 @@ CONFIG
 ---------------
 The global configuration file "fmedia.conf" is located within the fmedia directory itself.  It contains all supported settings and their default values.  You must restart fmedia after you make changes to this file.
 
+Additional settings may be stored in file "fmedia-user.conf".  This makes it easier to upgrade fmedia without the need to edit "fmedia.conf".
+
 Per-user configuration settings are also supported, they must be stored in "fmedia.conf" file in home directory:
  Windows: %APPDATA%/fmedia/fmedia.conf
  Linux:   $HOME/.config/fmedia/fmedia.conf

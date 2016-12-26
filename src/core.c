@@ -101,7 +101,13 @@ static const fmed_log log_dummy = {
 	&log_dummy_func
 };
 
-static int fmed_conf(uint userconf);
+enum {
+	CONF_F_USR = 1,
+	CONF_F_OPT = 2,
+};
+
+static int fmed_conf(void);
+static int fmed_conf_fn(const char *filename, uint flags);
 static int fmed_conf_mod(ffparser_schem *p, void *obj, ffstr *val);
 static int fmed_conf_modconf(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
 static int fmed_conf_setmod(const fmed_modinfo **pmod, ffstr *val);
@@ -113,6 +119,7 @@ static int fmed_conf_inp_channels(ffparser_schem *p, void *obj, ffstr *val);
 static int fmed_conf_ext(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
 static int fmed_conf_ext_val(ffparser_schem *p, void *obj, ffstr *val);
 static int fmed_conf_codepage(ffparser_schem *p, void *obj, ffstr *val);
+static int fmed_conf_include(ffparser_schem *p, void *obj, ffstr *val);
 
 // enum FMED_INSTANCE_MODE
 static const char *const im_enumstr[] = {
@@ -130,6 +137,8 @@ static const ffpars_arg fmed_conf_args[] = {
 	, { "output_ext",  FFPARS_TOBJ, FFPARS_DST(&fmed_conf_ext) }
 	, { "codepage",  FFPARS_TSTR, FFPARS_DST(&fmed_conf_codepage) }
 	, { "instance_mode",  FFPARS_TENUM | FFPARS_F8BIT, FFPARS_DST(&im_enum) }
+	,
+	{ "include",  FFPARS_TSTR | FFPARS_FNOTEMPTY, FFPARS_DST(&fmed_conf_include) },
 };
 
 static int fmed_confusr_mod(ffparser_schem *ps, void *obj, ffpars_ctx *ctx);
@@ -301,6 +310,21 @@ static int fmed_conf_codepage(ffparser_schem *p, void *obj, ffstr *val)
 	return 0;
 }
 
+static int fmed_conf_include(ffparser_schem *p, void *obj, ffstr *val)
+{
+	int r = FFPARS_EBADVAL;
+	char *fn;
+	if (NULL == (fn = core->getpath(val->ptr, val->len)))
+		goto end;
+	if (0 != fmed_conf_fn(fn, CONF_F_USR | CONF_F_OPT))
+		goto end;
+
+	r = 0;
+end:
+	ffmem_safefree(fn);
+	return r;
+}
+
 /** Process "so.modname" part from "so.modname.key value" */
 static int fmed_confusr_mod(ffparser_schem *ps, void *obj, ffpars_ctx *ctx)
 {
@@ -339,7 +363,32 @@ static int fmed_confusr_mod(ffparser_schem *ps, void *obj, ffpars_ctx *ctx)
 	return 0;
 }
 
-static int fmed_conf(uint userconf)
+static int fmed_conf(void)
+{
+	int r = -1;
+	char *fn;
+
+	if (fmed->cmd.conf_fn != NULL)
+		fn = fmed->cmd.conf_fn;
+	else if (NULL == (fn = core->getpath(FFSTR("fmedia.conf"))))
+		goto end;
+	if (0 != fmed_conf_fn(fn, 0))
+		goto end;
+	if (fn != fmed->cmd.conf_fn)
+		ffmem_free0(fn);
+
+	if (NULL == (fn = ffenv_expand(NULL, 0, USR_CONF)))
+		goto end;
+	if (0 != fmed_conf_fn(fn, CONF_F_USR | CONF_F_OPT))
+		goto end;
+
+	r = 0;
+end:
+	ffmem_safefree(fn);
+	return r;
+}
+
+static int fmed_conf_fn(const char *filename, uint flags)
 {
 	ffparser pconf;
 	ffparser_schem ps;
@@ -349,35 +398,19 @@ static int fmed_conf(uint userconf)
 	char *buf = NULL;
 	size_t n;
 	fffd f = FF_BADFD;
-	char *filename;
 
-	if (userconf == 1) {
+	if (flags & CONF_F_USR) {
 		ffpars_setargs(&ctx, &fmed->conf, fmed_confusr_args, FFCNT(fmed_confusr_args));
-		ffconf_scheminit(&ps, &pconf, &ctx);
-
-		if (NULL == (filename = ffenv_expand(NULL, 0, USR_CONF)))
-			return 0;
-
-		if (FF_BADFD == (f = fffile_open(filename, O_RDONLY))) {
-			if (!fferr_nofile(fferr_last()))
-				syserrlog(core, NULL, "core", "%e: %s", FFERR_FOPEN, filename);
-			r = 0;
-			goto fail;
-		}
-
 	} else {
-
 		ffpars_setargs(&ctx, &fmed->conf, fmed_conf_args, FFCNT(fmed_conf_args));
-		ffconf_scheminit(&ps, &pconf, &ctx);
+	}
 
-		if (fmed->cmd.conf_fn != NULL)
-			filename = fmed->cmd.conf_fn;
-		else if (NULL == (filename = core->getpath(FFSTR("fmedia.conf"))))
-			return -1;
-
-		if (FF_BADFD == (f = fffile_open(filename, O_RDONLY))) {
-			goto err;
-		}
+	ffconf_scheminit(&ps, &pconf, &ctx);
+	if (FF_BADFD == (f = fffile_open(filename, O_RDONLY))) {
+		if (fferr_nofile(fferr_last()) && (flags & CONF_F_OPT))
+			return 0;
+		syserrlog(core, NULL, "core", "%e: %s", FFERR_FOPEN, filename);
+		goto fail;
 	}
 
 	dbglog(core, NULL, "core", "reading config file %s", filename);
@@ -422,7 +455,6 @@ err:
 	r = 0;
 
 fail:
-	ffmem_free(filename);
 	ffpars_free(&pconf);
 	ffpars_schemfree(&ps);
 	ffmem_safefree(buf);
@@ -773,9 +805,7 @@ static int core_sig(uint signo)
 
 	case FMED_CONF:
 		core->loglev = fmed->cmd.debug ? FMED_LOG_DEBUG : FMED_LOG_INFO;
-		if (0 != fmed_conf(0))
-			return 1;
-		if (0 != fmed_conf(1))
+		if (0 != fmed_conf())
 			return 1;
 		break;
 
