@@ -67,6 +67,7 @@ static int core_open(void);
 static int core_sigmods(uint signo);
 static core_modinfo* core_findmod(const ffstr *name);
 static const fmed_modinfo* core_getmodinfo(const ffstr *name);
+static const fmed_modinfo* core_modbyext(const ffstr3 *map, const ffstr *ext);
 
 static const void* core_iface(const char *name);
 static int core_sig2(uint signo);
@@ -81,6 +82,7 @@ static void core_log(uint flags, void *trk, const char *module, const char *fmt,
 static char* core_getpath(const char *name, size_t len);
 static int core_sig(uint signo);
 static const void* core_getmod(const char *name);
+const void* core_getmod2(uint flags, const char *name, ssize_t name_len);
 static const fmed_modinfo* core_insmod(const char *name, ffpars_ctx *ctx);
 static void core_task(fftask *task, uint cmd);
 static fmed_core _fmed_core = {
@@ -89,7 +91,7 @@ static fmed_core _fmed_core = {
 	&core_log,
 	&core_getpath,
 	&core_sig,
-	&core_getmod, &core_insmod,
+	&core_getmod, &core_getmod2, &core_insmod,
 	&core_task,
 };
 fmed_core *core = &_fmed_core;
@@ -111,7 +113,6 @@ static int fmed_conf(void);
 static int fmed_conf_fn(const char *filename, uint flags);
 static int fmed_conf_mod(ffparser_schem *p, void *obj, ffstr *val);
 static int fmed_conf_modconf(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
-static int fmed_conf_setmod(const fmed_modinfo **pmod, ffstr *val);
 static int fmed_conf_output(ffparser_schem *p, void *obj, ffstr *val);
 static int fmed_conf_input(ffparser_schem *p, void *obj, ffstr *val);
 static int fmed_conf_recfmt(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
@@ -201,14 +202,6 @@ static int fmed_conf_modconf(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
 	return 0;
 }
 
-static int fmed_conf_setmod(const fmed_modinfo **pmod, ffstr *val)
-{
-	if (NULL == (*pmod = core_getmodinfo(val))) {
-		return FFPARS_EBADVAL;
-	}
-	return 0;
-}
-
 static int fmed_conf_output(ffparser_schem *p, void *obj, ffstr *val)
 {
 	fmed_config *conf = obj;
@@ -216,7 +209,9 @@ static int fmed_conf_output(ffparser_schem *p, void *obj, ffstr *val)
 	if (!allowed_mod(val))
 		return 0;
 
-	return fmed_conf_setmod(&conf->output, val);
+	if (NULL == (conf->output = core_getmod2(FMED_MOD_INFO, val->ptr, val->len)))
+		return FFPARS_EBADVAL;
+	return 0;
 }
 
 static int fmed_conf_input(ffparser_schem *p, void *obj, ffstr *val)
@@ -226,7 +221,9 @@ static int fmed_conf_input(ffparser_schem *p, void *obj, ffstr *val)
 	if (!allowed_mod(val))
 		return 0;
 
-	return fmed_conf_setmod(&conf->input, val);
+	if (NULL == (conf->input = core_getmod2(FMED_MOD_INFO, val->ptr, val->len)))
+		return FFPARS_EBADVAL;
+	return 0;
 }
 
 static int fmed_conf_inp_format(ffparser_schem *p, void *obj, ffstr *val)
@@ -269,7 +266,7 @@ static int fmed_conf_ext_val(ffparser_schem *p, void *obj, ffstr *val)
 	ffstr3 *map = obj;
 
 	if (p->p->type == FFCONF_TKEY) {
-		const fmed_modinfo *mod = core_getmodinfo(val);
+		const fmed_modinfo *mod = core_getmod2(FMED_MOD_INFO, val->ptr, val->len);
 		if (mod == NULL) {
 			return FFPARS_EBADVAL;
 		}
@@ -359,7 +356,7 @@ static int fmed_confusr_mod(ffparser_schem *ps, void *obj, ffstr *val)
 		ffstr3 s = {0};
 		if (0 == ffstr_catfmt(&s, "%s.%S", conf->usrconf_modname, val))
 			return FFPARS_ESYS;
-		if (NULL == (mod = (void*)core_getmodinfo((ffstr*)&s))) {
+		if (NULL == (mod = core_getmod2(FMED_MOD_INFO, s.ptr, s.len))) {
 			r = FFPARS_EBADVAL;
 			goto end;
 		}
@@ -608,7 +605,7 @@ static const fmed_modinfo* core_insmod(const char *sname, ffpars_ctx *ctx)
 	}
 
 	core_modinfo *minfo;
-	if (NULL != (minfo = core_findmod(&s)))
+	if (NULL != (minfo = (void*)core_getmod2(FMED_MOD_SOINFO | FMED_MOD_NOLOG, s.ptr, s.len)))
 		goto iface;
 
 	if (s.ptr[0] == '#') {
@@ -706,19 +703,7 @@ static core_modinfo* core_findmod(const ffstr *name)
 
 static const void* core_getmod(const char *name)
 {
-	ffstr smod, iface;
-	ffs_split2by(name, ffsz_len(name), '.', &smod, &iface);
-
-	core_modinfo *mod;
-	mod = core_findmod(&smod);
-	if (mod == NULL) {
-		errlog(core, NULL, "core", "module not found: %s", name);
-		return NULL;
-	}
-	if (iface.len == 0)
-		return mod;
-
-	return mod->m->iface(iface.ptr);
+	return core_getmod2(FMED_MOD_IFACE_ANY, name, -1);
 }
 
 static const fmed_modinfo* core_getmodinfo(const ffstr *name)
@@ -728,12 +713,10 @@ static const fmed_modinfo* core_getmodinfo(const ffstr *name)
 		if (ffstr_eqz(name, mod->name))
 			return (fmed_modinfo*)mod;
 	}
-
-	errlog(core, NULL, "core", "module not found: %S", name);
 	return NULL;
 }
 
-const fmed_modinfo* core_modbyext(const ffstr3 *map, const ffstr *ext)
+static const fmed_modinfo* core_modbyext(const ffstr3 *map, const ffstr *ext)
 {
 	const inmap_item *it = (void*)map->ptr;
 	while (it != (void*)(map->ptr + map->len)) {
@@ -745,6 +728,58 @@ const fmed_modinfo* core_modbyext(const ffstr3 *map, const ffstr *ext)
 	}
 
 	errlog(core, NULL, "core", "unknown file format: %S", ext);
+	return NULL;
+}
+
+const void* core_getmod2(uint flags, const char *name, ssize_t name_len)
+{
+	const fmed_modinfo *mod;
+	ffstr s, smod, iface;
+	uint t = flags & 0xff;
+
+	if (name_len == -1)
+		ffstr_setz(&s, name);
+	else
+		ffstr_set(&s, name, name_len);
+
+	switch (t) {
+
+	case FMED_MOD_INEXT:
+		return core_modbyext(&fmed->conf.inmap, &s);
+
+	case FMED_MOD_OUTEXT:
+		return core_modbyext(&fmed->conf.outmap, &s);
+
+	case FMED_MOD_INFO:
+		if (NULL == (mod = core_getmodinfo(&s)))
+			goto err;
+		return mod;
+
+	case FMED_MOD_IFACE:
+		if (NULL == (mod = core_getmodinfo(&s)))
+			goto err;
+		return mod->iface;
+
+	case FMED_MOD_SOINFO:
+	case FMED_MOD_IFACE_ANY: {
+		core_modinfo *mi;
+		const void *fc;
+		ffs_split2by(s.ptr, s.len, '.', &smod, &iface);
+		if (NULL == (mi = (void*)core_findmod(&smod)))
+			goto err;
+		if (t == FMED_MOD_SOINFO)
+			return mi;
+		if (iface.len == 0)
+			goto err;
+		if (NULL == (fc = mi->m->iface(iface.ptr)))
+			goto err;
+		return fc;
+	}
+	}
+
+err:
+	if (!(flags & FMED_MOD_NOLOG))
+		errlog(core, NULL, "core", "module not found: %S", &s);
 	return NULL;
 }
 

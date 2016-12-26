@@ -15,7 +15,8 @@ Copyright (c) 2015 Simon Zolin */
 #include <FFOS/process.h>
 
 
-static fmed_cmd *fmed;
+static fmed_cmd *gcmd;
+#define fmed  gcmd
 static fmed_core *core;
 
 FF_IMP fmed_core* core_init(fmed_cmd **ptr);
@@ -150,10 +151,11 @@ done:
 
 static int fmed_arg_infile(ffparser_schem *p, void *obj, const ffstr *val)
 {
+	fmed_cmd *cmd = obj;
 	char **fn;
-	if (NULL == ffarr_grow(&fmed->in_files, 1, 0))
+	if (NULL == ffarr_grow(&cmd->in_files, 1, 0))
 		return FFPARS_ESYS;
-	fn = ffarr_push(&fmed->in_files, char*);
+	fn = ffarr_push(&cmd->in_files, char*);
 	*fn = val->ptr;
 	return 0;
 }
@@ -186,6 +188,7 @@ static int fmed_arg_channels(ffparser_schem *p, void *obj, ffstr *val)
 
 static int fmed_arg_seek(ffparser_schem *p, void *obj, const ffstr *val)
 {
+	fmed_cmd *cmd = obj;
 	uint i;
 	ffdtm dt;
 	fftime t;
@@ -196,9 +199,9 @@ static int fmed_arg_seek(ffparser_schem *p, void *obj, const ffstr *val)
 	i = fftime_ms(&t);
 
 	if (!ffsz_cmp(p->curarg->name, "seek"))
-		fmed->seek_time = i;
+		cmd->seek_time = i;
 	else
-		fmed->until_time = i;
+		cmd->until_time = i;
 	return 0;
 }
 

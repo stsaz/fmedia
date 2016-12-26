@@ -49,8 +49,6 @@ typedef struct fmedia {
 	fmed_props props;
 } fmedia;
 
-const fmed_modinfo* core_modbyext(const ffstr3 *map, const ffstr *ext);
-
 extern fmedia *fmed;
 extern fmed_core *core;
 extern const fmed_track _fmed_track;

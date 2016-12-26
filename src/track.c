@@ -77,7 +77,7 @@ static void trk_open_capt(fm_trk *t);
 static void trk_free(fm_trk *t);
 static void trk_process(void *udata);
 static void trk_stop(fm_trk *t, uint flags);
-static fmed_f* trk_modbyext(fm_trk *t, const ffstr3 *map, const ffstr *ext);
+static fmed_f* trk_modbyext(fm_trk *t, uint flags, const ffstr *ext);
 static void trk_printtime(fm_trk *t);
 
 static dict_ent* dict_add(fm_trk *t, const char *name, uint *f);
@@ -130,9 +130,9 @@ static fmed_f* addfilter(fm_trk *t, const char *modname)
 	return f;
 }
 
-static fmed_f* trk_modbyext(fm_trk *t, const ffstr3 *map, const ffstr *ext)
+static fmed_f* trk_modbyext(fm_trk *t, uint flags, const ffstr *ext)
 {
-	const fmed_modinfo *mi = core_modbyext(map, ext);
+	const fmed_modinfo *mi = core->getmod2(flags, ext->ptr, ext->len);
 	if (mi == NULL)
 		return NULL;
 	return addfilter1(t, mi);
@@ -154,7 +154,7 @@ static int trk_open(fm_trk *t, const char *fn)
 	if (ffs_match(fn, ffsz_len(fn), "http", 4)) {
 		addfilter(t, "net.icy");
 		ffstr_setz(&ext, "mp3");
-		if (NULL == trk_modbyext(t, &fmed->conf.inmap, &ext))
+		if (NULL == trk_modbyext(t, FMED_MOD_INEXT, &ext))
 			return 1;
 	} else {
 		uint have_path = (NULL != ffpath_split2(fn, ffsz_len(fn), NULL, &name));
@@ -164,7 +164,7 @@ static int trk_open(fm_trk *t, const char *fn)
 		else
 			addfilter(t, "#file.in");
 
-		if (NULL == trk_modbyext(t, &fmed->conf.inmap, &ext))
+		if (NULL == trk_modbyext(t, FMED_MOD_INEXT, &ext))
 			return 1;
 	}
 
@@ -196,7 +196,7 @@ static int trk_setout(fm_trk *t)
 		ffstr ext;
 		const char *input = trk_getvalstr(t, "input");
 		ffpath_splitname(input, ffsz_len(input), NULL, &ext);
-		if (NULL == trk_modbyext(t, &fmed->conf.inmap, &ext))
+		if (NULL == trk_modbyext(t, FMED_MOD_INEXT, &ext))
 			return -1;
 
 	} else if (t->props.type != FMED_TRK_TYPE_MIXIN) {
@@ -232,7 +232,7 @@ static int trk_setout(fm_trk *t)
 		if (fmed->cmd.stream_copy)
 			trk_setval(t, "stream_copy", 1);
 
-		if (NULL == trk_modbyext(t, &fmed->conf.outmap, &ext))
+		if (NULL == trk_modbyext(t, FMED_MOD_OUTEXT, &ext))
 			return -1;
 
 		if (!have_path && ffstr_eqcz(&name, "@stdout")) {
@@ -763,7 +763,7 @@ static int trk_cmd2(void *trk, uint cmd, void *param)
 		f = t->filters.ptr;
 		t->filters.len++;
 		f->name = param;
-		if (NULL == (f->filt = core->getmod(param)))
+		if (NULL == (f->filt = core->getmod2(FMED_MOD_IFACE, param, -1)))
 			return -1;
 		dbglog(core, t, "core", "added module %s to chain", f->name);
 		break;
@@ -775,7 +775,7 @@ static int trk_cmd2(void *trk, uint cmd, void *param)
 		fmed_f *f = ffarr_end(&t->filters);
 		ffmem_tzero(f);
 		f->name = param;
-		if (NULL == (f->filt = core->getmod(param)))
+		if (NULL == (f->filt = core->getmod2(FMED_MOD_IFACE, param, -1)))
 			return -1;
 		t->filters.len++;
 

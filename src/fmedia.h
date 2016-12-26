@@ -66,6 +66,19 @@ typedef struct fmed_modinfo {
 	const fmed_filter *f;
 } fmed_modinfo;
 
+enum FMED_GETMOD {
+	FMED_MOD_INFO = 1, /** Get fmed_modinfo*. */
+	FMED_MOD_SOINFO,
+	FMED_MOD_IFACE, /** Get module's interface (configured only). */
+	FMED_MOD_IFACE_ANY, /** Get module's interface. */
+
+	/** Get fmed_modinfo* by input/output file extension. */
+	FMED_MOD_INEXT,
+	FMED_MOD_OUTEXT,
+
+	FMED_MOD_NOLOG = 0x100,
+};
+
 struct fmed_core {
 	uint loglev;
 	fmed_props *props;
@@ -85,8 +98,14 @@ struct fmed_core {
 	@signo: enum FMED_SIG. */
 	int (*sig)(uint signo);
 
-	/** Get module (fmed_modinfo*) or an interface. */
+	/** Get module interface. */
 	const void* (*getmod)(const char *name);
+
+	/**
+	@flags: enum FMED_GETMOD.
+	*/
+	const void* (*getmod2)(uint flags, const char *name, ssize_t name_len);
+
 	const fmed_modinfo* (*insmod)(const char *name, ffpars_ctx *ctx);
 
 	/**
