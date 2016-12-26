@@ -47,6 +47,7 @@ typedef struct que {
 
 	uint quit_if_done :1
 		, next_if_err :1
+		, fmeta_lowprio :1 //meta from file has lower priority
 		, mixing :1;
 } que;
 
@@ -586,10 +587,6 @@ static void que_meta_set(fmed_que_entry *ent, const ffstr *name, const ffstr *va
 			return;
 		a = &e->tmeta;
 
-		if (!(flags & FMED_QUE_METADEL)
-			&& -1 != que_arrfind(e->meta.ptr, e->meta.len, name->ptr, name->len))
-			return; //meta value with the same name already exists
-
 	} else if (flags & FMED_QUE_TRKDICT) {
 		a = &e->dict;
 		if ((flags & FMED_QUE_NUM) && val->len != sizeof(int64))
@@ -658,11 +655,11 @@ static ffstr* que_meta_find(fmed_que_entry *ent, const char *name, size_t name_l
 	if (name_len == (size_t)-1)
 		name_len = ffsz_len(name);
 
-	if (-1 != (i = que_arrfind(e->meta.ptr, e->meta.len, name, name_len)))
-		return &((ffstr*)e->meta.ptr)[i + 1];
-
-	if (-1 != (i = que_arrfind(e->tmeta.ptr, e->tmeta.len, name, name_len)))
-		return &((ffstr*)e->tmeta.ptr)[i + 1];
+	for (uint k = 0;  k != 2;  k++) {
+		const ffarr2 *meta = (k != 0 || qu->fmeta_lowprio) ? &e->meta : &e->tmeta;
+		if (-1 != (i = que_arrfind(meta->ptr, meta->len, name, name_len)))
+			return &((ffstr*)meta->ptr)[i + 1];
+	}
 
 	return NULL;
 }
