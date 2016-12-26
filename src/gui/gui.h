@@ -23,6 +23,8 @@ typedef struct gui_wmain {
 		, pnlist;
 	ffui_stbar stbar;
 	ffui_trayicon tray_icon;
+	ffui_icon ico;
+	ffui_icon ico_rec;
 } gui_wmain;
 
 typedef struct gui_wconvert {
@@ -189,9 +191,11 @@ typedef struct ggui {
 	byte seek_step_delta;
 	byte seek_leap_delta;
 	byte minimize_to_tray;
+	byte status_tray;
 	byte portable_conf;
 	uint wconv_init :1
 		, wrec_init :1
+		, min_tray :1
 		;
 } ggui;
 

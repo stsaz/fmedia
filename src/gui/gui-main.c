@@ -63,6 +63,17 @@ void wmain_init(void)
 	gg->wmain.vlist.colclick_id = SORT;
 	gg->wmain.wmain.on_dropfiles = &gui_on_dropfiles;
 	ffui_fdrop_accept(&gg->wmain.wmain, 1);
+
+	char *fn;
+	if (NULL == (fn = core->getpath(FFSTR("fmedia.ico"))))
+		return;
+	ffui_icon_load(&gg->wmain.ico, fn, 0);
+	ffmem_free(fn);
+
+	if (NULL == (fn = core->getpath(FFSTR("fmedia-rec.ico"))))
+		return;
+	ffui_icon_load(&gg->wmain.ico_rec, fn, 0);
+	ffmem_free(fn);
 }
 
 
@@ -191,18 +202,24 @@ static void gui_action(ffui_wnd *wnd, int id)
 		break;
 
 	case HIDE:
-		ffui_tray_show(&gg->wmain.tray_icon, 1);
+		if (!ffui_tray_visible(&gg->wmain.tray_icon)) {
+			ffui_tray_seticon(&gg->wmain.tray_icon, &gg->wmain.ico);
+			ffui_tray_show(&gg->wmain.tray_icon, 1);
+		}
 		ffui_show(&gg->wmain.wmain, 0);
 		ffui_show(&gg->winfo.winfo, 0);
 		ffui_show(&gg->wgoto.wgoto, 0);
 		ffui_show(&gg->wconvert.wconvert, 0);
 		ffui_show(&gg->wrec.wrec, 0);
+		gg->min_tray = 1;
 		break;
 
 	case SHOW:
 		ffui_show(&gg->wmain.wmain, 1);
 		ffui_wnd_setfront(&gg->wmain.wmain);
-		ffui_tray_show(&gg->wmain.tray_icon, 0);
+		if (!(gg->status_tray && gg->rec_trk != NULL))
+			ffui_tray_show(&gg->wmain.tray_icon, 0);
+		gg->min_tray = 0;
 		break;
 
 	case ABOUT:

@@ -406,9 +406,6 @@ window wmain {
 	}
 
 	trayicon tray_icon {
-		icon {
-			filename "fmedia.ico"
-		}
 		popupmenu mtray
 		lclick SHOW
 	}

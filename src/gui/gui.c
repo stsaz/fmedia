@@ -78,6 +78,7 @@ static const ffpars_arg gui_conf_args[] = {
 	{ "convert",	FFPARS_TOBJ, FFPARS_DST(&gui_conf_convert) },
 	{ "portable_conf",	FFPARS_TBOOL | FFPARS_F8BIT, FFPARS_DSTOFF(ggui, portable_conf) },
 	{ "minimize_to_tray",	FFPARS_TBOOL | FFPARS_F8BIT, FFPARS_DSTOFF(ggui, minimize_to_tray) },
+	{ "status_tray",	FFPARS_TBOOL | FFPARS_F8BIT, FFPARS_DSTOFF(ggui, status_tray) },
 	{ "seek_step",	FFPARS_TINT | FFPARS_F8BIT | FFPARS_FNOTZERO, FFPARS_DSTOFF(ggui, seek_step_delta) },
 	{ "seek_leap",	FFPARS_TINT | FFPARS_F8BIT | FFPARS_FNOTZERO, FFPARS_DSTOFF(ggui, seek_leap_delta) },
 	{ "global_hotkeys",	FFPARS_TOBJ, FFPARS_DST(&gui_conf_ghk) },
@@ -491,6 +492,10 @@ void gui_media_add1(const char *fn)
 static void* rec_open(fmed_filt *d)
 {
 	ffui_stbar_settextz(&gg->wmain.stbar, 0, "Recording...");
+	if (gg->status_tray && !ffui_tray_visible(&gg->wmain.tray_icon)) {
+		ffui_tray_seticon(&gg->wmain.tray_icon, &gg->wmain.ico_rec);
+		ffui_tray_show(&gg->wmain.tray_icon, 1);
+	}
 	return FMED_FILT_DUMMY;
 }
 
@@ -498,6 +503,8 @@ static void rec_close(void *ctx)
 {
 	if (gg->rec_trk != NULL) {
 		ffui_stbar_settextz(&gg->wmain.stbar, 0, "");
+		if (gg->status_tray && !gg->min_tray)
+			ffui_tray_show(&gg->wmain.tray_icon, 0);
 		gg->rec_trk = NULL;
 	}
 }
@@ -797,6 +804,8 @@ static void gui_destroy(void)
 
 	ffarr_free(&gg->ghks);
 	ffarr_free(&gg->filenames);
+	ffui_icon_destroy(&gg->wmain.ico);
+	ffui_icon_destroy(&gg->wmain.ico_rec);
 	ffui_wnd_close(&gg->wmain.wmain);
 	ffthd_join(gg->th, -1, NULL);
 
@@ -810,6 +819,7 @@ static int gtrk_conf(ffpars_ctx *ctx)
 {
 	gg->seek_step_delta = 5;
 	gg->seek_leap_delta = 60;
+	gg->status_tray = 1;
 	ffpars_setargs(ctx, gg, gui_conf_args, FFCNT(gui_conf_args));
 	return 0;
 }
