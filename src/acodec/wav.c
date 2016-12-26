@@ -243,6 +243,8 @@ static int wavout_process(void *ctx, fmed_filt *d)
 		if ((int64)d->audio.total != FMED_NULL)
 			total_dur = ((d->audio.total - d->audio.pos) * d->audio.convfmt.sample_rate / d->audio.fmt.sample_rate);
 		ffwav_create(&w->wav, &fmt, total_dur);
+		if (!d->out_seekable)
+			w->wav.seekable = 0;
 
 		w->state = 2;
 		// break

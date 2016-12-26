@@ -30,6 +30,8 @@ static int fmed_arg_seek(ffparser_schem *p, void *obj, const ffstr *val);
 static int fmed_arg_install(ffparser_schem *p, void *obj, const ffstr *val);
 static int fmed_arg_channels(ffparser_schem *p, void *obj, ffstr *val);
 static int fmed_arg_format(ffparser_schem *p, void *obj, ffstr *val);
+static int fmed_arg_input_chk(ffparser_schem *p, void *obj, const ffstr *val);
+static int fmed_arg_out_chk(ffparser_schem *p, void *obj, const ffstr *val);
 
 static void open_input(void *udata);
 static void fmed_onsig(void *udata);
@@ -84,7 +86,6 @@ static const ffpars_arg fmed_cmdline_args[] = {
 
 	//OUTPUT
 	{ "out",	FFPARS_SETVAL('o') | FFPARS_TSTR | FFPARS_FCOPY | FFPARS_FNOTEMPTY | FFPARS_FSTRZ,  FFPARS_DSTOFF(fmed_cmd, outfn) },
-	{ "outdir",	FFPARS_TSTR | FFPARS_FCOPY | FFPARS_FNOTEMPTY | FFPARS_FSTRZ,  FFPARS_DSTOFF(fmed_cmd, outdir) },
 	{ "overwrite",	FFPARS_SETVAL('y') | FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, overwrite) },
 	{ "out-copy",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, out_copy) },
 	{ "preserve-date",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, preserve_date) },
@@ -105,8 +106,9 @@ static const ffpars_arg fmed_cmdline_args[] = {
 };
 
 static const ffpars_arg fmed_cmdline_main_args[] = {
-	{ "",	FFPARS_TSTR | FFPARS_FMULTI,  FFPARS_DST(&fmed_arg_skip) },
+	{ "",	FFPARS_TSTR | FFPARS_FMULTI,  FFPARS_DST(&fmed_arg_input_chk) },
 	{ "*",	FFPARS_TSTR | FFPARS_FMULTI,  FFPARS_DST(&fmed_arg_skip) },
+	{ "out",	FFPARS_SETVAL('o') | FFPARS_TSTR,  FFPARS_DST(&fmed_arg_out_chk) },
 	{ "conf",	FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY | FFPARS_FNOTEMPTY,  FFPARS_DSTOFF(fmed_cmd, conf_fn) },
 	{ "notui",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, notui) },
 	{ "gui",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, gui) },
@@ -215,6 +217,28 @@ static int fmed_arg_skip(ffparser_schem *p, void *obj, const ffstr *val)
 	return 0;
 }
 
+static int fmed_arg_input_chk(ffparser_schem *p, void *obj, const ffstr *val)
+{
+	ffstr fname, name;
+	if (NULL == ffpath_split2(val->ptr, val->len, NULL, &fname)) {
+		ffpath_splitname(fname.ptr, fname.len, &name, NULL);
+		if (ffstr_eqcz(&name, "@stdin"))
+			core->props->stdin_busy = 1;
+	}
+	return 0;
+}
+
+static int fmed_arg_out_chk(ffparser_schem *p, void *obj, const ffstr *val)
+{
+	ffstr fname, name;
+	if (NULL == ffpath_split2(val->ptr, val->len, NULL, &fname)) {
+		ffpath_splitname(fname.ptr, fname.len, &name, NULL);
+		if (ffstr_eqcz(&name, "@stdout"))
+			core->props->stdout_busy = 1;
+	}
+	return 0;
+}
+
 static int fmed_cmdline(int argc, char **argv, uint main_only)
 {
 	ffparser_schem ps;
@@ -295,7 +319,7 @@ static void std_log(uint flags, fmed_logdata *ld)
 	*s++ = '\n';
 
 	uint lev = flags & _FMED_LOG_LEVMASK;
-	fffd fd = (lev > FMED_LOG_WARN) ? ffstdout : ffstderr;
+	fffd fd = (lev > FMED_LOG_WARN && !core->props->stdout_busy) ? ffstdout : ffstderr;
 	ffstd_write(fd, buf, s - buf);
 }
 
@@ -373,6 +397,9 @@ static void qu_setprops(const fmed_queue *qu, fmed_que_entry *qe)
 
 	if (fmed->opus_brate != 0)
 		qu_setval(qu, qe, "opus.bitrate", fmed->opus_brate);
+
+	if (fmed->outfn.len != 0 && !fmed->rec)
+		qu->meta_set(qe, FFSTR("output"), fmed->outfn.ptr, fmed->outfn.len, FMED_QUE_TRKDICT);
 
 	if (fmed->rec)
 		qu_setval(qu, qe, "low_latency", 1);
@@ -521,7 +548,7 @@ int main(int argc, char **argv)
 	ffmem_init();
 	ffsig_init(&sigs_task);
 
-	fffile_writecz(ffstdout, "fmedia v" FMED_VER "\n");
+	fffile_writecz(ffstderr, "fmedia v" FMED_VER "\n");
 
 	ffsig_mask(SIG_BLOCK, sigs_block, FFCNT(sigs_block));
 

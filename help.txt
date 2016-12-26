@@ -5,6 +5,7 @@ The default action is to play input files one by one.
 Typical track chain: QUEUE -> INPUT -> FILTERS -> ENCODING -> OUTPUT
 
 INPUT              Input file, directory, URL or a wildcard
+                   @stdin.EXT: read from standard input.
 
 OPTIONS:
 
@@ -61,6 +62,7 @@ ENCODING:
 OUTPUT:
 -o, --out=[NAME].EXT
                    Don't play but write output to a file (i.e. convert audio)
+                   If NAME is "@stdout", write to standard output.
                    Output format is chosen by "EXT" (see fmedia.conf::output_ext).
                    Supported variables:
                      $filepath: path to input file
@@ -71,7 +73,6 @@ OUTPUT:
                    --out=.ogg is a short for --out='./$filename.ogg'
                    Filename may be generated automatically using meta info,
                      e.g.: --out '$tracknumber. $artist - $title.flac'
---outdir=DIR       Set output directory
 -y, --overwrite    Overwrite output file
 --preserve-date    Set output file date/time equal to input file.
 --out-copy         Play AND copy data to output file specified by "--out" switch.

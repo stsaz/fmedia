@@ -84,7 +84,7 @@ static const void* core_getmod(const char *name);
 static const fmed_modinfo* core_insmod(const char *name, ffpars_ctx *ctx);
 static void core_task(fftask *task, uint cmd);
 static fmed_core _fmed_core = {
-	0, 0,
+	0, NULL, 0,
 	&core_getval,
 	&core_log,
 	&core_getpath,
@@ -495,8 +495,6 @@ static int cmd_init(fmed_cmd *cmd)
 
 	cmd->volume = 100;
 	cmd->cue_gaps = 255;
-	if (NULL == ffstr_copy(&cmd->outdir, ".", 1))
-		return -1;
 	return 0;
 }
 
@@ -511,7 +509,6 @@ static void cmd_destroy(fmed_cmd *cmd)
 	}
 	ffarr_free(&cmd->in_files);
 	ffstr_free(&cmd->outfn);
-	ffstr_free(&cmd->outdir);
 
 	ffstr_free(&cmd->meta);
 	ffmem_safefree(cmd->trackno);
@@ -556,6 +553,7 @@ fmed_core* core_init(fmed_cmd **ptr)
 	}
 
 	*ptr = &fmed->cmd;
+	core->props = &fmed->props;
 	return core;
 }
 

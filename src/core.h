@@ -46,6 +46,7 @@ typedef struct fmedia {
 
 	fmed_config conf;
 	fmed_cmd cmd;
+	fmed_props props;
 } fmedia;
 
 const fmed_modinfo* core_modbyext(const ffstr3 *map, const ffstr *ext);

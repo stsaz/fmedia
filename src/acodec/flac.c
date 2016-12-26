@@ -296,6 +296,10 @@ static void* flac_out_create(fmed_filt *d)
 	if (f == NULL)
 		return NULL;
 	ffflac_enc_init(&f->fl);
+	if (!d->out_seekable) {
+		f->fl.seekable = 0;
+		f->fl.seektable_int = 0;
+	}
 	return f;
 }
 

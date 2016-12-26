@@ -55,7 +55,6 @@ typedef struct fmed_cmd {
 	byte cue_gaps;
 
 	ffstr outfn;
-	ffstr outdir;
 	ffbool overwrite;
 	ffbool out_copy;
 	ffbool preserve_date;

@@ -79,6 +79,22 @@ typedef struct fmed_fileout {
 	} stat;
 } fmed_fileout;
 
+typedef struct stdin_ctx {
+	fffd fd;
+	ffarr buf;
+} stdin_ctx;
+
+typedef struct stdout_ctx {
+	fffd fd;
+	ffarr buf;
+	uint64 fsize;
+
+	struct {
+		uint nmwrite;
+		uint nfwrite;
+	} stat;
+} stdout_ctx;
+
 
 //FMEDIA MODULE
 static const void* file_iface(const char *name);
@@ -125,6 +141,22 @@ static const ffpars_arg file_out_conf_args[] = {
 	, { "preallocate",  FFPARS_TSIZE | FFPARS_FNOTZERO,  FFPARS_DSTOFF(struct file_out_conf_t, prealloc) }
 };
 
+//STDIN
+static void* file_stdin_open(fmed_filt *d);
+static int file_stdin_read(void *ctx, fmed_filt *d);
+static void file_stdin_close(void *ctx);
+static const fmed_filter file_stdin = {
+	&file_stdin_open, &file_stdin_read, &file_stdin_close
+};
+
+//STDOUT
+static void* file_stdout_open(fmed_filt *d);
+static int file_stdout_write(void *ctx, fmed_filt *d);
+static void file_stdout_close(void *ctx);
+static const fmed_filter file_stdout = {
+	&file_stdout_open, &file_stdout_write, &file_stdout_close
+};
+
 
 const fmed_mod* fmed_getmod_file(const fmed_core *_core)
 {
@@ -146,7 +178,10 @@ static const void* file_iface(const char *name)
 		return &fmed_file_input;
 	} else if (!ffsz_cmp(name, "out")) {
 		return &fmed_file_output;
-	}
+	} else if (!ffsz_cmp(name, "stdin"))
+		return &file_stdin;
+	else if (!ffsz_cmp(name, "stdout"))
+		return &file_stdout;
 	return NULL;
 }
 
@@ -486,15 +521,25 @@ static const char* const vars[] = {
 static FFINL char* fileout_getname(fmed_fileout *f, fmed_filt *d)
 {
 	ffsvar p;
-	ffstr fn, val, fdir, fname;
+	ffstr fn, val, fdir, fname, ext;
 	char *tstr;
 	const char *in;
-	ffarr buf = {0};
+	ffarr buf = {0}, outfn = {0};
 	int r, have_dt = 0, ivar;
 	ffdtm dt;
 
 	ffmem_tzero(&p);
 	ffstr_setz(&fn, d->track->getvalstr(d->trk, "output"));
+
+	// "PATH/.EXT" -> "PATH/$filename.EXT"
+	if (NULL == ffpath_split2(fn.ptr, fn.len, &fdir, &fname))
+		ffstr_set(&fdir, ".", 1);
+	if (fname.ptr == ffpath_splitname(fname.ptr, fname.len, &ext, NULL)) {
+		if (0 == ffstr_catfmt(&outfn, "%S/$filename%S"
+			, &fdir, &ext))
+			goto done;
+		ffstr_set2(&fn, &outfn);
+	}
 
 	while (fn.len != 0) {
 		size_t n = fn.len;
@@ -608,6 +653,7 @@ syserr:
 	syserrlog(core, d->trk, NULL, "%e", FFERR_BUFALOC);
 
 done:
+	ffarr_free(&outfn);
 	ffarr_free(&buf);
 	return NULL;
 }
@@ -791,6 +837,144 @@ static int fileout_write(void *ctx, fmed_filt *d)
 
 	if (d->flags & FMED_FLAST) {
 		f->ok = 1;
+		return FMED_RDONE;
+	}
+
+	return FMED_ROK;
+}
+
+
+static void* file_stdin_open(fmed_filt *d)
+{
+	stdin_ctx *f = ffmem_tcalloc1(stdin_ctx);
+	if (f == NULL)
+		return NULL;
+	f->fd = ffstdin;
+
+	if (NULL == ffarr_alloc(&f->buf, mod->in_conf.bsize)) {
+		syserrlog(core, d->trk, NULL, "%e", FFERR_BUFALOC);
+		goto done;
+	}
+
+	return f;
+
+done:
+	file_stdin_close(f);
+	return NULL;
+}
+
+static void file_stdin_close(void *ctx)
+{
+	stdin_ctx *f = ctx;
+	ffarr_free(&f->buf);
+	ffmem_free(f);
+}
+
+static int file_stdin_read(void *ctx, fmed_filt *d)
+{
+	stdin_ctx *f = ctx;
+	ssize_t r;
+
+	if ((int64)d->input.seek != FMED_NULL) {
+		errlog(core, d->trk, NULL, "can't seek on stdin.  offset:%U", d->input.seek);
+		return FMED_RERR;
+	}
+
+	r = ffstd_fread(f->fd, f->buf.ptr, f->buf.cap);
+	if (r == 0) {
+		d->outlen = 0;
+		return FMED_RDONE;
+	} else if (r < 0) {
+		syserrlog(core, d->trk, NULL, "%e", FFERR_READ);
+		return FMED_RERR;
+	}
+
+	dbglog(core, d->trk, NULL, "read %L bytes from stdin"
+		, r);
+	d->out = f->buf.ptr, d->outlen = r;
+	return FMED_RDATA;
+}
+
+
+static void* file_stdout_open(fmed_filt *d)
+{
+	stdout_ctx *f = ffmem_tcalloc1(stdout_ctx);
+	if (f == NULL)
+		return NULL;
+	f->fd = ffstdout;
+
+	if (NULL == ffarr_alloc(&f->buf, mod->out_conf.bsize)) {
+		syserrlog(core, d->trk, NULL, "%e", FFERR_BUFALOC);
+		goto done;
+	}
+
+	return f;
+
+done:
+	file_stdout_close(f);
+	return NULL;
+}
+
+static void file_stdout_close(void *ctx)
+{
+	stdout_ctx *f = ctx;
+	ffarr_free(&f->buf);
+	ffmem_free(f);
+}
+
+static int file_stdout_writedata(stdout_ctx *f, const char *data, size_t len, fmed_filt *d)
+{
+	size_t r;
+	r = fffile_write(f->fd, data, len);
+	if (r != len) {
+		syserrlog(core, d->trk, NULL, "%e", FFERR_WRITE);
+		return -1;
+	}
+	f->stat.nfwrite++;
+
+	dbglog(core, d->trk, NULL, "written %L bytes at offset %U (%L pending)", r, f->fsize, d->datalen);
+	f->fsize += r;
+	return r;
+}
+
+static int file_stdout_write(void *ctx, fmed_filt *d)
+{
+	stdout_ctx *f = ctx;
+	ssize_t r;
+	ffstr dst;
+
+	if ((int64)d->output.seek != FMED_NULL) {
+
+		if (f->buf.len != 0) {
+			if (-1 == file_stdout_writedata(f, f->buf.ptr, f->buf.len, d))
+				return FMED_RERR;
+			f->buf.len = 0;
+		}
+
+		errlog(core, d->trk, NULL, "can't seek on stdout.  offset:%U", d->output.seek);
+		return FMED_RERR;
+	}
+
+	for (;;) {
+
+		r = ffbuf_add(&f->buf, d->data, d->datalen, &dst);
+		d->data += r;
+		d->datalen -= r;
+		if (dst.len == 0) {
+			f->stat.nmwrite++;
+			if (!(d->flags & FMED_FLAST) || f->buf.len == 0)
+				break;
+			ffstr_set(&dst, f->buf.ptr, f->buf.len);
+		}
+
+		if (-1 == file_stdout_writedata(f, dst.ptr, dst.len, d))
+			return FMED_RERR;
+
+		if (d->datalen == 0)
+			break;
+	}
+
+	if (d->flags & FMED_FLAST) {
 		return FMED_RDONE;
 	}
 

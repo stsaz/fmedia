@@ -140,7 +140,7 @@ static fmed_f* trk_modbyext(fm_trk *t, const ffstr3 *map, const ffstr *ext)
 
 static int trk_open(fm_trk *t, const char *fn)
 {
-	ffstr ext;
+	ffstr name, ext;
 	fffileinfo fi;
 
 	trk_setvalstr(t, "input", fn);
@@ -157,9 +157,13 @@ static int trk_open(fm_trk *t, const char *fn)
 		if (NULL == trk_modbyext(t, &fmed->conf.inmap, &ext))
 			return 1;
 	} else {
-		addfilter(t, "#file.in");
+		uint have_path = (NULL != ffpath_split2(fn, ffsz_len(fn), NULL, &name));
+		ffpath_splitname(name.ptr, name.len, &name, &ext);
+		if (!have_path && ffstr_eqcz(&name, "@stdin"))
+			addfilter(t, "#file.stdin");
+		else
+			addfilter(t, "#file.in");
 
-		ffpath_splitname(fn, ffsz_len(fn), NULL, &ext);
 		if (NULL == trk_modbyext(t, &fmed->conf.inmap, &ext))
 			return 1;
 	}
@@ -185,7 +189,8 @@ static void trk_open_capt(fm_trk *t)
 
 static int trk_setout(fm_trk *t)
 {
-	const char *s, *fn;
+	ffstr name, ext;
+	const char *s;
 
 	if (t->props.type == FMED_TRK_TYPE_NETIN) {
 		ffstr ext;
@@ -214,36 +219,8 @@ static int trk_setout(fm_trk *t)
 		addfilter(t, "#soundmod.peaks");
 
 	} else if (FMED_PNULL != (s = trk_getvalstr(t, "output"))) {
-		ffstr name, ext;
-		ffpath_splitname(s, ffsz_len(s), &name, &ext);
-		if (NULL == trk_modbyext(t, &fmed->conf.outmap, &ext))
-			return -1;
-		addfilter(t, "#file.out");
-
-	} else if (fmed->cmd.outfn.len != 0 && !fmed->cmd.rec) {
-		ffstr name, ext;
-		ffs_rsplit2by(fmed->cmd.outfn.ptr, fmed->cmd.outfn.len, '.', &name, &ext);
-
-		if (name.len != 0)
-			trk_setvalstr(t, "output", fmed->cmd.outfn.ptr);
-
-		else if (FMED_PNULL != (fn = trk_getvalstr(t, "input"))) {
-
-			ffstr fname;
-			ffstr3 outfn = {0};
-
-			ffpath_split2(fn, ffsz_len(fn), NULL, &fname);
-			ffpath_splitname(fname.ptr, fname.len, &name, NULL);
-
-			if (0 == ffstr_catfmt(&outfn, "%S/%S.%S%Z"
-				, &fmed->cmd.outdir, &name, &ext))
-				return -1;
-			trk_setvalstr4(t, "output", outfn.ptr, FMED_TRK_FACQUIRE);
-
-		} else {
-			errlog(core, t, "core", "--out must be set");
-			return -1;
-		}
+		uint have_path = (NULL != ffpath_split2(s, ffsz_len(s), NULL, &name));
+		ffpath_splitname(name.ptr, name.len, &name, &ext);
 
 		if (fmed->cmd.out_copy) {
 			trk_setval(t, "out-copy", 1);
@@ -258,7 +235,13 @@ static int trk_setout(fm_trk *t)
 		if (NULL == trk_modbyext(t, &fmed->conf.outmap, &ext))
 			return -1;
 
-		addfilter(t, "#file.out");
+		if (!have_path && ffstr_eqcz(&name, "@stdout")) {
+			addfilter(t, "#file.stdout");
+			t->props.out_seekable = 0;
+		} else {
+			addfilter(t, "#file.out");
+			t->props.out_seekable = 1;
+		}
 
 	} else if (fmed->conf.output != NULL) {
 		addfilter1(t, fmed->conf.output);

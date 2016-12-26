@@ -37,6 +37,7 @@ mixer                 mixer
 // CORE
 
 typedef struct fmed_core fmed_core;
+typedef struct fmed_props fmed_props;
 typedef struct fmed_mod fmed_mod;
 typedef struct fmed_filter fmed_filter;
 typedef const fmed_mod* (*fmed_getmod_t)(const fmed_core *core);
@@ -67,6 +68,7 @@ typedef struct fmed_modinfo {
 
 struct fmed_core {
 	uint loglev;
+	fmed_props *props;
 	fffd kq;
 
 	int64 (*getval)(const char *name);
@@ -99,6 +101,10 @@ enum FMED_INSTANCE_MODE {
 	FMED_IM_CLEARPLAY,
 };
 
+struct fmed_props {
+	uint stdout_busy :1;
+	uint stdin_busy :1;
+};
 
 struct fmed_mod {
 	const void* (*iface)(const char *name);
@@ -255,6 +261,7 @@ struct fmed_trk {
 		uint meta_changed :1;
 		uint pcm_peaks_crc :1;
 		uint raw_data :1;
+		uint out_seekable :1;
 	};
 	};
 
