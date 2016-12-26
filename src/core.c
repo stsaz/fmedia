@@ -167,6 +167,9 @@ static int fmed_conf_mod(ffparser_schem *p, void *obj, ffstr *val)
 	if (ffstr_eqcz(val, "#tui.tui") && (fmed->cmd.notui || fmed->cmd.gui))
 		goto done;
 
+	if (ffstr_matchcz(val, "gui.") && !fmed->cmd.gui)
+		goto done;
+
 	if (NULL == core->insmod(val->ptr, NULL))
 		return FFPARS_ESYS;
 

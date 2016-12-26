@@ -47,6 +47,15 @@ static const fmed_filter fmed_gui = {
 	&gtrk_open, &gtrk_process, &gtrk_close
 };
 
+//RECORDING TRACK WRAPPER
+static void* rec_open(fmed_filt *d);
+static int rec_process(void *ctx, fmed_filt *d);
+static void rec_close(void *ctx);
+static const fmed_filter gui_rec_iface = {
+	&rec_open, &rec_process, &rec_close
+};
+
+
 struct ghk_ent {
 	uint cmd;
 	uint hk;
@@ -478,22 +487,44 @@ void gui_media_add1(const char *fn)
 	gui_media_added(pe, 0);
 }
 
+
+static void* rec_open(fmed_filt *d)
+{
+	ffui_stbar_settextz(&gg->wmain.stbar, 0, "Recording...");
+	return FMED_FILT_DUMMY;
+}
+
+static void rec_close(void *ctx)
+{
+	if (gg->rec_trk != NULL) {
+		ffui_stbar_settextz(&gg->wmain.stbar, 0, "");
+		gg->rec_trk = NULL;
+	}
+}
+
+static int rec_process(void *ctx, fmed_filt *d)
+{
+	d->out = d->data,  d->outlen = d->datalen;
+	return FMED_RDONE;
+}
+
+
 void gui_rec(uint cmd)
 {
 	void *t;
 
 	if (gg->rec_trk != NULL) {
 		const char *fn = gg->track->getvalstr(gg->rec_trk, "output");
-		gg->track->cmd(gg->rec_trk, FMED_TRACK_STOP);
-		gg->rec_trk = NULL;
-		ffui_stbar_settextz(&gg->wmain.stbar, 0, "");
 		if (fn != FMED_PNULL)
 			gui_media_add1(fn);
+		gg->track->cmd(gg->rec_trk, FMED_TRACK_STOP);
 		return;
 	}
 
 	if (NULL == (t = gg->track->create(FMED_TRACK_REC, NULL)))
 		return;
+
+	gg->track->cmd2(t, FMED_TRACK_ADDFILT_BEGIN, "gui.rec-nfy");
 
 	if (0 != gui_rec_addsetts(t)) {
 		gg->track->cmd(t, FMED_TRACK_STOP);
@@ -512,10 +543,8 @@ void gui_rec(uint cmd)
 		break;
 	}
 
-	gg->track->cmd(t, FMED_TRACK_START);
 	gg->rec_trk = t;
-
-	ffui_stbar_settextz(&gg->wmain.stbar, 0, "Recording...");
+	gg->track->cmd(t, FMED_TRACK_START);
 }
 
 
@@ -609,11 +638,12 @@ done:
 
 static const void* gui_iface(const char *name)
 {
-	if (!ffsz_cmp(name, "gui")) {
+	if (!ffsz_cmp(name, "gui"))
 		return &fmed_gui;
-	} else if (!ffsz_cmp(name, "log")) {
+	else if (!ffsz_cmp(name, "rec-nfy"))
+		return &gui_rec_iface;
+	else if (!ffsz_cmp(name, "log"))
 		return &gui_logger;
-	}
 	return NULL;
 }
 
