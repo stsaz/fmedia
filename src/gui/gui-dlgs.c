@@ -501,6 +501,8 @@ void wrec_init()
 
 // gui -> core
 static const struct cvt_set rec_sets[] = {
+	{ "loopback_device", "Loopback Device Number (record from playback)", "empty: disabled;  0: default device", CVTF_EMPTY | FFOFF(rec_sets_t, lpbk_devno) },
+	{ "capture_device", "Capture Device Number", "0: default", CVTF_EMPTY | FFOFF(rec_sets_t, devno) },
 	{ "pcm_format", "Audio Format", "int8 | int16 | int24 | int32 | float32", CVTF_EMPTY | FFOFF(rec_sets_t, format) },
 	{ "pcm_sample_rate", "Sample Rate (Hz)", "", CVTF_EMPTY | FFOFF(rec_sets_t, sample_rate) },
 	{ "pcm_channels", "Channels", "2 (stereo) | 1 (mono) | left | right", CVTF_EMPTY | FFOFF(rec_sets_t, channels) },
@@ -517,6 +519,8 @@ static const struct cvt_set rec_sets[] = {
 // conf -> gui
 static const ffpars_arg rec_sets_conf[] = {
 	{ "output",	FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY, FFPARS_DSTOFF(rec_sets_t, output) },
+	{ "loopback_device",	FFPARS_TINT, FFPARS_DSTOFF(rec_sets_t, lpbk_devno) },
+	{ "capture_device",	FFPARS_TINT, FFPARS_DSTOFF(rec_sets_t, devno) },
 	{ "gain",	FFPARS_TFLOAT, FFPARS_DSTOFF(rec_sets_t, gain_f) },
 
 	{ "vorbis_quality",	FFPARS_TFLOAT, FFPARS_DSTOFF(rec_sets_t, vorbis_quality_f) },
@@ -531,6 +535,8 @@ static void rec_sets_init(rec_sets_t *sets)
 	sets->init = 1;
 	sets->format = sets->sample_rate = sets->channels = SETT_EMPTY_INT;
 	sets->gain_f = 0.0;
+	sets->devno = 0;
+	sets->lpbk_devno = SETT_EMPTY_INT;
 
 	sets->vorbis_quality_f = 5.0;
 	sets->opus_bitrate = 128;

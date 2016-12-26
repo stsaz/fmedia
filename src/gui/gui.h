@@ -133,6 +133,8 @@ typedef struct rec_sets_t {
 	int aac_quality;
 	int flac_complevel;
 
+	int lpbk_devno;
+	int devno;
 	int format;
 	int sample_rate;
 	int channels;
