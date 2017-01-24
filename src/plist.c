@@ -16,6 +16,11 @@ Copyright (c) 2015 Simon Zolin */
 static const fmed_core *core;
 const fmed_queue *qu;
 
+typedef struct dirconf_t {
+	byte expand;
+} dirconf_t;
+dirconf_t dirconf;
+
 typedef struct m3u {
 	ffparser m3u;
 	fmed_que_entry ent;
@@ -45,8 +50,9 @@ typedef struct cue {
 static const void* plist_iface(const char *name);
 static int plist_sig(uint signo);
 static void plist_destroy(void);
+static int plist_conf(const char *name, ffpars_ctx *ctx);
 static const fmed_mod fmed_plist_mod = {
-	&plist_iface, &plist_sig, &plist_destroy
+	&plist_iface, &plist_sig, &plist_destroy, &plist_conf
 };
 
 //M3U INPUT
@@ -83,7 +89,14 @@ static const fmed_filter fmed_dir_input = {
 	&dir_open, &dir_process, &dir_close
 };
 
+static int dir_conf(ffpars_ctx *ctx);
+static int dir_open_r(const char *dirname, fmed_filt *d);
+
 static int plist_fullname(fmed_filt *d, const ffstr *name, ffstr *dst);
+
+static const ffpars_arg dir_conf_args[] = {
+	{ "expand",  FFPARS_TBOOL8,  FFPARS_DSTOFF(dirconf_t, expand) },
+};
 
 
 FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
@@ -104,6 +117,13 @@ static const void* plist_iface(const char *name)
 	else if (!ffsz_cmp(name, "dir"))
 		return &fmed_dir_input;
 	return NULL;
+}
+
+static int plist_conf(const char *name, ffpars_ctx *ctx)
+{
+	if (!ffsz_cmp(name, "dir"))
+		return dir_conf(ctx);
+	return -1;
 }
 
 static int plist_sig(uint signo)
@@ -534,6 +554,13 @@ err:
 }
 
 
+static int dir_conf(ffpars_ctx *ctx)
+{
+	dirconf.expand = 1;
+	ffpars_setargs(ctx, &dirconf, dir_conf_args, FFCNT(dir_conf_args));
+	return 0;
+}
+
 static void* dir_open(fmed_filt *d)
 {
 	ffdirexp dr;
@@ -542,6 +569,11 @@ static void* dir_open(fmed_filt *d)
 
 	if (FMED_PNULL == (dirname = d->track->getvalstr(d->trk, "input")))
 		return NULL;
+
+	if (dirconf.expand) {
+		dir_open_r(dirname, d);
+		return FMED_FILT_DUMMY;
+	}
 
 	if (0 != ffdir_expopen(&dr, (char*)dirname, 0)) {
 		if (fferr_last() != ENOMOREFILES) {
@@ -564,6 +596,106 @@ static void* dir_open(fmed_filt *d)
 	ffdir_expclose(&dr);
 	qu->cmd(FMED_QUE_RM, first);
 	return FMED_FILT_DUMMY;
+}
+
+struct dir_ent {
+	char *dir;
+	ffchain_item sib;
+};
+
+/*
+. Scan directory
+. Add files to queue;  gather all directories into chain
+. Get next directory from chain and scan it;  new directories will be added after this directory
+
+Example:
+.:
+ (dir1)
+ (dir2)
+ file
+dir1:
+ (dir1/dir11)
+ dir1/file
+ dir1/dir11/file
+dir2:
+ dir2/file
+*/
+static int dir_open_r(const char *dirname, fmed_filt *d)
+{
+	ffdirexp dr;
+	const char *fn;
+	fmed_que_entry e, *first, *prev_qent;
+	fffileinfo fi;
+	ffarr dirs = {0};
+	ffchain chain;
+	ffchain_item *lprev, *lcur;
+	struct dir_ent *de;
+
+	ffchain_init(&chain);
+	lprev = ffchain_sentl(&chain);
+	lcur = lprev;
+
+	first = (void*)fmed_getval("queue_item");
+	prev_qent = first;
+
+	for (;;) {
+
+		dbglog(core, d->trk, NULL, "scanning %s", dirname);
+
+		if (0 != ffdir_expopen(&dr, (char*)dirname, 0)) {
+			if (fferr_last() != ENOMOREFILES)
+				syserrlog(core, d->trk, NULL, "%s: %s", ffdir_open_S, dirname);
+			goto next;
+		}
+
+		while (NULL != (fn = ffdir_expread(&dr))) {
+
+			if (0 != fffile_infofn(fn, &fi)) {
+				syserrlog(core, d->trk, NULL, "%s: %s", fffile_info_S, fn);
+				continue;
+			}
+
+			if (fffile_isdir(fffile_infoattr(&fi))) {
+				if (NULL == (de = ffarr_pushgrowT(&dirs, 16, struct dir_ent))) {
+					syserrlog(core, d->trk, NULL, "%s", ffmem_alloc_S);
+					goto end;
+				}
+				if (NULL == (de->dir = ffsz_alcopyz(fn))) {
+					syserrlog(core, d->trk, NULL, "%s", ffmem_alloc_S);
+					goto end;
+				}
+				ffchain_append(&de->sib, lprev);
+				lprev = &de->sib;
+				continue;
+			}
+
+			ffmem_tzero(&e);
+			ffstr_setz(&e.url, fn);
+			e.prev = prev_qent;
+			prev_qent = (void*)qu->cmd2(FMED_QUE_ADD | FMED_QUE_COPY_PROPS, &e, 0);
+		}
+
+		ffdir_expclose(&dr);
+		ffmem_tzero(&dr);
+
+next:
+		lcur = lcur->next;
+		if (lcur == ffchain_sentl(&chain))
+			break;
+		de = FF_GETPTR(struct dir_ent, sib, lcur);
+		dirname = de->dir;
+		lprev = lcur;
+	}
+
+end:
+	ffdir_expclose(&dr);
+	FFARR_WALKT(&dirs, de, struct dir_ent) {
+		ffmem_safefree(de->dir);
+	}
+	ffarr_free(&dirs);
+
+	qu->cmd(FMED_QUE_RM, first);
+	return 0;
 }
 
 static void dir_close(void *ctx)
