@@ -165,6 +165,7 @@ static const ffui_ldr_ctl wgoto_ctls[] = {
 
 static const ffui_ldr_ctl wabout_ctls[] = {
 	add(gui_wabout, wabout),
+	add(gui_wabout, ico),
 	add(gui_wabout, labout),
 	add(gui_wabout, lurl),
 	{NULL, 0, NULL}
@@ -803,7 +804,7 @@ static void gui_destroy(void)
 		return;
 
 	ffarr_free(&gg->ghks);
-	ffarr_free(&gg->filenames);
+	FFARR_FREE_ALL_PTR(&gg->filenames, ffmem_free, char*);
 	ffui_icon_destroy(&gg->wmain.ico);
 	ffui_icon_destroy(&gg->wmain.ico_rec);
 	ffui_wnd_close(&gg->wmain.wmain);
@@ -956,6 +957,7 @@ static void gui_log(uint flags, fmed_logdata *ld)
 
 	ffui_edit_addtext(&gg->wlog.tlog, buf, s - buf);
 
-	if ((flags & _FMED_LOG_LEVMASK) == FMED_LOG_ERR)
+	if ((flags & _FMED_LOG_LEVMASK) == FMED_LOG_ERR
+		|| (flags & _FMED_LOG_LEVMASK) == FMED_LOG_WARN)
 		ffui_show(&gg->wlog.wlog, 1);
 }

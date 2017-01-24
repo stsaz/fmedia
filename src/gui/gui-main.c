@@ -135,7 +135,7 @@ static const struct cmd cmds[] = {
 };
 
 static const struct cmd cmd_open = { OPEN,	F1 | CMD_FCORE,	&gui_media_open };
-static const struct cmd cmd_add = { ADD,	F1 | CMD_FCORE,	&gui_media_open };
+const struct cmd cmd_add = { ADD,	F1 | CMD_FCORE,	&gui_media_open };
 const struct cmd cmd_play = { PLAY,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op };
 static const struct cmd cmd_quit = { QUIT,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op };
 static const struct cmd cmd_savelist = { SAVELIST,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op };
@@ -213,6 +213,8 @@ static void gui_action(ffui_wnd *wnd, int id)
 		ffui_show(&gg->wgoto.wgoto, 0);
 		ffui_show(&gg->wconvert.wconvert, 0);
 		ffui_show(&gg->wrec.wrec, 0);
+		ffui_show(&gg->wuri.wuri, 0);
+		ffui_show(&gg->wfilter.wnd, 0);
 		gg->min_tray = 1;
 		break;
 
@@ -290,7 +292,7 @@ static void gui_onclose(void)
 	ffui_ldr_setv(&ldr, setts, FFCNT(setts), 0);
 
 	if (0 != ffui_ldr_write(&ldr, fn) && fferr_nofile(fferr_last())) {
-		if (0 != ffdir_make_path(fn) && fferr_last() != EEXIST) {
+		if (0 != ffdir_make_path(fn, 0) && fferr_last() != EEXIST) {
 			syserrlog(core, NULL, "gui", "Can't create directory for the file: %s", fn);
 			goto done;
 		}
@@ -327,6 +329,8 @@ static void gui_goto_show(void)
 	ffstr_catfmt(&s, "%02u:%02u", pos / 60, pos % 60);
 	ffui_settextstr(&gg->wgoto.etime, &s);
 	ffarr_free(&s);
+	ffui_edit_selall(&gg->wgoto.etime);
+	ffui_setfocus(&gg->wgoto.etime);
 	ffui_show(&gg->wgoto.wgoto, 1);
 }
 
@@ -474,13 +478,19 @@ done:
 	ffarr_free(&buf);
 }
 
+struct ent_idx {
+	uint idx;
+	fmed_que_entry *ent;
+};
+
 static void gui_media_fileop(uint cmd)
 {
 	int i = -1;
-	fmed_que_entry *ent, **pent;
+	fmed_que_entry *ent;
+	struct ent_idx *ei;
 	ffui_viewitem it;
-	struct { FFARR(char*) } buf = {0};
-	struct { FFARR(fmed_que_entry*) } ents = {0};
+	ffarr buf = {0}; //char*[]
+	ffarr ents = {0}; //ent_idx[]
 	char st[255];
 	size_t n;
 	char **pitem;
@@ -492,15 +502,16 @@ static void gui_media_fileop(uint cmd)
 		ffui_view_get(&gg->wmain.vlist, 0, &it);
 		ent = (void*)ffui_view_param(&it);
 
-		if (NULL == (pitem = ffarr_push(&buf, char*)))
+		if (NULL == (pitem = ffarr_pushgrowT(&buf, 16, char*)))
 			goto done;
 		*pitem = ent->url.ptr;
 
 		switch (cmd) {
 		case DELFILE:
-			if (NULL == (pent = ffarr_push(&ents, fmed_que_entry*)))
+			if (NULL == (ei = ffarr_pushgrowT(&ents, 16, struct ent_idx)))
 				goto done;
-			*pent = ent;
+			ei->ent = ent;
+			ei->idx = i;
 			break;
 		}
 	}
@@ -519,8 +530,15 @@ static void gui_media_fileop(uint cmd)
 	case DELFILE:
 		if (0 == ffui_fop_del((const char *const *)buf.ptr, buf.len, FFUI_FOP_ALLOWUNDO)) {
 			ffui_redraw(&gg->wmain.vlist, 0);
-			FFARR_WALK(&ents, pent) {
-				gg->qu->cmd(FMED_QUE_RM, *pent);
+			FFARR_WALKT(&ents, ei, struct ent_idx) {
+				gg->qu->cmd(FMED_QUE_RM | FMED_QUE_NO_ONCHANGE, ei->ent);
+			}
+			FFARR_RWALKT(&ents, ei, struct ent_idx) {
+				ffui_view_rm(&gg->wmain.vlist, ei->idx);
+			}
+			if (ents.len != 0) {
+				ei = ffarr_itemT(&ents, 0, struct ent_idx);
+				gui_plist_recount(ei->idx);
 			}
 			ffui_redraw(&gg->wmain.vlist, 1);
 			n = ffs_fmt(st, st + sizeof(st), "Deleted %L files", buf.len);
@@ -531,6 +549,7 @@ static void gui_media_fileop(uint cmd)
 
 done:
 	ffarr_free(&buf);
+	ffarr_free(&ents);
 }
 
 static void gui_showtextfile(uint cmd)
@@ -610,8 +629,7 @@ static void gui_trk_setinfo(int idx, fmed_que_entry *ent, uint sec, uint flags)
 
 	if (NULL == (val = gg->qu->meta_find(ent, FFSTR("title")))) {
 		//use filename as a title
-		ffpath_split2(ent->url.ptr, ent->url.len, NULL, &title);
-		ffpath_splitname(title.ptr, title.len, &title, NULL);
+		ffpath_split3(ent->url.ptr, ent->url.len, NULL, &title, NULL);
 	} else
 		title = *val;
 
@@ -652,8 +670,7 @@ static void gui_trk_setinfo2(fmed_que_entry *ent, uint flags)
 		title = *val;
 	else {
 		//use filename as a title
-		ffpath_split2(ent->url.ptr, ent->url.len, NULL, &title);
-		ffpath_splitname(title.ptr, title.len, &title, NULL);
+		ffpath_split3(ent->url.ptr, ent->url.len, NULL, &title, NULL);
 	}
 
 	if (flags & GUI_TRKINFO_WNDCAPTION) {
@@ -695,13 +712,13 @@ static void gui_media_opendlg(uint id)
 	if (NULL == (fn = ffui_dlg_open(&gg->dlg, &gg->wmain.wmain)))
 		return;
 
-	ffarr_free(&gg->filenames);
-
 	do {
-		if (NULL == (ps = ffarr_push(&gg->filenames, const char*)))
+		if (NULL == (ps = ffarr_pushgrowT(&gg->filenames, 16, const char*)))
 			goto err;
-		if (NULL == (*ps = ffsz_alcopyz(fn)))
+		if (NULL == (*ps = ffsz_alcopyz(fn))) {
+			gg->filenames.len--;
 			goto err;
+		}
 	} while (NULL != (fn = ffui_dlg_nextname(&gg->dlg)));
 
 	if (id == OPEN)
@@ -712,7 +729,7 @@ static void gui_media_opendlg(uint id)
 	return;
 
 err:
-	ffarr_free(&gg->filenames);
+	FFARR_FREE_ALL_PTR(&gg->filenames, ffmem_free, char*);
 }
 
 static void gui_media_open(uint id)
@@ -733,11 +750,13 @@ static void gui_media_open(uint id)
 	if (id == OPEN)
 		gui_corecmd_op(NEXT, NULL);
 
-	ffarr_free(&gg->filenames);
+	FFARR_FREE_ALL_PTR(&gg->filenames, ffmem_free, char*);
 }
 
 static void gui_media_addurl(uint id)
 {
+	ffui_edit_selall(&gg->wuri.turi);
+	ffui_setfocus(&gg->wuri.turi);
 	ffui_show(&gg->wuri.wuri, 1);
 }
 
@@ -950,19 +969,29 @@ void gui_clear(void)
 
 static void gui_on_dropfiles(ffui_wnd *wnd, ffui_fdrop *df)
 {
-	const char *fn;
-
-	ffui_redraw(&gg->wmain.vlist, 0);
+	const char *fn, **ps;
 
 	while (NULL != (fn = ffui_fdrop_next(df))) {
-		gui_media_add1(fn);
+
+		if (NULL == (ps = ffarr_pushgrowT(&gg->filenames, 16, const char*)))
+			goto err;
+		if (NULL == (*ps = ffsz_alcopyz(fn))) {
+			gg->filenames.len--;
+			goto err;
+		}
 	}
 
-	ffui_redraw(&gg->wmain.vlist, 1);
+	gui_corecmd_add(&cmd_add, NULL);
+	return;
+
+err:
+	FFARR_FREE_ALL_PTR(&gg->filenames, ffmem_free, char*);
 }
 
 static void gui_filt_show(void)
 {
+	ffui_edit_selall(&gg->wfilter.ttext);
+	ffui_setfocus(&gg->wfilter.ttext);
 	ffui_show(&gg->wfilter.wnd, 1);
 }
 

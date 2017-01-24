@@ -61,6 +61,7 @@ typedef struct gui_wgoto {
 
 typedef struct gui_wabout {
 	ffui_wnd wabout;
+	ffui_img ico;
 	ffui_label labout;
 	ffui_label lurl;
 } gui_wabout;
@@ -335,6 +336,7 @@ struct cmd {
 };
 
 const struct cmd cmd_play;
+const struct cmd cmd_add;
 
 const struct cmd* getcmd(uint cmd, const struct cmd *cmds, uint n);
 

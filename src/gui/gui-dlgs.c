@@ -63,7 +63,13 @@ static void gui_cvt_action(ffui_wnd *wnd, int id)
 
 	switch (id) {
 	case CVT_SETS_EDIT: {
-		int i = ffui_view_selnext(&gg->wconvert.vsets, -1);
+		int i, isub;
+		ffui_point pt;
+		ffui_cur_pos(&pt);
+		ffui_screen2client(&gg->wconvert.vsets, &pt);
+		i = ffui_send(gg->wconvert.vsets.h, LVM_GETHOTITEM, 0, 0);
+		if (VSETS_VAL != (isub = ffui_view_hittest(&gg->wconvert.vsets, &pt, i)))
+			return;
 		ffui_view_edit(&gg->wconvert.vsets, i, VSETS_VAL);
 		}
 		break;
@@ -341,7 +347,7 @@ static int gui_cvt_getsettings(const struct cvt_set *psets, uint nsets, void *se
 		ffui_view_get(vlist, VSETS_VAL, &it);
 
 		if (NULL == (txt = ffsz_alcopyqz(ffui_view_textq(&it)))) {
-			syserrlog(core, NULL, "gui", "%e", FFERR_BUFALOC);
+			syserrlog(core, NULL, "gui", "%s", ffmem_alloc_S);
 			ffui_view_itemreset(&it);
 			return -1;
 		}
@@ -621,7 +627,13 @@ static void gui_rec_action(ffui_wnd *wnd, int id)
 
 	switch (id) {
 	case CVT_SETS_EDIT: {
-		int i = ffui_view_selnext(&gg->wrec.vsets, -1);
+		int i, isub;
+		ffui_point pt;
+		ffui_cur_pos(&pt);
+		ffui_screen2client(&gg->wrec.vsets, &pt);
+		i = ffui_send(gg->wrec.vsets.h, LVM_GETHOTITEM, 0, 0);
+		if (VSETS_VAL != (isub = ffui_view_hittest(&gg->wrec.vsets, &pt, i)))
+			return;
 		ffui_view_edit(&gg->wrec.vsets, i, VSETS_VAL);
 		break;
 	}
@@ -695,15 +707,26 @@ void winfo_init()
 {
 	gg->winfo.winfo.hide_on_close = 1;
 	gg->winfo.winfo.on_action = &gui_info_action;
+	ffui_view_showgroups(&gg->winfo.vinfo, 1);
+}
+
+static void gui_info_click(void)
+{
+	int i, isub;
+	ffui_point pt;
+	ffui_cur_pos(&pt);
+	ffui_screen2client(&gg->winfo.vinfo, &pt);
+	i = ffui_send(gg->winfo.vinfo.h, LVM_GETHOTITEM, 0, 0);
+	if (VINFO_VAL != (isub = ffui_view_hittest(&gg->winfo.vinfo, &pt, i)))
+		return;
+	ffui_view_edit(&gg->winfo.vinfo, i, VINFO_VAL);
 }
 
 static void gui_info_action(ffui_wnd *wnd, int id)
 {
 	switch (id) {
-	case INFOEDIT: {
-		int i = ffui_view_selnext(&gg->winfo.vinfo, -1);
-		ffui_view_edit(&gg->winfo.vinfo, i, VINFO_VAL);
-		}
+	case INFOEDIT:
+		gui_info_click();
 		break;
 	}
 }
@@ -712,13 +735,15 @@ void gui_media_showinfo(void)
 {
 	fmed_que_entry *e;
 	ffui_viewitem it;
-	int i;
+	ffui_viewgrp vg;
+	int i, grp;
 	ffstr name, *val;
 
 	ffui_show(&gg->winfo.winfo, 1);
 
 	if (-1 == (i = ffui_view_selnext(&gg->wmain.vlist, -1))) {
 		ffui_view_clear(&gg->winfo.vinfo);
+		ffui_view_cleargroups(&gg->winfo.vinfo);
 		return;
 	}
 
@@ -732,9 +757,16 @@ void gui_media_showinfo(void)
 
 	ffui_redraw(&gg->winfo.vinfo, 0);
 	ffui_view_clear(&gg->winfo.vinfo);
+	ffui_view_cleargroups(&gg->winfo.vinfo);
+
+	ffui_viewgrp_reset(&vg);
+	ffui_viewgrp_settextz(&vg, "Metadata");
+	grp = ffui_view_insgrp(&gg->winfo.vinfo, -1, &vg);
+
 	for (i = 0;  NULL != (val = gg->qu->meta(e, i, &name, 0));  i++) {
 		ffui_view_iteminit(&it);
 		ffui_view_settextstr(&it, &name);
+		ffui_view_setgroupid(&it, grp);
 		ffui_view_append(&gg->winfo.vinfo, &it);
 
 		ffui_view_settextstr(&it, val);
