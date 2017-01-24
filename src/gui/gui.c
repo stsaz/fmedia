@@ -37,6 +37,8 @@ static int gui_install(uint sig);
 static FFTHDCALL int gui_worker(void *param);
 static void gui_que_onchange(fmed_que_entry *e, uint flags);
 static void gui_ghk_reg(void);
+static void gui_savelists(void);
+static int gui_loadlists(void);
 
 //GUI-TRACK
 static void* gtrk_open(fmed_filt *d);
@@ -81,6 +83,7 @@ static const ffpars_arg gui_conf_args[] = {
 	{ "status_tray",	FFPARS_TBOOL | FFPARS_F8BIT, FFPARS_DSTOFF(ggui, status_tray) },
 	{ "seek_step",	FFPARS_TINT | FFPARS_F8BIT | FFPARS_FNOTZERO, FFPARS_DSTOFF(ggui, seek_step_delta) },
 	{ "seek_leap",	FFPARS_TINT | FFPARS_F8BIT | FFPARS_FNOTZERO, FFPARS_DSTOFF(ggui, seek_leap_delta) },
+	{ "autosave_playlists",	FFPARS_TBOOL8, FFPARS_DSTOFF(ggui, autosave_playlists) },
 	{ "global_hotkeys",	FFPARS_TOBJ, FFPARS_DST(&gui_conf_ghk) },
 };
 
@@ -453,6 +456,8 @@ void gui_corecmd_op(uint cmd, void *udata)
 
 	case QUIT:
 		core->sig(FMED_STOP);
+		if (gg->autosave_playlists)
+			gui_savelists();
 		break;
 	}
 }
@@ -481,12 +486,19 @@ static void gui_que_onchange(fmed_que_entry *e, uint flags)
 void gui_media_add1(const char *fn)
 {
 	fmed_que_entry e, *pe;
+	int t = core->cmd(FMED_FILETYPE, fn);
+
+	if (t == FMED_FT_UKN)
+		return;
 
 	ffmem_tzero(&e);
 	ffstr_setz(&e.url, fn);
 	if (NULL == (pe = (void*)gg->qu->cmd2(FMED_QUE_ADD | FMED_QUE_NO_ONCHANGE, &e, 0)))
 		return;
 	gui_media_added(pe, 0);
+
+	if (t == FMED_FT_DIR || t == FMED_FT_PLIST)
+		gg->qu->cmd2(FMED_QUE_EXPAND, pe, 0);
 }
 
 
@@ -582,6 +594,60 @@ char* gui_usrconf_filename(void)
 	return core->getpath(FFSTR(GUI_USRCONF_PORT));
 }
 
+/** Save playlists to disk. */
+static void gui_savelists(void)
+{
+	char *fn;
+
+	if (gg->portable_conf)
+		fn = core->getpath(FFSTR("list1.m3u8"));
+	else
+		fn = ffenv_expand(NULL, 0, GUI_PLIST_PATH);
+	if (fn == NULL)
+		goto end;
+
+	gg->qu->cmd(FMED_QUE_SAVE, fn);
+	ffmem_free(fn);
+
+end:
+	return;
+}
+
+/** Load playlists saved in the previous session. */
+static int gui_loadlists(void)
+{
+	fffd f = FF_BADFD;
+	char *fn;
+	char **ps;
+	int r = -1;
+
+	if (gg->portable_conf)
+		fn = core->getpath(FFSTR("list1.m3u8"));
+	else
+		fn = ffenv_expand(NULL, 0, GUI_PLIST_PATH);
+	if (fn == NULL)
+		goto end;
+
+	if (FF_BADFD == (f = fffile_open(fn, O_RDONLY)))
+		goto end;
+
+	if (NULL == (ps = ffarr_push(&gg->filenames, char*)))
+		goto end;
+	if (NULL == (*ps = ffsz_alcopyz(fn))) {
+		gg->filenames.len--;
+		goto end;
+	}
+	gui_corecmd_add(&cmd_add, NULL);
+	r = 0;
+
+end:
+	if (r != 0)
+		FFARR_FREE_ALL_PTR(&gg->filenames, ffmem_free, char*);
+	FF_SAFECLOSE(f, FF_BADFD, fffile_close);
+	ffmem_safefree(fn);
+	return r;
+}
+
 static FFTHDCALL int gui_worker(void *param)
 {
 	char *fn = NULL, *fnconf = NULL;
@@ -624,6 +690,9 @@ static FFTHDCALL int gui_worker(void *param)
 	ffui_dlg_multisel(&gg->dlg);
 
 	gg->vol = gui_getvol() * 100;
+
+	if (gg->autosave_playlists)
+		gui_loadlists();
 
 	fflk_unlock(&gg->lk);
 

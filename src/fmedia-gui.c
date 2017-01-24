@@ -55,7 +55,8 @@ static void open_input(void)
 	char *s;
 	ffstr args, fn;
 	size_t n;
-	ffbool skip = 1, added = 0;
+	void *qe, *first = NULL;
+	ffbool skip = 1;
 
 	if (NULL == (qu = core->getmod("#queue.queue")))
 		return;
@@ -76,15 +77,16 @@ static void open_input(void)
 		if (fn.len != 0) {
 			ffmem_tzero(&e);
 			e.url = fn;
-			qu->add(&e);
-			added = 1;
+			qe = qu->add(&e);
+			if (first == NULL)
+				first = qe;
 		}
 	}
 
 	ffmem_free(s);
 
-	if (added)
-		qu->cmd(FMED_QUE_PLAY, NULL);
+	if (first != NULL)
+		qu->cmd(FMED_QUE_PLAY, first);
 }
 
 

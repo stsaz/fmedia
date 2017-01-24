@@ -348,17 +348,18 @@ static void qu_setprops(const fmed_queue *qu, fmed_que_entry *qe);
 
 #ifdef FF_WIN
 /** Add to queue filenames expanded by wildcard. */
-static int open_input_wcard(const fmed_queue *qu, char *src, const fmed_track *track, const fmed_trk *trkinfo)
+static void* open_input_wcard(const fmed_queue *qu, char *src, const fmed_track *track, const fmed_trk *trkinfo)
 {
 	ffdirexp de;
+	void *first = NULL;
 
 	ffstr s;
 	ffstr_setz(&s, src);
 	if (ffarr_end(&s) == ffs_findof(s.ptr, s.len, "*?", 2))
-		return 1;
+		return NULL;
 
 	if (0 != ffdir_expopen(&de, src, 0))
-		return 1;
+		return NULL;
 
 	const char *fn;
 	while (NULL != (fn = ffdir_expread(&de))) {
@@ -368,9 +369,11 @@ static int open_input_wcard(const fmed_queue *qu, char *src, const fmed_track *t
 		qe = qu->add(&e);
 		track->copy_info(qe->trk, trkinfo);
 		qu_setprops(qu, qe);
+		if (first == NULL)
+			first = qe;
 	}
 	ffdir_expclose(&de);
-	return 0;
+	return first;
 }
 #endif
 
@@ -457,7 +460,8 @@ static void open_input(void *udata)
 	char **pfn;
 	const fmed_track *track;
 	const fmed_queue *qu;
-	uint added = 0;
+	fmed_que_entry e, *qe;
+	void *first = NULL;
 	if (NULL == (qu = core->getmod("#queue.queue")))
 		goto end;
 	if (NULL == (track = core->getmod("#core.track")))
@@ -470,27 +474,27 @@ static void open_input(void *udata)
 	FFARR_WALKT(&fmed->in_files, pfn, char*) {
 
 #ifdef FF_WIN
-		if (0 == open_input_wcard(qu, *pfn, track, &trkinfo)) {
-			added = 1;
+		if (NULL != (qe = open_input_wcard(qu, *pfn, track, &trkinfo))) {
+			if (first == NULL)
+				first = qe;
 			continue;
 		}
 #endif
 
-		fmed_que_entry e, *qe;
 		ffmem_tzero(&e);
 		ffstr_setz(&e.url, *pfn);
 		qe = qu->add(&e);
+		if (first == NULL)
+			first = qe;
 
 		track->copy_info(qe->trk, &trkinfo);
 		qu_setprops(qu, qe);
-
-		added++;
 	}
 	FFARR_FREE_ALL_PTR(&gcmd->in_files, ffmem_free, char*);
 
-	if (added != 0) {
+	if (first != NULL) {
 		if (!fmed->mix)
-			qu->cmd(FMED_QUE_PLAY, NULL);
+			qu->cmd(FMED_QUE_PLAY, first);
 		else
 			qu->cmd(FMED_QUE_MIX, NULL);
 	}
@@ -530,7 +534,7 @@ static void open_input(void *udata)
 		track->cmd(trk, FMED_TRACK_START);
 	}
 
-	if (added == 0 && !fmed->rec && !fmed->gui)
+	if (first == NULL && !fmed->rec && !fmed->gui)
 		core->sig(FMED_STOP);
 
 	return;

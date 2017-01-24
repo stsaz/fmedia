@@ -194,6 +194,7 @@ typedef struct ggui {
 	byte minimize_to_tray;
 	byte status_tray;
 	byte portable_conf;
+	byte autosave_playlists;
 	uint wconv_init :1
 		, wrec_init :1
 		, min_tray :1
@@ -211,6 +212,7 @@ enum {
 
 #define GUI_USRCONF  "%APPDATA%/fmedia/fmedia.gui.conf"
 #define GUI_USRCONF_PORT  "./fmedia.gui.conf"
+#define GUI_PLIST_PATH  "%APPDATA%/fmedia/list1.m3u8"
 
 enum ST {
 	ST_PLAYING = 1,
