@@ -579,7 +579,7 @@ int main(int argc, char **argv)
 	if (fmed->debug)
 		core->loglev = FMED_LOG_DEBUG;
 
-	if (0 != core->sig(FMED_CONF))
+	if (0 != core->cmd(FMED_CONF, gcmd->conf_fn))
 		goto end;
 
 	ffmem_safefree(fmed->conf_fn);

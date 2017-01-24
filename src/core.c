@@ -68,6 +68,7 @@ static int core_sigmods(uint signo);
 static core_modinfo* core_findmod(const ffstr *name);
 static const fmed_modinfo* core_getmodinfo(const ffstr *name);
 static const fmed_modinfo* core_modbyext(const ffstr3 *map, const ffstr *ext);
+static int core_filetype(const char *fn);
 
 static const void* core_iface(const char *name);
 static int core_sig2(uint signo);
@@ -81,6 +82,7 @@ static int64 core_getval(const char *name);
 static void core_log(uint flags, void *trk, const char *module, const char *fmt, ...);
 static char* core_getpath(const char *name, size_t len);
 static int core_sig(uint signo);
+static ssize_t core_cmd(uint cmd, ...);
 static const void* core_getmod(const char *name);
 const void* core_getmod2(uint flags, const char *name, ssize_t name_len);
 static const fmed_modinfo* core_insmod(const char *name, ffpars_ctx *ctx);
@@ -90,7 +92,7 @@ static fmed_core _fmed_core = {
 	&core_getval,
 	&core_log,
 	&core_getpath,
-	&core_sig,
+	&core_sig, &core_cmd,
 	&core_getmod, &core_getmod2, &core_insmod,
 	&core_task,
 };
@@ -109,7 +111,7 @@ enum {
 	CONF_F_OPT = 2,
 };
 
-static int fmed_conf(void);
+static int fmed_conf(const char *fn);
 static int fmed_conf_fn(const char *filename, uint flags);
 static int fmed_conf_mod(ffparser_schem *p, void *obj, ffstr *val);
 static int fmed_conf_modconf(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
@@ -382,18 +384,18 @@ end:
 	return 0;
 }
 
-static int fmed_conf(void)
+static int fmed_conf(const char *filename)
 {
 	int r = -1;
 	char *fn;
 
-	if (fmed->cmd.conf_fn != NULL)
-		fn = fmed->cmd.conf_fn;
+	if (filename != NULL)
+		fn = (void*)filename;
 	else if (NULL == (fn = core->getpath(FFSTR("fmedia.conf"))))
 		goto end;
 	if (0 != fmed_conf_fn(fn, 0))
 		goto end;
-	if (fn != fmed->cmd.conf_fn)
+	if (fn != filename)
 		ffmem_free0(fn);
 
 	if (NULL == (fn = ffenv_expand(NULL, 0, USR_CONF)))
@@ -857,27 +859,59 @@ static int core_sigmods(uint signo)
 	return 0;
 }
 
-static int core_sig(uint signo)
+static int core_filetype(const char *fn)
 {
+	ffstr ext;
+	fffileinfo fi;
+
+	if (0 == fffile_infofn(fn, &fi))
+		if (fffile_isdir(fffile_infoattr(&fi)))
+			return FMED_FT_DIR;
+
+	ffpath_split3(fn, ffsz_len(fn), NULL, NULL, &ext);
+	if (ffstr_eqcz(&ext, "m3u8")
+		|| ffstr_eqcz(&ext, "m3u")
+		|| ffstr_eqcz(&ext, "pls"))
+		return FMED_FT_PLIST;
+
+	if (NULL != core_getmod2(FMED_MOD_INEXT, ext.ptr, ext.len))
+		return FMED_FT_FILE;
+
+	return FMED_FT_UKN;
+}
+
+static ssize_t core_cmd(uint signo, ...)
+{
+	ssize_t r = 0;
+	va_list va;
+	va_start(va, signo);
+
 	dbglog(core, NULL, "core", "received signal: %u", signo);
 
 	switch (signo) {
 
-	case FMED_CONF:
-		if (0 != fmed_conf())
-			return 1;
+	case FMED_CONF: {
+		const char *fn = va_arg(va, char*);
+		if (0 != fmed_conf(fn)) {
+			r = 1;
+		}
 		break;
+	}
 
 	case FMED_OPEN:
-		if (0 != core_open())
-			return 1;
-		if (0 != core_sigmods(signo))
-			return 1;
+		if (0 != core_open()) {
+			r = 1;
+			break;
+		}
+		if (0 != core_sigmods(signo)) {
+			r = 1;
+			break;
+		}
 		break;
 
 	case FMED_START:
 		core_work();
-		return 0;
+		break;
 
 	case FMED_STOP:
 		core_sigmods(signo);
@@ -887,10 +921,20 @@ static int core_sig(uint signo)
 
 	case FMED_LISTDEV:
 		core_sigmods(signo);
-		return 0;
+		break;
+
+	case FMED_FILETYPE:
+		r = core_filetype(va_arg(va, char*));
+		break;
 	}
 
-	return 0;
+	va_end(va);
+	return r;
+}
+
+static int core_sig(uint signo)
+{
+	return core_cmd(signo);
 }
 
 

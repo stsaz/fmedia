@@ -44,14 +44,26 @@ typedef const fmed_mod* (*fmed_getmod_t)(const fmed_core *core);
 
 enum FMED_SIG {
 	FMED_SIG_INIT, //initialize module data
+	FMED_CONF, //args: "char *filename"
 	FMED_OPEN
-	, FMED_CONF
 	, FMED_START
 	, FMED_STOP
 	, FMED_LISTDEV
 	,
 	FMED_SIG_INSTALL,
 	FMED_SIG_UNINSTALL,
+
+	/**
+	args: "char *filename"
+	Return enum FMED_FT. */
+	FMED_FILETYPE,
+};
+
+enum FMED_FT {
+	FMED_FT_UKN,
+	FMED_FT_PLIST,
+	FMED_FT_DIR,
+	FMED_FT_FILE,
 };
 
 enum FMED_TASK {
@@ -97,6 +109,10 @@ struct fmed_core {
 	/**
 	@signo: enum FMED_SIG. */
 	int (*sig)(uint signo);
+
+	/**
+	@cmd: enum FMED_SIG. */
+	ssize_t (*cmd)(uint cmd, ...);
 
 	/** Get module interface. */
 	const void* (*getmod)(const char *name);
@@ -409,6 +425,7 @@ enum FMED_QUE {
 	FMED_QUE_RM,
 	FMED_QUE_METASET, // @param2: ffstr name_val_pair[2]
 	FMED_QUE_SETONCHANGE, // @param: fmed_que_onchange_t
+	FMED_QUE_EXPAND, // @param: fmed_que_entry*
 
 	FMED_QUE_NEW,
 	FMED_QUE_DEL, // @param: uint

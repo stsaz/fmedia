@@ -25,6 +25,7 @@ typedef struct entry {
 		, rm :1
 		, stop_after :1
 		, no_tmeta :1
+		, expand :1
 		;
 } entry;
 
@@ -345,7 +346,7 @@ static void que_cmd(uint cmd, void *param)
 // matches enum FMED_QUE
 static const char *const scmds[] = {
 	"play", "play-excl", "mix", "stop-after", "next", "prev", "save", "clear", "add", "rm",
-	"meta-set", "setonchange",
+	"meta-set", "setonchange", "expand",
 	"que-new", "que-del", "que-sel", "que-list",
 };
 
@@ -404,6 +405,18 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 
 	case FMED_QUE_ADD:
 		return (ssize_t)que_add(param, flags);
+
+	case FMED_QUE_EXPAND: {
+		void *r = param;
+		e = FF_GETPTR(entry, e, r);
+		void *trk = qu->track->create(FMED_TRACK_OPEN, e->e.url.ptr);
+		fmed_trk *t = qu->track->conf(trk);
+		t->input_info = 1;
+		e->expand = 1;
+		qu->track->setval(trk, "queue_item", (int64)e);
+		qu->track->cmd(trk, FMED_TRACK_START);
+		return (size_t)r;
+	}
 
 	case FMED_QUE_RM:
 		e = param;
@@ -759,6 +772,9 @@ static void que_trk_close(void *ctx)
 
 	if ((int64)t->d->audio.total != FMED_NULL)
 		t->e->e.dur = ffpcm_time(t->d->audio.total, t->d->audio.fmt.sample_rate);
+
+	if (t->e->expand)
+		goto done;
 
 	if (qu->mixing) {
 		if (qu->quit_if_done && FMED_NULL != t->track->getval(t->trk, "mix_tracks"))
