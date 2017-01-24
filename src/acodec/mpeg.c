@@ -7,30 +7,33 @@ Copyright (c) 2015 Simon Zolin */
 #include <FF/audio/mp3lame.h>
 #include <FF/audio/pcm.h>
 #include <FF/data/mmtag.h>
-#include <FF/data/utf8.h>
 #include <FF/array.h>
-#include <FF/number.h>
 
 
 static const fmed_core *core;
 static const fmed_queue *qu;
 
 typedef struct fmed_mpeg {
-	ffmpg mpg;
+	ffmpgfile mpg;
 	uint state;
 	uint have_id32tag :1
 		, fmt_set :1
 		;
 } fmed_mpeg;
 
+typedef struct mpeg_dec {
+	uint state;
+	ffmpg mpg;
+} mpeg_dec;
+
 typedef struct mpeg_out {
 	uint state;
 	ffmpg_enc mpg;
 } mpeg_out;
 
-static struct mpeg_conf_t {
-	uint meta_codepage;
-} mpeg_conf;
+typedef struct mpeg_copy {
+	ffmpgcopy mpgcpy;
+} mpeg_copy;
 
 static struct mpeg_out_conf_t {
 	uint qual;
@@ -46,16 +49,23 @@ static const fmed_mod fmed_mpeg_mod = {
 	&mpeg_iface, &mpeg_sig, &mpeg_destroy, &mpeg_mod_conf
 };
 
-//DECODE
+//INPUT
 static void* mpeg_open(fmed_filt *d);
 static void mpeg_close(void *ctx);
 static int mpeg_process(void *ctx, fmed_filt *d);
-static int mpeg_config(ffpars_ctx *ctx);
 static const fmed_filter fmed_mpeg_input = {
 	&mpeg_open, &mpeg_process, &mpeg_close
 };
 
-static void mpeg_meta(fmed_mpeg *m, fmed_filt *d);
+static void mpeg_meta(fmed_mpeg *m, fmed_filt *d, uint type);
+
+//DECODE
+static void* mpeg_dec_open(fmed_filt *d);
+static void mpeg_dec_close(void *ctx);
+static int mpeg_dec_process(void *ctx, fmed_filt *d);
+static const fmed_filter mpeg_decode_filt = {
+	&mpeg_dec_open, &mpeg_dec_process, &mpeg_dec_close
+};
 
 //ENCODE
 static void* mpeg_out_open(fmed_filt *d);
@@ -67,7 +77,6 @@ static const fmed_filter fmed_mpeg_output = {
 };
 
 static int mpeg_out_addmeta(mpeg_out *m, fmed_filt *d);
-static int mpeg_out_copy(mpeg_out *m, fmed_filt *d);
 
 static const ffpars_arg mpeg_out_conf_args[] = {
 	{ "quality",	FFPARS_TINT,  FFPARS_DSTOFF(struct mpeg_out_conf_t, qual) },
@@ -83,7 +92,6 @@ static const fmed_filter fmed_mpeg_copy = {
 };
 
 
-
 FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 {
 	core = _core;
@@ -93,8 +101,10 @@ FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 
 static const void* mpeg_iface(const char *name)
 {
-	if (!ffsz_cmp(name, "decode"))
+	if (!ffsz_cmp(name, "in"))
 		return &fmed_mpeg_input;
+	else if (!ffsz_cmp(name, "decode"))
+		return &mpeg_decode_filt;
 	else if (!ffsz_cmp(name, "encode"))
 		return &fmed_mpeg_output;
 	else if (!ffsz_cmp(name, "copy"))
@@ -104,9 +114,7 @@ static const void* mpeg_iface(const char *name)
 
 static int mpeg_mod_conf(const char *name, ffpars_ctx *ctx)
 {
-	if (!ffsz_cmp(name, "decode"))
-		return mpeg_config(ctx);
-	else if (!ffsz_cmp(name, "encode"))
+	if (!ffsz_cmp(name, "encode"))
 		return mpeg_out_config(ctx);
 	return -1;
 }
@@ -130,12 +138,6 @@ static void mpeg_destroy(void)
 }
 
 
-static int mpeg_config(ffpars_ctx *ctx)
-{
-	ffpars_setargs(ctx, &mpeg_conf, NULL, 0);
-	return 0;
-}
-
 static void* mpeg_open(fmed_filt *d)
 {
 	if (1 == fmed_getval("stream_copy")) {
@@ -150,8 +152,8 @@ static void* mpeg_open(fmed_filt *d)
 	ffmpg_init(&m->mpg);
 	m->mpg.codepage = core->getval("codepage");
 
-	if ((int64)d->input.size != FMED_NULL && !d->raw_data) {
-		m->mpg.total_size = d->input.size;
+	if ((int64)d->input.size != FMED_NULL) {
+		ffmpg_setsize(&m->mpg.rdr, d->input.size);
 		m->mpg.options = FFMPG_O_ID3V2 | FFMPG_O_APETAG | FFMPG_O_ID3V1;
 	}
 
@@ -161,15 +163,15 @@ static void* mpeg_open(fmed_filt *d)
 static void mpeg_close(void *ctx)
 {
 	fmed_mpeg *m = ctx;
-	ffmpg_close(&m->mpg);
+	ffmpg_fclose(&m->mpg);
 	ffmem_free(m);
 }
 
-static void mpeg_meta(fmed_mpeg *m, fmed_filt *d)
+static void mpeg_meta(fmed_mpeg *m, fmed_filt *d, uint type)
 {
 	ffstr name, val;
 
-	if (m->mpg.is_id32tag) {
+	if (type == FFMPG_RID32) {
 		ffstr_set(&name, m->mpg.id32tag.fr.id, 4);
 		if (!m->have_id32tag) {
 			m->have_id32tag = 1;
@@ -177,7 +179,7 @@ static void mpeg_meta(fmed_mpeg *m, fmed_filt *d)
 				, (uint)m->mpg.id32tag.h.ver[0], (uint)m->mpg.id32tag.h.ver[1], ffid3_size(&m->mpg.id32tag.h));
 		}
 
-	} else if (m->mpg.is_apetag) {
+	} else if (type == FFMPG_RAPETAG) {
 		name = m->mpg.apetag.name;
 		if (FFAPETAG_FBINARY == (m->mpg.apetag.flags & FFAPETAG_FMASK)) {
 			dbglog(core, d->trk, "mpeg", "skipping binary tag: %S", &m->mpg.apetag.name);
@@ -205,8 +207,10 @@ static int mpeg_process(void *ctx, fmed_filt *d)
 		return FMED_RLASTOUT;
 	}
 
-	m->mpg.data = d->data;
-	m->mpg.datalen = d->datalen;
+	if (d->datalen != 0) {
+		ffmpg_input(&m->mpg, d->data, d->datalen);
+		d->datalen = 0;
+	}
 
 again:
 	switch (m->state) {
@@ -215,17 +219,17 @@ again:
 
 	case I_DATA:
 		if ((int64)d->audio.seek != FMED_NULL) {
-			ffmpg_seek(&m->mpg, ffpcm_samples(d->audio.seek, m->mpg.fmt.sample_rate));
+			ffmpg_rseek(&m->mpg.rdr, ffpcm_samples(d->audio.seek, ffmpg_fmt(&m->mpg.rdr).sample_rate));
 			d->audio.seek = FMED_NULL;
 		}
 		break;
 	}
 
 	for (;;) {
-		r = ffmpg_decode(&m->mpg);
+		r = ffmpg_read(&m->mpg);
 
 		switch (r) {
-		case FFMPG_RDATA:
+		case FFMPG_RFRAME:
 			goto data;
 
 		case FFMPG_RMORE:
@@ -243,21 +247,31 @@ again:
 			d->outlen = 0;
 			return FMED_RLASTOUT;
 
+		case FFMPG_RFRAME1:
 		case FFMPG_RHDR:
 			dbglog(core, d->trk, NULL, "preset:%s  tool:%s  xing-frames:%u"
-				, ffmpg_isvbr(&m->mpg) ? "VBR" : "CBR", m->mpg.lame.id, m->mpg.xing.frames);
-			ffpcm_fmtcopy(&d->audio.fmt, &m->mpg.fmt);
+				, ffmpg_isvbr(&m->mpg.rdr) ? "VBR" : "CBR", m->mpg.rdr.lame.id, m->mpg.rdr.xing.frames);
+			ffpcm_fmtcopy(&d->audio.fmt, &ffmpg_fmt(&m->mpg.rdr));
 
 			d->track->setvalstr(d->trk, "pcm_decoder", "MPEG");
-			d->audio.fmt.ileaved = m->mpg.fmt.ileaved;
-			d->audio.bitrate = ffmpg_bitrate(&m->mpg);
-			if (!d->raw_data)
-				d->audio.total = m->mpg.total_samples;
+			d->audio.bitrate = ffmpg_bitrate(&m->mpg.rdr);
+			d->audio.total = ffmpg_length(&m->mpg.rdr);
 			m->state = I_DATA;
-			goto again;
 
-		case FFMPG_RTAG:
-			mpeg_meta(m, d);
+			if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, "mpeg.decode"))
+				return FMED_RERR;
+
+			if ((int64)d->audio.seek != FMED_NULL) {
+				ffmpg_rseek(&m->mpg.rdr, ffpcm_samples(d->audio.seek, ffmpg_fmt(&m->mpg.rdr).sample_rate));
+				d->audio.seek = FMED_NULL;
+				goto again;
+			}
+			goto data;
+
+		case FFMPG_RID31:
+		case FFMPG_RID32:
+		case FFMPG_RAPETAG:
+			mpeg_meta(m, d, r);
 			break;
 
 		case FFMPG_RSEEK:
@@ -266,52 +280,109 @@ again:
 
 		case FFMPG_RWARN:
 			if (m->mpg.err == FFMPG_ETAG) {
-				warnlog(core, d->trk, "mpeg", "id3: parse (offset: %u): ID3v2.%u.%u, flags: %u, size: %u"
+				warnlog(core, d->trk, "mpeg", "id3: parse (offset: %u): ID3v2.%u.%u, flags: 0x%xu, size: %u"
 					, sizeof(ffid3_hdr) + ffid3_size(&m->mpg.id32tag.h) - m->mpg.id32tag.size
 					, (uint)m->mpg.id32tag.h.ver[0], (uint)m->mpg.id32tag.h.ver[1], (uint)m->mpg.id32tag.h.flags
 					, ffid3_size(&m->mpg.id32tag.h));
 				continue;
 			}
-			warnlog(core, d->trk, "mpeg", "ffmpg_decode(): %s. Near sample %U, offset %U"
-				, ffmpg_errstr(&m->mpg), ffmpg_cursample(&m->mpg), m->mpg.off);
+			warnlog(core, d->trk, "mpeg", "ffmpg_read(): %s. Near sample %U, offset %U"
+				, ffmpg_ferrstr(&m->mpg), ffmpg_cursample(&m->mpg.rdr), ffmpg_seekoff(&m->mpg));
 			break;
 
 		case FFMPG_RERR:
 		default:
-			errlog(core, d->trk, "mpeg", "ffmpg_decode(): %s. Near sample %U, offset %U"
-				, ffmpg_errstr(&m->mpg), ffmpg_cursample(&m->mpg), m->mpg.off);
+			errlog(core, d->trk, "mpeg", "ffmpg_read(): %s. Near sample %U, offset %U"
+				, ffmpg_ferrstr(&m->mpg), ffmpg_cursample(&m->mpg.rdr), ffmpg_seekoff(&m->mpg));
 			return FMED_RERR;
 		}
 	}
 
 data:
-	d->data = m->mpg.data;
-	d->datalen = m->mpg.datalen;
+	d->out = m->mpg.frame.ptr;
+	d->outlen = m->mpg.frame.len;
+	d->audio.pos = ffmpg_cursample(&m->mpg.rdr);
+	return FMED_RDATA;
+}
+
+
+static void* mpeg_dec_open(fmed_filt *d)
+{
+	mpeg_dec *m;
+	if (NULL == (m = ffmem_tcalloc1(mpeg_dec)))
+		return NULL;
+
+	if (0 != ffmpg_open(&m->mpg, 0)) {
+		mpeg_dec_close(m);
+		return NULL;
+	}
+
+	m->mpg.fmt.sample_rate = d->audio.fmt.sample_rate;
+	m->mpg.fmt.channels = d->audio.fmt.channels;
+	d->audio.fmt.format = m->mpg.fmt.format;
+	d->audio.fmt.ileaved = m->mpg.fmt.ileaved;
+	return m;
+}
+
+static void mpeg_dec_close(void *ctx)
+{
+	mpeg_dec *m = ctx;
+	ffmpg_close(&m->mpg);
+	ffmem_free(m);
+}
+
+static int mpeg_dec_process(void *ctx, fmed_filt *d)
+{
+	mpeg_dec *m = ctx;
+	int r;
+
+	if (d->datalen != 0) {
+		ffmpg_input(&m->mpg, d->data, d->datalen);
+		d->datalen = 0;
+	}
+
+	for (;;) {
+	r = ffmpg_decode(&m->mpg);
+	switch (r) {
+
+	case FFMPG_RMORE:
+		if (d->flags & FMED_FLAST) {
+			d->outlen = 0;
+			return FMED_RDONE;
+		}
+		return FMED_RMORE;
+
+	case FFMPG_RDATA:
+		goto data;
+
+	case FFMPG_RWARN:
+		errlog(core, d->trk, "mpeg", "ffmpg_decode(): %s. Near sample %U"
+			, ffmpg_errstr(&m->mpg), d->audio.pos);
+		continue;
+	}
+	}
+
+data:
 	if (m->mpg.fmt.ileaved)
 		d->out = (void*)m->mpg.pcmi;
-	else
-		d->outni = (void**)m->mpg.pcm;
+	// else
+	// 	d->outni = (void**)m->mpg.pcm;
 	d->outlen = m->mpg.pcmlen;
-	d->audio.pos = ffmpg_cursample(&m->mpg);
-
 	dbglog(core, d->trk, "mpeg", "output: %L PCM samples"
-		, d->outlen / ffpcm_size1(&m->mpg.fmt));
+		, m->mpg.pcmlen / ffpcm_size1(&m->mpg.fmt));
 	return FMED_RDATA;
 }
 
 
 static void* mpeg_copy_open(fmed_filt *d)
 {
-	fmed_mpeg *m = ffmem_tcalloc1(fmed_mpeg);
+	mpeg_copy *m = ffmem_tcalloc1(mpeg_copy);
 	if (m == NULL)
 		return NULL;
-	ffmpg_init(&m->mpg);
-	m->mpg.codepage = core->getval("codepage");
 
-	if ((int64)d->input.size != FMED_NULL && !d->raw_data) {
-		m->mpg.total_size = d->input.size;
-		m->mpg.options = FFMPG_O_ID3V2 | FFMPG_O_APETAG | FFMPG_O_ID3V1;
-	}
+	m->mpgcpy.options = FFMPG_WRITE_ID3V2 | FFMPG_WRITE_ID3V1 | FFMPG_WRITE_XING;
+	if ((int64)d->input.size != FMED_NULL)
+		ffmpg_setsize(&m->mpgcpy.rdr, d->input.size);
 
 	d->track->setvalstr(d->trk, "data_asis", "mpeg");
 	return m;
@@ -319,70 +390,98 @@ static void* mpeg_copy_open(fmed_filt *d)
 
 static void mpeg_copy_close(void *ctx)
 {
-	fmed_mpeg *m = ctx;
-	ffmpg_close(&m->mpg);
+	mpeg_copy *m = ctx;
 	ffmem_free(m);
 }
 
 static int mpeg_copy_process(void *ctx, fmed_filt *d)
 {
-	fmed_mpeg *m = ctx;
+	mpeg_copy *m = ctx;
 	int r;
+	ffstr out;
 
-	for (;;) {
-	r = ffmpg_readframe(&m->mpg);
-
-	switch (r) {
-	case FFMPG_RFRAME:
-		goto data;
-
-	case FFMPG_RDONE:
+	if (d->flags & FMED_FSTOP) {
 		d->outlen = 0;
 		return FMED_RLASTOUT;
+	}
 
+	if (d->datalen != 0) {
+		ffmpg_input(&m->mpgcpy, d->data, d->datalen);
+		d->datalen = 0;
+	}
+
+	for (;;) {
+
+	r = ffmpg_copy(&m->mpgcpy, &out);
+
+	switch (r) {
 	case FFMPG_RMORE:
 		if (d->flags & FMED_FLAST) {
-			dbglog(core, d->trk, NULL, "file is incomplete");
-			d->outlen = 0;
-			return FMED_RLASTOUT;
+			ffmpg_copy_fin(&m->mpgcpy);
+			continue;
 		}
 		return FMED_RMORE;
 
+	case FFMPG_RHDR:
+		ffpcm_fmtcopy(&d->audio.fmt, &ffmpg_copy_fmt(&m->mpgcpy));
+		d->audio.fmt.format = FFPCM_16;
+		d->audio.bitrate = ffmpg_bitrate(&m->mpgcpy.rdr);
+		d->audio.total = ffmpg_length(&m->mpgcpy.rdr);
+		d->track->setvalstr(d->trk, "pcm_decoder", "MPEG");
+
+		if ((int64)d->audio.seek != FMED_NULL) {
+			int64 samples = ffpcm_samples(d->audio.seek, ffmpg_fmt(&m->mpgcpy.rdr).sample_rate);
+			ffmpg_copy_seek(&m->mpgcpy, samples);
+			d->audio.seek = FMED_NULL;
+			continue;
+		}
+		d->meta_block = 0;
+		continue;
+
+	case FFMPG_RID32:
+	case FFMPG_RID31:
+		d->meta_block = 1;
+		goto data;
+
+	case FFMPG_RFRAME:
+		d->audio.pos = ffmpg_cursample(&m->mpgcpy.rdr);
+		if (d->audio.until != FMED_NULL && d->audio.until > 0
+			&& ffpcm_time(d->audio.pos, ffmpg_copy_fmt(&m->mpgcpy).sample_rate) >= (uint64)d->audio.until) {
+			dbglog(core, d->trk, NULL, "reached time %Ums", d->audio.until);
+			ffmpg_copy_fin(&m->mpgcpy);
+			d->audio.until = FMED_NULL;
+			continue;
+		}
+		goto data;
+
 	case FFMPG_RSEEK:
-		d->input.seek = m->mpg.off;
+		d->input.seek = ffmpg_copy_seekoff(&m->mpgcpy);
 		return FMED_RMORE;
 
+	case FFMPG_ROUTSEEK:
+		d->output.seek = ffmpg_copy_seekoff(&m->mpgcpy);
+		continue;
+
+	case FFMPG_RDONE:
+		core->log(FMED_LOG_INFO, d->trk, NULL, "MPEG: frames:%u", ffmpg_wframes(&m->mpgcpy.writer));
+		d->outlen = 0;
+		return FMED_RLASTOUT;
+
 	case FFMPG_RWARN:
-		warnlog(core, d->trk, NULL, "near sample %U: ffmpg_readframe(): %s"
-			, ffmpg_cursample(&m->mpg), ffmpg_errstr(&m->mpg));
-		break;
+		warnlog(core, d->trk, NULL, "near sample %U: ffmpg_copy(): %s"
+			, ffmpg_cursample(&m->mpgcpy.rdr), ffmpg_copy_errstr(&m->mpgcpy));
+		continue;
 
 	default:
-		errlog(core, d->trk, NULL, "ffmpg_readframe(): %s", ffmpg_errstr(&m->mpg));
+		errlog(core, d->trk, "mpeg", "ffmpg_copy() failed: %s", ffmpg_copy_errstr(&m->mpgcpy));
 		return FMED_RERR;
 	}
 	}
 
 data:
-	if (!m->fmt_set) {
-		m->fmt_set = 1;
-		m->mpg.fmt.format = FFPCM_16;
-		ffpcm_fmtcopy(&d->audio.fmt, &m->mpg.fmt);
-		d->audio.bitrate = ffmpg_bitrate(&m->mpg);
-		d->audio.total = m->mpg.total_samples;
-
-		if ((int64)d->audio.seek != FMED_NULL) {
-			int64 samples = ffpcm_samples(d->audio.seek, m->mpg.fmt.sample_rate);
-			ffmpg_seek(&m->mpg, samples);
-			d->audio.seek = FMED_NULL;
-		}
-	}
-
-	d->audio.pos = ffmpg_cursample(&m->mpg);
-	d->data = m->mpg.data,  d->datalen = m->mpg.datalen;
-	ffstr s = ffmpg_framedata(&m->mpg);
-	d->out = s.ptr,  d->outlen = s.len;
-	dbglog(core, d->trk, NULL, "passed %L bytes", s.len);
+	d->out = out.ptr,  d->outlen = out.len;
+	dbglog(core, d->trk, "mpeg", "output: %L bytes"
+		, out.len);
 	return FMED_RDATA;
 }
 
@@ -394,8 +493,6 @@ static int mpeg_out_config(ffpars_ctx *ctx)
 	ffpars_setargs(ctx, &mpeg_out_conf, mpeg_out_conf_args, FFCNT(mpeg_out_conf_args));
 	return 0;
 }
-
-enum { W_FR_DATA = 4 };
 
 static void* mpeg_out_open(fmed_filt *d)
 {
@@ -411,8 +508,7 @@ static void* mpeg_out_open(fmed_filt *d)
 			errlog(core, d->trk, NULL, "unsupported input data format: %s", copyfmt);
 			return NULL;
 		}
-		ffmpg_create_copy(&m->mpg);
-		m->state = W_FR_DATA;
+		return FMED_FILT_SKIP;
 	}
 
 	return m;
@@ -446,43 +542,6 @@ static int mpeg_out_addmeta(mpeg_out *m, fmed_filt *d)
 		}
 	}
 	return 0;
-}
-
-static int mpeg_out_copy(mpeg_out *m, fmed_filt *d)
-{
-	ffstr frame;
-	if (d->datalen == 0 && !(d->flags & FMED_FLAST))
-		return FMED_RMORE;
-	if (d->flags & FMED_FLAST)
-		m->mpg.fin = 1;
-
-	for (;;) {
-		int r = ffmpg_writeframe(&m->mpg, (void*)d->data, d->datalen, &frame);
-		switch (r) {
-
-		case FFMPG_RDATA:
-			goto data;
-
-		case FFMPG_RSEEK:
-			d->output.seek = ffmpg_enc_seekoff(&m->mpg);
-			break;
-
-		case FFMPG_RDONE:
-			d->outlen = 0;
-			return FMED_RDONE;
-
-		default:
-			errlog(core, d->trk, "mpeg", "ffmpg_writeframe() failed: %s", ffmpg_enc_errstr(&m->mpg));
-			return FMED_RERR;
-		}
-	}
-
-data:
-	d->out = frame.ptr,  d->outlen = frame.len;
-	dbglog(core, d->trk, "mpeg", "output: %L bytes"
-		, frame.len);
-	d->datalen = 0;
-	return FMED_RDATA;
 }
 
 static int mpeg_out_process(void *ctx, fmed_filt *d)
@@ -532,9 +591,6 @@ static int mpeg_out_process(void *ctx, fmed_filt *d)
 
 	case 3:
 		break;
-
-	default:
-		return mpeg_out_copy(m, d);
 	}
 
 	for (;;) {
