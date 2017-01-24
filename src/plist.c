@@ -544,9 +544,11 @@ static void* dir_open(fmed_filt *d)
 		return NULL;
 
 	if (0 != ffdir_expopen(&dr, (char*)dirname, 0)) {
-		if (fferr_last() != ENOMOREFILES)
-			syserrlog(core, d->trk, "dir", "%e", FFERR_DIROPEN);
-		return NULL;
+		if (fferr_last() != ENOMOREFILES) {
+			syserrlog(core, d->trk, "dir", "%s", ffdir_open_S);
+			return NULL;
+		}
+		return FMED_FILT_DUMMY;
 	}
 
 	first = (void*)fmed_getval("queue_item");

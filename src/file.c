@@ -256,7 +256,7 @@ static void* file_open(fmed_filt *d)
 	}
 
 	if (f->fd == FF_BADFD) {
-		syserrlog(core, d->trk, "file", "%e: %s", FFERR_FOPEN, f->fn);
+		syserrlog(core, d->trk, "file", "%s: %s", fffile_open_S, f->fn);
 		goto done;
 	}
 	if (0 != fffile_info(f->fd, &fi)) {
@@ -270,14 +270,14 @@ static void* file_open(fmed_filt *d)
 	ffaio_finit(&f->ftask, f->fd, f);
 	f->ftask.kev.udata = f;
 	if (0 != ffaio_fattach(&f->ftask, core->kq, !!(flags & O_DIRECT))) {
-		syserrlog(core, d->trk, "file", "%e: %s", FFERR_KQUATT, f->fn);
+		syserrlog(core, d->trk, "file", "%s: %s", ffkqu_attach_S, f->fn);
 		goto done;
 	}
 
 	for (i = 0;  i < mod->in_conf.nbufs;  i++) {
 		f->data[i].ptr = ffmem_align(mod->in_conf.bsize, mod->in_conf.align);
 		if (f->data[i].ptr == NULL) {
-			syserrlog(core, d->trk, "file", "%e: %s", FFERR_BUFALOC, f->fn);
+			syserrlog(core, d->trk, "file", "%s: %s", ffmem_alloc_S, f->fn);
 			goto done;
 		}
 	}
@@ -452,7 +452,7 @@ static void file_read(void *udata)
 				break;
 			}
 
-			syserrlog(core, f->trk, "file", "%e: %s", FFERR_READ, f->fn);
+			syserrlog(core, f->trk, "file", "%s: %s", fffile_read_S, f->fn);
 			f->err = 1;
 			return;
 		}
@@ -650,7 +650,7 @@ data:
 	return f->fname.ptr;
 
 syserr:
-	syserrlog(core, d->trk, NULL, "%e", FFERR_BUFALOC);
+	syserrlog(core, d->trk, NULL, "%s", ffmem_alloc_S);
 
 done:
 	ffarr_free(&outfn);
@@ -675,8 +675,8 @@ static void* fileout_open(fmed_filt *d)
 	if (f->fd == FF_BADFD) {
 
 		if (fferr_nofile(fferr_last())) {
-			if (0 != ffdir_make_path((void*)filename)) {
-				syserrlog(core, d->trk, "file", "%e: for filename %s", FFERR_DIRMAKE, filename);
+			if (0 != ffdir_make_path((void*)filename, 0)) {
+				syserrlog(core, d->trk, "file", "%s: for filename %s", ffdir_make_S, filename);
 				goto done;
 			}
 
@@ -684,13 +684,13 @@ static void* fileout_open(fmed_filt *d)
 		}
 
 		if (f->fd == FF_BADFD) {
-			syserrlog(core, d->trk, "file", "%e: %s", FFERR_FOPEN, filename);
+			syserrlog(core, d->trk, "file", "%s: %s", fffile_open_S, filename);
 			goto done;
 		}
 	}
 
 	if (NULL == ffarr_alloc(&f->buf, mod->out_conf.bsize)) {
-		syserrlog(core, d->trk, "file", "%e", FFERR_BUFALOC);
+		syserrlog(core, d->trk, "file", "%s", ffmem_alloc_S);
 		goto done;
 	}
 
@@ -724,7 +724,7 @@ static void fileout_close(void *ctx)
 		if (!f->ok && mod->out_conf.file_del) {
 
 			if (0 != fffile_close(f->fd))
-				syserrlog(core, NULL, "file", "%e", FFERR_FCLOSE);
+				syserrlog(core, NULL, "file", "%s", fffile_close_S);
 
 			if (0 == fffile_rm(f->fname.ptr))
 				dbglog(core, NULL, "file", "removed file %S", &f->fname);
@@ -735,7 +735,7 @@ static void fileout_close(void *ctx)
 				fffile_settime(f->fd, &f->modtime);
 
 			if (0 != fffile_close(f->fd))
-				syserrlog(core, NULL, "file", "%e", FFERR_FCLOSE);
+				syserrlog(core, NULL, "file", "%s", fffile_close_S);
 
 			core->log(FMED_LOG_USER, NULL, "file", "saved file %S, %U kbytes"
 				, &f->fname, f->fsize / 1024);
@@ -766,7 +766,7 @@ static int fileout_writedata(fmed_fileout *f, const char *data, size_t len, fmed
 
 	r = fffile_write(f->fd, data, len);
 	if (r != len) {
-		syserrlog(core, d->trk, "file", "%e: %s", FFERR_WRITE, f->fname.ptr);
+		syserrlog(core, d->trk, "file", "%s: %s", fffile_write_S, f->fname.ptr);
 		return -1;
 	}
 	f->stat.nfwrite++;
@@ -796,12 +796,12 @@ static int fileout_write(void *ctx, fmed_filt *d)
 		dbglog(core, d->trk, NULL, "seeking to %xU...", seek);
 
 		if (0 > fffile_seek(f->fd, seek, SEEK_SET)) {
-			syserrlog(core, d->trk, "file", "%e: %s", FFERR_FSEEK, f->fname.ptr);
+			syserrlog(core, d->trk, "file", "%s: %s", fffile_seek_S, f->fname.ptr);
 			return -1;
 		}
 
 		if (d->datalen != (size_t)fffile_write(f->fd, d->data, d->datalen)) {
-			syserrlog(core, d->trk, "file", "%e: %s", FFERR_WRITE, f->fname.ptr);
+			syserrlog(core, d->trk, "file", "%s: %s", fffile_write_S, f->fname.ptr);
 			return -1;
 		}
 		f->stat.nfwrite++;
@@ -812,7 +812,7 @@ static int fileout_write(void *ctx, fmed_filt *d)
 			f->fsize = d->datalen;
 
 		if (0 > fffile_seek(f->fd, f->fsize, SEEK_SET)) {
-			syserrlog(core, d->trk, "file", "%e: %s", FFERR_FSEEK, f->fname.ptr);
+			syserrlog(core, d->trk, "file", "%s: %s", fffile_seek_S, f->fname.ptr);
 			return -1;
 		}
 
@@ -854,7 +854,7 @@ static void* file_stdin_open(fmed_filt *d)
 	f->fd = ffstdin;
 
 	if (NULL == ffarr_alloc(&f->buf, mod->in_conf.bsize)) {
-		syserrlog(core, d->trk, NULL, "%e", FFERR_BUFALOC);
+		syserrlog(core, d->trk, NULL, "%s", ffmem_alloc_S);
 		goto done;
 	}
 
@@ -887,7 +887,7 @@ static int file_stdin_read(void *ctx, fmed_filt *d)
 		d->outlen = 0;
 		return FMED_RDONE;
 	} else if (r < 0) {
-		syserrlog(core, d->trk, NULL, "%e", FFERR_READ);
+		syserrlog(core, d->trk, NULL, "%s", fffile_read_S);
 		return FMED_RERR;
 	}
 
@@ -906,7 +906,7 @@ static void* file_stdout_open(fmed_filt *d)
 	f->fd = ffstdout;
 
 	if (NULL == ffarr_alloc(&f->buf, mod->out_conf.bsize)) {
-		syserrlog(core, d->trk, NULL, "%e", FFERR_BUFALOC);
+		syserrlog(core, d->trk, NULL, "%s", ffmem_alloc_S);
 		goto done;
 	}
 
@@ -929,7 +929,7 @@ static int file_stdout_writedata(stdout_ctx *f, const char *data, size_t len, fm
 	size_t r;
 	r = fffile_write(f->fd, data, len);
 	if (r != len) {
-		syserrlog(core, d->trk, NULL, "%e", FFERR_WRITE);
+		syserrlog(core, d->trk, NULL, "%s", fffile_write_S);
 		return -1;
 	}
 	f->stat.nfwrite++;

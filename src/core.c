@@ -428,7 +428,7 @@ static int fmed_conf_fn(const char *filename, uint flags)
 	if (FF_BADFD == (f = fffile_open(filename, O_RDONLY))) {
 		if (fferr_nofile(fferr_last()) && (flags & CONF_F_OPT))
 			return 0;
-		syserrlog(core, NULL, "core", "%e: %s", FFERR_FOPEN, filename);
+		syserrlog(core, NULL, "core", "%s: %s", fffile_open_S, filename);
 		goto fail;
 	}
 
@@ -501,14 +501,7 @@ static int cmd_init(fmed_cmd *cmd)
 
 static void cmd_destroy(fmed_cmd *cmd)
 {
-	uint i;
-	char **fn;
-
-	fn = (char**)cmd->in_files.ptr;
-	for (i = 0;  i < cmd->in_files.len;  i++, fn++) {
-		ffmem_free(*fn);
-	}
-	ffarr_free(&cmd->in_files);
+	FFARR_FREE_ALL_PTR(&cmd->in_files, ffmem_free, char*);
 	ffstr_free(&cmd->outfn);
 
 	ffstr_free(&cmd->meta);
@@ -652,13 +645,13 @@ static const fmed_modinfo* core_insmod(const char *sname, ffpars_ctx *ctx)
 
 		dl = ffdl_open(fn, 0);
 		if (dl == NULL) {
-			errlog(core, NULL, "core", "%e: %s: %s", FFERR_DLOPEN, ffdl_errstr(), fn);
+			errlog(core, NULL, "core", "%s: %s: %s", ffdl_open_S, ffdl_errstr(), fn);
 			goto fail;
 		}
 
 		getmod = (void*)ffdl_addr(dl, "fmed_getmod");
 		if (getmod == NULL) {
-			errlog(core, NULL, "core", "%e: %s: %s", FFERR_DLADDR, ffdl_errstr(), "fmed_getmod");
+			errlog(core, NULL, "core", "%s: %s: %s", ffdl_addr_S, ffdl_errstr(), "fmed_getmod");
 			goto fail;
 		}
 	}
@@ -686,14 +679,16 @@ iface:
 
 	ffsz_fcopy(mod->name_s, sname, sname_len);
 	mod->name = mod->name_s;
-	fflist_ins(&fmed->mods, &mod->sib);
 
 	if (ctx != NULL) {
+		if (minfo->m->conf == NULL)
+			goto fail2;
 		if (0 != minfo->m->conf(modname.ptr, ctx))
-			goto fail;
+			goto fail2;
 		mod->conf_ctx = *ctx;
 	}
 
+	fflist_ins(&fmed->mods, &mod->sib);
 	return (fmed_modinfo*)mod;
 
 fail:
@@ -802,7 +797,7 @@ static int core_open(void)
 	ffkqu_init();
 #endif
 	if (FF_BADFD == (fmed->kq = ffkqu_create())) {
-		syserrlog(core, NULL, "core", "%e", FFERR_KQUCREAT);
+		syserrlog(core, NULL, "core", "%s", ffkqu_create_S);
 		return 1;
 	}
 	core->kq = fmed->kq;
@@ -834,7 +829,7 @@ void core_work(void)
 		}
 
 		if (nevents == -1 && fferr_last() != EINTR) {
-			syserrlog(core, NULL, "core", "%e", FFERR_KQUWAIT);
+			syserrlog(core, NULL, "core", "%s", ffkqu_wait_S);
 			break;
 		}
 	}

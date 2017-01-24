@@ -4,6 +4,7 @@ Copyright (c) 2015 Simon Zolin */
 #include <fmedia.h>
 #include <FF/list.h>
 #include <FF/data/m3u.h>
+#include <FFOS/dir.h>
 
 
 static const fmed_core *core;
@@ -252,8 +253,14 @@ static void que_save(entry *first, const fflist_item *sentl, const char *fn)
 	entry *e;
 	char buf[32];
 
-	if (FF_BADFD == (f = fffile_open(fn, O_CREAT | O_TRUNC | O_WRONLY)))
-		goto done;
+	if (FF_BADFD == (f = fffile_open(fn, O_CREAT | O_TRUNC | O_WRONLY))) {
+		if (0 != ffdir_make_path((void*)fn, 0))
+			goto done;
+		if (FF_BADFD == (f = fffile_open(fn, O_CREAT | O_TRUNC | O_WRONLY))) {
+			syserrlog(core, NULL, "que", "%s: %s", fffile_open_S, fn);
+			goto done;
+		}
+	}
 
 	for (e = first;  &e->sib != sentl;  e = FF_GETPTR(entry, sib, e->sib.next)) {
 		int r = 0;
@@ -644,7 +651,7 @@ static void que_meta_set(fmed_que_entry *ent, const ffstr *name, const ffstr *va
 	return;
 
 err:
-	syserrlog(core, NULL, "que", "%e", FFERR_BUFALOC);
+	syserrlog(core, NULL, "que", "%s", ffmem_alloc_S);
 }
 
 static ffstr* que_meta_find(fmed_que_entry *ent, const char *name, size_t name_len)
@@ -718,6 +725,7 @@ typedef struct que_trk {
 	entry *e;
 	const fmed_track *track;
 	void *trk;
+	fmed_filt *d;
 } que_trk;
 
 static void* que_trk_open(fmed_filt *d)
@@ -734,6 +742,7 @@ static void* que_trk_open(fmed_filt *d)
 	t->track = d->track;
 	t->trk = d->trk;
 	t->e = e;
+	t->d = d;
 	e->active = 1;
 
 	if (1 == fmed_getval("error")) {
@@ -747,6 +756,9 @@ static void que_trk_close(void *ctx)
 {
 	que_trk *t = ctx;
 	entry *next = NULL;
+
+	if ((int64)t->d->audio.total != FMED_NULL)
+		t->e->e.dur = ffpcm_time(t->d->audio.total, t->d->audio.fmt.sample_rate);
 
 	if (qu->mixing) {
 		if (qu->quit_if_done && FMED_NULL != t->track->getval(t->trk, "mix_tracks"))

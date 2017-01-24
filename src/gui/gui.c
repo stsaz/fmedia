@@ -826,11 +826,6 @@ static int gtrk_conf(ffpars_ctx *ctx)
 
 static void* gtrk_open(fmed_filt *d)
 {
-	if (d->audio.fmt.format == 0) {
-		errlog(core, d->trk, NULL, "audio format isn't set");
-		return NULL;
-	}
-
 	fmed_que_entry *plid;
 	gui_trk *g = ffmem_tcalloc1(gui_trk);
 	if (g == NULL)
@@ -841,15 +836,9 @@ static void* gtrk_open(fmed_filt *d)
 	g->task.handler = d->handler;
 	g->task.param = d->trk;
 
-	g->sample_rate = d->audio.fmt.sample_rate;
-	g->total_time_sec = ffpcm_time(d->audio.total, g->sample_rate) / 1000;
-
 	plid = (void*)fmed_getval("queue_item");
 	if (plid == FMED_PNULL)
 		return FMED_FILT_SKIP; //tracks being recorded are not started from "queue"
-
-	gui_newtrack(g, d, plid);
-	d->meta_changed = 0;
 
 	fflk_lock(&gg->lktrk);
 	gg->curtrk = g;
@@ -888,6 +877,24 @@ static int gtrk_process(void *ctx, fmed_filt *d)
 	size_t n;
 	int64 playpos;
 	uint playtime;
+
+	if (d->meta_block)
+		goto done;
+
+	if (g->sample_rate == 0) {
+		if (d->audio.fmt.format == 0) {
+			errlog(core, d->trk, NULL, "audio format isn't set");
+			return FMED_RERR;
+		}
+
+		g->sample_rate = d->audio.fmt.sample_rate;
+		g->total_time_sec = ffpcm_time(d->audio.total, g->sample_rate) / 1000;
+
+		fmed_que_entry *plid;
+		plid = (void*)fmed_getval("queue_item");
+		gui_newtrack(g, d, plid);
+		d->meta_changed = 0;
+	}
 
 	if (g->goback) {
 		g->goback = 0;

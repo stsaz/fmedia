@@ -154,9 +154,8 @@ static int fmed_arg_infile(ffparser_schem *p, void *obj, const ffstr *val)
 {
 	fmed_cmd *cmd = obj;
 	char **fn;
-	if (NULL == ffarr_grow(&cmd->in_files, 1, 0))
+	if (NULL == (fn = ffarr_pushgrowT(&cmd->in_files, 4, char*)))
 		return FFPARS_ESYS;
-	fn = ffarr_push(&cmd->in_files, char*);
 	*fn = val->ptr;
 	return 0;
 }
@@ -405,8 +404,17 @@ static void qu_setprops(const fmed_queue *qu, fmed_que_entry *qe)
 	if (fmed->outfn.len != 0 && !fmed->rec)
 		qu->meta_set(qe, FFSTR("output"), fmed->outfn.ptr, fmed->outfn.len, FMED_QUE_TRKDICT);
 
+	if (fmed->stream_copy)
+		qu_setval(qu, qe, "stream_copy", 1);
+
+	if (fmed->out_copy)
+		qu_setval(qu, qe, "out-copy", 1);
+
 	if (fmed->rec)
 		qu_setval(qu, qe, "low_latency", 1);
+
+	if (fmed->meta.len != 0)
+		qu->meta_set(qe, FFSTR("meta"), fmed->meta.ptr, fmed->meta.len, FMED_QUE_TRKDICT);
 }
 
 static void trk_prep(fmed_trk *trk)
@@ -459,12 +467,11 @@ static void open_input(void *udata)
 	track->copy_info(&trkinfo, NULL);
 	trk_prep(&trkinfo);
 
-	FFARR_WALK(&fmed->in_files, pfn) {
+	FFARR_WALKT(&fmed->in_files, pfn, char*) {
 
 #ifdef FF_WIN
 		if (0 == open_input_wcard(qu, *pfn, track, &trkinfo)) {
 			added = 1;
-			ffmem_free(*pfn);
 			continue;
 		}
 #endif
@@ -473,14 +480,13 @@ static void open_input(void *udata)
 		ffmem_tzero(&e);
 		ffstr_setz(&e.url, *pfn);
 		qe = qu->add(&e);
-		ffmem_free(*pfn);
 
 		track->copy_info(qe->trk, &trkinfo);
 		qu_setprops(qu, qe);
 
 		added++;
 	}
-	ffarr_free(&fmed->in_files);
+	FFARR_FREE_ALL_PTR(&gcmd->in_files, ffmem_free, char*);
 
 	if (added != 0) {
 		if (!fmed->mix)

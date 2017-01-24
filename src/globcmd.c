@@ -247,7 +247,7 @@ static void globcmd_onaccept(fffd peer)
 	for (;;) {
 		r = ffpipe_read(peer, buf.ptr, buf.cap);
 		if (r < 0) {
-			syserrlog(core, NULL, "globcmd", "%e", FFERR_READ);
+			syserrlog(core, NULL, "globcmd", "%s", fffile_read_S);
 			break;
 		} else if (r == 0) {
 			ffstr_setcz(&in, "\n");

@@ -144,7 +144,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
 
 	gcmd->log = &fgui_logger;
 	gcmd->gui = 1;
-	if (0 != core->sig(FMED_CONF))
+	if (0 != core->cmd(FMED_CONF, NULL))
 		goto end;
 
 	if (NULL == (gcmd->log = core->getmod("gui.log")))

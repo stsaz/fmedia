@@ -74,7 +74,7 @@ static void* mkv_open(fmed_filt *d)
 {
 	fmed_mkv *m = ffmem_tcalloc1(fmed_mkv);
 	if (m == NULL) {
-		errlog(core, d->trk, NULL, "%e", FFERR_BUFALOC);
+		errlog(core, d->trk, NULL, "%s", ffmem_alloc_S);
 		return NULL;
 	}
 	ffmkv_open(&m->mkv);
@@ -177,7 +177,6 @@ again:
 			d->audio.fmt.sample_rate = m->mkv.info.sample_rate;
 			d->audio.total = m->mkv.info.total_samples;
 			d->audio.bitrate = m->mkv.info.bitrate;
-			d->raw_data = 1;
 
 			if (m->mkv.info.format == FFMKV_AUDIO_VORBIS) {
 				ffstr_set2(&m->mkv_vorbis.data, &m->mkv.info.asc);

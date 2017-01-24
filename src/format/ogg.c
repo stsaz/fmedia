@@ -159,9 +159,8 @@ static const char *const ogg_mods[][2] = {
 
 static const char* ogg_codec_mod(const char *fn, uint is_encoder)
 {
-	ffstr name, ext;
-	ffpath_split2(fn, ffsz_len(fn), NULL, &name);
-	ffpath_splitname(name.ptr, name.len, NULL, &ext);
+	ffstr ext;
+	ffpath_split3(fn, ffsz_len(fn), NULL, NULL, &ext);
 	return ogg_mods[is_encoder][ffstr_eqcz(&ext, "opus")];
 }
 
@@ -264,11 +263,21 @@ data:
 		fmed_setval("ogg_granpos", set_gpos);
 	}
 
-	if (ffogg_cursample(&o->og) != (uint64)-1)
+	r = FMED_RDATA;
+	if (ffogg_cursample(&o->og) != (uint64)-1) {
 		d->audio.pos = ffogg_cursample(&o->og);
+
+		if (o->stmcopy && o->sample_rate != 0
+			&& d->audio.until != FMED_NULL && d->audio.until > 0
+			&& ffpcm_time(d->audio.pos, o->sample_rate) >= (uint64)d->audio.until) {
+			dbglog(core, d->trk, NULL, "reached time %Ums", d->audio.until);
+			r = FMED_RLASTOUT;
+			d->audio.until = FMED_NULL;
+		}
+	}
 	o->seek_done = 0;
 	d->out = o->og.out.ptr,  d->outlen = o->og.out.len;
-	return FMED_RDATA;
+	return r;
 }
 
 

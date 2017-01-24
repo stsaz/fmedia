@@ -1,36 +1,41 @@
 
 OBJ_DIR := .
-BINS := $(BIN) core.$(SO) net.$(SO) \
-	mpeg.$(SO) wav.$(SO) flac.$(SO) mp4.$(SO) wavpack.$(SO) ape.$(SO) \
-	ogg.$(SO) \
-	avi.$(SO) \
-	mkv.$(SO) \
-	vorbis.$(SO) \
-	opus.$(SO) \
-	aac.$(SO) \
-	alac.$(SO) \
-	plist.$(SO) \
-	mixer.$(SO)
+BIN_CONTAINERS := avi.$(SO) mkv.$(SO) mp4.$(SO) ogg.$(SO)
+BIN_ACODECS := wav.$(SO) \
+	aac.$(SO) alac.$(SO) ape.$(SO) flac.$(SO) mpeg.$(SO) opus.$(SO) vorbis.$(SO) wavpack.$(SO)
+BINS := $(BIN) core.$(SO) net.$(SO) plist.$(SO) mixer.$(SO) \
+	soxr.$(SO) \
+	$(BIN_CONTAINERS) \
+	$(BIN_ACODECS)
 
+# OS-specific modules
+OS_BINS :=
 ifeq ($(OS),linux)
 
-BINS += alsa.$(SO)
+OS_BINS += alsa.$(SO)
 
 else ifeq ($(OS),win)
 #windows:
 
-BINS += direct-sound.$(SO) wasapi.$(SO) \
+OS_BINS += direct-sound.$(SO) wasapi.$(SO) \
 	gui.$(SO) fmedia-gui.exe
 
 RES := $(OBJ_DIR)/fmedia.coff
 
 endif
 
+BINS += $(OS_BINS)
+
 all: ff $(BINS)
 
 include $(FF)/makerules
 include $(FF3PT)/makerules
-FF_O := $(FFOS_OBJ) $(FF_OBJ) $(FF_OBJ_DIR)/ffutf8.o
+FF_O := $(FFOS_OBJ) \
+	$(FF_OBJ_DIR)/ffarray.o \
+	$(FF_OBJ_DIR)/ffstring.o \
+	$(FF_OBJ_DIR)/ffnumber.o \
+	$(FF_OBJ_DIR)/ffdbg.o \
+	$(FF_OBJ_DIR)/ffutf8.o
 
 $(OBJ_DIR)/%.o: $(SRCDIR)/%.c $(SRCDIR)/fmedia.h $(SRCDIR)/core-cmd.h $(SRCDIR)/core.h $(FF_HDR) $(FF_AUDIO_HDR)
 	$(C)  $(CFLAGS) $<  -o$@
@@ -51,6 +56,10 @@ $(RES): $(SRCDIR)/../fmedia.rc $(PROJDIR)/fmedia.ico
 BIN_O := core.$(SO) \
 	$(OBJ_DIR)/main.o \
 	$(FF_O) \
+	$(FFOS_WREG) \
+	$(FF_OBJ_DIR)/ffsys.o \
+	$(FF_OBJ_DIR)/fftime.o \
+	$(FF_OBJ_DIR)/ffpath.o \
 	$(FF_OBJ_DIR)/ffpcm.o \
 	$(FF_OBJ_DIR)/ffparse.o \
 	$(FF_OBJ_DIR)/ffconf.o \
@@ -61,7 +70,7 @@ BIN_O += $(RES)
 endif
 
 $(BIN): $(BIN_O)
-	$(LD)  $(BIN_O) $(LDFLAGS) $(LD_LPTHREAD) -lm -lsoxr-ff -o$@
+	$(LD)  $(BIN_O) $(LDFLAGS) $(LD_LPTHREAD) -lm  -o$@
 
 
 #
@@ -73,21 +82,40 @@ CORE_O := $(OBJ_DIR)/core.o \
 	$(OBJ_DIR)/queue.o \
 	$(OBJ_DIR)/globcmd.o \
 	$(FF_O) \
+	$(FFOS_WREG) \
+	$(FF_OBJ_DIR)/ffsys.o \
+	$(FF_OBJ_DIR)/fftmr.o \
+	$(FF_OBJ_DIR)/ffrbtree.o \
+	$(FF_OBJ_DIR)/fftime.o \
+	$(FF_OBJ_DIR)/fflist.o \
+	$(FF_OBJ_DIR)/ffcrc.o \
+	$(FF_OBJ_DIR)/ffpath.o \
 	$(FF_OBJ_DIR)/ffparse.o $(FF_OBJ_DIR)/ffconf.o \
-	$(FF_OBJ_DIR)/ffsoxr.o \
 	$(FF_OBJ_DIR)/ffpcm.o \
 	$(FF_OBJ_DIR)/ffm3u.o \
 	$(FF_OBJ_DIR)/crc.o
 core.$(SO): $(CORE_O)
-	$(LD) -shared $(CORE_O) $(LDFLAGS) $(LD_LDL) $(LD_LMATH) $(LD_LPTHREAD) -lsoxr-ff  -o$@
+	$(LD) -shared $(CORE_O) $(LDFLAGS) $(LD_LDL) $(LD_LMATH) $(LD_LPTHREAD)  -o$@
 
 
 #
 NET_O := $(OBJ_DIR)/net.o \
 	$(FF_OBJ_DIR)/ffhttp.o $(FF_OBJ_DIR)/ffurl.o $(FF_OBJ_DIR)/ffparse.o $(FF_OBJ_DIR)/fficy.o \
+	$(FF_OBJ_DIR)/ffcrc.o \
+	$(FF_OBJ_DIR)/ffhashtab.o \
+	$(FF_OBJ_DIR)/ffpath.o \
 	$(FF_O)
 net.$(SO): $(NET_O)
 	$(LD) -shared $(NET_O) $(LDFLAGS)  -o$@
+
+
+#
+SOXR_O := $(OBJ_DIR)/soxr.o \
+	$(FF_OBJ_DIR)/ffsoxr.o \
+	$(FF_OBJ_DIR)/ffpcm.o \
+	$(FF_O)
+soxr.$(SO): $(SOXR_O)
+	$(LD) -shared $(SOXR_O) $(LDFLAGS) -lsoxr-ff  -o$@
 
 
 #
@@ -116,6 +144,7 @@ mpeg.$(SO): $(MPEG_O)
 #
 OGG_O := $(OBJ_DIR)/ogg.o \
 	$(FF_O) \
+	$(FF_OBJ_DIR)/ffpath.o \
 	$(FF_OBJ_DIR)/ffpcm.o \
 	$(FF_OBJ_DIR)/ffogg.o \
 	$(FF_OBJ_DIR)/ffogg-fmt.o
@@ -232,6 +261,9 @@ alac.$(SO): $(ALAC_O)
 #
 PLIST_O := $(OBJ_DIR)/plist.o \
 	$(FF_O) \
+	$(FFOS_WREG) \
+	$(FF_OBJ_DIR)/ffpath.o \
+	$(FF_OBJ_DIR)/ffsys.o \
 	$(FF_OBJ_DIR)/ffparse.o $(FF_OBJ_DIR)/ffm3u.o $(FF_OBJ_DIR)/ffcue.o \
 	$(FF_OBJ_DIR)/ffpls.o \
 	$(FF_OBJ_DIR)/ffpcm.o
@@ -273,6 +305,10 @@ $(OBJ_DIR)/%.o: $(SRCDIR)/gui/%.c $(SRCDIR)/gui/gui.h $(SRCDIR)/fmedia.h $(FF_GU
 
 GUI_O := $(OBJ_DIR)/gui.o $(OBJ_DIR)/gui-main.o $(OBJ_DIR)/gui-dlgs.o \
 	$(FF_O) \
+	$(FFOS_WREG) \
+	$(FF_OBJ_DIR)/ffsys.o \
+	$(FF_OBJ_DIR)/ffpath.o \
+	$(FF_OBJ_DIR)/fftime.o \
 	$(FF_OBJ_DIR)/ffparse.o $(FF_OBJ_DIR)/ffconf.o \
 	$(FF_OBJ_DIR)/ffpcm.o \
 	$(FF_OBJ_DIR)/ffpic.o \
@@ -283,6 +319,9 @@ gui.$(SO): $(GUI_O)
 BINGUI_O := core.$(SO) \
 	fmedia-gui.o \
 	$(FF_O) \
+	$(FFOS_WREG) \
+	$(FF_OBJ_DIR)/ffpath.o \
+	$(FF_OBJ_DIR)/ffsys.o \
 	$(FF_OBJ_DIR)/ffconf.o \
 	$(FF_OBJ_DIR)/ffpsarg.o \
 	$(FF_OBJ_DIR)/ffparse.o \
@@ -320,7 +359,9 @@ installd: all
 		$(FF3PTLIB)/libogg-ff.$(SO) $(FF3PTLIB)/libvorbis-ff.$(SO) $(FF3PTLIB)/libvorbisenc-ff.$(SO) \
 		$(FF3PTLIB)/libopus-ff.$(SO) \
 		$(FF3PTLIB)/libmpg123-ff.$(SO) $(FF3PTLIB)/libmp3lame-ff.$(SO) \
-		$(FF3PTLIB)/libFLAC-ff.$(SO) $(FF3PTLIB)/libwavpack-ff.$(SO) $(FF3PTLIB)/libMAC-ff.$(SO) \
+		$(FF3PTLIB)/libFLAC-ff.$(SO) \
+		$(FF3PTLIB)/libwavpack-ff.$(SO) \
+		$(FF3PTLIB)/libMAC-ff.$(SO) \
 		$(FF3PTLIB)/libfdk-aac-ff.$(SO) \
 		$(FF3PTLIB)/libALAC-ff.$(SO) \
 		$(FF3PTLIB)/libsoxr-ff.$(SO) \
@@ -343,3 +384,32 @@ endif
 
 
 install: all strip installd
+
+
+BINS_NODEPS := $(BIN) core.$(SO) net.$(SO) mixer.$(SO) plist.$(SO) \
+	$(BIN_CONTAINERS) $(OS_BINS) \
+	wav.$(SO)
+
+build-nodeps: ff $(BINS_NODEPS)
+
+install-nodeps: build-nodeps
+
+	mkdir -vp $(INSTDIR)
+	$(CP) $(BINS_NODEPS) \
+		$(PROJDIR)/fmedia.conf $(PROJDIR)/help*.txt $(PROJDIR)/README.txt $(PROJDIR)/CHANGES.txt \
+		$(INSTDIR)/
+
+ifneq ($(OS),win)
+	$(CP) $(PROJDIR)/fmedia-exec $(INSTDIR)/fmedia
+	chmod 644 $(INSTDIR)/*
+	chmod 755 $(INSTDIR)/fmedia
+
+else
+
+	$(CP) ./fmedia-gui.exe $(PROJDIR)/fmedia.gui $(PROJDIR)/fmedia*.ico $(PROJDIR)/*.manifest \
+		$(INSTDIR)/
+	unix2dos $(INSTDIR)/*.txt $(INSTDIR)/*.conf $(INSTDIR)/*.gui $(INSTDIR)/*.manifest
+	chmod 644 $(INSTDIR)/*
+endif
+
+	chmod 755 $(INSTDIR)/$(BIN) $(INSTDIR)/*.$(SO)

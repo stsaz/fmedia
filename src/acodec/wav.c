@@ -98,7 +98,7 @@ static void* wav_open(fmed_filt *d)
 {
 	fmed_wav *w = ffmem_tcalloc1(fmed_wav);
 	if (w == NULL) {
-		errlog(core, d->trk, "wav", "%e", FFERR_BUFALOC);
+		errlog(core, d->trk, "wav", "%s", ffmem_alloc_S);
 		return NULL;
 	}
 	ffwav_init(&w->wav);
@@ -298,7 +298,7 @@ static void* raw_open(fmed_filt *d)
 {
 	raw *r = ffmem_tcalloc1(raw);
 	if (r == NULL) {
-		errlog(core, d->trk, "raw", "%e", FFERR_BUFALOC);
+		errlog(core, d->trk, "raw", "%s", ffmem_alloc_S);
 		return NULL;
 	}
 

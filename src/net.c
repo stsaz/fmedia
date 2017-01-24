@@ -229,7 +229,7 @@ static int buf_alloc(icy *c, size_t size)
 	uint i;
 	for (i = 0;  i != net->conf.nbufs;  i++) {
 		if (NULL == (ffstr_alloc(&c->bufs[i], size))) {
-			syserrlog(core, c->d->trk, NULL, "%e", FFERR_BUFALOC);
+			syserrlog(core, c->d->trk, NULL, "%s", ffmem_alloc_S);
 			return -1;
 		}
 	}
@@ -251,7 +251,7 @@ static void* icy_open(fmed_filt *d)
 		goto done;
 
 	if (NULL == (c->bufs = ffmem_tcalloc(ffstr, net->conf.nbufs))) {
-		syserrlog(core, d->trk, NULL, "%e", FFERR_BUFALOC);
+		syserrlog(core, d->trk, NULL, "%s", ffmem_alloc_S);
 		goto done;
 	}
 	if (0 != buf_alloc(c, net->conf.bufsize))
@@ -319,24 +319,24 @@ static int tcp_prepare(icy *c, ffaddr *a)
 		core->log(FMED_LOG_INFO, c->d->trk, NULL, "connecting to %S (%*s)...", &host, n, saddr);
 
 		if (FF_BADSKT == (c->sk = ffskt_create(ffaddr_family(a), SOCK_STREAM, IPPROTO_TCP))) {
-			core->log(FMED_LOG_WARN | FMED_LOG_SYS, c->d->trk, NULL, "%e", FFERR_SKTCREAT);
+			core->log(FMED_LOG_WARN | FMED_LOG_SYS, c->d->trk, NULL, "%s", ffskt_create_S);
 			ffskt_close(c->sk);
 			c->sk = FF_BADSKT;
 			continue;
 		}
 
 		if (0 != ffskt_setopt(c->sk, IPPROTO_TCP, TCP_NODELAY, 1))
-			core->log(FMED_LOG_WARN | FMED_LOG_SYS, c->d->trk, NULL, "%e", FFERR_SKTOPT);
+			core->log(FMED_LOG_WARN | FMED_LOG_SYS, c->d->trk, NULL, "%s", ffskt_setopt_S);
 
 		if (0 != ffskt_nblock(c->sk, 1)) {
-			syserrlog(core, c->d->trk, NULL, "%e", FFERR_NBLOCK);
+			syserrlog(core, c->d->trk, NULL, "%s", ffskt_nblock_S);
 			return -1;
 		}
 		ffaio_init(&c->aio);
 		c->aio.sk = c->sk;
 		c->aio.udata = c;
 		if (0 != ffaio_attach(&c->aio, core->kq, FFKQU_READ | FFKQU_WRITE)) {
-			syserrlog(core, c->d->trk, NULL, "%e", FFERR_KQUATT);
+			syserrlog(core, c->d->trk, NULL, "%s", ffkqu_attach_S);
 			return -1;
 		}
 		return 0;
@@ -375,7 +375,7 @@ static void tcp_recvhdrs(void *udata)
 		if (r == 0)
 			errlog(core, c->d->trk, "net.icy", "server has closed connection");
 		else
-			syserrlog(core, c->d->trk, "net.icy", "%e", FFERR_READ);
+			syserrlog(core, c->d->trk, "net.icy", "%s", fffile_read_S);
 		c->err = 1;
 		goto done;
 	}
@@ -442,7 +442,7 @@ static void tcp_recv(void *udata)
 		if (r == 0)
 			errlog(core, c->d->trk, "net.icy", "server has closed connection");
 		else
-			syserrlog(core, c->d->trk, "net.icy", "%e", FFERR_READ);
+			syserrlog(core, c->d->trk, "net.icy", "%s", fffile_read_S);
 		c->err = 1;
 		goto done;
 	}
@@ -543,7 +543,7 @@ static int http_parse(icy *c)
 		ffaio_fin(&c->aio);
 		ffmem_free(c->host);
 		if (NULL == (c->host = ffsz_alcopy(s.ptr, s.len))) {
-			syserrlog(core, c->d->trk, NULL, "%e", FFERR_BUFALOC);
+			syserrlog(core, c->d->trk, NULL, "%s", ffmem_alloc_S);
 			return -1;
 		}
 		ffurl_init(&c->url);
@@ -584,7 +584,7 @@ static int icy_process(void *ctx, fmed_filt *d)
 
 		s = ffurl_get(&c->url, c->host, FFURL_HOST);
 		if (NULL == (hostz = ffsz_alcopy(s.ptr, s.len))) {
-			syserrlog(core, c->d->trk, NULL, "%e", FFERR_BUFALOC);
+			syserrlog(core, c->d->trk, NULL, "%s", ffmem_alloc_S);
 			goto done;
 		}
 
@@ -592,7 +592,7 @@ static int icy_process(void *ctx, fmed_filt *d)
 		r = ffaddr_info(&c->addr, hostz, NULL, 0);
 		ffmem_free(hostz);
 		if (r != 0) {
-			syserrlog(core, c->d->trk, NULL, "%e", FFERR_RESOLVE);
+			syserrlog(core, c->d->trk, NULL, "%s", ffaddr_info_S);
 			goto done;
 		}
 		c->state = I_NEXTADDR;
@@ -607,7 +607,7 @@ static int icy_process(void *ctx, fmed_filt *d)
 	case I_CONN:
 		r = ffaio_connect(&c->aio, &tcp_aio, &a.a, a.len);
 		if (r == FFAIO_ERROR) {
-			core->log(FMED_LOG_WARN | FMED_LOG_SYS, c->d->trk, NULL, "%e", FFERR_SKTCONN);
+			core->log(FMED_LOG_WARN | FMED_LOG_SYS, c->d->trk, NULL, "%s", ffskt_connect_S);
 			ffskt_close(c->sk);
 			c->sk = FF_BADSKT;
 			ffaio_fin(&c->aio);

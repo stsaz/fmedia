@@ -4,7 +4,6 @@ Copyright (c) 2015 Simon Zolin */
 #include <fmedia.h>
 
 #include <FF/audio/pcm.h>
-#include <FF/audio/soxr.h>
 #include <FF/array.h>
 #include <FF/crc.h>
 
@@ -38,14 +37,6 @@ static int sndmod_conv_process(void *ctx, fmed_filt *d);
 static void sndmod_conv_close(void *ctx);
 static const fmed_filter fmed_sndmod_conv = {
 	&sndmod_conv_open, &sndmod_conv_process, &sndmod_conv_close
-};
-
-//CONVERTER-SOXR
-static void* sndmod_soxr_open(fmed_filt *d);
-static int sndmod_soxr_process(void *ctx, fmed_filt *d);
-static void sndmod_soxr_close(void *ctx);
-static const fmed_filter fmed_sndmod_soxr = {
-	&sndmod_soxr_open, &sndmod_soxr_process, &sndmod_soxr_close
 };
 
 //GAIN
@@ -92,8 +83,6 @@ static const void* sndmod_iface(const char *name)
 {
 	if (!ffsz_cmp(name, "conv"))
 		return &fmed_sndmod_conv;
-	else if (!ffsz_cmp(name, "conv-soxr"))
-		return &fmed_sndmod_soxr;
 	else if (!ffsz_cmp(name, "gain"))
 		return &fmed_sndmod_gain;
 	else if (!ffsz_cmp(name, "until"))
@@ -160,7 +149,7 @@ static int sndmod_conv_prepare(sndmod_conv *c, fmed_filt *d)
 
 	if (in->sample_rate != out->sample_rate) {
 
-		if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, "#soundmod.conv-soxr"))
+		if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, "soxr.conv"))
 			return FMED_RERR;
 
 		if (in->channels == out->channels) {
@@ -294,81 +283,6 @@ static int sndmod_conv_process(void *ctx, fmed_filt *d)
 }
 
 
-typedef struct sndmod_soxr {
-	uint state;
-	ffsoxr soxr;
-	ffpcm inpcm;
-} sndmod_soxr;
-
-static void* sndmod_soxr_open(fmed_filt *d)
-{
-	sndmod_soxr *c = ffmem_tcalloc1(sndmod_soxr);
-	if (c == NULL)
-		return NULL;
-	ffsoxr_init(&c->soxr);
-	return c;
-}
-
-static void sndmod_soxr_close(void *ctx)
-{
-	sndmod_soxr *c = ctx;
-	ffsoxr_destroy(&c->soxr);
-	ffmem_free(c);
-}
-
-/*
-This filter converts both format and sample rate.
-Previous filter must deal with channel conversion.  In this case the input format is float32/ni.
-*/
-static int sndmod_soxr_process(void *ctx, fmed_filt *d)
-{
-	sndmod_soxr *c = ctx;
-	int val;
-	ffpcmex inpcm, outpcm;
-
-	switch (c->state) {
-	case 0:
-		inpcm = d->audio.convfmt_in;
-		outpcm = d->audio.convfmt;
-
-		// c->soxr.dither = 1;
-		if (0 != (val = ffsoxr_create(&c->soxr, &inpcm, &outpcm))
-			|| (core->loglev == FMED_LOG_DEBUG)) {
-			log_pcmconv("soxr", val, &inpcm, &outpcm, d->trk);
-			if (val != 0)
-				return FMED_RERR;
-		}
-
-		c->state = 3;
-		break;
-
-	case 3:
-		break;
-	}
-
-	c->soxr.in_i = d->data;
-	c->soxr.inlen = d->datalen;
-	if (d->flags & FMED_FLAST)
-		c->soxr.fin = 1;
-	if (0 != ffsoxr_convert(&c->soxr)) {
-		errlog(core, d->trk, "soxr", "ffsoxr_convert(): %s", ffsoxr_errstr(&c->soxr));
-		return FMED_RERR;
-	}
-
-	d->out = c->soxr.out;
-	d->outlen = c->soxr.outlen;
-
-	if (c->soxr.outlen == 0) {
-		if (d->flags & FMED_FLAST)
-			return FMED_RDONE;
-	}
-
-	d->data = c->soxr.in_i;
-	d->datalen = c->soxr.inlen;
-	return FMED_ROK;
-}
-
-
 static void* sndmod_gain_open(fmed_filt *d)
 {
 	ffpcmex *pcm = ffmem_tcalloc1(ffpcmex);
@@ -403,7 +317,6 @@ static int sndmod_gain_process(void *ctx, fmed_filt *d)
 typedef struct sndmod_untl {
 	uint64 until;
 	uint sampsize;
-	uint asis :1; //data is passed as-is (i.e. encoded/compressed)
 } sndmod_untl;
 
 static void* sndmod_untl_open(fmed_filt *d)
@@ -425,9 +338,6 @@ static void* sndmod_untl_open(fmed_filt *d)
 
 	if ((int64)d->audio.total != FMED_NULL)
 		d->audio.total = u->until;
-
-	if (FMED_PNULL != d->track->getvalstr(d->trk, "data_asis"))
-		u->asis = 1;
 	return u;
 }
 
@@ -451,16 +361,6 @@ static int sndmod_untl_process(void *ctx, fmed_filt *d)
 
 	if (FMED_NULL == (int64)(pos = d->audio.pos))
 		return FMED_RDONE;
-
-	if (u->asis) {
-		if (pos >= u->until) {
-			dbglog(core, d->trk, "until", "reached sample #%U", u->until);
-			d->outlen = 0;
-			return FMED_RLASTOUT;
-		}
-		d->datalen = 0;
-		return FMED_ROK;
-	}
 
 	samps = d->datalen / u->sampsize;
 	d->datalen = 0;

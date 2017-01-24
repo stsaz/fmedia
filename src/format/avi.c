@@ -73,7 +73,7 @@ static void* avi_open(fmed_filt *d)
 {
 	fmed_avi *a = ffmem_tcalloc1(fmed_avi);
 	if (a == NULL) {
-		errlog(core, d->trk, NULL, "%e", FFERR_BUFALOC);
+		errlog(core, d->trk, NULL, "%s", ffmem_alloc_S);
 		return NULL;
 	}
 	ffavi_init(&a->avi);
@@ -165,7 +165,6 @@ static int avi_process(void *ctx, fmed_filt *d)
 			d->audio.fmt.sample_rate = a->avi.info.sample_rate;
 			d->audio.total = a->avi.info.total_samples;
 			d->audio.bitrate = a->avi.info.bitrate;
-			d->raw_data = 1;
 
 			d->out = a->avi.info.asc.ptr,  d->outlen = a->avi.info.asc.len;
 			a->state = I_DATA;

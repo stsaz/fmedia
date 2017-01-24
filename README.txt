@@ -117,12 +117,12 @@ BUILD ON LINUX
 
 	git clone https://github.com/stsaz/ffos
 	git clone https://github.com/stsaz/ff
-	wget http://firmdev.com/ff-3pt.tar.xz
-	tar Jxf ff-3pt.tar.xz
-
+	git clone https://github.com/stsaz/ff-3pt
 	git clone https://github.com/stsaz/fmedia
 
-3. Build
+3. Build ff-3pt package (3rd-party libraries).  See ff-3pt/README.txt for details.
+
+4. Build fmedia:
 
 	cd fmedia
 	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:../ff-3pt/linux-amd64
@@ -131,21 +131,36 @@ BUILD ON LINUX
 	You can explicitly specify path to each of FF source repositories, e.g.:
 	make install FFOS=~/ffos FF=~/ff FF3PT=~/ff-3pt
 
-4. Ready!  You can copy the directory ./fmedia-0 anywhere you want (see section "INSTALL ON LINUX").
+	Default architecture is amd64.  You can specify different target architecture like this:
+		make install ARCH=i686
+	You'll also need to specify the proper path to ff-3pt binaries in LD_LIBRARY_PATH.
+
+5. Ready!  You can copy the directory ./fmedia-0 anywhere you want (see section "INSTALL ON LINUX").
+
+
+LIGHT BUILD
+
+You can build fmedia without dependencies on 3rd-party libraries.  This will be a very small package without audio (de)compression features.  Follow these steps:
+
+1. Run this command:
+
+	make install-nodeps
+
+2. Edit fmedia.conf and manually remove all modules that require 3rd-party libraries.
 
 
 ---------------
 BUILD ON LINUX FOR WINDOWS
 ---------------
-1-2. See section "BUILD ON LINUX".
+1-3. See section "BUILD ON LINUX".
 
-3. Build with mingw:
+4. Build with mingw:
 
 	cd fmedia
 	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:../ff-3pt/win-x64
 	mingw64-make OS=win CPREFIX=x86_64-w64-mingw32- install
 
-4. Ready!
+5. Ready!
 
 
 ---------------

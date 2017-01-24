@@ -37,6 +37,7 @@ typedef struct tui {
 	uint total_time_sec;
 	ffstr3 buf;
 	double maxdb;
+	uint nback;
 
 	uint goback :1
 		, rec :1
@@ -53,6 +54,7 @@ enum {
 	SEEK_STEP = 5 * 1000,
 	SEEK_STEP_MED = 15 * 1000,
 	SEEK_STEP_LARGE = 60 * 1000,
+	REC_STATUS_UPDATE = 200, //update recording status timeout (msec)
 
 	VOL_STEP = 5,
 	VOL_MAX = 125,
@@ -111,7 +113,6 @@ static const fmed_filter fmed_tui = {
 	&tui_open, &tui_process, &tui_close
 };
 
-static void tui_print_peak(tui *t, fmed_filt *d);
 static void tui_info(tui *t, fmed_filt *d);
 static int tui_cmdloop(void *param);
 static void tui_help(uint cmd);
@@ -206,11 +207,6 @@ static int tui_config(ffpars_ctx *conf)
 
 static void* tui_open(fmed_filt *d)
 {
-	if (d->audio.fmt.format == 0) {
-		errlog(core, d->trk, NULL, "audio format isn't set");
-		return NULL;
-	}
-
 	tui *t = ffmem_tcalloc1(tui);
 	if (t == NULL)
 		return NULL;
@@ -221,16 +217,14 @@ static void* tui_open(fmed_filt *d)
 		t->rec = 1;
 		gt->rec = 1;
 		t->maxdb = -MINDB;
-		core->log(FMED_LOG_USER, d->trk, NULL, "Recording... Press \"s\" to stop.");
-	}
 
-	t->total_samples = d->audio.total;
-	tui_info(t, d);
-	d->meta_changed = 0;
+		ffpcm fmt;
+		ffpcm_fmtcopy(&fmt, &d->audio.fmt);
+		t->sample_rate = fmt.sample_rate;
+		t->sampsize = ffpcm_size1(&fmt);
 
-	if (d->input_info) {
-		tui_close(t);
-		return FMED_FILT_DUMMY;
+		core->log(FMED_LOG_USER, d->trk, NULL, "Recording...  Source: %s %uHz %s.  Press \"s\" to stop."
+			, ffpcm_fmtstr(fmt.format), fmt.sample_rate, ffpcm_channelstr(fmt.channels));
 	}
 
 	t->trk = d->trk;
@@ -243,15 +237,13 @@ static void* tui_open(fmed_filt *d)
 
 	if (FMED_PNULL != d->track->getvalstr(d->trk, "output"))
 		t->conversion = 1;
+	d->meta_changed = 1;
 	return t;
 }
 
 static void tui_close(void *ctx)
 {
 	tui *t = ctx;
-
-	if (ctx == FMED_FILT_DUMMY)
-		return;
 
 	if (t == gt->curtrk) {
 		fflk_lock(&gt->lktrk);
@@ -386,20 +378,6 @@ static void tui_rmfile(tui *t, uint cmd)
 		gt->qu->cmd(FMED_QUE_RM, qtrk);
 }
 
-static void tui_print_peak(tui *t, fmed_filt *d)
-{
-	double db = d->audio.maxpeak;
-	if (db < -MINDB)
-		db = -MINDB;
-	if (t->maxdb < db)
-		t->maxdb = db;
-	size_t pos = ((MINDB + db) / MINDB) * 10;
-	ffstr_catfmt(&t->buf, "  [%*c%*c] %.02FdB / %.02FdB  "
-		, pos, '='
-		, (size_t)(10 - pos), '.'
-		, db, t->maxdb);
-}
-
 static int tui_process(void *ctx, fmed_filt *d)
 {
 	tui *t = ctx;
@@ -407,10 +385,34 @@ static int tui_process(void *ctx, fmed_filt *d)
 	uint playtime;
 	uint dots = 70;
 
-	if (ctx == FMED_FILT_DUMMY)
-		return FMED_RFIN;
+	if (d->meta_block) {
+		goto pass;
+	}
 
-	uint nback = (uint)t->buf.len;
+	if (t->rec) {
+		playtime = ffpcm_time(d->audio.pos, t->sample_rate);
+		if (playtime / REC_STATUS_UPDATE == t->lastpos / REC_STATUS_UPDATE)
+			goto done;
+		t->lastpos = playtime;
+		playtime /= 1000;
+
+		double db = d->audio.maxpeak;
+		if (db < -MINDB)
+			db = -MINDB;
+		if (t->maxdb < db)
+			t->maxdb = db;
+
+		size_t pos = ((MINDB + db) / MINDB) * 10;
+		t->buf.len = 0;
+		ffstr_catfmt(&t->buf, "%*c%u:%02u  [%*c%*c] %.02FdB / %.02FdB  "
+			, (size_t)t->nback, '\b'
+			, playtime / 60, playtime % 60
+			, pos, '='
+			, (size_t)(10 - pos), '.'
+			, db, t->maxdb);
+
+		goto print;
+	}
 
 	if (t->goback) {
 		t->goback = 0;
@@ -419,28 +421,26 @@ static int tui_process(void *ctx, fmed_filt *d)
 
 	if (d->meta_changed) {
 		d->meta_changed = 0;
+
+		if (d->audio.fmt.format == 0) {
+			errlog(core, d->trk, NULL, "audio format isn't set");
+			return FMED_RERR;
+		}
+
+		t->total_samples = d->audio.total;
+		t->played_samples = 0;
 		tui_info(t, d);
+		if (d->input_info)
+			return FMED_RFIN;
 	}
 
 	if (gt->rec && !t->rec)
 		goto done; //don't show playback bar while recording in another track
 
-	if (core->loglev == FMED_LOG_DEBUG)
-		nback = 0;
-
 	if (FMED_NULL == (playpos = d->audio.pos))
 		playpos = t->played_samples;
 	playtime = (uint)(ffpcm_time(playpos, t->sample_rate) / 1000);
 	if (playtime == t->lastpos) {
-
-		if (t->rec) {
-			double db = d->audio.maxpeak;
-			if (db < -40)
-				db = -40;
-			if (t->maxdb < db)
-				t->maxdb = db;
-		}
-
 		goto done;
 	}
 	t->lastpos = playtime;
@@ -450,19 +450,15 @@ static int tui_process(void *ctx, fmed_filt *d)
 
 		t->buf.len = 0;
 		ffstr_catfmt(&t->buf, "%*c%u:%02u"
-			, (size_t)nback, '\b'
+			, (size_t)t->nback, '\b'
 			, playtime / 60, playtime % 60);
-
-		if (t->rec) {
-			tui_print_peak(t, d);
-		}
 
 		goto print;
 	}
 
 	t->buf.len = 0;
 	ffstr_catfmt(&t->buf, "%*c[%*c%*c] %u:%02u / %u:%02u"
-		, (size_t)nback, '\b'
+		, (size_t)t->nback, '\b'
 		, (size_t)(playpos * dots / t->total_samples), '='
 		, (size_t)(dots - (playpos * dots / t->total_samples)), '.'
 		, playtime / 60, playtime % 60
@@ -470,11 +466,15 @@ static int tui_process(void *ctx, fmed_filt *d)
 
 print:
 	fffile_write(ffstderr, t->buf.ptr, t->buf.len);
-	t->buf.len -= nback; //don't count the number of '\b'
+	t->nback = t->buf.len - t->nback;
+	if (core->loglev == FMED_LOG_DEBUG)
+		t->nback = 0;
+	t->buf.len = 0;
 
 done:
 	t->played_samples += d->datalen / t->sampsize;
 
+pass:
 	d->out = d->data;
 	d->outlen = d->datalen;
 	d->datalen = 0;

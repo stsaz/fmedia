@@ -9,7 +9,7 @@ Copyright (c) 2016 Simon Zolin */
 
 typedef struct fmed_cmd {
 	const fmed_log *log;
-	struct { FFARR(char*) } in_files;
+	ffarr in_files; //char*[]
 	fftask tsk_start;
 
 	ffbool repeat_all;

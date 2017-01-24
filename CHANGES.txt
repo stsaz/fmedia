@@ -8,6 +8,19 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v0.23 - Jan 24, 2017
+
+ + GUI: save/load current playlist on exit/start ("autosave_playlists" config setting)
+ + MPEG stream copy: copy ID3 tags
+ * MPEG: use separate filters mpeg.in and mpeg.decode
+ * MPEG: ID3v2.3 parse: support extended header
+ * MPEG: ID3v2.4 parse: support 'data length indicator'
+ + plist.dir: expand sub-directories
+ * core: move soxr convertor to a separate module
+   fmedia can run without any 3rd-party libraries.  Remove all unneeded modules from fmedia.conf if you need a tiny package with core functions only.
+ * fmedia can be built for i686 CPU without 3rd-party libraries
+
+
 fmedia v0.22 - Dec 25, 2016
 
  + WASAPI: support loopback mode (record from playback)

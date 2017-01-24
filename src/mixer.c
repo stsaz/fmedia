@@ -161,7 +161,7 @@ static void* mix_in_open(fmed_filt *d)
 
 	mi = ffmem_tcalloc1(mix_in);
 	if (mi == NULL) {
-		errlog(core, d->trk, "mixer", "%e", FFERR_BUFALOC);
+		errlog(core, d->trk, "mixer", "%s", ffmem_alloc_S);
 		mx->err = 1;
 		return NULL;
 	}
@@ -234,12 +234,12 @@ static void* mix_open(fmed_filt *d)
 {
 	mxr *m = ffmem_tcalloc1(mxr);
 	if (m == NULL) {
-		errlog(core, d->trk, "mixer", "%e", FFERR_BUFALOC);
+		errlog(core, d->trk, "mixer", "%s", ffmem_alloc_S);
 		return NULL;
 	}
 
 	if (NULL == ffstr_alloc(&m->data, DATA_SIZE)) {
-		errlog(core, d->trk, "mixer", "%e", FFERR_BUFALOC);
+		errlog(core, d->trk, "mixer", "%s", ffmem_alloc_S);
 		ffmem_free(m);
 		m = NULL;
 		return NULL;

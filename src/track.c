@@ -168,7 +168,6 @@ static int trk_open(fm_trk *t, const char *fn)
 			return 1;
 	}
 
-	addfilter(t, "#soundmod.until");
 	return 0;
 }
 
@@ -191,6 +190,7 @@ static int trk_setout(fm_trk *t)
 {
 	ffstr name, ext;
 	const char *s;
+	ffbool stream_copy = (1 == trk_getval(t, "stream_copy"));
 
 	if (t->props.type == FMED_TRK_TYPE_NETIN) {
 		ffstr ext;
@@ -200,17 +200,20 @@ static int trk_setout(fm_trk *t)
 			return -1;
 
 	} else if (t->props.type != FMED_TRK_TYPE_MIXIN) {
+		if (t->props.type != FMED_TRK_TYPE_REC && !stream_copy)
+			addfilter(t, "#soundmod.until");
 		if (fmed->cmd.gui)
 			addfilter(t, "gui.gui");
 		else if (!fmed->cmd.notui)
 			addfilter(t, "#tui.tui");
 	}
 
-	if (t->props.type != FMED_TRK_TYPE_MIXOUT) {
+	if (t->props.type != FMED_TRK_TYPE_MIXOUT && !stream_copy) {
 		addfilter(t, "#soundmod.gain");
 	}
 
-	addfilter(t, "#soundmod.conv");
+	if (!stream_copy)
+		addfilter(t, "#soundmod.conv");
 
 	if (t->props.type == FMED_TRK_TYPE_MIXIN) {
 		addfilter(t, "mixer.in");
@@ -222,15 +225,11 @@ static int trk_setout(fm_trk *t)
 		uint have_path = (NULL != ffpath_split2(s, ffsz_len(s), NULL, &name));
 		ffpath_splitname(name.ptr, name.len, &name, &ext);
 
-		if (fmed->cmd.out_copy) {
-			trk_setval(t, "out-copy", 1);
+		if (1 == trk_getval(t, "out-copy")) {
 			if (fmed->conf.output != NULL)
 				addfilter1(t, fmed->conf.output);
 			return 0;
 		}
-
-		if (fmed->cmd.stream_copy)
-			trk_setval(t, "stream_copy", 1);
 
 		if (NULL == trk_modbyext(t, FMED_MOD_OUTEXT, &ext))
 			return -1;
@@ -316,8 +315,6 @@ static void* trk_create(uint cmd, const char *fn)
 		break;
 	}
 
-	if (fmed->cmd.meta.len != 0)
-		trk_setvalstr(t, "meta", fmed->cmd.meta.ptr);
 	return t;
 }
 
