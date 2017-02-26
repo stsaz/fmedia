@@ -223,7 +223,7 @@ static int trk_setout(fm_trk *t)
 
 	} else if (FMED_PNULL != (s = trk_getvalstr(t, "output"))) {
 		uint have_path = (NULL != ffpath_split2(s, ffsz_len(s), NULL, &name));
-		ffpath_splitname(name.ptr, name.len, &name, &ext);
+		ffs_rsplit2by(name.ptr, name.len, '.', &name, &ext);
 
 		if (1 == trk_getval(t, "out-copy")) {
 			if (fmed->conf.output != NULL)
