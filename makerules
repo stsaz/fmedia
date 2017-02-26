@@ -2,7 +2,7 @@
 OBJ_DIR := .
 BIN_CONTAINERS := avi.$(SO) mkv.$(SO) mp4.$(SO) ogg.$(SO)
 BIN_ACODECS := wav.$(SO) \
-	aac.$(SO) alac.$(SO) ape.$(SO) flac.$(SO) mpeg.$(SO) opus.$(SO) vorbis.$(SO) wavpack.$(SO)
+	aac.$(SO) alac.$(SO) ape.$(SO) flac.$(SO) mpeg.$(SO) mpc.$(SO) opus.$(SO) vorbis.$(SO) wavpack.$(SO)
 BINS := $(BIN) core.$(SO) net.$(SO) plist.$(SO) mixer.$(SO) \
 	soxr.$(SO) \
 	$(BIN_CONTAINERS) \
@@ -139,6 +139,16 @@ MPEG_O := $(OBJ_DIR)/mpeg.o $(FF_O) \
 	$(FF_OBJ_DIR)/ffid3.o
 mpeg.$(SO): $(MPEG_O)
 	$(LD) -shared $(MPEG_O) $(LDFLAGS) -lmpg123-ff -lmp3lame-ff  -o$@
+
+
+#
+MPC_O := $(OBJ_DIR)/mpc.o $(FF_O) \
+	$(FF_OBJ_DIR)/ffpcm.o \
+	$(FF_OBJ_DIR)/ffmpc.o \
+	$(FF_OBJ_DIR)/ffmmtag.o \
+	$(FF_OBJ_DIR)/ffapetag.o
+mpc.$(SO): $(MPC_O)
+	$(LD) -shared $(MPC_O) $(LDFLAGS) -lmpc-ff  -o$@
 
 
 #
@@ -360,6 +370,7 @@ installd: all
 		$(FF3PTLIB)/libopus-ff.$(SO) \
 		$(FF3PTLIB)/libmpg123-ff.$(SO) $(FF3PTLIB)/libmp3lame-ff.$(SO) \
 		$(FF3PTLIB)/libFLAC-ff.$(SO) \
+		$(FF3PTLIB)/libmpc-ff.$(SO) \
 		$(FF3PTLIB)/libwavpack-ff.$(SO) \
 		$(FF3PTLIB)/libMAC-ff.$(SO) \
 		$(FF3PTLIB)/libfdk-aac-ff.$(SO) \

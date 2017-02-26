@@ -1,0 +1,250 @@
+/** Musepack input.
+Copyright (c) 2017 Simon Zolin */
+
+#include <fmedia.h>
+
+#include <FF/audio/mpc.h>
+#include <FF/data/mmtag.h>
+
+
+static const fmed_core *core;
+static const fmed_queue *qu;
+
+//FMEDIA MODULE
+static const void* mpc_iface(const char *name);
+static int mpc_mod_conf(const char *name, ffpars_ctx *ctx);
+static int mpc_sig(uint signo);
+static void mpc_destroy(void);
+static const fmed_mod fmed_mpc_mod = {
+	&mpc_iface, &mpc_sig, &mpc_destroy, &mpc_mod_conf
+};
+
+//INPUT
+static void* mpc_open(fmed_filt *d);
+static void mpc_close(void *ctx);
+static int mpc_process(void *ctx, fmed_filt *d);
+static const fmed_filter mpc_input = {
+	&mpc_open, &mpc_process, &mpc_close
+};
+
+typedef struct mpc {
+	ffmpcr mpc;
+} mpc;
+
+//DECODE
+static void* mpc_dec_open(fmed_filt *d);
+static void mpc_dec_close(void *ctx);
+static int mpc_dec_process(void *ctx, fmed_filt *d);
+static const fmed_filter mpc_decoder = {
+	&mpc_dec_open, &mpc_dec_process, &mpc_dec_close
+};
+
+typedef struct mpcdec {
+	ffmpc mpcdec;
+} mpcdec;
+
+
+FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
+{
+	core = _core;
+	return &fmed_mpc_mod;
+}
+
+
+static const void* mpc_iface(const char *name)
+{
+	if (!ffsz_cmp(name, "in"))
+		return &mpc_input;
+	if (!ffsz_cmp(name, "decode"))
+		return &mpc_decoder;
+	return NULL;
+}
+
+static int mpc_mod_conf(const char *name, ffpars_ctx *ctx)
+{
+	return -1;
+}
+
+static int mpc_sig(uint signo)
+{
+	switch (signo) {
+	case FMED_SIG_INIT:
+		ffmem_init();
+		return 0;
+
+	case FMED_OPEN:
+		qu = core->getmod("#queue.queue");
+		break;
+	}
+	return 0;
+}
+
+static void mpc_destroy(void)
+{
+}
+
+
+static void* mpc_open(fmed_filt *d)
+{
+	mpc *m;
+	if (NULL == (m = ffmem_new(mpc)))
+		return NULL;
+	ffmpc_ropen(&m->mpc);
+	m->mpc.options = FFMPC_O_APETAG;
+
+	if ((int64)d->input.size != FMED_NULL) {
+		ffmpc_setsize(&m->mpc, d->input.size);
+	}
+
+	return m;
+}
+
+static void mpc_close(void *ctx)
+{
+	mpc *m = ctx;
+	ffmpc_rclose(&m->mpc);
+	ffmem_free(m);
+}
+
+static int mpc_process(void *ctx, fmed_filt *d)
+{
+	mpc *m = ctx;
+	int r;
+	ffstr blk;
+
+	if (d->flags & FMED_FSTOP) {
+		d->outlen = 0;
+		return FMED_RLASTOUT;
+	}
+
+	if (d->datalen != 0) {
+		ffmpc_input(&m->mpc, d->data, d->datalen);
+		d->datalen = 0;
+	}
+
+	for (;;) {
+		r = ffmpc_read(&m->mpc);
+
+		switch (r) {
+
+		case FFMPC_RHDR:
+			ffpcm_fmtcopy(&d->audio.fmt, &ffmpc_fmt(&m->mpc));
+			d->audio.bitrate = ffmpc_bitrate(&m->mpc);
+			d->audio.total = ffmpc_length(&m->mpc);
+			d->track->setvalstr(d->trk, "pcm_decoder", "Musepack");
+
+			if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, "mpc.decode"))
+				return FMED_RERR;
+
+			d->out = m->mpc.sh_block,  d->outlen = m->mpc.sh_block_len;
+			return FMED_RDATA;
+
+		case FFMPC_RMORE:
+			return FMED_RMORE;
+
+		case FFMPC_RSEEK:
+			d->input.seek = ffmpc_off(&m->mpc);
+			return FMED_RMORE;
+
+		case FFMPC_RTAG: {
+			ffstr name, val;
+			name = m->mpc.apetag.name;
+			if (FFAPETAG_FBINARY == (m->mpc.apetag.flags & FFAPETAG_FMASK)) {
+				dbglog(core, d->trk, NULL, "skipping binary tag: %S", &m->mpc.apetag.name);
+				continue;
+			}
+
+			if (m->mpc.tag != 0)
+				ffstr_setz(&name, ffmmtag_str[m->mpc.tag]);
+
+			ffstr_set2(&val, &m->mpc.tagval);
+
+			dbglog(core, d->trk, NULL, "tag: %S: %S", &name, &val);
+			qu->meta_set((void*)fmed_getval("queue_item"), name.ptr, name.len, val.ptr, val.len, FMED_QUE_TMETA);
+			continue;
+		}
+
+		case FFMPC_RBLOCK:
+			goto data;
+
+		case FFMPC_RDONE:
+			d->outlen = 0;
+			return FMED_RLASTOUT;
+
+		case FFMPC_RERR:
+			errlog(core, d->trk, "mpc", "ffmpc_read(): %s.  Offset: %U"
+				, ffmpc_rerrstr(&m->mpc), ffmpc_off(&m->mpc));
+			return FMED_RERR;
+		}
+	}
+
+data:
+	ffmpc_blockdata(&m->mpc, &blk);
+	d->out = blk.ptr,  d->outlen = blk.len;
+	return FMED_RDATA;
+}
+
+
+static void* mpc_dec_open(fmed_filt *d)
+{
+	mpcdec *m;
+	if (NULL == (m = ffmem_new(mpcdec)))
+		return NULL;
+	if (0 != ffmpc_open(&m->mpcdec, d->audio.fmt.channels, d->data, d->datalen)) {
+		errlog(core, d->trk, NULL, "ffmpc_open()");
+		ffmem_free(m);
+		return NULL;
+	}
+	d->datalen = 0;
+	m->mpcdec.fmt.sample_rate = d->audio.fmt.sample_rate;
+	d->audio.fmt.format = m->mpcdec.fmt.format;
+	d->audio.fmt.ileaved = m->mpcdec.fmt.ileaved;
+	return m;
+}
+
+static void mpc_dec_close(void *ctx)
+{
+	mpcdec *m = ctx;
+	ffmpc_close(&m->mpcdec);
+	ffmem_free(m);
+}
+
+static int mpc_dec_process(void *ctx, fmed_filt *d)
+{
+	mpcdec *m = ctx;
+	int r;
+
+	if (d->flags & FMED_FSTOP) {
+		d->outlen = 0;
+		return FMED_RLASTOUT;
+	}
+
+	if (d->datalen != 0) {
+		ffmpc_input(&m->mpcdec, d->data, d->datalen);
+		d->datalen = 0;
+	}
+
+	r = ffmpc_decode(&m->mpcdec);
+
+	switch (r) {
+	case FFMPC_RMORE:
+		if (d->flags & FMED_FLAST) {
+			d->outlen = 0;
+			return FMED_RDONE;
+		}
+		return FMED_RMORE;
+
+	case FFMPC_RDATA:
+		break;
+
+	case FFMPC_RERR:
+		errlog(core, d->trk, "mpc", "ffmpc_decode(): %s", ffmpc_errstr(&m->mpcdec));
+		return FMED_RERR;
+	}
+
+	dbglog(core, d->trk, NULL, "decoded %L samples"
+		, m->mpcdec.pcmlen / ffpcm_size1(&m->mpcdec.fmt));
+	d->out = (void*)m->mpcdec.pcm,  d->outlen = m->mpcdec.pcmlen;
+	d->audio.pos = ffmpc_cursample(&m->mpcdec);
+	return FMED_RDATA;
+}
