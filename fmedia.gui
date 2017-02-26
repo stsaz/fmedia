@@ -585,13 +585,13 @@ window wgoto {
 window wabout {
 	parent wmain
 	title "About fmedia"
-	position 300 300 400 165
+	position 300 300 425 175
 	style popup
 	opacity 90
 
 	image ico {
 		style visible
-		position 10 10 85 85
+		position 0 5 85 85
 		icon {
 			filename "fmedia.ico"
 			size 128 128
@@ -599,7 +599,7 @@ window wabout {
 	}
 
 	label labout {
-		position 100 15 300 80
+		position 130 15 300 80
 		style visible
 		font {
 			name Arial
@@ -608,7 +608,7 @@ window wabout {
 	}
 
 	label lurl {
-		position 100 100 190 25
+		position 130 100 190 25
 		style visible
 		font {
 			name Arial
