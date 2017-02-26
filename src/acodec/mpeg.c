@@ -253,7 +253,6 @@ again:
 				, ffmpg_isvbr(&m->mpg.rdr) ? "VBR" : "CBR", m->mpg.rdr.lame.id, m->mpg.rdr.xing.frames);
 			ffpcm_fmtcopy(&d->audio.fmt, &ffmpg_fmt(&m->mpg.rdr));
 
-			d->track->setvalstr(d->trk, "pcm_decoder", "MPEG");
 			d->audio.bitrate = ffmpg_bitrate(&m->mpg.rdr);
 			d->audio.total = ffmpg_length(&m->mpg.rdr);
 			m->state = I_DATA;
@@ -321,6 +320,7 @@ static void* mpeg_dec_open(fmed_filt *d)
 	m->mpg.fmt.channels = d->audio.fmt.channels;
 	d->audio.fmt.format = m->mpg.fmt.format;
 	d->audio.fmt.ileaved = m->mpg.fmt.ileaved;
+	d->track->setvalstr(d->trk, "pcm_decoder", "MPEG");
 	return m;
 }
 

@@ -121,7 +121,7 @@ BUILD ON LINUX
 	git clone https://github.com/stsaz/ff-3pt
 	git clone https://github.com/stsaz/fmedia
 
-3. Build ff-3pt package (3rd-party libraries).  See ff-3pt/README.txt for details.
+3. Build ff-3pt package (3rd-party libraries) or download pre-built binaries.  See ff-3pt/README.txt for details.
 
 4. Build fmedia:
 
@@ -155,11 +155,17 @@ BUILD ON LINUX FOR WINDOWS
 ---------------
 1-3. See section "BUILD ON LINUX".
 
-4. Build with mingw:
+4. Build with mingw (64-bit):
 
 	cd fmedia
-	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:../ff-3pt/win-x64
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:../ff-3pt/win-amd64
 	mingw64-make OS=win CPREFIX=x86_64-w64-mingw32- install
+
+	Build with mingw (32-bit):
+
+	cd fmedia
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:../ff-3pt/win-i686
+	mingw32-make OS=win ARCH=i686 CPREFIX=i686-w64-mingw32- install
 
 5. Ready!
 

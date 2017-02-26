@@ -49,6 +49,6 @@ LDFLAGS += -L$(FF3PTLIB) $(LD_LWS2_32)
 include $(PROJDIR)/makerules
 
 package: install
-	rm -f $(PROJ)-$(VER)-$(OS)-$(ARCH).$(PACK_EXT)
-	$(PACK) $(PROJ)-$(VER)-$(OS)-$(ARCH).$(PACK_EXT) $(INSTDIR)
-	$(PACK) $(PROJ)-$(VER)-$(OS)-$(ARCH)-debug.$(PACK_EXT) ./*.debug
+	rm -f $(PROJ)-$(VER)-$(OS)-$(ARCH_OS).$(PACK_EXT)
+	$(PACK) $(PROJ)-$(VER)-$(OS)-$(ARCH_OS).$(PACK_EXT) $(INSTDIR)
+	$(PACK) $(PROJ)-$(VER)-$(OS)-$(ARCH_OS)-debug.$(PACK_EXT) ./*.debug

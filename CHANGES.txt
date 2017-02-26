@@ -8,6 +8,15 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v0.24 - Feb 25, 2017
+
+ + Musepack input (no seeking)
+
+ - MPEG: ID3v2 write: invalid COMM frame was generated
+ - core: --out=.EXT didn't work (v0.22 bug)
+ * complete build for i686
+
+
 fmedia v0.23 - Jan 24, 2017
 
  + GUI: save/load current playlist on exit/start ("autosave_playlists" config setting)

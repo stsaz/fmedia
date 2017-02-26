@@ -114,7 +114,7 @@ static const fmed_filter fmed_tui = {
 };
 
 static void tui_info(tui *t, fmed_filt *d);
-static int tui_cmdloop(void *param);
+static int FFTHDCALL tui_cmdloop(void *param);
 static void tui_help(uint cmd);
 static void tui_rmfile(tui *t, uint cmd);
 static void tui_vol(tui *t, uint cmd);
@@ -640,7 +640,7 @@ static void tui_corecmd_add(const struct key *k, void *udata)
 	core->task(&c->tsk, FMED_TASK_POST);
 }
 
-static int tui_cmdloop(void *param)
+static int FFTHDCALL tui_cmdloop(void *param)
 {
 	ffstd_ev ev;
 	int r;

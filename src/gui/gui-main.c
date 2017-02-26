@@ -69,12 +69,12 @@ void wmain_init(void)
 	char *fn;
 	if (NULL == (fn = core->getpath(FFSTR("fmedia.ico"))))
 		return;
-	ffui_icon_load(&gg->wmain.ico, fn, 0);
+	ffui_icon_load(&gg->wmain.ico, fn, 0, FFUI_ICON_SMALL);
 	ffmem_free(fn);
 
 	if (NULL == (fn = core->getpath(FFSTR("fmedia-rec.ico"))))
 		return;
-	ffui_icon_load(&gg->wmain.ico_rec, fn, 0);
+	ffui_icon_load(&gg->wmain.ico_rec, fn, 0, FFUI_ICON_SMALL);
 	ffmem_free(fn);
 }
 

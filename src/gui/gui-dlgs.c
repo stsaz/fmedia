@@ -66,16 +66,15 @@ static void gui_cvt_action(ffui_wnd *wnd, int id)
 		int i, isub;
 		ffui_point pt;
 		ffui_cur_pos(&pt);
-		ffui_screen2client(&gg->wconvert.vsets, &pt);
-		i = ffui_send(gg->wconvert.vsets.h, LVM_GETHOTITEM, 0, 0);
-		if (VSETS_VAL != (isub = ffui_view_hittest(&gg->wconvert.vsets, &pt, i)))
+		if (-1 == (i = ffui_view_hittest(&gg->wconvert.vsets, &pt, &isub))
+			|| isub != VSETS_VAL)
 			return;
 		ffui_view_edit(&gg->wconvert.vsets, i, VSETS_VAL);
 		}
 		break;
 
 	case CVT_SETS_EDITDONE: {
-		int i = ffui_view_selnext(&gg->wconvert.vsets, -1);
+		int i = ffui_view_focused(&gg->wconvert.vsets);
 		ffui_viewitem it;
 		ffui_view_iteminit(&it);
 		ffui_view_setindex(&it, i);
@@ -630,9 +629,8 @@ static void gui_rec_action(ffui_wnd *wnd, int id)
 		int i, isub;
 		ffui_point pt;
 		ffui_cur_pos(&pt);
-		ffui_screen2client(&gg->wrec.vsets, &pt);
-		i = ffui_send(gg->wrec.vsets.h, LVM_GETHOTITEM, 0, 0);
-		if (VSETS_VAL != (isub = ffui_view_hittest(&gg->wrec.vsets, &pt, i)))
+		if (-1 == (i = ffui_view_hittest(&gg->wrec.vsets, &pt, &isub))
+			|| isub != VSETS_VAL)
 			return;
 		ffui_view_edit(&gg->wrec.vsets, i, VSETS_VAL);
 		break;
@@ -715,9 +713,8 @@ static void gui_info_click(void)
 	int i, isub;
 	ffui_point pt;
 	ffui_cur_pos(&pt);
-	ffui_screen2client(&gg->winfo.vinfo, &pt);
-	i = ffui_send(gg->winfo.vinfo.h, LVM_GETHOTITEM, 0, 0);
-	if (VINFO_VAL != (isub = ffui_view_hittest(&gg->winfo.vinfo, &pt, i)))
+	if (-1 == (i = ffui_view_hittest(&gg->winfo.vinfo, &pt, &isub))
+		|| isub != VINFO_VAL)
 		return;
 	ffui_view_edit(&gg->winfo.vinfo, i, VINFO_VAL);
 }
