@@ -16,7 +16,7 @@ track: ... -> gui-trk -> ...
 #include <FF/gui/loader.h>
 #include <FFOS/process.h>
 #include <FFOS/dir.h>
-#include <FFOS/win/reg.h>
+#include <FF/sys/wreg.h>
 
 
 const fmed_core *core;
@@ -764,10 +764,11 @@ static int gui_install(uint sig)
 	if (NULL == ffpath_split2(pfn, ffsz_len(pfn), &path, NULL))
 		return FFPARS_ELAST;
 
-	if (FFWREG_BADKEY == (k = ffwreg_open(HKEY_CURRENT_USER, "Environment", KEY_ALL_ACCESS)))
+	if (FFWREG_BADKEY == (k = ffwreg_open(HKEY_CURRENT_USER, "Environment", O_RDWR)))
 		goto end;
 
-	if (-1 == ffwreg_readbuf(k, "PATH", &buf))
+	r = ffwreg_readbuf(k, "PATH", &buf);
+	if (!ffwreg_isstr(r))
 		goto end;
 
 	const char *pos_path = ffs_ifinds(buf.ptr, buf.len, path.ptr, path.len);

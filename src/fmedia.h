@@ -22,8 +22,8 @@ mixer                 mixer
 #include <FFOS/error.h>
 
 
-#define FMED_VER_MINOR  24
-#define FMED_VER  "0.24"
+#define FMED_VER_MINOR  25
+#define FMED_VER  "0.25"
 #define FMED_HOMEPAGE  "http://fmedia.firmdev.com"
 
 // CORE
@@ -337,6 +337,7 @@ struct fmed_trk {
 		uint out_seekable :1;
 		uint meta_block :1; //data block isn't audio
 		uint stream_copy :1;
+		uint codec_err :1;
 	};
 	};
 

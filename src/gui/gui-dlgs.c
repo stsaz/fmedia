@@ -1050,12 +1050,10 @@ void wabout_init(void)
 static void gui_wabout_action(ffui_wnd *wnd, int id)
 {
 	switch (id) {
-	case OPEN_HOMEPAGE: {
-		ssize_t i = (ssize_t)ShellExecute(NULL, TEXT("open"), TEXT(FMED_HOMEPAGE), NULL, NULL, SW_SHOWNORMAL);
-		if (i <= 32)
+	case OPEN_HOMEPAGE:
+		if (0 != ffui_shellexec(FMED_HOMEPAGE, SW_SHOWNORMAL))
 			syserrlog(core, NULL, "gui", "ShellExecute()");
 		break;
-	}
 	}
 }
 

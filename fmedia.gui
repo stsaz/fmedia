@@ -1,4 +1,4 @@
-# fmedia v0.24 GUI
+# fmedia v0.25 GUI
 
 menu mfile {
 	item "&Open..." {

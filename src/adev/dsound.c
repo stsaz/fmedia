@@ -119,6 +119,9 @@ static int dsnd_sig(uint signo)
 	switch (signo) {
 	case FMED_SIG_INIT:
 		ffmem_init();
+		return 0;
+
+	case FMED_OPEN:
 		if (0 != ffdsnd_init())
 			return -1;
 		return 0;

@@ -404,7 +404,7 @@ static int tui_process(void *ctx, fmed_filt *d)
 
 		size_t pos = ((MINDB + db) / MINDB) * 10;
 		t->buf.len = 0;
-		ffstr_catfmt(&t->buf, "%*c%u:%02u  [%*c%*c] %.02FdB / %.02FdB  "
+		ffstr_catfmt(&t->buf, "%*c%u:%02u  [%*c%*c] %3.02FdB / %.02FdB  "
 			, (size_t)t->nback, '\b'
 			, playtime / 60, playtime % 60
 			, pos, '='

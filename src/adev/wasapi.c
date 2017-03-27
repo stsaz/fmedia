@@ -152,12 +152,15 @@ static int wasapi_sig(uint signo)
 	switch (signo) {
 	case FMED_SIG_INIT:
 		ffmem_init();
-		ffwas_init();
 		return 0;
 
 	case FMED_OPEN:
 		if (NULL == (mod = ffmem_tcalloc1(wasapi_mod)))
 			return -1;
+		if (0 != ffwas_init()) {
+			ffmem_free0(mod);
+			return -1;
+		}
 		mod->track = core->getmod("#core.track");
 		return 0;
 	}

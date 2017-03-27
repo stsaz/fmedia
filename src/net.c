@@ -754,7 +754,7 @@ static int icy_setmeta(icy *c, const ffstr *_data)
 			break;
 
 		default:
-			errlog(core, c->d, NULL, "bad metadata");
+			errlog(core, c->d->trk, NULL, "bad metadata");
 			data.len = 0;
 			break;
 		}

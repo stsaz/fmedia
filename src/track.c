@@ -254,6 +254,17 @@ static int trk_opened(fm_trk *t)
 		ffchain_add(&t->filt_chain, &f->sib);
 	}
 
+	if (core->loglev == FMED_LOG_DEBUG) {
+		ffarr schain = {0};
+		FFARR_WALK(&t->filters, f) {
+			const char *next = (f == t->filters.ptr) ? "" : " -> ";
+			ffstr_catfmt(&schain, "%s%s", next, f->name);
+		}
+		dbglog(core, t, "core", "chain: %S", &schain);
+		ffarr_free(&schain);
+		dbglog(core, t, "core", "properties: %*xb", sizeof(t->props), &t->props);
+	}
+
 	fflist_ins(&fmed->trks, &t->sib);
 	t->state = TRK_ST_ACTIVE;
 	t->cur = &t->filters.ptr->sib;
@@ -748,6 +759,7 @@ static int trk_cmd2(void *trk, uint cmd, void *param)
 			return -1;
 		memmove(t->filters.ptr + 1, t->filters.ptr, t->filters.len * sizeof(fmed_f));
 		f = t->filters.ptr;
+		ffmem_tzero(f);
 		t->filters.len++;
 		f->name = param;
 		if (NULL == (f->filt = core->getmod2(FMED_MOD_IFACE, param, -1)))

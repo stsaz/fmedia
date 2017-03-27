@@ -8,6 +8,25 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v0.25 - Mar 27, 2017
+
+ + Linux: Pulse Audio playback
+   Must be enabled manually in fmedia.conf, because ALSA is used by default.
+ + Musepack seeking
+
+ *! core: Windows: fmedia can run from %APPDATA%/fmedia directory
+    Rename optional configuration files:
+     fmedia-user.conf -> fmedia-ext.conf
+     %APPDATA%/fmedia/fmedia.conf -> %APPDATA%/fmedia/fmedia-user.conf
+
+ + GUI: add Record -> "Select Audio Device" command
+ * GUI convert: add more codec settings
+ - plist.dir: fix segfault on auto-expanding sub-directories
+ - plist: fix segfault on parsing large .m3u/.pls files
+ - net.icy: "--out-copy" didn't work if server doesn't send ICY meta data
+ - net.icy: "--stream-copy" & "--out-copy" didn't work (v0.22 bug)
+
+
 fmedia v0.24 - Feb 25, 2017
 
  + Musepack input (no seeking)
