@@ -431,14 +431,17 @@ static void qu_setprops(const fmed_queue *qu, fmed_que_entry *qe)
 	if (fmed->playdev_name != 0)
 		qu_setval(qu, qe, "playdev_name", fmed->playdev_name);
 
-	if (fmed->outfn.len != 0 && !fmed->rec)
-		qu->meta_set(qe, FFSTR("output"), fmed->outfn.ptr, fmed->outfn.len, FMED_QUE_TRKDICT);
-
-	if (fmed->stream_copy)
-		qu_setval(qu, qe, "stream_copy", 1);
-
-	if (fmed->out_copy)
+	if (fmed->out_copy) {
 		qu_setval(qu, qe, "out-copy", 1);
+		if (fmed->stream_copy)
+			qu_setval(qu, qe, "out_stream_copy", 1);
+		if (fmed->outfn.len != 0)
+			qu->meta_set(qe, FFSTR("out_filename"), fmed->outfn.ptr, fmed->outfn.len, FMED_QUE_TRKDICT);
+
+	} else {
+		if (fmed->outfn.len != 0 && !fmed->rec)
+			qu->meta_set(qe, FFSTR("output"), fmed->outfn.ptr, fmed->outfn.len, FMED_QUE_TRKDICT);
+	}
 
 	if (fmed->rec)
 		qu_setval(qu, qe, "low_latency", 1);
@@ -491,6 +494,9 @@ static void trk_prep(fmed_trk *trk)
 		trk->mpeg.quality = fmed->mpeg_qual;
 	if (fmed->flac_complevel != 0xff)
 		trk->flac.compression = fmed->flac_complevel;
+
+	if (fmed->stream_copy && !fmed->out_copy)
+		trk->stream_copy = 1;
 }
 
 static void open_input(void *udata)

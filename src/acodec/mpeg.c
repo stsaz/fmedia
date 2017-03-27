@@ -140,7 +140,7 @@ static void mpeg_destroy(void)
 
 static void* mpeg_open(fmed_filt *d)
 {
-	if (1 == fmed_getval("stream_copy")) {
+	if (d->stream_copy) {
 		if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, "mpeg.copy"))
 			return NULL;
 		return FMED_FILT_SKIP;

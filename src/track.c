@@ -190,7 +190,7 @@ static int trk_setout(fm_trk *t)
 {
 	ffstr name, ext;
 	const char *s;
-	ffbool stream_copy = (1 == trk_getval(t, "stream_copy"));
+	ffbool stream_copy = t->props.stream_copy;
 
 	if (t->props.type == FMED_TRK_TYPE_NETIN) {
 		ffstr ext;
@@ -224,12 +224,6 @@ static int trk_setout(fm_trk *t)
 	} else if (FMED_PNULL != (s = trk_getvalstr(t, "output"))) {
 		uint have_path = (NULL != ffpath_split2(s, ffsz_len(s), NULL, &name));
 		ffs_rsplit2by(name.ptr, name.len, '.', &name, &ext);
-
-		if (1 == trk_getval(t, "out-copy")) {
-			if (fmed->conf.output != NULL)
-				addfilter1(t, fmed->conf.output);
-			return 0;
-		}
 
 		if (NULL == trk_modbyext(t, FMED_MOD_OUTEXT, &ext))
 			return -1;

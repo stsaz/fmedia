@@ -78,6 +78,7 @@ struct icy {
 		, async :1
 		, err :1
 		, preload :1 //fill all buffers
+		, out_copy :1
 		;
 };
 
@@ -249,6 +250,8 @@ static void* icy_open(fmed_filt *d)
 	c->host = (void*)d->track->getvalstr(d->trk, "input");
 	if (NULL == (c->host = ffsz_alcopyz(c->host)))
 		goto done;
+
+	c->out_copy = (FMED_NULL != d->track->getval(d->trk, "out-copy"));
 
 	if (NULL == (c->bufs = ffmem_tcalloc(ffstr, net->conf.nbufs))) {
 		syserrlog(core, d->trk, NULL, "%s", ffmem_alloc_S);
@@ -777,7 +780,7 @@ static int icy_setmeta(icy *c, const ffstr *_data)
 		c->netin = NULL;
 	}
 
-	if (c->netin == NULL && FMED_NULL != net->track->getval(c->d->trk, "out-copy"))
+	if (c->out_copy && c->netin == NULL)
 		c->netin = netin_create(c);
 	return 0;
 }
@@ -789,6 +792,7 @@ static void* netin_create(icy *c)
 {
 	netin *n;
 	void *trk;
+	fmed_trk *trkconf;
 	if (NULL == (n = ffmem_tcalloc1(netin)))
 		return NULL;
 
@@ -798,16 +802,19 @@ static void* netin_create(icy *c)
 	if (0 != net->track->cmd2(trk, FMED_TRACK_ADDFILT_BEGIN, "net.in"))
 		return NULL;
 
+	trkconf = net->track->conf(trk);
+	trkconf->out_overwrite = c->d->out_overwrite;
+
 	const char *output;
-	output = net->track->getvalstr(c->d->trk, "output");
+	output = net->track->getvalstr(c->d->trk, "out_filename");
 	net->track->setvalstr(trk, "output", output);
 
 	net->track->setvalstr(trk, "input", "?.mp3");
 	net->track->setval(trk, "netin_ptr", (size_t)n);
 	n->c = c;
 
-	if (1 == net->track->getval(c->d->trk, "stream_copy"))
-		net->track->setval(trk, "stream_copy", 1);
+	if (1 == net->track->getval(c->d->trk, "out_stream_copy"))
+		trkconf->stream_copy = 1;
 
 	net->track->setvalstr4(trk, "artist", (void*)&c->artist, FMED_TRK_META | FMED_TRK_VALSTR);
 	net->track->setvalstr4(trk, "title", (void*)&c->title, FMED_TRK_META | FMED_TRK_VALSTR);
@@ -842,7 +849,8 @@ static void netin_close(void *ctx)
 	ffarr_free(&n->d[0]);
 	ffarr_free(&n->d[1]);
 	core->task(&n->task, FMED_TASK_DEL);
-	n->c->netin = NULL;
+	if (n->c->netin == n)
+		n->c->netin = NULL;
 	ffmem_free(n);
 }
 

@@ -336,6 +336,7 @@ struct fmed_trk {
 		uint pcm_peaks_crc :1;
 		uint out_seekable :1;
 		uint meta_block :1; //data block isn't audio
+		uint stream_copy :1;
 	};
 	};
 

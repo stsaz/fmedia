@@ -138,7 +138,7 @@ static void* ogg_open(fmed_filt *d)
 	if (ogg_in_conf.seekable)
 		o->og.seekable = 1;
 
-	if (1 == fmed_getval("stream_copy")) {
+	if (d->stream_copy) {
 		d->track->setvalstr(d->trk, "data_asis", "ogg");
 		o->stmcopy = 1;
 	}
