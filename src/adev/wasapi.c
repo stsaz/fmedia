@@ -76,8 +76,6 @@ static const fmed_mod fmed_wasapi_mod = {
 	&wasapi_iface, &wasapi_sig, &wasapi_destroy, &wasapi_conf
 };
 
-static int wasapi_listdev(void);
-
 //OUTPUT
 static void* wasapi_open(fmed_filt *d);
 static int wasapi_write(void *ctx, fmed_filt *d);
@@ -112,6 +110,14 @@ static const ffpars_arg wasapi_in_conf_args[] = {
 	, { "exclusive_mode",  FFPARS_TINT | FFPARS_F8BIT,  FFPARS_DSTOFF(struct wasapi_in_conf_t, exclusive) }
 };
 
+//ADEV
+static int wasapi_adev_list(fmed_adev_ent **ents, uint flags);
+static void wasapi_adev_listfree(fmed_adev_ent *ents);
+static const fmed_adev fmed_wasapi_adev = {
+	.list = &wasapi_adev_list,
+	.listfree = &wasapi_adev_listfree,
+};
+
 
 FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 {
@@ -126,6 +132,8 @@ static const void* wasapi_iface(const char *name)
 		return &fmed_wasapi_out;
 	} else if (!ffsz_cmp(name, "in")) {
 		return &fmed_wasapi_in;
+	} else if (!ffsz_cmp(name, "adev")) {
+		return &fmed_wasapi_adev;
 	}
 	return NULL;
 }
@@ -152,9 +160,6 @@ static int wasapi_sig(uint signo)
 			return -1;
 		mod->track = core->getmod("#core.track");
 		return 0;
-
-	case FMED_LISTDEV:
-		return wasapi_listdev();
 	}
 	return 0;
 }
@@ -171,38 +176,61 @@ static void wasapi_destroy(void)
 	ffwas_uninit();
 }
 
-static int wasapi_listdev(void)
+
+static int wasapi_adev_list(fmed_adev_ent **ents, uint flags)
 {
+	ffarr a = {0};
 	ffwas_dev d;
-	int i, r;
-	ffstr3 buf = {0};
+	uint f = 0;
+	fmed_adev_ent *e;
+	int r, rr = -1;
 
 	ffwas_devinit(&d);
-	ffstr_catfmt(&buf, "Playback/Loopback:\n");
-	for (i = 1;  0 == (r = ffwas_devnext(&d, FFWAS_DEV_RENDER));  i++) {
-		ffstr_catfmt(&buf, "device #%u: %s\n", i, d.name);
+
+	if (flags == FMED_ADEV_PLAYBACK)
+		f = FFWAS_DEV_RENDER;
+	else if (flags == FMED_ADEV_CAPTURE)
+		f = FFWAS_DEV_CAPTURE;
+
+	for (;;) {
+		r = ffwas_devnext(&d, f);
+		if (r == 1)
+			break;
+		else if (r < 0) {
+			errlog(core, NULL, "wasapi", "ffwas_devnext(): (%xu) %s", r, ffwas_errstr(r));
+			goto end;
+		}
+
+		if (NULL == (e = ffarr_pushgrowT(&a, 4, fmed_adev_ent)))
+			goto end;
+		if (NULL == (e->name = ffsz_alcopyz(d.name)))
+			goto end;
 	}
-	ffwas_devdestroy(&d);
-	if (r < 0)
-		goto fail;
 
-	ffwas_devinit(&d);
-	ffstr_catfmt(&buf, "\nCapture:\n");
-	for (i = 1;  0 == (r = ffwas_devnext(&d, FFWAS_DEV_CAPTURE));  i++) {
-		ffstr_catfmt(&buf, "device #%u: %s\n", i, d.name);
+	if (NULL == (e = ffarr_pushT(&a, fmed_adev_ent)))
+		goto end;
+	e->name = NULL;
+	*ents = (void*)a.ptr;
+	rr = a.len - 1;
+
+end:
+	ffwas_devdestroy(&d);
+	if (rr < 0) {
+		FFARR_WALKT(&a, e, fmed_adev_ent) {
+			ffmem_safefree(e->name);
+		}
+		ffarr_free(&a);
 	}
-	ffwas_devdestroy(&d);
-	if (r < 0)
-		goto fail;
+	return rr;
+}
 
-	fffile_write(ffstdout, buf.ptr, buf.len);
-	ffarr_free(&buf);
-	return 1;
-
-fail:
-	errlog(core, NULL, "wasapi", "ffwas_devnext(): (%xu) %s", r, ffwas_errstr(r));
-	ffarr_free(&buf);
-	return -1;
+static void wasapi_adev_listfree(fmed_adev_ent *ents)
+{
+	fmed_adev_ent *e;
+	for (e = ents;  e->name != NULL;  e++) {
+		ffmem_free(e->name);
+	}
+	ffmem_free(ents);
 }
 
 

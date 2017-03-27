@@ -45,8 +45,6 @@ static const fmed_mod fmed_dsnd_mod = {
 	&dsnd_iface, &dsnd_sig, &dsnd_destroy, &dsnd_conf
 };
 
-static int dsnd_listdev(void);
-
 //OUTPUT
 static void* dsnd_open(fmed_filt *d);
 static int dsnd_write(void *ctx, fmed_filt *d);
@@ -79,6 +77,14 @@ static const ffpars_arg dsnd_in_conf_args[] = {
 	, { "buffer_length",  FFPARS_TINT | FFPARS_FNOTZERO,  FFPARS_DSTOFF(struct dsnd_in_conf_t, buflen) }
 };
 
+//ADEV
+static int dsnd_adev_list(fmed_adev_ent **ents, uint flags);
+static void dsnd_adev_listfree(fmed_adev_ent *ents);
+static const fmed_adev fmed_dsnd_adev = {
+	.list = &dsnd_adev_list,
+	.listfree = &dsnd_adev_listfree,
+};
+
 
 FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 {
@@ -93,6 +99,8 @@ static const void* dsnd_iface(const char *name)
 		return &fmed_dsnd_out;
 	} else if (!ffsz_cmp(name, "in")) {
 		return &fmed_dsnd_in;
+	} else if (!ffsz_cmp(name, "adev")) {
+		return &fmed_dsnd_adev;
 	}
 	return NULL;
 }
@@ -114,9 +122,6 @@ static int dsnd_sig(uint signo)
 		if (0 != ffdsnd_init())
 			return -1;
 		return 0;
-
-	case FMED_LISTDEV:
-		return dsnd_listdev();
 	}
 	return 0;
 }
@@ -126,37 +131,59 @@ static void dsnd_destroy(void)
 	ffdsnd_uninit();
 }
 
-static int dsnd_listdev(void)
+
+static int dsnd_adev_list(fmed_adev_ent **ents, uint flags)
 {
-	struct ffdsnd_devenum *d, *dhead;
-	int i, r;
-	ffstr3 buf = {0};
+	ffarr a = {0};
+	uint f = 0;
+	fmed_adev_ent *e;
+	int r, rr = -1;
+	struct ffdsnd_devenum *d, *dhead = NULL;
 
-	if (0 != (r = ffdsnd_devenum(&dhead, FFDSND_DEV_RENDER)))
-		goto fail;
-	ffstr_catfmt(&buf, "Playback:\n");
-	for (d = dhead, i = 0;  d != NULL; d = d->next, i++) {
-		ffstr_catfmt(&buf, "device #%u: %s\n", i, d->name);
+	if (flags == FMED_ADEV_PLAYBACK)
+		f = FFDSND_DEV_RENDER;
+	else if (flags == FMED_ADEV_CAPTURE)
+		f = FFDSND_DEV_CAPTURE;
+
+	if (0 != (r = ffdsnd_devenum(&dhead, f))) {
+		errlog(core, NULL, "dsound", "ffdsnd_devenum(): (%xu) %s", r, ffdsnd_errstr(r));
+		goto end;
 	}
-	ffdsnd_devenumfree(dhead);
 
-	if (0 != (r = ffdsnd_devenum(&dhead, FFDSND_DEV_CAPTURE)))
-		goto fail;
-	ffstr_catfmt(&buf, "\nCapture:\n");
-	for (d = dhead, i = 0;  d != NULL; d = d->next, i++) {
-		ffstr_catfmt(&buf, "device #%u: %s\n", i, d->name);
+	for (d = dhead;  d != NULL;  d = d->next) {
+
+		if (NULL == (e = ffarr_pushgrowT(&a, 4, fmed_adev_ent)))
+			goto end;
+		if (NULL == (e->name = ffsz_alcopyz(d->name)))
+			goto end;
 	}
+
+	if (NULL == (e = ffarr_pushT(&a, fmed_adev_ent)))
+		goto end;
+	e->name = NULL;
+	*ents = (void*)a.ptr;
+	rr = a.len - 1;
+
+end:
 	ffdsnd_devenumfree(dhead);
-
-	fffile_write(ffstdout, buf.ptr, buf.len);
-	ffarr_free(&buf);
-	return 1;
-
-fail:
-	errlog(core, NULL, "dsound", "ffdsnd_devenum(): (%xu) %s", r, ffdsnd_errstr(r));
-	ffarr_free(&buf);
-	return -1;
+	if (rr < 0) {
+		FFARR_WALKT(&a, e, fmed_adev_ent) {
+			ffmem_safefree(e->name);
+		}
+		ffarr_free(&a);
+	}
+	return rr;
 }
+
+static void dsnd_adev_listfree(fmed_adev_ent *ents)
+{
+	fmed_adev_ent *e;
+	for (e = ents;  e->name != NULL;  e++) {
+		ffmem_free(e->name);
+	}
+	ffmem_free(ents);
+}
+
 
 /** Get device by index. */
 static int dsnd_devbyidx(struct ffdsnd_devenum **dhead, struct ffdsnd_devenum **dev, uint idev, uint flags)

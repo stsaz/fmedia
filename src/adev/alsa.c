@@ -52,7 +52,6 @@ static const fmed_mod fmed_alsa_mod = {
 	&alsa_iface, &alsa_sig, &alsa_destroy, &alsa_conf
 };
 
-static int alsa_listdev(void);
 static int alsa_create(alsa_out *a, fmed_filt *d);
 
 //OUTPUT
@@ -108,6 +107,14 @@ static const ffpars_arg alsa_in_conf_args[] = {
 
 static void alsa_in_oncapt(void *udata);
 
+//ADEV
+static int alsa_adev_list(fmed_adev_ent **ents, uint flags);
+static void alsa_adev_listfree(fmed_adev_ent *ents);
+static const fmed_adev fmed_alsa_adev = {
+	.list = &alsa_adev_list,
+	.listfree = &alsa_adev_listfree,
+};
+
 
 FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 {
@@ -122,6 +129,8 @@ static const void* alsa_iface(const char *name)
 		return &fmed_alsa_out;
 	} else if (!ffsz_cmp(name, "in")) {
 		return &fmed_alsa_in;
+	} else if (!ffsz_cmp(name, "adev")) {
+		return &fmed_alsa_adev;
 	}
 	return NULL;
 }
@@ -159,9 +168,6 @@ static int alsa_sig(uint signo)
 
 		mod->track = core->getmod("#core.track");
 		return 0;
-
-	case FMED_LISTDEV:
-		return alsa_listdev();
 	}
 	return 0;
 }
@@ -180,38 +186,61 @@ static void alsa_destroy(void)
 	ffalsa_uninit(core->kq);
 }
 
-static int alsa_listdev(void)
+
+static int alsa_adev_list(fmed_adev_ent **ents, uint flags)
 {
+	ffarr a = {0};
 	ffalsa_dev d;
-	int i, r;
-	ffstr3 buf = {0};
+	uint f = 0;
+	fmed_adev_ent *e;
+	int r, rr = -1;
 
 	ffalsa_devinit(&d);
-	ffstr_catfmt(&buf, "Playback:\n");
-	for (i = 1;  0 == (r = ffalsa_devnext(&d, FFALSA_DEV_PLAYBACK));  i++) {
-		ffstr_catfmt(&buf, "device #%u: %s\n", i, d.name);
+
+	if (flags == FMED_ADEV_PLAYBACK)
+		f = FFALSA_DEV_PLAYBACK;
+	else if (flags == FMED_ADEV_CAPTURE)
+		f = FFALSA_DEV_CAPTURE;
+
+	for (;;) {
+		r = ffalsa_devnext(&d, f);
+		if (r == 1)
+			break;
+		else if (r < 0) {
+			errlog(core, NULL, "alsa", "ffalsa_devnext(): (%d) %s", r, ffalsa_errstr(r));
+			goto end;
+		}
+
+		if (NULL == (e = ffarr_pushgrowT(&a, 4, fmed_adev_ent)))
+			goto end;
+		if (NULL == (e->name = ffsz_alcopyz(d.name)))
+			goto end;
 	}
-	ffalsa_devdestroy(&d);
-	if (r < 0)
-		goto fail;
 
-	ffalsa_devinit(&d);
-	ffstr_catfmt(&buf, "\nCapture:\n");
-	for (i = 1;  0 == (r = ffalsa_devnext(&d, FFALSA_DEV_CAPTURE));  i++) {
-		ffstr_catfmt(&buf, "device #%u: %s\n", i, d.name);
+	if (NULL == (e = ffarr_pushT(&a, fmed_adev_ent)))
+		goto end;
+	e->name = NULL;
+	*ents = (void*)a.ptr;
+	rr = a.len - 1;
+
+end:
+	ffalsa_devdestroy(&d);
+	if (rr < 0) {
+		FFARR_WALKT(&a, e, fmed_adev_ent) {
+			ffmem_safefree(e->name);
+		}
+		ffarr_free(&a);
 	}
-	ffalsa_devdestroy(&d);
-	if (r < 0)
-		goto fail;
+	return rr;
+}
 
-	fffile_write(ffstdout, buf.ptr, buf.len);
-	ffarr_free(&buf);
-	return 1;
-
-fail:
-	errlog(core, NULL, "alsa", "ffalsa_devnext(): (%d) %s", r, ffalsa_errstr(r));
-	ffarr_free(&buf);
-	return -1;
+static void alsa_adev_listfree(fmed_adev_ent *ents)
+{
+	fmed_adev_ent *e;
+	for (e = ents;  e->name != NULL;  e++) {
+		ffmem_free(e->name);
+	}
+	ffmem_free(ents);
 }
 
 
