@@ -295,6 +295,27 @@ struct fmed_trk {
 		float maxpeak; //dB
 		uint bitrate; //bit/s
 	} audio;
+
+	struct {
+		int quality;
+		short bandwidth;
+	} aac;
+	struct {
+		signed char quality; // (q+1.0)*10
+	} vorbis;
+	struct {
+		short bitrate;
+		short frame_size;
+		signed char bandwidth;
+	} opus;
+	struct {
+		short quality;
+	} mpeg;
+	struct {
+		signed char compression;
+		signed char md5;
+	} flac;
+
 	struct {
 		uint64 size;
 		uint64 seek;

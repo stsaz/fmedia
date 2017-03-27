@@ -216,15 +216,13 @@ static int aac_out_encode(void *ctx, fmed_filt *d)
 
 		ffpcm_fmtcopy(&a->fmt, &d->audio.convfmt);
 
-		int qual;
-		if (FMED_NULL == (qual = fmed_getval("aac-quality")))
-			qual = aac_out_conf.qual;
+		int qual = (d->aac.quality != -1) ? d->aac.quality : (int)aac_out_conf.qual;
 		if (qual > 5 && qual < 8000)
 			qual *= 1000;
 
 		a->aac.info.aot = aac_out_conf.aot;
 		a->aac.info.afterburner = aac_out_conf.afterburner;
-		a->aac.info.bandwidth = aac_out_conf.bandwidth;
+		a->aac.info.bandwidth = (d->aac.bandwidth != -1) ? d->aac.bandwidth : (int)aac_out_conf.bandwidth;
 
 		if (0 != (r = ffaac_create(&a->aac, &a->fmt, qual))) {
 			errlog(core, d->trk, NULL, "ffaac_create(): %s", ffaac_enc_errstr(&a->aac));

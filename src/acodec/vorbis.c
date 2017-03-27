@@ -320,10 +320,7 @@ static int vorbis_out_encode(void *ctx, fmed_filt *d)
 			return FMED_RERR;
 		}
 
-		int qual = (int)fmed_getval("vorbis.quality");
-		if (qual == FMED_NULL)
-			qual = vorbis_out_conf.qual * 10;
-
+		int qual = (d->vorbis.quality != -1) ? (d->vorbis.quality - 10) : vorbis_out_conf.qual * 10;
 		if (0 != (r = ffvorbis_create(&v->vorbis, &v->fmt, qual))) {
 			errlog(core, d->trk, NULL, "ffvorbis_create(): %s", ffvorbis_enc_errstr(&v->vorbis));
 			return FMED_RERR;

@@ -392,18 +392,6 @@ static void qu_setprops(const fmed_queue *qu, fmed_que_entry *qe)
 	if (fmed->playdev_name != 0)
 		qu_setval(qu, qe, "playdev_name", fmed->playdev_name);
 
-	if (fmed->vorbis_qual != -255)
-		qu_setval(qu, qe, "vorbis.quality", fmed->vorbis_qual * 10);
-	else if (fmed->mpeg_qual != 0xffff)
-		qu_setval(qu, qe, "mpeg-quality", fmed->mpeg_qual);
-	else if (fmed->aac_qual != (uint)-1)
-		qu_setval(qu, qe, "aac-quality", fmed->aac_qual);
-	else if (fmed->flac_complevel != 0xff)
-		qu_setval(qu, qe, "flac_complevel", fmed->flac_complevel);
-
-	if (fmed->opus_brate != 0)
-		qu_setval(qu, qe, "opus.bitrate", fmed->opus_brate);
-
 	if (fmed->outfn.len != 0 && !fmed->rec)
 		qu->meta_set(qe, FFSTR("output"), fmed->outfn.ptr, fmed->outfn.len, FMED_QUE_TRKDICT);
 
@@ -453,6 +441,17 @@ static void trk_prep(fmed_trk *trk)
 
 	if (fmed->gain != 0)
 		trk->audio.gain = fmed->gain * 100;
+
+	if (fmed->aac_qual != (uint)-1)
+		trk->aac.quality = fmed->aac_qual;
+	if (fmed->vorbis_qual != -255)
+		trk->vorbis.quality = (fmed->vorbis_qual + 1.0) * 10;
+	if (fmed->opus_brate != 0)
+		trk->opus.bitrate = fmed->opus_brate;
+	if (fmed->mpeg_qual != 0xffff)
+		trk->mpeg.quality = fmed->mpeg_qual;
+	if (fmed->flac_complevel != 0xff)
+		trk->flac.compression = fmed->flac_complevel;
 }
 
 static void open_input(void *udata)
@@ -515,18 +514,6 @@ static void open_input(void *udata)
 
 		if (fmed->outfn.len != 0)
 			track->setvalstr(trk, "output", fmed->outfn.ptr);
-
-		if (fmed->vorbis_qual != -255)
-			track->setval(trk, "vorbis.quality", fmed->vorbis_qual * 10);
-		else if (fmed->mpeg_qual != 0xffff)
-			track->setval(trk, "mpeg-quality", fmed->mpeg_qual);
-		else if (fmed->aac_qual != (uint)-1)
-			track->setval(trk, "aac-quality", fmed->aac_qual);
-		else if (fmed->flac_complevel != 0xff)
-			track->setval(trk, "flac_complevel", fmed->flac_complevel);
-
-		if (fmed->opus_brate != 0)
-			track->setval(trk, "opus.bitrate", fmed->opus_brate);
 
 		if (fmed->rec)
 			track->setval(trk, "low_latency", 1);

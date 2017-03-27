@@ -335,13 +335,10 @@ static int opus_out_encode(void *ctx, fmed_filt *d)
 			return FMED_RERR;
 		}
 
-		int brate = (int)fmed_getval("opus.bitrate");
-		if (brate == FMED_NULL)
-			brate = opus_out_conf.bitrate;
-
-		o->opus.bandwidth = opus_out_conf.bandwidth;
+		int brate = (d->opus.bitrate != -1) ? d->opus.bitrate : (int)opus_out_conf.bitrate;
+		o->opus.bandwidth = (d->opus.bandwidth != -1) ? d->opus.bandwidth : (int)opus_out_conf.bandwidth;
 		o->opus.complexity = opus_out_conf.complexity;
-		o->opus.packet_dur = opus_out_conf.frame_size;
+		o->opus.packet_dur = (d->opus.frame_size != -1) ? d->opus.frame_size : (int)opus_out_conf.frame_size;
 		if (0 != (r = ffopus_create(&o->opus, &o->fmt, brate * 1000))) {
 			errlog(core, d->trk, NULL, "ffopus_create(): %s", ffopus_enc_errstr(&o->opus));
 			return FMED_RERR;

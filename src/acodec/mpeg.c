@@ -556,9 +556,7 @@ static int mpeg_out_process(void *ctx, fmed_filt *d)
 		ffpcm_fmtcopy(&pcm, &d->audio.convfmt);
 		m->mpg.ileaved = d->audio.convfmt.ileaved;
 
-		if (FMED_NULL == (qual = (int)fmed_getval("mpeg-quality")))
-			qual = mpeg_out_conf.qual;
-
+		qual = (d->mpeg.quality != -1) ? d->mpeg.quality : (int)mpeg_out_conf.qual;
 		if (0 != (r = ffmpg_create(&m->mpg, &pcm, qual))) {
 
 			if (r == FFMPG_EFMT && m->state == 0) {

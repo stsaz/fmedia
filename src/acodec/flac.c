@@ -314,7 +314,6 @@ static int flac_out_encode(void *ctx, fmed_filt *d)
 		// break
 
 	case I_INIT: {
-		int64 val;
 		ffpcm fmt;
 		ffpcm_fmtcopy(&fmt, &d->audio.convfmt);
 
@@ -323,9 +322,9 @@ static int flac_out_encode(void *ctx, fmed_filt *d)
 
 		f->fl.seektable_int = flac_out_conf.sktab_int * fmt.sample_rate;
 		f->fl.min_meta = flac_out_conf.min_meta_size;
-		val = fmed_getval("flac_complevel");
-		f->fl.level = (val != FMED_NULL) ? val : flac_out_conf.level;
-		if (!flac_out_conf.md5)
+		f->fl.level = (d->flac.compression != -1) ? d->flac.compression : flac_out_conf.level;
+		uint md5 = (d->flac.md5 != -1) ? d->flac.md5 : flac_out_conf.md5;
+		if (!md5)
 			f->fl.opts |= FFFLAC_ENC_NOMD5;
 
 		if (0 != ffflac_create(&f->fl, &fmt)) {

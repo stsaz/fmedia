@@ -331,13 +331,10 @@ static void trk_copy_info(fmed_trk *dst, const fmed_trk *src)
 		dst->audio.total = FMED_NULL;
 		dst->audio.seek = FMED_NULL;
 		dst->audio.until = FMED_NULL;
-		memset(&dst->input, 0xff, sizeof(dst->input));
-		memset(&dst->output, 0xff, sizeof(dst->output));
+		memset(&dst->aac, 0xff, FFOFF(fmed_trk, bits) - FFOFF(fmed_trk, aac));
 		return;
 	}
-	ffmemcpy(&dst->audio, &src->audio, sizeof(dst->audio));
-	ffmemcpy(&dst->input, &src->input, sizeof(dst->input));
-	ffmemcpy(&dst->output, &src->output, sizeof(dst->output));
+	ffmemcpy(&dst->audio, &src->audio, FFOFF(fmed_trk, bits) - FFOFF(fmed_trk, audio));
 	dst->bits = src->bits;
 }
 
