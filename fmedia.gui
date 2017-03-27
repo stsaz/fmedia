@@ -68,6 +68,10 @@ menu mlist {
 		action REMOVE
 		hotkey "Delete"
 	}
+	item "Remove &Dead Items" {
+		action LIST_RMDEAD
+		hotkey "Alt+Delete"
+	}
 	item "&Clear" {
 		action CLEAR
 	}

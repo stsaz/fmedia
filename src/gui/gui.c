@@ -297,6 +297,7 @@ static const char *const scmds[] = {
 	"QUE_SEL",
 	"SAVELIST",
 	"REMOVE",
+	"LIST_RMDEAD",
 	"CLEAR",
 	"SELALL",
 	"SELINVERT",

@@ -29,6 +29,7 @@ static void gui_media_open(uint id);
 static void gui_media_savelist(void);
 static void gui_plist_recount(uint from);
 static void gui_media_remove(void);
+static void gui_list_rmdead(void);
 static void gui_tonxtlist(void);
 static fmed_que_entry* gui_list_getent(void);
 static void gui_goto_show(void);
@@ -118,6 +119,7 @@ static const struct cmd cmds[] = {
 	{ QUE_SEL,	F0 | CMD_FCORE,	&gui_que_sel },
 	{ SAVELIST,	F0,	&gui_media_savelist },
 	{ REMOVE,	F0 | CMD_FCORE,	&gui_media_remove },
+	{ LIST_RMDEAD,	F0 | CMD_FCORE,	&gui_list_rmdead },
 	{ CLEAR,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op },
 	{ TO_NXTLIST,	F0 | CMD_FCORE,	&gui_tonxtlist },
 	{ SHOWDIR,	F0,	&gui_media_showdir },
@@ -891,6 +893,14 @@ static void gui_media_remove(void)
 
 	if (first != -1)
 		gui_plist_recount(first);
+	ffui_redraw(&gg->wmain.vlist, 1);
+}
+
+static void gui_list_rmdead(void)
+{
+	ffui_redraw(&gg->wmain.vlist, 0);
+	gg->qu->cmd(FMED_QUE_RMDEAD, NULL);
+	gui_plist_recount(0);
 	ffui_redraw(&gg->wmain.vlist, 1);
 }
 
