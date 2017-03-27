@@ -13,7 +13,7 @@ static const fmed_queue *qu;
 
 typedef struct wvpk {
 	ffwvpack wp;
-	int64 abs_seek; // msec/cdframe/sample
+	int64 abs_seek;
 	uint state;
 } wvpk;
 
@@ -72,7 +72,6 @@ static void wvpk_destroy(void)
 
 static void* wvpk_in_create(fmed_filt *d)
 {
-	int64 val;
 	wvpk *w = ffmem_tcalloc1(wvpk);
 	if (w == NULL)
 		return NULL;
@@ -80,9 +79,6 @@ static void* wvpk_in_create(fmed_filt *d)
 
 	if ((int64)d->input.size != FMED_NULL)
 		w->wp.total_size = d->input.size;
-
-	if (FMED_NULL != (val = fmed_getval("seek_time_abs")))
-		w->abs_seek = val;
 	return w;
 }
 
@@ -159,10 +155,9 @@ again:
 			d->audio.fmt.ileaved = 1;
 			d->audio.bitrate = ffwvpk_bitrate(&w->wp);
 
-			if (w->abs_seek > 0)
-				w->abs_seek = ffpcm_samples(w->abs_seek, w->wp.fmt.sample_rate);
-			else if (w->abs_seek < 0)
-				w->abs_seek = -w->abs_seek * w->wp.fmt.sample_rate / 75;
+			if (d->audio.abs_seek != 0) {
+				w->abs_seek = fmed_apos_samples(d->audio.abs_seek, w->wp.fmt.sample_rate);
+			}
 
 			d->audio.total = ffwvpk_total_samples(&w->wp) - w->abs_seek;
 			break;

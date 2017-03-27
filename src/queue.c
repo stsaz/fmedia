@@ -221,7 +221,7 @@ static void que_play(entry *ent)
 	if (e->dur != 0)
 		qu->track->setval(trk, "track_duration", e->dur);
 	if (e->from != 0)
-		qu->track->setval(trk, "seek_time_abs", e->from);
+		t->audio.abs_seek = e->from;
 	if (e->to != 0 && FMED_NULL == t->audio.until)
 		t->audio.until = e->to - e->from;
 

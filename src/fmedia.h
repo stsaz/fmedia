@@ -262,6 +262,17 @@ enum FMED_F {
 	FMED_FFWD = 4,
 };
 
+/** >0: msec;  <0: CD frames (1/75 sec) */
+typedef int64 fmed_apos;
+
+static FFINL uint64 fmed_apos_samples(fmed_apos val, uint rate)
+{
+	if (val > 0)
+		return ffpcm_samples(val, rate);
+	else
+		return -val * rate / 75;
+}
+
 struct fmed_trk {
 	const fmed_track *track;
 	fmed_handler handler;
@@ -276,7 +287,8 @@ struct fmed_trk {
 		uint64 pos; //samples
 		uint64 total; //samples
 		uint64 seek; //msec
-		int64 until; // >0: msec;  <0: CD frames (1/75 sec)
+		fmed_apos until;
+		fmed_apos abs_seek; //seek position from the beginning of file
 		uint gain; //dB * 100
 		float maxpeak; //dB
 		uint bitrate; //bit/s

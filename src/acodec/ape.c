@@ -12,7 +12,7 @@ static const fmed_queue *qu;
 
 typedef struct ape {
 	ffape ap;
-	int64 abs_seek; // msec/cdframe/sample
+	int64 abs_seek;
 	uint state;
 } ape;
 
@@ -71,7 +71,6 @@ static void ape_destroy(void)
 
 static void* ape_in_create(fmed_filt *d)
 {
-	int64 val;
 	ape *a = ffmem_tcalloc1(ape);
 	if (a == NULL)
 		return NULL;
@@ -80,9 +79,6 @@ static void* ape_in_create(fmed_filt *d)
 
 	if ((int64)d->input.size != FMED_NULL)
 		a->ap.total_size = d->input.size;
-
-	if (FMED_NULL != (val = fmed_getval("seek_time_abs")))
-		a->abs_seek = val;
 	return a;
 }
 
@@ -158,11 +154,8 @@ again:
 			ffpcm_fmtcopy(&d->audio.fmt, &a->ap.info.fmt);
 			d->audio.fmt.ileaved = 1;
 
-			if (a->abs_seek != 0) {
-				if (a->abs_seek > 0)
-					a->abs_seek = ffpcm_samples(a->abs_seek, a->ap.info.fmt.sample_rate);
-				else
-					a->abs_seek = -a->abs_seek * a->ap.info.fmt.sample_rate / 75;
+			if (d->audio.abs_seek != 0) {
+				a->abs_seek = fmed_apos_samples(d->audio.abs_seek, a->ap.info.fmt.sample_rate);
 			}
 
 			d->audio.total = ffape_totalsamples(&a->ap) - a->abs_seek;

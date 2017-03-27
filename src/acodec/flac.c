@@ -12,7 +12,7 @@ static const fmed_queue *qu;
 
 typedef struct flac {
 	ffflac fl;
-	int64 abs_seek; // msec/cdframe/sample
+	int64 abs_seek;
 	uint state;
 } flac;
 
@@ -113,7 +113,6 @@ static void flac_destroy(void)
 static void* flac_in_create(fmed_filt *d)
 {
 	int r;
-	int64 val;
 	flac *f = ffmem_tcalloc1(flac);
 	if (f == NULL)
 		return NULL;
@@ -127,9 +126,6 @@ static void* flac_in_create(fmed_filt *d)
 
 	if ((int64)d->input.size != FMED_NULL)
 		f->fl.total_size = d->input.size;
-
-	if (FMED_NULL != (val = fmed_getval("seek_time_abs")))
-		f->abs_seek = val;
 	return f;
 }
 
@@ -196,11 +192,8 @@ again:
 			ffpcm_fmtcopy(&d->audio.fmt, &f->fl.fmt);
 			d->audio.fmt.ileaved = 0;
 
-			if (f->abs_seek != 0) {
-				if (f->abs_seek > 0)
-					f->abs_seek = ffpcm_samples(f->abs_seek, f->fl.fmt.sample_rate);
-				else
-					f->abs_seek = -f->abs_seek * f->fl.fmt.sample_rate / 75;
+			if (d->audio.abs_seek != 0) {
+				f->abs_seek = fmed_apos_samples(d->audio.abs_seek, f->fl.fmt.sample_rate);
 			}
 
 			d->audio.total = ffflac_totalsamples(&f->fl) - f->abs_seek;
