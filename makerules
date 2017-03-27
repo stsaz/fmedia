@@ -12,7 +12,7 @@ BINS := $(BIN) core.$(SO) net.$(SO) plist.$(SO) mixer.$(SO) \
 OS_BINS :=
 ifeq ($(OS),linux)
 
-OS_BINS += alsa.$(SO)
+OS_BINS += alsa.$(SO) pulse.$(SO)
 
 else ifeq ($(OS),win)
 #windows:
@@ -307,6 +307,14 @@ ALSA_O := $(OBJ_DIR)/alsa.o $(FF_O) \
 	$(FF_OBJ_DIR)/ffalsa.o
 alsa.$(SO): $(ALSA_O)
 	$(LD) -shared $(ALSA_O) $(LDFLAGS) -lasound -o$@
+
+
+#
+PULSE_O := $(OBJ_DIR)/pulse.o $(FF_O) \
+	$(FF_OBJ_DIR)/ffpcm.o \
+	$(FF_OBJ_DIR)/ffpulse.o
+pulse.$(SO): $(PULSE_O)
+	$(LD) -shared $(PULSE_O) $(LDFLAGS) -lpulse -o$@
 
 
 #

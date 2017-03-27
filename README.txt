@@ -75,6 +75,7 @@ OUTPUT
 	. Windows Direct Sound Playback
 	. WASAPI Playback
 	. ALSA Playback
+	. Pulse Audio Playback
 
 
 ---------------

@@ -151,7 +151,8 @@ static const ffpars_arg fmed_confusr_args[] = {
 static int allowed_mod(const ffstr *name)
 {
 #ifdef FF_WIN
-	if (ffstr_matchcz(name, "alsa."))
+	if (ffstr_matchcz(name, "alsa.")
+		|| ffstr_matchcz(name, "pulse."))
 #else
 	if (ffstr_matchcz(name, "wasapi.")
 		|| ffstr_matchcz(name, "direct-sound."))
