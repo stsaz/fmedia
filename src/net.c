@@ -668,6 +668,9 @@ static int icy_process(void *ctx, fmed_filt *d)
 			ffs_toint(s.ptr, s.len, &meta_int, FFS_INT32);
 		}
 		fficy_parseinit(&c->icy, meta_int);
+		if (meta_int == FFICY_NOMETA
+			&& c->out_copy)
+			c->netin = netin_create(c);
 		}
 
 		ffstr_set2(&c->data, &c->bufs[0]);
