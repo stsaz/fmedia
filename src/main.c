@@ -162,7 +162,46 @@ static int fmed_arg_infile(ffparser_schem *p, void *obj, const ffstr *val)
 
 static int fmed_arg_listdev(void)
 {
-	core->sig(FMED_LISTDEV);
+	fmed_adev_ent *ents = NULL;
+	const fmed_modinfo *mod;
+	const fmed_adev *adev;
+	uint i, ndev;
+	ffarr buf = {0};
+
+	ffarr_alloc(&buf, 1024);
+
+	if (NULL == (mod = core->getmod2(FMED_MOD_INFO_ADEV_OUT, NULL, 0))
+		|| NULL == (adev = mod->m->iface("adev")))
+		goto end;
+
+	ndev = adev->list(&ents, FMED_ADEV_PLAYBACK);
+	if ((int)ndev < 0)
+		goto end;
+
+	ffstr_catfmt(&buf, "Playback/Loopback:\n");
+	for (i = 0;  i != ndev;  i++) {
+		ffstr_catfmt(&buf, "device #%u: %s\n", i + 1, ents[i].name);
+	}
+
+	if (NULL == (mod = core->getmod2(FMED_MOD_INFO_ADEV_IN, NULL, 0))
+		|| NULL == (adev = mod->m->iface("adev")))
+		goto end;
+
+	ndev = adev->list(&ents, FMED_ADEV_CAPTURE);
+	if ((int)ndev < 0)
+		goto end;
+
+	ffstr_catfmt(&buf, "\nCapture:\n");
+	for (i = 0;  i != ndev;  i++) {
+		ffstr_catfmt(&buf, "device #%u: %s\n", i + 1, ents[i].name);
+	}
+
+	fffile_write(ffstdout, buf.ptr, buf.len);
+
+end:
+	ffarr_free(&buf);
+	if (ents != NULL)
+		adev->listfree(ents);
 	return FFPARS_ELAST;
 }
 

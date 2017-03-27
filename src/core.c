@@ -794,6 +794,11 @@ const void* core_getmod2(uint flags, const char *name, ssize_t name_len)
 			goto err;
 		return fc;
 	}
+
+	case FMED_MOD_INFO_ADEV_IN:
+		return fmed->conf.input;
+	case FMED_MOD_INFO_ADEV_OUT:
+		return fmed->conf.output;
 	}
 
 err:
@@ -926,10 +931,6 @@ static ssize_t core_cmd(uint signo, ...)
 		core_sigmods(signo);
 		fmed->stopped = 1;
 		ffkqu_post(fmed->kq, &fmed->evposted, NULL);
-		break;
-
-	case FMED_LISTDEV:
-		core_sigmods(signo);
 		break;
 
 	case FMED_FILETYPE:

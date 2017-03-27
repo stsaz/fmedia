@@ -30,6 +30,7 @@ mixer                 mixer
 // TRACK
 // FILTER
 // LOG
+// ADEV
 // QUEUE
 // GLOBCMD
 
@@ -50,7 +51,6 @@ enum FMED_SIG {
 	FMED_OPEN
 	, FMED_START
 	, FMED_STOP
-	, FMED_LISTDEV
 	,
 	FMED_SIG_INSTALL,
 	FMED_SIG_UNINSTALL,
@@ -89,6 +89,10 @@ enum FMED_GETMOD {
 	/** Get fmed_modinfo* by input/output file extension. */
 	FMED_MOD_INEXT,
 	FMED_MOD_OUTEXT,
+
+	/** Get fmed_modinfo* of audio input/output module. */
+	FMED_MOD_INFO_ADEV_OUT,
+	FMED_MOD_INFO_ADEV_IN,
 
 	FMED_MOD_NOLOG = 0x100,
 };
@@ -425,6 +429,26 @@ typedef struct fmed_logdata {
 typedef struct fmed_log {
 	void (*log)(uint flags, fmed_logdata *ld);
 } fmed_log;
+
+
+// ADEV
+
+enum FMED_ADEV_F {
+	FMED_ADEV_PLAYBACK,
+	FMED_ADEV_CAPTURE,
+};
+
+typedef struct fmed_adev_ent {
+	char *name;
+} fmed_adev_ent;
+
+typedef struct fmed_adev {
+	/**
+	@flags: enum FMED_ADEV_F
+	*/
+	int (*list)(fmed_adev_ent **ents, uint flags);
+	void (*listfree)(fmed_adev_ent *ents);
+} fmed_adev;
 
 
 // QUEUE
