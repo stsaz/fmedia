@@ -29,6 +29,8 @@ static const fmed_filter mpc_input = {
 
 typedef struct mpc {
 	ffmpcr mpc;
+	int64 aseek;
+	uint seeking :1;
 } mpc;
 
 //DECODE
@@ -41,6 +43,7 @@ static const fmed_filter mpc_decoder = {
 
 typedef struct mpcdec {
 	ffmpc mpcdec;
+	ffpcm fmt;
 } mpcdec;
 
 
@@ -89,8 +92,9 @@ static void* mpc_open(fmed_filt *d)
 	mpc *m;
 	if (NULL == (m = ffmem_new(mpc)))
 		return NULL;
+	m->aseek = -1;
 	ffmpc_ropen(&m->mpc);
-	m->mpc.options = FFMPC_O_APETAG;
+	m->mpc.options = FFMPC_O_APETAG | FFMPC_O_SEEKTABLE;
 
 	if ((int64)d->input.size != FMED_NULL) {
 		ffmpc_setsize(&m->mpc, d->input.size);
@@ -117,9 +121,21 @@ static int mpc_process(void *ctx, fmed_filt *d)
 		return FMED_RLASTOUT;
 	}
 
+	if (d->codec_err) {
+		d->codec_err = 0;
+		ffmpc_streamerr(&m->mpc);
+	}
+
 	if (d->datalen != 0) {
 		ffmpc_input(&m->mpc, d->data, d->datalen);
 		d->datalen = 0;
+	}
+
+	if ((int64)d->audio.seek >= 0)
+		m->aseek = d->audio.seek;
+	if (m->aseek >= 0 && !m->seeking && m->mpc.sample_rate != 0) {
+		ffmpc_blockseek(&m->mpc, ffpcm_samples(m->aseek, m->mpc.sample_rate));
+		m->seeking = 1;
 	}
 
 	for (;;) {
@@ -128,7 +144,8 @@ static int mpc_process(void *ctx, fmed_filt *d)
 		switch (r) {
 
 		case FFMPC_RHDR:
-			ffpcm_fmtcopy(&d->audio.fmt, &ffmpc_fmt(&m->mpc));
+			d->audio.fmt.sample_rate = m->mpc.sample_rate;
+			d->audio.fmt.channels = m->mpc.channels;
 			d->audio.bitrate = ffmpc_bitrate(&m->mpc);
 			d->audio.total = ffmpc_length(&m->mpc);
 			d->track->setvalstr(d->trk, "pcm_decoder", "Musepack");
@@ -171,6 +188,7 @@ static int mpc_process(void *ctx, fmed_filt *d)
 			d->outlen = 0;
 			return FMED_RLASTOUT;
 
+		case FFMPC_RWARN:
 		case FFMPC_RERR:
 			errlog(core, d->trk, "mpc", "ffmpc_read(): %s.  Offset: %U"
 				, ffmpc_rerrstr(&m->mpc), ffmpc_off(&m->mpc));
@@ -179,7 +197,14 @@ static int mpc_process(void *ctx, fmed_filt *d)
 	}
 
 data:
+	if (m->seeking) {
+		m->seeking = 0;
+		m->aseek = -1;
+	}
 	ffmpc_blockdata(&m->mpc, &blk);
+	d->audio.pos = ffmpc_blockpos(&m->mpc);
+	dbglog(core, d->trk, NULL, "passing %L bytes at position #%U"
+		, blk.len, d->audio.pos);
 	d->out = blk.ptr,  d->outlen = blk.len;
 	return FMED_RDATA;
 }
@@ -190,15 +215,13 @@ static void* mpc_dec_open(fmed_filt *d)
 	mpcdec *m;
 	if (NULL == (m = ffmem_new(mpcdec)))
 		return NULL;
-	if (0 != ffmpc_open(&m->mpcdec, d->audio.fmt.channels, d->data, d->datalen)) {
+	if (0 != ffmpc_open(&m->mpcdec, &d->audio.fmt, d->data, d->datalen)) {
 		errlog(core, d->trk, NULL, "ffmpc_open()");
 		ffmem_free(m);
 		return NULL;
 	}
+	ffpcm_fmtcopy(&m->fmt, &d->audio.fmt);
 	d->datalen = 0;
-	m->mpcdec.fmt.sample_rate = d->audio.fmt.sample_rate;
-	d->audio.fmt.format = m->mpcdec.fmt.format;
-	d->audio.fmt.ileaved = m->mpcdec.fmt.ileaved;
 	return m;
 }
 
@@ -213,15 +236,27 @@ static int mpc_dec_process(void *ctx, fmed_filt *d)
 {
 	mpcdec *m = ctx;
 	int r;
+	ffstr s;
 
 	if (d->flags & FMED_FSTOP) {
 		d->outlen = 0;
 		return FMED_RLASTOUT;
 	}
 
-	if (d->datalen != 0) {
-		ffmpc_input(&m->mpcdec, d->data, d->datalen);
+	if ((d->flags & FMED_FFWD) && d->datalen != 0) {
+		ffmpc_inputblock(&m->mpcdec, d->data, d->datalen, d->audio.pos);
 		d->datalen = 0;
+	}
+
+	if ((int64)d->audio.seek != FMED_NULL) {
+		if (d->flags & FMED_FFWD) {
+			uint64 seek = ffpcm_samples(d->audio.seek, m->fmt.sample_rate);
+			ffmpc_seek(&m->mpcdec, seek);
+			d->audio.seek = FMED_NULL;
+		} else {
+			m->mpcdec.need_data = 1;
+			return FMED_RMORE;
+		}
 	}
 
 	r = ffmpc_decode(&m->mpcdec);
@@ -238,13 +273,15 @@ static int mpc_dec_process(void *ctx, fmed_filt *d)
 		break;
 
 	case FFMPC_RERR:
-		errlog(core, d->trk, "mpc", "ffmpc_decode(): %s", ffmpc_errstr(&m->mpcdec));
-		return FMED_RERR;
+		warnlog(core, d->trk, "mpc", "ffmpc_decode(): %s", ffmpc_errstr(&m->mpcdec));
+		d->codec_err = 1;
+		return FMED_RMORE;
 	}
 
+	ffmpc_audiodata(&m->mpcdec, &s);
 	dbglog(core, d->trk, NULL, "decoded %L samples"
-		, m->mpcdec.pcmlen / ffpcm_size1(&m->mpcdec.fmt));
-	d->out = (void*)m->mpcdec.pcm,  d->outlen = m->mpcdec.pcmlen;
+		, s.len / ffpcm_size1(&m->fmt));
+	d->out = s.ptr,  d->outlen = s.len;
 	d->audio.pos = ffmpc_cursample(&m->mpcdec);
 	return FMED_RDATA;
 }
