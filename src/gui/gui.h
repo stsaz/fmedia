@@ -211,8 +211,9 @@ enum {
 };
 
 #define GUI_USRCONF  "%APPDATA%/fmedia/fmedia.gui.conf"
-#define GUI_USRCONF_PORT  "./fmedia.gui.conf"
+#define GUI_USRCONF_PORT  "fmedia.gui.conf"
 #define GUI_PLIST_PATH  "%APPDATA%/fmedia/list1.m3u8"
+#define GUI_PLIST_PATH_PORT  "list1.m3u8"
 
 enum ST {
 	ST_PLAYING = 1,

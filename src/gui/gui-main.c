@@ -561,10 +561,10 @@ static void gui_showtextfile(uint cmd)
 
 	switch (cmd) {
 	case CONF_EDIT:
-		fn = core->getpath(FFSTR("fmedia.conf"));
+		fn = core->getpath(FFSTR(FMED_GLOBCONF));
 		break;
 	case USRCONF_EDIT:
-		fn = ffenv_expand(NULL, 0, "%APPDATA%/fmedia/fmedia.conf");
+		fn = ffenv_expand(NULL, 0, "%APPDATA%/fmedia/fmedia-user.conf");
 		break;
 	case FMEDGUI_EDIT:
 		fn = core->getpath(FFSTR("fmedia.gui"));

@@ -600,7 +600,7 @@ static void gui_savelists(void)
 	char *fn;
 
 	if (gg->portable_conf)
-		fn = core->getpath(FFSTR("list1.m3u8"));
+		fn = core->getpath(FFSTR(GUI_PLIST_PATH_PORT));
 	else
 		fn = ffenv_expand(NULL, 0, GUI_PLIST_PATH);
 	if (fn == NULL)
@@ -622,7 +622,7 @@ static int gui_loadlists(void)
 	int r = -1;
 
 	if (gg->portable_conf)
-		fn = core->getpath(FFSTR("list1.m3u8"));
+		fn = core->getpath(FFSTR(GUI_PLIST_PATH_PORT));
 	else
 		fn = ffenv_expand(NULL, 0, GUI_PLIST_PATH);
 	if (fn == NULL)

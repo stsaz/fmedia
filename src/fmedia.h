@@ -36,6 +36,8 @@ mixer                 mixer
 
 // CORE
 
+#define FMED_GLOBCONF  "fmedia.conf"
+
 typedef struct fmed_core fmed_core;
 typedef struct fmed_props fmed_props;
 typedef struct fmed_mod fmed_mod;

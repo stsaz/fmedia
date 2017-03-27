@@ -12,6 +12,7 @@ Copyright (c) 2015 Simon Zolin */
 #include <FFOS/error.h>
 #include <FFOS/process.h>
 #include <FFOS/timer.h>
+#include <FFOS/dir.h>
 
 
 typedef struct inmap_item {
@@ -45,12 +46,6 @@ enum {
 	FMED_KQ_EVS = 8,
 	CONF_MBUF = 2 * 4096,
 };
-
-#ifdef FF_UNIX
-#define USR_CONF  "$HOME/.config/fmedia/fmedia.conf"
-#else
-#define USR_CONF  "%APPDATA%/fmedia/fmedia.conf"
-#endif
 
 
 FF_EXP fmed_core* core_init(fmed_cmd **ptr, char **argv);
@@ -143,6 +138,7 @@ static const ffpars_arg fmed_conf_args[] = {
 	, { "instance_mode",  FFPARS_TENUM | FFPARS_F8BIT, FFPARS_DST(&im_enum) }
 	,
 	{ "include",  FFPARS_TSTR | FFPARS_FNOTEMPTY, FFPARS_DST(&fmed_conf_include) },
+	{ "include_user",  FFPARS_TSTR | FFPARS_FNOTEMPTY, FFPARS_DST(&fmed_conf_include) },
 };
 
 static int fmed_confusr_mod(ffparser_schem *ps, void *obj, ffstr *val);
@@ -318,15 +314,33 @@ static int fmed_conf_codepage(ffparser_schem *p, void *obj, ffstr *val)
 static int fmed_conf_include(ffparser_schem *p, void *obj, ffstr *val)
 {
 	int r = FFPARS_EBADVAL;
-	char *fn;
-	if (NULL == (fn = core->getpath(val->ptr, val->len)))
-		goto end;
+	char *fn = NULL;
+	ffarr name = {0};
+
+	if (!ffsz_cmp(p->curarg->name, "include")) {
+		if (NULL == (fn = core->getpath(val->ptr, val->len))) {
+			r = FFPARS_ESYS;
+			goto end;
+		}
+
+	} else {
+		if (0 == ffstr_catfmt(&name, "%s/fmedia/%S%Z", FFDIR_USER_CONFIG, val)) {
+			r = FFPARS_ESYS;
+			goto end;
+		}
+		if (NULL == (fn = ffenv_expand(NULL, 0, name.ptr))) {
+			r = FFPARS_ESYS;
+			goto end;
+		}
+	}
+
 	if (0 != fmed_conf_fn(fn, CONF_F_USR | CONF_F_OPT))
 		goto end;
 
 	r = 0;
 end:
 	ffmem_safefree(fn);
+	ffarr_free(&name);
 	return r;
 }
 
@@ -391,17 +405,12 @@ static int fmed_conf(const char *filename)
 
 	if (filename != NULL)
 		fn = (void*)filename;
-	else if (NULL == (fn = core->getpath(FFSTR("fmedia.conf"))))
+	else if (NULL == (fn = core->getpath(FFSTR(FMED_GLOBCONF))))
 		goto end;
 	if (0 != fmed_conf_fn(fn, 0))
 		goto end;
 	if (fn != filename)
 		ffmem_free0(fn);
-
-	if (NULL == (fn = ffenv_expand(NULL, 0, USR_CONF)))
-		goto end;
-	if (0 != fmed_conf_fn(fn, CONF_F_USR | CONF_F_OPT))
-		goto end;
 
 	r = 0;
 end:
