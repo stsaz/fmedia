@@ -626,10 +626,14 @@ static int dir_open_r(const char *dirname, fmed_filt *d)
 	const char *fn;
 	fmed_que_entry e, *first, *prev_qent;
 	fffileinfo fi;
-	ffarr dirs = {0};
 	ffchain chain;
 	ffchain_item *lprev, *lcur;
 	struct dir_ent *de;
+	ffchain mblocks;
+	ffmblk *mblk;
+	ffchain_item *it;
+
+	ffchain_init(&mblocks);
 
 	ffchain_init(&chain);
 	lprev = ffchain_sentl(&chain);
@@ -656,10 +660,19 @@ static int dir_open_r(const char *dirname, fmed_filt *d)
 			}
 
 			if (fffile_isdir(fffile_infoattr(&fi))) {
-				if (NULL == (de = ffarr_pushgrowT(&dirs, 16, struct dir_ent))) {
-					syserrlog(core, d->trk, NULL, "%s", ffmem_alloc_S);
-					goto end;
+
+				mblk = ffmblk_chain_last(&mblocks);
+				if (mblk == NULL || ffarr_unused(&mblk->buf) == 0) {
+
+					// allocate a new block with fixed size = 4kb
+					if (NULL == (mblk = ffmblk_chain_push(&mblocks))
+						|| NULL == ffarr_allocT(&mblk->buf, 4096 / sizeof(struct dir_ent), struct dir_ent)) {
+						syserrlog(core, d->trk, NULL, "%s", ffmem_alloc_S);
+						goto end;
+					}
 				}
+
+				de = ffarr_pushT(&mblk->buf, struct dir_ent);
 				if (NULL == (de->dir = ffsz_alcopyz(fn))) {
 					syserrlog(core, d->trk, NULL, "%s", ffmem_alloc_S);
 					goto end;
@@ -689,11 +702,14 @@ next:
 
 end:
 	ffdir_expclose(&dr);
-	FFARR_WALKT(&dirs, de, struct dir_ent) {
-		ffmem_safefree(de->dir);
+	FFCHAIN_FOR(&mblocks, it) {
+		mblk = FF_GETPTR(ffmblk, sib, it);
+		it = it->next;
+		FFARR_WALKT(&mblk->buf, de, struct dir_ent) {
+			ffmem_safefree(de->dir);
+		}
+		ffmblk_free(mblk);
 	}
-	ffarr_free(&dirs);
-
 	qu->cmd(FMED_QUE_RM, first);
 	return 0;
 }
