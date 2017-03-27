@@ -24,8 +24,11 @@ static void gui_cvt_action(ffui_wnd *wnd, int id);
 static void gui_conv_browse(void);
 static void gui_convert(void);
 
+static void gui_rec_init(void);
 static void gui_rec_action(ffui_wnd *wnd, int id);
 static void gui_rec_browse(void);
+
+static void gui_dev_action(ffui_wnd *wnd, int id);
 
 static void gui_info_action(ffui_wnd *wnd, int id);
 
@@ -700,53 +703,58 @@ int gui_conf_rec(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
 	return 0;
 }
 
-void gui_rec_show(void)
+static void gui_rec_init(void)
 {
-	if (!gg->wrec_init) {
-		if (!gg->rec_sets.init)
-			rec_sets_init(&gg->rec_sets);
+	if (gg->wrec_init)
+		return;
 
-		ffui_settextz(&gg->wrec.eout, gg->rec_sets.output);
+	if (!gg->rec_sets.init)
+		rec_sets_init(&gg->rec_sets);
 
-		ffui_view_showgroups(&gg->wrec.vsets, 1);
-		const char *const *grp;
-		int grp_id = -1, n;
-		ffui_viewgrp vg;
-		FFARRS_FOREACH(rec_grps, grp) {
-			ffui_viewgrp_reset(&vg);
-			ffui_viewgrp_settextz(&vg, *grp);
-			n = ffui_view_insgrp(&gg->wrec.vsets, -1, &vg);
-			if (grp_id == -1)
-				grp_id = n;
-		}
+	ffui_settextz(&gg->wrec.eout, gg->rec_sets.output);
 
-		ffui_viewitem it;
-		ffui_view_iteminit(&it);
-		ffarr s = {0};
-
-		uint i;
-		for (i = 0;  i != FFCNT(rec_sets);  i++) {
-
-			if ((rec_sets[i].flags & CVTF_NEWGRP) && i != 0)
-				grp_id++;
-			ffui_view_setgroupid(&it, grp_id);
-
-			ffui_view_settextz(&it, rec_sets[i].name);
-			ffui_view_append(&gg->wrec.vsets, &it);
-
-			s.len = 0;
-			sett_tostr(&gg->rec_sets, &rec_sets[i], &s);
-			ffui_view_settextstr(&it, &s);
-			ffui_view_set(&gg->wrec.vsets, VSETS_VAL, &it);
-
-			ffui_view_settextz(&it, rec_sets[i].desc);
-			ffui_view_set(&gg->wrec.vsets, VSETS_DESC, &it);
-		}
-
-		ffarr_free(&s);
-		gg->wrec_init = 1;
+	ffui_view_showgroups(&gg->wrec.vsets, 1);
+	const char *const *grp;
+	int grp_id = -1, n;
+	ffui_viewgrp vg;
+	FFARRS_FOREACH(rec_grps, grp) {
+		ffui_viewgrp_reset(&vg);
+		ffui_viewgrp_settextz(&vg, *grp);
+		n = ffui_view_insgrp(&gg->wrec.vsets, -1, &vg);
+		if (grp_id == -1)
+			grp_id = n;
 	}
 
+	ffui_viewitem it;
+	ffui_view_iteminit(&it);
+	ffarr s = {0};
+
+	uint i;
+	for (i = 0;  i != FFCNT(rec_sets);  i++) {
+
+		if ((rec_sets[i].flags & CVTF_NEWGRP) && i != 0)
+			grp_id++;
+		ffui_view_setgroupid(&it, grp_id);
+
+		ffui_view_settextz(&it, rec_sets[i].name);
+		ffui_view_append(&gg->wrec.vsets, &it);
+
+		s.len = 0;
+		sett_tostr(&gg->rec_sets, &rec_sets[i], &s);
+		ffui_view_settextstr(&it, &s);
+		ffui_view_set(&gg->wrec.vsets, VSETS_VAL, &it);
+
+		ffui_view_settextz(&it, rec_sets[i].desc);
+		ffui_view_set(&gg->wrec.vsets, VSETS_DESC, &it);
+	}
+
+	ffarr_free(&s);
+	gg->wrec_init = 1;
+}
+
+void gui_rec_show(void)
+{
+	gui_rec_init();
 	ffui_show(&gg->wrec.wrec, 1);
 	ffui_wnd_setfront(&gg->wrec.wrec);
 }
@@ -841,6 +849,91 @@ int gui_rec_addsetts(void *trk)
 	}
 
 	return 0;
+}
+
+
+void wdev_init(void)
+{
+	gg->wdev.wnd.hide_on_close = 1;
+	gg->wdev.wnd.on_action = &gui_dev_action;
+}
+
+enum {
+	VDEV_ID,
+	VDEV_NAME,
+};
+
+void gui_dev_show(void)
+{
+	ffui_viewitem it = {0};
+	fmed_adev_ent *ents = NULL;
+	const fmed_modinfo *mod;
+	const fmed_adev *adev;
+	uint i, ndev;
+	char buf[64];
+	size_t n;
+
+	ffui_view_clear(&gg->wdev.vdev);
+
+	if (NULL == (mod = core->getmod2(FMED_MOD_INFO_ADEV_IN, NULL, 0)))
+		goto end;
+	if (NULL == (adev = mod->m->iface("adev")))
+		goto end;
+
+	ndev = adev->list(&ents, FMED_ADEV_CAPTURE);
+	if ((int)ndev < 0)
+		goto end;
+
+	ffui_view_settextz(&it, "0");
+	ffui_view_append(&gg->wdev.vdev, &it);
+	ffui_view_settextz(&it, "(default)");
+	ffui_view_set(&gg->wdev.vdev, VDEV_NAME, &it);
+
+	for (i = 0;  i != ndev;  i++) {
+		n = ffs_fromint(i + 1, buf, sizeof(buf), 0);
+		ffui_view_settext(&it, buf, n);
+		ffui_view_append(&gg->wdev.vdev, &it);
+
+		ffui_view_settextz(&it, ents[i].name);
+		ffui_view_set(&gg->wdev.vdev, VDEV_NAME, &it);
+	}
+
+end:
+	if (ents != NULL)
+		adev->listfree(ents);
+	ffui_show(&gg->wdev.wnd, 1);
+	ffui_wnd_setfront(&gg->wdev.wnd);
+}
+
+static void gui_dev_action(ffui_wnd *wnd, int id)
+{
+	switch (id) {
+	case DEVLIST_SELOK: {
+		uint i, idev, n;
+		ffui_viewitem it = {0};
+		char buf[64];
+
+		for (i = 0;  i != FFCNT(rec_sets);  i++) {
+			if (rec_sets[i].settname == SETT_DEV_REC)
+				break;
+		}
+
+		idev = ffui_view_selnext(&gg->wdev.vdev, -1);
+		if ((int)idev < 0)
+			return;
+
+		n = ffs_fromint(idev, buf, sizeof(buf), 0);
+
+		gui_rec_init();
+
+		ffui_view_setindex(&it, i);
+		ffui_view_settext(&it, buf, n);
+		ffui_view_set(&gg->wrec.vsets, VSETS_VAL, &it);
+
+		ffui_show(&gg->wdev.wnd, 0);
+		return;
+	}
+	}
 }
 
 

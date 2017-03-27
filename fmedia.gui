@@ -165,6 +165,9 @@ menu mrec {
 	item "Open Recordings Fo&lder" {
 		action SHOWRECS
 	}
+	item "Select Audio Device..." {
+		action DEVLIST_SHOWREC
+	}
 }
 
 menu mconvert {
@@ -533,6 +536,42 @@ window wrec {
 	paned pnsets {
 		child vsets {
 			resize cx cy
+		}
+	}
+}
+
+window wdev {
+	parent wmain
+	title "Choose an Audio Device"
+	position 300 300 400 200
+	style popup
+	opacity 90
+	font {
+		name Arial
+		height 10
+	}
+
+	listview vdev {
+		position 0 0 250 100
+		style explorer_theme grid_lines visible
+		column "#" {
+			width 20
+		}
+		column "Name" {
+			width 300
+		}
+	}
+
+	button bok {
+		position 0 110 50 25
+		style visible
+		text "OK"
+		action DEVLIST_SELOK
+	}
+
+	paned pn {
+		child vdev {
+			resize cx
 		}
 	}
 }

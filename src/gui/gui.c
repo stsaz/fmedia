@@ -152,6 +152,14 @@ static const ffui_ldr_ctl wrec_ctls[] = {
 	{NULL, 0, NULL}
 };
 
+static const ffui_ldr_ctl wdev_ctls[] = {
+	add(gui_wdev, wnd),
+	add(gui_wdev, vdev),
+	add(gui_wdev, bok),
+	add(gui_wdev, pn),
+	{NULL, 0, NULL}
+};
+
 static const ffui_ldr_ctl winfo_ctls[] = {
 	add(gui_winfo, winfo),
 	add(gui_winfo, vinfo),
@@ -234,6 +242,7 @@ static const ffui_ldr_ctl top_ctls[] = {
 	FFUI_LDR_CTL3(ggui, wmain, wmain_ctls),
 	FFUI_LDR_CTL3(ggui, wconvert, wconvert_ctls),
 	FFUI_LDR_CTL3(ggui, wrec, wrec_ctls),
+	FFUI_LDR_CTL3(ggui, wdev, wdev_ctls),
 	FFUI_LDR_CTL3(ggui, winfo, winfo_ctls),
 	FFUI_LDR_CTL3(ggui, wgoto, wgoto_ctls),
 	FFUI_LDR_CTL3(ggui, wlog, wlog_ctls),
@@ -281,6 +290,8 @@ static const char *const scmds[] = {
 	"PLAYREC",
 	"MIXREC",
 	"SHOWRECS",
+	"DEVLIST_SHOWREC",
+	"DEVLIST_SELOK",
 
 	"SHOWCONVERT",
 	"SETCONVPOS_SEEK",
@@ -682,6 +693,7 @@ static FFTHDCALL int gui_worker(void *param)
 	wabout_init();
 	wconvert_init();
 	wrec_init();
+	wdev_init();
 	winfo_init();
 	gg->wlog.wlog.hide_on_close = 1;
 	wuri_init();

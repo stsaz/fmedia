@@ -47,6 +47,13 @@ typedef struct gui_wrec {
 	ffui_paned pnout;
 } gui_wrec;
 
+typedef struct gui_wdev {
+	ffui_wnd wnd;
+	ffui_view vdev;
+	ffui_btn bok;
+	ffui_paned pn;
+} gui_wdev;
+
 typedef struct gui_winfo {
 	ffui_wnd winfo;
 	ffui_view vinfo;
@@ -180,6 +187,7 @@ typedef struct ggui {
 	gui_wmain wmain;
 	gui_wconvert wconvert;
 	gui_wrec wrec;
+	gui_wdev wdev;
 	gui_winfo winfo;
 	gui_wgoto wgoto;
 	gui_wabout wabout;
@@ -268,6 +276,8 @@ enum CMDS {
 	PLAYREC,
 	MIXREC,
 	SHOWRECS,
+	DEVLIST_SHOWREC,
+	DEVLIST_SELOK,
 
 	SHOWCONVERT,
 	SETCONVPOS_SEEK,
@@ -395,6 +405,9 @@ int gui_conf_rec(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
 void wrec_init(void);
 void gui_rec_show(void);
 int gui_rec_addsetts(void *trk);
+
+void wdev_init(void);
+void gui_dev_show(void);
 
 void winfo_init(void);
 void gui_media_showinfo(void);
