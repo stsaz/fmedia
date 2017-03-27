@@ -345,7 +345,7 @@ static void que_cmd(uint cmd, void *param)
 
 // matches enum FMED_QUE
 static const char *const scmds[] = {
-	"play", "play-excl", "mix", "stop-after", "next", "prev", "save", "clear", "add", "rm",
+	"play", "play-excl", "mix", "stop-after", "next", "prev", "save", "clear", "add", "rm", "rmdead",
 	"meta-set", "setonchange", "expand",
 	"que-new", "que-del", "que-sel", "que-list",
 };
@@ -426,6 +426,21 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 			qu->onchange(&e->e, FMED_QUE_ONRM);
 
 		ent_rm(e);
+		break;
+
+	case FMED_QUE_RMDEAD: {
+		fflist_item *it;
+		FFLIST_FOR(ents, it) {
+			e = FF_GETPTR(entry, sib, it);
+			it = it->next;
+			if (!fffile_exists(e->e.url.ptr)) {
+				dbglog(core, NULL, "que", "removed item %S", &e->e.url);
+				if (!(flags & FMED_QUE_NO_ONCHANGE) && qu->onchange != NULL)
+					qu->onchange(&e->e, FMED_QUE_ONRM);
+				ent_rm(e);
+			}
+		}
+		}
 		break;
 
 	case FMED_QUE_METASET:

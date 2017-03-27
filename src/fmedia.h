@@ -458,6 +458,7 @@ enum FMED_QUE {
 	FMED_QUE_CLEAR,
 	FMED_QUE_ADD,
 	FMED_QUE_RM,
+	FMED_QUE_RMDEAD,
 	FMED_QUE_METASET, // @param2: ffstr name_val_pair[2]
 	FMED_QUE_SETONCHANGE, // @param: fmed_que_onchange_t
 	FMED_QUE_EXPAND, // @param: fmed_que_entry*
