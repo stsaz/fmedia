@@ -92,12 +92,13 @@ enum CVTF {
 	CVTF_MSEC = 0x080000,
 	CVTF_FLT10 = 0x100000,
 	CVTF_FLT100 = 0x200000,
+	CVTF_NEWGRP = 0x400000,
 };
 
 #define SETT_EMPTY_INT  ((int)0x80000000)
 
 struct cvt_set {
-	const char *settname;
+	uint settname;
 	const char *name;
 	const char *desc;
 	uint flags; //enum CVTF
@@ -107,26 +108,122 @@ static int sett_tostr(const void *sets, const struct cvt_set *sett, ffarr *dst);
 static int sett_fromstr(const struct cvt_set *st, void *p, ffstr *data);
 static int gui_cvt_getsettings(const struct cvt_set *psets, uint nsets, void *sets, ffui_view *vlist);
 
+enum {
+	SETT_DEV_LP,
+	SETT_DEV_REC,
+
+	SETT_FMT,
+	SETT_RATE,
+	SETT_CHAN,
+	SETT_CONVFMT,
+	SETT_CONVRATE,
+	SETT_CONVCHAN,
+
+	SETT_GAIN,
+	SETT_UNTIL,
+	SETT_SEEK,
+
+	SETT_AAC_QUAL,
+	SETT_AAC_BANDWIDTH,
+	SETT_VORB_QUAL,
+	SETT_OPUS_BRATE,
+	SETT_OPUS_FRSIZE,
+	SETT_OPUS_BANDWIDTH,
+	SETT_MPEG_QUAL,
+	SETT_FLAC_COMP,
+	SETT_FLAC_MD5,
+	SETT_DATACOPY,
+
+	SETT_META,
+	SETT_OUT_PRESDATE,
+	SETT_OUT_OVWR,
+};
+
+static void cvt_prop_set(fmed_que_entry *qent, uint name, int64 val)
+{
+	fmed_trk *t = qent->trk;
+
+	switch (name) {
+
+	case SETT_FMT:
+		t->audio.fmt.format = val; break;
+	case SETT_RATE:
+		t->audio.fmt.sample_rate = val; break;
+	case SETT_CHAN:
+		t->audio.fmt.channels = val; break;
+	case SETT_CONVFMT:
+		t->audio.convfmt.format = val; break;
+	case SETT_CONVCHAN:
+		t->audio.convfmt.channels = val; break;
+	case SETT_CONVRATE:
+		t->audio.convfmt.sample_rate = val; break;
+
+	case SETT_GAIN:
+		t->audio.gain = val; break;
+	case SETT_UNTIL:
+		t->audio.until = val; break;
+	case SETT_SEEK:
+		t->audio.seek = val; break;
+
+	case SETT_AAC_QUAL:
+		t->aac.quality = val; break;
+	case SETT_AAC_BANDWIDTH:
+		t->aac.bandwidth = val; break;
+	case SETT_VORB_QUAL:
+		t->vorbis.quality = val + 10; break;
+	case SETT_OPUS_BRATE:
+		t->opus.bitrate = val; break;
+	case SETT_OPUS_FRSIZE:
+		t->opus.frame_size = val; break;
+	case SETT_OPUS_BANDWIDTH:
+		t->opus.bandwidth = val; break;
+	case SETT_MPEG_QUAL:
+		t->mpeg.quality = val; break;
+	case SETT_FLAC_COMP:
+		t->flac.compression = val; break;
+	case SETT_FLAC_MD5:
+		t->flac.md5 = val; break;
+	case SETT_DATACOPY:
+		t->stream_copy = val; break;
+
+	case SETT_OUT_PRESDATE:
+		t->out_preserve_date = val; break;
+	case SETT_OUT_OVWR:
+		t->out_overwrite = val; break;
+	}
+}
+
+static const char* const cvt_grps[] = {
+	"Input",
+	"Audio",
+	"Codec",
+	"Output",
+};
+
 // gui -> core
 static const struct cvt_set cvt_sets[] = {
-	{ "conv_pcm_format", "Audio Format", "int8 | int16 | int24 | int32 | float32", CVTF_EMPTY | FFOFF(cvt_sets_t, format) },
-	{ "conv_pcm_rate", "Sample rate (Hz)", "", CVTF_EMPTY | FFOFF(cvt_sets_t, conv_pcm_rate) },
-	{ "conv_channels", "Channels", "2 (stereo) | 1 (mono) | left | right", CVTF_EMPTY | FFOFF(cvt_sets_t, channels) },
+	{ SETT_SEEK, "Seek to", "[MM:]SS[.MSC]", CVTF_MSEC | CVTF_EMPTY | CVTF_NEWGRP | FFOFF(cvt_sets_t, seek) },
+	{ SETT_UNTIL, "Stop at", "[MM:]SS[.MSC]", CVTF_MSEC | CVTF_EMPTY | FFOFF(cvt_sets_t, until) },
 
-	{ "gain", "Gain (dB)", "", CVTF_FLT | CVTF_FLT100 | CVTF_EMPTY | FFOFF(cvt_sets_t, gain) },
-	{ "seek_time", "Seek to", "[MM:]SS[.MSC]", CVTF_MSEC | CVTF_EMPTY | FFOFF(cvt_sets_t, seek) },
-	{ "until_time", "Stop at", "[MM:]SS[.MSC]", CVTF_MSEC | CVTF_EMPTY | FFOFF(cvt_sets_t, until) },
+	{ SETT_CONVFMT, "Audio Format", "int8 | int16 | int24 | int32 | float32", CVTF_EMPTY | CVTF_NEWGRP | FFOFF(cvt_sets_t, format) },
+	{ SETT_CONVRATE, "Sample rate (Hz)", "", CVTF_EMPTY | FFOFF(cvt_sets_t, conv_pcm_rate) },
+	{ SETT_CONVCHAN, "Channels", "2 (stereo) | 1 (mono) | left | right", CVTF_EMPTY | FFOFF(cvt_sets_t, channels) },
+	{ SETT_GAIN, "Gain (dB)", "", CVTF_FLT | CVTF_FLT100 | CVTF_EMPTY | FFOFF(cvt_sets_t, gain) },
 
-	{ "vorbis.quality", "Vorbis Quality", "-1.0 .. 10.0", CVTF_FLT | CVTF_FLT10 | FFOFF(cvt_sets_t, vorbis_quality) },
-	{ "opus.bitrate", "Opus Bitrate", "6..510", FFOFF(cvt_sets_t, opus_bitrate) },
-	{ "mpeg-quality", "MPEG Quality", "VBR quality: 9..0 or CBR bitrate: 64..320", FFOFF(cvt_sets_t, mpg_quality) },
-	{ "aac-quality", "AAC Quality", "VBR quality: 1..5 or CBR bitrate: 8..800", FFOFF(cvt_sets_t, aac_quality) },
-	{ "flac_complevel", "FLAC Compression", "0..8", FFOFF(cvt_sets_t, flac_complevel) },
-	{ "stream_copy", "Stream copy", "Don't re-encode OGG/MP3 data (0 or 1)", FFOFF(cvt_sets_t, stream_copy) },
-	{ "meta", "Meta Tags", "[clear;]NAME=VAL;...", CVTF_STR | CVTF_EMPTY | FFOFF(cvt_sets_t, meta) },
+	{ SETT_VORB_QUAL, "Vorbis Quality", "-1.0 .. 10.0", CVTF_FLT | CVTF_FLT10 | CVTF_NEWGRP | FFOFF(cvt_sets_t, vorbis_quality) },
+	{ SETT_OPUS_BRATE, "Opus Bitrate", "6..510", FFOFF(cvt_sets_t, opus_bitrate) },
+	{ SETT_OPUS_FRSIZE, "Opus Frame Size (msec)", "", CVTF_EMPTY | FFOFF(cvt_sets_t, opus_frsize) },
+	{ SETT_OPUS_BANDWIDTH, "Opus Frequency Cut-off (KHz)", "4, 6, 8, 12 or 20", CVTF_EMPTY | FFOFF(cvt_sets_t, opus_bandwidth) },
+	{ SETT_MPEG_QUAL, "MPEG Quality", "VBR quality: 9..0 or CBR bitrate: 64..320", FFOFF(cvt_sets_t, mpg_quality) },
+	{ SETT_AAC_QUAL, "AAC Quality", "VBR quality: 1..5 or CBR bitrate: 8..800", FFOFF(cvt_sets_t, aac_quality) },
+	{ SETT_AAC_BANDWIDTH, "AAC Frequency Cut-off (Hz)", "max=20000", CVTF_EMPTY | FFOFF(cvt_sets_t, aac_bandwidth) },
+	{ SETT_FLAC_COMP, "FLAC Compression", "0..8", FFOFF(cvt_sets_t, flac_complevel) },
+	{ SETT_FLAC_MD5, "FLAC: generate MD5 checksum of uncompressed data", "0 or 1", CVTF_EMPTY | FFOFF(cvt_sets_t, flac_md5) },
+	{ SETT_DATACOPY, "Stream copy", "Don't re-encode OGG/MP3 data (0 or 1)", FFOFF(cvt_sets_t, stream_copy) },
 
-	{ "overwrite", "Overwrite Output File", "0 or 1", FFOFF(cvt_sets_t, overwrite) },
-	{ "out_preserve_date", "Preserve Date", "0 or 1", FFOFF(cvt_sets_t, out_preserve_date) },
+	{ SETT_META, "Meta Tags", "[clear;]NAME=VAL;...", CVTF_STR | CVTF_EMPTY | CVTF_NEWGRP | FFOFF(cvt_sets_t, meta) },
+	{ SETT_OUT_OVWR, "Overwrite Output File", "0 or 1", FFOFF(cvt_sets_t, overwrite) },
+	{ SETT_OUT_PRESDATE, "Preserve Date", "0 or 1", FFOFF(cvt_sets_t, out_preserve_date) },
 };
 
 // conf -> gui
@@ -155,9 +252,13 @@ static void gui_cvt_sets_init(cvt_sets_t *sets)
 
 	sets->vorbis_quality_f = 5.0;
 	sets->opus_bitrate = 128;
+	sets->opus_frsize = SETT_EMPTY_INT;
+	sets->opus_bandwidth = SETT_EMPTY_INT;
 	sets->mpg_quality = 2;
 	sets->aac_quality = 192;
+	sets->aac_bandwidth = SETT_EMPTY_INT;
 	sets->flac_complevel = 6;
+	sets->flac_md5 = SETT_EMPTY_INT;
 	sets->stream_copy = 0;
 	sets->overwrite = 0;
 	sets->out_preserve_date = 1;
@@ -208,8 +309,6 @@ static int sett_fromstr(const struct cvt_set *st, void *p, ffstr *data)
 	int *pint = p;
 	int val;
 	double d;
-	ffstr name;
-	ffstr_setz(&name, st->settname);
 
 	if (st->flags & CVTF_STR) {
 		char **pstr = p;
@@ -244,13 +343,11 @@ static int sett_fromstr(const struct cvt_set *st, void *p, ffstr *data)
 		else if (st->flags & CVTF_FLT100)
 			val = d * 100;
 
-	} else if (ffstr_eqcz(&name, "pcm_format")
-		|| ffstr_eqcz(&name, "conv_pcm_format")) {
+	} else if (st->settname == SETT_FMT || st->settname == SETT_CONVFMT) {
 		if (0 > (val = ffpcm_fmt(data->ptr, data->len)))
 			return -1;
 
-	} else if (ffstr_eqcz(&name, "pcm_channels")
-		|| ffstr_eqcz(&name, "conv_channels")) {
+	} else if (st->settname == SETT_CHAN || st->settname == SETT_CONVCHAN) {
 		if (0 > (val = ffpcm_channels(data->ptr, data->len)))
 			return -1;
 
@@ -277,12 +374,29 @@ void gui_showconvert(void)
 
 		ffui_settextz(&gg->wconvert.eout, gg->conv_sets.output);
 
+		ffui_view_showgroups(&gg->wconvert.vsets, 1);
+		const char *const *grp;
+		int grp_id = -1, n;
+		ffui_viewgrp vg;
+		FFARRS_FOREACH(cvt_grps, grp) {
+			ffui_viewgrp_reset(&vg);
+			ffui_viewgrp_settextz(&vg, *grp);
+			n = ffui_view_insgrp(&gg->wconvert.vsets, -1, &vg);
+			if (grp_id == -1)
+				grp_id = n;
+		}
+
 		ffui_viewitem it;
 		ffui_view_iteminit(&it);
 		ffarr s = {0};
 
 		uint i;
 		for (i = 0;  i != FFCNT(cvt_sets);  i++) {
+
+			if ((cvt_sets[i].flags & CVTF_NEWGRP) && i != 0)
+				grp_id++;
+			ffui_view_setgroupid(&it, grp_id);
+
 			ffui_view_settextz(&it, cvt_sets[i].name);
 			ffui_view_append(&gg->wconvert.vsets, &it);
 
@@ -293,6 +407,7 @@ void gui_showconvert(void)
 
 			ffui_view_settextz(&it, cvt_sets[i].desc);
 			ffui_view_set(&gg->wconvert.vsets, VSETS_DESC, &it);
+
 		}
 
 		ffarr_free(&s);
@@ -314,10 +429,10 @@ void gui_setconvpos(uint cmd)
 	ffui_viewitem it;
 	ffui_view_iteminit(&it);
 
-	const char *name = (cmd == SETCONVPOS_SEEK) ? "seek_time" : "until_time";
+	uint name = (cmd == SETCONVPOS_SEEK) ? SETT_SEEK : SETT_UNTIL;
 	uint i;
 	for (i = 0;  i != FFCNT(cvt_sets);  i++) {
-		if (!ffsz_cmp(cvt_sets[i].settname, name))
+		if (cvt_sets[i].settname == name)
 			break;
 	}
 
@@ -380,7 +495,6 @@ static void gui_convert(void)
 	ffui_viewitem it;
 	fmed_que_entry e, *qent, *inp;
 	ffstr fn, name;
-	int64 val;
 	uint k;
 	ffarr ar = {0};
 
@@ -429,11 +543,13 @@ static void gui_convert(void)
 
 		for (k = 0;  k != FFCNT(cvt_sets);  k++) {
 
-			ffstr_setz(&name, cvt_sets[k].settname);
-
 			void *p = (char*)&gg->conv_sets + (cvt_sets[k].flags & 0xffff);
 
 			if (cvt_sets[k].flags & CVTF_STR) {
+				switch (cvt_sets[k].settname) {
+				case SETT_META:
+					ffstr_setcz(&name, "meta"); break;
+				}
 				char **pstr = p;
 				if (*pstr == NULL)
 					continue;
@@ -445,27 +561,7 @@ static void gui_convert(void)
 			if (*pint == SETT_EMPTY_INT)
 				continue;
 
-			if (ffstr_eqcz(&name, "gain"))
-				qent->trk->audio.gain = *pint;
-			else if (ffstr_eqcz(&name, "seek_time"))
-				qent->trk->audio.seek = *pint;
-			else if (ffstr_eqcz(&name, "until_time"))
-				qent->trk->audio.until = *pint;
-			else if (ffstr_eqcz(&name, "out_preserve_date"))
-				qent->trk->out_preserve_date = *pint;
-			else if (ffstr_eqcz(&name, "overwrite"))
-				qent->trk->out_overwrite = *pint;
-			else if (ffstr_eqcz(&name, "conv_pcm_format"))
-				qent->trk->audio.convfmt.format = *pint;
-			else if (ffstr_eqcz(&name, "conv_channels"))
-				qent->trk->audio.convfmt.channels = *pint;
-			else if (ffstr_eqcz(&name, "conv_pcm_rate"))
-				qent->trk->audio.convfmt.sample_rate = *pint;
-			else {
-				val = *pint;
-				gg->qu->meta_set(qent, name.ptr, name.len
-					, (char*)&val, sizeof(int64), FMED_QUE_TRKDICT | FMED_QUE_NUM);
-			}
+			cvt_prop_set(qent, cvt_sets[k].settname, *pint);
 		}
 	}
 
@@ -504,21 +600,62 @@ void wrec_init()
 	gg->wrec.vsets.edit_id = CVT_SETS_EDITDONE;
 }
 
+static void rec_prop_set(void *trk, fmed_trk *t, uint name, int64 val)
+{
+	switch (name) {
+
+	case SETT_DEV_LP:
+		gg->track->setval(trk, "loopback_device", val); break;
+	case SETT_DEV_REC:
+		gg->track->setval(trk, "capture_device", val); break;
+
+	case SETT_FMT:
+		t->audio.fmt.format = val; break;
+	case SETT_RATE:
+		t->audio.fmt.sample_rate = val; break;
+	case SETT_CHAN:
+		t->audio.fmt.channels = val; break;
+
+	case SETT_GAIN:
+		t->audio.gain = val; break;
+	case SETT_UNTIL:
+		t->audio.until = val; break;
+
+	case SETT_AAC_QUAL:
+		t->aac.quality = val; break;
+	case SETT_VORB_QUAL:
+		t->vorbis.quality = val + 10; break;
+	case SETT_OPUS_BRATE:
+		t->opus.bitrate = val; break;
+	case SETT_MPEG_QUAL:
+		t->mpeg.quality = val; break;
+	case SETT_FLAC_COMP:
+		t->flac.compression = val; break;
+	}
+}
+
+static const char* const rec_grps[] = {
+	"Input",
+	"Audio",
+	"Codec",
+};
+
 // gui -> core
 static const struct cvt_set rec_sets[] = {
-	{ "loopback_device", "Loopback Device Number (record from playback)", "empty: disabled;  0: default device", CVTF_EMPTY | FFOFF(rec_sets_t, lpbk_devno) },
-	{ "capture_device", "Capture Device Number", "0: default", CVTF_EMPTY | FFOFF(rec_sets_t, devno) },
-	{ "pcm_format", "Audio Format", "int8 | int16 | int24 | int32 | float32", CVTF_EMPTY | FFOFF(rec_sets_t, format) },
-	{ "pcm_sample_rate", "Sample Rate (Hz)", "", CVTF_EMPTY | FFOFF(rec_sets_t, sample_rate) },
-	{ "pcm_channels", "Channels", "2 (stereo) | 1 (mono) | left | right", CVTF_EMPTY | FFOFF(rec_sets_t, channels) },
-	{ "gain", "Gain (dB)", "", CVTF_FLT | CVTF_FLT100 | CVTF_EMPTY | FFOFF(rec_sets_t, gain) },
-	{ "until_time", "Stop after", "[MM:]SS[.MSC]", CVTF_MSEC | CVTF_EMPTY | FFOFF(rec_sets_t, until) },
+	{ SETT_DEV_LP, "Loopback Device Number (record from playback)", "empty: disabled;  0: default device", CVTF_EMPTY | CVTF_NEWGRP | FFOFF(rec_sets_t, lpbk_devno) },
+	{ SETT_DEV_REC, "Capture Device Number", "0: default", CVTF_EMPTY | FFOFF(rec_sets_t, devno) },
+	{ SETT_FMT, "Audio Format", "int8 | int16 | int24 | int32 | float32", CVTF_EMPTY | FFOFF(rec_sets_t, format) },
+	{ SETT_RATE, "Sample Rate (Hz)", "", CVTF_EMPTY | FFOFF(rec_sets_t, sample_rate) },
+	{ SETT_CHAN, "Channels", "2 (stereo) | 1 (mono) | left | right", CVTF_EMPTY | FFOFF(rec_sets_t, channels) },
+	{ SETT_UNTIL, "Stop after", "[MM:]SS[.MSC]", CVTF_MSEC | CVTF_EMPTY | FFOFF(rec_sets_t, until) },
 
-	{ "vorbis.quality", "Vorbis Quality", "-1.0 .. 10.0", CVTF_FLT | CVTF_FLT10 | FFOFF(rec_sets_t, vorbis_quality) },
-	{ "opus.bitrate", "Opus Bitrate", "6..510", FFOFF(rec_sets_t, opus_bitrate) },
-	{ "mpeg-quality", "MPEG Quality", "VBR quality: 9..0 or CBR bitrate: 64..320", FFOFF(rec_sets_t, mpg_quality) },
-	{ "aac-quality", "AAC Quality", "VBR quality: 1..5 or CBR bitrate: 8..800", FFOFF(rec_sets_t, aac_quality) },
-	{ "flac_complevel", "FLAC Compression", "0..8", FFOFF(rec_sets_t, flac_complevel) },
+	{ SETT_GAIN, "Gain (dB)", "", CVTF_FLT | CVTF_FLT100 | CVTF_EMPTY | CVTF_NEWGRP | FFOFF(rec_sets_t, gain) },
+
+	{ SETT_VORB_QUAL, "Vorbis Quality", "-1.0 .. 10.0", CVTF_FLT | CVTF_FLT10 | CVTF_NEWGRP | FFOFF(rec_sets_t, vorbis_quality) },
+	{ SETT_OPUS_BRATE, "Opus Bitrate", "6..510", FFOFF(rec_sets_t, opus_bitrate) },
+	{ SETT_MPEG_QUAL, "MPEG Quality", "VBR quality: 9..0 or CBR bitrate: 64..320", FFOFF(rec_sets_t, mpg_quality) },
+	{ SETT_AAC_QUAL, "AAC Quality", "VBR quality: 1..5 or CBR bitrate: 8..800", FFOFF(rec_sets_t, aac_quality) },
+	{ SETT_FLAC_COMP, "FLAC Compression", "0..8", FFOFF(rec_sets_t, flac_complevel) },
 };
 
 // conf -> gui
@@ -571,12 +708,29 @@ void gui_rec_show(void)
 
 		ffui_settextz(&gg->wrec.eout, gg->rec_sets.output);
 
+		ffui_view_showgroups(&gg->wrec.vsets, 1);
+		const char *const *grp;
+		int grp_id = -1, n;
+		ffui_viewgrp vg;
+		FFARRS_FOREACH(rec_grps, grp) {
+			ffui_viewgrp_reset(&vg);
+			ffui_viewgrp_settextz(&vg, *grp);
+			n = ffui_view_insgrp(&gg->wrec.vsets, -1, &vg);
+			if (grp_id == -1)
+				grp_id = n;
+		}
+
 		ffui_viewitem it;
 		ffui_view_iteminit(&it);
 		ffarr s = {0};
 
 		uint i;
 		for (i = 0;  i != FFCNT(rec_sets);  i++) {
+
+			if ((rec_sets[i].flags & CVTF_NEWGRP) && i != 0)
+				grp_id++;
+			ffui_view_setgroupid(&it, grp_id);
+
 			ffui_view_settextz(&it, rec_sets[i].name);
 			ffui_view_append(&gg->wrec.vsets, &it);
 
@@ -671,30 +825,19 @@ int gui_rec_addsetts(void *trk)
 
 		void *p = (char*)&gg->rec_sets + (rec_sets[i].flags & 0xffff);
 
-		if (rec_sets[i].flags & CVTF_STR) {
+		/*if (rec_sets[i].flags & CVTF_STR) {
 			char **pstr = p;
 			if (*pstr == NULL)
 				continue;
-			gg->track->setvalstr4(trk, rec_sets[i].settname, *pstr, 0);
+			gg->track->setvalstr4(trk, , *pstr, 0);
 			continue;
-		}
+		}*/
 
 		int *pint = p;
 		if (*pint == SETT_EMPTY_INT)
 			continue;
 
-		if (ffsz_eq(rec_sets[i].settname, "gain"))
-			trkconf->audio.gain = *pint;
-		else if (ffsz_eq(rec_sets[i].settname, "until_time"))
-			trkconf->audio.until = *pint;
-		else if (ffsz_eq(rec_sets[i].settname, "pcm_format"))
-			trkconf->audio.fmt.format = *pint;
-		else if (ffsz_eq(rec_sets[i].settname, "pcm_channels"))
-			trkconf->audio.fmt.channels = *pint;
-		else if (ffsz_eq(rec_sets[i].settname, "pcm_sample_rate"))
-			trkconf->audio.fmt.sample_rate = *pint;
-		else
-			gg->track->setval(trk, rec_sets[i].settname, *pint);
+		rec_prop_set(trk, trkconf, rec_sets[i].settname, *pint);
 	}
 
 	return 0;

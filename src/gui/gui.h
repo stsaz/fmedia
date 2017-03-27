@@ -100,9 +100,13 @@ typedef struct cvt_sets_t {
 	float vorbis_quality_f;
 	};
 	uint opus_bitrate;
+	int opus_frsize;
+	int opus_bandwidth;
 	int mpg_quality;
 	int aac_quality;
+	int aac_bandwidth;
 	int flac_complevel;
+	int flac_md5;
 	int stream_copy;
 
 	int format;
