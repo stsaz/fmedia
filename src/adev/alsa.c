@@ -17,6 +17,7 @@ typedef struct alsa_mod {
 	const fmed_track *track;
 	uint devidx;
 	uint out_valid :1;
+	uint init_ok :1;
 } alsa_mod;
 
 static alsa_mod *mod;
@@ -52,6 +53,7 @@ static const fmed_mod fmed_alsa_mod = {
 	&alsa_iface, &alsa_sig, &alsa_destroy, &alsa_conf
 };
 
+static int alsa_init(fmed_trk *trk);
 static int alsa_create(alsa_out *a, fmed_filt *d);
 
 //OUTPUT
@@ -160,12 +162,6 @@ static int alsa_sig(uint signo)
 			return -1;
 		}
 
-		if (0 != ffalsa_init(core->kq)) {
-			ffmem_free0(mod);
-			ffmem_free0(ain);
-			return -1;
-		}
-
 		mod->track = core->getmod("#core.track");
 		return 0;
 	}
@@ -184,6 +180,18 @@ static void alsa_destroy(void)
 	ffmem_safefree0(ain);
 
 	ffalsa_uninit(core->kq);
+}
+
+static int alsa_init(fmed_trk *trk)
+{
+	if (mod->init_ok)
+		return 0;
+	if (0 != ffalsa_init(core->kq)) {
+		syserrlog(core, trk, NULL, "ffalsa_init()");
+		return -1;
+	}
+	mod->init_ok = 1;
+	return 0;
 }
 
 
@@ -256,6 +264,10 @@ static int alsa_out_config(ffpars_ctx *ctx)
 static void* alsa_open(fmed_filt *d)
 {
 	alsa_out *a;
+
+	if (0 != alsa_init(d->trk))
+		return NULL;
+
 	if (NULL == (a = ffmem_tcalloc1(alsa_out)))
 		return NULL;
 	a->task.handler = d->handler;
@@ -475,6 +487,9 @@ static void* alsa_in_open(fmed_filt *d)
 	ffpcm fmt;
 	int r, idx;
 	ffalsa_dev dev;
+
+	if (0 != alsa_init(d->trk))
+		return NULL;
 
 	if (NULL == (a = ffmem_tcalloc1(alsa_in)))
 		return NULL;

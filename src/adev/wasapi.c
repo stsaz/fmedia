@@ -21,6 +21,7 @@ typedef struct wasapi_mod {
 	const fmed_track *track;
 	uint devidx;
 	uint out_valid :1;
+	uint init_ok :1;
 } wasapi_mod;
 
 static wasapi_mod *mod;
@@ -75,6 +76,8 @@ static void wasapi_destroy(void);
 static const fmed_mod fmed_wasapi_mod = {
 	&wasapi_iface, &wasapi_sig, &wasapi_destroy, &wasapi_conf
 };
+
+static int wasapi_init(fmed_trk *trk);
 
 //OUTPUT
 static void* wasapi_open(fmed_filt *d);
@@ -157,10 +160,6 @@ static int wasapi_sig(uint signo)
 	case FMED_OPEN:
 		if (NULL == (mod = ffmem_tcalloc1(wasapi_mod)))
 			return -1;
-		if (0 != ffwas_init()) {
-			ffmem_free0(mod);
-			return -1;
-		}
 		mod->track = core->getmod("#core.track");
 		return 0;
 	}
@@ -179,6 +178,18 @@ static void wasapi_destroy(void)
 	ffwas_uninit();
 }
 
+static int wasapi_init(fmed_trk *trk)
+{
+	if (mod->init_ok)
+		return 0;
+	if (0 != ffwas_init()) {
+		syserrlog(core, trk, NULL, "ffwas_init()");
+		return -1;
+	}
+	mod->init_ok = 1;
+	return 0;
+}
+
 
 static int wasapi_adev_list(fmed_adev_ent **ents, uint flags)
 {
@@ -188,6 +199,8 @@ static int wasapi_adev_list(fmed_adev_ent **ents, uint flags)
 	fmed_adev_ent *e;
 	int r, rr = -1;
 
+	if (mod == NULL || !mod->init_ok)
+		CoInitializeEx(NULL, 0);
 	ffwas_devinit(&d);
 
 	if (flags == FMED_ADEV_PLAYBACK)
@@ -262,6 +275,9 @@ static int wasapi_out_config(ffpars_ctx *ctx)
 static void* wasapi_open(fmed_filt *d)
 {
 	wasapi_out *w;
+
+	if (0 != wasapi_init(d->trk))
+		return NULL;
 
 	w = ffmem_tcalloc1(wasapi_out);
 	if (w == NULL)
@@ -499,6 +515,9 @@ static void* wasapi_in_open(fmed_filt *d)
 	ffwas_dev dev = {0};
 	uint flags;
 	ffbool try_open = 1, lpback = 0, excl = 0;
+
+	if (0 != wasapi_init(d->trk))
+		return NULL;
 
 	w = ffmem_tcalloc1(wasapi_in);
 	if (w == NULL)

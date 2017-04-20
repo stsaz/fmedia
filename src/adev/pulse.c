@@ -18,6 +18,7 @@ typedef struct pulse_mod {
 	const fmed_track *track;
 	uint devidx;
 	uint out_valid :1;
+	uint init_ok :1;
 } pulse_mod;
 
 static pulse_mod *mod;
@@ -53,6 +54,7 @@ static const fmed_mod fmed_pulse_mod = {
 	.conf = &pulse_conf,
 };
 
+static int pulse_init(fmed_trk *trk);
 static int pulse_create(pulse_out *a, fmed_filt *d);
 
 //OUTPUT
@@ -116,11 +118,6 @@ static int pulse_sig(uint signo)
 		if (NULL == (mod = ffmem_new(pulse_mod)))
 			return -1;
 
-		if (0 != ffpulse_init(core->kq)) {
-			ffmem_free0(mod);
-			return -1;
-		}
-
 		mod->track = core->getmod("#core.track");
 		return 0;
 	}
@@ -139,6 +136,17 @@ static void pulse_destroy(void)
 	ffpulse_uninit();
 }
 
+static int pulse_init(fmed_trk *trk)
+{
+	if (mod->init_ok)
+		return 0;
+	if (0 != ffpulse_init(core->kq)) {
+		syserrlog(core, trk, NULL, "ffpulse_init()");
+		return -1;
+	}
+	mod->init_ok = 1;
+	return 0;
+}
 
 static int pulse_adev_list(fmed_adev_ent **ents, uint flags)
 {
@@ -212,6 +220,10 @@ static int pulse_out_config(ffpars_ctx *ctx)
 static void* pulse_open(fmed_filt *d)
 {
 	pulse_out *a;
+
+	if (0 != pulse_init(d->trk))
+		return NULL;
+
 	if (NULL == (a = ffmem_new(pulse_out)))
 		return NULL;
 	a->task.handler = d->handler;
