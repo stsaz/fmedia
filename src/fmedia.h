@@ -338,6 +338,7 @@ struct fmed_trk {
 		uint meta_block :1; //data block isn't audio
 		uint stream_copy :1;
 		uint codec_err :1;
+		uint mpg_lametag :1;
 	};
 	};
 

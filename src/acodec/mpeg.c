@@ -26,19 +26,9 @@ typedef struct mpeg_dec {
 	ffmpg mpg;
 } mpeg_dec;
 
-typedef struct mpeg_out {
-	uint state;
-	ffmpg_enc mpg;
-} mpeg_out;
-
 typedef struct mpeg_copy {
 	ffmpgcopy mpgcpy;
 } mpeg_copy;
-
-static struct mpeg_out_conf_t {
-	uint qual;
-	uint min_meta_size;
-} mpeg_out_conf;
 
 //FMEDIA MODULE
 static const void* mpeg_iface(const char *name);
@@ -68,6 +58,28 @@ static const fmed_filter mpeg_decode_filt = {
 };
 
 //ENCODE
+static void* mpeg_enc_open(fmed_filt *d);
+static void mpeg_enc_close(void *ctx);
+static int mpeg_enc_process(void *ctx, fmed_filt *d);
+static int mpeg_enc_config(ffpars_ctx *ctx);
+static const fmed_filter fmed_mpeg_enc = {
+	&mpeg_enc_open, &mpeg_enc_process, &mpeg_enc_close
+};
+
+typedef struct mpeg_enc {
+	uint state;
+	ffmpg_enc mpg;
+} mpeg_enc;
+
+static struct mpeg_enc_conf_t {
+	uint qual;
+} mpeg_enc_conf;
+
+static const ffpars_arg mpeg_enc_conf_args[] = {
+	{ "quality",	FFPARS_TINT,  FFPARS_DSTOFF(struct mpeg_enc_conf_t, qual) },
+};
+
+//OUTPUT
 static void* mpeg_out_open(fmed_filt *d);
 static void mpeg_out_close(void *ctx);
 static int mpeg_out_process(void *ctx, fmed_filt *d);
@@ -76,10 +88,18 @@ static const fmed_filter fmed_mpeg_output = {
 	&mpeg_out_open, &mpeg_out_process, &mpeg_out_close
 };
 
+typedef struct mpeg_out {
+	uint state;
+	ffmpgw mpgw;
+} mpeg_out;
+
 static int mpeg_out_addmeta(mpeg_out *m, fmed_filt *d);
 
+static struct mpeg_out_conf_t {
+	uint min_meta_size;
+} mpeg_out_conf;
+
 static const ffpars_arg mpeg_out_conf_args[] = {
-	{ "quality",	FFPARS_TINT,  FFPARS_DSTOFF(struct mpeg_out_conf_t, qual) },
 	{ "min_meta_size",	FFPARS_TINT,  FFPARS_DSTOFF(struct mpeg_out_conf_t, min_meta_size) },
 };
 
@@ -106,6 +126,8 @@ static const void* mpeg_iface(const char *name)
 	else if (!ffsz_cmp(name, "decode"))
 		return &mpeg_decode_filt;
 	else if (!ffsz_cmp(name, "encode"))
+		return &fmed_mpeg_enc;
+	else if (!ffsz_cmp(name, "out"))
 		return &fmed_mpeg_output;
 	else if (!ffsz_cmp(name, "copy"))
 		return &fmed_mpeg_copy;
@@ -115,6 +137,8 @@ static const void* mpeg_iface(const char *name)
 static int mpeg_mod_conf(const char *name, ffpars_ctx *ctx)
 {
 	if (!ffsz_cmp(name, "encode"))
+		return mpeg_enc_config(ctx);
+	if (!ffsz_cmp(name, "out"))
 		return mpeg_out_config(ctx);
 	return -1;
 }
@@ -486,20 +510,18 @@ data:
 }
 
 
-static int mpeg_out_config(ffpars_ctx *ctx)
+static int mpeg_enc_config(ffpars_ctx *ctx)
 {
-	mpeg_out_conf.qual = 2;
-	mpeg_out_conf.min_meta_size = 1000;
-	ffpars_setargs(ctx, &mpeg_out_conf, mpeg_out_conf_args, FFCNT(mpeg_out_conf_args));
+	mpeg_enc_conf.qual = 2;
+	ffpars_setargs(ctx, &mpeg_enc_conf, mpeg_enc_conf_args, FFCNT(mpeg_enc_conf_args));
 	return 0;
 }
 
-static void* mpeg_out_open(fmed_filt *d)
+static void* mpeg_enc_open(fmed_filt *d)
 {
-	mpeg_out *m = ffmem_tcalloc1(mpeg_out);
+	mpeg_enc *m = ffmem_tcalloc1(mpeg_enc);
 	if (m == NULL)
 		return NULL;
-	m->mpg.options = FFMPG_WRITE_ID3V1 | FFMPG_WRITE_ID3V2;
 
 	const char *copyfmt;
 	if (FMED_PNULL != (copyfmt = d->track->getvalstr(d->trk, "data_asis"))) {
@@ -514,39 +536,16 @@ static void* mpeg_out_open(fmed_filt *d)
 	return m;
 }
 
-static void mpeg_out_close(void *ctx)
+static void mpeg_enc_close(void *ctx)
 {
-	mpeg_out *m = ctx;
+	mpeg_enc *m = ctx;
 	ffmpg_enc_close(&m->mpg);
 	ffmem_free(m);
 }
 
-static int mpeg_out_addmeta(mpeg_out *m, fmed_filt *d)
+static int mpeg_enc_process(void *ctx, fmed_filt *d)
 {
-	uint i;
-	ffstr name, *val;
-	void *qent;
-	ssize_t r;
-
-	if (FMED_PNULL == (qent = (void*)fmed_getval("queue_item")))
-		return 0;
-
-	for (i = 0;  NULL != (val = qu->meta(qent, i, &name, FMED_QUE_UNIQ));  i++) {
-		if (val == FMED_QUE_SKIP
-			|| -1 == (r = ffs_findarrz(ffmmtag_str, FFCNT(ffmmtag_str), name.ptr, name.len))
-			|| r == FFMMTAG_VENDOR)
-			continue;
-
-		if (0 != ffmpg_addtag(&m->mpg, r, val->ptr, val->len)) {
-			warnlog(core, d->trk, "mpeg", "%s", "can't add tag: %S", &name);
-		}
-	}
-	return 0;
-}
-
-static int mpeg_out_process(void *ctx, fmed_filt *d)
-{
-	mpeg_out *m = ctx;
+	mpeg_enc *m = ctx;
 	ffpcm pcm;
 	int r, qual;
 
@@ -556,7 +555,7 @@ static int mpeg_out_process(void *ctx, fmed_filt *d)
 		ffpcm_fmtcopy(&pcm, &d->audio.convfmt);
 		m->mpg.ileaved = d->audio.convfmt.ileaved;
 
-		qual = (d->mpeg.quality != -1) ? d->mpeg.quality : (int)mpeg_out_conf.qual;
+		qual = (d->mpeg.quality != -1) ? d->mpeg.quality : (int)mpeg_enc_conf.qual;
 		if (0 != (r = ffmpg_create(&m->mpg, &pcm, qual))) {
 
 			if (r == FFMPG_EFMT && m->state == 0) {
@@ -568,10 +567,6 @@ static int mpeg_out_process(void *ctx, fmed_filt *d)
 			errlog(core, d->trk, "mpeg", "ffmpg_create() failed: %s", ffmpg_enc_errstr(&m->mpg));
 			return FMED_RERR;
 		}
-		m->mpg.min_meta = mpeg_out_conf.min_meta_size;
-
-		if (0 != mpeg_out_addmeta(m, d))
-			return FMED_RERR;
 
 		if ((int64)d->audio.total != FMED_NULL) {
 			uint64 total = (d->audio.total - d->audio.pos) * d->audio.convfmt.sample_rate / d->audio.fmt.sample_rate;
@@ -606,13 +601,9 @@ static int mpeg_out_process(void *ctx, fmed_filt *d)
 			m->mpg.fin = 1;
 			break;
 
-		case FFMPG_RSEEK:
-			d->output.seek = ffmpg_enc_seekoff(&m->mpg);
-			break;
-
 		case FFMPG_RDONE:
-			d->outlen = 0;
-			return FMED_RDONE;
+			d->mpg_lametag = 1;
+			goto data;
 
 		default:
 			errlog(core, d->trk, "mpeg", "ffmpg_encode() failed: %s", ffmpg_enc_errstr(&m->mpg));
@@ -626,5 +617,130 @@ data:
 
 	dbglog(core, d->trk, "mpeg", "output: %L bytes"
 		, m->mpg.datalen);
+	return (r == FFMPG_RDONE) ? FMED_RDONE : FMED_RDATA;
+}
+
+
+static int mpeg_out_config(ffpars_ctx *ctx)
+{
+	mpeg_out_conf.min_meta_size = 1000;
+	ffpars_setargs(ctx, &mpeg_out_conf, mpeg_out_conf_args, FFCNT(mpeg_out_conf_args));
+	return 0;
+}
+
+static void* mpeg_out_open(fmed_filt *d)
+{
+	mpeg_out *m = ffmem_tcalloc1(mpeg_out);
+	if (m == NULL)
+		return NULL;
+	ffmpg_winit(&m->mpgw);
+	m->mpgw.options = FFMPG_WRITE_ID3V1 | FFMPG_WRITE_ID3V2;
+
+	const char *copyfmt;
+	if (FMED_PNULL != (copyfmt = d->track->getvalstr(d->trk, "data_asis"))) {
+		if (ffsz_cmp(copyfmt, "mpeg")) {
+			ffmem_free(m);
+			errlog(core, d->trk, NULL, "unsupported input data format: %s", copyfmt);
+			return NULL;
+		}
+		return FMED_FILT_SKIP;
+	}
+
+	return m;
+}
+
+static void mpeg_out_close(void *ctx)
+{
+	mpeg_out *m = ctx;
+	ffmpg_wclose(&m->mpgw);
+	ffmem_free(m);
+}
+
+static int mpeg_out_addmeta(mpeg_out *m, fmed_filt *d)
+{
+	uint i;
+	ffstr name, *val;
+	void *qent;
+	ssize_t r;
+
+	if (FMED_PNULL == (qent = (void*)fmed_getval("queue_item")))
+		return 0;
+
+	for (i = 0;  NULL != (val = qu->meta(qent, i, &name, FMED_QUE_UNIQ));  i++) {
+		if (val == FMED_QUE_SKIP
+			|| -1 == (r = ffs_findarrz(ffmmtag_str, FFCNT(ffmmtag_str), name.ptr, name.len))
+			|| r == FFMMTAG_VENDOR)
+			continue;
+
+		if (0 != ffmpg_addtag(&m->mpgw, r, val->ptr, val->len)) {
+			warnlog(core, d->trk, "mpeg", "%s", "can't add tag: %S", &name);
+		}
+	}
+	return 0;
+}
+
+static int mpeg_out_process(void *ctx, fmed_filt *d)
+{
+	mpeg_out *m = ctx;
+	int r;
+	ffstr s;
+
+	switch (m->state) {
+	case 0:
+		m->mpgw.min_meta = mpeg_out_conf.min_meta_size;
+		if (0 != mpeg_out_addmeta(m, d))
+			return FMED_RERR;
+		if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT_PREV, (void*)"mpeg.encode"))
+			return FMED_RERR;
+		m->state = 2;
+		return FMED_RMORE;
+
+	case 2:
+		break;
+	}
+
+	if (d->mpg_lametag) {
+		m->mpgw.lametag = 1;
+		m->mpgw.fin = 1;
+	}
+
+	for (;;) {
+		r = ffmpg_writeframe(&m->mpgw, (void*)d->data, d->datalen, &s);
+		switch (r) {
+
+		case FFMPG_RID32:
+		case FFMPG_RID31:
+			goto data;
+
+		case FFMPG_RDATA:
+			d->datalen = 0;
+			goto data;
+
+		case FFMPG_RMORE:
+			if (!(d->flags & FMED_FLAST)) {
+				m->state = 2;
+				return FMED_RMORE;
+			}
+			m->mpgw.fin = 1;
+			break;
+
+		case FFMPG_RSEEK:
+			d->output.seek = ffmpg_wseekoff(&m->mpgw);
+			break;
+
+		case FFMPG_RDONE:
+			d->outlen = 0;
+			return FMED_RDONE;
+
+		default:
+			errlog(core, d->trk, "mpeg", "ffmpg_writeframe() failed: %s", ffmpg_werrstr(&m->mpgw));
+			return FMED_RERR;
+		}
+	}
+
+data:
+	d->out = s.ptr,  d->outlen = s.len;
+	dbglog(core, d->trk, "mpeg", "output: %L bytes"
+		, s.len);
 	return FMED_RDATA;
 }
