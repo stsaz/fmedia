@@ -8,6 +8,15 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v0.26 - Apr 20, 2017
+
+ * ALSA,Pulse,WASAPI: deferred initialization
+ - OGG Vorbis: fix playback of cut files
+ - .wav read: skip unneeded data at the end of "data" chunk
+ - ID3v2 parse: COMM: correctly handle short description
+ - net.icy: --out-copy: create output file for empty meta data
+
+
 fmedia v0.25 - Mar 27, 2017
 
  + Linux: Pulse Audio playback

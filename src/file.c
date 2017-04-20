@@ -625,6 +625,9 @@ static FFINL char* fileout_getname(fmed_fileout *f, fmed_filt *d)
 		}
 
 data:
+		if (val.len == 0)
+			continue;
+
 		if (NULL == ffarr_grow(&buf, val.len, 0))
 			goto syserr;
 

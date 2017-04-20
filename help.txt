@@ -43,6 +43,8 @@ INPUT:
 --meta='[clear;]NAME=STR;...'
                    Set meta data
                    If "clear;" is specified, skip all meta from input file.
+                   Supported tags: album, albumartist, artist, comment, composer, copyright, date, discnumber, genre, lyrics, picture, publisher, title, tracknumber, tracktotal.
+                   Note: file format may not support some of these tags.
 
 FILTERS:
 --volume=INT       Set volume (0% .. 125%)

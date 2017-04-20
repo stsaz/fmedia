@@ -50,11 +50,11 @@ typedef const fmed_mod* (*fmed_getmod_t)(const fmed_core *core);
 
 enum FMED_SIG {
 	FMED_SIG_INIT, //initialize module data
-	FMED_CONF, //args: "char *filename"
-	FMED_OPEN
-	, FMED_START
-	, FMED_STOP
-	,
+	FMED_CONF, // Read config.  args: "char *filename" (optional)
+	FMED_OPEN,
+	FMED_START,
+	FMED_STOP,
+
 	FMED_SIG_INSTALL,
 	FMED_SIG_UNINSTALL,
 
@@ -72,8 +72,8 @@ enum FMED_FT {
 };
 
 enum FMED_TASK {
-	FMED_TASK_DEL
-	, FMED_TASK_POST
+	FMED_TASK_DEL,
+	FMED_TASK_POST,
 };
 
 typedef struct fmed_modinfo {

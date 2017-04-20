@@ -212,8 +212,7 @@ static int trk_setout(fm_trk *t)
 		addfilter(t, "#soundmod.gain");
 	}
 
-	if (!stream_copy)
-		addfilter(t, "#soundmod.conv");
+	addfilter(t, "#soundmod.conv");
 
 	if (t->props.type == FMED_TRK_TYPE_MIXIN) {
 		addfilter(t, "mixer.in");

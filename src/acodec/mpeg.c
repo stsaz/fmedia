@@ -303,9 +303,10 @@ again:
 			return FMED_RMORE;
 
 		case FFMPG_RWARN:
-			if (m->mpg.err == FFMPG_ETAG) {
-				warnlog(core, d->trk, "mpeg", "id3: parse (offset: %u): ID3v2.%u.%u, flags: 0x%xu, size: %u"
+			if (m->mpg.err == FFMPG_EID32) {
+				warnlog(core, d->trk, "mpeg", "ID3v2 parse (offset: %u): %s.  ID3v2.%u.%u, flags: 0x%xu, size: %u"
 					, sizeof(ffid3_hdr) + ffid3_size(&m->mpg.id32tag.h) - m->mpg.id32tag.size
+					, ffid3_errstr(m->mpg.id32tag.err)
 					, (uint)m->mpg.id32tag.h.ver[0], (uint)m->mpg.id32tag.h.ver[1], (uint)m->mpg.id32tag.h.flags
 					, ffid3_size(&m->mpg.id32tag.h));
 				continue;

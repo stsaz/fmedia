@@ -107,6 +107,12 @@ static void sndmod_destroy(void)
 
 static void* sndmod_conv_open(fmed_filt *d)
 {
+	if (d->stream_copy
+		&& FMED_PNULL == d->track->getvalstr(d->trk, "data_asis")) {
+		errlog(core, d->trk, "core", "decoder doesn't support --stream-copy", 0);
+		return FMED_FILT_SKIP;
+	}
+
 	sndmod_conv *c = ffmem_tcalloc1(sndmod_conv);
 
 	if (c == NULL)
