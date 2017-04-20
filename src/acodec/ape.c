@@ -22,6 +22,7 @@ static const void* ape_iface(const char *name);
 static int ape_sig(uint signo);
 static void ape_destroy(void);
 static const fmed_mod fmed_ape_mod = {
+	.ver = FMED_VER_FULL, .ver_core = FMED_VER_CORE,
 	&ape_iface, &ape_sig, &ape_destroy
 };
 

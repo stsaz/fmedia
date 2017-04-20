@@ -50,6 +50,7 @@ static int alsa_conf(const char *name, ffpars_ctx *ctx);
 static int alsa_sig(uint signo);
 static void alsa_destroy(void);
 static const fmed_mod fmed_alsa_mod = {
+	.ver = FMED_VER_FULL, .ver_core = FMED_VER_CORE,
 	&alsa_iface, &alsa_sig, &alsa_destroy, &alsa_conf
 };
 

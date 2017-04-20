@@ -28,6 +28,7 @@ static const void* sndmod_iface(const char *name);
 static int sndmod_sig(uint signo);
 static void sndmod_destroy(void);
 static const fmed_mod fmed_sndmod_mod = {
+	.ver = FMED_VER_FULL, .ver_core = FMED_VER_CORE,
 	&sndmod_iface, &sndmod_sig, &sndmod_destroy
 };
 

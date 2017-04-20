@@ -61,6 +61,7 @@ static const void* que_iface(const char *name);
 static int que_sig(uint signo);
 static void que_destroy(void);
 static const fmed_mod fmed_que_mod = {
+	.ver = FMED_VER_FULL, .ver_core = FMED_VER_CORE,
 	&que_iface, &que_sig, &que_destroy
 };
 

@@ -16,6 +16,7 @@ static int opus_mod_conf(const char *name, ffpars_ctx *ctx);
 static int opus_sig(uint signo);
 static void opus_destroy(void);
 static const fmed_mod fmed_opus_mod = {
+	.ver = FMED_VER_FULL, .ver_core = FMED_VER_CORE,
 	&opus_iface, &opus_sig, &opus_destroy, &opus_mod_conf
 };
 

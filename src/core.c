@@ -69,6 +69,7 @@ static const void* core_iface(const char *name);
 static int core_sig2(uint signo);
 static void core_destroy(void);
 static const fmed_mod fmed_core_mod = {
+	.ver = FMED_VER_FULL, .ver_core = FMED_VER_CORE,
 	&core_iface, &core_sig2, &core_destroy
 };
 
@@ -676,6 +677,12 @@ static const fmed_modinfo* core_insmod(const char *sname, ffpars_ctx *ctx)
 	minfo->m = getmod(core);
 	if (minfo->name == NULL || minfo->m == NULL)
 		goto fail;
+
+	if (minfo->m->ver_core != FMED_VER_CORE) {
+		errlog(core, NULL, "core", "%s: module v%u.%u isn't compatible with this version"
+			, minfo->name, ((int)minfo->m->ver_core >> 8) & 0xff, (int)minfo->m->ver & 0xff);
+		goto fail;
+	}
 
 	if (0 != minfo->m->sig(FMED_SIG_INIT))
 		goto fail;

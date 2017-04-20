@@ -42,6 +42,7 @@ static int dsnd_conf(const char *name, ffpars_ctx *ctx);
 static int dsnd_sig(uint signo);
 static void dsnd_destroy(void);
 static const fmed_mod fmed_dsnd_mod = {
+	.ver = FMED_VER_FULL, .ver_core = FMED_VER_CORE,
 	&dsnd_iface, &dsnd_sig, &dsnd_destroy, &dsnd_conf
 };
 

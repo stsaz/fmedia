@@ -14,6 +14,7 @@ static int globcmd_conf(const char *name, ffpars_ctx *ctx);
 static int globcmd_sig(uint signo);
 static void globcmd_destroy(void);
 static const fmed_mod fmed_globcmd_mod = {
+	.ver = FMED_VER_FULL, .ver_core = FMED_VER_CORE,
 	.iface = &globcmd_iface,
 	.conf = &globcmd_conf,
 	.sig = &globcmd_sig,

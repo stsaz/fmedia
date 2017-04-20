@@ -52,6 +52,7 @@ static int plist_sig(uint signo);
 static void plist_destroy(void);
 static int plist_conf(const char *name, ffpars_ctx *ctx);
 static const fmed_mod fmed_plist_mod = {
+	.ver = FMED_VER_FULL, .ver_core = FMED_VER_CORE,
 	&plist_iface, &plist_sig, &plist_destroy, &plist_conf
 };
 

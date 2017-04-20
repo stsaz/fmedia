@@ -48,6 +48,7 @@ static int pulse_conf(const char *name, ffpars_ctx *ctx);
 static int pulse_sig(uint signo);
 static void pulse_destroy(void);
 static const fmed_mod fmed_pulse_mod = {
+	.ver = FMED_VER_FULL, .ver_core = FMED_VER_CORE,
 	.iface = &pulse_iface,
 	.sig = &pulse_sig,
 	.destroy = &pulse_destroy,

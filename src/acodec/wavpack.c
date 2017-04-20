@@ -23,6 +23,7 @@ static const void* wvpk_iface(const char *name);
 static int wvpk_sig(uint signo);
 static void wvpk_destroy(void);
 static const fmed_mod fmed_wvpk_mod = {
+	.ver = FMED_VER_FULL, .ver_core = FMED_VER_CORE,
 	&wvpk_iface, &wvpk_sig, &wvpk_destroy
 };
 

@@ -29,6 +29,7 @@ static int gui_conf(const char *name, ffpars_ctx *ctx);
 static int gui_sig(uint signo);
 static void gui_destroy(void);
 static const fmed_mod fmed_gui_mod = {
+	.ver = FMED_VER_FULL, .ver_core = FMED_VER_CORE,
 	&gui_iface, &gui_sig, &gui_destroy, &gui_conf
 };
 

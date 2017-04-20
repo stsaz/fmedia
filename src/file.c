@@ -102,6 +102,7 @@ static int file_conf(const char *name, ffpars_ctx *ctx);
 static int file_sig(uint signo);
 static void file_destroy(void);
 static const fmed_mod fmed_file_mod = {
+	.ver = FMED_VER_FULL, .ver_core = FMED_VER_CORE,
 	&file_iface, &file_sig, &file_destroy, &file_conf
 };
 

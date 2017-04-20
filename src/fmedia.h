@@ -22,8 +22,11 @@ mixer                 mixer
 #include <FFOS/error.h>
 
 
-#define FMED_VER_MINOR  25
-#define FMED_VER  "0.25"
+#define FMED_VER_MAJOR  0
+#define FMED_VER_MINOR  26
+#define FMED_VER_FULL  ((FMED_VER_MAJOR << 8) | FMED_VER_MINOR)
+#define FMED_VER  "0.26"
+#define FMED_VER_CORE  ((FMED_VER_MAJOR << 8) | 26)
 #define FMED_HOMEPAGE  "http://fmedia.firmdev.com"
 
 // CORE
@@ -148,6 +151,9 @@ struct fmed_props {
 };
 
 struct fmed_mod {
+	uint ver;
+	uint ver_core;
+
 	const void* (*iface)(const char *name);
 
 	/**

@@ -54,6 +54,7 @@ static int mix_conf(const char *name, ffpars_ctx *ctx);
 static int mix_sig(uint signo);
 static void mix_destroy(void);
 static const fmed_mod fmed_mix_mod = {
+	.ver = FMED_VER_FULL, .ver_core = FMED_VER_CORE,
 	&mix_iface, &mix_sig, &mix_destroy, &mix_conf
 };
 

@@ -25,6 +25,7 @@ static const void* mkv_iface(const char *name);
 static int mkv_sig(uint signo);
 static void mkv_destroy(void);
 static const fmed_mod fmed_mkv_mod = {
+	.ver = FMED_VER_FULL, .ver_core = FMED_VER_CORE,
 	&mkv_iface, &mkv_sig, &mkv_destroy
 };
 

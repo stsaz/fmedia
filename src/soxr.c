@@ -13,6 +13,7 @@ static const void* soxr_mod_iface(const char *name);
 static int soxr_mod_sig(uint signo);
 static void soxr_mod_destroy(void);
 static const fmed_mod soxr_mod = {
+	.ver = FMED_VER_FULL, .ver_core = FMED_VER_CORE,
 	&soxr_mod_iface, &soxr_mod_sig, &soxr_mod_destroy
 };
 

@@ -28,6 +28,7 @@ static const void* mp4_iface(const char *name);
 static int mp4_sig(uint signo);
 static void mp4_destroy(void);
 static const fmed_mod fmed_mp4_mod = {
+	.ver = FMED_VER_FULL, .ver_core = FMED_VER_CORE,
 	&mp4_iface, &mp4_sig, &mp4_destroy
 };
 

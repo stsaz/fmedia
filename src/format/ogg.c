@@ -40,6 +40,7 @@ static int ogg_conf(const char *name, ffpars_ctx *ctx);
 static int ogg_sig(uint signo);
 static void ogg_destroy(void);
 static const fmed_mod fmed_ogg_mod = {
+	.ver = FMED_VER_FULL, .ver_core = FMED_VER_CORE,
 	&ogg_iface, &ogg_sig, &ogg_destroy, &ogg_conf
 };
 

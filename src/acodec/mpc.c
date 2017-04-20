@@ -16,6 +16,7 @@ static int mpc_mod_conf(const char *name, ffpars_ctx *ctx);
 static int mpc_sig(uint signo);
 static void mpc_destroy(void);
 static const fmed_mod fmed_mpc_mod = {
+	.ver = FMED_VER_FULL, .ver_core = FMED_VER_CORE,
 	&mpc_iface, &mpc_sig, &mpc_destroy, &mpc_mod_conf
 };
 

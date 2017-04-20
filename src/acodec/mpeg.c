@@ -36,6 +36,7 @@ static int mpeg_mod_conf(const char *name, ffpars_ctx *ctx);
 static int mpeg_sig(uint signo);
 static void mpeg_destroy(void);
 static const fmed_mod fmed_mpeg_mod = {
+	.ver = FMED_VER_FULL, .ver_core = FMED_VER_CORE,
 	&mpeg_iface, &mpeg_sig, &mpeg_destroy, &mpeg_mod_conf
 };
 

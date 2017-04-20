@@ -24,6 +24,7 @@ static const void* wav_iface(const char *name);
 static int wav_sig(uint signo);
 static void wav_destroy(void);
 static const fmed_mod fmed_wav_mod = {
+	.ver = FMED_VER_FULL, .ver_core = FMED_VER_CORE,
 	&wav_iface, &wav_sig, &wav_destroy
 };
 

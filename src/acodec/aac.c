@@ -14,6 +14,7 @@ static int aac_conf(const char *name, ffpars_ctx *ctx);
 static int aac_sig(uint signo);
 static void aac_destroy(void);
 static const fmed_mod fmed_aac_mod = {
+	.ver = FMED_VER_FULL, .ver_core = FMED_VER_CORE,
 	&aac_iface, &aac_sig, &aac_destroy, &aac_conf
 };
 

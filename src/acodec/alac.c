@@ -13,6 +13,7 @@ static const void* alac_iface(const char *name);
 static int alac_sig(uint signo);
 static void alac_destroy(void);
 static const fmed_mod fmed_alac_mod = {
+	.ver = FMED_VER_FULL, .ver_core = FMED_VER_CORE,
 	&alac_iface, &alac_sig, &alac_destroy
 };
 

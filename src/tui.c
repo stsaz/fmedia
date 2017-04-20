@@ -102,6 +102,7 @@ static int tui_mod_conf(const char *name, ffpars_ctx *conf);
 static int tui_sig(uint signo);
 static void tui_destroy(void);
 static const fmed_mod fmed_tui_mod = {
+	.ver = FMED_VER_FULL, .ver_core = FMED_VER_CORE,
 	&tui_iface, &tui_sig, &tui_destroy, &tui_mod_conf
 };
 

@@ -24,6 +24,7 @@ static const void* avi_iface(const char *name);
 static int avi_sig(uint signo);
 static void avi_destroy(void);
 static const fmed_mod fmed_avi_mod = {
+	.ver = FMED_VER_FULL, .ver_core = FMED_VER_CORE,
 	&avi_iface, &avi_sig, &avi_destroy
 };
 

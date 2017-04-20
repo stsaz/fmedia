@@ -88,6 +88,7 @@ static int net_mod_conf(const char *name, ffpars_ctx *ctx);
 static int net_sig(uint signo);
 static void net_destroy(void);
 static const fmed_mod fmed_net_mod = {
+	.ver = FMED_VER_FULL, .ver_core = FMED_VER_CORE,
 	&net_iface, &net_sig, &net_destroy, &net_mod_conf
 };
 

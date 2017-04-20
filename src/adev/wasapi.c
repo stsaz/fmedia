@@ -74,6 +74,7 @@ static int wasapi_conf(const char *name, ffpars_ctx *ctx);
 static int wasapi_sig(uint signo);
 static void wasapi_destroy(void);
 static const fmed_mod fmed_wasapi_mod = {
+	.ver = FMED_VER_FULL, .ver_core = FMED_VER_CORE,
 	&wasapi_iface, &wasapi_sig, &wasapi_destroy, &wasapi_conf
 };
 

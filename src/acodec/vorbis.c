@@ -16,6 +16,7 @@ static int vorbis_conf(const char *name, ffpars_ctx *ctx);
 static int vorbis_sig(uint signo);
 static void vorbis_destroy(void);
 static const fmed_mod fmed_vorbis_mod = {
+	.ver = FMED_VER_FULL, .ver_core = FMED_VER_CORE,
 	&vorbis_iface, &vorbis_sig, &vorbis_destroy, &vorbis_conf
 };
 
