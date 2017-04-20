@@ -41,6 +41,7 @@ typedef struct netin {
 	uint idx;
 	fftask task;
 	uint fin :1;
+	uint fn_dyn :1;
 	icy *c;
 } netin;
 
@@ -669,10 +670,10 @@ static int icy_process(void *ctx, fmed_filt *d)
 			ffs_toint(s.ptr, s.len, &meta_int, FFS_INT32);
 		}
 		fficy_parseinit(&c->icy, meta_int);
-		if (meta_int == FFICY_NOMETA
-			&& c->out_copy)
-			c->netin = netin_create(c);
 		}
+
+		if (c->out_copy)
+			c->netin = netin_create(c);
 
 		ffstr_set2(&c->data, &c->bufs[0]);
 		ffstr_shift(&c->data, c->resp.h.len);
@@ -779,7 +780,7 @@ static int icy_setmeta(icy *c, const ffstr *_data)
 	c->d->meta_changed = 1;
 	ffstr_acqstr3(&c->title, &utf);
 
-	if (c->netin != NULL) {
+	if (c->netin != NULL && c->netin->fn_dyn) {
 		netin_write(c->netin, NULL);
 		c->netin = NULL;
 	}
@@ -811,6 +812,7 @@ static void* netin_create(icy *c)
 
 	const char *output;
 	output = net->track->getvalstr(c->d->trk, "out_filename");
+	n->fn_dyn = (NULL != ffsz_findc(output, '$'));
 	net->track->setvalstr(trk, "output", output);
 
 	net->track->setvalstr(trk, "input", "?.mp3");
