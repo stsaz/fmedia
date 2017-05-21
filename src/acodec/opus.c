@@ -310,7 +310,7 @@ static int opus_out_addmeta(opus_out *o, fmed_filt *d)
 
 	if ((int64)d->audio.total != FMED_NULL) {
 		char buf[64];
-		uint64 total = d->audio.total * d->audio.convfmt.sample_rate / d->audio.fmt.sample_rate;
+		uint64 total = (d->audio.total - d->audio.pos) * d->audio.convfmt.sample_rate / d->audio.fmt.sample_rate;
 		uint n = ffs_fromint(total, buf, sizeof(buf), 0);
 		if (0 != ffopus_addtag(&o->opus, "AUDIO_TOTAL", buf, n))
 			warnlog(core, d->trk, NULL, "can't add tag: %s", "AUDIO_TOTAL");
