@@ -151,9 +151,10 @@ again:
 			return FMED_RMORE;
 
 		case FFAPE_RHDR:
-			d->track->setvalstr(d->trk, "pcm_decoder", "APE");
+			d->audio.decoder = "APE";
 			ffpcm_fmtcopy(&d->audio.fmt, &a->ap.info.fmt);
 			d->audio.fmt.ileaved = 1;
+			d->datatype = "pcm";
 
 			if (d->audio.abs_seek != 0) {
 				a->abs_seek = fmed_apos_samples(d->audio.abs_seek, a->ap.info.fmt.sample_rate);

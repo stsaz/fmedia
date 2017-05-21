@@ -110,7 +110,7 @@ static void* vorbis_open(fmed_filt *d)
 		return NULL;
 	}
 
-	v->stmcopy = (FMED_PNULL != d->track->getvalstr(d->trk, "data_asis"));
+	v->stmcopy = d->stream_copy;
 
 	return v;
 }
@@ -203,7 +203,7 @@ static int vorbis_in_decode(void *ctx, fmed_filt *d)
 		return FMED_RMORE;
 
 	case FFVORBIS_RHDR:
-		d->track->setvalstr(d->trk, "pcm_decoder", "Vorbis");
+		d->audio.decoder = "Vorbis";
 		d->audio.fmt.format = FFPCM_FLOAT;
 		d->audio.fmt.channels = ffvorbis_channels(&v->vorbis);
 		d->audio.fmt.sample_rate = ffvorbis_rate(&v->vorbis);
@@ -216,6 +216,7 @@ static int vorbis_in_decode(void *ctx, fmed_filt *d)
 			return FMED_RDATA; //HDR packet
 		}
 
+		d->datatype = "pcm";
 		return FMED_RMORE;
 
 	case FFVORBIS_RTAG: {
@@ -331,6 +332,7 @@ static int vorbis_out_encode(void *ctx, fmed_filt *d)
 			errlog(core, d->trk, NULL, "input format must be float32 non-interleaved");
 			return FMED_RERR;
 		}
+		d->datatype = "Vorbis";
 
 		int qual = (d->vorbis.quality != -1) ? (d->vorbis.quality - 10) : vorbis_out_conf.qual * 10;
 		if (0 != (r = ffvorbis_create(&v->vorbis, &v->fmt, qual))) {

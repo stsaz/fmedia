@@ -141,7 +141,7 @@ static void* ogg_open(fmed_filt *d)
 		o->og.seekable = 1;
 
 	if (d->stream_copy) {
-		d->track->setvalstr(d->trk, "data_asis", "ogg");
+		d->datatype = "OGG";
 		o->stmcopy = 1;
 	}
 	return o;
@@ -308,13 +308,8 @@ static int ogg_out_encode(void *ctx, fmed_filt *d)
 
 	switch (o->state) {
 	case I_CONF: {
-		const char *copyfmt;
-		if (FMED_PNULL != (copyfmt = d->track->getvalstr(d->trk, "data_asis"))) {
-			if (ffsz_cmp(copyfmt, "ogg")) {
-				errlog(core, d->trk, NULL, "unsupported input data format: %s", copyfmt);
-				return FMED_RERR;
-			}
 
+		if (ffsz_eq(d->datatype, "OGG")) {
 			if (0 != (r = ffogg_create(&o->og, ffrnd_get()))) {
 				errlog(core, d->trk, "ogg", "ffogg_create() failed: %s", ffogg_errstr(r));
 				return FMED_RERR;
@@ -323,6 +318,10 @@ static int ogg_out_encode(void *ctx, fmed_filt *d)
 
 			o->state = I_ENCODE;
 			break;
+
+		} else if (!ffsz_eq(d->datatype, "pcm")) {
+			errlog(core, d->trk, NULL, "unsupported input data format: %s", d->datatype);
+			return FMED_RERR;
 		}
 
 		const char *enc = ogg_codec_mod(d->track->getvalstr(d->trk, "output"), 1);

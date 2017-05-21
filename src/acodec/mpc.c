@@ -149,7 +149,7 @@ static int mpc_process(void *ctx, fmed_filt *d)
 			d->audio.fmt.channels = m->mpc.channels;
 			d->audio.bitrate = ffmpc_bitrate(&m->mpc);
 			d->audio.total = ffmpc_length(&m->mpc);
-			d->track->setvalstr(d->trk, "pcm_decoder", "Musepack");
+			d->audio.decoder = "Musepack";
 
 			if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, "mpc.decode"))
 				return FMED_RERR;
@@ -223,6 +223,7 @@ static void* mpc_dec_open(fmed_filt *d)
 	}
 	ffpcm_fmtcopy(&m->fmt, &d->audio.fmt);
 	d->datalen = 0;
+	d->datatype = "pcm";
 	return m;
 }
 

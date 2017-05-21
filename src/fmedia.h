@@ -310,6 +310,7 @@ struct fmed_trk {
 
 	uint flags; //enum FMED_F
 	uint type; //enum FMED_TRK_TYPE
+	const char *datatype;
 	struct {
 		ffpcmex fmt;
 		ffpcmex convfmt_in; //the format used as input to the next converter (e.g. for conv -> soxr)
@@ -322,6 +323,7 @@ struct fmed_trk {
 		uint gain; //dB * 100
 		float maxpeak; //dB
 		uint bitrate; //bit/s
+		const char *decoder;
 	} audio;
 
 	struct {

@@ -1095,7 +1095,7 @@ void gui_newtrack(gui_trk *g, fmed_filt *d, fmed_que_entry *plid)
 
 	n = ffs_fmt(buf, buf + sizeof(buf), "%u kbps, %s, %u Hz, %s, %s"
 		, (d->audio.bitrate + 500) / 1000
-		, (FMED_PNULL != (sval = d->track->getvalstr(d->trk, "pcm_decoder"))) ? sval : ""
+		, d->audio.decoder
 		, g->sample_rate
 		, ffpcm_fmtstr(d->audio.fmt.format)
 		, ffpcm_channelstr(d->audio.fmt.channels));

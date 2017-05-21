@@ -118,7 +118,7 @@ static void* opus_open(fmed_filt *d)
 		return NULL;
 	}
 
-	o->stmcopy = (FMED_PNULL != d->track->getvalstr(d->trk, "data_asis"));
+	o->stmcopy = d->stream_copy;
 	return o;
 }
 
@@ -208,7 +208,7 @@ static int opus_in_decode(void *ctx, fmed_filt *d)
 		return FMED_RMORE;
 
 	case FFOPUS_RHDR:
-		d->track->setvalstr(d->trk, "pcm_decoder", "Opus");
+		d->audio.decoder = "Opus";
 		d->audio.fmt.format = FFPCM_FLOAT;
 		d->audio.fmt.channels = o->opus.info.channels;
 		d->audio.fmt.sample_rate = o->opus.info.rate;
@@ -221,6 +221,7 @@ static int opus_in_decode(void *ctx, fmed_filt *d)
 			return FMED_RDATA; //HDR packet
 		}
 
+		d->datatype = "pcm";
 		return FMED_RMORE;
 
 	case FFOPUS_RTAG: {
@@ -342,6 +343,7 @@ static int opus_out_encode(void *ctx, fmed_filt *d)
 			errlog(core, d->trk, NULL, "input format must be float32 48kHz interleaved");
 			return FMED_RERR;
 		}
+		d->datatype = "Opus";
 
 		int brate = (d->opus.bitrate != -1) ? d->opus.bitrate : (int)opus_out_conf.bitrate;
 		o->opus.bandwidth = (d->opus.bandwidth != -1) ? d->opus.bandwidth : (int)opus_out_conf.bandwidth;

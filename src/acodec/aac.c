@@ -112,7 +112,8 @@ static void* aac_open(fmed_filt *d)
 	d->audio.fmt.format = a->aac.fmt.format;
 	d->audio.fmt.ileaved = 1;
 	a->sample_rate = d->audio.fmt.sample_rate;
-	d->track->setvalstr(d->trk, "pcm_decoder", "AAC");
+	d->audio.decoder = "AAC";
+	d->datatype = "pcm";
 	return a;
 }
 
@@ -216,6 +217,7 @@ static int aac_out_encode(void *ctx, fmed_filt *d)
 		}
 
 		ffpcm_fmtcopy(&a->fmt, &d->audio.convfmt);
+		d->datatype = "AAC";
 
 		int qual = (d->aac.quality != -1) ? d->aac.quality : (int)aac_out_conf.qual;
 		if (qual > 5 && qual < 8000)

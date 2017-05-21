@@ -303,7 +303,7 @@ static void tui_info(tui *t, fmed_filt *d)
 		, tmsec / 60, tmsec % 60, (uint)(total_time % 1000)
 		, t->total_samples
 		, (d->audio.bitrate + 500) / 1000
-		, d->track->getvalstr(d->trk, "pcm_decoder")
+		, d->audio.decoder
 		, fmt.sample_rate
 		, ffpcm_fmtstr(fmt.format)
 		, ffpcm_channelstr(fmt.channels));

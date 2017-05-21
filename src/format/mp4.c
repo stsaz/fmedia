@@ -297,6 +297,11 @@ static int mp4_out_encode(void *ctx, fmed_filt *d)
 	switch (m->state) {
 
 	case I_INIT_ENC:
+		if (!ffsz_eq(d->datatype, "pcm")) {
+			errlog(core, d->trk, NULL, "unsupported input data format: %s", d->datatype);
+			return FMED_RERR;
+		}
+
 		if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT_PREV, "aac.encode"))
 			return FMED_RERR;
 		m->state = I_INIT;

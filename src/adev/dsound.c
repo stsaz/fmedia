@@ -228,6 +228,11 @@ static int dsnd_out_config(ffpars_ctx *ctx)
 
 static void* dsnd_open(fmed_filt *d)
 {
+	if (!ffsz_eq(d->datatype, "pcm")) {
+		errlog(core, d->trk, "dsound", "unsupported input data type: %s", d->datatype);
+		return NULL;
+	}
+
 	dsnd_out *ds;
 	ffpcm fmt;
 	int e, idx;
@@ -395,6 +400,7 @@ static void* dsnd_in_open(fmed_filt *d)
 
 	ds->frsize = ffpcm_size1(&fmt);
 	d->audio.fmt.ileaved = 1;
+	d->datatype = "pcm";
 	return ds;
 
 fail:

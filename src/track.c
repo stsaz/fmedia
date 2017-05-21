@@ -334,10 +334,12 @@ static void trk_copy_info(fmed_trk *dst, const fmed_trk *src)
 {
 	if (src == NULL) {
 		ffmem_tzero(dst);
+		dst->datatype = "";
 		dst->audio.total = FMED_NULL;
 		dst->audio.seek = FMED_NULL;
 		dst->audio.until = FMED_NULL;
 		memset(&dst->aac, 0xff, FFOFF(fmed_trk, bits) - FFOFF(fmed_trk, aac));
+		dst->audio.decoder = "";
 		return;
 	}
 	ffmemcpy(&dst->audio, &src->audio, FFOFF(fmed_trk, bits) - FFOFF(fmed_trk, audio));

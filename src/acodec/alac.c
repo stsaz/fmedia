@@ -80,7 +80,8 @@ static void* alac_open(fmed_filt *d)
 		d->audio.bitrate = a->alac.bitrate;
 	ffpcm_fmtcopy(&d->audio.fmt, &a->alac.fmt);
 	d->audio.fmt.ileaved = 1;
-	d->track->setvalstr(d->trk, "pcm_decoder", "ALAC");
+	d->audio.decoder = "ALAC";
+	d->datatype = "pcm";
 	return a;
 }
 

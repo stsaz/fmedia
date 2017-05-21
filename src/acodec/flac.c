@@ -189,9 +189,10 @@ again:
 			return FMED_RMORE;
 
 		case FFFLAC_RHDR:
-			d->track->setvalstr(d->trk, "pcm_decoder", "FLAC");
+			d->audio.decoder = "FLAC";
 			ffpcm_fmtcopy(&d->audio.fmt, &f->fl.fmt);
 			d->audio.fmt.ileaved = 0;
+			d->datatype = "pcm";
 
 			if (d->audio.abs_seek != 0) {
 				f->abs_seek = fmed_apos_samples(d->audio.abs_seek, f->fl.fmt.sample_rate);
@@ -286,6 +287,11 @@ static int flac_out_addmeta(flac_out *f, fmed_filt *d)
 
 static void* flac_out_create(fmed_filt *d)
 {
+	if (!ffsz_eq(d->datatype, "pcm")) {
+		errlog(core, d->trk, NULL, "unsupported input data format: %s", d->datatype);
+		return NULL;
+	}
+
 	flac_out *f = ffmem_tcalloc1(flac_out);
 	if (f == NULL)
 		return NULL;

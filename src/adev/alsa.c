@@ -264,11 +264,15 @@ static int alsa_out_config(ffpars_ctx *ctx)
 
 static void* alsa_open(fmed_filt *d)
 {
-	alsa_out *a;
+	if (!ffsz_eq(d->datatype, "pcm")) {
+		errlog(core, d->trk, "alsa", "unsupported input data type: %s", d->datatype);
+		return NULL;
+	}
 
 	if (0 != alsa_init(d->trk))
 		return NULL;
 
+	alsa_out *a;
 	if (NULL == (a = ffmem_tcalloc1(alsa_out)))
 		return NULL;
 	a->task.handler = d->handler;
@@ -379,6 +383,7 @@ fin:
 	dbglog(core, d->trk, "alsa", "%s buffer %ums, %uHz"
 		, reused ? "reused" : "opened", ffpcm_bytes2time(&fmt, ffalsa_bufsize(&mod->out))
 		, fmt.sample_rate);
+	d->datatype = "pcm";
 	return 0;
 
 done:
@@ -523,6 +528,7 @@ static void* alsa_in_open(fmed_filt *d)
 
 	dbglog(core, d->trk, "alsa", "opened capture buffer %ums"
 		, ffpcm_bytes2time(&fmt, ffalsa_bufsize(&ain->snd)));
+	d->datatype = "pcm";
 	return a;
 
 fail:

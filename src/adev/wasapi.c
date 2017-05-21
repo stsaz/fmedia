@@ -275,11 +275,15 @@ static int wasapi_out_config(ffpars_ctx *ctx)
 
 static void* wasapi_open(fmed_filt *d)
 {
-	wasapi_out *w;
+	if (!ffsz_eq(d->datatype, "pcm")) {
+		errlog(core, d->trk, "wasapi", "unsupported input data type: %s", d->datatype);
+		return NULL;
+	}
 
 	if (0 != wasapi_init(d->trk))
 		return NULL;
 
+	wasapi_out *w;
 	w = ffmem_tcalloc1(wasapi_out);
 	if (w == NULL)
 		return NULL;
@@ -619,6 +623,7 @@ again:
 	ffwas_devdestroy(&dev);
 	d->audio.fmt.ileaved = 1;
 	w->lpback = lpback;
+	d->datatype = "pcm";
 	return w;
 
 fail:

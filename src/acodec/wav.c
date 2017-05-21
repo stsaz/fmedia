@@ -173,11 +173,12 @@ again:
 			goto data;
 
 		case FFWAV_RHDR:
-			d->track->setvalstr(d->trk, "pcm_decoder", "WAVE");
+			d->audio.decoder = "WAVE";
 			ffpcm_fmtcopy(&d->audio.fmt, &w->wav.fmt);
 			d->audio.fmt.ileaved = 1;
 			d->audio.total = w->wav.total_samples;
 			d->audio.bitrate = w->wav.bitrate;
+			d->datatype = "pcm";
 			w->state = I_DATA;
 			goto again;
 
@@ -217,6 +218,11 @@ typedef struct wavout {
 
 static void* wavout_open(fmed_filt *d)
 {
+	if (!ffsz_eq(d->datatype, "pcm")) {
+		errlog(core, d->trk, NULL, "unsupported input data format: %s", d->datatype);
+		return NULL;
+	}
+
 	wavout *wav = ffmem_tcalloc1(wavout);
 	return wav;
 }
