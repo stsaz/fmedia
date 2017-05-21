@@ -145,6 +145,12 @@ static int opus_in_decode(void *ctx, fmed_filt *d)
 		break;
 
 	case R_DATA1:
+		if (o->stmcopy) {
+			d->meta_block = 0;
+			d->out = d->data,  d->outlen = d->datalen;
+			return FMED_RDONE;
+		}
+
 		if ((int64)d->audio.total != FMED_NULL) {
 			o->opus.total_samples = d->audio.total;
 			d->audio.total -= o->opus.info.preskip;
@@ -210,6 +216,7 @@ static int opus_in_decode(void *ctx, fmed_filt *d)
 		o->sampsize = ffpcm_size1(&d->audio.fmt);
 
 		if (o->stmcopy) {
+			d->meta_block = 1;
 			d->out = in.ptr,  d->outlen = in.len;
 			return FMED_RDATA; //HDR packet
 		}
@@ -237,7 +244,7 @@ static int opus_in_decode(void *ctx, fmed_filt *d)
 	case FFOPUS_RHDRFIN:
 		if (o->stmcopy) {
 			d->out = in.ptr,  d->outlen = in.len;
-			return FMED_RDONE; //TAGS packet
+			return FMED_RDATA; //TAGS packet
 		}
 		return FMED_RMORE;
 	}

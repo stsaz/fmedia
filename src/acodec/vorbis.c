@@ -122,6 +122,10 @@ static void vorbis_close(void *ctx)
 	ffmem_free(v);
 }
 
+/*
+Stream copy:
+Pass the first 2 packets with meta_block flag, then close the filter.
+*/
 static int vorbis_in_decode(void *ctx, fmed_filt *d)
 {
 	enum { R_HDR, R_TAGS, R_BOOK, R_DATA1, R_DATA };
@@ -133,6 +137,12 @@ static int vorbis_in_decode(void *ctx, fmed_filt *d)
 	case R_BOOK:
 		if (!(d->flags & FMED_FFWD))
 			return FMED_RMORE;
+
+		if (v->state == R_BOOK && v->stmcopy) {
+			d->meta_block = 0;
+			d->out = d->data,  d->outlen = d->datalen;
+			return FMED_RDONE;
+		}
 
 		v->state++;
 		break;
@@ -201,6 +211,7 @@ static int vorbis_in_decode(void *ctx, fmed_filt *d)
 		d->audio.bitrate = ffvorbis_bitrate(&v->vorbis);
 
 		if (v->stmcopy) {
+			d->meta_block = 1;
 			d->out = in.ptr,  d->outlen = in.len;
 			return FMED_RDATA; //HDR packet
 		}
@@ -228,7 +239,7 @@ static int vorbis_in_decode(void *ctx, fmed_filt *d)
 	case FFVORBIS_RHDRFIN:
 		if (v->stmcopy) {
 			d->out = in.ptr,  d->outlen = in.len;
-			return FMED_RDONE; //TAGS packet
+			return FMED_RDATA; //TAGS packet
 		}
 		return FMED_RMORE;
 	}
