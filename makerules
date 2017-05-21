@@ -49,8 +49,8 @@ $(OBJ_DIR)/%.o: $(SRCDIR)/acodec/%.c $(SRCDIR)/fmedia.h $(SRCDIR)/core.h $(FF_HD
 $(OBJ_DIR)/%.o: $(SRCDIR)/format/%.c $(SRCDIR)/fmedia.h $(SRCDIR)/core.h $(FF_HDR) $(FF_AUDIO_HDR)
 	$(C)  $(CFLAGS) $<  -o$@
 
-$(RES): $(SRCDIR)/../fmedia.rc $(PROJDIR)/fmedia.ico
-	$(WINDRES) -I$(SRCDIR) -I$(FF) -I$(FFOS) $(PROJDIR)/fmedia.rc $@
+$(RES): $(PROJDIR)/res/fmedia.rc $(PROJDIR)/res/fmedia.ico
+	$(WINDRES) -I$(SRCDIR) -I$(FF) -I$(FFOS) $(PROJDIR)/res/fmedia.rc $@
 
 
 BIN_O := core.$(SO) \
@@ -393,9 +393,11 @@ ifneq ($(OS),win)
 
 else
 
-	$(CP) ./fmedia-gui.exe $(PROJDIR)/fmedia.gui $(PROJDIR)/fmedia*.ico $(PROJDIR)/*.manifest \
+	$(CP) ./fmedia-gui.exe \
+		$(PROJDIR)/src/gui/fmedia.gui \
+		$(PROJDIR)/res/fmedia*.ico \
 		$(INSTDIR)/
-	unix2dos $(INSTDIR)/*.txt $(INSTDIR)/*.conf $(INSTDIR)/*.gui $(INSTDIR)/*.manifest
+	unix2dos $(INSTDIR)/*.txt $(INSTDIR)/*.conf $(INSTDIR)/*.gui
 	chmod 644 $(INSTDIR)/*
 endif
 
@@ -425,9 +427,11 @@ ifneq ($(OS),win)
 
 else
 
-	$(CP) ./fmedia-gui.exe $(PROJDIR)/fmedia.gui $(PROJDIR)/fmedia*.ico $(PROJDIR)/*.manifest \
+	$(CP) ./fmedia-gui.exe \
+		$(PROJDIR)/src/gui/fmedia.gui \
+		$(PROJDIR)/res/fmedia*.ico \
 		$(INSTDIR)/
-	unix2dos $(INSTDIR)/*.txt $(INSTDIR)/*.conf $(INSTDIR)/*.gui $(INSTDIR)/*.manifest
+	unix2dos $(INSTDIR)/*.txt $(INSTDIR)/*.conf $(INSTDIR)/*.gui
 	chmod 644 $(INSTDIR)/*
 endif
 

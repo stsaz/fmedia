@@ -1,7 +1,9 @@
 #include <fmedia.h>
 
+1 RT_MANIFEST "fmedia.exe.manifest"
+
 1 VERSIONINFO
-	FILEVERSION 0,FMED_VER_MINOR,0,0
+	FILEVERSION FMED_VER_MAJOR,FMED_VER_MINOR,0,0
 BEGIN
 	BLOCK "StringFileInfo"
 	BEGIN
