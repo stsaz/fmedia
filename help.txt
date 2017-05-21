@@ -90,6 +90,7 @@ OTHER OPTIONS:
                      add INPUT... : Add items to queue
                      clear: Clear the current queue
                      stop: Stop all active tracks
+                     quit: Close fmedia process
 
 --conf=FN          Set configuration file (default: "fmedia.conf" from the program directory)
 --gui              Run in graphical UI mode (Windows only)

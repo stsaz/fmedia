@@ -37,6 +37,7 @@ typedef struct globcmd {
 	fffd opened_fd;
 	ffarr pipename_full;
 	char *pipe_name;
+	const fmed_track *track;
 } globcmd;
 
 static globcmd *g;
@@ -112,6 +113,8 @@ static int globcmd_ctl(uint cmd)
 			goto end;
 		if (0 != globcmd_listen())
 			goto end;
+		if (NULL == (g->track = core->getmod("#core.track")))
+			return -1;
 		return 0;
 
 	case FMED_GLOBCMD_OPEN:
@@ -275,6 +278,7 @@ enum CMDS {
 	CMD_ADD,
 	CMD_CLEAR,
 	CMD_PLAY,
+	CMD_QUIT,
 	CMD_STOP,
 };
 
@@ -282,6 +286,7 @@ static const char* const cmds_str[] = {
 	"add", // "add INPUT..."
 	"clear",
 	"play", // "play INPUT..."
+	"quit",
 	"stop",
 };
 
@@ -325,13 +330,13 @@ static int globcmd_parse(cmd_parser *c, const ffstr *in)
 			case CMD_ADD:
 				break;
 
-			case CMD_STOP: {
-				const fmed_track *track;
-				if (NULL == (track = core->getmod("#core.track")))
-					break;
-				track->cmd((void*)-1, FMED_TRACK_STOPALL);
+			case CMD_STOP:
+				g->track->cmd((void*)-1, FMED_TRACK_STOPALL);
 				break;
-			}
+
+			case CMD_QUIT:
+				g->track->cmd((void*)-1, FMED_TRACK_STOPALL_EXIT);
+				break;
 			}
 			break;
 
