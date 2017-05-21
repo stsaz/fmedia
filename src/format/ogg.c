@@ -160,8 +160,9 @@ static const char *const ogg_mods[][2] = {
 
 static const char* ogg_codec_mod(const char *fn, uint is_encoder)
 {
-	ffstr ext;
-	ffpath_split3(fn, ffsz_len(fn), NULL, NULL, &ext);
+	ffstr name, ext;
+	ffpath_split2(fn, ffsz_len(fn), NULL, &name);
+	ffs_rsplit2by(name.ptr, name.len, '.', NULL, &ext);
 	return ogg_mods[is_encoder][ffstr_eqcz(&ext, "opus")];
 }
 
