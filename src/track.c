@@ -745,6 +745,9 @@ static int trk_cmd(void *trk, uint cmd)
 		if (!fmed->cmd.gui && !fmed->cmd.rec)
 			core->sig(FMED_STOP);
 		break;
+
+	default:
+		return trk_cmd2(trk, cmd, NULL);
 	}
 	return 0;
 }
@@ -830,6 +833,15 @@ static int trk_cmd2(void *trk, uint cmd, void *param)
 
 		dbglog(core, t, "core", "added module %s to chain", f->name);
 		break;
+	}
+
+	case FMED_TRACK_META_HAVEUSER: {
+		if (t->meta.len != 0)
+			return 1;
+		void *qent;
+		if (FMED_PNULL == (qent = (void*)trk_getval(t, "queue_item")))
+			return 0;
+		return fmed->qu->cmd2(FMED_QUE_HAVEUSERMETA, qent, 0);
 	}
 
 	case FMED_TRACK_META_ENUM:

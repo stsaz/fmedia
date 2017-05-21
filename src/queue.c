@@ -347,7 +347,7 @@ static void que_cmd(uint cmd, void *param)
 // matches enum FMED_QUE
 static const char *const scmds[] = {
 	"play", "play-excl", "mix", "stop-after", "next", "prev", "save", "clear", "add", "rm", "rmdead",
-	"meta-set", "setonchange", "expand",
+	"meta-set", "setonchange", "expand", "have-user-meta",
 	"que-new", "que-del", "que-sel", "que-list",
 };
 
@@ -450,6 +450,10 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 		que_meta_set(param, &pair[0], &pair[1], flags >> 16);
 		}
 		break;
+
+	case FMED_QUE_HAVEUSERMETA:
+		e = param;
+		return (e->meta.len != 0 || e->no_tmeta);
 
 
 	case FMED_QUE_SAVE:

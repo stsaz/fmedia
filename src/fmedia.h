@@ -200,6 +200,8 @@ enum FMED_TRACK {
 	FMED_TRACK_ADDFILT_PREV,
 	FMED_TRACK_ADDFILT_BEGIN,
 
+	FMED_TRACK_META_HAVEUSER,
+
 	/**
 	@param: fmed_trk_meta* */
 	FMED_TRACK_META_ENUM,
@@ -511,6 +513,7 @@ enum FMED_QUE {
 	FMED_QUE_METASET, // @param2: ffstr name_val_pair[2]
 	FMED_QUE_SETONCHANGE, // @param: fmed_que_onchange_t
 	FMED_QUE_EXPAND, // @param: fmed_que_entry*
+	FMED_QUE_HAVEUSERMETA, // @param: fmed_que_entry*
 
 	FMED_QUE_NEW,
 	FMED_QUE_DEL, // @param: uint
