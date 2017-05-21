@@ -696,7 +696,7 @@ static ffstr* que_meta_find(fmed_que_entry *ent, const char *name, size_t name_l
 		name_len = ffsz_len(name);
 
 	for (uint k = 0;  k != 2;  k++) {
-		const ffarr2 *meta = (k != 0 || qu->fmeta_lowprio) ? &e->meta : &e->tmeta;
+		const ffarr2 *meta = (k == 0) ? &e->meta : &e->tmeta;
 		if (-1 != (i = que_arrfind(meta->ptr, meta->len, name, name_len)))
 			return &((ffstr*)meta->ptr)[i + 1];
 	}

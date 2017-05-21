@@ -223,13 +223,13 @@ static int m3u_process(void *ctx, fmed_filt *d)
 		if (m->pls_ent.artist.len != 0) {
 			ffstr_setcz(&meta[0], "artist");
 			ffstr_set2(&meta[1], &m->pls_ent.artist);
-			qu->cmd2(FMED_QUE_METASET, cur, (size_t)meta);
+			qu->cmd2(FMED_QUE_METASET | (FMED_QUE_TMETA << 16), cur, (size_t)meta);
 		}
 
 		if (m->pls_ent.title.len != 0) {
 			ffstr_setcz(&meta[0], "title");
 			ffstr_set2(&meta[1], &m->pls_ent.title);
-			qu->cmd2(FMED_QUE_METASET, cur, (size_t)meta);
+			qu->cmd2(FMED_QUE_METASET | (FMED_QUE_TMETA << 16), cur, (size_t)meta);
 		}
 
 		qu->cmd2(FMED_QUE_ADD | FMED_QUE_ADD_DONE, cur, 0);
@@ -306,7 +306,7 @@ static int pls_process(void *ctx, fmed_filt *d)
 		if (p->pls_ent.title.len != 0) {
 			ffstr_setcz(&meta[0], "title");
 			ffstr_set2(&meta[1], &p->pls_ent.title);
-			qu->cmd2(FMED_QUE_METASET, cur, (size_t)meta);
+			qu->cmd2(FMED_QUE_METASET | (FMED_QUE_TMETA << 16), cur, (size_t)meta);
 		}
 
 		qu->cmd2(FMED_QUE_ADD | FMED_QUE_ADD_DONE, cur, 0);

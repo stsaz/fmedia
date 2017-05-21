@@ -770,13 +770,13 @@ static int icy_setmeta(icy *c, const ffstr *_data)
 	ffarr utf = {0};
 	ffutf8_strencode(&utf, artist.ptr, artist.len, FFU_WIN1252);
 	ffstr_set2(&pair[1], &utf);
-	net->qu->cmd2(FMED_QUE_METASET | (FMED_QUE_OVWRITE << 16), qent, (size_t)pair);
+	net->qu->cmd2(FMED_QUE_METASET | ((FMED_QUE_TMETA | FMED_QUE_OVWRITE) << 16), qent, (size_t)pair);
 	ffstr_acqstr3(&c->artist, &utf);
 
 	ffstr_setcz(&pair[0], "title");
 	ffutf8_strencode(&utf, title.ptr, title.len, FFU_WIN1252);
 	ffstr_set2(&pair[1], &utf);
-	net->qu->cmd2(FMED_QUE_METASET | (FMED_QUE_OVWRITE << 16), qent, (size_t)pair);
+	net->qu->cmd2(FMED_QUE_METASET | ((FMED_QUE_TMETA | FMED_QUE_OVWRITE) << 16), qent, (size_t)pair);
 	c->d->meta_changed = 1;
 	ffstr_acqstr3(&c->title, &utf);
 
@@ -824,6 +824,8 @@ static void* netin_create(icy *c)
 
 	net->track->setvalstr4(trk, "artist", (void*)&c->artist, FMED_TRK_META | FMED_TRK_VALSTR);
 	net->track->setvalstr4(trk, "title", (void*)&c->title, FMED_TRK_META | FMED_TRK_VALSTR);
+
+	c->d->track->cmd2(trk, FMED_TRACK_META_COPYFROM, c->d->trk);
 
 	net->track->cmd(trk, FMED_TRACK_START);
 	return n;
