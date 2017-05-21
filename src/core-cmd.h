@@ -47,6 +47,8 @@ typedef struct fmed_cmd {
 	ffbool stream_copy;
 
 	ffstr globcmd;
+	byte bground;
+	byte bgchild;
 	char *conf_fn;
 	ffbool notui;
 	ffbool gui;

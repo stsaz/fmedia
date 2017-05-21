@@ -93,6 +93,10 @@ static const ffpars_arg fmed_cmdline_args[] = {
 	{ "preserve-date",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, preserve_date) },
 
 	//OTHER OPTIONS
+	{ "background",	FFPARS_TBOOL8 | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, bground) },
+#ifdef FF_WIN
+	{ "background-child",	FFPARS_TBOOL8 | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, bgchild) },
+#endif
 	{ "globcmd",	FFPARS_TSTR | FFPARS_FCOPY | FFPARS_FNOTEMPTY,  FFPARS_DSTOFF(fmed_cmd, globcmd) },
 	{ "conf",	FFPARS_TSTR,  FFPARS_DSTOFF(fmed_cmd, dummy) },
 	{ "notui",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, notui) },
@@ -591,6 +595,7 @@ end:
 
 int main(int argc, char **argv)
 {
+	int rc = 1;
 	ffsignal sigs_task = {0};
 
 	ffmem_init();
@@ -623,6 +628,24 @@ int main(int argc, char **argv)
 	if (0 != fmed_cmdline(argc, argv, 0))
 		goto end;
 
+	if (gcmd->bground) {
+		if (gcmd->bgchild)
+			ffterm_detach();
+		else {
+			fffd ps = ffps_createself_bg("--background-child");
+			if (ps == FF_BADFD) {
+				syserrlog(core, NULL, "core", "failed to spawn background process");
+				goto end;
+
+			} else if (ps != 0) {
+				core->log(FMED_LOG_INFO, NULL, "core", "spawned background process: PID %u", ffps_id(ps));
+				(void)ffps_close(ps);
+				rc = 0;
+				goto end;
+			}
+		}
+	}
+
 	const fmed_globcmd_iface *globcmd = NULL;
 	ffbool gcmd_listen = 0;
 	if (fmed->globcmd.len != 0
@@ -633,6 +656,7 @@ int main(int argc, char **argv)
 
 		else if (0 == globcmd->ctl(FMED_GLOBCMD_OPEN)) {
 			gcmd_send(globcmd);
+			rc = 0;
 			goto end;
 		}
 	}
@@ -654,9 +678,10 @@ int main(int argc, char **argv)
 	core->task(&fmed->tsk_start, FMED_TASK_POST);
 
 	core->sig(FMED_START);
+	rc = 0;
 
 end:
 	ffsig_ctl(&sigs_task, core->kq, sigs, FFCNT(sigs), NULL);
 	core_free();
-	return 0;
+	return rc;
 }

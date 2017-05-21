@@ -83,6 +83,7 @@ OUTPUT:
                    Supported by modules: net.icy.
 
 OTHER OPTIONS:
+--background       Create a new process that will run in background
 --globcmd=STR      Send commands to another running fmedia process.
                    Supported commands:
                      listen: Start listening for incoming commands
