@@ -79,6 +79,8 @@ static void trk_process(void *udata);
 static void trk_stop(fm_trk *t, uint flags);
 static fmed_f* trk_modbyext(fm_trk *t, uint flags, const ffstr *ext);
 static void trk_printtime(fm_trk *t);
+static int trk_meta_enum(fm_trk *t, fmed_trk_meta *meta);
+static int trk_meta_copy(fm_trk *t, fm_trk *src);
 
 static dict_ent* dict_add(fm_trk *t, const char *name, uint *f);
 static void dict_ent_free(dict_ent *e);
@@ -747,6 +749,50 @@ static int trk_cmd(void *trk, uint cmd)
 	return 0;
 }
 
+static int trk_meta_enum(fm_trk *t, fmed_trk_meta *meta)
+{
+	if (meta->trnod != &t->meta.sentl) {
+		if (meta->trnod == NULL) {
+			if (t->meta.root != &t->meta.sentl)
+				meta->trnod = fftree_min((void*)t->meta.root, &t->meta.sentl);
+			else
+				meta->trnod = &t->meta.sentl;
+		} else
+			meta->trnod = fftree_successor(meta->trnod, &t->meta.sentl);
+		if (meta->trnod != &t->meta.sentl) {
+			const dict_ent *e = (dict_ent*)meta->trnod;
+			ffstr_setz(&meta->name, e->name);
+			ffstr_setz(&meta->val, e->pval);
+			return 0;
+		}
+	}
+
+	ffstr *val;
+	if (meta->qent == NULL
+		&& FMED_PNULL == (meta->qent = (void*)trk_getval(t, "queue_item")))
+		return 1;
+	for (;;) {
+		val = fmed->qu->meta(meta->qent, meta->idx++, &meta->name, meta->flags);
+		if (val == FMED_QUE_SKIP)
+			continue;
+		break;
+	}
+	if (val == NULL)
+		return 1;
+	meta->val = *val;
+	return 0;
+}
+
+static int trk_meta_copy(fm_trk *t, fm_trk *src)
+{
+	fmed_trk_meta meta = {0};
+	meta.flags = FMED_QUE_UNIQ;
+	while (0 == trk_meta_enum(src, &meta)) {
+		trk_setvalstr4(t, meta.name.ptr, (void*)&meta.val, FMED_TRK_META | FMED_TRK_VALSTR);
+	}
+	return 0;
+}
+
 static int trk_cmd2(void *trk, uint cmd, void *param)
 {
 	fm_trk *t = trk;
@@ -785,6 +831,13 @@ static int trk_cmd2(void *trk, uint cmd, void *param)
 		dbglog(core, t, "core", "added module %s to chain", f->name);
 		break;
 	}
+
+	case FMED_TRACK_META_ENUM:
+		return trk_meta_enum(t, param);
+
+	case FMED_TRACK_META_COPYFROM:
+		return trk_meta_copy(t, param);
+
 	}
 	return 0;
 }
@@ -849,10 +902,11 @@ static char* trk_getvalstr3(void *trk, const void *name, uint flags)
 			void *qent;
 			if (FMED_PNULL == (qent = (void*)trk_getval(t, "queue_item")))
 				return FMED_PNULL;
-			const fmed_queue *qu = core->getmod("#queue.queue");
 			ffstr *val;
-			if (NULL == (val = qu->meta_find(qent, nm.ptr, nm.len)))
+			if (NULL == (val = fmed->qu->meta_find(qent, nm.ptr, nm.len)))
 				return FMED_PNULL;
+			if (flags & FMED_TRK_VALSTR)
+				return (void*)val;
 			return val->ptr;
 		}
 	} else

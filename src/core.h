@@ -48,6 +48,8 @@ typedef struct fmedia {
 	fmed_config conf;
 	fmed_cmd cmd;
 	fmed_props props;
+
+	const fmed_queue *qu;
 } fmedia;
 
 extern fmedia *fmed;

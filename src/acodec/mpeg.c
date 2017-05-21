@@ -660,22 +660,17 @@ static void mpeg_out_close(void *ctx)
 
 static int mpeg_out_addmeta(mpeg_out *m, fmed_filt *d)
 {
-	uint i;
-	ffstr name, *val;
-	void *qent;
 	ssize_t r;
+	fmed_trk_meta meta = {0};
+	meta.flags = FMED_QUE_UNIQ;
 
-	if (FMED_PNULL == (qent = (void*)fmed_getval("queue_item")))
-		return 0;
-
-	for (i = 0;  NULL != (val = qu->meta(qent, i, &name, FMED_QUE_UNIQ));  i++) {
-		if (val == FMED_QUE_SKIP
-			|| -1 == (r = ffs_findarrz(ffmmtag_str, FFCNT(ffmmtag_str), name.ptr, name.len))
+	while (0 == d->track->cmd2(d->trk, FMED_TRACK_META_ENUM, &meta)) {
+		if (-1 == (r = ffs_findarrz(ffmmtag_str, FFCNT(ffmmtag_str), meta.name.ptr, meta.name.len))
 			|| r == FFMMTAG_VENDOR)
 			continue;
 
-		if (0 != ffmpg_addtag(&m->mpgw, r, val->ptr, val->len)) {
-			warnlog(core, d->trk, "mpeg", "%s", "can't add tag: %S", &name);
+		if (0 != ffmpg_addtag(&m->mpgw, r, meta.val.ptr, meta.val.len)) {
+			warnlog(core, d->trk, "mpeg", "%s", "can't add tag: %S", &meta.name);
 		}
 	}
 	return 0;

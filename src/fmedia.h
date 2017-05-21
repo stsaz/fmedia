@@ -199,6 +199,14 @@ enum FMED_TRACK {
 	FMED_TRACK_ADDFILT,
 	FMED_TRACK_ADDFILT_PREV,
 	FMED_TRACK_ADDFILT_BEGIN,
+
+	/**
+	@param: fmed_trk_meta* */
+	FMED_TRACK_META_ENUM,
+
+	/**
+	@param: void *src_track */
+	FMED_TRACK_META_COPYFROM,
 };
 
 enum FMED_TRK_TYPE {
@@ -262,6 +270,14 @@ typedef struct fmed_track {
 #define fmed_getval(name)  (d)->track->getval((d)->trk, name)
 #define fmed_popval(name)  (d)->track->popval((d)->trk, name)
 #define fmed_setval(name, val)  (d)->track->setval((d)->trk, name, val)
+
+typedef struct fmed_trk_meta {
+	ffstr name, val;
+	void *trnod;
+	void *qent;
+	uint idx;
+	uint flags;
+} fmed_trk_meta;
 
 
 // FILTER

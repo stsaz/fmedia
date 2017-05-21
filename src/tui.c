@@ -259,9 +259,9 @@ static void tui_close(void *ctx)
 
 static void tui_addtags(tui *t, fmed_que_entry *qent, ffarr *buf)
 {
-	ffstr name, *val;
-	for (uint i = 0;  NULL != (val = gt->qu->meta(qent, i, &name, 0));  i++) {
-		ffstr_catfmt(buf, "%S\t%S\n", &name, val);
+	fmed_trk_meta meta = {0};
+	while (0 == t->d->track->cmd2(t->d->trk, FMED_TRACK_META_ENUM, &meta)) {
+		ffstr_catfmt(buf, "%S\t%S\n", &meta.name, &meta.val);
 	}
 }
 
@@ -289,10 +289,10 @@ static void tui_info(tui *t, fmed_filt *d)
 
 	tsize = ((int64)d->input.size != FMED_NULL) ? d->input.size : 0;
 
-	if (NULL != (tstr = gt->qu->meta_find(qent, "artist", -1)))
+	if (FMED_PNULL != (tstr = (void*)d->track->getvalstr3(d->trk, "artist", FMED_TRK_META | FMED_TRK_VALSTR)))
 		artist = *tstr;
 
-	if (NULL != (tstr = gt->qu->meta_find(qent, "title", -1)))
+	if (FMED_PNULL != (tstr = (void*)d->track->getvalstr3(d->trk, "title", FMED_TRK_META | FMED_TRK_VALSTR)))
 		title = *tstr;
 
 	t->buf.len = 0;

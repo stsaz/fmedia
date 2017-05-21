@@ -831,6 +831,8 @@ static int core_open(void)
 	ffkev_init(&fmed->evposted);
 	fmed->evposted.oneshot = 0;
 	fmed->evposted.handler = &core_posted;
+
+	fmed->qu = core->getmod("#queue.queue");
 	return 0;
 }
 
