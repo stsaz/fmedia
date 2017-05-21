@@ -4,6 +4,7 @@ Copyright (c) 2015 Simon Zolin */
 #include <fmedia.h>
 
 #include <FF/audio/ogg.h>
+#include <FF/audio/opus.h>
 #include <FF/array.h>
 #include <FF/path.h>
 #include <FFOS/random.h>
@@ -14,7 +15,7 @@ static const fmed_core *core;
 typedef struct fmed_ogg {
 	ffogg og;
 	uint sample_rate;
-	uint state;
+	uint hdr :1;
 	uint seek_ready :1;
 	uint seek_done :1;
 	uint stmcopy :1;
@@ -168,27 +169,12 @@ static const char* ogg_codec_mod(const char *fn, uint is_encoder)
 
 static int ogg_decode(void *ctx, fmed_filt *d)
 {
-	enum { I_DEC, I_DATA };
 	fmed_ogg *o = ctx;
 	int r;
 
 	if (d->flags & FMED_FSTOP) {
 		d->outlen = 0;
 		return FMED_RLASTOUT;
-	}
-
-	switch (o->state) {
-	case I_DEC: {
-		const char *dec = ogg_codec_mod(d->track->getvalstr(d->trk, "input"), 0);
-		if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, (void*)dec)) {
-			return FMED_RERR;
-		}
-		o->state = I_DATA;
-		//break
-	}
-
-	case I_DATA:
-		break;
 	}
 
 	if (d->flags & FMED_FFWD) {
@@ -217,7 +203,16 @@ static int ogg_decode(void *ctx, fmed_filt *d)
 			return FMED_RMORE;
 
 		case FFOGG_RHDR:
-			// break
+		if (!o->hdr) {
+			o->hdr = 1;
+			const char *dec = ogg_codec_mod(d->track->getvalstr(d->trk, "input"), 0);
+			if (ffs_matchz(o->og.out.ptr, o->og.out.len, FFOPUS_HEAD_STR))
+				dec = "opus.decode";
+			if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, (void*)dec)) {
+				return FMED_RERR;
+			}
+			//break
+		}
 
 		case FFOGG_RDATA:
 			goto data;
