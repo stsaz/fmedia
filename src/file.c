@@ -36,31 +36,38 @@ static const fmed_core *core;
 
 typedef struct databuf {
 	char *ptr;
-	uint off;
+	uint64 off;
 	uint len;
 } databuf;
 
 typedef struct fmed_file {
 	const char *fn;
 	fffd fd;
+
 	uint wdata;
 	uint rdata;
+	uint unread_bufs;
 	databuf *data;
+
 	uint64 fsize;
-	uint64 foff
-		, aoff;
+	uint64 foff; //current read position
 	ffaio_filetask ftask;
-	int64 seek;
+	int64 seek; //user's read position
 
 	fmed_handler handler;
 	void *trk;
 
 	unsigned async :1
 		, done :1
+		, cancelled :1
 		, want_read :1
 		, err :1
 		, out :1;
 } fmed_file;
+
+enum {
+	FILEIN_MAX_PREBUF = 2, //maximum number of unread buffers
+};
 
 typedef struct fmed_fileout {
 	ffstr fname;
@@ -230,11 +237,8 @@ static void* file_open(fmed_filt *d)
 	f = ffmem_tcalloc1(fmed_file);
 	if (f == NULL)
 		return NULL;
-	f->seek = -1;
 	f->fd = FF_BADFD;
 	f->fn = d->track->getvalstr(d->trk, "input");
-	if (NULL == (f->data = ffmem_tcalloc(databuf, mod->in_conf.nbufs)))
-		goto done;
 
 	uint flags = O_RDONLY | O_NOATIME | O_NONBLOCK | FFO_NODOSNAME;
 	flags |= (mod->in_conf.directio) ? O_DIRECT : 0;
@@ -261,7 +265,7 @@ static void* file_open(fmed_filt *d)
 		goto done;
 	}
 	if (0 != fffile_info(f->fd, &fi)) {
-		syserrlog(core, d->trk, "file", "get file info: %s", f->fn);
+		syserrlog(core, d->trk, NULL, "%s: %s", fffile_info_S, f->fn);
 		goto done;
 	}
 	f->fsize = fffile_infosize(&fi);
@@ -275,12 +279,14 @@ static void* file_open(fmed_filt *d)
 		goto done;
 	}
 
-	for (i = 0;  i < mod->in_conf.nbufs;  i++) {
-		f->data[i].ptr = ffmem_align(mod->in_conf.bsize, mod->in_conf.align);
-		if (f->data[i].ptr == NULL) {
-			syserrlog(core, d->trk, "file", "%s: %s", ffmem_alloc_S, f->fn);
+	if (NULL == (f->data = ffmem_callocT(mod->in_conf.nbufs, databuf)))
+		goto done;
+	for (i = 0;  i != mod->in_conf.nbufs;  i++) {
+		if (NULL == (f->data[i].ptr = ffmem_align(mod->in_conf.bsize, mod->in_conf.align))) {
+			syserrlog(core, d->trk, NULL, "%s", ffmem_alloc_S);
 			goto done;
 		}
+		f->data[i].off = (uint64)-1;
 	}
 
 	d->input.size = f->fsize;
@@ -318,117 +324,95 @@ static void file_close(void *ctx)
 		}
 		ffmem_free(f->data);
 	}
+
 	ffmem_free(f);
+}
+
+static databuf* find_buf(fmed_file *f, uint64 offset)
+{
+	databuf *b = f->data;
+	for (uint i = 0;  i != mod->in_conf.nbufs;  i++, b++) {
+		if (ffint_within(offset, b->off, b->off + b->len))
+			return b;
+	}
+	return NULL;
 }
 
 static int file_getdata(void *ctx, fmed_filt *d)
 {
 	fmed_file *f = ctx;
-	uint64 seek;
-	uint i;
+	const databuf *b = NULL;
+
+	if (f->out) {
+		f->out = 0;
+		f->rdata = ffint_cycleinc(f->rdata, mod->in_conf.nbufs);
+		f->unread_bufs--;
+	}
+
+	if ((int64)d->input.seek != FMED_NULL) {
+		uint64 seek = d->input.seek;
+		d->input.seek = FMED_NULL;
+		if (seek >= f->fsize) {
+			errlog(core, d->trk, "file", "too big seek position %U", seek);
+			return FMED_RERR;
+		}
+
+		dbglog(core, d->trk, NULL, "seeking to %xU", seek);
+		f->seek = seek;
+		f->cancelled = f->async;
+
+		if (NULL != (b = find_buf(f, seek))) {
+			dbglog(core, d->trk, NULL, "hit cached buf#%u  offset:%xU"
+				, b - f->data, b->off);
+			f->rdata = b - f->data;
+			f->wdata = ffint_cycleinc(f->rdata, mod->in_conf.nbufs);
+			f->unread_bufs = 1;
+			f->foff = b->off + b->len;
+
+		} else {
+			f->rdata = f->wdata;
+			f->unread_bufs = 0;
+			f->foff = ff_align_floor2(seek, mod->in_conf.align);
+		}
+		f->done = (f->foff >= f->fsize);
+	}
+
+	if (!f->async && !f->done)
+		file_read(f);
 
 	if (f->err)
 		return FMED_RERR;
 
-	if ((int64)d->input.seek != FMED_NULL) {
-		seek = d->input.seek;
-		f->seek = seek;
-		d->input.seek = FMED_NULL;
-		if (seek >= f->fsize) {
-			errlog(core, d->trk, "file", "too big seek position %U", f->seek);
-			return FMED_RERR;
-		}
-
-		/* don't do unnecessary file_read() if seek position is within the current buffers,
-			instead, just shift offsets in the buffers */
-		uint64 cursize = 0;
-		for (i = 0;  i != mod->in_conf.nbufs;  i++) {
-			cursize += f->data[i].len;
-			f->data[i].off = 0;
-		}
-		if (seek >= f->foff - cursize && seek < f->foff) {
-			uint64 pos = seek - (f->foff - cursize);
-			dbglog(core, NULL, "file", "shifting %U bytes", pos);
-
-			while (pos != 0) {
-				databuf *d = &f->data[f->rdata];
-				size_t n = ffmin(d->len - d->off, pos);
-				d->off += n;
-				if (d->off == d->len) {
-					d->len = 0;
-					d->off = 0;
-					f->rdata = (f->rdata + 1) % mod->in_conf.nbufs;
-				}
-
-				pos -= n;
-			}
-
-			f->out = 0;
-			f->done = 0;
-			f->seek = -1;
-			f->aoff = seek;
-			goto rd;
-		}
-
-		f->wdata = 0;
-		f->rdata = 0;
-		f->out = 0;
-		f->done = 0;
-		if (!f->async) {
-			f->foff = f->seek;
-			f->aoff = f->seek;
-			f->seek = -1;
-		}
-
-		//reset all buffers
-		for (i = 0;  i < mod->in_conf.nbufs;  i++) {
-			f->data[i].len = 0;
-			f->data[i].off = 0;
-		}
-	}
-
-	if (f->out) {
-		f->out = 0;
-		f->aoff += f->data[f->rdata].len - f->data[f->rdata].off;
-		f->data[f->rdata].len = 0;
-		f->data[f->rdata].off = 0;
-		f->rdata = (f->rdata + 1) % mod->in_conf.nbufs;
-
-		if (f->done && f->data[f->rdata].len == 0) {
+	if (f->unread_bufs == 0) {
+		if (f->done) {
 			/* We finished reading in the previous iteration.
 			After that, noone's asked to seek back. */
 			d->outlen = 0;
 			return FMED_RDONE;
 		}
-	}
-
-rd:
-	if (!f->async && !f->done)
-		file_read(f);
-
-	if (f->data[f->rdata].len == 0 && !f->done) {
 		f->want_read = 1;
 		return FMED_RASYNC; //wait until the buffer is full
 	}
 
-	fmed_setval("input_off", f->aoff);
+	b = &f->data[f->rdata];
 
-	d->out = f->data[f->rdata].ptr;
-	d->outlen = f->data[f->rdata].len;
-	if (f->data[f->rdata].off != 0) {
-		d->out += f->data[f->rdata].off;
-		d->outlen -= f->data[f->rdata].off;
-	}
+	dbglog(core, f->trk, "file", "returning buf#%u  offset:%xU  seek:%xD"
+		, f->rdata, b->off, f->seek);
+
+	d->out = b->ptr,  d->outlen = b->len;
+	FF_ASSERT(ffint_within((uint64)f->seek, b->off, b->off + b->len));
+	d->out += f->seek - b->off;
+	d->outlen -= f->seek - b->off;
+	f->seek = b->off + b->len;
 	f->out = 1;
-
 	return FMED_ROK;
 }
 
 static void file_read(void *udata)
 {
 	fmed_file *f = udata;
-	uint filled = 0;
 	int r;
+	databuf *b;
 
 	if (f->async && f->fd == FF_BADFD) {
 		f->async = 0;
@@ -437,54 +421,67 @@ static void file_read(void *udata)
 	}
 
 	for (;;) {
-		uint64 off = f->foff;
-		if (f->foff % mod->in_conf.align)
-			off &= ~(mod->in_conf.align-1);
 
-		if (f->data[f->wdata].len != 0)
+		if (f->unread_bufs == ffmin(mod->in_conf.nbufs, FILEIN_MAX_PREBUF))
 			break;
 
-		r = (int)ffaio_fread(&f->ftask, f->data[f->wdata].ptr, mod->in_conf.bsize, off, &file_read);
+		b = &f->data[f->wdata];
+
+		uint64 off;
+		if (f->async)
+			off = b->off;
+		else {
+			if (ffint_within(f->foff, b->off, b->off + b->len))
+				goto ok; //this buffer already contains some of the needed data
+			off = f->foff;
+			b->off = f->foff;
+			b->len = 0;
+		}
+
+		r = (int)ffaio_fread(&f->ftask, b->ptr, mod->in_conf.bsize, off, &file_read);
 		f->async = 0;
 		if (r < 0) {
 			if (fferr_again(fferr_last())) {
-				dbglog(core, f->trk, "file", "async read, offset:%xU", off);
+				dbglog(core, f->trk, "file", "buf#%u: async read, offset:%xU", f->wdata, off);
+				b->len = 0;
 				f->async = 1;
 				break;
 			}
 
-			syserrlog(core, f->trk, "file", "%s: %s", fffile_read_S, f->fn);
+			syserrlog(core, f->trk, "file", "%s: %s  buf#%u offset:%xU"
+				, fffile_read_S, f->fn, f->wdata, off);
+			b->off = (uint64)-1;
+			b->len = 0;
 			f->err = 1;
-			return;
+			break;
 		}
 
-		if (f->seek != -1) {
-			f->foff = f->seek;
-			f->aoff = f->seek;
-			f->seek = -1;
-			continue;
-		}
-
+		b->len = r;
+		dbglog(core, f->trk, "file", "buf#%u: read %u bytes at offset %xU"
+			, f->wdata, r, off);
 		if ((uint)r != mod->in_conf.bsize) {
 			dbglog(core, f->trk, "file", "reading's done", 0);
 			f->done = 1;
-			if (r == 0)
-				break;
 		}
 
-		dbglog(core, f->trk, "file", "read %U bytes at offset %U", (int64)r - (f->foff % mod->in_conf.align), f->foff);
-		if (f->foff % mod->in_conf.align != 0)
-			f->data[f->wdata].off = f->foff % mod->in_conf.align;
-		f->foff = (f->foff & ~(mod->in_conf.align-1)) + r;
-		f->data[f->wdata].len = r;
-		filled = 1;
+		if (f->cancelled) {
+			f->cancelled = 0;
+			continue;
+		}
 
-		f->wdata = (f->wdata + 1) % mod->in_conf.nbufs;
-		if (f->data[f->wdata].len != 0 || f->done)
+		if (r == 0 && f->done)
+			break;
+
+ok:
+		f->unread_bufs++;
+		f->foff = b->off + b->len;
+		f->done = (f->foff >= f->fsize);
+		f->wdata = ffint_cycleinc(f->wdata, mod->in_conf.nbufs);
+		if (f->wdata == f->rdata || f->done)
 			break; //all buffers are filled or end-of-file is reached
 	}
 
-	if (filled && f->want_read) {
+	if ((f->unread_bufs != 0 || f->err) && f->want_read) {
 		f->want_read = 0;
 		f->handler(f->trk);
 	}
