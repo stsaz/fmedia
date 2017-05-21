@@ -162,10 +162,10 @@ static void mpeg_destroy(void)
 {
 }
 
-
 static void* mpeg_open(fmed_filt *d)
 {
-	if (d->stream_copy) {
+	if (d->stream_copy && !d->track->cmd(d->trk, FMED_TRACK_META_HAVEUSER)) {
+
 		if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, "mpeg.copy"))
 			return NULL;
 		return FMED_FILT_SKIP;
@@ -277,12 +277,16 @@ again:
 			dbglog(core, d->trk, NULL, "preset:%s  tool:%s  xing-frames:%u"
 				, ffmpg_isvbr(&m->mpg.rdr) ? "VBR" : "CBR", m->mpg.rdr.lame.id, m->mpg.rdr.xing.frames);
 			ffpcm_fmtcopy(&d->audio.fmt, &ffmpg_fmt(&m->mpg.rdr));
+			d->audio.fmt.format = FFPCM_16;
+			d->track->setvalstr(d->trk, "pcm_decoder", "MPEG");
+			d->track->setvalstr(d->trk, "data_asis", "mpeg");
 
 			d->audio.bitrate = ffmpg_bitrate(&m->mpg.rdr);
 			d->audio.total = ffmpg_length(&m->mpg.rdr);
 			m->state = I_DATA;
 
-			if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, "mpeg.decode"))
+			if (!d->stream_copy
+				&& 0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, "mpeg.decode"))
 				return FMED_RERR;
 
 			if ((int64)d->audio.seek != FMED_NULL) {
@@ -347,6 +351,7 @@ static void* mpeg_dec_open(fmed_filt *d)
 	d->audio.fmt.format = m->mpg.fmt.format;
 	d->audio.fmt.ileaved = m->mpg.fmt.ileaved;
 	d->track->setvalstr(d->trk, "pcm_decoder", "MPEG");
+	d->track->setvalstr(d->trk, "data_asis", "pcm");
 	return m;
 }
 
@@ -630,6 +635,14 @@ static int mpeg_out_config(ffpars_ctx *ctx)
 	return 0;
 }
 
+static int mpeg_have_trkmeta(fmed_filt *d)
+{
+	fmed_trk_meta meta = {0};
+	if (0 == d->track->cmd2(d->trk, FMED_TRACK_META_ENUM, &meta))
+		return 1;
+	return 0;
+}
+
 static void* mpeg_out_open(fmed_filt *d)
 {
 	mpeg_out *m = ffmem_tcalloc1(mpeg_out);
@@ -645,7 +658,9 @@ static void* mpeg_out_open(fmed_filt *d)
 			errlog(core, d->trk, NULL, "unsupported input data format: %s", copyfmt);
 			return NULL;
 		}
-		return FMED_FILT_SKIP;
+
+		if (!mpeg_have_trkmeta(d))
+			return FMED_FILT_SKIP;
 	}
 
 	return m;
@@ -687,9 +702,11 @@ static int mpeg_out_process(void *ctx, fmed_filt *d)
 		m->mpgw.min_meta = mpeg_out_conf.min_meta_size;
 		if (0 != mpeg_out_addmeta(m, d))
 			return FMED_RERR;
+		m->state = 2;
+		if (d->stream_copy)
+			break;
 		if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT_PREV, (void*)"mpeg.encode"))
 			return FMED_RERR;
-		m->state = 2;
 		return FMED_RMORE;
 
 	case 2:
