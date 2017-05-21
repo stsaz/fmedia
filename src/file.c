@@ -12,6 +12,14 @@ Copyright (c) 2015 Simon Zolin */
 #include <FF/path.h>
 
 
+#undef dbglog
+#undef errlog
+#undef syserrlog
+#define dbglog(trk, ...)  fmed_dbglog(core, trk, "file", __VA_ARGS__)
+#define errlog(trk, ...)  fmed_errlog(core, trk, "file", __VA_ARGS__)
+#define syserrlog(trk, ...)  fmed_syserrlog(core, trk, "file", __VA_ARGS__)
+
+
 struct file_in_conf_t {
 	uint nbufs;
 	size_t bsize;
@@ -261,21 +269,21 @@ static void* file_open(fmed_filt *d)
 	}
 
 	if (f->fd == FF_BADFD) {
-		syserrlog(core, d->trk, "file", "%s: %s", fffile_open_S, f->fn);
+		syserrlog(d->trk, "%s: %s", fffile_open_S, f->fn);
 		goto done;
 	}
 	if (0 != fffile_info(f->fd, &fi)) {
-		syserrlog(core, d->trk, NULL, "%s: %s", fffile_info_S, f->fn);
+		syserrlog(d->trk, "%s: %s", fffile_info_S, f->fn);
 		goto done;
 	}
 	f->fsize = fffile_infosize(&fi);
 
-	dbglog(core, d->trk, "file", "opened %s (%U kbytes)", f->fn, f->fsize / 1024);
+	dbglog(d->trk, "opened %s (%U kbytes)", f->fn, f->fsize / 1024);
 
 	ffaio_finit(&f->ftask, f->fd, f);
 	f->ftask.kev.udata = f;
 	if (0 != ffaio_fattach(&f->ftask, core->kq, !!(flags & O_DIRECT))) {
-		syserrlog(core, d->trk, "file", "%s: %s", ffkqu_attach_S, f->fn);
+		syserrlog(d->trk, "%s: %s", ffkqu_attach_S, f->fn);
 		goto done;
 	}
 
@@ -283,7 +291,7 @@ static void* file_open(fmed_filt *d)
 		goto done;
 	for (i = 0;  i != mod->in_conf.nbufs;  i++) {
 		if (NULL == (f->data[i].ptr = ffmem_align(mod->in_conf.bsize, mod->in_conf.align))) {
-			syserrlog(core, d->trk, NULL, "%s", ffmem_alloc_S);
+			syserrlog(d->trk, "%s", ffmem_alloc_S);
 			goto done;
 		}
 		f->data[i].off = (uint64)-1;
@@ -353,16 +361,16 @@ static int file_getdata(void *ctx, fmed_filt *d)
 		uint64 seek = d->input.seek;
 		d->input.seek = FMED_NULL;
 		if (seek >= f->fsize) {
-			errlog(core, d->trk, "file", "too big seek position %U", seek);
+			errlog(d->trk, "too big seek position %U", seek);
 			return FMED_RERR;
 		}
 
-		dbglog(core, d->trk, NULL, "seeking to %xU", seek);
+		dbglog(d->trk, "seeking to %xU", seek);
 		f->seek = seek;
 		f->cancelled = f->async;
 
 		if (NULL != (b = find_buf(f, seek))) {
-			dbglog(core, d->trk, NULL, "hit cached buf#%u  offset:%xU"
+			dbglog(d->trk, "hit cached buf#%u  offset:%xU"
 				, b - f->data, b->off);
 			f->rdata = b - f->data;
 			f->wdata = ffint_cycleinc(f->rdata, mod->in_conf.nbufs);
@@ -396,7 +404,7 @@ static int file_getdata(void *ctx, fmed_filt *d)
 
 	b = &f->data[f->rdata];
 
-	dbglog(core, f->trk, "file", "returning buf#%u  offset:%xU  seek:%xD"
+	dbglog(d->trk, "returning buf#%u  offset:%xU  seek:%xD"
 		, f->rdata, b->off, f->seek);
 
 	d->out = b->ptr,  d->outlen = b->len;
@@ -442,13 +450,13 @@ static void file_read(void *udata)
 		f->async = 0;
 		if (r < 0) {
 			if (fferr_again(fferr_last())) {
-				dbglog(core, f->trk, "file", "buf#%u: async read, offset:%xU", f->wdata, off);
+				dbglog(f->trk, "buf#%u: async read, offset:%xU", f->wdata, off);
 				b->len = 0;
 				f->async = 1;
 				break;
 			}
 
-			syserrlog(core, f->trk, "file", "%s: %s  buf#%u offset:%xU"
+			syserrlog(f->trk, "%s: %s  buf#%u offset:%xU"
 				, fffile_read_S, f->fn, f->wdata, off);
 			b->off = (uint64)-1;
 			b->len = 0;
@@ -457,10 +465,10 @@ static void file_read(void *udata)
 		}
 
 		b->len = r;
-		dbglog(core, f->trk, "file", "buf#%u: read %u bytes at offset %xU"
+		dbglog(f->trk, "buf#%u: read %u bytes at offset %xU"
 			, f->wdata, r, off);
 		if ((uint)r != mod->in_conf.bsize) {
-			dbglog(core, f->trk, "file", "reading's done", 0);
+			dbglog(f->trk, "reading's done", 0);
 			f->done = 1;
 		}
 
@@ -651,7 +659,7 @@ data:
 	return f->fname.ptr;
 
 syserr:
-	syserrlog(core, d->trk, NULL, "%s", ffmem_alloc_S);
+	syserrlog(d->trk, "%s", ffmem_alloc_S);
 
 done:
 	ffarr_free(&outfn);
@@ -677,7 +685,7 @@ static void* fileout_open(fmed_filt *d)
 
 		if (fferr_nofile(fferr_last())) {
 			if (0 != ffdir_make_path((void*)filename, 0)) {
-				syserrlog(core, d->trk, "file", "%s: for filename %s", ffdir_make_S, filename);
+				syserrlog(d->trk, "%s: for filename %s", ffdir_make_S, filename);
 				goto done;
 			}
 
@@ -685,13 +693,13 @@ static void* fileout_open(fmed_filt *d)
 		}
 
 		if (f->fd == FF_BADFD) {
-			syserrlog(core, d->trk, "file", "%s: %s", fffile_open_S, filename);
+			syserrlog(d->trk, "%s: %s", fffile_open_S, filename);
 			goto done;
 		}
 	}
 
 	if (NULL == ffarr_alloc(&f->buf, mod->out_conf.bsize)) {
-		syserrlog(core, d->trk, "file", "%s", ffmem_alloc_S);
+		syserrlog(d->trk, "%s", ffmem_alloc_S);
 		goto done;
 	}
 
@@ -725,10 +733,10 @@ static void fileout_close(void *ctx)
 		if (!f->ok && mod->out_conf.file_del) {
 
 			if (0 != fffile_close(f->fd))
-				syserrlog(core, NULL, "file", "%s", fffile_close_S);
+				syserrlog(NULL, "%s", fffile_close_S);
 
 			if (0 == fffile_rm(f->fname.ptr))
-				dbglog(core, NULL, "file", "removed file %S", &f->fname);
+				dbglog(NULL, "removed file %S", &f->fname);
 
 		} else {
 
@@ -736,7 +744,7 @@ static void fileout_close(void *ctx)
 				fffile_settime(f->fd, &f->modtime);
 
 			if (0 != fffile_close(f->fd))
-				syserrlog(core, NULL, "file", "%s", fffile_close_S);
+				syserrlog(NULL, "%s", fffile_close_S);
 
 			core->log(FMED_LOG_USER, NULL, "file", "saved file %S, %U kbytes"
 				, &f->fname, f->fsize / 1024);
@@ -745,7 +753,7 @@ static void fileout_close(void *ctx)
 
 	ffstr_free(&f->fname);
 	ffarr_free(&f->buf);
-	dbglog(core, NULL, "file", "mem write#:%u  file write#:%u  prealloc#:%u"
+	dbglog(NULL, "mem write#:%u  file write#:%u  prealloc#:%u"
 		, f->stat.nmwrite, f->stat.nfwrite, f->stat.nprealloc);
 	ffmem_free(f);
 }
@@ -767,12 +775,12 @@ static int fileout_writedata(fmed_fileout *f, const char *data, size_t len, fmed
 
 	r = fffile_write(f->fd, data, len);
 	if (r != len) {
-		syserrlog(core, d->trk, "file", "%s: %s", fffile_write_S, f->fname.ptr);
+		syserrlog(d->trk, "%s: %s", fffile_write_S, f->fname.ptr);
 		return -1;
 	}
 	f->stat.nfwrite++;
 
-	dbglog(core, d->trk, "file", "written %L bytes at offset %U (%L pending)", r, f->fsize, d->datalen);
+	dbglog(d->trk, "written %L bytes at offset %U (%L pending)", r, f->fsize, d->datalen);
 	f->fsize += r;
 	return r;
 }
@@ -794,26 +802,26 @@ static int fileout_write(void *ctx, fmed_filt *d)
 			f->buf.len = 0;
 		}
 
-		dbglog(core, d->trk, NULL, "seeking to %xU...", seek);
+		dbglog(d->trk, "seeking to %xU...", seek);
 
 		if (0 > fffile_seek(f->fd, seek, SEEK_SET)) {
-			syserrlog(core, d->trk, "file", "%s: %s", fffile_seek_S, f->fname.ptr);
+			syserrlog(d->trk, "%s: %s", fffile_seek_S, f->fname.ptr);
 			return -1;
 		}
 
 		if (d->datalen != (size_t)fffile_write(f->fd, d->data, d->datalen)) {
-			syserrlog(core, d->trk, "file", "%s: %s", fffile_write_S, f->fname.ptr);
+			syserrlog(d->trk, "%s: %s", fffile_write_S, f->fname.ptr);
 			return -1;
 		}
 		f->stat.nfwrite++;
 
-		dbglog(core, d->trk, "file", "written %L bytes at offset %U", d->datalen, seek);
+		dbglog(d->trk, "written %L bytes at offset %U", d->datalen, seek);
 
 		if (f->fsize < d->datalen)
 			f->fsize = d->datalen;
 
 		if (0 > fffile_seek(f->fd, f->fsize, SEEK_SET)) {
-			syserrlog(core, d->trk, "file", "%s: %s", fffile_seek_S, f->fname.ptr);
+			syserrlog(d->trk, "%s: %s", fffile_seek_S, f->fname.ptr);
 			return -1;
 		}
 
@@ -855,7 +863,7 @@ static void* file_stdin_open(fmed_filt *d)
 	f->fd = ffstdin;
 
 	if (NULL == ffarr_alloc(&f->buf, mod->in_conf.bsize)) {
-		syserrlog(core, d->trk, NULL, "%s", ffmem_alloc_S);
+		syserrlog(d->trk, "%s", ffmem_alloc_S);
 		goto done;
 	}
 
@@ -879,7 +887,7 @@ static int file_stdin_read(void *ctx, fmed_filt *d)
 	ssize_t r;
 
 	if ((int64)d->input.seek != FMED_NULL) {
-		errlog(core, d->trk, NULL, "can't seek on stdin.  offset:%U", d->input.seek);
+		errlog(d->trk, "can't seek on stdin.  offset:%U", d->input.seek);
 		return FMED_RERR;
 	}
 
@@ -888,11 +896,11 @@ static int file_stdin_read(void *ctx, fmed_filt *d)
 		d->outlen = 0;
 		return FMED_RDONE;
 	} else if (r < 0) {
-		syserrlog(core, d->trk, NULL, "%s", fffile_read_S);
+		syserrlog(d->trk, "%s", fffile_read_S);
 		return FMED_RERR;
 	}
 
-	dbglog(core, d->trk, NULL, "read %L bytes from stdin"
+	dbglog(d->trk, "read %L bytes from stdin"
 		, r);
 	d->out = f->buf.ptr, d->outlen = r;
 	return FMED_RDATA;
@@ -907,7 +915,7 @@ static void* file_stdout_open(fmed_filt *d)
 	f->fd = ffstdout;
 
 	if (NULL == ffarr_alloc(&f->buf, mod->out_conf.bsize)) {
-		syserrlog(core, d->trk, NULL, "%s", ffmem_alloc_S);
+		syserrlog(d->trk, "%s", ffmem_alloc_S);
 		goto done;
 	}
 
@@ -930,12 +938,12 @@ static int file_stdout_writedata(stdout_ctx *f, const char *data, size_t len, fm
 	size_t r;
 	r = fffile_write(f->fd, data, len);
 	if (r != len) {
-		syserrlog(core, d->trk, NULL, "%s", fffile_write_S);
+		syserrlog(d->trk, "%s", fffile_write_S);
 		return -1;
 	}
 	f->stat.nfwrite++;
 
-	dbglog(core, d->trk, NULL, "written %L bytes at offset %U (%L pending)", r, f->fsize, d->datalen);
+	dbglog(d->trk, "written %L bytes at offset %U (%L pending)", r, f->fsize, d->datalen);
 	f->fsize += r;
 	return r;
 }
@@ -954,7 +962,7 @@ static int file_stdout_write(void *ctx, fmed_filt *d)
 			f->buf.len = 0;
 		}
 
-		errlog(core, d->trk, NULL, "can't seek on stdout.  offset:%U", d->output.seek);
+		errlog(d->trk, "can't seek on stdout.  offset:%U", d->output.seek);
 		return FMED_RERR;
 	}
 

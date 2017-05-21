@@ -7,6 +7,15 @@ Copyright (c) 2015 Simon Zolin */
 #include <FFOS/dir.h>
 
 
+/*
+Metadata priority:
+  . from user (--meta)
+    if "--meta=clear" is used, skip transient meta
+  . from .cue
+  . from file or ICY server (transient)
+  . artist/title from .m3u (used as transient due to lower priority)
+*/
+
 static const fmed_core *core;
 
 typedef struct plist plist;
@@ -648,7 +657,9 @@ static void que_meta_set(fmed_que_entry *ent, const ffstr *name, const ffstr *va
 			if (NULL == (sval = ffsz_alcopy(val->ptr, val->len)))
 				goto err;
 
-			ffstr_set(&((ffstr*)a->ptr)[i + 1], sval, val->len);
+			ffstr *arr = a->ptr;
+			ffstr_free(&arr[i + 1]);
+			ffstr_set(&arr[i + 1], sval, val->len);
 		}
 
 		if (a == &e->meta) {

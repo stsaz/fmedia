@@ -371,6 +371,16 @@ static int sndmod_untl_process(void *ctx, fmed_filt *d)
 	if (FMED_NULL == (int64)(pos = d->audio.pos))
 		return FMED_RDONE;
 
+	if (d->stream_copy) {
+		if (d->audio.pos >= u->until) {
+			dbglog(core, d->trk, "until", "reached sample #%U", u->until);
+			d->outlen = 0;
+			return FMED_RLASTOUT;
+		}
+		d->datalen = 0;
+		return FMED_ROK;
+	}
+
 	samps = d->datalen / u->sampsize;
 	d->datalen = 0;
 	if (pos + samps >= u->until) {

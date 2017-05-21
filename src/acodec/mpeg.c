@@ -28,6 +28,7 @@ typedef struct mpeg_dec {
 
 typedef struct mpeg_copy {
 	ffmpgcopy mpgcpy;
+	uint64 until;
 } mpeg_copy;
 
 //FMEDIA MODULE
@@ -428,6 +429,12 @@ static void* mpeg_copy_open(fmed_filt *d)
 	if ((int64)d->input.size != FMED_NULL)
 		ffmpg_setsize(&m->mpgcpy.rdr, d->input.size);
 
+	m->until = (uint64)-1;
+	if (d->audio.until != FMED_NULL) {
+		m->until = d->audio.until;
+		d->audio.until = FMED_NULL;
+	}
+
 	d->datatype = "mpeg";
 	return m;
 }
@@ -472,6 +479,7 @@ static int mpeg_copy_process(void *ctx, fmed_filt *d)
 		d->audio.bitrate = ffmpg_bitrate(&m->mpgcpy.rdr);
 		d->audio.total = ffmpg_length(&m->mpgcpy.rdr);
 		d->audio.decoder = "MPEG";
+		d->meta_block = 0;
 
 		if ((int64)d->audio.seek != FMED_NULL) {
 			int64 samples = ffpcm_samples(d->audio.seek, ffmpg_fmt(&m->mpgcpy.rdr).sample_rate);
@@ -479,7 +487,6 @@ static int mpeg_copy_process(void *ctx, fmed_filt *d)
 			d->audio.seek = FMED_NULL;
 			continue;
 		}
-		d->meta_block = 0;
 		continue;
 
 	case FFMPG_RID32:
@@ -489,11 +496,10 @@ static int mpeg_copy_process(void *ctx, fmed_filt *d)
 
 	case FFMPG_RFRAME:
 		d->audio.pos = ffmpg_cursample(&m->mpgcpy.rdr);
-		if (d->audio.until != FMED_NULL && d->audio.until > 0
-			&& ffpcm_time(d->audio.pos, ffmpg_copy_fmt(&m->mpgcpy).sample_rate) >= (uint64)d->audio.until) {
+		if (ffpcm_time(d->audio.pos, ffmpg_copy_fmt(&m->mpgcpy).sample_rate) >= m->until) {
 			dbglog(core, d->trk, NULL, "reached time %Ums", d->audio.until);
 			ffmpg_copy_fin(&m->mpgcpy);
-			d->audio.until = FMED_NULL;
+			m->until = (uint64)-1;
 			continue;
 		}
 		goto data;

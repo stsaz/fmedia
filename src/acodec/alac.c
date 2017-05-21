@@ -73,9 +73,6 @@ static void* alac_open(fmed_filt *d)
 	a->alac.total_samples = d->audio.total;
 	d->datalen = 0;
 
-	if (0 != memcmp(&a->alac.fmt, &d->audio.fmt, sizeof(a->alac.fmt)))
-		warnlog(core, d->trk, NULL, "audio format doesn't match with format from MP4");
-
 	if (a->alac.bitrate != 0)
 		d->audio.bitrate = a->alac.bitrate;
 	ffpcm_fmtcopy(&d->audio.fmt, &a->alac.fmt);

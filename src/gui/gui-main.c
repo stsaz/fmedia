@@ -1083,7 +1083,6 @@ int gui_setmeta(gui_trk *g, fmed_que_entry *plid)
 void gui_newtrack(gui_trk *g, fmed_filt *d, fmed_que_entry *plid)
 {
 	ffui_viewitem it = {0};
-	const char *sval;
 	char buf[1024];
 	size_t n;
 	ssize_t idx;

@@ -8,6 +8,29 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v0.27 - May 21, 2017
+
+ * .mp3: show correct bitrate for CBR streams
+ * .mp3: --meta works with --stream-copy
+ - .mp3: accurate total length for streams without Xing frame
+ - MPEG decode: accurate seeking and audio position (v0.23 bug)
+ - .m4a stream output didn't work reliably
+ - .opus output: "-o .opus" didn't work
+ * .ogg input: support Opus
+ - Vorbis,Opus: print the correct stream length in TUI when using --stream-copy
+ - Vorbis,Opus output: write correct AUDIO_TOTAL when --seek is used
+
+ - GUI: "Invert Selection" didn't work (v0.23 bug)
+
+ + run in background (--background switch).  Supports --globcmd.
+ * add --globcmd=quit
+ - --seek & --until didn't work (v0.26 bug)
+ * modules check for supported input data formats
+ * file.in: better caching of file buffers
+   Buffers at offset 0 and 64k aren't wasted after seeking to file end.
+ * net.icy: support --meta
+
+
 fmedia v0.26 - Apr 20, 2017
 
  * ALSA,Pulse,WASAPI: deferred initialization

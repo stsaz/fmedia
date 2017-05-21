@@ -474,6 +474,7 @@ static void trk_prep(fmed_trk *trk)
 	if (fmed->out_rate != 0)
 		trk->audio.convfmt.sample_rate = fmed->out_rate;
 
+	trk->pcm_peaks = fmed->pcm_peaks;
 	trk->pcm_peaks_crc = fmed->pcm_crc;
 
 	if (fmed->volume != 100) {

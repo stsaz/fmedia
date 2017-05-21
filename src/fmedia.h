@@ -23,10 +23,10 @@ mixer                 mixer
 
 
 #define FMED_VER_MAJOR  0
-#define FMED_VER_MINOR  26
+#define FMED_VER_MINOR  27
 #define FMED_VER_FULL  ((FMED_VER_MAJOR << 8) | FMED_VER_MINOR)
-#define FMED_VER  "0.26"
-#define FMED_VER_CORE  ((FMED_VER_MAJOR << 8) | 26)
+#define FMED_VER  "0.27"
+#define FMED_VER_CORE  ((FMED_VER_MAJOR << 8) | 27)
 #define FMED_HOMEPAGE  "http://fmedia.firmdev.com"
 
 // CORE
@@ -359,6 +359,7 @@ struct fmed_trk {
 		uint snd_output_clear :1;
 		uint snd_output_pause :1;
 		uint meta_changed :1;
+		uint pcm_peaks :1;
 		uint pcm_peaks_crc :1;
 		uint out_seekable :1;
 		uint meta_block :1; //data block isn't audio
@@ -431,20 +432,25 @@ enum FMED_LOG {
 	FMED_LOG_SYS = 0x10,
 };
 
-#define dbglog(core, trk, mod, ...) \
+#define fmed_dbglog(core, trk, mod, ...) \
 do { \
 	if ((core)->loglev == FMED_LOG_DEBUG) \
 		(core)->log(FMED_LOG_DEBUG, trk, mod, __VA_ARGS__); \
 } while (0)
 
-#define warnlog(core, trk, mod, ...) \
+#define fmed_warnlog(core, trk, mod, ...) \
 	(core)->log(FMED_LOG_WARN, trk, mod, __VA_ARGS__)
 
-#define errlog(core, trk, mod, ...) \
+#define fmed_errlog(core, trk, mod, ...) \
 	(core)->log(FMED_LOG_ERR, trk, mod, __VA_ARGS__)
 
-#define syserrlog(core, trk, mod, ...) \
+#define fmed_syserrlog(core, trk, mod, ...) \
 	(core)->log(FMED_LOG_ERR | FMED_LOG_SYS, trk, mod, __VA_ARGS__)
+
+#define dbglog  fmed_dbglog
+#define warnlog  fmed_warnlog
+#define errlog  fmed_errlog
+#define syserrlog  fmed_syserrlog
 
 typedef struct fmed_logdata {
 	const char *level;

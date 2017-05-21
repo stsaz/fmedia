@@ -14,6 +14,12 @@ Copyright (c) 2016 Simon Zolin */
 #include <FFOS/timer.h>
 
 
+#undef dbglog
+#undef errlog
+#define dbglog(trk, ...)  fmed_dbglog(core, trk, "track", __VA_ARGS__)
+#define errlog(trk, ...)  fmed_errlog(core, trk, "track", __VA_ARGS__)
+
+
 enum {
 	N_RUNTIME_FILTERS = 4, //allow up to this number of filters to be added while track is running
 };
@@ -202,7 +208,7 @@ static int trk_setout(fm_trk *t)
 			return -1;
 
 	} else if (t->props.type != FMED_TRK_TYPE_MIXIN) {
-		if (t->props.type != FMED_TRK_TYPE_REC && !stream_copy)
+		if (t->props.type != FMED_TRK_TYPE_REC)
 			addfilter(t, "#soundmod.until");
 		if (fmed->cmd.gui)
 			addfilter(t, "gui.gui");
@@ -219,7 +225,7 @@ static int trk_setout(fm_trk *t)
 	if (t->props.type == FMED_TRK_TYPE_MIXIN) {
 		addfilter(t, "mixer.in");
 
-	} else if (fmed->cmd.pcm_peaks) {
+	} else if (t->props.pcm_peaks) {
 		addfilter(t, "#soundmod.peaks");
 
 	} else if (FMED_PNULL != (s = trk_getvalstr(t, "output"))) {
@@ -261,9 +267,9 @@ static int trk_opened(fm_trk *t)
 			const char *next = (f == t->filters.ptr) ? "" : " -> ";
 			ffstr_catfmt(&schain, "%s%s", next, f->name);
 		}
-		dbglog(core, t, "core", "chain: %S", &schain);
+		dbglog(t, "chain: %S", &schain);
 		ffarr_free(&schain);
-		dbglog(core, t, "core", "properties: %*xb", sizeof(t->props), &t->props);
+		dbglog(t, "properties: %*xb", sizeof(t->props), &t->props);
 	}
 
 	fflist_ins(&fmed->trks, &t->sib);
@@ -374,7 +380,7 @@ static void trk_printtime(fm_trk *t)
 	if (s.len > FFSLEN(", "))
 		s.len -= FFSLEN(", ");
 
-	dbglog(core, t, "core", "%S", &s);
+	dbglog(t, "%S", &s);
 	ffarr_free(&s);
 }
 
@@ -399,7 +405,7 @@ static void trk_free(fm_trk *t)
 		core->log(FMED_LOG_INFO, t, "track", "processing time: %u.%06u", t2.s, t2.mcs);
 	}
 
-	dbglog(core, t, "track", "closing...");
+	dbglog(t, "closing...");
 	FFARR_RWALK(&t->filters, pf) {
 		if (pf->ctx != NULL) {
 			t->cur = &pf->sib;
@@ -427,7 +433,7 @@ static void trk_free(fm_trk *t)
 	if (fflist_exists(&fmed->trks, &t->sib))
 		fflist_rm(&fmed->trks, &t->sib);
 
-	dbglog(core, t, "track", "closed");
+	dbglog(t, "closed");
 	ffmem_free(t);
 
 	if ((type == FMED_TRK_TYPE_REC && !fmed->cmd.gui)
@@ -467,7 +473,7 @@ static void trk_process(void *udata)
 		f = FF_GETPTR(fmed_f, sib, t->cur);
 
 #ifdef _DEBUG
-		dbglog(core, t, "core", "%s calling %s, input: %L"
+		dbglog(t, "%s calling %s, input: %L"
 			, (f->newdata) ? ">>" : "<<", f->name, f->d.datalen);
 #endif
 		if (core->loglev == FMED_LOG_DEBUG) {
@@ -484,7 +490,7 @@ static void trk_process(void *udata)
 			if (t->props.flags & FMED_FSTOP)
 				goto fin;
 
-			dbglog(core, t, "core", "creating context for %s...", f->name);
+			dbglog(t, "creating context for %s...", f->name);
 			f->ctx = f->filt->open(&t->props);
 			f->d.data = t->props.data,  f->d.datalen = t->props.datalen;
 			if (f->ctx == NULL) {
@@ -492,14 +498,14 @@ static void trk_process(void *udata)
 				goto fin;
 
 			} else if (f->ctx == FMED_FILT_SKIP) {
-				dbglog(core, t, "core", "%s is skipped", f->name);
+				dbglog(t, "%s is skipped", f->name);
 				f->ctx = NULL; //don't call fmed_filter.close()
 				r = FFLIST_CUR_NEXT | FFLIST_CUR_RM;
 				t->props.out = t->props.data,  t->props.outlen = t->props.datalen;
 				goto shift;
 			}
 
-			dbglog(core, t, "core", "context for %s created", f->name);
+			dbglog(t, "context for %s created", f->name);
 			f->opened = 1;
 		}
 
@@ -513,7 +519,7 @@ static void trk_process(void *udata)
 		}
 
 #ifdef _DEBUG
-		dbglog(core, t, "core", "%s returned: %s, output: %L"
+		dbglog(t, "   %s returned: %s, output: %L"
 			, f->name, ((uint)(e + 1) < FFCNT(fmed_retstr)) ? fmed_retstr[e + 1] : "", t->props.outlen);
 #endif
 
@@ -560,7 +566,7 @@ static void trk_process(void *udata)
 			goto fin;
 
 		default:
-			errlog(core, t, "core", "unknown return code from module: %u", e);
+			errlog(t, "unknown return code from module: %u", e);
 			t->state = TRK_ST_ERR;
 			goto fin;
 		}
@@ -576,7 +582,7 @@ shift:
 			goto fin; //done
 
 		case FFLIST_CUR_NOPREV:
-			errlog(core, t, "core", "module %s requires more input data", f->name);
+			errlog(t, "module %s requires more input data", f->name);
 			t->state = TRK_ST_ERR;
 			goto fin;
 
@@ -649,7 +655,7 @@ static dict_ent* dict_add(fm_trk *t, const char *name, uint *f)
 	if (nod != NULL) {
 		ent = (dict_ent*)nod;
 		if (0 != ffsz_cmp(name, ent->name)) {
-			errlog(core, NULL, "core", "setval: CRC collision: %u, key: %s, with key: %s"
+			errlog(t, "setval: CRC collision: %u, key: %s, with key: %s"
 				, crc, name, ent->name);
 			t->state = TRK_ST_ERR;
 			return NULL;
@@ -659,7 +665,7 @@ static dict_ent* dict_add(fm_trk *t, const char *name, uint *f)
 	} else {
 		ent = ffmem_tcalloc1(dict_ent);
 		if (ent == NULL) {
-			errlog(core, NULL, "core", "setval: %e", FFERR_BUFALOC);
+			errlog(t, "setval: %e", FFERR_BUFALOC);
 			t->state = TRK_ST_ERR;
 			return NULL;
 		}
@@ -695,7 +701,7 @@ static int trk_cmd(void *trk, uint cmd)
 	fm_trk *t = trk;
 	fflist_item *next;
 
-	dbglog(core, NULL, "track", "received command:%u, trk:%p", cmd, trk);
+	dbglog(NULL, "received command:%u, trk:%p", cmd, trk);
 
 	switch (cmd) {
 	case FMED_TRACK_STOPALL_EXIT:
@@ -814,7 +820,7 @@ static int trk_cmd2(void *trk, uint cmd, void *param)
 		f->name = param;
 		if (NULL == (f->filt = core->getmod2(FMED_MOD_IFACE, param, -1)))
 			return -1;
-		dbglog(core, t, "core", "added module %s to chain", f->name);
+		dbglog(t, "added module %s to chain", f->name);
 		break;
 	}
 
@@ -833,7 +839,7 @@ static int trk_cmd2(void *trk, uint cmd, void *param)
 		else
 			ffchain_prepend(&f->sib, t->cur);
 
-		dbglog(core, t, "core", "added module %s to chain", f->name);
+		dbglog(t, "added module %s to chain", f->name);
 		break;
 	}
 
@@ -954,7 +960,7 @@ static int64 trk_setval4(void *trk, const char *name, int64 val, uint flags)
 	}
 
 	ent->val = val;
-	dbglog(core, trk, "core", "setval: %s = %D", name, val);
+	dbglog(trk, "setval: %s = %D", name, val);
 	return val;
 }
 
@@ -982,7 +988,7 @@ static char* trk_setvalstr4(void *trk, const char *name, const char *val, uint f
 			return NULL;
 
 		ent->acq = 1;
-		dbglog(core, trk, "core", "set meta: %s = %s", name, ent->pval);
+		dbglog(trk, "set meta: %s = %s", name, ent->pval);
 		return ent->pval;
 
 	} else
@@ -1002,7 +1008,7 @@ static char* trk_setvalstr4(void *trk, const char *name, const char *val, uint f
 
 	ent->pval = (void*)val;
 
-	dbglog(core, trk, "core", "setval: %s = %s", name, val);
+	dbglog(trk, "setval: %s = %s", name, val);
 	return ent->pval;
 }
 
