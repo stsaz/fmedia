@@ -17,7 +17,7 @@ typedef struct fmed_mpeg {
 	ffmpgfile mpg;
 	uint state;
 	uint have_id32tag :1
-		, fmt_set :1
+		, seeking :1
 		;
 } fmed_mpeg;
 
@@ -243,9 +243,11 @@ again:
 		break;
 
 	case I_DATA:
-		if ((int64)d->audio.seek != FMED_NULL) {
+		if ((int64)d->audio.seek != FMED_NULL && !m->seeking) {
+			m->seeking = 1;
 			ffmpg_rseek(&m->mpg.rdr, ffpcm_samples(d->audio.seek, ffmpg_fmt(&m->mpg.rdr).sample_rate));
-			d->audio.seek = FMED_NULL;
+			if (d->stream_copy)
+				d->audio.seek = FMED_NULL;
 		}
 		break;
 	}
@@ -289,9 +291,9 @@ again:
 				&& 0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, "mpeg.decode"))
 				return FMED_RERR;
 
-			if ((int64)d->audio.seek != FMED_NULL) {
+			if ((int64)d->audio.seek != FMED_NULL && !m->seeking) {
+				m->seeking = 1;
 				ffmpg_rseek(&m->mpg.rdr, ffpcm_samples(d->audio.seek, ffmpg_fmt(&m->mpg.rdr).sample_rate));
-				d->audio.seek = FMED_NULL;
 				goto again;
 			}
 			goto data;
@@ -328,6 +330,8 @@ again:
 	}
 
 data:
+	if (m->seeking)
+		m->seeking = 0;
 	d->out = m->mpg.frame.ptr;
 	d->outlen = m->mpg.frame.len;
 	d->audio.pos = ffmpg_cursample(&m->mpg.rdr);
@@ -345,6 +349,7 @@ static void* mpeg_dec_open(fmed_filt *d)
 		mpeg_dec_close(m);
 		return NULL;
 	}
+	m->mpg.pos = d->audio.pos;
 
 	m->mpg.fmt.sample_rate = d->audio.fmt.sample_rate;
 	m->mpg.fmt.channels = d->audio.fmt.channels;
@@ -367,9 +372,16 @@ static int mpeg_dec_process(void *ctx, fmed_filt *d)
 	mpeg_dec *m = ctx;
 	int r;
 
-	if (d->datalen != 0) {
+	if (d->flags & FMED_FFWD) {
 		ffmpg_input(&m->mpg, d->data, d->datalen);
 		d->datalen = 0;
+	}
+
+	if ((d->flags & FMED_FFWD) && (int64)d->audio.seek != FMED_NULL) {
+		m->mpg.pos = d->audio.pos;
+		uint64 seek = ffpcm_samples(d->audio.seek, m->mpg.fmt.sample_rate);
+		ffmpg_seek(&m->mpg, seek);
+		d->audio.seek = FMED_NULL;
 	}
 
 	for (;;) {
@@ -401,6 +413,7 @@ data:
 	d->outlen = m->mpg.pcmlen;
 	dbglog(core, d->trk, "mpeg", "output: %L PCM samples"
 		, m->mpg.pcmlen / ffpcm_size1(&m->mpg.fmt));
+	d->audio.pos = ffmpg_pos(&m->mpg);
 	return FMED_RDATA;
 }
 
