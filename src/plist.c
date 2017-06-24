@@ -22,10 +22,11 @@ typedef struct dirconf_t {
 dirconf_t dirconf;
 
 typedef struct m3u {
-	ffparser m3u;
+	ffm3u m3u;
 	fmed_que_entry ent;
 	ffpls_entry pls_ent;
 	fmed_que_entry *qu_cur;
+	uint fin :1;
 } m3u;
 
 typedef struct pls_in {
@@ -35,14 +36,17 @@ typedef struct pls_in {
 } pls_in;
 
 typedef struct cue {
-	ffparser p;
+	ffcuep cue;
+	ffcue cu;
 	fmed_que_entry ent;
 	struct { FFARR(ffstr) } metas;
 	uint nmeta;
 	ffarr trackno;
 	uint curtrk;
 	uint gmeta;
-	uint gaps; //enum FFCUE_GAP
+	uint utf8 :1
+		, have_glob_artist :1
+		, artist_trk :1;
 } cue;
 
 
@@ -182,7 +186,7 @@ static void* m3u_open(fmed_filt *d)
 static void m3u_close(void *ctx)
 {
 	m3u *m = ctx;
-	ffpars_free(&m->m3u);
+	ffpars_free(&m->m3u.pars);
 	ffpls_entry_free(&m->pls_ent);
 	ffmem_free(m);
 }
@@ -190,7 +194,7 @@ static void m3u_close(void *ctx)
 static int m3u_process(void *ctx, fmed_filt *d)
 {
 	m3u *m = ctx;
-	int r, r2;
+	int r, r2, fin = 0;
 	ffstr data;
 
 	ffstr_set(&data, d->data, d->datalen);
@@ -200,10 +204,18 @@ static int m3u_process(void *ctx, fmed_filt *d)
 
 	r = ffm3u_parse(&m->m3u, &data);
 
-	if (r == FFPARS_MORE && (d->flags & FMED_FLAST))
-		r = FFPLS_FIN;
+	if (r == FFPARS_MORE && (d->flags & FMED_FLAST)) {
+		if (!fin) {
+			fin = 1;
+			ffstr_setcz(&data, "\n");
+			continue;
+		}
 
-	r2 = ffm3u_entry_get(&m->pls_ent, r, &m->m3u.val);
+		qu->cmd(FMED_QUE_RM, (void*)fmed_getval("queue_item"));
+		return FMED_RFIN;
+	}
+
+	r2 = ffm3u_entry_get(&m->pls_ent, r, &m->m3u.pars.val);
 
 	if (r2 == 1) {
 		fmed_que_entry ent, *cur;
@@ -236,15 +248,11 @@ static int m3u_process(void *ctx, fmed_filt *d)
 		m->qu_cur = cur;
 	}
 
-	if (r == FFPLS_FIN) {
-		qu->cmd(FMED_QUE_RM, (void*)fmed_getval("queue_item"));
-		return FMED_RFIN;
-
-	} else if (r == FFPARS_MORE) {
+	if (r == FFPARS_MORE) {
 		return FMED_RMORE;
 
 	} else if (ffpars_iserr(-r)) {
-		errlog(core, d->trk, "m3u", "parse error at line %u", m->m3u.line);
+		errlog(core, d->trk, "m3u", "parse error at line %u", m->m3u.pars.line);
 		return FMED_RERR;
 	}
 
@@ -273,7 +281,7 @@ static void pls_close(void *ctx)
 static int pls_process(void *ctx, fmed_filt *d)
 {
 	pls_in *p = ctx;
-	int r, r2;
+	int r, r2, fin = 0;
 	ffstr data;
 
 	ffstr_set(&data, d->data, d->datalen);
@@ -283,8 +291,15 @@ static int pls_process(void *ctx, fmed_filt *d)
 
 	r = ffpls_parse(&p->pls, &data);
 
-	if (r == FFPARS_MORE && (d->flags & FMED_FLAST))
+	if (r == FFPARS_MORE && (d->flags & FMED_FLAST)) {
+		if (!fin) {
+			fin = 1;
+			ffstr_setcz(&data, "\n");
+			continue;
+		}
+
 		r = FFPLS_FIN;
+	}
 
 	r2 = ffpls_entry_get(&p->pls_ent, r, &p->pls.pars.val);
 
@@ -376,22 +391,24 @@ static void* cue_open(fmed_filt *d)
 		return NULL;
 	}
 
-	c->gaps = FFCUE_GAPPREV;
+	uint gaps = FFCUE_GAPPREV;
 	if (FMED_NULL != (int)(val = core->getval("cue_gaps"))) {
 		if (val > FFCNT(cue_opts))
 			errlog(core, d->trk, "cue", "cue_gaps value must be within 0..3 range");
 		else
-			c->gaps = cue_opts[val];
+			gaps = cue_opts[val];
 	}
 
-	ffcue_init(&c->p);
+	ffcue_init(&c->cue);
+	c->cu.options = gaps;
+	c->utf8 = 1;
 	return c;
 }
 
 static void cue_close(void *ctx)
 {
 	cue *c = ctx;
-	ffpars_free(&c->p);
+	ffpars_free(&c->cue.pars);
 	ffstr_free(&c->ent.url);
 	ffarr_free(&c->metas);
 	ffarr_free(&c->trackno);
@@ -402,50 +419,57 @@ static int cue_process(void *ctx, fmed_filt *d)
 {
 	cue *c = ctx;
 	size_t n;
-	int rc = FMED_RERR, r, done = 0;
-	ffstr *meta;
-	ffstr metaname;
+	int rc = FMED_RERR, r, done = 0, fin = 0;
+	ffstr *meta, metaname, in;
 	ffarr val = {0};
-	ffcue cu = {0};
 	ffcuetrk *ctrk;
 	uint codepage = core->getval("codepage");
-	uint utf8 = 1, have_glob_artist = 0, artist_trk = 0;
 	fmed_que_entry *first, *cur;
-
-	cu.options = c->gaps;
 
 	first = (void*)fmed_getval("queue_item");
 	cur = first;
 
+	ffstr_set(&in, d->data, d->datalen);
+	d->datalen = 0;
+
 	while (!done) {
-		n = d->datalen;
-		r = ffcue_parse(&c->p, d->data, &n);
-		d->data += n;
-		d->datalen -= n;
+		n = in.len;
+		r = ffcue_parse(&c->cue, in.ptr, &n);
+		ffstr_shift(&in, n);
 
 		if (r == FFPARS_MORE) {
-			// end of .cue file
-			if (NULL == (ctrk = ffcue_index(&cu, FFCUE_FIN, 0)))
-				break;
-			done = 1;
-			c->nmeta = c->metas.len;
-			goto add;
+			if (!(d->flags & FMED_FLAST))
+				return FMED_RMORE;
+
+			if (fin) {
+				// end of .cue file
+				if (NULL == (ctrk = ffcue_index(&c->cu, FFCUE_FIN, 0)))
+					break;
+				done = 1;
+				c->nmeta = c->metas.len;
+				goto add;
+			}
+
+			fin = 1;
+			ffstr_setcz(&in, "\n");
+			continue;
 
 		} else if (ffpars_iserr(-r)) {
 			errlog(core, d->trk, "cue", "parse error at line %u: %s"
-				, c->p.line, ffpars_errstr(-r));
+				, c->cue.pars.line, ffpars_errstr(-r));
 			goto err;
 		}
 
-		if (utf8 && ffutf8_valid(c->p.val.ptr, c->p.val.len))
-			ffarr_copy(&val, c->p.val.ptr, c->p.val.len);
+		ffstr *v = &c->cue.pars.val;
+		if (c->utf8 && ffutf8_valid(v->ptr, v->len))
+			ffarr_copy(&val, v->ptr, v->len);
 		else {
-			utf8 = 0;
-			size_t len = c->p.val.len;
-			size_t n = ffutf8_encode(NULL, 0, c->p.val.ptr, &len, codepage);
+			c->utf8 = 0;
+			size_t len = v->len;
+			size_t n = ffutf8_encode(NULL, 0, v->ptr, &len, codepage);
 			if (NULL == ffarr_realloc(&val, n))
 				goto err;
-			val.len = ffutf8_encode(val.ptr, val.cap, c->p.val.ptr, &len, codepage);
+			val.len = ffutf8_encode(val.ptr, val.cap, v->ptr, &len, codepage);
 		}
 
 		switch (r) {
@@ -463,7 +487,7 @@ static int cue_process(void *ctx, fmed_filt *d)
 			goto add_metaname;
 
 		case FFCUE_TRK_PERFORMER:
-			artist_trk = 1;
+			c->artist_trk = 1;
 		case FFCUE_PERFORMER:
 			ffstr_setcz(&metaname, "artist");
 
@@ -497,11 +521,11 @@ add_metaname:
 		if (r == FFCUE_PERFORMER) {
 			/* swap {FIRST_ENTRY_NAME, FIRST_ENTRY_VAL} <-> {"artist", ARTIST_VAL}
 			This allows to easily skip global artist key-value pair when track artist name is specified. */
-			have_glob_artist = 1;
+			c->have_glob_artist = 1;
 			_ffarr_swap(c->metas.ptr, c->metas.ptr + c->metas.len - 2, 2, sizeof(ffstr));
 		}
 
-		if (NULL == (ctrk = ffcue_index(&cu, r, (int)c->p.intval)))
+		if (NULL == (ctrk = ffcue_index(&c->cu, r, (int)c->cue.pars.intval)))
 			continue;
 
 add:
@@ -524,9 +548,9 @@ add:
 		c->ent.dur = (ctrk->to != 0) ? (ctrk->to - ctrk->from) * 1000 / 75 : 0;
 
 		uint i = 0;
-		if (have_glob_artist && artist_trk) {
+		if (c->have_glob_artist && c->artist_trk) {
 			i += 2; // skip global artist
-			artist_trk = 0;
+			c->artist_trk = 0;
 		}
 
 		c->ent.prev = cur;
