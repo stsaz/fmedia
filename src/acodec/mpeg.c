@@ -376,10 +376,10 @@ static int mpeg_dec_process(void *ctx, fmed_filt *d)
 	if (d->flags & FMED_FFWD) {
 		ffmpg_input(&m->mpg, d->data, d->datalen);
 		d->datalen = 0;
+		m->mpg.pos = d->audio.pos;
 	}
 
 	if ((d->flags & FMED_FFWD) && (int64)d->audio.seek != FMED_NULL) {
-		m->mpg.pos = d->audio.pos;
 		uint64 seek = ffpcm_samples(d->audio.seek, m->mpg.fmt.sample_rate);
 		ffmpg_seek(&m->mpg, seek);
 		d->audio.seek = FMED_NULL;
