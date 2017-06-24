@@ -643,10 +643,14 @@ static int icy_process(void *ctx, fmed_filt *d)
 		// break
 
 	case I_HTTP_REQ_SEND:
-		r = ffskt_send(c->sk, c->data.ptr, c->data.len, 0);
-		if (r < 0) {
+		r = ffaio_send(&c->aio, &tcp_aio, c->data.ptr, c->data.len);
+		if (r == FFAIO_ERROR) {
 			syserrlog(c->d->trk, "%s", "ffskt_send");
 			goto done;
+
+		} else if (r == FFAIO_ASYNC) {
+			c->async = 1;
+			return FMED_RASYNC;
 		}
 		ffstr_shift(&c->data, r);
 		if (c->data.len != 0)
