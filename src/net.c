@@ -90,6 +90,7 @@ struct icy {
 		, err :1
 		, preload :1 //fill all buffers
 		, out_copy :1
+		, save_oncmd :1
 		;
 };
 
@@ -265,7 +266,9 @@ static void* icy_open(fmed_filt *d)
 	if (NULL == (c->host = ffsz_alcopyz(c->host)))
 		goto done;
 
-	c->out_copy = (FMED_NULL != d->track->getval(d->trk, "out-copy"));
+	int v = net->track->getval(d->trk, "out-copy");
+	c->out_copy = (v != FMED_NULL);
+	c->save_oncmd = (v == FMED_OUTCP_CMD);
 
 	if (NULL == (c->bufs = ffmem_tcalloc(ffstr, net->conf.nbufs))) {
 		syserrlog(d->trk, "%s", ffmem_alloc_S);
@@ -866,6 +869,9 @@ static void* netin_create(icy *c)
 	net->track->setval(trk, "netin_ptr", (size_t)n);
 	n->c = c;
 
+	if (c->save_oncmd)
+		trkconf->out_file_del = 1;
+
 	if (1 == net->track->getval(c->d->trk, "out_stream_copy"))
 		trkconf->stream_copy = 1;
 
@@ -926,8 +932,15 @@ static int netin_process(void *ctx, fmed_filt *d)
 	n->state = IN_DATANEXT;
 	d->out = n->d[n->idx].ptr,  d->outlen = n->d[n->idx].len;
 	n->d[n->idx].len = 0;
-	n->idx = (n->idx + 1) % 2;
+	n->idx = ffint_cycleinc(n->idx, 2);
 	if (n->fin)
 		return FMED_RDONE;
+
+	// get cmd from master track
+	if (n->c->save_oncmd && n->c->d->save_trk) {
+		n->c->d->save_trk = 0;
+		d->out_file_del = 0;
+	}
+
 	return FMED_RDATA;
 }

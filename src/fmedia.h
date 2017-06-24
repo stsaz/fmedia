@@ -366,6 +366,8 @@ struct fmed_trk {
 		uint stream_copy :1;
 		uint codec_err :1;
 		uint mpg_lametag :1;
+		uint out_file_del :1;
+		uint save_trk :1;
 	};
 	};
 
@@ -418,6 +420,11 @@ static FFINL int64 fmed_popval_def(fmed_filt *d, const char *name, int64 def)
 	return def;
 }
 
+enum FMED_OUTCP {
+	FMED_OUTCP_ALL = 1,
+	FMED_OUTCP_CMD,
+};
+
 
 // LOG
 
@@ -437,6 +444,9 @@ do { \
 	if ((core)->loglev == FMED_LOG_DEBUG) \
 		(core)->log(FMED_LOG_DEBUG, trk, mod, __VA_ARGS__); \
 } while (0)
+
+#define fmed_infolog(core, trk, mod, ...) \
+	(core)->log(FMED_LOG_INFO, trk, mod, __VA_ARGS__)
 
 #define fmed_warnlog(core, trk, mod, ...) \
 	(core)->log(FMED_LOG_WARN, trk, mod, __VA_ARGS__)

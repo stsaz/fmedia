@@ -31,6 +31,7 @@ static int fmed_arg_seek(ffparser_schem *p, void *obj, const ffstr *val);
 static int fmed_arg_install(ffparser_schem *p, void *obj, const ffstr *val);
 static int fmed_arg_channels(ffparser_schem *p, void *obj, ffstr *val);
 static int fmed_arg_format(ffparser_schem *p, void *obj, ffstr *val);
+static int fmed_arg_out_copy(ffparser_schem *p, void *obj, const ffstr *val);
 static int fmed_arg_input_chk(ffparser_schem *p, void *obj, const ffstr *val);
 static int fmed_arg_out_chk(ffparser_schem *p, void *obj, const ffstr *val);
 
@@ -44,67 +45,69 @@ static const fmed_log std_logger = {
 };
 
 
+#define OFF(member)  FFPARS_DSTOFF(fmed_cmd, member)
+
 static const ffpars_arg fmed_cmdline_args[] = {
 	{ "",	FFPARS_TSTR | FFPARS_FCOPY | FFPARS_FNOTEMPTY | FFPARS_FSTRZ | FFPARS_FMULTI,  FFPARS_DST(&fmed_arg_infile) },
 
 	//QUEUE
-	{ "repeat-all",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, repeat_all) },
-	{ "track",	FFPARS_TCHARPTR | FFPARS_FCOPY | FFPARS_FNOTEMPTY | FFPARS_FSTRZ,  FFPARS_DSTOFF(fmed_cmd, trackno) },
+	{ "repeat-all",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(repeat_all) },
+	{ "track",	FFPARS_TCHARPTR | FFPARS_FCOPY | FFPARS_FNOTEMPTY | FFPARS_FSTRZ,  OFF(trackno) },
 
 	//AUDIO DEVICES
 	{ "list-dev",	FFPARS_TBOOL | FFPARS_FALONE,  FFPARS_DST(&fmed_arg_listdev) },
-	{ "dev",	FFPARS_TINT,  FFPARS_DSTOFF(fmed_cmd, playdev_name) },
-	{ "dev-capture",	FFPARS_TINT,  FFPARS_DSTOFF(fmed_cmd, captdev_name) },
-	{ "dev-loopback",	FFPARS_TINT,  FFPARS_DSTOFF(fmed_cmd, lbdev_name) },
+	{ "dev",	FFPARS_TINT,  OFF(playdev_name) },
+	{ "dev-capture",	FFPARS_TINT,  OFF(captdev_name) },
+	{ "dev-loopback",	FFPARS_TINT,  OFF(lbdev_name) },
 
 	//AUDIO FORMAT
 	{ "format",	FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_format) },
-	{ "rate",	FFPARS_TINT,  FFPARS_DSTOFF(fmed_cmd, out_rate) },
+	{ "rate",	FFPARS_TINT,  OFF(out_rate) },
 	{ "channels",	FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_channels) },
 
 	//INPUT
-	{ "record",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, rec) },
-	{ "mix",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, mix) },
+	{ "record",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(rec) },
+	{ "mix",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(mix) },
 	{ "seek",	FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_seek) },
 	{ "until",	FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_seek) },
-	{ "fseek",	FFPARS_TINT | FFPARS_F64BIT,  FFPARS_DSTOFF(fmed_cmd, fseek) },
-	{ "info",	FFPARS_SETVAL('i') | FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, info) },
-	{ "tags",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, tags) },
-	{ "meta",	FFPARS_TSTR | FFPARS_FCOPY | FFPARS_FSTRZ,  FFPARS_DSTOFF(fmed_cmd, meta) },
+	{ "fseek",	FFPARS_TINT | FFPARS_F64BIT,  OFF(fseek) },
+	{ "info",	FFPARS_SETVAL('i') | FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(info) },
+	{ "tags",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(tags) },
+	{ "meta",	FFPARS_TSTR | FFPARS_FCOPY | FFPARS_FSTRZ,  OFF(meta) },
 
 	//FILTERS
-	{ "volume",	FFPARS_TINT | FFPARS_F8BIT,  FFPARS_DSTOFF(fmed_cmd, volume) },
-	{ "gain",	FFPARS_TFLOAT | FFPARS_FSIGN,  FFPARS_DSTOFF(fmed_cmd, gain) },
-	{ "pcm-peaks",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, pcm_peaks) },
-	{ "pcm-crc",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, pcm_crc) },
+	{ "volume",	FFPARS_TINT8,  OFF(volume) },
+	{ "gain",	FFPARS_TFLOAT | FFPARS_FSIGN,  OFF(gain) },
+	{ "pcm-peaks",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(pcm_peaks) },
+	{ "pcm-crc",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(pcm_crc) },
 
 	//ENCODING
-	{ "vorbis.quality",	FFPARS_TFLOAT | FFPARS_FSIGN,  FFPARS_DSTOFF(fmed_cmd, vorbis_qual) },
-	{ "opus.bitrate",	FFPARS_TINT,  FFPARS_DSTOFF(fmed_cmd, opus_brate) },
-	{ "mpeg-quality",	FFPARS_TINT | FFPARS_F16BIT,  FFPARS_DSTOFF(fmed_cmd, mpeg_qual) },
-	{ "aac-quality",	FFPARS_TINT,  FFPARS_DSTOFF(fmed_cmd, aac_qual) },
-	{ "flac-compression",	FFPARS_TINT | FFPARS_F8BIT,  FFPARS_DSTOFF(fmed_cmd, flac_complevel) },
-	{ "stream-copy",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, stream_copy) },
+	{ "vorbis.quality",	FFPARS_TFLOAT | FFPARS_FSIGN,  OFF(vorbis_qual) },
+	{ "opus.bitrate",	FFPARS_TINT,  OFF(opus_brate) },
+	{ "mpeg-quality",	FFPARS_TINT | FFPARS_F16BIT,  OFF(mpeg_qual) },
+	{ "aac-quality",	FFPARS_TINT,  OFF(aac_qual) },
+	{ "flac-compression",	FFPARS_TINT8,  OFF(flac_complevel) },
+	{ "stream-copy",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(stream_copy) },
 
 	//OUTPUT
-	{ "out",	FFPARS_SETVAL('o') | FFPARS_TSTR | FFPARS_FCOPY | FFPARS_FNOTEMPTY | FFPARS_FSTRZ,  FFPARS_DSTOFF(fmed_cmd, outfn) },
-	{ "overwrite",	FFPARS_SETVAL('y') | FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, overwrite) },
-	{ "out-copy",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, out_copy) },
-	{ "preserve-date",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, preserve_date) },
+	{ "out",	FFPARS_SETVAL('o') | FFPARS_TSTR | FFPARS_FCOPY | FFPARS_FNOTEMPTY | FFPARS_FSTRZ,  OFF(outfn) },
+	{ "overwrite",	FFPARS_SETVAL('y') | FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(overwrite) },
+	{ "out-copy",	FFPARS_TSTR | FFPARS_FALONE,  FFPARS_DST(&fmed_arg_out_copy) },
+	{ "preserve-date",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(preserve_date) },
 
 	//OTHER OPTIONS
-	{ "background",	FFPARS_TBOOL8 | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, bground) },
+	{ "background",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(bground) },
 #ifdef FF_WIN
-	{ "background-child",	FFPARS_TBOOL8 | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, bgchild) },
+	{ "background-child",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(bgchild) },
 #endif
-	{ "globcmd",	FFPARS_TSTR | FFPARS_FCOPY | FFPARS_FNOTEMPTY,  FFPARS_DSTOFF(fmed_cmd, globcmd) },
-	{ "conf",	FFPARS_TSTR,  FFPARS_DSTOFF(fmed_cmd, dummy) },
-	{ "notui",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, notui) },
-	{ "gui",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, gui) },
-	{ "print-time",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, print_time) },
-	{ "debug",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, debug) },
+	{ "globcmd",	FFPARS_TSTR | FFPARS_FCOPY | FFPARS_FNOTEMPTY,  OFF(globcmd) },
+	{ "conf",	FFPARS_TSTR,  OFF(dummy) },
+	{ "notui",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(notui) },
+	{ "gui",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(gui) },
+	{ "print-time",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(print_time) },
+	{ "debug",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(debug) },
 	{ "help",	FFPARS_SETVAL('h') | FFPARS_TBOOL | FFPARS_FALONE,  FFPARS_DST(&fmed_arg_usage) },
-	{ "cue-gaps",	FFPARS_TINT | FFPARS_F8BIT,  FFPARS_DSTOFF(fmed_cmd, cue_gaps) },
+	{ "cue-gaps",	FFPARS_TINT8,  OFF(cue_gaps) },
 
 	//INSTALL
 	{ "install",	FFPARS_TBOOL | FFPARS_FALONE,  FFPARS_DST(&fmed_arg_install) },
@@ -115,13 +118,14 @@ static const ffpars_arg fmed_cmdline_main_args[] = {
 	{ "",	FFPARS_TSTR | FFPARS_FMULTI,  FFPARS_DST(&fmed_arg_input_chk) },
 	{ "*",	FFPARS_TSTR | FFPARS_FMULTI,  FFPARS_DST(&fmed_arg_skip) },
 	{ "out",	FFPARS_SETVAL('o') | FFPARS_TSTR,  FFPARS_DST(&fmed_arg_out_chk) },
-	{ "conf",	FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY | FFPARS_FNOTEMPTY,  FFPARS_DSTOFF(fmed_cmd, conf_fn) },
-	{ "notui",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, notui) },
-	{ "gui",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, gui) },
-	{ "debug",	FFPARS_TBOOL | FFPARS_F8BIT | FFPARS_FALONE,  FFPARS_DSTOFF(fmed_cmd, debug) },
+	{ "conf",	FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY | FFPARS_FNOTEMPTY,  OFF(conf_fn) },
+	{ "notui",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(notui) },
+	{ "gui",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(gui) },
+	{ "debug",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(debug) },
 	{ "help",	FFPARS_SETVAL('h') | FFPARS_TBOOL | FFPARS_FALONE,  FFPARS_DST(&fmed_arg_usage) },
 };
 
+#undef OFF
 
 static int fmed_arg_usage(void)
 {
@@ -226,6 +230,22 @@ static int fmed_arg_channels(ffparser_schem *p, void *obj, ffstr *val)
 	if (0 > (r = ffpcm_channels(val->ptr, val->len)))
 		return FFPARS_EBADVAL;
 	conf->out_channels = r;
+	return 0;
+}
+
+static const char* const outcp_str[] = { "all", "cmd" };
+
+static int fmed_arg_out_copy(ffparser_schem *p, void *obj, const ffstr *val)
+{
+	fmed_cmd *cmd = obj;
+	int r = FMED_OUTCP_ALL;
+	if (val != NULL) {
+		r = ffszarr_findsorted(outcp_str, FFCNT(outcp_str), val->ptr, val->len);
+		if (r < 0)
+			return FFPARS_EVALUNSUPP;
+		r++;
+	}
+	cmd->out_copy = r;
 	return 0;
 }
 
@@ -436,7 +456,7 @@ static void qu_setprops(const fmed_queue *qu, fmed_que_entry *qe)
 		qu_setval(qu, qe, "playdev_name", fmed->playdev_name);
 
 	if (fmed->out_copy) {
-		qu_setval(qu, qe, "out-copy", 1);
+		qu_setval(qu, qe, "out-copy", fmed->out_copy);
 		if (fmed->stream_copy)
 			qu_setval(qu, qe, "out_stream_copy", 1);
 		if (fmed->outfn.len != 0)

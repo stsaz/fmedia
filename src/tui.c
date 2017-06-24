@@ -78,6 +78,7 @@ enum CMDS {
 	CMD_RM,
 	CMD_DELFILE,
 	CMD_SHOWTAGS,
+	CMD_SAVETRK,
 
 	CMD_QUIT,
 
@@ -490,6 +491,8 @@ pass:
 
 static void tui_op(uint cmd)
 {
+	tui *t;
+
 	switch (cmd) {
 	case CMD_STOP:
 		gt->track->cmd((void*)-1, FMED_TRACK_STOPALL);
@@ -526,8 +529,8 @@ static void tui_op(uint cmd)
 		gt->track->cmd(NULL, FMED_TRACK_STOPALL_EXIT);
 		break;
 
-	case CMD_SHOWTAGS: {
-		tui *t = gt->curtrk;
+	case CMD_SHOWTAGS:
+		t = gt->curtrk;
 		if (t == NULL)
 			break;
 		t->buf.len = 0;
@@ -535,7 +538,14 @@ static void tui_op(uint cmd)
 		ffstd_write(ffstderr, t->buf.ptr, t->buf.len);
 		t->buf.len = 0;
 		break;
-	}
+
+	case CMD_SAVETRK:
+		t = gt->curtrk;
+		if (t == NULL)
+			break;
+		fmed_infolog(core, t->trk, "tui", "Saving track to disk");
+		t->d->save_trk = 1;
+		break;
 	}
 }
 
@@ -549,6 +559,7 @@ struct key {
 static struct key hotkeys[] = {
 	{ ' ',	CMD_PLAY | _CMD_F1 | _CMD_CORE,	&tui_op },
 	{ 'D',	CMD_DELFILE | _CMD_CURTRK | _CMD_CORE,	&tui_rmfile },
+	{ 'T',	CMD_SAVETRK | _CMD_F1 | _CMD_CORE,	&tui_op },
 	{ 'd',	CMD_RM | _CMD_CURTRK | _CMD_CORE,	&tui_rmfile },
 	{ 'h',	_CMD_F1,	&tui_help },
 	{ 'i',	CMD_SHOWTAGS | _CMD_F1 | _CMD_CORE,	&tui_op },

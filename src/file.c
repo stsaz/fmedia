@@ -78,6 +78,7 @@ enum {
 };
 
 typedef struct fmed_fileout {
+	fmed_trk *d;
 	ffstr fname;
 	fffd fd;
 	ffarr buf;
@@ -715,6 +716,7 @@ static void* fileout_open(fmed_filt *d)
 		fftime_setmcs(&f->modtime, mtime);
 
 	f->prealloc_by = mod->out_conf.prealloc;
+	f->d = d;
 	return f;
 
 done:
@@ -730,7 +732,7 @@ static void fileout_close(void *ctx)
 
 		fffile_trunc(f->fd, f->fsize);
 
-		if (!f->ok && mod->out_conf.file_del) {
+		if ((!f->ok && mod->out_conf.file_del) || f->d->out_file_del) {
 
 			if (0 != fffile_close(f->fd))
 				syserrlog(NULL, "%s", fffile_close_S);

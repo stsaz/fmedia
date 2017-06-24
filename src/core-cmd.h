@@ -12,7 +12,7 @@ typedef struct fmed_cmd {
 	ffarr in_files; //char*[]
 	fftask tsk_start;
 
-	ffbool repeat_all;
+	byte repeat_all;
 	char *trackno;
 
 	uint playdev_name;
@@ -25,10 +25,10 @@ typedef struct fmed_cmd {
 	byte out_channels;
 	};
 
-	ffbool rec;
-	ffbool mix;
-	ffbool tags;
-	ffbool info;
+	byte rec;
+	byte mix;
+	byte tags;
+	byte info;
 	uint seek_time;
 	uint until_time;
 	uint64 fseek;
@@ -44,22 +44,22 @@ typedef struct fmed_cmd {
 	uint aac_qual;
 	ushort mpeg_qual;
 	byte flac_complevel;
-	ffbool stream_copy;
+	byte stream_copy;
 
 	ffstr globcmd;
 	byte bground;
 	byte bgchild;
 	char *conf_fn;
-	ffbool notui;
-	ffbool gui;
-	ffbool print_time;
-	ffbool debug;
+	byte notui;
+	byte gui;
+	byte print_time;
+	byte debug;
 	byte cue_gaps;
 
 	ffstr outfn;
-	ffbool overwrite;
-	ffbool out_copy;
-	ffbool preserve_date;
+	byte overwrite;
+	byte out_copy;
+	byte preserve_date;
 
 	ffstr dummy;
 } fmed_cmd;

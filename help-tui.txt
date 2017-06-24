@@ -8,6 +8,7 @@ n      Next track
 p      Previous track
 q      Quit
 h      Show help
+T      Save this track from radio
 
 Right  Seek forward
 Left   Seek backward
