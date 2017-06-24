@@ -28,6 +28,7 @@ typedef struct net_conf {
 	uint tmout;
 	byte user_agent;
 	byte max_redirect;
+	byte max_reconnect;
 	byte meta;
 } net_conf;
 
@@ -66,6 +67,7 @@ struct icy {
 	ffip_iter curaddr;
 	ffskt sk;
 	ffaio_task aio;
+	uint reconnects;
 
 	ffstr *bufs;
 	uint rbuf;
@@ -87,7 +89,6 @@ struct icy {
 	uint buflock :1
 		, iowait :1 //waiting for I/O, all input data is consumed
 		, async :1
-		, err :1
 		, preload :1 //fill all buffers
 		, out_copy :1
 		, save_oncmd :1
@@ -110,6 +111,7 @@ static void tcp_recv(void *udata);
 static void tcp_aio(void *udata);
 static void tcp_recvhdrs(void *udata);
 static int tcp_getdata(icy *c, ffstr *dst);
+static int tcp_ioerr(icy *c);
 
 static int http_prepreq(icy *c, ffstr *dst);
 static int http_parse(icy *c);
@@ -160,6 +162,7 @@ static const ffpars_arg net_conf_args[] = {
 	{ "timeout",	FFPARS_TINT,  FFPARS_DSTOFF(net_conf, tmout) },
 	{ "user_agent",	FFPARS_TENUM | FFPARS_F8BIT,  FFPARS_DST(&ua_enum) },
 	{ "max_redirect",	FFPARS_TINT | FFPARS_F8BIT,  FFPARS_DSTOFF(net_conf, max_redirect) },
+	{ "max_reconnect",	FFPARS_TINT8,  FFPARS_DSTOFF(net_conf, max_reconnect) },
 	{ "meta",	FFPARS_TBOOL | FFPARS_F8BIT,  FFPARS_DSTOFF(net_conf, meta) },
 	{ NULL,	FFPARS_TCLOSE,	FFPARS_DST(&icy_conf_done) },
 };
@@ -228,6 +231,7 @@ static int icy_config(ffpars_ctx *ctx)
 	net->conf.tmout = 5000;
 	net->conf.user_agent = UA_OFF;
 	net->conf.max_redirect = 10;
+	net->conf.max_reconnect = 3;
 	net->conf.meta = 1;
 	ffpars_setargs(ctx, &net->conf, net_conf_args, FFCNT(net_conf_args));
 	return 0;
@@ -250,6 +254,13 @@ static int buf_alloc(icy *c, size_t size)
 	}
 	return 0;
 }
+
+enum {
+	I_ADDR, I_NEXTADDR, I_CONN,
+	I_HTTP_REQ, I_HTTP_REQ_SEND, I_HTTP_RESP, I_HTTP_RESP_PARSE, I_HTTP_RECVBODY,
+	I_ICY,
+	I_ERR,
+};
 
 static void* icy_open(fmed_filt *d)
 {
@@ -430,7 +441,7 @@ static void tcp_recvhdrs(void *udata)
 
 	if (c->bufs[0].len == net->conf.bufsize) {
 		errlog(c->d->trk, "too large response headers");
-		c->err = 1;
+		c->state = I_ERR;
 		goto done;
 	}
 
@@ -446,7 +457,7 @@ static void tcp_recvhdrs(void *udata)
 			errlog(c->d->trk, "server has closed connection");
 		else
 			syserrlog(c->d->trk, "%s", fffile_read_S);
-		c->err = 1;
+		tcp_ioerr(c);
 		goto done;
 	}
 
@@ -459,16 +470,17 @@ done:
 
 static int tcp_getdata(icy *c, ffstr *dst)
 {
-	if (c->err)
-		return FMED_RERR;
-
 	if (c->buflock) {
 		c->buflock = 0;
 		c->bufs[c->rbuf].len = 0;
 		dbglog(c->d->trk, "unlock buf #%u", c->rbuf);
 		c->rbuf = ffint_cycleinc(c->rbuf, net->conf.nbufs);
-		if (!c->async)
+		if (!c->async) {
+			uint st = c->state;
 			tcp_recv(c);
+			if (c->state != st)
+				return FMED_RMORE;
+		}
 	}
 
 	if (c->bufs[c->rbuf].len == 0) {
@@ -488,6 +500,23 @@ static int tcp_getdata(icy *c, ffstr *dst)
 	return FMED_RDATA;
 }
 
+static int tcp_ioerr(icy *c)
+{
+	if (c->reconnects++ == net->conf.max_reconnect) {
+		errlog(c->d->trk, "reached max number of reconnections", 0);
+		c->state = I_ERR;
+		return 1;
+	}
+
+	ffskt_fin(c->sk);
+	ffskt_close(c->sk);
+	c->sk = FF_BADSKT;
+	ffaio_fin(&c->aio);
+	c->state = I_ADDR;
+	dbglog(c->d->trk, "reconnecting...", 0);
+	return 0;
+}
+
 static void tcp_recv(void *udata)
 {
 	icy *c = udata;
@@ -497,44 +526,45 @@ static void tcp_recv(void *udata)
 
 	if (c->curbuf_len == net->conf.bufsize) {
 		errlog(c->d->trk, "buffer #%u is full", c->wbuf);
-		c->err = 1;
+		c->state = I_ERR;
 		goto done;
 	}
 
-	r = ffaio_recv(&c->aio, &tcp_recv, c->bufs[c->wbuf].ptr + c->curbuf_len, net->conf.bufsize - c->curbuf_len);
-	if (r == FFAIO_ASYNC) {
-		dbglog(c->d->trk, "buf #%u async recv...", c->wbuf);
-		c->async = 1;
-		return;
-	}
+	for (;;) {
 
-	if (r <= 0) {
-		if (r == 0)
-			errlog(c->d->trk, "server has closed connection");
-		else
-			syserrlog(c->d->trk, "%s", fffile_read_S);
-		c->err = 1;
-		goto done;
-	}
+		r = ffaio_recv(&c->aio, &tcp_recv, c->bufs[c->wbuf].ptr + c->curbuf_len, net->conf.bufsize - c->curbuf_len);
+		if (r == FFAIO_ASYNC) {
+			dbglog(c->d->trk, "buf #%u async recv...", c->wbuf);
+			c->async = 1;
+			return;
+		}
 
-	c->curbuf_len += r;
-	dbglog(c->d->trk, "buf #%u recv: +%L [%L]", c->wbuf, r, c->curbuf_len);
-	if (c->curbuf_len < c->lowat) {
-		tcp_recv(c);
-		return;
-	}
+		if (r <= 0) {
+			if (r == 0)
+				errlog(c->d->trk, "server has closed connection");
+			else
+				syserrlog(c->d->trk, "%s", fffile_read_S);
+			tcp_ioerr(c);
+			goto done;
+		}
 
-	c->bufs[c->wbuf].len = c->curbuf_len;
-	c->curbuf_len = 0;
-	c->wbuf = ffint_cycleinc(c->wbuf, net->conf.nbufs);
-	if (c->bufs[c->wbuf].len == 0) {
-		// the next buffer is free, so start filling it
-		tcp_recv(c);
+		c->curbuf_len += r;
+		dbglog(c->d->trk, "buf #%u recv: +%L [%L]", c->wbuf, r, c->curbuf_len);
+		if (c->curbuf_len < c->lowat)
+			continue;
+
+		c->bufs[c->wbuf].len = c->curbuf_len;
+		c->curbuf_len = 0;
+		c->wbuf = ffint_cycleinc(c->wbuf, net->conf.nbufs);
+		if (c->bufs[c->wbuf].len == 0) {
+			// the next buffer is free, so start filling it
+			continue;
+		}
+
+		break;
 	}
 
 	if (c->preload) {
-		if (c->wbuf != c->rbuf)
-			return; //wait until all buffers are filled
 		c->preload = 0;
 		c->lowat = net->conf.buf_lowat;
 	}
@@ -546,12 +576,6 @@ done:
 		c->d->handler(c->d->trk);
 	}
 }
-
-enum {
-	I_ADDR, I_NEXTADDR, I_CONN,
-	I_HTTP_REQ, I_HTTP_REQ_SEND, I_HTTP_RESP, I_HTTP_RESP_PARSE, I_HTTP_RECVBODY,
-	I_ICY,
-};
 
 static int http_prepreq(icy *c, ffstr *dst)
 {
@@ -706,8 +730,6 @@ static int icy_process(void *ctx, fmed_filt *d)
 		return FMED_RASYNC;
 
 	case I_HTTP_RESP_PARSE:
-		if (c->err)
-			goto done;
 		r = http_parse(c);
 		if (r == 1)
 			continue;
@@ -738,6 +760,8 @@ static int icy_process(void *ctx, fmed_filt *d)
 			return FMED_RASYNC;
 		else if (r == FMED_RERR)
 			goto done;
+		else if (r == FMED_RMORE)
+			continue;
 		c->state = I_ICY;
 		// break
 
@@ -767,6 +791,10 @@ static int icy_process(void *ctx, fmed_filt *d)
 			icy_setmeta(c, &s);
 			break;
 		}
+		continue;
+
+	case I_ERR:
+		return FMED_RERR;
 	}
 	}
 
