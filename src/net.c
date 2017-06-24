@@ -60,8 +60,10 @@ struct icy {
 	fflist1_item recycled;
 	char *host;
 	ffurl url;
+	ffiplist iplist;
+	ffip6 ip;
 	ffaddrinfo *addr;
-	ffaddrinfo *curaddr;
+	ffip_iter curaddr;
 	ffskt sk;
 	ffaio_task aio;
 
@@ -101,6 +103,7 @@ static const fmed_mod fmed_net_mod = {
 	&net_iface, &net_sig, &net_destroy, &net_mod_conf
 };
 
+static int ip_resolve(icy *c);
 static int tcp_prepare(icy *c, ffaddr *a);
 static void tcp_recv(void *udata);
 static void tcp_aio(void *udata);
@@ -256,6 +259,7 @@ static void* icy_open(fmed_filt *d)
 	else if (NULL == (c = ffmem_tcalloc1(icy)))
 		return NULL;
 	c->d = d;
+	c->sk = FF_BADSKT;
 
 	c->host = (void*)d->track->getvalstr(d->trk, "input");
 	if (NULL == (c->host = ffsz_alcopyz(c->host)))
@@ -311,19 +315,71 @@ static void icy_close(void *ctx)
 	fflist1_push(&net->recycled_cons, &c->recycled);
 }
 
+static int ip_resolve(icy *c)
+{
+	ffstr s;
+	char *hostz;
+	int r;
+
+	if (0 != ffurl_parse(&c->url, c->host, ffsz_len(c->host))) {
+		errlog(c->d->trk, "ffurl_parse");
+		goto done;
+	}
+	if (c->url.port == 0)
+		c->url.port = FFHTTP_PORT;
+
+	r = ffurl_parse_ip(&c->url, c->host, &c->ip);
+	if (r < 0) {
+		s = ffurl_get(&c->url, c->host, FFURL_HOST);
+		errlog(c->d->trk, "bad IP address: %S", &s);
+		goto done;
+	} else if (r != 0) {
+		ffip_list_set(&c->iplist, r, &c->ip);
+		ffip_iter_set(&c->curaddr, &c->iplist, NULL);
+		return 0;
+	}
+
+	s = ffurl_get(&c->url, c->host, FFURL_HOST);
+	if (NULL == (hostz = ffsz_alcopy(s.ptr, s.len))) {
+		syserrlog(c->d->trk, "%s", ffmem_alloc_S);
+		goto done;
+	}
+
+	core->log(FMED_LOG_INFO, c->d->trk, NULL, "resolving host %S...", &s);
+	r = ffaddr_info(&c->addr, hostz, NULL, 0);
+	ffmem_free(hostz);
+	if (r != 0) {
+		syserrlog(c->d->trk, "%s", ffaddr_info_S);
+		goto done;
+	}
+	ffip_iter_set(&c->curaddr, NULL, c->addr);
+
+	if (core->loglev == FMED_LOG_DEBUG) {
+		size_t n;
+		char buf[FF_MAXIP6];
+		ffip_iter it;
+		ffip_iter_set(&it, NULL, c->addr);
+		uint fam;
+		void *ip;
+		while (0 != (fam = ffip_next(&it, &ip))) {
+			n = ffip_tostr(buf, sizeof(buf), fam, ip, 0);
+			dbglog(c->d->trk, "%*s", n, buf);
+		}
+	}
+
+	return 0;
+
+done:
+	return -1;
+}
+
 static int tcp_prepare(icy *c, ffaddr *a)
 {
-	for (;;) {
+	void *ip;
+	int family;
+	while (0 != (family = ffip_next(&c->curaddr, &ip))) {
 
-		if (c->curaddr == NULL)
-			c->curaddr = c->addr;
-		else if (c->curaddr->ai_next != NULL)
-			c->curaddr = c->curaddr->ai_next;
-		else {
-			errlog(c->d->trk, "no next address to connect");
-			return -1;
-		}
-		ffaddr_copy(a, c->curaddr->ai_addr, c->curaddr->ai_addrlen);
+		ffaddr_setip(a, family, ip);
 		ffip_setport(a, c->url.port);
 
 		char saddr[FF_MAXIP6];
@@ -331,7 +387,7 @@ static int tcp_prepare(icy *c, ffaddr *a)
 		ffstr host = ffurl_get(&c->url, c->host, FFURL_HOST);
 		core->log(FMED_LOG_INFO, c->d->trk, NULL, "connecting to %S (%*s)...", &host, n, saddr);
 
-		if (FF_BADSKT == (c->sk = ffskt_create(ffaddr_family(a), SOCK_STREAM, IPPROTO_TCP))) {
+		if (FF_BADSKT == (c->sk = ffskt_create(family, SOCK_STREAM | SOCK_NONBLOCK, IPPROTO_TCP))) {
 			core->log(FMED_LOG_WARN | FMED_LOG_SYS, c->d->trk, NULL, "%s", ffskt_create_S);
 			ffskt_close(c->sk);
 			c->sk = FF_BADSKT;
@@ -341,10 +397,6 @@ static int tcp_prepare(icy *c, ffaddr *a)
 		if (0 != ffskt_setopt(c->sk, IPPROTO_TCP, TCP_NODELAY, 1))
 			core->log(FMED_LOG_WARN | FMED_LOG_SYS, c->d->trk, NULL, "%s", ffskt_setopt_S);
 
-		if (0 != ffskt_nblock(c->sk, 1)) {
-			syserrlog(c->d->trk, "%s", ffskt_nblock_S);
-			return -1;
-		}
 		ffaio_init(&c->aio);
 		c->aio.sk = c->sk;
 		c->aio.udata = c;
@@ -354,7 +406,9 @@ static int tcp_prepare(icy *c, ffaddr *a)
 		}
 		return 0;
 	}
-	//unreachable
+
+	errlog(c->d->trk, "no next address to connect");
+	return -1;
 }
 
 static void tcp_aio(void *udata)
@@ -409,7 +463,7 @@ static int tcp_getdata(icy *c, ffstr *dst)
 		c->buflock = 0;
 		c->bufs[c->rbuf].len = 0;
 		dbglog(c->d->trk, "unlock buf #%u", c->rbuf);
-		c->rbuf = (c->rbuf + 1) % net->conf.nbufs;
+		c->rbuf = ffint_cycleinc(c->rbuf, net->conf.nbufs);
 		if (!c->async)
 			tcp_recv(c);
 	}
@@ -469,7 +523,7 @@ static void tcp_recv(void *udata)
 
 	c->bufs[c->wbuf].len = c->curbuf_len;
 	c->curbuf_len = 0;
-	c->wbuf = (c->wbuf + 1) % net->conf.nbufs;
+	c->wbuf = ffint_cycleinc(c->wbuf, net->conf.nbufs);
 	if (c->bufs[c->wbuf].len == 0) {
 		// the next buffer is free, so start filling it
 		tcp_recv(c);
@@ -545,7 +599,7 @@ static int http_parse(icy *c)
 
 	if ((c->resp.code == 301 || c->resp.code == 302)
 		&& c->nredirect++ != net->conf.max_redirect
-		&& 0 != ffhttp_findhdr(&c->resp.h, ffhttp_shdr[FFHTTP_LOCATION].ptr, ffhttp_shdr[FFHTTP_LOCATION].len, &s)) {
+		&& 0 != ffhttp_findihdr(&c->resp.h, FFHTTP_LOCATION, &s)) {
 
 		dbglog(c->d->trk, "HTTP redirect: %S", &s);
 		if (c->sk != FF_BADSKT) {
@@ -565,7 +619,8 @@ static int http_parse(icy *c)
 		return 1;
 
 	} else if (c->resp.code != 200) {
-		errlog(c->d->trk, "bad HTTP response code");
+		ffstr ln = ffhttp_respstatus(&c->resp);
+		errlog(c->d->trk, "resource unavailable: %S", &ln);
 		return -1;
 	}
 
@@ -578,7 +633,6 @@ static int icy_process(void *ctx, fmed_filt *d)
 	ssize_t r;
 	ffstr s;
 	ffaddr a = {0};
-	char *hostz;
 
 	if (d->flags & FMED_FSTOP) {
 		d->outlen = 0;
@@ -588,26 +642,8 @@ static int icy_process(void *ctx, fmed_filt *d)
 	for (;;) {
 	switch (c->state) {
 	case I_ADDR:
-		if (0 != ffurl_parse(&c->url, c->host, ffsz_len(c->host))) {
-			errlog(c->d->trk, "ffurl_parse");
+		if (0 != ip_resolve(c))
 			goto done;
-		}
-		if (c->url.port == 0)
-			c->url.port = FFHTTP_PORT;
-
-		s = ffurl_get(&c->url, c->host, FFURL_HOST);
-		if (NULL == (hostz = ffsz_alcopy(s.ptr, s.len))) {
-			syserrlog(c->d->trk, "%s", ffmem_alloc_S);
-			goto done;
-		}
-
-		core->log(FMED_LOG_INFO, c->d->trk, NULL, "resolving host %S...", &s);
-		r = ffaddr_info(&c->addr, hostz, NULL, 0);
-		ffmem_free(hostz);
-		if (r != 0) {
-			syserrlog(c->d->trk, "%s", ffaddr_info_S);
-			goto done;
-		}
 		c->state = I_NEXTADDR;
 		// break
 
@@ -631,9 +667,8 @@ static int icy_process(void *ctx, fmed_filt *d)
 			c->async = 1;
 			return FMED_RASYNC;
 		}
-		ffaddr_free(c->addr);
-		c->addr = NULL;
-		c->curaddr = NULL;
+		FF_SAFECLOSE(c->addr, NULL, ffaddr_free);
+		ffmem_tzero(&c->curaddr);
 		c->state = I_HTTP_REQ;
 		// break
 
