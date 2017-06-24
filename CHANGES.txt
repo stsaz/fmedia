@@ -8,6 +8,22 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v0.28 - Jun 24, 2017
+
+ + --out-copy=cmd: save currently playing track from Internet radio by command ('T')
+
+ * ALSA: don't use "plughw" unless necessary (try "hw" first)
+ - ALSA: show available devices for each soundcard
+ - ALSA: use the first available device by default (not hw:0,0)
+
+ - MPEG: .mp4 seek didn't work
+ - MPEG decode: accurate position reporting (delay)
+ * .mp4: report seek error
+ - .m3u,.pls: handle last lines without LF
+ + net.icy: reconnect on I/O error
+ - net.icy: fix sending request after HTTP redirect
+
+
 fmedia v0.27 - May 21, 2017
 
  * .mp3: show correct bitrate for CBR streams

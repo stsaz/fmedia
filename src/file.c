@@ -259,11 +259,6 @@ static void* file_open(fmed_filt *d)
 			flags &= ~O_DIRECT;
 			continue;
 		}
-
-		if (f->fd == FF_BADFD && fferr_last() == EPERM && (flags & O_NOATIME)) {
-			flags &= ~O_NOATIME;
-			continue;
-		}
 #endif
 
 		break;

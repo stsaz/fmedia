@@ -100,7 +100,7 @@ core.$(SO): $(CORE_O)
 
 #
 NET_O := $(OBJ_DIR)/net.o \
-	$(FF_OBJ_DIR)/ffhttp.o $(FF_OBJ_DIR)/ffurl.o $(FF_OBJ_DIR)/ffparse.o $(FF_OBJ_DIR)/fficy.o \
+	$(FF_OBJ_DIR)/ffhttp.o $(FF_OBJ_DIR)/ffproto.o $(FF_OBJ_DIR)/ffurl.o $(FF_OBJ_DIR)/ffparse.o $(FF_OBJ_DIR)/fficy.o \
 	$(FF_OBJ_DIR)/ffcrc.o \
 	$(FF_OBJ_DIR)/ffhashtab.o \
 	$(FF_OBJ_DIR)/ffpath.o \

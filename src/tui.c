@@ -475,7 +475,8 @@ print:
 
 done:
 	t->played_samples += d->datalen / t->sampsize;
-	dbglog(core, d->trk, NULL, "samples: +%L [%U]", d->datalen / t->sampsize, t->played_samples);
+	dbglog(core, d->trk, NULL, "samples: +%L [%U] at %U"
+		, d->datalen / t->sampsize, t->played_samples, d->audio.pos);
 
 pass:
 	d->out = d->data;

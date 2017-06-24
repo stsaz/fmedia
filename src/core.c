@@ -607,8 +607,7 @@ void core_free(void)
 	conf_destroy(&fmed->conf);
 	ffstr_free(&fmed->root);
 
-	ffmem_free(fmed);
-	fmed = NULL;
+	ffmem_free0(fmed);
 }
 
 static const fmed_modinfo* core_insmod(const char *sname, ffpars_ctx *ctx)

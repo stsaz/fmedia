@@ -196,7 +196,7 @@ again:
 			break;
 
 		case FFMKV_RSEEK:
-			// d->input.seek = ffmkv_seekoff(&m->mkv);
+			d->input.seek = ffmkv_seekoff(&m->mkv);
 			return FMED_RMORE;
 
 		case FFMKV_RWARN:
