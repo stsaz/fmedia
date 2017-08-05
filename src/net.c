@@ -68,6 +68,7 @@ struct icy {
 	ffskt sk;
 	ffaio_task aio;
 	uint reconnects;
+	fftmrq_entry tmr;
 
 	ffstr *bufs;
 	uint rbuf;
@@ -109,6 +110,7 @@ static int ip_resolve(icy *c);
 static int tcp_prepare(icy *c, ffaddr *a);
 static void tcp_recv(void *udata);
 static void tcp_aio(void *udata);
+static void tcp_ontmr(const fftime *now, void *param);
 static void tcp_recvhdrs(void *udata);
 static int tcp_getdata(icy *c, ffstr *dst);
 static int tcp_ioerr(icy *c);
@@ -288,6 +290,9 @@ static void* icy_open(fmed_filt *d)
 	if (0 != buf_alloc(c, net->conf.bufsize))
 		goto done;
 
+	c->tmr.handler = &tcp_ontmr;
+	c->tmr.param = c;
+
 	return c;
 
 done:
@@ -299,6 +304,7 @@ static void icy_close(void *ctx)
 {
 	icy *c = ctx;
 
+	core->timer(&c->tmr, 0, 0);
 	FF_SAFECLOSE(c->addr, NULL, ffaddr_free);
 	if (c->sk != FF_BADSKT) {
 		ffskt_fin(c->sk);
@@ -432,6 +438,15 @@ static void tcp_aio(void *udata)
 	c->d->handler(c->d->trk);
 }
 
+static void tcp_ontmr(const fftime *now, void *param)
+{
+	icy *c = param;
+	fmed_warnlog(core, c->d->trk, NULL, "I/O timeout", 0);
+	c->async = 0;
+	tcp_ioerr(c);
+	c->d->handler(c->d->trk);
+}
+
 static void tcp_recvhdrs(void *udata)
 {
 	icy *c = udata;
@@ -445,10 +460,12 @@ static void tcp_recvhdrs(void *udata)
 		goto done;
 	}
 
+	core->timer(&c->tmr, 0, 0);
 	r = ffaio_recv(&c->aio, &tcp_recvhdrs, ffarr_end(&c->bufs[0]), net->conf.bufsize - c->bufs[0].len);
 	if (r == FFAIO_ASYNC) {
 		dbglog(c->d->trk, "async recv...");
 		c->async = 1;
+		core->timer(&c->tmr, -(int)net->conf.tmout, 0);
 		return;
 	}
 
@@ -456,7 +473,7 @@ static void tcp_recvhdrs(void *udata)
 		if (r == 0)
 			errlog(c->d->trk, "server has closed connection");
 		else
-			syserrlog(c->d->trk, "%s", fffile_read_S);
+			syserrlog(c->d->trk, "%s", ffskt_recv_S);
 		tcp_ioerr(c);
 		goto done;
 	}
@@ -532,10 +549,12 @@ static void tcp_recv(void *udata)
 
 	for (;;) {
 
+		core->timer(&c->tmr, 0, 0);
 		r = ffaio_recv(&c->aio, &tcp_recv, c->bufs[c->wbuf].ptr + c->curbuf_len, net->conf.bufsize - c->curbuf_len);
 		if (r == FFAIO_ASYNC) {
 			dbglog(c->d->trk, "buf #%u async recv...", c->wbuf);
 			c->async = 1;
+			core->timer(&c->tmr, -(int)net->conf.tmout, 0);
 			return;
 		}
 
@@ -543,7 +562,7 @@ static void tcp_recv(void *udata)
 			if (r == 0)
 				errlog(c->d->trk, "server has closed connection");
 			else
-				syserrlog(c->d->trk, "%s", fffile_read_S);
+				syserrlog(c->d->trk, "%s", ffskt_recv_S);
 			tcp_ioerr(c);
 			goto done;
 		}
@@ -681,6 +700,7 @@ static int icy_process(void *ctx, fmed_filt *d)
 		// break
 
 	case I_CONN:
+		core->timer(&c->tmr, 0, 0);
 		r = ffaio_connect(&c->aio, &tcp_aio, &a.a, a.len);
 		if (r == FFAIO_ERROR) {
 			core->log(FMED_LOG_WARN | FMED_LOG_SYS, c->d->trk, NULL, "%s", ffskt_connect_S);
@@ -692,8 +712,10 @@ static int icy_process(void *ctx, fmed_filt *d)
 
 		} else if (r == FFAIO_ASYNC) {
 			c->async = 1;
+			core->timer(&c->tmr, -(int)net->conf.tmout, 0);
 			return FMED_RASYNC;
 		}
+		dbglog(c->d->trk, "%s ok", ffskt_connect_S);
 		FF_SAFECLOSE(c->addr, NULL, ffaddr_free);
 		ffmem_tzero(&c->curaddr);
 		c->state = I_HTTP_REQ;
@@ -705,15 +727,19 @@ static int icy_process(void *ctx, fmed_filt *d)
 		// break
 
 	case I_HTTP_REQ_SEND:
+		core->timer(&c->tmr, 0, 0);
 		r = ffaio_send(&c->aio, &tcp_aio, c->data.ptr, c->data.len);
 		if (r == FFAIO_ERROR) {
-			syserrlog(c->d->trk, "%s", "ffskt_send");
-			goto done;
+			syserrlog(c->d->trk, "%s", ffskt_send_S);
+			tcp_ioerr(c);
+			continue;
 
 		} else if (r == FFAIO_ASYNC) {
 			c->async = 1;
+			core->timer(&c->tmr, -(int)net->conf.tmout, 0);
 			return FMED_RASYNC;
 		}
+		dbglog(c->d->trk, "%s ok", ffskt_send_S);
 		ffstr_shift(&c->data, r);
 		if (c->data.len != 0)
 			continue;
