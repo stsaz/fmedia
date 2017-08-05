@@ -275,7 +275,9 @@ again:
 			d->outlen = 0;
 			return FMED_RLASTOUT;
 
-		case FFMPG_RFRAME1:
+		case FFMPG_RXING:
+			continue;
+
 		case FFMPG_RHDR:
 			dbglog(core, d->trk, NULL, "preset:%s  tool:%s  xing-frames:%u"
 				, ffmpg_isvbr(&m->mpg.rdr) ? "VBR" : "CBR", m->mpg.rdr.lame.id, m->mpg.rdr.xing.frames);
@@ -287,6 +289,7 @@ again:
 			d->audio.bitrate = ffmpg_bitrate(&m->mpg.rdr);
 			d->audio.total = ffmpg_length(&m->mpg.rdr);
 			m->state = I_DATA;
+			fmed_setval("mpeg_delay", m->mpg.rdr.delay);
 
 			if (!d->stream_copy
 				&& 0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, "mpeg.decode"))
@@ -295,9 +298,9 @@ again:
 			if ((int64)d->audio.seek != FMED_NULL && !m->seeking) {
 				m->seeking = 1;
 				ffmpg_rseek(&m->mpg.rdr, ffpcm_samples(d->audio.seek, ffmpg_fmt(&m->mpg.rdr).sample_rate));
-				goto again;
 			}
-			goto data;
+
+			goto again;
 
 		case FFMPG_RID31:
 		case FFMPG_RID32:
@@ -336,6 +339,9 @@ data:
 	d->out = m->mpg.frame.ptr;
 	d->outlen = m->mpg.frame.len;
 	d->audio.pos = ffmpg_cursample(&m->mpg.rdr);
+	dbglog(core, d->trk, NULL, "passing frame #%u  samples:%u[%U]  size:%u  br:%u  off:%xU"
+		, m->mpg.rdr.frno, (uint)m->mpg.rdr.frsamps, d->audio.pos, (uint)m->mpg.frame.len
+		, ffmpg_hdr_bitrate((void*)m->mpg.frame.ptr), m->mpg.rdr.off - m->mpg.frame.len);
 	return FMED_RDATA;
 }
 
@@ -346,7 +352,7 @@ static void* mpeg_dec_open(fmed_filt *d)
 	if (NULL == (m = ffmem_tcalloc1(mpeg_dec)))
 		return NULL;
 
-	if (0 != ffmpg_open(&m->mpg, 0)) {
+	if (0 != ffmpg_open(&m->mpg, fmed_getval("mpeg_delay"), 0)) {
 		mpeg_dec_close(m);
 		return NULL;
 	}
@@ -377,6 +383,7 @@ static int mpeg_dec_process(void *ctx, fmed_filt *d)
 		ffmpg_input(&m->mpg, d->data, d->datalen);
 		d->datalen = 0;
 		m->mpg.pos = d->audio.pos;
+		m->mpg.fin = (d->flags & FMED_FLAST);
 	}
 
 	if ((d->flags & FMED_FFWD) && (int64)d->audio.seek != FMED_NULL) {
@@ -472,6 +479,9 @@ static int mpeg_copy_process(void *ctx, fmed_filt *d)
 			continue;
 		}
 		return FMED_RMORE;
+
+	case FFMPG_RXING:
+		continue;
 
 	case FFMPG_RHDR:
 		ffpcm_fmtcopy(&d->audio.fmt, &ffmpg_copy_fmt(&m->mpgcpy));
