@@ -11,6 +11,7 @@ Copyright (c) 2015 Simon Zolin */
 #include <FF/sys/taskqueue.h>
 #include <FFOS/asyncio.h>
 #include <FFOS/file.h>
+#include <FFOS/process.h>
 
 
 typedef struct fmed_config {
@@ -47,6 +48,7 @@ typedef struct fmedia {
 	ffarr bmods; //fmed_modinfo[]
 	fflist mods; //core_mod[]
 
+	ffenv env;
 	ffstr root;
 	fmed_config conf;
 	fmed_cmd cmd;

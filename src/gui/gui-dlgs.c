@@ -823,7 +823,7 @@ int gui_rec_addsetts(void *trk)
 	}
 
 	char *exp;
-	if (NULL == (exp = ffenv_expand(NULL, 0, gg->rec_sets.output)))
+	if (NULL == (exp = core->env_expand(NULL, 0, gg->rec_sets.output)))
 		return -1;
 	gg->track->setvalstr4(trk, "output", exp, FMED_TRK_FACQUIRE);
 

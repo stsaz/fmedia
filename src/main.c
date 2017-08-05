@@ -19,7 +19,7 @@ static fmed_cmd *gcmd;
 #define fmed  gcmd
 static fmed_core *core;
 
-FF_IMP fmed_core* core_init(fmed_cmd **ptr, char **argv);
+FF_IMP fmed_core* core_init(fmed_cmd **ptr, char **argv, char **env);
 FF_IMP void core_free(void);
 
 static int fmed_cmdline(int argc, char **argv, uint main_only);
@@ -614,7 +614,7 @@ end:
 	return r;
 }
 
-int main(int argc, char **argv)
+int main(int argc, char **argv, char **env)
 {
 	int rc = 1;
 	ffsignal sigs_task = {0};
@@ -626,7 +626,7 @@ int main(int argc, char **argv)
 
 	ffsig_mask(SIG_BLOCK, sigs_block, FFCNT(sigs_block));
 
-	if (NULL == (core = core_init(&fmed, argv)))
+	if (NULL == (core = core_init(&fmed, argv, env)))
 		return 1;
 	fmed->log = &std_logger;
 

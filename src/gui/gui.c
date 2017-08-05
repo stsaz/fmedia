@@ -603,7 +603,7 @@ static void gui_ghk_reg(void)
 char* gui_usrconf_filename(void)
 {
 	if (!gg->portable_conf)
-		return ffenv_expand(NULL, 0, GUI_USRCONF);
+		return core->env_expand(NULL, 0, GUI_USRCONF);
 	return core->getpath(FFSTR(GUI_USRCONF_PORT));
 }
 
@@ -615,7 +615,7 @@ static void gui_savelists(void)
 	if (gg->portable_conf)
 		fn = core->getpath(FFSTR(GUI_PLIST_PATH_PORT));
 	else
-		fn = ffenv_expand(NULL, 0, GUI_PLIST_PATH);
+		fn = core->env_expand(NULL, 0, GUI_PLIST_PATH);
 	if (fn == NULL)
 		goto end;
 
@@ -637,7 +637,7 @@ static int gui_loadlists(void)
 	if (gg->portable_conf)
 		fn = core->getpath(FFSTR(GUI_PLIST_PATH_PORT));
 	else
-		fn = ffenv_expand(NULL, 0, GUI_PLIST_PATH);
+		fn = core->env_expand(NULL, 0, GUI_PLIST_PATH);
 	if (fn == NULL)
 		goto end;
 
@@ -816,7 +816,7 @@ static int gui_install(uint sig)
 		if (0 == ffstr_catfmt(&buf, "%S\\fmedia-gui.exe%Z", &path))
 			goto end;
 		buf.len--;
-		if (NULL == (desktop = ffenv_expand(NULL, 0, "%USERPROFILE%\\Desktop\\fmedia.lnk")))
+		if (NULL == (desktop = core->env_expand(NULL, 0, "%USERPROFILE%\\Desktop\\fmedia.lnk")))
 			goto end;
 		if (0 != ffui_createlink(buf.ptr, desktop))
 			goto end;

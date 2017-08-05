@@ -48,7 +48,7 @@ enum {
 };
 
 
-FF_EXP fmed_core* core_init(fmed_cmd **ptr, char **argv);
+FF_EXP fmed_core* core_init(fmed_cmd **ptr, char **argv, char **env);
 FF_EXP void core_free(void);
 
 static const fmed_mod* fmed_getmod_core(const fmed_core *_core);
@@ -77,6 +77,7 @@ static const fmed_mod fmed_core_mod = {
 static int64 core_getval(const char *name);
 static void core_log(uint flags, void *trk, const char *module, const char *fmt, ...);
 static char* core_getpath(const char *name, size_t len);
+static char* core_env_expand(char *dst, size_t cap, const char *src);
 static int core_sig(uint signo);
 static ssize_t core_cmd(uint cmd, ...);
 static const void* core_getmod(const char *name);
@@ -89,7 +90,7 @@ static fmed_core _fmed_core = {
 	0, NULL, 0,
 	&core_getval,
 	&core_log,
-	&core_getpath,
+	&core_getpath, &core_env_expand,
 	&core_sig, &core_cmd,
 	&core_getmod, &core_getmod2, &core_insmod,
 	&core_task,
@@ -333,7 +334,7 @@ static int fmed_conf_include(ffparser_schem *p, void *obj, ffstr *val)
 			r = FFPARS_ESYS;
 			goto end;
 		}
-		if (NULL == (fn = ffenv_expand(NULL, 0, name.ptr))) {
+		if (NULL == (fn = ffenv_expand(&fmed->env, NULL, 0, name.ptr))) {
 			r = FFPARS_ESYS;
 			goto end;
 		}
@@ -540,7 +541,7 @@ static void conf_destroy(fmed_config *conf)
 }
 
 
-fmed_core* core_init(fmed_cmd **ptr, char **argv)
+fmed_core* core_init(fmed_cmd **ptr, char **argv, char **env)
 {
 	ffmem_init();
 	fflk_setup();
@@ -548,6 +549,8 @@ fmed_core* core_init(fmed_cmd **ptr, char **argv)
 	if (fmed == NULL)
 		return NULL;
 	fmed->cmd.log = &log_dummy;
+	if (0 != ffenv_init(&fmed->env, env))
+		goto err;
 
 	fmed->kq = FF_BADFD;
 	fftask_init(&fmed->taskmgr);
@@ -612,6 +615,7 @@ void core_free(void)
 	cmd_destroy(&fmed->cmd);
 	conf_destroy(&fmed->conf);
 	ffstr_free(&fmed->root);
+	ffenv_destroy(&fmed->env);
 
 	ffmem_free0(fmed);
 }
@@ -876,6 +880,11 @@ static char* core_getpath(const char *name, size_t len)
 		return NULL;
 	}
 	return s.ptr;
+}
+
+static char* core_env_expand(char *dst, size_t cap, const char *src)
+{
+	return ffenv_expand(&fmed->env, dst, cap, src);
 }
 
 static int core_sigmods(uint signo)

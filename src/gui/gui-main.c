@@ -442,7 +442,7 @@ static void gui_showrecdir(void)
 	ffpath_split2(gg->rec_sets.output, ffsz_len(gg->rec_sets.output), &dir, NULL);
 	if (NULL == (p = ffsz_alcopy(dir.ptr, dir.len)))
 		return;
-	if (NULL == (exp = ffenv_expand(NULL, 0, p)))
+	if (NULL == (exp = core->env_expand(NULL, 0, p)))
 		goto done;
 	ffui_openfolder((const char *const *)&exp, 0);
 
@@ -559,7 +559,7 @@ static void gui_showtextfile(uint cmd)
 {
 	char *notepad, *fn;
 
-	if (NULL == (notepad = ffenv_expand(NULL, 0, "%SYSTEMROOT%\\system32\\notepad.exe")))
+	if (NULL == (notepad = core->env_expand(NULL, 0, "%SYSTEMROOT%\\system32\\notepad.exe")))
 		return;
 
 	switch (cmd) {
@@ -567,7 +567,7 @@ static void gui_showtextfile(uint cmd)
 		fn = core->getpath(FFSTR(FMED_GLOBCONF));
 		break;
 	case USRCONF_EDIT:
-		fn = ffenv_expand(NULL, 0, "%APPDATA%/fmedia/fmedia-user.conf");
+		fn = core->env_expand(NULL, 0, "%APPDATA%/fmedia/fmedia-user.conf");
 		break;
 	case FMEDGUI_EDIT:
 		fn = core->getpath(FFSTR("fmedia.gui"));

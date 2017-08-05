@@ -116,6 +116,8 @@ struct fmed_core {
 	/** Return NULL on error. */
 	char* (*getpath)(const char *name, size_t len);
 
+	char* (*env_expand)(char *dst, size_t cap, const char *src);
+
 	/**
 	@signo: enum FMED_SIG. */
 	int (*sig)(uint signo);
