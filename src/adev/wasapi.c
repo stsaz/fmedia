@@ -16,9 +16,11 @@ typedef struct wasapi_out wasapi_out;
 
 typedef struct wasapi_mod {
 	ffwasapi out;
+	fftmrq_entry tmr;
 	ffpcm fmt;
 	wasapi_out *usedby;
 	const fmed_track *track;
+	ffwoh *woh;
 	uint devidx;
 	uint out_valid :1;
 	uint init_ok :1;
@@ -40,11 +42,10 @@ enum { WAS_TRYOPEN, WAS_OPEN, WAS_DATA };
 
 typedef struct wasapi_in {
 	ffwasapi wa;
+	fftmrq_entry tmr;
 	uint latcorr;
 	fftask task;
 	uint64 total_samps;
-	ffkevent evtmr;
-	fftmr tmr;
 	unsigned async :1;
 	unsigned lpback :1;
 } wasapi_in;
@@ -104,6 +105,8 @@ static const fmed_filter fmed_wasapi_in = {
 	&wasapi_in_open, &wasapi_in_read, &wasapi_in_close
 };
 
+static void wasapi_ontmr(const fftime *now, void *param);
+static void wasapi_ontmr_capt(const fftime *now, void *param);
 static void wasapi_onplay(void *udata);
 static void wasapi_oncapt(void *udata);
 
@@ -172,6 +175,7 @@ static void wasapi_destroy(void)
 	if (mod != NULL) {
 		if (mod->out_valid)
 			ffwas_close(&mod->out);
+		FF_SAFECLOSE(mod->woh, NULL, ffwoh_free);
 		ffmem_free(mod);
 		mod = NULL;
 	}
@@ -330,7 +334,6 @@ static int wasapi_create(wasapi_out *w, fmed_filt *d)
 
 			ffwas_stop(&mod->out);
 			ffwas_clear(&mod->out);
-			ffwas_async(&mod->out, 0);
 			reused = 1;
 			goto fin;
 		}
@@ -346,7 +349,14 @@ static int wasapi_create(wasapi_out *w, fmed_filt *d)
 		goto done;
 	}
 
-	mod->out.handler = &wasapi_onplay;
+	if (excl) {
+		if (mod->woh == NULL) {
+			if (NULL == (mod->woh = ffwoh_create()))
+				goto done;
+			fflk_setup();
+		}
+		ffwas_excl(&mod->out, mod->woh, &wasapi_onplay, w);
+	}
 	in_fmt = fmt;
 	dbglog(core, d->trk, NULL, "opening device #%u, fmt:%s/%u/%u, excl:%u"
 		, w->dev.idx, ffpcm_fmtstr(fmt.format), fmt.sample_rate, fmt.channels, excl);
@@ -381,7 +391,14 @@ static int wasapi_create(wasapi_out *w, fmed_filt *d)
 	mod->devidx = w->devidx;
 
 fin:
-	mod->out.udata = w;
+	if (!excl) {
+		uint nfy_int_ms = ffpcm_time(ffwas_buf_samples(&mod->out) / 4, fmt.sample_rate);
+		mod->tmr.handler = &wasapi_ontmr;
+		mod->tmr.param = w;
+		if (0 != core->timer(&mod->tmr, nfy_int_ms, 0))
+			goto done;
+	}
+
 	mod->usedby = w;
 	dbglog(core, d->trk, "wasapi", "%s buffer %ums, %uHz, excl:%u"
 		, reused ? "reused" : "opened", ffpcm_bytes2time(&fmt, ffwas_bufsize(&mod->out))
@@ -404,13 +421,19 @@ static void wasapi_close(void *ctx)
 		} else {
 			ffwas_stop(&mod->out);
 			ffwas_clear(&mod->out);
-			ffwas_async(&mod->out, 0);
 		}
+		core->timer(&mod->tmr, 0, 0);
 		mod->usedby = NULL;
 	}
 	ffwas_devdestroy(&w->dev);
 	core->task(&w->task, FMED_TASK_DEL);
 	ffmem_free(w);
+}
+
+static void wasapi_ontmr(const fftime *now, void *param)
+{
+	wasapi_out *w = param;
+	w->task.handler(w->task.param);
 }
 
 static void wasapi_onplay(void *udata)
@@ -448,7 +471,7 @@ static int wasapi_write(void *ctx, fmed_filt *d)
 		d->snd_output_clear = 0;
 		ffwas_stop(&mod->out);
 		ffwas_clear(&mod->out);
-		ffwas_async(&mod->out, 0);
+		core->task(&w->task, FMED_TASK_DEL);
 		return FMED_RMORE;
 	}
 
@@ -456,7 +479,8 @@ static int wasapi_write(void *ctx, fmed_filt *d)
 		d->snd_output_pause = 0;
 		d->track->cmd(d->trk, FMED_TRACK_PAUSE);
 		ffwas_stop(&mod->out);
-		return FMED_RMORE;
+		core->task(&w->task, FMED_TASK_DEL);
+		return FMED_RASYNC;
 	}
 
 	while (d->datalen != 0) {
@@ -527,8 +551,6 @@ static void* wasapi_in_open(fmed_filt *d)
 	w = ffmem_tcalloc1(wasapi_in);
 	if (w == NULL)
 		return NULL;
-	w->tmr = FF_BADTMR;
-	ffkev_init(&w->evtmr);
 	w->task.handler = d->handler;
 	w->task.param = d->trk;
 
@@ -543,21 +565,28 @@ static void* wasapi_in_open(fmed_filt *d)
 		goto fail;
 	}
 
+	flags = (lpback) ? FFWAS_DEV_RENDER | FFWAS_LOOPBACK : FFWAS_DEV_CAPTURE;
+
 	if (wasapi_in_conf.exclusive == EXCL_ALLOWED && FMED_NULL != (lowlat = (int)fmed_getval("low_latency")))
 		excl = !!lowlat;
 	else if (wasapi_in_conf.exclusive == EXCL_ALWAYS)
 		excl = 1;
+	flags |= (excl) ? FFWAS_EXCL : 0;
 
-	w->wa.handler = &wasapi_oncapt;
-	w->wa.udata = w;
+	if (excl) {
+		if (mod->woh == NULL) {
+			if (NULL == (mod->woh = ffwoh_create()))
+				goto fail;
+			fflk_setup();
+		}
+		ffwas_excl(&w->wa, mod->woh, &wasapi_oncapt, w);
+	}
 	ffpcm_fmtcopy(&fmt, &d->audio.fmt);
 	in_fmt = fmt;
 
 again:
 	dbglog(core, d->trk, NULL, "opening device #%u, fmt:%s/%u/%u, excl:%u"
 		, dev.idx, ffpcm_fmtstr(fmt.format), fmt.sample_rate, fmt.channels, excl);
-	flags = (lpback) ? FFWAS_DEV_RENDER | FFWAS_LOOPBACK : FFWAS_DEV_CAPTURE;
-	flags |= (excl) ? FFWAS_EXCL : 0;
 	r = ffwas_open(&w->wa, dev.id, &fmt, wasapi_in_conf.buflen, flags);
 
 	if (r != 0) {
@@ -591,20 +620,12 @@ again:
 		goto fail;
 	}
 
-	if (lpback) {
-		if (FF_BADTMR == (w->tmr = fftmr_create(0))) {
-			syserrlog(core, d->trk, "wasapi", "%s", "fftmr_create()");
+	if (!excl) {
+		uint nfy_int_ms = ffpcm_time(ffwas_buf_samples(&w->wa) / 4, fmt.sample_rate);
+		w->tmr.handler = &wasapi_ontmr_capt;
+		w->tmr.param = w;
+		if (0 != core->timer(&w->tmr, nfy_int_ms, 0))
 			goto fail;
-		}
-		w->evtmr.oneshot = 0;
-		w->evtmr.handler = &wasapi_oncapt;
-		w->evtmr.udata = w;
-		uint nfy_int_ms = ffpcm_time(w->wa.nfy_interval, fmt.sample_rate);
-		if (0 != fftmr_start(w->tmr, core->kq, ffkev_ptr(&w->evtmr), nfy_int_ms)) {
-			syserrlog(core, d->trk, NULL, "%s", "fftmr_start()");
-			goto fail;
-		}
-		dbglog(core, d->trk, NULL, "started timer, interval:%u msec", nfy_int_ms);
 	}
 
 	r = ffwas_start(&w->wa);
@@ -635,21 +656,21 @@ fail:
 static void wasapi_in_close(void *ctx)
 {
 	wasapi_in *w = ctx;
-	if (w->tmr != FF_BADTMR)
-		fftmr_close(w->tmr, core->kq);
-	ffkev_fin(&w->evtmr);
+	core->timer(&w->tmr, 0, 0);
 	core->task(&w->task, FMED_TASK_DEL);
 	ffwas_capt_close(&w->wa);
 	ffmem_free(w);
 }
 
+static void wasapi_ontmr_capt(const fftime *now, void *param)
+{
+	wasapi_in *w = param;
+	w->task.handler(w->task.param);
+}
+
 static void wasapi_oncapt(void *udata)
 {
 	wasapi_in *w = udata;
-
-	if (w->lpback) {
-		fftmr_read(mod->tmr);
-	}
 
 	if (!w->async)
 		return;
@@ -675,6 +696,7 @@ static int wasapi_in_read(void *ctx, fmed_filt *d)
 	}
 	if (r == 0) {
 		w->async = 1;
+		ffwas_async(&w->wa, 1);
 		return FMED_RASYNC;
 	}
 
