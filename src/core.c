@@ -600,7 +600,7 @@ void core_free(void)
 	_fmed_track.cmd(NULL, FMED_TRACK_STOPALL);
 
 	if (fmed->kq != FF_BADFD) {
-		ffkqu_post_attach(FF_BADFD);
+		ffkqu_post_detach(&fmed->kqpost, fmed->kq);
 		ffkqu_close(fmed->kq);
 	}
 
@@ -838,9 +838,9 @@ static int core_open(void)
 		return 1;
 	}
 	core->kq = fmed->kq;
-	ffkqu_post_attach(fmed->kq);
+	ffkqu_post_attach(&fmed->kqpost, fmed->kq);
 
-	fmed->pkqutime = ffkqu_settm(&fmed->kqutime, (uint)-1);
+	ffkqu_settm(&fmed->kqutime, (uint)-1);
 	ffkev_init(&fmed->evposted);
 	fmed->evposted.oneshot = 0;
 	fmed->evposted.handler = &core_posted;
@@ -851,25 +851,27 @@ static int core_open(void)
 
 void core_work(void)
 {
-	ffkqu_entry *ents = ffmem_tcalloc(ffkqu_entry, FMED_KQ_EVS);
+	ffkqu_entry *ents = ffmem_callocT(FMED_KQ_EVS, ffkqu_entry);
 	if (ents == NULL)
 		return;
 
 	while (!fmed->stopped) {
 
-		int i;
-		int nevents = ffkqu_wait(fmed->kq, ents, FMED_KQ_EVS, fmed->pkqutime);
+		uint nevents = ffkqu_wait(fmed->kq, ents, FMED_KQ_EVS, &fmed->kqutime);
 
-		for (i = 0;  i < nevents;  i++) {
+		if ((int)nevents < 0) {
+			if (fferr_last() != EINTR) {
+				syserrlog(core, NULL, "core", "%s", ffkqu_wait_S);
+				break;
+			}
+			continue;
+		}
+
+		for (uint i = 0;  i != nevents;  i++) {
 			ffkqu_entry *ev = &ents[i];
 			ffkev_call(ev);
 
 			fftask_run(&fmed->taskmgr);
-		}
-
-		if (nevents == -1 && fferr_last() != EINTR) {
-			syserrlog(core, NULL, "core", "%s", ffkqu_wait_S);
-			break;
 		}
 	}
 
@@ -958,7 +960,7 @@ static ssize_t core_cmd(uint signo, ...)
 	case FMED_STOP:
 		core_sigmods(signo);
 		fmed->stopped = 1;
-		ffkqu_post(fmed->kq, &fmed->evposted, NULL);
+		ffkqu_post(&fmed->kqpost, &fmed->evposted);
 		break;
 
 	case FMED_FILETYPE:
@@ -989,7 +991,7 @@ static void core_task(fftask *task, uint cmd)
 
 	if (cmd == FMED_TASK_POST) {
 		if (1 == fftask_post(&fmed->taskmgr, task))
-			ffkqu_post(fmed->kq, &fmed->evposted, NULL);
+			ffkqu_post(&fmed->kqpost, &fmed->evposted);
 	}
 }
 

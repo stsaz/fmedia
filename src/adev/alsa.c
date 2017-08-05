@@ -468,7 +468,7 @@ static int alsa_write(void *ctx, fmed_filt *d)
 		d->snd_output_pause = 0;
 		d->track->cmd(d->trk, FMED_TRACK_PAUSE);
 		ffalsa_stop(&mod->out);
-		return FMED_RMORE;
+		return FMED_RASYNC;
 	}
 
 	while (d->datalen != 0) {

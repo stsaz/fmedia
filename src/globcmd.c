@@ -181,15 +181,11 @@ static void globcmd_free(void)
 
 static int globcmd_listen(void)
 {
-	if (FF_BADFD == (g->kev.fd = ffpipe_create_named(g->pipename_full.ptr))) {
+	if (FF_BADFD == (g->kev.fd = ffpipe_create_named(g->pipename_full.ptr, SOCK_NONBLOCK))) {
 		syserrlog(core, NULL, "globcmd", "pipe create: %s", g->pipename_full.ptr);
 		goto end;
 	}
 	dbglog(core, NULL, "globcmd", "created pipe: %s", g->pipename_full.ptr);
-
-#ifdef FF_UNIX
-	ffskt_nblock(g->kev.fd, 1);
-#endif
 
 	g->kev.udata = g;
 	g->kev.oneshot = 0;

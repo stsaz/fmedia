@@ -1,7 +1,7 @@
 ---------------
 OVERVIEW
 ---------------
-fmedia is a fast asynchronous media player/recorder/converter for Windows and Linux.  Its goal is to provide smooth playback even if input device is very slow and unresponsive.  The architecture allows to extend the functionality of the application in any way: adding a new audio input/output format, a new DSP filter or even a new GUI.  fmedia is very small and fast: it has low CPU & memory consumption making it ideal to listen to music or process audio files while running on a notebook's battery.
+fmedia is a fast asynchronous media player/recorder/converter for Windows, Linux and FreeBSD.  Its goal is to provide smooth playback even if input device is very slow and unresponsive.  The architecture allows to extend the functionality of the application in any way: adding a new audio input/output format, a new DSP filter or even a new GUI.  fmedia is very small and fast: it has low CPU & memory consumption making it ideal to listen to music or process audio files while running on a notebook's battery.
 
 fmedia can decode: .mp3, .ogg (Vorbis, Opus), .opus, .m4a/.mp4 (AAC, ALAC, MPEG), .mka/.mkv (AAC, ALAC, MPEG, Vorbis), .avi (AAC, MPEG), .mpc, .flac, .ape, .wv, .wav.
 
@@ -128,7 +128,7 @@ BUILD ON LINUX
 4. Build fmedia:
 
 	cd fmedia
-	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:../ff-3pt/linux-amd64
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:../ff-3pt-bin/linux-amd64
 	make install
 
 	You can explicitly specify path to each of FF source repositories, e.g.:
@@ -160,13 +160,13 @@ BUILD ON LINUX FOR WINDOWS
 4. Build with mingw (64-bit):
 
 	cd fmedia
-	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:../ff-3pt/win-amd64
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:../ff-3pt-bin/win-amd64
 	mingw64-make OS=win CPREFIX=x86_64-w64-mingw32- install
 
 	Build with mingw (32-bit):
 
 	cd fmedia
-	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:../ff-3pt/win-i686
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:../ff-3pt-bin/win-i686
 	mingw32-make OS=win ARCH=i686 CPREFIX=i686-w64-mingw32- install
 
 5. Ready!

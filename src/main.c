@@ -7,13 +7,15 @@ Copyright (c) 2015 Simon Zolin */
 #include <FF/data/psarg.h>
 #include <FF/data/conf.h>
 #include <FF/data/utf8.h>
-#include <FF/dir.h>
+#include <FF/sys/dir.h>
 #include <FF/path.h>
 #include <FF/time.h>
 #include <FFOS/sig.h>
 #include <FFOS/error.h>
 #include <FFOS/process.h>
 
+
+#define FMED_CMDHELP_FILE  "help.txt"
 
 static fmed_cmd *gcmd;
 #define fmed  gcmd
@@ -135,7 +137,7 @@ static int fmed_arg_usage(void)
 	fffd f = FF_BADFD;
 	int r = FFPARS_ESYS;
 
-	if (NULL == (fn = core->getpath(FFSTR("help.txt"))))
+	if (NULL == (fn = core->getpath(FFSTR(FMED_CMDHELP_FILE))))
 		goto done;
 
 	if (FF_BADFD == (f = fffile_open(fn, O_RDONLY | O_NOATIME)))
@@ -172,11 +174,12 @@ static int fmed_arg_listdev(void)
 {
 	fmed_adev_ent *ents = NULL;
 	const fmed_modinfo *mod;
-	const fmed_adev *adev;
+	const fmed_adev *adev = NULL;
 	uint i, ndev;
 	ffarr buf = {0};
 
-	ffarr_alloc(&buf, 1024);
+	if (NULL == ffarr_alloc(&buf, 1024))
+		goto end;
 
 	if (NULL == (mod = core->getmod2(FMED_MOD_INFO_ADEV_OUT, NULL, 0))
 		|| NULL == (adev = mod->m->iface("adev")))
@@ -204,9 +207,9 @@ static int fmed_arg_listdev(void)
 		ffstr_catfmt(&buf, "device #%u: %s\n", i + 1, ents[i].name);
 	}
 
-	fffile_write(ffstdout, buf.ptr, buf.len);
-
 end:
+	if (buf.len != 0)
+		fffile_write(ffstdout, buf.ptr, buf.len);
 	ffarr_free(&buf);
 	if (ents != NULL)
 		adev->listfree(ents);
@@ -653,8 +656,8 @@ int main(int argc, char **argv, char **env)
 		if (gcmd->bgchild)
 			ffterm_detach();
 		else {
-			fffd ps = ffps_createself_bg("--background-child");
-			if (ps == FF_BADFD) {
+			ffps ps = ffps_createself_bg("--background-child");
+			if (ps == FFPS_INV) {
 				syserrlog(core, NULL, "core", "failed to spawn background process");
 				goto end;
 

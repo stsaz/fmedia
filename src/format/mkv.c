@@ -5,7 +5,7 @@ Copyright (c) 2016 Simon Zolin */
 
 #include <FF/data/mkv.h>
 #include <FF/audio/pcm.h>
-#include <FF/data/mmtag.h>
+#include <FF/mtags/mmtag.h>
 #include <FF/array.h>
 #include <FFOS/error.h>
 

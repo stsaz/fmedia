@@ -6,7 +6,7 @@ Copyright (c) 2015 Simon Zolin */
 #include <FF/audio/mpeg.h>
 #include <FF/audio/mp3lame.h>
 #include <FF/audio/pcm.h>
-#include <FF/data/mmtag.h>
+#include <FF/mtags/mmtag.h>
 #include <FF/array.h>
 
 
@@ -175,7 +175,7 @@ static void* mpeg_open(fmed_filt *d)
 	fmed_mpeg *m = ffmem_tcalloc1(fmed_mpeg);
 	if (m == NULL)
 		return NULL;
-	ffmpg_init(&m->mpg);
+	ffmpg_fopen(&m->mpg);
 	m->mpg.codepage = core->getval("codepage");
 
 	if ((int64)d->input.size != FMED_NULL) {
@@ -352,6 +352,7 @@ static void* mpeg_dec_open(fmed_filt *d)
 	if (NULL == (m = ffmem_tcalloc1(mpeg_dec)))
 		return NULL;
 
+	ffmpg_init();
 	if (0 != ffmpg_open(&m->mpg, fmed_getval("mpeg_delay"), 0)) {
 		mpeg_dec_close(m);
 		return NULL;
@@ -662,7 +663,8 @@ static int mpeg_out_config(ffpars_ctx *ctx)
 
 static int mpeg_have_trkmeta(fmed_filt *d)
 {
-	fmed_trk_meta meta = {0};
+	fmed_trk_meta meta;
+	ffmem_tzero(&meta);
 	if (0 == d->track->cmd2(d->trk, FMED_TRACK_META_ENUM, &meta))
 		return 1;
 	return 0;
@@ -691,7 +693,8 @@ static void mpeg_out_close(void *ctx)
 static int mpeg_out_addmeta(mpeg_out *m, fmed_filt *d)
 {
 	ssize_t r;
-	fmed_trk_meta meta = {0};
+	fmed_trk_meta meta;
+	ffmem_tzero(&meta);
 	meta.flags = FMED_QUE_UNIQ;
 
 	while (0 == d->track->cmd2(d->trk, FMED_TRACK_META_ENUM, &meta)) {

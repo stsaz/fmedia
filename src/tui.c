@@ -266,7 +266,8 @@ static void tui_close(void *ctx)
 
 static void tui_addtags(tui *t, fmed_que_entry *qent, ffarr *buf)
 {
-	fmed_trk_meta meta = {0};
+	fmed_trk_meta meta;
+	ffmem_tzero(&meta);
 	while (0 == t->d->track->cmd2(t->d->trk, FMED_TRACK_META_ENUM, &meta)) {
 		ffstr_catfmt(buf, "%S\t%S\n", &meta.name, &meta.val);
 	}

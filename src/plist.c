@@ -8,7 +8,7 @@ Copyright (c) 2015 Simon Zolin */
 #include <FF/data/cue.h>
 #include <FF/net/url.h>
 #include <FF/path.h>
-#include <FF/dir.h>
+#include <FF/sys/dir.h>
 #include <FF/data/utf8.h>
 #include <FFOS/error.h>
 

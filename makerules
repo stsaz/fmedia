@@ -73,7 +73,7 @@ BIN_O += $(RES)
 endif
 
 $(BIN): $(BIN_O)
-	$(LD)  $(BIN_O) $(LDFLAGS) $(LD_LPTHREAD) -lm  -o$@
+	$(LD)  $(BIN_O) $(LDFLAGS) $(LD_LMATH)  -o$@
 
 
 #
@@ -85,6 +85,7 @@ CORE_O := $(OBJ_DIR)/core.o \
 	$(OBJ_DIR)/globcmd.o \
 	$(FF_O) \
 	$(FFOS_WREG) \
+	$(FFOS_THD) \
 	$(FF_OBJ_DIR)/ffsys.o \
 	$(FF_OBJ_DIR)/fftmr.o \
 	$(FF_OBJ_DIR)/ffrbtree.o \
@@ -103,10 +104,11 @@ core.$(SO): $(CORE_O)
 #
 TUI_O := \
 	$(OBJ_DIR)/tui.o \
+	$(FFOS_THD) \
 	$(FF_O) \
 	$(FF_OBJ_DIR)/ffpcm.o
 tui.$(SO): $(TUI_O)
-	$(LD) -shared $(TUI_O) $(LDFLAGS) $(LD_LDL) $(LD_LMATH) $(LD_LPTHREAD)  -o$@
+	$(LD) -shared $(TUI_O) $(LDFLAGS) $(LD_LMATH) $(LD_LPTHREAD)  -o$@
 
 
 #

@@ -4,7 +4,7 @@ Copyright (c) 2016 Simon Zolin */
 #include <fmedia.h>
 
 #include <FF/audio/vorbis.h>
-#include <FF/data/mmtag.h>
+#include <FF/mtags/mmtag.h>
 
 
 static const fmed_core *core;

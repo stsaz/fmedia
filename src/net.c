@@ -283,7 +283,7 @@ static void* icy_open(fmed_filt *d)
 	c->out_copy = (v != FMED_NULL);
 	c->save_oncmd = (v == FMED_OUTCP_CMD);
 
-	if (NULL == (c->bufs = ffmem_tcalloc(ffstr, net->conf.nbufs))) {
+	if (NULL == (c->bufs = ffmem_callocT(net->conf.nbufs, ffstr))) {
 		syserrlog(d->trk, "%s", ffmem_alloc_S);
 		goto done;
 	}

@@ -24,10 +24,10 @@ mixer                 mixer
 
 
 #define FMED_VER_MAJOR  0
-#define FMED_VER_MINOR  28
+#define FMED_VER_MINOR  29
 #define FMED_VER_FULL  ((FMED_VER_MAJOR << 8) | FMED_VER_MINOR)
-#define FMED_VER  "0.28"
-#define FMED_VER_CORE  ((FMED_VER_MAJOR << 8) | 27)
+#define FMED_VER  "0.29"
+#define FMED_VER_CORE  ((FMED_VER_MAJOR << 8) | 29)
 #define FMED_HOMEPAGE  "http://fmedia.firmdev.com"
 
 // CORE

@@ -796,7 +796,8 @@ static int trk_meta_enum(fm_trk *t, fmed_trk_meta *meta)
 
 static int trk_meta_copy(fm_trk *t, fm_trk *src)
 {
-	fmed_trk_meta meta = {0};
+	fmed_trk_meta meta;
+	ffmem_tzero(&meta);
 	meta.flags = FMED_QUE_UNIQ;
 	while (0 == trk_meta_enum(src, &meta)) {
 		trk_setvalstr4(t, meta.name.ptr, (void*)&meta.val, FMED_TRK_META | FMED_TRK_VALSTR);

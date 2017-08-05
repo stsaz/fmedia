@@ -868,7 +868,7 @@ void gui_dev_show(void)
 	ffui_viewitem it = {0};
 	fmed_adev_ent *ents = NULL;
 	const fmed_modinfo *mod;
-	const fmed_adev *adev;
+	const fmed_adev *adev = NULL;
 	uint i, ndev;
 	char buf[64];
 	size_t n;

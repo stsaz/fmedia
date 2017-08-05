@@ -8,6 +8,26 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v0.29 - Jul 31, 2017
+
+ + support FreeBSD
+ + OSS playback
+
+ * FLAC: split flac.encode module into flac.encode and flac.out
+ - .m3u parse: handle empty lines
+ - .pls parse: skip entries with empty URL
+ - MPEG decode: correct positioning
+ - .mp3: invalid bitrate value could be shown for some CBR streams
+
+ * WASAPI: using timer for shared mode playback/capture,
+   don't use event notifications (80% less kernel/userspace context switches)
+ * WASAPI: more audio formats can be used in exclusive mode
+ - WASAPI: exclusive mode capture: fix duplicate buffers output
+
+ + TUI: add Mute command ('m')
+ + net.icy: timeout network I/O operations
+
+
 fmedia v0.28 - Jun 24, 2017
 
  + --out-copy=cmd: save currently playing track from Internet radio by command ('T')

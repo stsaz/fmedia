@@ -4,7 +4,7 @@ Copyright (c) 2015 Simon Zolin */
 #include <fmedia.h>
 
 #include <FF/audio/wavpack.h>
-#include <FF/data/mmtag.h>
+#include <FF/mtags/mmtag.h>
 #include <FF/number.h>
 
 

@@ -38,8 +38,8 @@ typedef struct fmedia {
 	fflist trks; //fm_trk[]
 
 	fffd kq;
-	const ffkqu_time *pkqutime;
 	ffkqu_time kqutime;
+	ffkevpost kqpost;
 
 	uint stopped :1
 		, stop_sig :1
