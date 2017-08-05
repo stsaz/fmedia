@@ -154,12 +154,19 @@ static const ffpars_arg fmed_confusr_args[] = {
 
 static int allowed_mod(const ffstr *name)
 {
-#ifdef FF_WIN
+#if defined FF_WIN
 	if (ffstr_matchcz(name, "alsa.")
-		|| ffstr_matchcz(name, "pulse."))
-#else
+		|| ffstr_matchcz(name, "pulse.")
+		|| ffstr_matchcz(name, "oss."))
+#elif defined FF_LINUX
 	if (ffstr_matchcz(name, "wasapi.")
-		|| ffstr_matchcz(name, "direct-sound."))
+		|| ffstr_matchcz(name, "direct-sound.")
+		|| ffstr_matchcz(name, "oss."))
+#elif defined FF_BSD
+	if (ffstr_matchcz(name, "wasapi.")
+		|| ffstr_matchcz(name, "direct-sound.")
+		|| ffstr_matchcz(name, "alsa.")
+		|| ffstr_matchcz(name, "pulse."))
 #endif
 		return 0;
 	return 1;

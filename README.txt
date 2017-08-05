@@ -76,6 +76,7 @@ OUTPUT
 	. WASAPI Playback
 	. ALSA Playback
 	. Pulse Audio Playback
+	. OSS Playback
 
 
 ---------------
