@@ -53,7 +53,6 @@ FF_EXP void core_free(void);
 
 static const fmed_mod* fmed_getmod_core(const fmed_core *_core);
 extern const fmed_mod* fmed_getmod_file(const fmed_core *_core);
-extern const fmed_mod* fmed_getmod_tui(const fmed_core *_core);
 extern const fmed_mod* fmed_getmod_sndmod(const fmed_core *_core);
 extern const fmed_mod* fmed_getmod_queue(const fmed_core *_core);
 extern const fmed_mod* fmed_getmod_globcmd(const fmed_core *_core);
@@ -189,7 +188,7 @@ static int fmed_conf_modconf(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
 		return 0;
 	}
 
-	if (ffstr_eqcz(name, "#tui.tui") && (fmed->cmd.notui || fmed->cmd.gui)) {
+	if (ffstr_eqcz(name, "tui.tui") && (fmed->cmd.notui || fmed->cmd.gui)) {
 		ffpars_ctx_skip(ctx);
 		return 0;
 	}
@@ -647,8 +646,6 @@ static const fmed_modinfo* core_insmod(const char *sname, ffpars_ctx *ctx)
 			getmod = &fmed_getmod_file;
 		else if (ffstr_eqcz(&s, "#soundmod"))
 			getmod = &fmed_getmod_sndmod;
-		else if (ffstr_eqcz(&s, "#tui"))
-			getmod = &fmed_getmod_tui;
 		else if (ffstr_eqcz(&s, "#queue"))
 			getmod = &fmed_getmod_queue;
 		else if (ffstr_eqcz(&s, "#globcmd")) {

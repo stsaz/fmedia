@@ -213,7 +213,7 @@ static int trk_setout(fm_trk *t)
 		if (fmed->cmd.gui)
 			addfilter(t, "gui.gui");
 		else if (!fmed->cmd.notui)
-			addfilter(t, "#tui.tui");
+			addfilter(t, "tui.tui");
 	}
 
 	if (t->props.type != FMED_TRK_TYPE_MIXOUT && !stream_copy) {

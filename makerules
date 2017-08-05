@@ -3,7 +3,7 @@ OBJ_DIR := .
 BIN_CONTAINERS := avi.$(SO) mkv.$(SO) mp4.$(SO) ogg.$(SO)
 BIN_ACODECS := wav.$(SO) \
 	aac.$(SO) alac.$(SO) ape.$(SO) flac.$(SO) mpeg.$(SO) mpc.$(SO) opus.$(SO) vorbis.$(SO) wavpack.$(SO)
-BINS := $(BIN) core.$(SO) net.$(SO) plist.$(SO) mixer.$(SO) \
+BINS := $(BIN) core.$(SO) tui.$(SO) net.$(SO) plist.$(SO) mixer.$(SO) \
 	soxr.$(SO) \
 	$(BIN_CONTAINERS) \
 	$(BIN_ACODECS)
@@ -78,7 +78,6 @@ CORE_O := $(OBJ_DIR)/core.o \
 	$(OBJ_DIR)/track.o \
 	$(OBJ_DIR)/file.o \
 	$(OBJ_DIR)/soundmod.o \
-	$(OBJ_DIR)/tui.o \
 	$(OBJ_DIR)/queue.o \
 	$(OBJ_DIR)/globcmd.o \
 	$(FF_O) \
@@ -96,6 +95,15 @@ CORE_O := $(OBJ_DIR)/core.o \
 	$(FF_OBJ_DIR)/crc.o
 core.$(SO): $(CORE_O)
 	$(LD) -shared $(CORE_O) $(LDFLAGS) $(LD_LDL) $(LD_LMATH) $(LD_LPTHREAD)  -o$@
+
+
+#
+TUI_O := \
+	$(OBJ_DIR)/tui.o \
+	$(FF_O) \
+	$(FF_OBJ_DIR)/ffpcm.o
+tui.$(SO): $(TUI_O)
+	$(LD) -shared $(TUI_O) $(LDFLAGS) $(LD_LDL) $(LD_LMATH) $(LD_LPTHREAD)  -o$@
 
 
 #

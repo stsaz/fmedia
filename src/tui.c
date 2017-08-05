@@ -22,6 +22,7 @@ typedef struct gtui {
 
 	ffthd th;
 	uint rec :1;
+	uint mute :1;
 } gtui;
 
 static gtui *gt;
@@ -74,6 +75,7 @@ enum CMDS {
 	CMD_VOL,
 	CMD_VOLUP,
 	CMD_VOLDOWN,
+	CMD_MUTE,
 
 	CMD_RM,
 	CMD_DELFILE,
@@ -132,7 +134,7 @@ static const ffpars_arg tui_conf_args[] = {
 };
 
 
-const fmed_mod* fmed_getmod_tui(const fmed_core *_core)
+FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 {
 	core = _core;
 	return &fmed_tui_mod;
@@ -157,6 +159,10 @@ static int tui_mod_conf(const char *name, ffpars_ctx *ctx)
 static int tui_sig(uint signo)
 {
 	switch (signo) {
+	case FMED_SIG_INIT:
+		ffmem_init();
+		break;
+
 	case FMED_OPEN:
 		gt = ffmem_tcalloc1(gtui);
 		fflk_init(&gt->lktrk);
@@ -345,22 +351,30 @@ static void tui_seek(tui *t, uint cmd, void *udata)
 
 static void tui_vol(tui *t, uint cmd)
 {
+	uint vol = 0;
 	int db;
 
 	switch (cmd & ~FFKEY_MODMASK) {
 	case CMD_VOLUP:
-		gt->vol = ffmin(gt->vol + VOL_STEP, VOL_MAX);
+		vol = gt->vol = ffmin(gt->vol + VOL_STEP, VOL_MAX);
+		gt->mute = 0;
 		break;
 
 	case CMD_VOLDOWN:
-		gt->vol = ffmax((int)gt->vol - VOL_STEP, 0);
+		vol = gt->vol = ffmax((int)gt->vol - VOL_STEP, 0);
+		gt->mute = 0;
+		break;
+
+	case CMD_MUTE:
+		gt->mute = !gt->mute;
+		vol = (gt->mute) ? 0 : gt->vol;
 		break;
 	}
 
-	if (gt->vol <= 100)
-		db = ffpcm_vol2db(gt->vol, VOL_LO) * 100;
+	if (vol <= 100)
+		db = ffpcm_vol2db(vol, VOL_LO) * 100;
 	else
-		db = ffpcm_vol2db_inc(gt->vol - 100, VOL_MAX - 100, VOL_HI) * 100;
+		db = ffpcm_vol2db_inc(vol - 100, VOL_MAX - 100, VOL_HI) * 100;
 	t->d->audio.gain = db;
 	core->log(FMED_LOG_USER, t->d->trk, NULL, "Volume: %.02FdB", (double)db / 100);
 }
@@ -564,6 +578,7 @@ static struct key hotkeys[] = {
 	{ 'd',	CMD_RM | _CMD_CURTRK | _CMD_CORE,	&tui_rmfile },
 	{ 'h',	_CMD_F1,	&tui_help },
 	{ 'i',	CMD_SHOWTAGS | _CMD_F1 | _CMD_CORE,	&tui_op },
+	{ 'm',	CMD_MUTE | _CMD_CURTRK | _CMD_CORE | _CMD_PLAYONLY,	&tui_vol },
 	{ 'n',	CMD_NEXT | _CMD_F1 | _CMD_CORE,	&tui_op },
 	{ 'p',	CMD_PREV | _CMD_F1 | _CMD_CORE,	&tui_op },
 	{ 'q',	CMD_QUIT | _CMD_F1 | _CMD_CORE,	&tui_op },
