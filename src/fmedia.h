@@ -18,6 +18,7 @@ mixer                 mixer
 #include <FF/audio/pcm.h>
 #include <FF/data/parse.h>
 #include <FF/sys/taskqueue.h>
+#include <FF/sys/timer-queue.h>
 #include <FFOS/file.h>
 #include <FFOS/error.h>
 
@@ -136,6 +137,11 @@ struct fmed_core {
 	/**
 	@cmd: enum FMED_TASK. */
 	void (*task)(fftask *task, uint cmd);
+
+	/**
+	@interval:  >0: periodic;  <0: one-shot;  0: disable.
+	Return 0 on success. */
+	int (*timer)(fftmrq_entry *tmr, int64 interval, uint flags);
 };
 
 enum FMED_INSTANCE_MODE {

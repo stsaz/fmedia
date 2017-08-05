@@ -30,6 +30,9 @@ typedef struct fmedia {
 	fftaskmgr taskmgr;
 	ffkevent evposted;
 
+	fftimer_queue tmrq;
+	uint period;
+
 	uint trkid;
 	fflist trks; //fm_trk[]
 

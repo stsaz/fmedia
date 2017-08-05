@@ -83,6 +83,8 @@ static const void* core_getmod(const char *name);
 const void* core_getmod2(uint flags, const char *name, ssize_t name_len);
 static const fmed_modinfo* core_insmod(const char *name, ffpars_ctx *ctx);
 static void core_task(fftask *task, uint cmd);
+static int core_timer(fftmrq_entry *tmr, int64 interval, uint flags);
+
 static fmed_core _fmed_core = {
 	0, NULL, 0,
 	&core_getval,
@@ -91,6 +93,7 @@ static fmed_core _fmed_core = {
 	&core_sig, &core_cmd,
 	&core_getmod, &core_getmod2, &core_insmod,
 	&core_task,
+	.timer = &core_timer,
 };
 fmed_core *core = &_fmed_core;
 
@@ -548,6 +551,7 @@ fmed_core* core_init(fmed_cmd **ptr, char **argv)
 
 	fmed->kq = FF_BADFD;
 	fftask_init(&fmed->taskmgr);
+	fftmrq_init(&fmed->tmrq);
 	fflist_init(&fmed->trks);
 	fflist_init(&fmed->mods);
 	core_insmod("#core.core", NULL);
@@ -581,6 +585,8 @@ void core_free(void)
 {
 	core_mod *mod;
 	fflist_item *next;
+
+	fftmrq_destroy(&fmed->tmrq, fmed->kq);
 
 	_fmed_track.cmd(NULL, FMED_TRACK_STOPALL);
 
@@ -972,6 +978,41 @@ static void core_task(fftask *task, uint cmd)
 		if (1 == fftask_post(&fmed->taskmgr, task))
 			ffkqu_post(fmed->kq, &fmed->evposted, NULL);
 	}
+}
+
+static int core_timer(fftmrq_entry *tmr, int64 interval, uint flags)
+{
+	dbglog(core, NULL, "core", "timer:%p  interval:%u  handler:%p  param:%p"
+		, tmr, interval, tmr->handler, tmr->param);
+
+	if (fftmrq_active(&fmed->tmrq, tmr))
+		fftmrq_rm(&fmed->tmrq, tmr);
+
+	if (interval == 0) {
+		if (fftmrq_empty(&fmed->tmrq)) {
+			fftmrq_destroy(&fmed->tmrq, fmed->kq);
+			dbglog(core, NULL, "core", "stopped kernel timer", 0);
+		}
+		return 0;
+	}
+
+	if (fftmrq_started(&fmed->tmrq) && ffabs(interval) < fmed->period) {
+		fftmrq_destroy(&fmed->tmrq, fmed->kq);
+		dbglog(core, NULL, "core", "stopped kernel timer", 0);
+	}
+
+	if (!fftmrq_started(&fmed->tmrq)) {
+		fftmrq_init(&fmed->tmrq);
+		if (0 != fftmrq_start(&fmed->tmrq, fmed->kq, ffabs(interval))) {
+			syserrlog(core, NULL, "core", "fftmrq_start()", 0);
+			return -1;
+		}
+		fmed->period = ffabs(interval);
+		dbglog(core, NULL, "core", "started kernel timer  interval:%u", ffabs(interval));
+	}
+
+	fftmrq_add(&fmed->tmrq, tmr, interval);
+	return 0;
 }
 
 static int64 core_getval(const char *name)
