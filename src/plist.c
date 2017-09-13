@@ -39,6 +39,7 @@ typedef struct cue {
 	ffcuep cue;
 	ffcue cu;
 	fmed_que_entry ent;
+	fmed_que_entry *qu_cur;
 	struct { FFARR(ffstr) } metas;
 	uint nmeta;
 	ffarr trackno;
@@ -400,6 +401,7 @@ static void* cue_open(fmed_filt *d)
 	}
 
 	ffcue_init(&c->cue);
+	c->qu_cur = (void*)fmed_getval("queue_item");
 	c->cu.options = gaps;
 	c->utf8 = 1;
 	return c;
@@ -424,10 +426,7 @@ static int cue_process(void *ctx, fmed_filt *d)
 	ffarr val = {0};
 	ffcuetrk *ctrk;
 	uint codepage = core->getval("codepage");
-	fmed_que_entry *first, *cur;
-
-	first = (void*)fmed_getval("queue_item");
-	cur = first;
+	fmed_que_entry *cur;
 
 	ffstr_set(&in, d->data, d->datalen);
 	d->datalen = 0;
@@ -553,7 +552,7 @@ add:
 			c->artist_trk = 0;
 		}
 
-		c->ent.prev = cur;
+		c->ent.prev = c->qu_cur;
 		cur = (void*)qu->cmd2(FMED_QUE_ADD | FMED_QUE_NO_ONCHANGE | FMED_QUE_COPY_PROPS, &c->ent, 0);
 
 		const ffstr *m = c->metas.ptr;
@@ -562,6 +561,7 @@ add:
 			qu->cmd2(FMED_QUE_METASET, cur, (size_t)pair);
 		}
 		qu->cmd2(FMED_QUE_ADD | FMED_QUE_ADD_DONE, cur, 0);
+		c->qu_cur = cur;
 
 next:
 		/* 'metas': GLOBAL TRACK_N TRACK_N+1
@@ -570,7 +570,7 @@ next:
 		c->metas.len = c->gmeta + c->metas.len - c->nmeta;
 	}
 
-	qu->cmd(FMED_QUE_RM, first);
+	qu->cmd(FMED_QUE_RM, (void*)fmed_getval("queue_item"));
 	rc = FMED_RFIN;
 
 err:
