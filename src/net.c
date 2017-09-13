@@ -529,6 +529,12 @@ static int tcp_ioerr(icy *c)
 	ffskt_close(c->sk);
 	c->sk = FF_BADSKT;
 	ffaio_fin(&c->aio);
+
+	c->bufs[0].len = 0;
+	c->curbuf_len = 0;
+	c->wbuf = c->rbuf = 0;
+	c->lowat = 0;
+
 	c->state = I_ADDR;
 	dbglog(c->d->trk, "reconnecting...", 0);
 	return 0;
