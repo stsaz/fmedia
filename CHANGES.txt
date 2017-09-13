@@ -8,6 +8,14 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v0.29.2 - Sep 13, 2017
+
+ - wasapi.out: segfault after WASAPI sys error (v0.29 bug)
+ - net.icy: --out-copy: file-writing track didn't stop after reconnect
+ - net.icy: invalid data in buffers after reconnect
+ - .cue read: the last track was added as the first one (v0.28 bug)
+
+
 fmedia v0.29.1 - Aug 19, 2017
 
  - MPEG decode: invalid output frame after seeking (v0.29 bug)
