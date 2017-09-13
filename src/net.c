@@ -770,7 +770,8 @@ static int icy_process(void *ctx, fmed_filt *d)
 		fficy_parseinit(&c->icy, meta_int);
 		}
 
-		if (c->out_copy)
+		// "netin" may be initialized if we've reconnected after I/O failure
+		if (c->out_copy && c->netin == NULL)
 			c->netin = netin_create(c);
 
 		ffstr_set2(&c->data, &c->bufs[0]);
