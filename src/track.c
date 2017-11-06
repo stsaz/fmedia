@@ -398,6 +398,8 @@ static void trk_free(fm_trk *t)
 	fftree_node *node, *next;
 	int type = t->props.type;
 
+	core->task(&t->tsk, FMED_TASK_DEL);
+
 	if (fmed->cmd.print_time) {
 		fftime t2;
 		ffclk_get(&t2);
