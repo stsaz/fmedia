@@ -142,7 +142,9 @@ wav.$(SO): $(WAV_O)
 
 
 #
-MPEG_O := $(OBJ_DIR)/mpeg.o $(FF_O) \
+MPEG_O := $(OBJ_DIR)/mpeg.o \
+	$(OBJ_DIR)/mp3.o \
+	$(FF_O) \
 	$(FF_OBJ_DIR)/ffpcm.o \
 	$(FF_OBJ_DIR)/ffmpg.o \
 	$(FF_OBJ_DIR)/ffmpg-fmt.o \
