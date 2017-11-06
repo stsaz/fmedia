@@ -267,8 +267,10 @@ ape.$(SO): $(APE_O)
 
 #
 AAC_O := $(OBJ_DIR)/aac.o \
+	$(OBJ_DIR)/aac-adts.o \
 	$(FF_O) \
 	$(FF_OBJ_DIR)/ffaac.o \
+	$(FF_OBJ_DIR)/ffaac-adts.o \
 	$(FF_OBJ_DIR)/ffpcm.o
 aac.$(SO): $(AAC_O)
 	$(LD) -shared $(AAC_O) $(LDFLAGS) -lfdk-aac-ff  -o$@

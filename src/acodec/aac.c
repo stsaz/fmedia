@@ -6,7 +6,7 @@ Copyright (c) 2016 Simon Zolin */
 #include <FF/audio/aac.h>
 
 
-static const fmed_core *core;
+const fmed_core *core;
 
 //FMEDIA MODULE
 static const void* aac_iface(const char *name);
@@ -17,6 +17,8 @@ static const fmed_mod fmed_aac_mod = {
 	.ver = FMED_VER_FULL, .ver_core = FMED_VER_CORE,
 	&aac_iface, &aac_sig, &aac_destroy, &aac_conf
 };
+
+extern const fmed_filter aac_adts_input;
 
 //DECODE
 static void* aac_open(fmed_filt *d);
@@ -64,6 +66,8 @@ static const void* aac_iface(const char *name)
 		return &aac_input;
 	else if (!ffsz_cmp(name, "encode"))
 		return &aac_output;
+	else if (!ffsz_cmp(name, "in"))
+		return &aac_adts_input;
 	return NULL;
 }
 
