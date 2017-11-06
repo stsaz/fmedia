@@ -36,6 +36,7 @@ struct wasapi_out {
 
 	fftask task;
 	unsigned stop :1;
+	uint async :1;
 };
 
 enum { WAS_TRYOPEN, WAS_OPEN, WAS_DATA };
@@ -433,12 +434,18 @@ static void wasapi_close(void *ctx)
 static void wasapi_ontmr(const fftime *now, void *param)
 {
 	wasapi_out *w = param;
+	if (!w->async)
+		return;
+	w->async = 0;
 	w->task.handler(w->task.param);
 }
 
 static void wasapi_onplay(void *udata)
 {
 	wasapi_out *w = udata;
+	if (!w->async)
+		return;
+	w->async = 0;
 	core->task(&w->task, FMED_TASK_POST);
 }
 
@@ -491,6 +498,7 @@ static int wasapi_write(void *ctx, fmed_filt *d)
 			goto err;
 
 		} else if (r == 0) {
+			w->async = 1;
 			ffwas_async(&mod->out, 1);
 			return FMED_RASYNC;
 		}
@@ -511,6 +519,7 @@ static int wasapi_write(void *ctx, fmed_filt *d)
 			goto err;
 		}
 
+		w->async = 1;
 		ffwas_async(&mod->out, 1);
 		return FMED_RASYNC; //wait until all filled bytes are played
 	}
@@ -666,6 +675,9 @@ static void wasapi_in_close(void *ctx)
 static void wasapi_ontmr_capt(const fftime *now, void *param)
 {
 	wasapi_in *w = param;
+	if (!w->async)
+		return;
+	w->async = 0;
 	w->task.handler(w->task.param);
 }
 
