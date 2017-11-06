@@ -62,6 +62,7 @@ typedef struct nethttp {
 	fmed_filt *d;
 
 	fflist1_item recycled;
+	char *orighost;
 	char *host;
 	ffurl url;
 	ffiplist iplist;
@@ -299,6 +300,7 @@ static void* http_open(fmed_filt *d)
 	c->host = (void*)d->track->getvalstr(d->trk, "input");
 	if (NULL == (c->host = ffsz_alcopyz(c->host)))
 		goto done;
+	c->orighost = c->host;
 
 	if (NULL == (c->bufs = ffmem_callocT(net->conf.nbufs, ffstr))) {
 		syserrlog(d->trk, "%s", ffmem_alloc_S);
@@ -328,7 +330,9 @@ static void http_close(void *ctx)
 		ffskt_close(c->sk);
 		c->sk = FF_BADSKT;
 	}
-	ffmem_safefree(c->host);
+	if (c->host != c->orighost)
+		ffmem_safefree(c->host);
+	ffmem_safefree(c->orighost);
 	ffaio_fin(&c->aio);
 
 	uint i;
@@ -561,6 +565,14 @@ static int tcp_ioerr(nethttp *c)
 	c->sk = FF_BADSKT;
 	ffaio_fin(&c->aio);
 
+	if (c->host != c->orighost) {
+		ffmem_free(c->host);
+		c->host = c->orighost;
+	}
+	ffmem_tzero(&c->url);
+	ffmem_tzero(&c->iplist);
+	ffmem_tzero(&c->ip);
+
 	c->bufs[0].len = 0;
 	c->curbuf_len = 0;
 	c->wbuf = c->rbuf = 0;
@@ -719,7 +731,8 @@ static int http_parse(nethttp *c)
 			c->sk = FF_BADSKT;
 		}
 		ffaio_fin(&c->aio);
-		ffmem_free(c->host);
+		if (c->host != c->orighost)
+			ffmem_free(c->host);
 		if (NULL == (c->host = ffsz_alcopy(s.ptr, s.len))) {
 			syserrlog(c->d->trk, "%s", ffmem_alloc_S);
 			return -1;
