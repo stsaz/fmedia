@@ -122,7 +122,9 @@ static void* mpeg_dec_open(fmed_filt *d)
 		return NULL;
 
 	ffmpg_init();
-	if (0 != ffmpg_open(&m->mpg, fmed_getval("mpeg_delay"), 0)) {
+	int delay = fmed_getval("mpeg_delay");
+	delay = (delay != FMED_NULL) ? delay : 0;
+	if (0 != ffmpg_open(&m->mpg, delay, 0)) {
 		mpeg_dec_close(m);
 		return NULL;
 	}
