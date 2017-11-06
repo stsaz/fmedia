@@ -449,8 +449,10 @@ static int fmed_conf_fn(const char *filename, uint flags)
 
 	ffconf_scheminit(&ps, &pconf, &ctx);
 	if (FF_BADFD == (f = fffile_open(filename, O_RDONLY))) {
-		if (fferr_nofile(fferr_last()) && (flags & CONF_F_OPT))
-			return 0;
+		if (fferr_nofile(fferr_last()) && (flags & CONF_F_OPT)) {
+			r = 0;
+			goto fail;
+		}
 		syserrlog(core, NULL, "core", "%s: %s", fffile_open_S, filename);
 		goto fail;
 	}

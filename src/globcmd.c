@@ -43,7 +43,7 @@ typedef struct globcmd {
 static globcmd *g;
 
 static const ffpars_arg globcmd_conf_args[] = {
-	{ "pipe_name",  FFPARS_TCHARPTR | FFPARS_FNOTEMPTY | FFPARS_FSTRZ | FFPARS_FCOPY,  FFPARS_DSTOFF(globcmd, pipe_name) },
+	{ "pipe_name",  FFPARS_TCHARPTR | FFPARS_FNOTEMPTY | FFPARS_FSTRZ | FFPARS_FRECOPY,  FFPARS_DSTOFF(globcmd, pipe_name) },
 };
 
 static int globcmd_init(void);
