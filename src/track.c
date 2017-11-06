@@ -343,6 +343,7 @@ static void trk_copy_info(fmed_trk *dst, const fmed_trk *src)
 		dst->audio.until = FMED_NULL;
 		memset(&dst->aac, 0xff, FFOFF(fmed_trk, bits) - FFOFF(fmed_trk, aac));
 		dst->audio.decoder = "";
+		ffstr_null(&dst->aac.profile);
 		return;
 	}
 	ffmemcpy(&dst->audio, &src->audio, FFOFF(fmed_trk, bits) - FFOFF(fmed_trk, audio));

@@ -338,6 +338,7 @@ struct fmed_trk {
 	} audio;
 
 	struct {
+		ffstr profile;
 		int quality;
 		short bandwidth;
 	} aac;

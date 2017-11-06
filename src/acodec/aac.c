@@ -36,8 +36,10 @@ static struct aac_out_conf_t {
 	uint bandwidth;
 } aac_out_conf;
 
+static int aac_conf_aot(ffparser_schem *p, void *obj, const ffstr *val);
+
 static const ffpars_arg aac_out_conf_args[] = {
-	{ "profile",	FFPARS_TINT,  FFPARS_DSTOFF(struct aac_out_conf_t, aot) },
+	{ "profile",	FFPARS_TSTR,  FFPARS_DST(&aac_conf_aot) },
 	{ "quality",	FFPARS_TINT,  FFPARS_DSTOFF(struct aac_out_conf_t, qual) },
 	{ "afterburner",	FFPARS_TINT,  FFPARS_DSTOFF(struct aac_out_conf_t, afterburner) },
 	{ "bandwidth",	FFPARS_TINT,  FFPARS_DSTOFF(struct aac_out_conf_t, bandwidth) },
@@ -51,6 +53,8 @@ static int aac_out_encode(void *ctx, fmed_filt *d);
 static const fmed_filter aac_output = {
 	&aac_out_create, &aac_out_encode, &aac_out_free
 };
+
+static int aac_profile(const ffstr *name);
 
 
 FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
@@ -252,6 +256,13 @@ typedef struct aac_out {
 	ffaac_enc aac;
 } aac_out;
 
+static int aac_conf_aot(ffparser_schem *p, void *obj, const ffstr *val)
+{
+	if (0 == (aac_out_conf.aot = aac_profile(val)))
+		return FFPARS_EBADVAL;
+	return 0;
+}
+
 static int aac_out_config(ffpars_ctx *ctx)
 {
 	aac_out_conf.aot = AAC_LC;
@@ -304,6 +315,12 @@ static int aac_out_encode(void *ctx, fmed_filt *d)
 			qual *= 1000;
 
 		a->aac.info.aot = aac_out_conf.aot;
+		if (d->aac.profile.len != 0) {
+			if (0 == (a->aac.info.aot = aac_profile(&d->aac.profile))) {
+				errlog(core, d->trk, NULL, "invalid profile %S", &d->aac.profile);
+				return FMED_RERR;
+			}
+		}
 		a->aac.info.afterburner = aac_out_conf.afterburner;
 		a->aac.info.bandwidth = (d->aac.bandwidth != -1) ? d->aac.bandwidth : (int)aac_out_conf.bandwidth;
 
@@ -314,8 +331,11 @@ static int aac_out_encode(void *ctx, fmed_filt *d)
 
 		fmed_setval("audio_enc_delay", a->aac.info.enc_delay);
 		fmed_setval("audio_frame_samples", ffaac_enc_frame_samples(&a->aac));
-		fmed_setval("audio_bitrate", ffaac_bitrate(&a->aac, qual));
+		fmed_setval("audio_bitrate", ffaac_bitrate(&a->aac, a->aac.info.quality));
 		ffstr asc = ffaac_enc_conf(&a->aac);
+		fmed_dbglog(core, d->trk, NULL, "using bitrate %ubps, bandwidth %uHz, asc %*xb"
+			, ffaac_bitrate(&a->aac, a->aac.info.quality), a->aac.info.bandwidth, asc.len, asc.ptr);
+
 		d->out = asc.ptr,  d->outlen = asc.len;
 		a->state = W_DATA;
 		return FMED_RDATA;
@@ -348,4 +368,15 @@ static int aac_out_encode(void *ctx, fmed_filt *d)
 	d->data = (void*)a->aac.pcm,  d->datalen = a->aac.pcmlen;
 	d->out = a->aac.data,  d->outlen = a->aac.datalen;
 	return FMED_RDATA;
+}
+
+static const char* const aac_profile_str[] = { "he", "hev2", "lc", };
+static const byte aac_profile_val[] = { AAC_HE, AAC_HEV2, AAC_LC, };
+
+static int aac_profile(const ffstr *name)
+{
+	int r = ffszarr_ifindsorted(aac_profile_str, FFCNT(aac_profile_str), name->ptr, name->len);
+	if (r < 0)
+		return 0;
+	return aac_profile_val[r];
 }
