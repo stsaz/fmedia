@@ -844,6 +844,14 @@ static int trk_cmd2(void *trk, uint cmd, void *param)
 		break;
 	}
 
+	case FMED_TRACK_FILT_GETPREV: {
+		if (t->cur->prev == ffchain_sentl(&t->filt_chain))
+			return -1;
+		fmed_f *f = FF_GETPTR(fmed_f, sib, t->cur->prev);
+		*(void**)param = f->ctx;
+		break;
+	}
+
 	case FMED_TRACK_META_HAVEUSER: {
 		if (t->meta.len != 0)
 			return 1;

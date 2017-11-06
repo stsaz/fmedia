@@ -217,6 +217,8 @@ enum FMED_TRACK {
 	/**
 	@param: void *src_track */
 	FMED_TRACK_META_COPYFROM,
+
+	FMED_TRACK_FILT_GETPREV, // get context pointer of the previous filter
 };
 
 enum FMED_TRK_TYPE {
@@ -280,6 +282,7 @@ typedef struct fmed_track {
 #define fmed_getval(name)  (d)->track->getval((d)->trk, name)
 #define fmed_popval(name)  (d)->track->popval((d)->trk, name)
 #define fmed_setval(name, val)  (d)->track->setval((d)->trk, name, val)
+#define fmed_trk_filt_prev(d, ptr)  (d)->track->cmd2((d)->trk, FMED_TRACK_FILT_GETPREV, ptr)
 
 typedef struct fmed_trk_meta {
 	ffstr name, val;
