@@ -95,6 +95,7 @@ struct icy {
 	fmed_filt *d;
 	fficy icy;
 	ffstr data;
+	ffstr next_filt_ext;
 
 	netin *netin;
 	ffstr artist;
@@ -895,6 +896,34 @@ static int icy_reset(icy *c, fmed_filt *d)
 	void *http_ptr;
 	if (0 != fmed_trk_filt_prev(d, &http_ptr))
 		return FMED_RERR;
+
+	ffstr ext;
+	if (0 != http_findhdr(http_ptr, &ffhttp_shdr[FFHTTP_CONTENT_TYPE], &s)) {
+		if (ffstr_ieqz(&s, "audio/mpeg"))
+			ffstr_setz(&ext, "mp3");
+		else {
+			errlog(d->trk, "unsupported Content-Type: %S", &s);
+			return FMED_RERR;
+		}
+	} else {
+		ffstr_setz(&ext, "mp3");
+		dbglog(d->trk, "no Content-Type HTTP header in response, assuming MPEG");
+	}
+
+	if (c->next_filt_ext.len == 0) {
+		const fmed_modinfo *mi;
+		if (NULL == (mi = core->getmod2(FMED_MOD_INEXT, ext.ptr, ext.len))) {
+			errlog(d->trk, "no module configured to open .%S stream", &ext);
+			return FMED_RERR;
+		}
+		if (0 != net->track->cmd2(d->trk, FMED_TRACK_ADDFILT, mi->name))
+			return FMED_RERR;
+		c->next_filt_ext = ext;
+	} else if (!ffstr_eq2(&c->next_filt_ext, &ext)) {
+		errlog(d->trk, "unsupported behaviour: stream is changing audio format from %S to %S"
+			, &c->next_filt_ext, &ext);
+		return FMED_RERR;
+	}
 
 	uint meta_int = FFICY_NOMETA;
 	if (0 != http_findhdr(http_ptr, &fficy_shdr[FFICY_HMETAINT], &s)) {
