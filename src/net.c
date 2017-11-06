@@ -914,6 +914,8 @@ static int icy_reset(icy *c, fmed_filt *d)
 	if (0 != http_findhdr(http_ptr, &ffhttp_shdr[FFHTTP_CONTENT_TYPE], &s)) {
 		if (ffstr_ieqz(&s, "audio/mpeg"))
 			ffstr_setz(&ext, "mp3");
+		else if (ffstr_ieqz(&s, "audio/aacp"))
+			ffstr_setz(&ext, "aac");
 		else {
 			errlog(d->trk, "unsupported Content-Type: %S", &s);
 			return FMED_RERR;
