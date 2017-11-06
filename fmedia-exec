@@ -1,7 +1,0 @@
-#!/bin/sh
-
-REAL=`realpath $0`
-DIR=`dirname $REAL`
-export LD_LIBRARY_PATH=$DIR:$LD_LIBRARY_PATH
-
-$DIR/fmedia-bin "$@"

@@ -4,7 +4,6 @@ Copyright (c) 2017 Simon Zolin */
 #include <fmedia.h>
 
 #include <FF/adev/pulse.h>
-#include <FFOS/timer.h>
 
 
 static const fmed_core *core;

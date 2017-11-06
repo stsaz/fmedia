@@ -375,7 +375,7 @@ static void std_log(uint flags, fmed_logdata *ld)
 	const char *end = buf + FFCNT(buf) - FFSLEN("\n");
 
 	if (flags != FMED_LOG_USER) {
-		s += ffs_fmt(s, end, "%s %s %s: ", ld->stime, ld->level, ld->module);
+		s += ffs_fmt(s, end, "%s [%s] %s: ", ld->stime, ld->level, ld->module);
 
 		if (ld->ctx != NULL)
 			s += ffs_fmt(s, end, "%S:\t", ld->ctx);
@@ -620,6 +620,20 @@ end:
 	return r;
 }
 
+#if defined FF_WIN
+#define OS_STR  "win"
+#elif defined FF_BSD
+#define OS_STR  "bsd"
+#else
+#define OS_STR  "linux"
+#endif
+
+#ifdef FF_64
+#define CPU_STR  "amd64"
+#else
+#define CPU_STR  "i686"
+#endif
+
 int main(int argc, char **argv, char **env)
 {
 	int rc = 1;
@@ -628,7 +642,7 @@ int main(int argc, char **argv, char **env)
 	ffmem_init();
 	ffsig_init(&sigs_task);
 
-	fffile_writecz(ffstderr, "fmedia v" FMED_VER "\n");
+	fffile_writecz(ffstderr, "fmedia v" FMED_VER " (" OS_STR "-" CPU_STR ")\n");
 
 	ffsig_mask(SIG_BLOCK, sigs_block, FFCNT(sigs_block));
 

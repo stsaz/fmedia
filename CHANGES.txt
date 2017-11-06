@@ -8,6 +8,23 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v0.30 - Nov 5, 2017
+
+ + .aac (ADTS) file input (no seeking)
+ + ICY: support shoutcast AAC streams
+
+ * AAC decode: detect real audio format (support implicit SBR, SBR+PS)
+ + AAC encode: choose profile between AAC-LC, HE-AAC or HE-AACv2 (--aac-profile option)
+ * AAC,ALAC,APE: linux: libfdk-aac-ff.so, libALAC-ff.so, libMAC-ff.so don't depend on the system libstdc++
+ - .flac write: segfault on large meta (FF v16.08 bug)
+ - MPEG decode: data from .mkv was skipped (v0.29 bug)
+ - WASAPI: segfault or hanging when playing a network stream (v0.29 bug)
+ - ICY: don't start playing a network stream if its content type isn't supported
+ - ICY: reconnect to the original server after redirected request fails
+ - core: freebsd: file reading didn't work on some file systems
+ - core: segfault on several quick commands from TUI (v0.18 bug)
+
+
 fmedia v0.29.2 - Sep 13, 2017
 
  - wasapi.out: segfault after WASAPI sys error (v0.29 bug)

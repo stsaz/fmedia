@@ -724,7 +724,7 @@ static int http_parse(nethttp *c)
 		&& c->nredirect++ != net->conf.max_redirect
 		&& 0 != ffhttp_findihdr(&c->resp.h, FFHTTP_LOCATION, &s)) {
 
-		dbglog(c->d->trk, "HTTP redirect: %S", &s);
+		infolog(c->d->trk, "HTTP redirect: %S", &s);
 		if (c->sk != FF_BADSKT) {
 			ffskt_fin(c->sk);
 			ffskt_close(c->sk);

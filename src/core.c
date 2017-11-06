@@ -45,6 +45,7 @@ fmedia *fmed;
 enum {
 	FMED_KQ_EVS = 8,
 	CONF_MBUF = 2 * 4096,
+	TMR_INT = 250,
 };
 
 
@@ -62,6 +63,7 @@ static int core_sigmods(uint signo);
 static core_modinfo* core_findmod(const ffstr *name);
 static const fmed_modinfo* core_getmodinfo(const ffstr *name);
 static const fmed_modinfo* core_modbyext(const ffstr3 *map, const ffstr *ext);
+static core_modinfo* mod_load(const ffstr *ps);
 static int core_filetype(const char *fn);
 
 static const void* core_iface(const char *name);
@@ -628,25 +630,13 @@ void core_free(void)
 	ffmem_free0(fmed);
 }
 
-static const fmed_modinfo* core_insmod(const char *sname, ffpars_ctx *ctx)
+static core_modinfo* mod_load(const ffstr *ps)
 {
 	fmed_getmod_t getmod;
-	ffdl dl = NULL;
-	ffstr s, modname;
-	size_t sname_len = ffsz_len(sname);
-	core_mod *mod = ffmem_calloc(1, sizeof(core_mod) + sname_len + 1);
-	if (mod == NULL)
-		return NULL;
-
-	ffs_split2by(sname, sname_len, '.', &s, &modname);
-	if (s.len == 0 || modname.len == 0) {
-		fferr_set(EINVAL);
-		goto fail;
-	}
-
 	core_modinfo *minfo;
-	if (NULL != (minfo = (void*)core_getmod2(FMED_MOD_SOINFO | FMED_MOD_NOLOG, s.ptr, s.len)))
-		goto iface;
+	const fmed_mod *m;
+	ffdl dl = NULL;
+	ffstr s = *ps;
 
 	if (s.ptr[0] == '#') {
 		if (ffstr_eqcz(&s, "#core"))
@@ -667,19 +657,19 @@ static const fmed_modinfo* core_insmod(const char *sname, ffpars_ctx *ctx)
 	} else {
 
 		char fn[FF_MAXFN];
-		ffs_fmt(fn, fn + sizeof(fn), "%S.%s%Z", &s, FFDL_EXT);
-
-		dbglog(core, NULL, "core", "loading module %s", fn);
+		if (0 == ffs_fmt(fn, fn + sizeof(fn), "%S.%s%Z", &s, FFDL_EXT)) {
+			goto fail;
+		}
 
 		dl = ffdl_open(fn, 0);
 		if (dl == NULL) {
-			errlog(core, NULL, "core", "%s: %s: %s", ffdl_open_S, ffdl_errstr(), fn);
+			errlog(core, NULL, "core", "module %s: %s: %s", fn, ffdl_open_S, ffdl_errstr());
 			goto fail;
 		}
 
 		getmod = (void*)ffdl_addr(dl, "fmed_getmod");
 		if (getmod == NULL) {
-			errlog(core, NULL, "core", "%s: %s: %s", ffdl_addr_S, ffdl_errstr(), "fmed_getmod");
+			errlog(core, NULL, "core", "module %s: %s '%s': %s", fn, ffdl_addr_S, "fmed_getmod", ffdl_errstr());
 			goto fail;
 		}
 	}
@@ -687,28 +677,62 @@ static const fmed_modinfo* core_insmod(const char *sname, ffpars_ctx *ctx)
 	if (NULL == ffarr_growT(&fmed->bmods, 1, 4, core_modinfo))
 		goto fail;
 	minfo = ffarr_endT(&fmed->bmods, core_modinfo);
+	ffmem_tzero(minfo);
 	minfo->name = ffsz_alcopy(s.ptr, s.len);
-	minfo->dl = dl;
-	minfo->m = getmod(core);
-	if (minfo->name == NULL || minfo->m == NULL)
+	m = getmod(core);
+	fmed->bmods.len++;
+	if (minfo->name == NULL || m == NULL)
 		goto fail;
 
-	if (minfo->m->ver_core != FMED_VER_CORE) {
-		errlog(core, NULL, "core", "%s: module v%u.%u isn't compatible with this version"
-			, minfo->name, ((int)minfo->m->ver_core >> 8) & 0xff, (int)minfo->m->ver & 0xff);
+	if (m->ver_core != FMED_VER_CORE) {
+		errlog(core, NULL, "core", "module %s v%u.%u: module is built for core v%u.%u"
+			, minfo->name, FMED_VER_GETMAJ(m->ver), FMED_VER_GETMIN(m->ver)
+			, FMED_VER_GETMAJ(m->ver_core), FMED_VER_GETMIN(m->ver_core));
 		goto fail;
 	}
 
-	if (0 != minfo->m->sig(FMED_SIG_INIT))
-		goto fail;
-	fmed->bmods.len++;
+	if (s.ptr[0] != '#') {
+		dbglog(core, NULL, "core", "loaded module %s v%u.%u"
+			, minfo->name, FMED_VER_GETMAJ(m->ver), FMED_VER_GETMIN(m->ver));
+	}
 
-iface:
-	mod->dl = dl;
+	if (0 != m->sig(FMED_SIG_INIT))
+		goto fail;
+
+	minfo->m = m;
+	minfo->dl = dl;
+	return minfo;
+
+fail:
+	FF_SAFECLOSE(dl, NULL, ffdl_close);
+	return NULL;
+}
+
+static const fmed_modinfo* core_insmod(const char *sname, ffpars_ctx *ctx)
+{
+	ffstr s, modname;
+	size_t sname_len = ffsz_len(sname);
+	core_mod *mod = ffmem_calloc(1, sizeof(core_mod) + sname_len + 1);
+	if (mod == NULL)
+		return NULL;
+
+	ffs_split2by(sname, sname_len, '.', &s, &modname);
+	if (s.len == 0 || modname.len == 0) {
+		fferr_set(EINVAL);
+		goto fail;
+	}
+
+	core_modinfo *minfo;
+	if (NULL == (minfo = (void*)core_getmod2(FMED_MOD_SOINFO | FMED_MOD_NOLOG, s.ptr, s.len))) {
+		if (NULL == (minfo = mod_load(&s)))
+			goto fail;
+	}
+
+	mod->dl = minfo->dl;
 	mod->m = minfo->m;
 	if (NULL == (mod->iface = minfo->m->iface(modname.ptr))) {
 		errlog(core, NULL, "core", "can't initialize %s", sname);
-		goto fail2;
+		goto fail;
 	}
 
 	ffsz_fcopy(mod->name_s, sname, sname_len);
@@ -716,9 +740,9 @@ iface:
 
 	if (ctx != NULL) {
 		if (minfo->m->conf == NULL)
-			goto fail2;
+			goto fail;
 		if (0 != minfo->m->conf(modname.ptr, ctx))
-			goto fail2;
+			goto fail;
 		mod->conf_ctx = *ctx;
 	}
 
@@ -726,9 +750,6 @@ iface:
 	return (fmed_modinfo*)mod;
 
 fail:
-	if (dl != NULL)
-		ffdl_close(dl);
-fail2:
 	ffmem_free(mod);
 	return NULL;
 }
@@ -985,47 +1006,51 @@ static void core_task(fftask *task, uint cmd)
 	dbglog(core, NULL, "core", "task:%p, cmd:%u, active:%u, handler:%p, param:%p"
 		, task, cmd, fftask_active(&fmed->taskmgr, task), task->handler, task->param);
 
-	if (fftask_active(&fmed->taskmgr, task)) {
-		if (cmd == FMED_TASK_DEL)
-			fftask_del(&fmed->taskmgr, task);
-		return;
-	}
-
-	if (cmd == FMED_TASK_POST) {
+	switch (cmd) {
+	case FMED_TASK_POST:
 		if (1 == fftask_post(&fmed->taskmgr, task))
 			ffkqu_post(&fmed->kqpost, &fmed->evposted);
+		break;
+	case FMED_TASK_DEL:
+		fftask_del(&fmed->taskmgr, task);
+		break;
+	default:
+		FF_ASSERT(0);
 	}
 }
 
-static int core_timer(fftmrq_entry *tmr, int64 interval, uint flags)
+static int core_timer(fftmrq_entry *tmr, int64 _interval, uint flags)
 {
-	dbglog(core, NULL, "core", "timer:%p  interval:%u  handler:%p  param:%p"
+	int interval = _interval;
+	uint period = ffmin((uint)ffabs(interval), TMR_INT);
+	dbglog(core, NULL, "core", "timer:%p  interval:%d  handler:%p  param:%p"
 		, tmr, interval, tmr->handler, tmr->param);
 
 	if (fftmrq_active(&fmed->tmrq, tmr))
 		fftmrq_rm(&fmed->tmrq, tmr);
+	else if (interval == 0)
+		return 0;
 
 	if (interval == 0) {
 		if (fftmrq_empty(&fmed->tmrq)) {
-			fftmrq_destroy(&fmed->tmrq, fmed->kq);
+			fftmrq_stop(&fmed->tmrq, fmed->kq);
 			dbglog(core, NULL, "core", "stopped kernel timer", 0);
 		}
 		return 0;
 	}
 
-	if (fftmrq_started(&fmed->tmrq) && ffabs(interval) < fmed->period) {
-		fftmrq_destroy(&fmed->tmrq, fmed->kq);
-		dbglog(core, NULL, "core", "stopped kernel timer", 0);
+	if (fftmrq_started(&fmed->tmrq) && period < fmed->period) {
+		fftmrq_stop(&fmed->tmrq, fmed->kq);
+		dbglog(core, NULL, "core", "restarting kernel timer", 0);
 	}
 
 	if (!fftmrq_started(&fmed->tmrq)) {
-		fftmrq_init(&fmed->tmrq);
-		if (0 != fftmrq_start(&fmed->tmrq, fmed->kq, ffabs(interval))) {
+		if (0 != fftmrq_start(&fmed->tmrq, fmed->kq, period)) {
 			syserrlog(core, NULL, "core", "fftmrq_start()", 0);
 			return -1;
 		}
-		fmed->period = ffabs(interval);
-		dbglog(core, NULL, "core", "started kernel timer  interval:%u", ffabs(interval));
+		fmed->period = period;
+		dbglog(core, NULL, "core", "started kernel timer  interval:%u", period);
 	}
 
 	fftmrq_add(&fmed->tmrq, tmr, interval);

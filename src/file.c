@@ -231,7 +231,7 @@ static int file_in_conf(ffpars_ctx *ctx)
 {
 	mod->in_conf.align = 4096;
 	mod->in_conf.bsize = 64 * 1024;
-	mod->in_conf.nbufs = 2;
+	mod->in_conf.nbufs = 3;
 	mod->in_conf.directio = 1;
 	ffpars_setargs(ctx, &mod->in_conf, file_in_conf_args, FFCNT(file_in_conf_args));
 	return 0;

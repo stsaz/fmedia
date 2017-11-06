@@ -3,7 +3,7 @@ OVERVIEW
 ---------------
 fmedia is a fast asynchronous media player/recorder/converter for Windows, Linux and FreeBSD.  Its goal is to provide smooth playback even if input device is very slow and unresponsive.  The architecture allows to extend the functionality of the application in any way: adding a new audio input/output format, a new DSP filter or even a new GUI.  fmedia is very small and fast: it has low CPU & memory consumption making it ideal to listen to music or process audio files while running on a notebook's battery.
 
-fmedia can decode: .mp3, .ogg (Vorbis, Opus), .opus, .m4a/.mp4 (AAC, ALAC, MPEG), .mka/.mkv (AAC, ALAC, MPEG, Vorbis), .avi (AAC, MPEG), .mpc, .flac, .ape, .wv, .wav.
+fmedia can decode: .mp3, .ogg (Vorbis, Opus), .opus, .m4a/.mp4 (AAC, ALAC, MPEG), .mka/.mkv (AAC, ALAC, MPEG, Vorbis), .avi (AAC, MPEG), .aac, .mpc, .flac, .ape, .wv, .wav.
 
 fmedia can encode into: .mp3, .ogg, .opus, .m4a (AAC), .flac, .wav.
 
@@ -78,6 +78,8 @@ OUTPUT
 	. Pulse Audio Playback
 	. OSS Playback
 
+fmedia uses modified versions of these 3rd party libraries: libALAC, libfdk-aac, libFLAC, libMAC, libmp3lame, libmpg123, libmpc, libogg, libopus, libsoxr, libvorbisenc, libvorbis, libwavpack.  See ff-3pt/README.txt for details.
+
 
 ---------------
 INSTALL ON WINDOWS
@@ -103,10 +105,6 @@ INSTALL ON LINUX
 2. Optionally, create a symbolic link:
 
 	ln -s /usr/local/fmedia-0/fmedia /usr/local/bin/fmedia
-
-Note: the file "fmedia-0/fmedia" is just a script that executes binary file "fmedia-0/fmedia-bin" with proper environment.  If the script doesn't work for some reason, call fmedia-bin directly:
-
-	env LD_LIBRARY_PATH=/usr/local/fmedia-0:$LD_LIBRARY_PATH /usr/local/fmedia-0/fmedia-bin
 
 
 ---------------
@@ -145,11 +143,13 @@ LIGHT BUILD
 
 You can build fmedia without dependencies on 3rd-party libraries.  This will be a very small package without audio (de)compression features.  Follow these steps:
 
-1. Run this command:
+1-2. Repeat previously described steps.
+
+3. Run this command:
 
 	make install-nodeps
 
-2. Edit fmedia.conf and manually remove all modules that require 3rd-party libraries.
+4. Edit fmedia.conf and manually remove all modules that require 3rd-party libraries.
 
 
 ---------------
