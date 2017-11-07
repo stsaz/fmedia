@@ -8,6 +8,12 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v0.30.1 - Nov 7, 2017
+
+ - core: Linux,FreeBSD: couldn't run fmedia executable from symlink (v0.30 bug)
+ - core: Linux: timer restart failed with an error "File exists" (v0.30 bug)
+
+
 fmedia v0.30 - Nov 5, 2017
 
  + .aac (ADTS) file input (no seeking)
