@@ -282,7 +282,7 @@ static int buf_alloc(nethttp *c, size_t size)
 
 enum {
 	I_ADDR, I_NEXTADDR, I_CONN,
-	I_HTTP_REQ, I_HTTP_REQ_SEND, I_HTTP_RESP, I_HTTP_RESP_PARSE, I_HTTP_RECVBODY,
+	I_HTTP_REQ, I_HTTP_REQ_SEND, I_HTTP_RESP, I_HTTP_RESP_PARSE, I_HTTP_RECVBODY1, I_HTTP_RECVBODY,
 	I_ERR,
 };
 
@@ -296,6 +296,7 @@ static void* http_open(fmed_filt *d)
 		return NULL;
 	c->d = d;
 	c->sk = FF_BADSKT;
+	ffhttp_respinit(&c->resp);
 
 	c->host = (void*)d->track->getvalstr(d->trk, "input");
 	if (NULL == (c->host = ffsz_alcopyz(c->host)))
@@ -334,6 +335,7 @@ static void http_close(void *ctx)
 		ffmem_safefree(c->host);
 	ffmem_safefree(c->orighost);
 	ffaio_fin(&c->aio);
+	ffhttp_respfree(&c->resp);
 
 	uint i;
 	for (i = 0;  i != net->conf.nbufs;  i++) {
@@ -798,7 +800,6 @@ static int http_process(void *ctx, fmed_filt *d)
 			continue;
 
 		dbglog(c->d->trk, "receiving response...");
-		ffhttp_respinit(&c->resp);
 		ffstr_set(&c->data, c->bufs[0].ptr, net->conf.bufsize);
 		c->state = I_HTTP_RESP;
 		// break
@@ -824,8 +825,13 @@ static int http_process(void *ctx, fmed_filt *d)
 		c->bufs[0].len = 0;
 		d->net_reconnect = 1;
 		d->out = c->data.ptr,  d->outlen = c->data.len;
-		c->state = I_HTTP_RECVBODY;
+		c->state = I_HTTP_RECVBODY1;
 		return FMED_RDATA;
+
+	case I_HTTP_RECVBODY1:
+		ffhttp_respfree(&c->resp);
+		c->state = I_HTTP_RECVBODY;
+		//fall through
 
 	case I_HTTP_RECVBODY:
 		r = tcp_getdata(c, &c->data);
