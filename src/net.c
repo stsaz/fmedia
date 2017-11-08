@@ -822,7 +822,7 @@ static int http_process(void *ctx, fmed_filt *d)
 		ffstr_set2(&c->data, &c->bufs[0]);
 		ffstr_shift(&c->data, c->resp.h.len);
 		c->bufs[0].len = 0;
-		d->meta_changed = 1;
+		d->net_reconnect = 1;
 		d->out = c->data.ptr,  d->outlen = c->data.len;
 		c->state = I_HTTP_RECVBODY;
 		return FMED_RDATA;
@@ -969,8 +969,8 @@ static int icy_process(void *ctx, fmed_filt *d)
 	}
 
 	if (d->flags & FMED_FFWD) {
-		if (d->meta_changed) {
-			d->meta_changed = 0;
+		if (d->net_reconnect) {
+			d->net_reconnect = 0;
 			if (FMED_RDATA != (r = icy_reset(c, d)))
 				return r;
 		}
