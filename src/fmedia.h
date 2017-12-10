@@ -69,6 +69,11 @@ enum FMED_SIG {
 	args: "char *filename"
 	Return enum FMED_FT. */
 	FMED_FILETYPE,
+
+	FMED_WOH_INIT,
+	/** Windows: add handle to WOH.
+	args: "HANDLE h, fftask *task" */
+	FMED_WOH_ADD,
 };
 
 enum FMED_FT {

@@ -97,6 +97,9 @@ CORE_O := $(OBJ_DIR)/core.o \
 	$(FF_OBJ_DIR)/ffpcm.o \
 	$(FF_OBJ_DIR)/ffm3u.o \
 	$(FF_OBJ_DIR)/crc.o
+ifeq ($(OS),win)
+CORE_O += $(FF_OBJ_DIR)/ffwohandler.o
+endif
 core.$(SO): $(CORE_O)
 	$(LD) -shared $(CORE_O) $(LDFLAGS) $(LD_LDL) $(LD_LMATH) $(LD_LPTHREAD)  -o$@
 

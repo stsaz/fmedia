@@ -9,6 +9,9 @@ Copyright (c) 2015 Simon Zolin */
 #include <FF/rbtree.h>
 #include <FF/list.h>
 #include <FF/sys/taskqueue.h>
+#ifdef FF_WIN
+#include <FF/sys/wohandler.h>
+#endif
 #include <FFOS/asyncio.h>
 #include <FFOS/file.h>
 #include <FFOS/process.h>
@@ -55,6 +58,10 @@ typedef struct fmedia {
 	fmed_props props;
 
 	const fmed_queue *qu;
+
+#ifdef FF_WIN
+	ffwoh *woh;
+#endif
 } fmedia;
 
 extern fmedia *fmed;

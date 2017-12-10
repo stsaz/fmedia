@@ -15,6 +15,9 @@ Copyright (c) 2015 Simon Zolin */
 #include <FFOS/dir.h>
 
 
+#define syswarnlog(trk, ...)  fmed_syswarnlog(core, NULL, "core", __VA_ARGS__)
+
+
 typedef struct inmap_item {
 	const fmed_modinfo *mod;
 	char ext[0];
@@ -627,6 +630,10 @@ void core_free(void)
 	ffstr_free(&fmed->root);
 	ffenv_destroy(&fmed->env);
 
+#ifdef FF_WIN
+	FF_SAFECLOSE(fmed->woh, NULL, ffwoh_free);
+#endif
+
 	ffmem_free0(fmed);
 }
 
@@ -989,6 +996,24 @@ static ssize_t core_cmd(uint signo, ...)
 	case FMED_FILETYPE:
 		r = core_filetype(va_arg(va, char*));
 		break;
+
+#ifdef FF_WIN
+	case FMED_WOH_INIT:
+		if (fmed->woh == NULL)
+			if (NULL == (fmed->woh = ffwoh_create())) {
+				syswarnlog(NULL, "ffwoh_create()");
+				r = -1;
+			}
+		break;
+
+	case FMED_WOH_ADD: {
+		HANDLE h = va_arg(va, HANDLE);
+		fftask *t = va_arg(va, fftask*);
+		if (0 != (r = ffwoh_add(fmed->woh, h, t->handler, t->param)))
+			syswarnlog(NULL, "ffwoh_add()");
+		break;
+	}
+#endif
 	}
 
 	va_end(va);
