@@ -72,7 +72,6 @@ enum CMDS {
 	CMD_PREV,
 	CMD_SEEKRIGHT,
 	CMD_SEEKLEFT,
-	CMD_VOL,
 	CMD_VOLUP,
 	CMD_VOLDOWN,
 	CMD_MUTE,
@@ -121,6 +120,7 @@ static void tui_info(tui *t, fmed_filt *d);
 static int FFTHDCALL tui_cmdloop(void *param);
 static void tui_help(uint cmd);
 static void tui_rmfile(tui *t, uint cmd);
+static int tui_setvol(tui *t, uint vol);
 static void tui_vol(tui *t, uint cmd);
 static void tui_seek(tui *t, uint cmd, void *udata);
 
@@ -240,11 +240,12 @@ static void* tui_open(fmed_filt *d)
 	gt->curtrk = t;
 	fflk_unlock(&gt->lktrk);
 
-	if (gt->vol != 100)
-		tui_vol(t, CMD_VOL);
-
 	if (FMED_PNULL != d->track->getvalstr(d->trk, "output"))
 		t->conversion = 1;
+
+	if (gt->vol != 100 && !t->conversion)
+		tui_setvol(t, gt->vol);
+
 	d->meta_changed = 1;
 	return t;
 }
@@ -353,7 +354,6 @@ static void tui_seek(tui *t, uint cmd, void *udata)
 static void tui_vol(tui *t, uint cmd)
 {
 	uint vol = 0;
-	int db;
 
 	switch (cmd & ~FFKEY_MODMASK) {
 	case CMD_VOLUP:
@@ -372,12 +372,19 @@ static void tui_vol(tui *t, uint cmd)
 		break;
 	}
 
+	int db = tui_setvol(t, vol);
+	core->log(FMED_LOG_USER, t->d->trk, NULL, "Volume: %.02FdB", (double)db / 100);
+}
+
+static int tui_setvol(tui *t, uint vol)
+{
+	int db;
 	if (vol <= 100)
 		db = ffpcm_vol2db(vol, VOL_LO) * 100;
 	else
 		db = ffpcm_vol2db_inc(vol - 100, VOL_MAX - 100, VOL_HI) * 100;
 	t->d->audio.gain = db;
-	core->log(FMED_LOG_USER, t->d->trk, NULL, "Volume: %.02FdB", (double)db / 100);
+	return db;
 }
 
 static void tui_rmfile(tui *t, uint cmd)
