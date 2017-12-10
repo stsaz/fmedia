@@ -20,12 +20,13 @@ Copyright (c) 2015 Simon Zolin */
 struct gctx {
 	ffsignal sigs_task;
 	fmed_cmd *cmd;
+
+	ffdl core_dl;
+	fmed_core* (*core_init)(fmed_cmd **ptr, char **argv, char **env);
+	void (*core_free)(void);
 };
 static struct gctx *g;
 static fmed_core *core;
-
-FF_IMP fmed_core* core_init(fmed_cmd **ptr, char **argv, char **env);
-FF_IMP void core_free(void);
 
 static int fmed_cmdline(int argc, char **argv, uint main_only);
 static int fmed_arg_usage(void);
@@ -620,6 +621,41 @@ static int gcmd_send(const fmed_globcmd_iface *globcmd)
 	return 0;
 }
 
+static int loadcore(char *argv0)
+{
+	int rc = -1;
+	char buf[FF_MAXPATH];
+	const char *path;
+	ffdl dl = NULL;
+	ffarr a = {0};
+
+	if (NULL == (path = ffps_filename(buf, sizeof(buf), argv0)))
+		goto end;
+	if (0 == ffstr_catfmt(&a, "%s/../mod/core.%s%Z", path, FFDL_EXT))
+		goto end;
+	a.len = ffpath_norm(a.ptr, a.cap, a.ptr, a.len - 1, 0);
+	a.ptr[a.len] = '\0';
+
+	if (NULL == (dl = ffdl_open(a.ptr, 0))) {
+		fffile_fmt(ffstderr, NULL, "can't load %s: %s\n", a.ptr, ffdl_errstr());
+		goto end;
+	}
+
+	g->core_init = (void*)ffdl_addr(dl, "core_init");
+	g->core_free = (void*)ffdl_addr(dl, "core_free");
+	if (g->core_init == NULL || g->core_free == NULL)
+		goto end;
+
+	g->core_dl = dl;
+	dl = NULL;
+	rc = 0;
+
+end:
+	FF_SAFECLOSE(dl, NULL, ffdl_close);
+	ffarr_free(&a);
+	return rc;
+}
+
 #if defined FF_WIN
 #define OS_STR  "win"
 #elif defined FF_BSD
@@ -651,7 +687,7 @@ int main(int argc, char **argv, char **env)
 	if (0 != loadcore(argv[0]))
 		goto end;
 
-	if (NULL == (core = core_init(&g->cmd, argv, env)))
+	if (NULL == (core = g->core_init(&g->cmd, argv, env)))
 		goto end;
 	g->cmd->log = &std_logger;
 	gcmd = g->cmd;
@@ -731,8 +767,9 @@ int main(int argc, char **argv, char **env)
 end:
 	if (core != NULL) {
 		ffsig_ctl(&g->sigs_task, core->kq, sigs, FFCNT(sigs), NULL);
-		core_free();
+		g->core_free();
 	}
+	FF_SAFECLOSE(g->core_dl, NULL, ffdl_close);
 	ffmem_free(g);
 	return rc;
 }

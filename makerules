@@ -56,7 +56,7 @@ $(RES): $(PROJDIR)/res/fmedia.rc $(PROJDIR)/res/fmedia.ico
 	$(WINDRES) -I$(SRCDIR) -I$(FF) -I$(FFOS) $(PROJDIR)/res/fmedia.rc $@
 
 
-BIN_O := core.$(SO) \
+BIN_O := \
 	$(OBJ_DIR)/main.o \
 	$(FF_O) \
 	$(FFOS_WREG) \
@@ -73,7 +73,7 @@ BIN_O += $(RES)
 endif
 
 $(BIN): $(BIN_O)
-	$(LD)  $(BIN_O) $(LDFLAGS) $(LD_RPATH_ORIGIN) $(LD_LMATH)  -o$@
+	$(LD)  $(BIN_O) $(LDFLAGS) $(LD_LDL) $(LD_LMATH)  -o$@
 
 
 #
@@ -362,7 +362,7 @@ GUI_O := $(OBJ_DIR)/gui.o $(OBJ_DIR)/gui-main.o $(OBJ_DIR)/gui-dlgs.o \
 gui.$(SO): $(GUI_O)
 	$(LD) -shared $(GUI_O) $(LDFLAGS) -lshell32 -luxtheme -lcomctl32 -lcomdlg32 -lgdi32 -lole32 -luuid -o$@
 
-BINGUI_O := core.$(SO) \
+BINGUI_O := \
 	fmedia-gui.o \
 	$(FF_O) \
 	$(FFOS_WREG) \
@@ -398,10 +398,25 @@ strip: $(BINS:.$(SO)=.$(SO).debug) $(BIN).debug $(BINS:.exe=.exe.debug)
 installd: all
 
 	mkdir -vp $(INSTDIR)
-	$(CP) $(BIN) *.$(SO) \
+	$(CP) $(BIN) \
 		$(PROJDIR)/fmedia.conf $(PROJDIR)/help*.txt $(PROJDIR)/README.txt $(PROJDIR)/CHANGES.txt \
 		$(INSTDIR)/
+
+ifeq ($(OS),win)
+	$(CP) ./fmedia-gui.exe \
+		$(PROJDIR)/src/gui/fmedia.gui \
+		$(PROJDIR)/res/fmedia*.ico \
+		$(INSTDIR)/
+	unix2dos $(INSTDIR)/*.txt $(INSTDIR)/*.conf $(INSTDIR)/*.gui
+endif
+
+	chmod 644 $(INSTDIR)/*
+	chmod 755 $(INSTDIR)/$(BIN)
+
+	mkdir -vp $(INSTDIR)/mod
+	chmod 755 $(INSTDIR)/mod
 	$(CP) \
+		*.$(SO) \
 		$(FF3PTLIB)/libogg-ff.$(SO) $(FF3PTLIB)/libvorbis-ff.$(SO) $(FF3PTLIB)/libvorbisenc-ff.$(SO) \
 		$(FF3PTLIB)/libopus-ff.$(SO) \
 		$(FF3PTLIB)/libmpg123-ff.$(SO) $(FF3PTLIB)/libmp3lame-ff.$(SO) \
@@ -412,23 +427,8 @@ installd: all
 		$(FF3PTLIB)/libfdk-aac-ff.$(SO) \
 		$(FF3PTLIB)/libALAC-ff.$(SO) \
 		$(FF3PTLIB)/libsoxr-ff.$(SO) \
-		$(INSTDIR)/
-
-ifneq ($(OS),win)
-	chmod 644 $(INSTDIR)/*
-	chmod 755 $(INSTDIR)/fmedia
-
-else
-
-	$(CP) ./fmedia-gui.exe \
-		$(PROJDIR)/src/gui/fmedia.gui \
-		$(PROJDIR)/res/fmedia*.ico \
-		$(INSTDIR)/
-	unix2dos $(INSTDIR)/*.txt $(INSTDIR)/*.conf $(INSTDIR)/*.gui
-	chmod 644 $(INSTDIR)/*
-endif
-
-	chmod 755 $(INSTDIR)/$(BIN) $(INSTDIR)/*.$(SO)
+		$(INSTDIR)/mod
+	chmod 644 $(INSTDIR)/mod/*
 
 
 install: all strip installd

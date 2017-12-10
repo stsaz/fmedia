@@ -11,11 +11,15 @@ Copyright (c) 2015 Simon Zolin */
 #include <FFOS/mem.h>
 
 
+struct gctx {
+	ffdl core_dl;
+	fmed_core* (*core_init)(fmed_cmd **ptr, char **argv, char **env);
+	void (*core_free)(void);
+};
+static struct gctx *g;
 static fmed_cmd *gcmd;
 static fmed_core *core;
 
-FF_IMP fmed_core* core_init(fmed_cmd **ptr, char **argv);
-FF_IMP void core_free(void);
 
 //LOG
 static void fgui_log(uint flags, fmed_logdata *ld);
@@ -136,13 +140,53 @@ end:
 }
 
 
+static int loadcore(char *argv0)
+{
+	int rc = -1;
+	char buf[FF_MAXPATH];
+	const char *path;
+	ffdl dl = NULL;
+	ffarr a = {0};
+
+	if (NULL == (path = ffps_filename(buf, sizeof(buf), argv0)))
+		goto end;
+	if (0 == ffstr_catfmt(&a, "%s/../mod/core.%s%Z", path, FFDL_EXT))
+		goto end;
+	a.len = ffpath_norm(a.ptr, a.cap, a.ptr, a.len - 1, 0);
+	a.ptr[a.len] = '\0';
+
+	if (NULL == (dl = ffdl_open(a.ptr, 0))) {
+		fffile_fmt(ffstderr, NULL, "can't load %s: %s\n", a.ptr, ffdl_errstr());
+		goto end;
+	}
+
+	g->core_init = (void*)ffdl_addr(dl, "core_init");
+	g->core_free = (void*)ffdl_addr(dl, "core_free");
+	if (g->core_init == NULL || g->core_free == NULL)
+		goto end;
+
+	g->core_dl = dl;
+	dl = NULL;
+	rc = 0;
+
+end:
+	FF_SAFECLOSE(dl, NULL, ffdl_close);
+	ffarr_free(&a);
+	return rc;
+}
+
 int __stdcall WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
 {
 	char *argv[1] = { NULL };
 	ffmem_init();
-
-	if (NULL == (core = core_init(&gcmd, argv)))
+	if (NULL == (g = ffmem_new(struct gctx)))
 		return 1;
+
+	if (0 != loadcore(NULL))
+		goto end;
+
+	if (NULL == (core = g->core_init(&gcmd, argv, NULL)))
+		goto end;
 
 	gcmd->log = &fgui_logger;
 	gcmd->gui = 1;
@@ -174,6 +218,10 @@ int __stdcall WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	core->sig(FMED_START);
 
 end:
-	core_free();
+	if (core != NULL) {
+		g->core_free();
+	}
+	FF_SAFECLOSE(g->core_dl, NULL, ffdl_close);
+	ffmem_free(g);
 	return 0;
 }

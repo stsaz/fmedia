@@ -587,6 +587,16 @@ fmed_core* core_init(fmed_cmd **ptr, char **argv, char **env)
 	if (NULL == ffstr_copy(&fmed->root, path.ptr, path.len + FFSLEN("/")))
 		goto err;
 
+#ifdef FF_WIN
+	{
+	ffarr path = {0};
+	if (0 == ffstr_catfmt(&path, "%Smod%Z", &fmed->root))
+		goto err;
+	ffdl_init(path.ptr);
+	ffarr_free(&path);
+	}
+#endif
+
 	*ptr = &fmed->cmd;
 	core->loglev = FMED_LOG_INFO;
 	core->props = &fmed->props;
@@ -644,6 +654,7 @@ static core_modinfo* mod_load(const ffstr *ps)
 	const fmed_mod *m;
 	ffdl dl = NULL;
 	ffstr s = *ps;
+	char *fn = NULL;
 
 	if (s.ptr[0] == '#') {
 		if (ffstr_eqcz(&s, "#core"))
@@ -663,20 +674,23 @@ static core_modinfo* mod_load(const ffstr *ps)
 
 	} else {
 
-		char fn[FF_MAXFN];
-		if (0 == ffs_fmt(fn, fn + sizeof(fn), "%S.%s%Z", &s, FFDL_EXT)) {
+		ffarr a = {0};
+		if (0 == ffstr_catfmt(&a, "%Smod%c%S.%s%Z", &fmed->root, FFPATH_SLASH, &s, FFDL_EXT)) {
+			ffarr_free(&a);
 			goto fail;
 		}
+		fn = a.ptr;
 
-		dl = ffdl_open(fn, 0);
+		dl = ffdl_open(fn, FFDL_SELFDIR);
 		if (dl == NULL) {
 			errlog(core, NULL, "core", "module %s: %s: %s", fn, ffdl_open_S, ffdl_errstr());
 			goto fail;
 		}
 
-		getmod = (void*)ffdl_addr(dl, "fmed_getmod");
+		getmod = (void*)ffdl_addr(dl, FMED_MODFUNCNAME);
 		if (getmod == NULL) {
-			errlog(core, NULL, "core", "module %s: %s '%s': %s", fn, ffdl_addr_S, "fmed_getmod", ffdl_errstr());
+			errlog(core, NULL, "core", "module %s: %s '%s': %s"
+				, fn, ffdl_addr_S, FMED_MODFUNCNAME, ffdl_errstr());
 			goto fail;
 		}
 	}
@@ -712,6 +726,7 @@ static core_modinfo* mod_load(const ffstr *ps)
 
 fail:
 	FF_SAFECLOSE(dl, NULL, ffdl_close);
+	ffmem_safefree(fn);
 	return NULL;
 }
 

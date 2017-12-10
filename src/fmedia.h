@@ -53,6 +53,8 @@ typedef struct fmed_core fmed_core;
 typedef struct fmed_props fmed_props;
 typedef struct fmed_mod fmed_mod;
 typedef struct fmed_filter fmed_filter;
+
+#define FMED_MODFUNCNAME  "fmed_getmod" //name of the function which is exported by a module
 typedef const fmed_mod* (*fmed_getmod_t)(const fmed_core *core);
 
 enum FMED_SIG {
