@@ -398,7 +398,8 @@ fin:
 		mod->tmr.param = w;
 		if (0 != core->timer(&mod->tmr, nfy_int_ms, 0))
 			goto done;
-	}
+	} else
+		ffwas_excl(&mod->out, mod->woh, &wasapi_onplay, w);
 
 	mod->usedby = w;
 	dbglog(core, d->trk, "wasapi", "%s buffer %ums, %uHz, excl:%u"
