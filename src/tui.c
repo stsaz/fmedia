@@ -5,7 +5,6 @@ Copyright (c) 2015 Simon Zolin */
 
 #include <FF/audio/pcm.h>
 #include <FF/array.h>
-#include <FFOS/thread.h>
 #include <FFOS/error.h>
 
 
@@ -14,13 +13,13 @@ struct tui;
 typedef struct gtui {
 	const fmed_queue *qu;
 	const fmed_track *track;
+	ffkevent kev;
 
 	fflock lktrk;
 	struct tui *curtrk;
 
 	uint vol;
 
-	ffthd th;
 	uint rec :1;
 	uint mute :1;
 } gtui;
@@ -117,7 +116,7 @@ static const fmed_filter fmed_tui = {
 };
 
 static void tui_info(tui *t, fmed_filt *d);
-static int FFTHDCALL tui_cmdloop(void *param);
+static void tui_cmdread(void *param);
 static void tui_help(uint cmd);
 static void tui_rmfile(tui *t, uint cmd);
 static int tui_setvol(tui *t, uint vol);
@@ -175,16 +174,36 @@ static int tui_sig(uint signo)
 		if (core->props->stdin_busy)
 			return 0;
 
-		{
 		uint attr = FFSTD_LINEINPUT;
 		if (tui_conf.echo_off)
 			attr |= FFSTD_ECHO;
 		ffstd_attr(ffstdin, attr, 0);
-		}
 
-		if (FFTHD_INV == (gt->th = ffthd_create(&tui_cmdloop, NULL, 0))) {
-			return 1;
+#ifdef FF_WIN
+		if (0 != core->cmd(FMED_WOH_INIT)) {
+			fmed_warnlog(core, NULL, "tui", "can't start stdin reader");
+			return 0;
 		}
+		fftask t;
+		t.handler = &tui_cmdread;
+		t.param = gt;
+		if (0 != core->cmd(FMED_WOH_ADD, ffstdin, &t)) {
+			fmed_warnlog(core, NULL, "tui", "can't start stdin reader");
+			return 0;
+		}
+#else
+		fffile_nblock(ffstdin, 1);
+		ffkev_init(&gt->kev);
+		gt->kev.oneshot = 0;
+		gt->kev.fd = ffstdin;
+		gt->kev.handler = tui_cmdread;
+		gt->kev.udata = gt;
+		if (0 != ffkev_attach(&gt->kev, core->kq, FFKQU_READ)) {
+			fmed_syswarnlog(core, NULL, "tui", "ffkev_attach()");
+			return 0;
+		}
+#endif
+
 		break;
 	}
 	return 0;
@@ -194,8 +213,6 @@ static void tui_destroy(void)
 {
 	if (gt == NULL)
 		return;
-	if (gt->th != FFTHD_INV)
-		ffthd_detach(gt->th);
 
 	uint attr = FFSTD_LINEINPUT;
 	if (tui_conf.echo_off)
@@ -677,7 +694,7 @@ static void tui_corecmd_add(const struct key *k, void *udata)
 	core->task(&c->tsk, FMED_TASK_POST);
 }
 
-static int FFTHDCALL tui_cmdloop(void *param)
+static void tui_cmdread(void *param)
 {
 	ffstd_ev ev;
 	int r;
@@ -687,7 +704,7 @@ static int FFTHDCALL tui_cmdloop(void *param)
 	for (;;) {
 		r = ffstd_event(ffstdin, &ev);
 		if (r == 0)
-			continue;
+			break;
 		else if (r < 0)
 			break;
 
@@ -708,5 +725,4 @@ static int FFTHDCALL tui_cmdloop(void *param)
 			func1(k->cmd & ~_CMD_F1);
 		}
 	}
-	return 0;
 }
