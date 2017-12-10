@@ -565,6 +565,10 @@ fmed_core* core_init(fmed_cmd **ptr, char **argv, char **env)
 	if (0 != ffenv_init(&fmed->env, env))
 		goto err;
 
+	fftime_zone tz;
+	fftime_local(&tz);
+	fftime_storelocal(&tz);
+
 	fmed->kq = FF_BADFD;
 	fftask_init(&fmed->taskmgr);
 	fftmrq_init(&fmed->tmrq);

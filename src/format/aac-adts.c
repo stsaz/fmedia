@@ -91,6 +91,10 @@ static int aac_adts_process(void *ctx, fmed_filt *d)
 			return FMED_RLASTOUT;
 
 		case FFAAC_ADTS_RWARN:
+			warnlog(core, d->trk, "aac", "ffaac_adts_read(): %s.  Offset: %U"
+				, ffaac_adts_errstr(&a->adts), ffaac_adts_off(&a->adts));
+			continue;
+
 		case FFAAC_ADTS_RERR:
 			errlog(core, d->trk, "aac", "ffaac_adts_read(): %s.  Offset: %U"
 				, ffaac_adts_errstr(&a->adts), ffaac_adts_off(&a->adts));

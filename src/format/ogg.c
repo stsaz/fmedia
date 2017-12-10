@@ -105,7 +105,7 @@ static int ogg_sig(uint signo)
 		ffmem_init();
 		fftime t;
 		fftime_now(&t);
-		ffrnd_seed(t.s);
+		ffrnd_seed(fftime_sec(&t));
 		return 0;
 	}
 

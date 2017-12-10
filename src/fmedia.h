@@ -24,15 +24,15 @@ mixer                 mixer
 
 
 #define FMED_VER_MAJOR  0
-#define FMED_VER_MINOR  30
+#define FMED_VER_MINOR  31
 #define FMED_VER_FULL  ((FMED_VER_MAJOR << 8) | FMED_VER_MINOR)
-#define FMED_VER  "0.30"
+#define FMED_VER  "0.31"
 
 #define FMED_VER_GETMAJ(fullver)  ((fullver) >> 8)
 #define FMED_VER_GETMIN(fullver)  ((fullver) & 0xff)
 
 /** Inter-module compatibility version. */
-#define FMED_VER_CORE  ((FMED_VER_MAJOR << 8) | 30)
+#define FMED_VER_CORE  ((FMED_VER_MAJOR << 8) | 31)
 
 #define FMED_HOMEPAGE  "http://fmedia.firmdev.com"
 
@@ -375,6 +375,7 @@ struct fmed_trk {
 		uint64 size;
 		uint64 seek;
 	} input, output;
+	fftime mtime;
 	union {
 	uint bits;
 	struct {
@@ -477,12 +478,16 @@ do { \
 #define fmed_warnlog(core, trk, mod, ...) \
 	(core)->log(FMED_LOG_WARN, trk, mod, __VA_ARGS__)
 
+#define fmed_syswarnlog(core, trk, mod, ...) \
+	(core)->log(FMED_LOG_WARN | FMED_LOG_SYS, trk, mod, __VA_ARGS__)
+
 #define fmed_errlog(core, trk, mod, ...) \
 	(core)->log(FMED_LOG_ERR, trk, mod, __VA_ARGS__)
 
 #define fmed_syserrlog(core, trk, mod, ...) \
 	(core)->log(FMED_LOG_ERR | FMED_LOG_SYS, trk, mod, __VA_ARGS__)
 
+//obsolete:
 #define dbglog  fmed_dbglog
 #define warnlog  fmed_warnlog
 #define errlog  fmed_errlog

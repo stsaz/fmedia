@@ -8,6 +8,21 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v0.31 - Dec 10, 2017
+
+ + ICY: save tracks from AAC radio stream into .m4a (with --stream-copy)
+
+ + .aac reader: support --stream-copy to .mp4
+ - .mpc decode: an "AP" block could be skipped
+ - ICY: reset HTTP response headers on reconnect
+ * net: don't reconnect if server closed connection gracefully
+ - WASAPI: exclusive mode: hanging after starting the next track (v0.29 bug)
+ - TUI: apply volume on track change
+ * TUI: linux: remove separate thread for reading from stdin
+ * core.so is loaded dynamically from mod/
+   all modules were moved to mod/
+
+
 fmedia v0.30.2 - Nov 8, 2017
 
  - core: Linux,FreeBSD: couldn't run fmedia executable from $PATH (v0.30 bug)

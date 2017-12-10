@@ -4,6 +4,7 @@ Copyright (c) 2015 Simon Zolin */
 #include <fmedia.h>
 
 #include <FF/array.h>
+#include <FF/time.h>
 #include <FF/data/parse.h>
 #include <FFOS/file.h>
 #include <FFOS/asyncio.h>
@@ -296,8 +297,7 @@ static void* file_open(fmed_filt *d)
 	d->input.size = f->fsize;
 
 	if (d->out_preserve_date) {
-		fftime t = fffile_infomtime(&fi);
-		fmed_setval("output_time", fftime_mcs(&t));
+		d->mtime = fffile_infomtime(&fi);
 	}
 
 	f->handler = d->handler;
@@ -706,10 +706,7 @@ static void* fileout_open(fmed_filt *d)
 		}
 	}
 
-	int64 mtime;
-	if (FMED_NULL != (mtime = fmed_getval("output_time")))
-		fftime_setmcs(&f->modtime, mtime);
-
+	f->modtime = d->mtime;
 	f->prealloc_by = mod->out_conf.prealloc;
 	f->d = d;
 	return f;
@@ -737,7 +734,7 @@ static void fileout_close(void *ctx)
 
 		} else {
 
-			if (f->modtime.s != 0)
+			if (fftime_sec(&f->modtime) != 0)
 				fffile_settime(f->fd, &f->modtime);
 
 			if (0 != fffile_close(f->fd))

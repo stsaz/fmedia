@@ -344,6 +344,7 @@ static void trk_copy_info(fmed_trk *dst, const fmed_trk *src)
 		memset(&dst->aac, 0xff, FFOFF(fmed_trk, bits) - FFOFF(fmed_trk, aac));
 		dst->audio.decoder = "";
 		ffstr_null(&dst->aac.profile);
+		fftime_null(&dst->mtime);
 		return;
 	}
 	ffmemcpy(&dst->audio, &src->audio, FFOFF(fmed_trk, bits) - FFOFF(fmed_trk, audio));
@@ -367,13 +368,14 @@ static void trk_printtime(fm_trk *t)
 	FFARR_WALK(&t->filters, pf) {
 		fftime_add(&all, &pf->clk);
 	}
-	if (all.s == 0 && all.mcs == 0)
+	if (fftime_empty(&all))
 		return;
-	ffstr_catfmt(&s, "time: %u.%06u.  ", all.s, all.mcs);
+	ffstr_catfmt(&s, "time: %u.%06u.  ", (int)fftime_sec(&all), (int)fftime_usec(&all));
 
 	FFARR_WALK(&t->filters, pf) {
 		ffstr_catfmt(&s, "%s: %u.%06u (%u%%), "
-			, pf->name, pf->clk.s, pf->clk.mcs, fftime_mcs(&pf->clk) * 100 / fftime_mcs(&all));
+			, pf->name, (int)fftime_sec(&pf->clk), (int)fftime_usec(&pf->clk)
+			, (int)(fftime_mcs(&pf->clk) * 100 / fftime_mcs(&all)));
 	}
 	if (s.len > FFSLEN(", "))
 		s.len -= FFSLEN(", ");
@@ -402,7 +404,8 @@ static void trk_free(fm_trk *t)
 		fftime t2;
 		ffclk_get(&t2);
 		ffclk_diff(&t->tstart, &t2);
-		core->log(FMED_LOG_INFO, t, "track", "processing time: %u.%06u", t2.s, t2.mcs);
+		core->log(FMED_LOG_INFO, t, "track", "processing time: %u.%06u"
+			, (int)fftime_sec(&t2), (int)fftime_usec(&t2));
 	}
 
 	dbglog(t, "closing...");

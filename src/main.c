@@ -159,6 +159,8 @@ static int fmed_arg_usage(void)
 	r = FFPARS_ELAST;
 
 done:
+	if (r != FFPARS_ELAST)
+		syserrlog(core, NULL, "core", "trying to read help.txt");
 	ffmem_safefree(fn);
 	FF_SAFECLOSE(f, FF_BADFD, fffile_close);
 	ffarr_free(&buf);
