@@ -106,7 +106,7 @@ typedef struct aac_in {
 	uint br;
 } aac_in;
 
-enum { DETECT_FRAMES = 16, }; //# of frames to detect real audio format
+enum { DETECT_FRAMES = 32, }; //# of frames to detect real audio format
 
 static void* aac_open(fmed_filt *d)
 {
