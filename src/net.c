@@ -283,7 +283,7 @@ static int buf_alloc(nethttp *c, size_t size)
 enum {
 	I_ADDR, I_NEXTADDR, I_CONN,
 	I_HTTP_REQ, I_HTTP_REQ_SEND, I_HTTP_RESP, I_HTTP_RESP_PARSE, I_HTTP_RECVBODY1, I_HTTP_RECVBODY,
-	I_ERR,
+	I_DONE, I_ERR,
 };
 
 static void* http_open(fmed_filt *d)
@@ -623,11 +623,12 @@ static int tcp_recv(nethttp *c)
 			return FMED_RASYNC;
 		}
 
-		if (r <= 0) {
-			if (r == 0)
-				dbglog(c->d->trk, "server has closed connection");
-			else
-				syserrlog(c->d->trk, "%s", ffskt_recv_S);
+		if (r == 0) {
+			dbglog(c->d->trk, "server has closed connection");
+			c->state = I_DONE;
+			return FMED_RMORE;
+		} else if (r < 0) {
+			syserrlog(c->d->trk, "%s", ffskt_recv_S);
 			tcp_ioerr(c);
 			return FMED_RMORE;
 		}
@@ -843,6 +844,10 @@ static int http_process(void *ctx, fmed_filt *d)
 			continue;
 		d->out = c->data.ptr,  d->outlen = c->data.len;
 		return FMED_RDATA;
+
+	case I_DONE:
+		d->outlen = 0;
+		return FMED_RDONE;
 
 	case I_ERR:
 		return FMED_RERR;
