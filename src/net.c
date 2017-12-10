@@ -580,6 +580,8 @@ static int tcp_ioerr(nethttp *c)
 	c->wbuf = c->rbuf = 0;
 	c->lowat = 0;
 
+	ffhttp_respfree(&c->resp);
+	ffhttp_respinit(&c->resp);
 	c->state = I_ADDR;
 	dbglog(c->d->trk, "reconnecting...", 0);
 	return 0;
@@ -742,6 +744,8 @@ static int http_parse(nethttp *c)
 		}
 		ffurl_init(&c->url);
 		c->bufs[0].len = 0;
+		ffhttp_respfree(&c->resp);
+		ffhttp_respinit(&c->resp);
 		c->state = I_ADDR;
 		return 1;
 
