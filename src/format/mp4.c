@@ -297,15 +297,20 @@ static int mp4_out_encode(void *ctx, fmed_filt *d)
 	switch (m->state) {
 
 	case I_INIT_ENC:
-		if (!ffsz_eq(d->datatype, "pcm")) {
+		if (ffsz_eq(d->datatype, "aac")) {
+			m->state = I_INIT;
+
+		} else if (ffsz_eq(d->datatype, "pcm")) {
+			if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT_PREV, "aac.encode"))
+				return FMED_RERR;
+			m->state = I_INIT;
+			return FMED_RMORE;
+
+		} else {
 			errlog(core, d->trk, NULL, "unsupported input data format: %s", d->datatype);
 			return FMED_RERR;
 		}
-
-		if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT_PREV, "aac.encode"))
-			return FMED_RERR;
-		m->state = I_INIT;
-		return FMED_RMORE;
+		// fall through
 
 	case I_INIT: {
 		ffstr asc;
@@ -316,9 +321,16 @@ static int mp4_out_encode(void *ctx, fmed_filt *d)
 
 		if ((int64)d->audio.total != FMED_NULL)
 			m->mp.info.total_samples = ((d->audio.total - d->audio.pos) * d->audio.convfmt.sample_rate / d->audio.fmt.sample_rate);
-		m->mp.info.frame_samples = fmed_getval("audio_frame_samples");
-		m->mp.info.enc_delay = fmed_getval("audio_enc_delay");
-		m->mp.info.bitrate = fmed_getval("audio_bitrate");
+
+		if (FMED_NULL == (r = (int)fmed_getval("audio_frame_samples")))
+			return FMED_RERR;
+		m->mp.info.frame_samples = r;
+
+		if (FMED_NULL != (r = fmed_getval("audio_enc_delay")))
+			m->mp.info.enc_delay = r;
+		if (FMED_NULL != (r = fmed_getval("audio_bitrate")))
+			m->mp.info.bitrate = r;
+
 		if (0 != (r = ffmp4_create_aac(&m->mp, &fmt, &asc))) {
 			errlog(core, d->trk, NULL, "ffmp4_create_aac(): %s", ffmp4_werrstr(&m->mp));
 			return FMED_RERR;

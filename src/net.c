@@ -1108,7 +1108,10 @@ static void* netin_create(icy *c)
 	n->fn_dyn = (NULL != ffsz_findc(output, '$'));
 	net->track->setvalstr(trk, "output", output);
 
-	net->track->setvalstr(trk, "input", "?.mp3");
+	if (ffstr_eqcz(&c->next_filt_ext, "aac"))
+		net->track->setvalstr(trk, "input", "?.aac");
+	else
+		net->track->setvalstr(trk, "input", "?.mp3");
 	net->track->setval(trk, "netin_ptr", (size_t)n);
 	n->c = c;
 

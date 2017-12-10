@@ -58,16 +58,23 @@ static int aac_adts_process(void *ctx, fmed_filt *d)
 	for (;;) {
 		r = ffaac_adts_read(&a->adts);
 
-		switch (r) {
+		switch ((enum FFAAC_ADTS_R)r) {
 
 		case FFAAC_ADTS_RHDR:
+			d->audio.fmt.format = FFPCM_16;
 			d->audio.fmt.sample_rate = a->adts.info.sample_rate;
 			d->audio.fmt.channels = a->adts.info.channels;
 			d->audio.total = 0;
 			d->audio.decoder = "AAC";
+			d->datatype = "aac";
+			fmed_setval("audio_frame_samples", 1024);
 
-			if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, "aac.decode"))
-				return FMED_RERR;
+			if (d->stream_copy) {
+				d->audio.convfmt = d->audio.fmt;
+			} else {
+				if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, "aac.decode"))
+					return FMED_RERR;
+			}
 
 			ffaac_adts_output(&a->adts, &blk);
 			d->out = blk.ptr,  d->outlen = blk.len;
@@ -87,6 +94,10 @@ static int aac_adts_process(void *ctx, fmed_filt *d)
 		case FFAAC_ADTS_RERR:
 			errlog(core, d->trk, "aac", "ffaac_adts_read(): %s.  Offset: %U"
 				, ffaac_adts_errstr(&a->adts), ffaac_adts_off(&a->adts));
+			return FMED_RERR;
+
+		default:
+			FF_ASSERT(0);
 			return FMED_RERR;
 		}
 	}
