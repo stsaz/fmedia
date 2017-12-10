@@ -17,8 +17,11 @@ Copyright (c) 2015 Simon Zolin */
 
 #define FMED_CMDHELP_FILE  "help.txt"
 
-static fmed_cmd *gcmd;
-#define fmed  gcmd
+struct gctx {
+	ffsignal sigs_task;
+	fmed_cmd *cmd;
+};
+static struct gctx *g;
 static fmed_core *core;
 
 FF_IMP fmed_core* core_init(fmed_cmd **ptr, char **argv, char **env);
@@ -322,9 +325,9 @@ static int fmed_cmdline(int argc, char **argv, uint main_only)
 	ffpsarg_init(&a, (void*)argv, argc);
 
 	if (main_only)
-		ffpars_setargs(&ctx, fmed, fmed_cmdline_main_args, FFCNT(fmed_cmdline_main_args));
+		ffpars_setargs(&ctx, g->cmd, fmed_cmdline_main_args, FFCNT(fmed_cmdline_main_args));
 	else
-		ffpars_setargs(&ctx, fmed, fmed_cmdline_args, FFCNT(fmed_cmdline_args));
+		ffpars_setargs(&ctx, g->cmd, fmed_cmdline_args, FFCNT(fmed_cmdline_args));
 
 	if (0 != ffpsarg_scheminit(&ps, &p, &ctx)) {
 		errlog(core, NULL, "core", "cmd line parser", NULL);
@@ -411,7 +414,7 @@ static void fmed_onsig(void *udata)
 	track->cmd((void*)-1, FMED_TRACK_STOPALL_EXIT);
 }
 
-static void qu_setprops(const fmed_queue *qu, fmed_que_entry *qe);
+static void qu_setprops(fmed_cmd *fmed, const fmed_queue *qu, fmed_que_entry *qe);
 
 #ifdef FF_WIN
 /** Add to queue filenames expanded by wildcard. */
@@ -435,7 +438,7 @@ static void* open_input_wcard(const fmed_queue *qu, char *src, const fmed_track 
 		ffstr_setz(&e.url, fn);
 		qe = qu->add(&e);
 		track->copy_info(qe->trk, trkinfo);
-		qu_setprops(qu, qe);
+		qu_setprops(g->cmd, qu, qe);
 		if (first == NULL)
 			first = qe;
 	}
@@ -449,7 +452,7 @@ static void qu_setval(const fmed_queue *qu, fmed_que_entry *qe, const char *name
 	qu->meta_set(qe, name, ffsz_len(name), (void*)&val, sizeof(int64), FMED_QUE_TRKDICT | FMED_QUE_NUM);
 }
 
-static void qu_setprops(const fmed_queue *qu, fmed_que_entry *qe)
+static void qu_setprops(fmed_cmd *fmed, const fmed_queue *qu, fmed_que_entry *qe)
 {
 	if (fmed->trackno != NULL) {
 		qu->meta_set(qe, FFSTR("input_trackno"), fmed->trackno, ffsz_len(fmed->trackno), FMED_QUE_TRKDICT);
@@ -478,7 +481,7 @@ static void qu_setprops(const fmed_queue *qu, fmed_que_entry *qe)
 		qu->meta_set(qe, FFSTR("meta"), fmed->meta.ptr, fmed->meta.len, FMED_QUE_TRKDICT);
 }
 
-static void trk_prep(fmed_trk *trk)
+static void trk_prep(fmed_cmd *fmed, fmed_trk *trk)
 {
 	trk->input_info = fmed->info;
 	if (fmed->fseek != 0)
@@ -537,6 +540,8 @@ static void open_input(void *udata)
 	const fmed_queue *qu;
 	fmed_que_entry e, *qe;
 	void *first = NULL;
+	fmed_cmd *fmed = udata;
+
 	if (NULL == (qu = core->getmod("#queue.queue")))
 		goto end;
 	if (NULL == (track = core->getmod("#core.track")))
@@ -544,7 +549,7 @@ static void open_input(void *udata)
 
 	fmed_trk trkinfo;
 	track->copy_info(&trkinfo, NULL);
-	trk_prep(&trkinfo);
+	trk_prep(fmed, &trkinfo);
 
 	FFARR_WALKT(&fmed->in_files, pfn, char*) {
 
@@ -563,9 +568,9 @@ static void open_input(void *udata)
 			first = qe;
 
 		track->copy_info(qe->trk, &trkinfo);
-		qu_setprops(qu, qe);
+		qu_setprops(fmed, qu, qe);
 	}
-	FFARR_FREE_ALL_PTR(&gcmd->in_files, ffmem_free, char*);
+	FFARR_FREE_ALL_PTR(&fmed->in_files, ffmem_free, char*);
 
 	if (first != NULL) {
 		if (!fmed->mix)
@@ -608,16 +613,11 @@ end:
 
 static int gcmd_send(const fmed_globcmd_iface *globcmd)
 {
-	int r = -1;
-
-	if (0 != globcmd->write(fmed->globcmd.ptr, fmed->globcmd.len)) {
-		goto end;
+	if (0 != globcmd->write(g->cmd->globcmd.ptr, g->cmd->globcmd.len)) {
+		return -1;
 	}
 
-	r = 0;
-end:
-	ffstr_free(&fmed->globcmd);
-	return r;
+	return 0;
 }
 
 #if defined FF_WIN
@@ -637,34 +637,41 @@ end:
 int main(int argc, char **argv, char **env)
 {
 	int rc = 1;
-	ffsignal sigs_task = {0};
+	fmed_cmd *gcmd;
 
 	ffmem_init();
-	ffsig_init(&sigs_task);
+	if (NULL == (g = ffmem_new(struct gctx)))
+		return 1;
+	ffsig_init(&g->sigs_task);
 
 	fffile_writecz(ffstderr, "fmedia v" FMED_VER " (" OS_STR "-" CPU_STR ")\n");
 
 	ffsig_mask(SIG_BLOCK, sigs_block, FFCNT(sigs_block));
 
-	if (NULL == (core = core_init(&fmed, argv, env)))
-		return 1;
-	fmed->log = &std_logger;
+	if (0 != loadcore(argv[0]))
+		goto end;
+
+	if (NULL == (core = core_init(&g->cmd, argv, env)))
+		goto end;
+	g->cmd->log = &std_logger;
+	gcmd = g->cmd;
 
 	if (argc == 1) {
 		fmed_arg_usage();
-		return 0;
+		rc = 0;
+		goto end;
 	}
 
 	if (0 != fmed_cmdline(argc, argv, 1))
 		goto end;
 
-	if (fmed->debug)
+	if (gcmd->debug)
 		core->loglev = FMED_LOG_DEBUG;
 
 	if (0 != core->cmd(FMED_CONF, gcmd->conf_fn))
 		goto end;
 
-	ffmem_safefree(fmed->conf_fn);
+	ffmem_safefree(gcmd->conf_fn);
 
 	if (0 != fmed_cmdline(argc, argv, 0))
 		goto end;
@@ -689,10 +696,10 @@ int main(int argc, char **argv, char **env)
 
 	const fmed_globcmd_iface *globcmd = NULL;
 	ffbool gcmd_listen = 0;
-	if (fmed->globcmd.len != 0
+	if (gcmd->globcmd.len != 0
 		&& NULL != (globcmd = core->getmod("#globcmd.globcmd"))) {
 
-		if (ffstr_eqcz(&fmed->globcmd, "listen"))
+		if (ffstr_eqcz(&gcmd->globcmd, "listen"))
 			gcmd_listen = 1;
 
 		else if (0 == globcmd->ctl(FMED_GLOBCMD_OPEN)) {
@@ -709,20 +716,23 @@ int main(int argc, char **argv, char **env)
 		globcmd->ctl(FMED_GLOBCMD_START);
 	}
 
-	sigs_task.udata = &sigs_task;
-	if (0 != ffsig_ctl(&sigs_task, core->kq, sigs, FFCNT(sigs), &fmed_onsig)) {
+	g->sigs_task.udata = &g->sigs_task;
+	if (0 != ffsig_ctl(&g->sigs_task, core->kq, sigs, FFCNT(sigs), &fmed_onsig)) {
 		syserrlog(core, NULL, "core", "%s", "ffsig_ctl()");
 		goto end;
 	}
 
-	fftask_set(&fmed->tsk_start, &open_input, NULL);
-	core->task(&fmed->tsk_start, FMED_TASK_POST);
+	fftask_set(&gcmd->tsk_start, &open_input, g->cmd);
+	core->task(&gcmd->tsk_start, FMED_TASK_POST);
 
 	core->sig(FMED_START);
 	rc = 0;
 
 end:
-	ffsig_ctl(&sigs_task, core->kq, sigs, FFCNT(sigs), NULL);
-	core_free();
+	if (core != NULL) {
+		ffsig_ctl(&g->sigs_task, core->kq, sigs, FFCNT(sigs), NULL);
+		core_free();
+	}
+	ffmem_free(g);
 	return rc;
 }
