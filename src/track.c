@@ -64,7 +64,7 @@ typedef struct fm_trk {
 	fflist_cursor cur;
 	ffrbtree dict;
 	ffrbtree meta;
-	fftime tstart;
+	struct ffps_perf psperf;
 	fftask tsk;
 
 	ffstr id;
@@ -401,11 +401,17 @@ static void trk_free(fm_trk *t)
 	core->task(&t->tsk, FMED_TASK_DEL);
 
 	if (fmed->cmd.print_time) {
-		fftime t2;
-		ffclk_get(&t2);
-		ffclk_diff(&t->tstart, &t2);
-		core->log(FMED_LOG_INFO, t, "track", "processing time: %u.%06u"
-			, (int)fftime_sec(&t2), (int)fftime_usec(&t2));
+		struct ffps_perf i2 = {};
+		ffps_perf(&i2, FFPS_PERF_REALTIME | FFPS_PERF_CPUTIME | FFPS_PERF_RUSAGE);
+		ffps_perf_diff(&t->psperf, &i2);
+		core->log(FMED_LOG_INFO, t, "track", "processing time: real:%u.%06u  cpu:%u.%06u (user:%u.%06u system:%u.%06u)"
+			"  resources: pagefaults:%u  maxrss:%u  I/O:%u  ctxsw:%u"
+			, (int)fftime_sec(&i2.realtime), (int)fftime_usec(&i2.realtime)
+			, (int)fftime_sec(&i2.cputime), (int)fftime_usec(&i2.cputime)
+			, (int)fftime_sec(&i2.usertime), (int)fftime_usec(&i2.usertime)
+			, (int)fftime_sec(&i2.systime), (int)fftime_usec(&i2.systime)
+			, i2.pagefaults, i2.maxrss, i2.inblock + i2.outblock, i2.vctxsw + i2.ivctxsw
+			);
 	}
 
 	dbglog(t, "closing...");
@@ -739,7 +745,7 @@ static int trk_cmd(void *trk, uint cmd)
 		}
 
 		if (fmed->cmd.print_time)
-			ffclk_get(&t->tstart);
+			ffps_perf(&t->psperf, FFPS_PERF_REALTIME | FFPS_PERF_CPUTIME | FFPS_PERF_RUSAGE);
 
 		trk_process(t);
 		break;
