@@ -603,7 +603,7 @@ static FFINL char* fileout_getname(fmed_fileout *f, fmed_filt *d)
 				break;
 
 			case VAR_TIMEMS:
-				if (0 == ffstr_catfmt(&buf, "%02u%02u%02u-%03u", dt.hour, dt.min, dt.sec, dt.msec))
+				if (0 == ffstr_catfmt(&buf, "%02u%02u%02u-%03u", dt.hour, dt.min, dt.sec, fftime_msec(&dt)))
 					goto syserr;
 				break;
 
@@ -800,12 +800,12 @@ static int fileout_write(void *ctx, fmed_filt *d)
 
 		if (0 > fffile_seek(f->fd, seek, SEEK_SET)) {
 			syserrlog(d->trk, "%s: %s", fffile_seek_S, f->fname.ptr);
-			return -1;
+			return FMED_RERR;
 		}
 
 		if (d->datalen != (size_t)fffile_write(f->fd, d->data, d->datalen)) {
 			syserrlog(d->trk, "%s: %s", fffile_write_S, f->fname.ptr);
-			return -1;
+			return FMED_RERR;
 		}
 		f->stat.nfwrite++;
 
@@ -816,7 +816,7 @@ static int fileout_write(void *ctx, fmed_filt *d)
 
 		if (0 > fffile_seek(f->fd, f->fsize, SEEK_SET)) {
 			syserrlog(d->trk, "%s: %s", fffile_seek_S, f->fname.ptr);
-			return -1;
+			return FMED_RERR;
 		}
 
 		d->datalen = 0;

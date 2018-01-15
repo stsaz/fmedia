@@ -3,6 +3,7 @@ Copyright (c) 2015 Simon Zolin */
 
 #include <fmedia.h>
 
+#include <FF/aformat/mp3.h>
 #include <FF/audio/mpeg.h>
 #include <FF/audio/mp3lame.h>
 #include <FF/audio/pcm.h>

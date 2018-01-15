@@ -3,7 +3,7 @@ Copyright (c) 2015 Simon Zolin */
 
 #include <fmedia.h>
 
-#include <FF/audio/ogg.h>
+#include <FF/mformat/ogg.h>
 #include <FF/audio/opus.h>
 #include <FF/array.h>
 #include <FF/path.h>

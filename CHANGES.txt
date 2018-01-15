@@ -8,6 +8,12 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v0.32 - Jan 15, 2018
+
+ - winXP: fix startup (unsupported imported function in core.dll and unsupported GUI behaviour)
+ * --print-time: show more detailed info
+
+
 fmedia v0.31 - Dec 10, 2017
 
  + ICY: save tracks from AAC radio stream into .m4a (with --stream-copy)

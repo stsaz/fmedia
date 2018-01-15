@@ -3,7 +3,7 @@ Copyright (c) 2017 Simon Zolin */
 
 #include <fmedia.h>
 
-#include <FF/audio/mpeg.h>
+#include <FF/aformat/mp3.h>
 #include <FF/audio/pcm.h>
 #include <FF/mtags/mmtag.h>
 #include <FF/array.h>

@@ -3,7 +3,8 @@ Copyright (c) 2017 Simon Zolin */
 
 #include <fmedia.h>
 
-#include <FF/audio/mpc.h>
+#include <FF/aformat/mpc.h>
+#include <FF/audio/musepack.h>
 #include <FF/mtags/mmtag.h>
 
 

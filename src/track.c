@@ -78,6 +78,7 @@ static int trk_setout(fm_trk *t);
 static int trk_opened(fm_trk *t);
 static fmed_f* addfilter(fm_trk *t, const char *modname);
 static fmed_f* addfilter1(fm_trk *t, const fmed_modinfo *mod);
+static int filt_call(fm_trk *t, fmed_f *f);
 static int trk_open(fm_trk *t, const char *fn);
 static void trk_open_capt(fm_trk *t);
 static void trk_free(fm_trk *t);
@@ -457,13 +458,69 @@ static const char *const fmed_retstr[] = {
 };
 #endif
 
+static int filt_call(fm_trk *t, fmed_f *f)
+{
+	int r;
+	fftime t1, t2;
+
+#ifdef _DEBUG
+	dbglog(t, "%s calling %s, input: %L"
+		, (f->newdata) ? ">>" : "<<", f->name, f->d.datalen);
+#endif
+	if (core->loglev == FMED_LOG_DEBUG) {
+		ffclk_get(&t1);
+	}
+
+	ffint_bitmask(&t->props.flags, FMED_FFWD, f->newdata);
+	f->newdata = 0;
+	ffint_bitmask(&t->props.flags, FMED_FLAST, (t->cur->prev == ffchain_sentl(&t->filt_chain)));
+
+	t->props.data = f->d.data,  t->props.datalen = f->d.datalen;
+
+	if (!f->opened) {
+		if (t->props.flags & FMED_FSTOP)
+			return FMED_RFIN;
+
+		dbglog(t, "creating context for %s...", f->name);
+		f->ctx = f->filt->open(&t->props);
+		f->d.data = t->props.data,  f->d.datalen = t->props.datalen;
+		if (f->ctx == NULL) {
+			t->state = TRK_ST_ERR;
+			return FMED_RFIN;
+
+		} else if (f->ctx == FMED_FILT_SKIP) {
+			dbglog(t, "%s is skipped", f->name);
+			f->ctx = NULL; //don't call fmed_filter.close()
+			t->props.out = t->props.data,  t->props.outlen = t->props.datalen;
+			return FMED_RDONE;
+		}
+
+		dbglog(t, "context for %s created", f->name);
+		f->opened = 1;
+	}
+
+	r = f->filt->process(f->ctx, &t->props);
+	f->d.data = t->props.data,  f->d.datalen = t->props.datalen;
+
+	if (core->loglev == FMED_LOG_DEBUG) {
+		ffclk_get(&t2);
+		ffclk_diff(&t1, &t2);
+		fftime_add(&f->clk, &t2);
+	}
+
+#ifdef _DEBUG
+	dbglog(t, "   %s returned: %s, output: %L"
+		, f->name, ((uint)(r + 1) < FFCNT(fmed_retstr)) ? fmed_retstr[r + 1] : "", t->props.outlen);
+#endif
+	return r;
+}
+
 static void trk_process(void *udata)
 {
 	fm_trk *t = udata;
 	fmed_f *nf;
 	fmed_f *f;
 	int r, e;
-	fftime t1, t2;
 	size_t ntasks = fmed->taskmgr.tasks.len;
 
 	for (;;) {
@@ -481,56 +538,7 @@ static void trk_process(void *udata)
 
 		f = FF_GETPTR(fmed_f, sib, t->cur);
 
-#ifdef _DEBUG
-		dbglog(t, "%s calling %s, input: %L"
-			, (f->newdata) ? ">>" : "<<", f->name, f->d.datalen);
-#endif
-		if (core->loglev == FMED_LOG_DEBUG) {
-			ffclk_get(&t1);
-		}
-
-		ffint_bitmask(&t->props.flags, FMED_FFWD, f->newdata);
-		f->newdata = 0;
-		ffint_bitmask(&t->props.flags, FMED_FLAST, (t->cur->prev == ffchain_sentl(&t->filt_chain)));
-
-		t->props.data = f->d.data,  t->props.datalen = f->d.datalen;
-
-		if (!f->opened) {
-			if (t->props.flags & FMED_FSTOP)
-				goto fin;
-
-			dbglog(t, "creating context for %s...", f->name);
-			f->ctx = f->filt->open(&t->props);
-			f->d.data = t->props.data,  f->d.datalen = t->props.datalen;
-			if (f->ctx == NULL) {
-				t->state = TRK_ST_ERR;
-				goto fin;
-
-			} else if (f->ctx == FMED_FILT_SKIP) {
-				dbglog(t, "%s is skipped", f->name);
-				f->ctx = NULL; //don't call fmed_filter.close()
-				r = FFLIST_CUR_NEXT | FFLIST_CUR_RM;
-				t->props.out = t->props.data,  t->props.outlen = t->props.datalen;
-				goto shift;
-			}
-
-			dbglog(t, "context for %s created", f->name);
-			f->opened = 1;
-		}
-
-		e = f->filt->process(f->ctx, &t->props);
-		f->d.data = t->props.data,  f->d.datalen = t->props.datalen;
-
-		if (core->loglev == FMED_LOG_DEBUG) {
-			ffclk_get(&t2);
-			ffclk_diff(&t1, &t2);
-			fftime_add(&f->clk, &t2);
-		}
-
-#ifdef _DEBUG
-		dbglog(t, "   %s returned: %s, output: %L"
-			, f->name, ((uint)(e + 1) < FFCNT(fmed_retstr)) ? fmed_retstr[e + 1] : "", t->props.outlen);
-#endif
+		e = filt_call(t, f);
 
 		switch (e) {
 		case FMED_RSYSERR:

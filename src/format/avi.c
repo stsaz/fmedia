@@ -3,7 +3,7 @@ Copyright (c) 2016 Simon Zolin */
 
 #include <fmedia.h>
 
-#include <FF/data/avi.h>
+#include <FF/mformat/avi.h>
 #include <FF/audio/pcm.h>
 #include <FF/mtags/mmtag.h>
 #include <FF/array.h>

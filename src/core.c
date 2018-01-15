@@ -67,6 +67,7 @@ static core_modinfo* core_findmod(const ffstr *name);
 static const fmed_modinfo* core_getmodinfo(const ffstr *name);
 static const fmed_modinfo* core_modbyext(const ffstr3 *map, const ffstr *ext);
 static core_modinfo* mod_load(const ffstr *ps);
+static void mod_destroy(core_modinfo *m);
 static int core_filetype(const char *fn);
 
 static const void* core_iface(const char *name);
@@ -594,8 +595,10 @@ fmed_core* core_init(fmed_cmd **ptr, char **argv, char **env)
 #ifdef FF_WIN
 	{
 	ffarr path = {0};
-	if (0 == ffstr_catfmt(&path, "%Smod%Z", &fmed->root))
+	if (0 == ffstr_catfmt(&path, "%Smod%Z", &fmed->root)) {
+		ffarr_free(&path);
 		goto err;
+	}
 	ffdl_init(path.ptr);
 	ffarr_free(&path);
 	}
@@ -631,11 +634,7 @@ void core_free(void)
 
 	core_modinfo *minfo;
 	FFARR_WALKT(&fmed->bmods, minfo, core_modinfo) {
-		ffmem_safefree(minfo->name);
-		if (minfo->m != NULL)
-			minfo->m->destroy();
-		if (minfo->dl != NULL)
-			ffdl_close(minfo->dl);
+		mod_destroy(minfo);
 	}
 	ffarr_free(&fmed->bmods);
 
@@ -651,14 +650,23 @@ void core_free(void)
 	ffmem_free0(fmed);
 }
 
+static void mod_destroy(core_modinfo *m)
+{
+	ffmem_safefree(m->name);
+	if (m->m != NULL)
+		m->m->destroy();
+	if (m->dl != NULL)
+		ffdl_close(m->dl);
+}
+
 static core_modinfo* mod_load(const ffstr *ps)
 {
 	fmed_getmod_t getmod;
-	core_modinfo *minfo;
+	core_modinfo *minfo, *rc = NULL;
 	const fmed_mod *m;
 	ffdl dl = NULL;
 	ffstr s = *ps;
-	char *fn = NULL;
+	ffarr a = {0};
 
 	if (s.ptr[0] == '#') {
 		if (ffstr_eqcz(&s, "#core"))
@@ -677,13 +685,9 @@ static core_modinfo* mod_load(const ffstr *ps)
 		}
 
 	} else {
-
-		ffarr a = {0};
-		if (0 == ffstr_catfmt(&a, "%Smod%c%S.%s%Z", &fmed->root, FFPATH_SLASH, &s, FFDL_EXT)) {
-			ffarr_free(&a);
+		if (0 == ffstr_catfmt(&a, "%Smod%c%S.%s%Z", &fmed->root, FFPATH_SLASH, &s, FFDL_EXT))
 			goto fail;
-		}
-		fn = a.ptr;
+		const char *fn = a.ptr;
 
 		dl = ffdl_open(fn, FFDL_SELFDIR);
 		if (dl == NULL) {
@@ -699,13 +703,11 @@ static core_modinfo* mod_load(const ffstr *ps)
 		}
 	}
 
-	if (NULL == ffarr_growT(&fmed->bmods, 1, 4, core_modinfo))
+	if (NULL == (minfo = ffarr_pushgrowT(&fmed->bmods, 8, core_modinfo)))
 		goto fail;
-	minfo = ffarr_endT(&fmed->bmods, core_modinfo);
 	ffmem_tzero(minfo);
 	minfo->name = ffsz_alcopy(s.ptr, s.len);
 	m = getmod(core);
-	fmed->bmods.len++;
 	if (minfo->name == NULL || m == NULL)
 		goto fail;
 
@@ -726,12 +728,16 @@ static core_modinfo* mod_load(const ffstr *ps)
 
 	minfo->m = m;
 	minfo->dl = dl;
-	return minfo;
+	rc = minfo;
 
 fail:
-	FF_SAFECLOSE(dl, NULL, ffdl_close);
-	ffmem_safefree(fn);
-	return NULL;
+	if (rc == NULL) {
+		mod_destroy(minfo);
+		fmed->bmods.len--;
+		FF_SAFECLOSE(dl, NULL, ffdl_close);
+	}
+	ffarr_free(&a);
+	return rc;
 }
 
 static const fmed_modinfo* core_insmod(const char *sname, ffpars_ctx *ctx)

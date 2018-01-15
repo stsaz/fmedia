@@ -120,7 +120,8 @@ NET_O := $(OBJ_DIR)/net.o \
 	$(FF_OBJ_DIR)/ffcrc.o \
 	$(FF_OBJ_DIR)/ffhashtab.o \
 	$(FF_OBJ_DIR)/ffpath.o \
-	$(FF_O)
+	$(FF_O) \
+	$(FFOS_SKT)
 net.$(SO): $(NET_O)
 	$(LD) -shared $(NET_O) $(LDFLAGS)  -o$@
 
@@ -149,6 +150,7 @@ MPEG_O := $(OBJ_DIR)/mpeg.o \
 	$(OBJ_DIR)/mp3.o \
 	$(FF_O) \
 	$(FF_OBJ_DIR)/ffpcm.o \
+	$(FF_OBJ_DIR)/ffmp3.o \
 	$(FF_OBJ_DIR)/ffmpg.o \
 	$(FF_OBJ_DIR)/ffmpg-fmt.o \
 	$(FF_OBJ_DIR)/ffmp3lame.o \
@@ -163,6 +165,7 @@ mpeg.$(SO): $(MPEG_O)
 MPC_O := $(OBJ_DIR)/mpc.o $(FF_O) \
 	$(FF_OBJ_DIR)/ffpcm.o \
 	$(FF_OBJ_DIR)/ffmpc.o \
+	$(FF_OBJ_DIR)/ffmusepack.o \
 	$(FF_OBJ_DIR)/ffmmtag.o \
 	$(FF_OBJ_DIR)/ffapetag.o
 mpc.$(SO): $(MPC_O)
@@ -224,6 +227,7 @@ opus.$(SO): $(OPUS_O)
 FLAC_O := $(OBJ_DIR)/flac.o \
 	$(FF_O) \
 	$(FF_OBJ_DIR)/ffflac-fmt.o \
+	$(FF_OBJ_DIR)/ffflac-ext.o \
 	$(FF_OBJ_DIR)/ffflac.o \
 	$(FF_OBJ_DIR)/ffvorbistag.o \
 	$(FF_OBJ_DIR)/ffmmtag.o \

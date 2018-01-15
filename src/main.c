@@ -645,8 +645,11 @@ static int loadcore(char *argv0)
 
 	g->core_init = (void*)ffdl_addr(dl, "core_init");
 	g->core_free = (void*)ffdl_addr(dl, "core_free");
-	if (g->core_init == NULL || g->core_free == NULL)
+	if (g->core_init == NULL || g->core_free == NULL) {
+		fffile_fmt(ffstderr, NULL, "can't resolve functions from %s: %s\n"
+			, a.ptr, ffdl_errstr());
 		goto end;
+	}
 
 	g->core_dl = dl;
 	dl = NULL;

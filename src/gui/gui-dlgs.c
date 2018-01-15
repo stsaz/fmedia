@@ -379,15 +379,14 @@ void gui_showconvert(void)
 
 		ffui_view_showgroups(&gg->wconvert.vsets, 1);
 		const char *const *grp;
-		int grp_id = -1, n;
+		int grp_id = 0;
 		ffui_viewgrp vg;
 		FFARRS_FOREACH(cvt_grps, grp) {
 			ffui_viewgrp_reset(&vg);
 			ffui_viewgrp_settextz(&vg, *grp);
-			n = ffui_view_insgrp(&gg->wconvert.vsets, -1, &vg);
-			if (grp_id == -1)
-				grp_id = n;
+			ffui_view_insgrp(&gg->wconvert.vsets, -1, grp_id++, &vg);
 		}
+		grp_id = 0;
 
 		ffui_viewitem it;
 		ffui_view_iteminit(&it);
@@ -715,15 +714,14 @@ static void gui_rec_init(void)
 
 	ffui_view_showgroups(&gg->wrec.vsets, 1);
 	const char *const *grp;
-	int grp_id = -1, n;
+	int grp_id = 0;
 	ffui_viewgrp vg;
 	FFARRS_FOREACH(rec_grps, grp) {
 		ffui_viewgrp_reset(&vg);
 		ffui_viewgrp_settextz(&vg, *grp);
-		n = ffui_view_insgrp(&gg->wrec.vsets, -1, &vg);
-		if (grp_id == -1)
-			grp_id = n;
+		ffui_view_insgrp(&gg->wrec.vsets, -1, grp_id++, &vg);
 	}
+	grp_id = 0;
 
 	ffui_viewitem it;
 	ffui_view_iteminit(&it);
@@ -969,7 +967,7 @@ void gui_media_showinfo(void)
 	fmed_que_entry *e;
 	ffui_viewitem it;
 	ffui_viewgrp vg;
-	int i, grp;
+	int i, grp = 0;
 	ffstr name, *val;
 
 	ffui_show(&gg->winfo.winfo, 1);
@@ -994,7 +992,7 @@ void gui_media_showinfo(void)
 
 	ffui_viewgrp_reset(&vg);
 	ffui_viewgrp_settextz(&vg, "Metadata");
-	grp = ffui_view_insgrp(&gg->winfo.vinfo, -1, &vg);
+	ffui_view_insgrp(&gg->winfo.vinfo, -1, grp, &vg);
 
 	for (i = 0;  NULL != (val = gg->qu->meta(e, i, &name, 0));  i++) {
 		ffui_view_iteminit(&it);

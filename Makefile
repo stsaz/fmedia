@@ -19,7 +19,7 @@ include $(FFOS)/makeconf
 ifeq ($(OS),win)
 BIN := fmedia.exe
 INSTDIR := fmedia
-CFLAGS += -DFF_WIN=0x0502
+CFLAGS += -DFF_WIN=0x0501
 
 else
 BIN := fmedia

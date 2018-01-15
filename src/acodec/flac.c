@@ -3,6 +3,7 @@ Copyright (c) 2015 Simon Zolin */
 
 #include <fmedia.h>
 
+#include <FF/aformat/flac.h>
 #include <FF/audio/flac.h>
 #include <FF/mtags/mmtag.h>
 
@@ -406,6 +407,12 @@ static int flac_out_addmeta(flac_out *f, fmed_filt *d)
 
 	if (FMED_PNULL == (qent = (void*)fmed_getval("queue_item")))
 		return 0;
+
+	const char *vendor = flac_vendor();
+	if (0 != ffflac_addtag(&f->fl, NULL, vendor, ffsz_len(vendor))) {
+		syserrlog(core, d->trk, "flac", "can't add tag: %S", &name);
+		return -1;
+	}
 
 	for (i = 0;  NULL != (val = qu->meta(qent, i, &name, FMED_QUE_UNIQ));  i++) {
 		if (val == FMED_QUE_SKIP

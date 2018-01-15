@@ -3,7 +3,7 @@ Copyright (c) 2017 Simon Zolin */
 
 #include <fmedia.h>
 
-#include <FF/audio/aac-adts.h>
+#include <FF/aformat/aac-adts.h>
 
 
 const fmed_core *core;

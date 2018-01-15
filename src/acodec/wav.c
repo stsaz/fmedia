@@ -3,7 +3,7 @@ Copyright (c) 2015 Simon Zolin */
 
 #include <fmedia.h>
 
-#include <FF/audio/wav.h>
+#include <FF/aformat/wav.h>
 #include <FF/audio/pcm.h>
 #include <FF/mtags/mmtag.h>
 #include <FF/array.h>
