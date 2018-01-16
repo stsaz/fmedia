@@ -76,6 +76,10 @@ enum FMED_SIG {
 	/** Windows: add handle to WOH.
 	args: "HANDLE h, fftask *task" */
 	FMED_WOH_ADD,
+
+	/** Windows: remove handle from WOH.
+	args: "HANDLE h" */
+	FMED_WOH_DEL,
 };
 
 enum FMED_FT {

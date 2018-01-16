@@ -214,6 +214,10 @@ static void tui_destroy(void)
 	if (gt == NULL)
 		return;
 
+#ifdef FF_WIN
+	core->cmd(FMED_WOH_DEL, ffstdin);
+#endif
+
 	uint attr = FFSTD_LINEINPUT;
 	if (tui_conf.echo_off)
 		attr |= FFSTD_ECHO;

@@ -1038,6 +1038,12 @@ static ssize_t core_cmd(uint signo, ...)
 			syswarnlog(NULL, "ffwoh_add()");
 		break;
 	}
+	case FMED_WOH_DEL: {
+		HANDLE h = va_arg(va, HANDLE);
+		ffwoh_rm(fmed->woh, h);
+		r = 0;
+		break;
+	}
 #endif
 	}
 
