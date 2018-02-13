@@ -20,6 +20,7 @@ typedef struct sndmod_conv {
 
 enum {
 	CONV_OUTBUF_MSEC = 500,
+	SILGEN_BUF_MSEC = 100,
 };
 
 
@@ -72,6 +73,12 @@ static const fmed_filter fmed_sndmod_rtpeak = {
 	&sndmod_rtpeak_open, &sndmod_rtpeak_process, &sndmod_rtpeak_close
 };
 
+//SILENCE GEN
+static void* silgen_open(fmed_filt *d);
+static void silgen_close(void *ctx);
+static int silgen_process(void *ctx, fmed_filt *d);
+static const fmed_filter sndmod_silgen = { &silgen_open, &silgen_process, &silgen_close };
+
 
 const fmed_mod* fmed_getmod_sndmod(const fmed_core *_core)
 {
@@ -91,6 +98,7 @@ static const struct submod submods[] = {
 	{ "until", &fmed_sndmod_until },
 	{ "peaks", &fmed_sndmod_peaks },
 	{ "rtpeak", &fmed_sndmod_rtpeak },
+	{ "silgen", &sndmod_silgen },
 };
 
 static const void* sndmod_iface(const char *name)
@@ -551,4 +559,53 @@ static int sndmod_rtpeak_process(void *ctx, fmed_filt *d)
 	if (d->flags & FMED_FLAST)
 		return FMED_RDONE;
 	return FMED_ROK;
+}
+
+
+struct silgen {
+	uint state;
+	void *buf;
+	size_t cap;
+};
+
+static void* silgen_open(fmed_filt *d)
+{
+	struct silgen *c;
+	if (NULL == (c = ffmem_new(struct silgen)))
+		return NULL;
+	return c;
+}
+
+static void silgen_close(void *ctx)
+{
+	struct silgen *c = ctx;
+	ffmem_safefree(c->buf);
+	ffmem_free(c);
+}
+
+static int silgen_process(void *ctx, fmed_filt *d)
+{
+	struct silgen *c = ctx;
+	switch (c->state) {
+
+	case 0:
+		d->audio.convfmt = d->audio.fmt;
+		d->datatype = "pcm";
+		c->state = 1;
+		return FMED_RDATA;
+
+	case 1:
+		c->cap = ffpcm_bytes(&d->audio.convfmt, SILGEN_BUF_MSEC);
+		if (NULL == (c->buf = ffmem_alloc(c->cap)))
+			return FMED_RSYSERR;
+		ffmem_zero(c->buf, c->cap);
+		c->state = 2;
+		// fall through
+
+	case 2:
+		break;
+	}
+
+	d->out = c->buf,  d->outlen = c->cap;
+	return FMED_RDATA;
 }
