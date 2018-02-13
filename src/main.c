@@ -43,6 +43,7 @@ static int fmed_arg_out_chk(ffparser_schem *p, void *obj, const ffstr *val);
 
 static void open_input(void *udata);
 static void fmed_onsig(void *udata);
+static void rec_lpback_new_track(fmed_cmd *cmd);
 
 //LOG
 static void std_log(uint flags, fmed_logdata *ld);
@@ -592,9 +593,10 @@ static void open_input(void *udata)
 		track->copy_info(ti, &trkinfo);
 		ti->audio.fmt = fmt;
 
-		if (fmed->lbdev_name != (uint)-1)
+		if (fmed->lbdev_name != (uint)-1) {
 			track->setval(trk, "loopback_device", fmed->lbdev_name);
-		else if (fmed->captdev_name != 0)
+			rec_lpback_new_track(fmed);
+		} else if (fmed->captdev_name != 0)
 			track->setval(trk, "capture_device", fmed->captdev_name);
 
 		if (fmed->outfn.len != 0)
@@ -613,6 +615,36 @@ static void open_input(void *udata)
 
 end:
 	return;
+}
+
+/** Create a track to support recording from WASAPI in loopback mode.
+It generates silence and plays it via an audio device,
+ so data from WASAPI in looopback mode can be read continuously. */
+static void rec_lpback_new_track(fmed_cmd *cmd)
+{
+	const fmed_track *track;
+	void *trk;
+	int r = 0;
+
+	if (NULL == (track = core->getmod("#core.track")))
+		return;
+	if (NULL == (trk = track->create(FMED_TRK_TYPE_NONE, NULL)))
+		return;
+
+	fmed_trk *info = track->conf(trk);
+	info->audio.fmt.format = FFPCM_16;
+	info->audio.fmt.channels = 2;
+	info->audio.fmt.sample_rate = 44100;
+	if (cmd->lbdev_name != (uint)-1)
+		track->setval(trk, "playdev_name", cmd->lbdev_name);
+
+	r |= track->cmd(trk, FMED_TRACK_ADDFILT, "#soundmod.silgen");
+	r |= track->cmd(trk, FMED_TRACK_ADDFILT, "wasapi.out");
+	if (r != 0) {
+		track->cmd(trk, FMED_TRACK_STOP);
+		return;
+	}
+	track->cmd(trk, FMED_TRACK_START);
 }
 
 static int gcmd_send(const fmed_globcmd_iface *globcmd)

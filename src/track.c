@@ -206,6 +206,9 @@ static int trk_setout(fm_trk *t)
 		if (NULL == trk_modbyext(t, FMED_MOD_INEXT, &ext))
 			return -1;
 
+	} else if (t->props.type == FMED_TRK_TYPE_NONE) {
+		return 0;
+
 	} else if (t->props.type != FMED_TRK_TYPE_MIXIN) {
 		if (t->props.type != FMED_TRK_TYPE_REC)
 			addfilter(t, "#soundmod.until");
