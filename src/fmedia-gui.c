@@ -200,7 +200,7 @@ int __stdcall WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	const fmed_globcmd_iface *globcmd = NULL;
 	if (im != FMED_IM_OFF
 		&& NULL != (globcmd = core->getmod("#globcmd.globcmd"))
-		&& 0 == globcmd->ctl(FMED_GLOBCMD_OPEN)) {
+		&& 0 == globcmd->ctl(FMED_GLOBCMD_OPEN, NULL)) {
 
 		gcmd_send(globcmd, im);
 		goto end;
@@ -210,7 +210,7 @@ int __stdcall WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 		goto end;
 
 	if (globcmd != NULL) {
-		globcmd->ctl(FMED_GLOBCMD_START);
+		globcmd->ctl(FMED_GLOBCMD_START, NULL);
 	}
 
 	open_input();

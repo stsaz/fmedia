@@ -48,6 +48,7 @@ typedef struct fmed_cmd {
 	byte stream_copy;
 
 	ffstr globcmd;
+	char *globcmd_pipename;
 	byte bground;
 	byte bgchild;
 	char *conf_fn;

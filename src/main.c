@@ -108,6 +108,7 @@ static const ffpars_arg fmed_cmdline_args[] = {
 	{ "background-child",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(bgchild) },
 #endif
 	{ "globcmd",	FFPARS_TSTR | FFPARS_FCOPY | FFPARS_FNOTEMPTY,  OFF(globcmd) },
+	{ "globcmd.pipe-name",	FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY | FFPARS_FNOTEMPTY,  OFF(globcmd_pipename) },
 	{ "conf",	FFPARS_TSTR,  OFF(dummy) },
 	{ "notui",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(notui) },
 	{ "gui",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(gui) },
@@ -743,7 +744,7 @@ int main(int argc, char **argv, char **env)
 		if (ffstr_eqcz(&gcmd->globcmd, "listen"))
 			gcmd_listen = 1;
 
-		else if (0 == globcmd->ctl(FMED_GLOBCMD_OPEN)) {
+		else if (0 == globcmd->ctl(FMED_GLOBCMD_OPEN, g->cmd->globcmd_pipename)) {
 			gcmd_send(globcmd);
 			rc = 0;
 			goto end;
@@ -754,7 +755,8 @@ int main(int argc, char **argv, char **env)
 		goto end;
 
 	if (gcmd_listen) {
-		globcmd->ctl(FMED_GLOBCMD_START);
+		globcmd->ctl(FMED_GLOBCMD_START, g->cmd->globcmd_pipename);
+		ffmem_safefree0(g->cmd->globcmd_pipename);
 	}
 
 	g->sigs_task.udata = &g->sigs_task;

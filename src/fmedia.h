@@ -622,13 +622,13 @@ enum FMED_GUI_SIG {
 // GLOBCMD
 
 enum FMED_GLOBCMD {
-	FMED_GLOBCMD_OPEN,
-	FMED_GLOBCMD_START,
+	FMED_GLOBCMD_OPEN, //connect to another instance.  Arguments: "char *pipename"
+	FMED_GLOBCMD_START, //listen for connections.  Arguments: "char *pipename"
 };
 
 typedef struct fmed_globcmd_iface {
 	/**
 	@cmd: enum FMED_GLOBCMD. */
-	int (*ctl)(uint cmd);
+	int (*ctl)(uint cmd, ...);
 	int (*write)(const void *data, size_t len);
 } fmed_globcmd_iface;

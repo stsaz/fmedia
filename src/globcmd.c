@@ -22,7 +22,7 @@ static const fmed_mod fmed_globcmd_mod = {
 };
 
 // GLOBCMD IFACE
-static int globcmd_ctl(uint cmd);
+static int globcmd_ctl(uint cmd, ...);
 static int globcmd_write(const void *data, size_t len);
 static const fmed_globcmd_iface fmed_globcmd = {
 	&globcmd_ctl, &globcmd_write
@@ -47,7 +47,7 @@ static const ffpars_arg globcmd_conf_args[] = {
 };
 
 static int globcmd_init(void);
-static int globcmd_prep(void);
+static int globcmd_prep(const char *pipename);
 static void globcmd_free(void);
 static int globcmd_listen(void);
 static void globcmd_accept(void *udata);
@@ -105,31 +105,41 @@ static void globcmd_destroy(void)
 }
 
 
-static int globcmd_ctl(uint cmd)
+static int globcmd_ctl(uint cmd, ...)
 {
+	int r = -1;
+	va_list va;
+	va_start(va, cmd);
 	switch (cmd) {
-	case FMED_GLOBCMD_START:
-		if (0 != globcmd_prep())
+	case FMED_GLOBCMD_START: {
+		const char *pipename = va_arg(va, void*);
+		if (0 != globcmd_prep(pipename))
 			goto end;
 		if (0 != globcmd_listen())
 			goto end;
 		if (NULL == (g->track = core->getmod("#core.track")))
-			return -1;
-		return 0;
+			goto end;
+		r = 0;
+		break;
+	}
 
-	case FMED_GLOBCMD_OPEN:
-		if (0 != globcmd_prep())
+	case FMED_GLOBCMD_OPEN: {
+		const char *pipename = va_arg(va, void*);
+		if (0 != globcmd_prep(pipename))
 			goto end;
 		if (FF_BADFD == (g->opened_fd = ffpipe_connect(g->pipename_full.ptr))) {
 			syserrlog(core, NULL, "globcmd", "pipe connect: %s", g->pipename_full.ptr);
 			goto end;
 		}
 		dbglog(core, NULL, "globcmd", "connected");
-		return 0;
+		r = 0;
+		break;
+	}
 	}
 
 end:
-	return -1;
+	va_end(va);
+	return r;
 }
 
 static int globcmd_write(const void *data, size_t len)
@@ -150,15 +160,18 @@ static int globcmd_init(void)
 	return 0;
 }
 
-static int globcmd_prep(void)
+/** Prepare name of pipe. */
+static int globcmd_prep(const char *pipename)
 {
 	if (g->pipename_full.len != 0)
 		return 0;
+	if (pipename == NULL)
+		pipename = g->pipe_name;
 #ifdef FF_UNIX
-	if (0 == ffstr_catfmt(&g->pipename_full, "/tmp/.%s-unix-%u%Z", g->pipe_name, getuid()))
+	if (0 == ffstr_catfmt(&g->pipename_full, "/tmp/.%s-unix-%u%Z", pipename, getuid()))
 		return -1;
 #else
-	if (0 == ffstr_catfmt(&g->pipename_full, "\\\\.\\pipe\\%s%Z", g->pipe_name))
+	if (0 == ffstr_catfmt(&g->pipename_full, "\\\\.\\pipe\\%s%Z", pipename))
 		return -1;
 #endif
 	ffmem_safefree0(g->pipe_name);

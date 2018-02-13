@@ -539,6 +539,7 @@ static void cmd_destroy(fmed_cmd *cmd)
 	ffmem_safefree(cmd->trackno);
 	ffmem_safefree(cmd->conf_fn);
 
+	ffmem_safefree(cmd->globcmd_pipename);
 	ffstr_free(&cmd->globcmd);
 }
 
