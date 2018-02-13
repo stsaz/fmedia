@@ -24,15 +24,15 @@ mixer                 mixer
 
 
 #define FMED_VER_MAJOR  0
-#define FMED_VER_MINOR  32
+#define FMED_VER_MINOR  33
 #define FMED_VER_FULL  ((FMED_VER_MAJOR << 8) | FMED_VER_MINOR)
-#define FMED_VER  "0.32"
+#define FMED_VER  "0.33"
 
 #define FMED_VER_GETMAJ(fullver)  ((fullver) >> 8)
 #define FMED_VER_GETMIN(fullver)  ((fullver) & 0xff)
 
 /** Inter-module compatibility version. */
-#define FMED_VER_CORE  ((FMED_VER_MAJOR << 8) | 31)
+#define FMED_VER_CORE  ((FMED_VER_MAJOR << 8) | 33)
 
 #define FMED_HOMEPAGE  "http://fmedia.firmdev.com"
 
@@ -199,12 +199,7 @@ enum {
 
 #define FMED_PNULL ((void*)FMED_NULL)
 
-enum FMED_TRACK {
-	FMED_TRACK_OPEN,
-	FMED_TRACK_REC,
-	FMED_TRACK_MIX,
-	FMED_TRACK_NET,
-
+enum FMED_TRACK_CMD {
 	FMED_TRACK_START,
 	FMED_TRACK_STOP,
 	FMED_TRACK_PAUSE,
@@ -239,10 +234,19 @@ enum FMED_TRACK {
 };
 
 enum FMED_TRK_TYPE {
-	FMED_TRK_TYPE_REC = 1,
+	FMED_TRK_TYPE_NONE,
+	FMED_TRK_TYPE_PLAYBACK,
+	FMED_TRK_TYPE_REC,
 	FMED_TRK_TYPE_MIXIN,
 	FMED_TRK_TYPE_MIXOUT,
 	FMED_TRK_TYPE_NETIN,
+	_FMED_TRK_TYPE_END,
+
+	//obsolete:
+	FMED_TRACK_OPEN = FMED_TRK_TYPE_PLAYBACK,
+	FMED_TRACK_REC = FMED_TRK_TYPE_REC,
+	FMED_TRACK_MIX = FMED_TRK_TYPE_MIXOUT,
+	FMED_TRACK_NET = FMED_TRK_TYPE_NETIN,
 };
 
 enum FMED_TRK_FVAL {
@@ -261,7 +265,7 @@ typedef fmed_trk fmed_filt;
 
 typedef struct fmed_track {
 	/**
-	@cmd: enum FMED_TRACK.
+	@cmd: enum FMED_TRK_TYPE.
 	Return track ID;  FMED_TRK_E* on error. */
 	void* (*create)(uint cmd, const char *url);
 
@@ -270,8 +274,8 @@ typedef struct fmed_track {
 	void (*copy_info)(fmed_trk *dst, const fmed_trk *src);
 
 	/**
-	@cmd: enum FMED_TRACK. */
-	int (*cmd)(void *trk, uint cmd);
+	@cmd: enum FMED_TRACK_CMD. */
+	ssize_t (*cmd)(void *trk, uint cmd, ...);
 	int (*cmd2)(void *trk, uint cmd, void *param);
 
 	int64 (*popval)(void *trk, const char *name);
@@ -613,10 +617,6 @@ typedef struct fmed_queue {
 	Return meta value;  NULL: no more entries;  FMED_QUE_SKIP: skip this entry. */
 	ffstr* (*meta)(fmed_que_entry *ent, size_t n, ffstr *name, uint flags);
 } fmed_queue;
-
-enum FMED_GUI_SIG {
-	FMED_GUI_SHOW = 1 << 31,
-};
 
 
 // GLOBCMD

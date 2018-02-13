@@ -8,6 +8,16 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v0.33 - Feb 13, 2018
+
+ + core: add --globcmd.pipe-name command line argument
+   (can easily start and control many instances in parallel)
+ + wasapi: recording audio in loopback mode is now continuous
+   (record silence if nothing else is playing)
+ + gui: new command: Help -> "Check for Updates"
+ - icy: --out-copy: segfault on exit
+
+
 fmedia v0.32 - Jan 15, 2018
 
  - winXP: fix startup (unsupported imported function in core.dll and unsupported GUI behaviour)

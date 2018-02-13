@@ -55,39 +55,25 @@ static void open_input(void)
 {
 	const fmed_queue *qu;
 	fmed_que_entry e;
-	const ffsyschar *w = GetCommandLine();
-	char *s;
-	ffstr args, fn;
-	size_t n;
+	const char *fn;
 	void *qe, *first = NULL;
-	ffbool skip = 1;
+	ffpsarg a;
 
 	if (NULL == (qu = core->getmod("#queue.queue")))
 		return;
 
-	if (NULL == (s = ffsz_alcopyqz(w)))
-		return;
-	ffstr_setz(&args, s);
+	ffpsarg_init(&a, NULL, 0);
+	ffpsarg_next(&a);
 
-	while (args.len != 0) {
-		n = ffstr_nextval(args.ptr, args.len, &fn, ' ' | FFSTR_NV_DBLQUOT);
-		ffstr_shift(&args, n);
-
-		if (skip) {
-			skip = 0;
-			continue;
-		}
-
-		if (fn.len != 0) {
-			ffmem_tzero(&e);
-			e.url = fn;
-			qe = qu->add(&e);
-			if (first == NULL)
-				first = qe;
-		}
+	while (NULL != (fn = ffpsarg_next(&a))) {
+		ffmem_tzero(&e);
+		ffstr_setz(&e.url, fn);
+		qe = qu->add(&e);
+		if (first == NULL)
+			first = qe;
 	}
 
-	ffmem_free(s);
+	ffpsarg_destroy(&a);
 
 	if (first != NULL)
 		qu->cmd(FMED_QUE_PLAY, first);
@@ -103,29 +89,26 @@ static int gcmd_send(const fmed_globcmd_iface *globcmd, uint mode)
 	ffconfw confw;
 	ffpsarg a;
 
-	ffmem_tzero(&confw);
+	ffconf_winit(&confw, NULL, 0);
 	ffpsarg_init(&a, NULL, 0);
 
 	ffpsarg_next(&a);
 
 	if (mode == FMED_IM_CLEARPLAY)
-		if (0 != ffconf_write(&confw, FFSTR("clear"), FFCONF_TKEY))
-			goto end;
+		ffconf_write(&confw, FFSTR("clear"), FFCONF_TKEY);
 
 	ffstr cmd;
 	if (mode == FMED_IM_ADD)
 		ffstr_setz(&cmd, "add");
 	else
 		ffstr_setz(&cmd, "play");
-	if (0 != ffconf_write(&confw, cmd.ptr, cmd.len, FFCONF_TKEY))
-		goto end;
+	ffconf_write(&confw, cmd.ptr, cmd.len, FFCONF_TKEY);
 
 	while (NULL != (fn = ffpsarg_next(&a))) {
-		if (0 != ffconf_write(&confw, fn, ffsz_len(fn), FFCONF_TVAL))
-			goto end;
+		ffconf_writez(&confw, fn, FFCONF_TVAL);
 	}
 
-	if (0 != ffconf_write(&confw, NULL, 0, FFCONF_TKEY))
+	if (0 == ffconf_write(&confw, NULL, 0, FFCONF_FIN))
 		goto end;
 
 	if (0 != globcmd->write(confw.buf.ptr, confw.buf.len)) {

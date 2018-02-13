@@ -106,8 +106,8 @@ static const fmed_filter fmed_wasapi_in = {
 	&wasapi_in_open, &wasapi_in_read, &wasapi_in_close
 };
 
-static void wasapi_ontmr(const fftime *now, void *param);
-static void wasapi_ontmr_capt(const fftime *now, void *param);
+static void wasapi_ontmr(void *param);
+static void wasapi_ontmr_capt(void *param);
 static void wasapi_onplay(void *udata);
 static void wasapi_oncapt(void *udata);
 
@@ -432,7 +432,7 @@ static void wasapi_close(void *ctx)
 	ffmem_free(w);
 }
 
-static void wasapi_ontmr(const fftime *now, void *param)
+static void wasapi_ontmr(void *param)
 {
 	wasapi_out *w = param;
 	if (!w->async)
@@ -673,7 +673,7 @@ static void wasapi_in_close(void *ctx)
 	ffmem_free(w);
 }
 
-static void wasapi_ontmr_capt(const fftime *now, void *param)
+static void wasapi_ontmr_capt(void *param)
 {
 	wasapi_in *w = param;
 	if (!w->async)

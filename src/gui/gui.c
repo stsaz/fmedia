@@ -708,7 +708,7 @@ static FFTHDCALL int gui_worker(void *param)
 	if (gg->autosave_playlists)
 		gui_loadlists();
 
-	fflk_unlock(&gg->lk);
+	FF_WRITEONCE(&gg->state, 1);
 
 	gui_ghk_reg();
 
@@ -716,8 +716,8 @@ static FFTHDCALL int gui_worker(void *param)
 	goto done;
 
 err:
+	FF_WRITEONCE(&gg->state, 1);
 	gg->load_err = 1;
-	fflk_unlock(&gg->lk);
 	ffmem_safefree(fn);
 	ffmem_safefree(fnconf);
 done:
@@ -846,7 +846,6 @@ static int gui_sig(uint signo)
 			return -1;
 		gg->go_pos = (uint)-1;
 		fflk_init(&gg->lktrk);
-		fflk_init(&gg->lk);
 		return 0;
 
 	case FMED_OPEN:
@@ -860,19 +859,13 @@ static int gui_sig(uint signo)
 		}
 
 		fflk_setup();
-		fflk_lock(&gg->lk);
 
 		if (NULL == (gg->th = ffthd_create(&gui_worker, gg, 0))) {
 			return 1;
 		}
 
-		fflk_lock(&gg->lk); //give the GUI thread some time to create controls
-		fflk_unlock(&gg->lk);
+		ffatom_waitchange(&gg->state, 0); //give the GUI thread some time to create controls
 		return gg->load_err;
-
-	case FMED_GUI_SHOW:
-		gg->wmain.wmain.on_action(&gg->wmain.wmain, SHOW);
-		break;
 
 	case FMED_SIG_INSTALL:
 	case FMED_SIG_UNINSTALL:

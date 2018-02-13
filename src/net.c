@@ -20,6 +20,7 @@ Copyright (c) 2016 Simon Zolin */
 #define dbglog(trk, ...)  fmed_dbglog(core, trk, "net.icy", __VA_ARGS__)
 #define infolog(trk, ...)  fmed_infolog(core, trk, "net.icy", __VA_ARGS__)
 #define warnlog(trk, ...)  fmed_warnlog(core, trk, "net.icy", __VA_ARGS__)
+#define syswarnlog(trk, ...)  fmed_syswarnlog(core, trk, "net.icy", __VA_ARGS__)
 #define errlog(trk, ...)  fmed_errlog(core, trk, "net.icy", __VA_ARGS__)
 #define syserrlog(trk, ...)  fmed_syserrlog(core, trk, "net.icy", __VA_ARGS__)
 
@@ -61,6 +62,7 @@ typedef struct nethttp {
 	uint state;
 	fmed_filt *d;
 
+	const char *method;
 	fflist1_item recycled;
 	char *orighost;
 	char *host;
@@ -84,11 +86,13 @@ typedef struct nethttp {
 	ffstr hbuf;
 	ffhttp_response resp;
 	uint nredirect;
+	uint max_reconnect;
 
 	uint buflock :1
 		, iowait :1 //waiting for I/O, all input data is consumed
 		, async :1
 		, preload :1 //fill all buffers
+		, icy_meta_req :1
 		;
 } nethttp;
 
@@ -120,7 +124,7 @@ static int ip_resolve(nethttp *c);
 static int tcp_prepare(nethttp *c, ffaddr *a);
 static int tcp_connect(nethttp *c, const struct sockaddr *addr, socklen_t addr_size);
 static int tcp_recv(nethttp *c);
-static void tcp_ontmr(const fftime *now, void *param);
+static void tcp_ontmr(void *param);
 static int tcp_recvhdrs(nethttp *c);
 static int tcp_send(nethttp *c);
 static int tcp_getdata(nethttp *c, ffstr *dst);
@@ -226,6 +230,7 @@ static int net_sig(uint signo)
 			return -1;
 		if (NULL == (net = ffmem_tcalloc1(netmod)))
 			return -1;
+		ffhttp_initheaders();
 		return 0;
 
 	case FMED_OPEN:
@@ -246,6 +251,7 @@ static void net_destroy(void)
 		ffmem_free(FF_GETPTR(nethttp, recycled, c));
 	}
 	ffmem_free0(net);
+	ffhttp_freeheaders();
 }
 
 
@@ -312,6 +318,9 @@ static void* http_open(fmed_filt *d)
 
 	c->tmr.handler = &tcp_ontmr;
 	c->tmr.param = c;
+	c->method = "GET";
+	c->max_reconnect = net->conf.max_reconnect;
+	c->icy_meta_req = net->conf.meta;
 
 	return c;
 
@@ -381,7 +390,7 @@ static int ip_resolve(nethttp *c)
 		goto done;
 	}
 
-	core->log(FMED_LOG_INFO, c->d->trk, NULL, "resolving host %S...", &s);
+	infolog(c->d->trk, "resolving host %S...", &s);
 	r = ffaddr_info(&c->addr, hostz, NULL, 0);
 	ffmem_free(hostz);
 	if (r != 0) {
@@ -421,17 +430,17 @@ static int tcp_prepare(nethttp *c, ffaddr *a)
 		char saddr[FF_MAXIP6];
 		size_t n = ffaddr_tostr(a, saddr, sizeof(saddr), FFADDR_USEPORT);
 		ffstr host = ffurl_get(&c->url, c->host, FFURL_HOST);
-		core->log(FMED_LOG_INFO, c->d->trk, NULL, "connecting to %S (%*s)...", &host, n, saddr);
+		infolog(c->d->trk, "connecting to %S (%*s)...", &host, n, saddr);
 
 		if (FF_BADSKT == (c->sk = ffskt_create(family, SOCK_STREAM | SOCK_NONBLOCK, IPPROTO_TCP))) {
-			core->log(FMED_LOG_WARN | FMED_LOG_SYS, c->d->trk, NULL, "%s", ffskt_create_S);
+			syswarnlog(c->d->trk, "%s", ffskt_create_S);
 			ffskt_close(c->sk);
 			c->sk = FF_BADSKT;
 			continue;
 		}
 
 		if (0 != ffskt_setopt(c->sk, IPPROTO_TCP, TCP_NODELAY, 1))
-			core->log(FMED_LOG_WARN | FMED_LOG_SYS, c->d->trk, NULL, "%s", ffskt_setopt_S);
+			syswarnlog(c->d->trk, "%s", ffskt_setopt_S);
 
 		ffaio_init(&c->aio);
 		c->aio.sk = c->sk;
@@ -460,11 +469,10 @@ static int tcp_connect(nethttp *c, const struct sockaddr *addr, socklen_t addr_s
 	int r;
 	r = ffaio_connect(&c->aio, &tcp_aio, addr, addr_size);
 	if (r == FFAIO_ERROR) {
-		core->log(FMED_LOG_WARN | FMED_LOG_SYS, c->d->trk, NULL, "%s", ffskt_connect_S);
+		syswarnlog(c->d->trk, "%s", ffskt_connect_S);
 		ffskt_close(c->sk);
 		c->sk = FF_BADSKT;
 		ffaio_fin(&c->aio);
-		c->state = I_NEXTADDR;
 		return FMED_RMORE;
 
 	} else if (r == FFAIO_ASYNC) {
@@ -479,10 +487,10 @@ static int tcp_connect(nethttp *c, const struct sockaddr *addr, socklen_t addr_s
 	return 0;
 }
 
-static void tcp_ontmr(const fftime *now, void *param)
+static void tcp_ontmr(void *param)
 {
 	nethttp *c = param;
-	fmed_warnlog(core, c->d->trk, NULL, "I/O timeout", 0);
+	warnlog(c->d->trk, "I/O timeout", 0);
 	c->async = 0;
 	tcp_ioerr(c);
 	c->d->handler(c->d->trk);
@@ -494,7 +502,6 @@ static int tcp_recvhdrs(nethttp *c)
 
 	if (c->bufs[0].len == net->conf.bufsize) {
 		errlog(c->d->trk, "too large response headers");
-		c->state = I_ERR;
 		return FMED_RMORE;
 	}
 
@@ -511,8 +518,7 @@ static int tcp_recvhdrs(nethttp *c)
 			errlog(c->d->trk, "server has closed connection");
 		else
 			syserrlog(c->d->trk, "%s", ffskt_recv_S);
-		tcp_ioerr(c);
-		return FMED_RMORE;
+		return FMED_RERR;
 	}
 
 	c->bufs[0].len += r;
@@ -534,13 +540,21 @@ static int tcp_getdata(nethttp *c, ffstr *dst)
 		FF_ASSERT(!c->async);
 		r = tcp_recv(c);
 		if (r == FMED_RASYNC) {
-			core->log(FMED_LOG_INFO, c->d->trk, NULL, "precaching data...");
+			infolog(c->d->trk, "precaching data...");
 			c->iowait = 1;
 			c->preload = 1;
 			c->lowat = net->conf.bufsize;
 			return FMED_RASYNC;
-		} else if (r != FMED_RDATA)
-			return r;
+		} else if (r == FMED_RERR) {
+			tcp_ioerr(c);
+			return FMED_RMORE;
+		} else if (r == FMED_RDONE) {
+			c->state = I_DONE;
+			return FMED_RMORE;
+		} else if (r == FMED_RMORE) {
+			c->state = I_ERR;
+			return FMED_RMORE;
+		}
 	}
 
 	if (c->preload) {
@@ -556,7 +570,7 @@ static int tcp_getdata(nethttp *c, ffstr *dst)
 
 static int tcp_ioerr(nethttp *c)
 {
-	if (c->reconnects++ == net->conf.max_reconnect) {
+	if (c->reconnects++ == c->max_reconnect) {
 		errlog(c->d->trk, "reached max number of reconnections", 0);
 		c->state = I_ERR;
 		return 1;
@@ -595,6 +609,12 @@ static void tcp_recv_a(void *udata)
 	int r = tcp_recv(c);
 	if (r == FMED_RASYNC)
 		return;
+	else if (r == FMED_RERR)
+		tcp_ioerr(c);
+	else if (r == FMED_RDONE)
+		c->state = I_DONE;
+	else if (r == FMED_RMORE)
+		c->state = I_ERR;
 	if (c->iowait) {
 		dbglog(c->d->trk, "waking up track...");
 		c->iowait = 0;
@@ -608,7 +628,6 @@ static int tcp_recv(nethttp *c)
 
 	if (c->curbuf_len == net->conf.bufsize) {
 		errlog(c->d->trk, "buffer #%u is full", c->wbuf);
-		c->state = I_ERR;
 		return FMED_RMORE;
 	}
 
@@ -627,12 +646,10 @@ static int tcp_recv(nethttp *c)
 
 		if (r == 0) {
 			dbglog(c->d->trk, "server has closed connection");
-			c->state = I_DONE;
-			return FMED_RMORE;
+			return FMED_RDONE;
 		} else if (r < 0) {
 			syserrlog(c->d->trk, "%s", ffskt_recv_S);
-			tcp_ioerr(c);
-			return FMED_RMORE;
+			return FMED_RERR;
 		}
 
 		c->curbuf_len += r;
@@ -662,8 +679,7 @@ static int tcp_send(nethttp *c)
 		r = ffaio_send(&c->aio, &tcp_aio, c->data.ptr, c->data.len);
 		if (r == FFAIO_ERROR) {
 			syserrlog(c->d->trk, "%s", ffskt_send_S);
-			tcp_ioerr(c);
-			return FMED_RMORE;
+			return FMED_RERR;
 
 		} else if (r == FFAIO_ASYNC) {
 			c->async = 1;
@@ -687,15 +703,15 @@ static int http_prepreq(nethttp *c, ffstr *dst)
 	s = ffurl_get(&c->url, c->host, FFURL_PATHQS);
 	if (s.len == 0)
 		ffstr_setcz(&s, "/");
-	dbglog(c->d->trk, "sending request GET %S", &s);
-	ffhttp_addrequest(&ck, "GET", 3, s.ptr, s.len);
+	dbglog(c->d->trk, "sending request %s %S", c->method, &s);
+	ffhttp_addrequest(&ck, c->method, ffsz_len(c->method), s.ptr, s.len);
 	s = ffurl_get(&c->url, c->host, FFURL_FULLHOST);
 	ffhttp_addihdr(&ck, FFHTTP_HOST, s.ptr, s.len);
 	if (net->conf.user_agent != 0) {
 		ffstr_setz(&s, http_ua[net->conf.user_agent - 1]);
 		ffhttp_addihdr(&ck, FFHTTP_USERAGENT, s.ptr, s.len);
 	}
-	if (net->conf.meta) {
+	if (c->icy_meta_req) {
 		ffstr_setz(&s, "1");
 		ffhttp_addhdr_str(&ck, &fficy_shdr[FFICY_HMETADATA], &s);
 	}
@@ -707,7 +723,7 @@ static int http_prepreq(nethttp *c, ffstr *dst)
 }
 
 /**
-Return 0 on success;  1 if a new state is set;  -1 on error. */
+Return 0 on success;  1 - need more data;  2 - redirect;  -1 on error;  -2 if non-200 response. */
 static int http_parse(nethttp *c)
 {
 	ffstr s;
@@ -716,7 +732,6 @@ static int http_parse(nethttp *c)
 	case FFHTTP_DONE:
 		break;
 	case FFHTTP_MORE:
-		c->state = I_HTTP_RESP;
 		return 1;
 	default:
 		errlog(c->d->trk, "parse HTTP response: %s", ffhttp_errstr(r));
@@ -746,13 +761,12 @@ static int http_parse(nethttp *c)
 		c->bufs[0].len = 0;
 		ffhttp_respfree(&c->resp);
 		ffhttp_respinit(&c->resp);
-		c->state = I_ADDR;
-		return 1;
+		return 2;
 
 	} else if (c->resp.code != 200) {
 		ffstr ln = ffhttp_respstatus(&c->resp);
 		errlog(c->d->trk, "resource unavailable: %S", &ln);
-		return -1;
+		return -2;
 	}
 
 	return 0;
@@ -787,8 +801,10 @@ static int http_process(void *ctx, fmed_filt *d)
 		r = tcp_connect(c, &a.a, a.len);
 		if (r == FMED_RASYNC)
 			return FMED_RASYNC;
-		else if (r == FMED_RMORE)
+		else if (r == FMED_RMORE) {
+			c->state = I_NEXTADDR;
 			continue;
+		}
 		c->state = I_HTTP_REQ;
 		// break
 
@@ -801,8 +817,10 @@ static int http_process(void *ctx, fmed_filt *d)
 		r = tcp_send(c);
 		if (r == FMED_RASYNC)
 			return FMED_RASYNC;
-		else if (r == FMED_RMORE)
+		else if (r == FMED_RERR) {
+			tcp_ioerr(c);
 			continue;
+		}
 
 		dbglog(c->d->trk, "receiving response...");
 		ffstr_set(&c->data, c->bufs[0].ptr, net->conf.bufsize);
@@ -813,17 +831,31 @@ static int http_process(void *ctx, fmed_filt *d)
 		r = tcp_recvhdrs(c);
 		if (r == FMED_RASYNC)
 			return FMED_RASYNC;
-		else if (r == FMED_RMORE)
+		else if (r == FMED_RMORE) {
+			c->state = I_ERR;
 			continue;
+		} else if (r == FMED_RERR) {
+			tcp_ioerr(c);
+			continue;
+		}
 		c->state = I_HTTP_RESP_PARSE;
 		//fall through
 
 	case I_HTTP_RESP_PARSE:
 		r = http_parse(c);
-		if (r == 1)
-			continue;
-		else if (r == -1)
+		switch (r) {
+		case 0:
+			break;
+		case -1:
+		case -2:
 			goto done;
+		case 1:
+			c->state = I_HTTP_RESP;
+			continue;
+		case 2:
+			c->state = I_ADDR;
+			continue;
+		}
 
 		ffstr_set2(&c->data, &c->bufs[0]);
 		ffstr_shift(&c->data, c->resp.h.len);

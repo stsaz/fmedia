@@ -399,8 +399,7 @@ distclean: clean ffclean
 strip: $(BINS:.$(SO)=.$(SO).debug) $(BIN).debug $(BINS:.exe=.exe.debug)
 
 
-installd: all
-
+install-only:
 	mkdir -vp $(INSTDIR)
 	$(CP) $(BIN) \
 		$(PROJDIR)/fmedia.conf $(PROJDIR)/help*.txt $(PROJDIR)/README.txt $(PROJDIR)/CHANGES.txt \
@@ -435,7 +434,13 @@ endif
 	chmod 644 $(INSTDIR)/mod/*
 
 
-install: all strip installd
+installd: all
+	$(MAKE) -f $(firstword $(MAKEFILE_LIST)) install-only
+install: all
+	$(MAKE) -f $(firstword $(MAKEFILE_LIST)) strip
+	$(MAKE) -f $(firstword $(MAKEFILE_LIST)) install-only
+package-all: install
+	$(MAKE) -f $(firstword $(MAKEFILE_LIST)) package
 
 
 BINS_NODEPS := $(BIN) core.$(SO) net.$(SO) mixer.$(SO) plist.$(SO) \

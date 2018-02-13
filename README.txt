@@ -1,6 +1,7 @@
 ---------------
 OVERVIEW
 ---------------
+
 fmedia is a fast asynchronous media player/recorder/converter for Windows, Linux and FreeBSD.  Its goal is to provide smooth playback even if input device is very slow and unresponsive.  The architecture allows to extend the functionality of the application in any way: adding a new audio input/output format, a new DSP filter or even a new GUI.  fmedia is very small and fast: it has low CPU & memory consumption making it ideal to listen to music or process audio files while running on a notebook's battery.
 
 fmedia can decode: .mp3, .ogg (Vorbis, Opus), .opus, .m4a/.mp4 (AAC, ALAC, MPEG), .mka/.mkv (AAC, ALAC, MPEG, Vorbis), .avi (AAC, MPEG), .aac, .mpc, .flac, .ape, .wv, .wav.
@@ -9,137 +10,151 @@ fmedia can encode into: .mp3, .ogg, .opus, .m4a (AAC), .flac, .wav.
 
 Note: it's beta version - not tested well enough, not all functions will work as expected.  See section "USE-CASES" to have an idea of which features should work.
 
-Contents:
-	. MODULES
-	. INSTALL ON WINDOWS
-	. INSTALL ON LINUX
-	. BUILD ON LINUX
-	. BUILD ON LINUX FOR WINDOWS
-	. CONFIG
-	. EXTRACT TRACKS FROM FLAC.CUE
-	. TERMINAL UI
-	. GRAPHICAL UI
-	. USE-CASES
-	. FOR DEVELOPERS
-	. BUG REPORT
+### Contents:
+
+* FEATURES
+* INSTALL
+	* INSTALL ON WINDOWS
+	* INSTALL ON LINUX
+	* BUILD ON LINUX
+	* BUILD ON LINUX FOR WINDOWS
+* CONFIG
+* EXTRACT TRACKS FROM FLAC.CUE
+* TERMINAL UI
+* GRAPHICAL UI
+* USE-CASES
+* FOR DEVELOPERS
+* BUG REPORT
 
 
 ---------------
-MODULES
+FEATURES
 ---------------
 All features are provided by fmedia modules divided into 3 groups:
 
-INPUT
-	. File
-	. ICY
-	. WASAPI Capture
-	. Windows Direct Sound Capture
-	. ALSA Capture
+### INPUT
+* File
+* ICY
+* WASAPI Capture
+* Windows Direct Sound Capture
+* ALSA Capture
 
-FILTERS
-	Containers:
-	. MP4 input/output
-	. MKV input
-	. OGG input/output
-	. AVI input
+### FILTERS
+* Containers:
+	* .mp4/.m4a (read/write)
+	* .mkv/.mka (read)
+	* .ogg/.opus (read/write)
+	* .avi (read)
+	* .mp3 (read/write)
+	* .aac (read)
+	* .mpc (read)
+	* .flac (read/write)
+	* .ape (read)
+	* .wv (read)
+	* .wav (read/write)
 
-	Lossy codecs:
-	. MPEG input/output
-	. Vorbis input/output
-	. Opus input/output
-	. AAC input/output
-	. Musepack input
+* Lossy codecs:
+	* MPEG (decode/encode)
+	* Vorbis (decode/encode)
+	* Opus (decode/encode)
+	* AAC (decode/encode)
+	* Musepack (decode)
 
-	Lossless codecs:
-	. FLAC input/output
-	. ALAC input
-	. WavPack input
-	. APE input
-	. WAV input/output
-	. RAW input
+* Lossless codecs:
+	* FLAC (decode/encode)
+	* ALAC (decode)
+	* WavPack (decode)
+	* APE (decode)
 
-	Playlists:
-	. M3U, PLS input
-	. CUE input
-	. Directory input
+* Playlists:
+	* .m3u/.m3u8, .pls (read)
+	* .cue (read)
+	* Directory
 
-	Other:
-	. PCM converter
-	. PCM peaks
-	. Mixer
-	. Terminal UI
-	. Graphical UI
+* Other:
+	* PCM converter
+	* PCM peaks
+	* Mixer
+	* Terminal UI
+	* Graphical UI
 
-OUTPUT
-	. File
-	. Windows Direct Sound Playback
-	. WASAPI Playback
-	. ALSA Playback
-	. Pulse Audio Playback
-	. OSS Playback
+### OUTPUT
+* File
+* Windows Direct Sound Playback
+* WASAPI Playback
+* ALSA Playback
+* Pulse Audio Playback
+* OSS Playback
 
-fmedia uses modified versions of these 3rd party libraries: libALAC, libfdk-aac, libFLAC, libMAC, libmp3lame, libmpg123, libmpc, libogg, libopus, libsoxr, libvorbisenc, libvorbis, libwavpack.  See ff-3pt/README.txt for details.
+fmedia uses modified versions of these 3rd party libraries: libALAC, libfdk-aac, libFLAC, libMAC, libmp3lame, libmpg123, libmpc, libogg, libopus, libsoxr, libvorbisenc, libvorbis, libwavpack.  See `ff-3pt/README.txt` for details.
 
 
 ---------------
-INSTALL ON WINDOWS
+INSTALL
 ---------------
-1. Unpack archive to the directory of your choice, e.g. to "C:\Program Files\fmedia"
 
-2. Optionally, run the following command (from console):
+### INSTALL ON WINDOWS
 
-	"C:\Program Files\fmedia\fmedia.exe" --install
+1. Unpack archive to the directory of your choice, e.g. to `"C:\Program Files\fmedia"`
+
+	* Right click on fmedia package file (e.g. `fmedia-0.33-win-x64.zip`) in Explorer
+	* Choose "Extract All..." in the popup menu
+	* Follow the Wizard steps
+
+2. Optionally, run the following command from console (cmd.exe):
+
+		"C:\Program Files\fmedia\fmedia.exe" --install
 
 	This command will:
-	. add fmedia directory into user's environment
-	. create a desktop shortcut to fmedia-gui.exe
+	* add fmedia directory into user's environment
+	* create a desktop shortcut to `fmedia-gui.exe`
 
+3. Run `fmedia-gui.exe` to open graphical interface;  or execute commands via `fmedia.exe` from console (cmd.exe).
 
----------------
-INSTALL ON LINUX
----------------
-1. Unpack archive to the directory of your choice, e.g. to "/usr/local/fmedia-0":
+### INSTALL ON LINUX
 
-	tar Jxf ./fmedia-0.8-linux-amd64.tar.xz -C /usr/local
+1. Unpack archive to the directory of your choice, e.g. to `/usr/local/fmedia-0`:
+
+		tar Jxf ./fmedia-0.33-linux-amd64.tar.xz -C /usr/local
 
 2. Optionally, create a symbolic link:
 
-	ln -s /usr/local/fmedia-0/fmedia /usr/local/bin/fmedia
+		ln -s /usr/local/fmedia-0/fmedia /usr/local/bin/fmedia
 
+### BUILD ON LINUX
 
----------------
-BUILD ON LINUX
----------------
 1. Create a directory for all needed sources:
 
-	mkdir firmdev && cd firmdev
+		mkdir firmdev && cd firmdev
 
 2. Download all needed source repositories:
 
-	git clone https://github.com/stsaz/ffos
-	git clone https://github.com/stsaz/ff
-	git clone https://github.com/stsaz/ff-3pt
-	git clone https://github.com/stsaz/fmedia
+		git clone https://github.com/stsaz/ffos
+		git clone https://github.com/stsaz/ff
+		git clone https://github.com/stsaz/ff-3pt
+		git clone https://github.com/stsaz/fmedia
 
-3. Build ff-3pt package (3rd-party libraries) or download pre-built binaries.  See ff-3pt/README.txt for details.
+3. Build ff-3pt package (3rd-party libraries) or download pre-built binaries.  See `ff-3pt/README.txt` for details.
 
 4. Build fmedia:
 
-	cd fmedia
-	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:../ff-3pt-bin/linux-amd64
-	make install
+		cd fmedia
+		export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:../ff-3pt-bin/linux-amd64
+		make install
 
 	You can explicitly specify path to each of FF source repositories, e.g.:
-	make install FFOS=~/ffos FF=~/ff FF3PT=~/ff-3pt
+
+		make install FFOS=~/ffos FF=~/ff FF3PT=~/ff-3pt
 
 	Default architecture is amd64.  You can specify different target architecture like this:
+
 		make install ARCH=i686
-	You'll also need to specify the proper path to ff-3pt binaries in LD_LIBRARY_PATH.
 
-5. Ready!  You can copy the directory ./fmedia-0 anywhere you want (see section "INSTALL ON LINUX").
+	You'll also need to specify the proper path to ff-3pt binaries in `LD_LIBRARY_PATH`.
 
+5. Ready!  You can copy the directory `./fmedia-0` anywhere you want (see section "INSTALL ON LINUX").
 
-LIGHT BUILD
+### LIGHT BUILD
 
 You can build fmedia without dependencies on 3rd-party libraries.  This will be a very small package without audio (de)compression features.  Follow these steps:
 
@@ -147,27 +162,25 @@ You can build fmedia without dependencies on 3rd-party libraries.  This will be 
 
 3. Run this command:
 
-	make install-nodeps
+		make install-nodeps
 
-4. Edit fmedia.conf and manually remove all modules that require 3rd-party libraries.
+4. Edit `fmedia.conf` and manually remove all modules that require 3rd-party libraries.
 
+### BUILD ON LINUX FOR WINDOWS
 
----------------
-BUILD ON LINUX FOR WINDOWS
----------------
 1-3. See section "BUILD ON LINUX".
 
 4. Build with mingw (64-bit):
 
-	cd fmedia
-	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:../ff-3pt-bin/win-amd64
-	mingw64-make OS=win CPREFIX=x86_64-w64-mingw32- install
+		cd fmedia
+		export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:../ff-3pt-bin/win-amd64
+		mingw64-make OS=win CPREFIX=x86_64-w64-mingw32- install
 
 	Build with mingw (32-bit):
 
-	cd fmedia
-	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:../ff-3pt-bin/win-i686
-	mingw32-make OS=win ARCH=i686 CPREFIX=i686-w64-mingw32- install
+		cd fmedia
+		export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:../ff-3pt-bin/win-i686
+		mingw32-make OS=win ARCH=i686 CPREFIX=i686-w64-mingw32- install
 
 5. Ready!
 
@@ -180,8 +193,9 @@ The global configuration file "fmedia.conf" is located within the fmedia directo
 Additional settings may be stored in file "fmedia-ext.conf".  This makes it easier to upgrade fmedia without the need to edit "fmedia.conf".
 
 Per-user configuration settings are also supported, they must be stored in "fmedia-user.conf" file in home directory:
- Windows: %APPDATA%/fmedia/fmedia-user.conf
- Linux:   $HOME/.config/fmedia/fmedia-user.conf
+
+	Windows: %APPDATA%/fmedia/fmedia-user.conf
+	Linux:   $HOME/.config/fmedia/fmedia-user.conf
 
 Settings for a module must be in format "so.module.key value", e.g. to overwrite the global setting for OGG Vorbis encoding quality you should write:
 
@@ -212,6 +226,7 @@ On Windows you can run fmedia in GUI mode:
 	fmedia-gui.exe
 
 You should use this binary file for opening files via Explorer's "Open With..." feature.
+
 Note: command-line options are not supported.
 
 Or you may execute the console binary like this:
@@ -224,7 +239,7 @@ fmedia GUI is provided by a separate module - gui.dll.  It is written in such a 
 
 fmedia GUI is highly customizable, thanks to FF library that is used under the hood.  FF UI technology allows you to modify properties of every UI control: windows, buttons, menus, tray icons and more.  You may resize controls, set different styling, change any text, hotkeys, etc.  All this information is stored within "fmedia.gui" which is a plain text file.  After you make some changes in fmedia.gui, save it and then restart fmedia.
 
-By default fmedia GUI saves its state in file "%APPDATA%\fmedia\fmedia.gui.conf".  You can change this by setting "portable_conf" to "true" in fmedia.conf.  After that, "fmedia.gui.conf" will be stored in program directory (e.g. "C:\Program Files\fmedia\fmedia.gui.conf"), thus making fmedia completely portable.
+By default fmedia GUI saves its state in file `"%APPDATA%\fmedia\fmedia.gui.conf"`.  You can change this by setting "portable_conf" to "true" in fmedia.conf.  After that, "fmedia.gui.conf" will be stored in program directory (e.g. `"C:\Program Files\fmedia\fmedia.gui.conf"`), thus making fmedia completely portable.
 
 
 ---------------
@@ -233,90 +248,110 @@ USE-CASES
 
 Note the difference between UNIX and Windows terminals when you use special characters and spaces:
 
-	. Use single quotes ('') on Linux (sh, bash), e.g.:
+* Use single quotes ('') on Linux (sh, bash), e.g.:
+
 		fmedia './my file.ogg'
 		fmedia file.wav -o '$filename.ogg'
 
-	. Use double quotes ("") on Windows (cmd.exe), e.g.:
+* Use double quotes ("") on Windows (cmd.exe), e.g.:
+
 		fmedia "./my file.ogg"
 
 
-PLAY
+### PLAY
 
 Play files, directories, Internet-radio streams
+
 	fmedia ./file.ogg ./*.mp3
 	fmedia ./Music
 	fmedia http://radio-stream:80/
 
 Play (mix) multiple streams simultaneously
+
 	fmedia --mix ./file1.ogg ./file2.ogg
 
 Play wav file with a corrupted header
+
 	fmedia ./file.raw --fseek=44
----------------
 
-CONVERT
+### CONVERT
 
-Convert
+Convert with parameters
+
 	fmedia ./file.ogg --out=./file.wav --format=int16
 	fmedia ./file.wav --out=./file.ogg --vorbis.quality=7.0
 	fmedia ./file.wav --out=./file.mp3 --mpeg-quality=0 --rate=48000
 
 Convert all .wav files from the current directory to .ogg
+
 	fmedia ./*.wav --out=.ogg
 
 Convert file and override meta info
+
 	fmedia ./file.flac --out=.ogg --meta='artist=Artist Name;comment=My Comment'
 
 Extract several tracks from .cue file
+
 	fmedia ./album.flac.cue --track=3,7,13 --out='$tracknumber. $artist - $title.flac'
 
 Split audio file
+
 	fmedia ./file.wav --seek=00:35 --until=01:35 --out=./file-1.wav
 
 Cut compressed audio without re-encoding
+
 	fmedia ./file.ogg --out=./out.ogg --seek=1:00 --until=2:00 --stream-copy
 
 Copy left channel's audio from a stereo source
+
 	fmedia ./stereo.ogg -o left.wav --channels=left
 
 Change sound volume in an audio file
-	fmedia --gain=5.0 ./file.wav --out=./file-loud.wav
----------------
 
-RECORD
+	fmedia --gain=5.0 ./file.wav --out=./file-loud.wav
+
+### RECORD
 
 Capture audio from the default audio input device until stopped
+
 	fmedia --record --out=rec.flac
 
 Record with the specific audio format
+
 	fmedia --record -o rec.wav --format=int24 --channels=mono --rate=48000
 
 Record for 60 seconds then stop
+
 	fmedia --record --out=rec.flac --until=60
 
 Record while playing
+
 	fmedia ./file.ogg --record --out=./rec.wav
 
 Live output
+
 	fmedia --record
 
 Record audio from Internet radio (without re-encoding)
+
 	fmedia http://radio-stream:80/ -o ./radio.mp3 --stream-copy
 
 Play AND record audio from Internet radio into separate files (without re-encoding)
-	fmedia http://radio-stream:80/ --out-copy -o './$time. $artist - $title.mp3' --stream-copy
----------------
 
-OTHER FUNCTIONS
+	fmedia http://radio-stream:80/ --out-copy -o './$time. $artist - $title.mp3' --stream-copy
+
+### OTHER FUNCTIONS
 
 Print audio meta info
+
 	fmedia --info ./file.mp3
 
 Print audio meta info and all tags
+
 	fmedia --info --tags ./file.mp3
 
 Show PCM information
+
 	fmedia input.ogg --pcm-peaks
 
 
@@ -324,14 +359,15 @@ Show PCM information
 FOR DEVELOPERS
 ---------------
 
-YOUR APPLICATION BASED ON FMEDIA.
-fmedia can be used as a sound library: you can freely use its abilities in your own software.  And you don't have to build fmedia by yourself to use its features.  All you need to do is link your binary file with core.so (or core.dll) and you'll be able to do everything that fmedia can: playback, record and convert audio from your application.
+### YOUR APPLICATION BASED ON FMEDIA
 
+fmedia can be used as a sound library: you can freely use its abilities in your own software.  And you don't have to build fmedia by yourself to use its features.  All you need to do is link your binary file with `core.so` (or `core.dll`) and you'll be able to do everything that fmedia can: playback, record and convert audio from your application.
 
-SUPPORT NEW FORMAT.
+### SUPPORT NEW FORMAT
+
 You may add support for a new audio format into fmedia.  To do that you have to add your module into "fmedia.conf" and add an appropriate file extension into "input_ext" or "output_ext" section.
 
-For example, after you have built your module (e.g. xyz.so), add it into "fmedia.conf":
+For example, after you have built your module (e.g. `xyz.so`), add it into "fmedia.conf":
 
 	mod "xyz.decode"
 
@@ -347,11 +383,13 @@ fmedia will call module "xyz.decode" each time user orders fmedia to play "*.xyz
 See fmedia source code for more details.  For example, main.c::main() will show you how fmedia command line binary initializes core module.  See acodec/wav.c for an example on how to write a simple filter for fmedia.
 
 
-LOW-LEVEL INTERFACE.
+### LOW-LEVEL INTERFACE
+
 If you'd like to use low level interfaces, take a look at the source code of FF & FF-3pt libraries.  Together they provide you with an easy interface that you can use to work with a large set of file formats, decode or encode audio and much more.  fmedia itself is built upon FF library - it's completely free and open-source.
 
 
-PARTICIPATE.
+### PARTICIPATE
+
 You are welcome to participate in fmedia's development.  Send suggestions, improvements, bug reports, patches - anything that can help the project!
 
 Understanding the top-level source code hierarchy can help you to get involved into fmedia quicker.  The source code consists of the 3 levels of these 4 separate repositories:
@@ -365,10 +403,11 @@ Understanding the top-level source code hierarchy can help you to get involved i
 	---------------
 
 Each of them plays its own part:
-	. FFOS provides cross-platform abilities.  Code based on FFOS can run on Windows, Linux and FreeBSD.
-	. FF-3pt provides simple access to 3rd party libraries such as libFLAC.
-	. FF contains all low/mid level interfaces that can be reused between different applications.
-	. fmedia contains application code, it's largely based on all FF libraries.
+
+* FFOS provides cross-platform abilities.  Code based on FFOS can run on Windows, Linux and FreeBSD.
+* FF-3pt provides simple access to 3rd party libraries such as libFLAC.
+* FF contains all low/mid level interfaces that can be reused between different applications.
+* fmedia contains application code, it's largely based on all FF libraries.
 
 
 ---------------
@@ -385,6 +424,7 @@ It will print a lot of information about what fmedia is doing.  This info or a s
 LICENSE
 ---------------
 The code provided here is free for use in open-source and proprietary projects.
+
 You may distribute, redistribute, modify the whole code or the parts of it, just keep the original copyright statement inside the files.
 
 

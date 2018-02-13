@@ -80,18 +80,26 @@ const fmed_mod* fmed_getmod_sndmod(const fmed_core *_core)
 }
 
 
+struct submod {
+	const char *name;
+	const fmed_filter *iface;
+};
+
+static const struct submod submods[] = {
+	{ "conv", &fmed_sndmod_conv },
+	{ "gain", &fmed_sndmod_gain },
+	{ "until", &fmed_sndmod_until },
+	{ "peaks", &fmed_sndmod_peaks },
+	{ "rtpeak", &fmed_sndmod_rtpeak },
+};
+
 static const void* sndmod_iface(const char *name)
 {
-	if (!ffsz_cmp(name, "conv"))
-		return &fmed_sndmod_conv;
-	else if (!ffsz_cmp(name, "gain"))
-		return &fmed_sndmod_gain;
-	else if (!ffsz_cmp(name, "until"))
-		return &fmed_sndmod_until;
-	else if (!ffsz_cmp(name, "peaks"))
-		return &fmed_sndmod_peaks;
-	else if (!ffsz_cmp(name, "rtpeak"))
-		return &fmed_sndmod_rtpeak;
+	const struct submod *m;
+	FFARRS_FOREACH(submods, m) {
+		if (ffsz_eq(name, m->name))
+			return m->iface;
+	}
 	return NULL;
 }
 

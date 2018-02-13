@@ -88,6 +88,7 @@ static fmed_f* trk_modbyext(fm_trk *t, uint flags, const ffstr *ext);
 static void trk_printtime(fm_trk *t);
 static int trk_meta_enum(fm_trk *t, fmed_trk_meta *meta);
 static int trk_meta_copy(fm_trk *t, fm_trk *src);
+static fmed_f* filt_add(fm_trk *t, uint cmd, const char *name);
 
 static dict_ent* dict_add(fm_trk *t, const char *name, uint *f);
 static void dict_ent_free(dict_ent *e);
@@ -96,7 +97,7 @@ static void dict_ent_free(dict_ent *e);
 static void* trk_create(uint cmd, const char *url);
 static fmed_trk* trk_conf(void *trk);
 static void trk_copy_info(fmed_trk *dst, const fmed_trk *src);
-static int trk_cmd(void *trk, uint cmd);
+static ssize_t trk_cmd(void *trk, uint cmd, ...);
 static int trk_cmd2(void *trk, uint cmd, void *param);
 static void trk_loginfo(void *trk, const ffstr **id, const char **module);
 static int64 trk_popval(void *trk, const char *name);
@@ -289,6 +290,7 @@ static void* trk_create(uint cmd, const char *fn)
 	if (t == NULL)
 		return NULL;
 	ffchain_init(&t->filt_chain);
+	t->cur = ffchain_sentl(&t->filt_chain);
 	ffrbt_init(&t->dict);
 	ffrbt_init(&t->meta);
 	fftask_set(&t->tsk, &trk_process, t);
@@ -301,31 +303,44 @@ static void* trk_create(uint cmd, const char *fn)
 	t->id.len = ffs_fmt(t->sid, t->sid + sizeof(t->sid), "*%u", ++fmed->trkid);
 	t->id.ptr = t->sid;
 
+	if (NULL == ffarr_allocT((ffarr*)&t->filters, 8, fmed_f))
+		goto err;
+
 	switch (cmd) {
-	case FMED_TRACK_OPEN:
+
+	case FMED_TRK_TYPE_PLAYBACK:
 		if (0 != trk_open(t, fn)) {
 			trk_free(t);
 			return FMED_TRK_EFMT;
 		}
+		t->props.type = FMED_TRK_TYPE_PLAYBACK;
 		break;
 
-	case FMED_TRACK_REC:
+	case FMED_TRK_TYPE_REC:
 		trk_open_capt(t);
 		t->props.type = FMED_TRK_TYPE_REC;
 		break;
 
-	case FMED_TRACK_MIX:
+	case FMED_TRK_TYPE_MIXOUT:
 		addfilter(t, "#queue.track");
 		addfilter(t, "mixer.out");
 		t->props.type = FMED_TRK_TYPE_MIXOUT;
 		break;
 
-	case FMED_TRACK_NET:
-		t->props.type = FMED_TRK_TYPE_NETIN;
+	default:
+		if (cmd >= _FMED_TRK_TYPE_END) {
+			errlog(t, "unknown track type:%u", cmd);
+			goto err;
+		}
+		t->props.type = cmd;
 		break;
 	}
 
 	return t;
+
+err:
+	trk_free(t);
+	return NULL;
 }
 
 static fmed_trk* trk_conf(void *trk)
@@ -712,71 +727,6 @@ static dict_ent* meta_find(fm_trk *t, const ffstr *name)
 	return ent;
 }
 
-
-static int trk_cmd(void *trk, uint cmd)
-{
-	fm_trk *t = trk;
-	fflist_item *next;
-
-	dbglog(NULL, "received command:%u, trk:%p", cmd, trk);
-
-	switch (cmd) {
-	case FMED_TRACK_STOPALL_EXIT:
-		if (fmed->trks.len == 0 || fmed->stop_sig) {
-			core->sig(FMED_STOP);
-			break;
-		}
-		fmed->stop_sig = 1;
-		trk = (void*)-1;
-		// break
-
-	case FMED_TRACK_STOPALL:
-		FFLIST_WALKSAFE(&fmed->trks, t, sib, next) {
-			if (t->props.type == FMED_TRK_TYPE_REC && trk == NULL)
-				continue;
-
-			trk_stop(t, cmd);
-		}
-		break;
-
-	case FMED_TRACK_STOP:
-		trk_stop(t, FMED_TRACK_STOP);
-		break;
-
-	case FMED_TRACK_START:
-		if (0 != trk_setout(t)) {
-			trk_setval(t, "error", 1);
-		}
-		if (0 != trk_opened(t)) {
-			trk_free(t);
-			return -1;
-		}
-
-		if (fmed->cmd.print_time)
-			ffps_perf(&t->psperf, FFPS_PERF_REALTIME | FFPS_PERF_CPUTIME | FFPS_PERF_RUSAGE);
-
-		trk_process(t);
-		break;
-
-	case FMED_TRACK_PAUSE:
-		t->state = TRK_ST_PAUSED;
-		break;
-	case FMED_TRACK_UNPAUSE:
-		t->state = TRK_ST_ACTIVE;
-		trk_process(t);
-		break;
-
-	case FMED_TRACK_LAST:
-		if (!fmed->cmd.gui && !fmed->cmd.rec)
-			core->sig(FMED_STOP);
-		break;
-
-	default:
-		return trk_cmd2(trk, cmd, NULL);
-	}
-	return 0;
-}
-
 static int trk_meta_enum(fm_trk *t, fmed_trk_meta *meta)
 {
 	if (meta->trnod != &t->meta.sentl) {
@@ -822,70 +772,171 @@ static int trk_meta_copy(fm_trk *t, fm_trk *src)
 	return 0;
 }
 
-static int trk_cmd2(void *trk, uint cmd, void *param)
+/** Add filter to chain. */
+static fmed_f* filt_add(fm_trk *t, uint cmd, const char *name)
 {
-	fm_trk *t = trk;
+	fmed_f *f;
+	const void *iface;
+
+	if (NULL == (iface = core->getmod2(FMED_MOD_IFACE, name, -1))) {
+		errlog(t, "no such interface %s", name);
+		return NULL;
+	}
 
 	switch (cmd) {
-	case FMED_TRACK_ADDFILT_BEGIN: {
-		fmed_f *f;
+	case FMED_TRACK_ADDFILT_BEGIN:
+		FF_ASSERT(t->state != TRK_ST_ACTIVE);
 		if (NULL == ffarr_growT((ffarr*)&t->filters, 1, 4, fmed_f))
-			return -1;
+			return NULL;
 		memmove(t->filters.ptr + 1, t->filters.ptr, t->filters.len * sizeof(fmed_f));
 		f = t->filters.ptr;
 		ffmem_tzero(f);
-		t->filters.len++;
-		f->name = param;
-		if (NULL == (f->filt = core->getmod2(FMED_MOD_IFACE, param, -1)))
-			return -1;
-		dbglog(t, "added module %s to chain", f->name);
+		break;
+
+	case FMED_TRACK_ADDFILT:
+		f = ffarr_end(&t->filters);
+		ffmem_tzero(f);
+		ffchain_append(&f->sib, t->cur);
+		break;
+
+	case FMED_TRACK_ADDFILT_PREV:
+		f = ffarr_end(&t->filters);
+		ffmem_tzero(f);
+		ffchain_prepend(&f->sib, t->cur);
 		break;
 	}
 
+	f->filt = iface;
+	f->name = name;
+	t->filters.len++;
+
+	dbglog(t, "added %s to chain", f->name);
+	return f;
+}
+
+static ssize_t trk_cmd(void *trk, uint cmd, ...)
+{
+	fm_trk *t = trk;
+	fflist_item *next;
+	ssize_t r = 0;
+	va_list va;
+	va_start(va, cmd);
+
+	dbglog(NULL, "received command:%u, trk:%p", cmd, trk);
+
+	switch (cmd) {
+	case FMED_TRACK_STOPALL_EXIT:
+		if (fmed->trks.len == 0 || fmed->stop_sig) {
+			core->sig(FMED_STOP);
+			break;
+		}
+		fmed->stop_sig = 1;
+		trk = (void*)-1;
+		// break
+
+	case FMED_TRACK_STOPALL:
+		FFLIST_WALKSAFE(&fmed->trks, t, sib, next) {
+			if (t->props.type == FMED_TRK_TYPE_REC && trk == NULL)
+				continue;
+
+			trk_stop(t, cmd);
+		}
+		break;
+
+	case FMED_TRACK_STOP:
+		trk_stop(t, FMED_TRACK_STOP);
+		break;
+
+	case FMED_TRACK_START:
+		if (0 != trk_setout(t)) {
+			trk_setval(t, "error", 1);
+		}
+		if (0 != trk_opened(t)) {
+			trk_free(t);
+			r = -1;
+			break;
+		}
+
+		if (fmed->cmd.print_time)
+			ffps_perf(&t->psperf, FFPS_PERF_REALTIME | FFPS_PERF_CPUTIME | FFPS_PERF_RUSAGE);
+
+		trk_process(t);
+		break;
+
+	case FMED_TRACK_PAUSE:
+		t->state = TRK_ST_PAUSED;
+		break;
+	case FMED_TRACK_UNPAUSE:
+		t->state = TRK_ST_ACTIVE;
+		trk_process(t);
+		break;
+
+	case FMED_TRACK_LAST:
+		if (!fmed->cmd.gui && !fmed->cmd.rec)
+			core->sig(FMED_STOP);
+		break;
+
 	case FMED_TRACK_ADDFILT:
-	case FMED_TRACK_ADDFILT_PREV: {
-		FF_ASSERT(t->filters.cap != t->filters.len);
-		fmed_f *f = ffarr_end(&t->filters);
-		ffmem_tzero(f);
-		f->name = param;
-		if (NULL == (f->filt = core->getmod2(FMED_MOD_IFACE, param, -1)))
-			return -1;
-		t->filters.len++;
-
-		if (cmd == FMED_TRACK_ADDFILT)
-			ffchain_append(&f->sib, t->cur);
-		else
-			ffchain_prepend(&f->sib, t->cur);
-
-		dbglog(t, "added module %s to chain", f->name);
+	case FMED_TRACK_ADDFILT_PREV:
+	case FMED_TRACK_ADDFILT_BEGIN: {
+		const char *name = va_arg(va, char*);
+		fmed_f *f = filt_add(t, cmd, name);
+		if (f == NULL) {
+			r = -1;
+			break;
+		}
+		r = 0;
 		break;
 	}
 
 	case FMED_TRACK_FILT_GETPREV: {
-		if (t->cur->prev == ffchain_sentl(&t->filt_chain))
-			return -1;
+		if (t->cur->prev == ffchain_sentl(&t->filt_chain)) {
+			r = -1;
+			break;
+		}
 		fmed_f *f = FF_GETPTR(fmed_f, sib, t->cur->prev);
-		*(void**)param = f->ctx;
+		void **dst = va_arg(va, void**);
+		*dst = f->ctx;
 		break;
 	}
 
 	case FMED_TRACK_META_HAVEUSER: {
-		if (t->meta.len != 0)
-			return 1;
+		if (t->meta.len != 0) {
+			r = 1;
+			break;
+		}
 		void *qent;
-		if (FMED_PNULL == (qent = (void*)trk_getval(t, "queue_item")))
-			return 0;
-		return fmed->qu->cmd2(FMED_QUE_HAVEUSERMETA, qent, 0);
+		if (FMED_PNULL == (qent = (void*)trk_getval(t, "queue_item"))) {
+			r = 0;
+			break;
+		}
+		r = fmed->qu->cmd2(FMED_QUE_HAVEUSERMETA, qent, 0);
+		break;
 	}
 
-	case FMED_TRACK_META_ENUM:
-		return trk_meta_enum(t, param);
-
-	case FMED_TRACK_META_COPYFROM:
-		return trk_meta_copy(t, param);
-
+	case FMED_TRACK_META_ENUM: {
+		fmed_trk_meta *meta = va_arg(va, void*);
+		r = trk_meta_enum(t, meta);
+		break;
 	}
-	return 0;
+
+	case FMED_TRACK_META_COPYFROM: {
+		fm_trk *src = va_arg(va, void*);
+		r = trk_meta_copy(t, src);
+		break;
+	}
+
+	default:
+		errlog(t, "invalid command:%u", cmd);
+	}
+
+	va_end(va);
+	return r;
+}
+
+static int trk_cmd2(void *trk, uint cmd, void *param)
+{
+	return trk_cmd(trk, cmd, param);
 }
 
 static void trk_loginfo(void *trk, const ffstr **id, const char **module)

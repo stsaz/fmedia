@@ -570,6 +570,7 @@ fmed_core* core_init(fmed_cmd **ptr, char **argv, char **env)
 	fftime_zone tz;
 	fftime_local(&tz);
 	fftime_storelocal(&tz);
+	fftime_init();
 
 	fmed->kq = FF_BADFD;
 	fftask_init(&fmed->taskmgr);

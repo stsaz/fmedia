@@ -164,7 +164,6 @@ void rec_sets_destroy(rec_sets_t *sets);
 typedef struct ggui {
 	fflock lktrk;
 	gui_trk *curtrk;
-	fflock lk;
 	const fmed_queue *qu;
 	const fmed_track *track;
 	uint load_err;
@@ -211,6 +210,7 @@ typedef struct ggui {
 		, wrec_init :1
 		, min_tray :1
 		;
+	uint state;
 } ggui;
 
 const fmed_core *core;
