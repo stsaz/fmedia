@@ -212,6 +212,7 @@ static int m3u_process(void *ctx, fmed_filt *d)
 			continue;
 		}
 
+		qu->cmd(FMED_QUE_ADD | FMED_QUE_ADD_DONE, NULL);
 		qu->cmd(FMED_QUE_RM, (void*)fmed_getval("queue_item"));
 		return FMED_RFIN;
 	}
@@ -245,7 +246,7 @@ static int m3u_process(void *ctx, fmed_filt *d)
 			qu->cmd2(FMED_QUE_METASET | (FMED_QUE_TMETA << 16), cur, (size_t)meta);
 		}
 
-		qu->cmd2(FMED_QUE_ADD | FMED_QUE_ADD_DONE, cur, 0);
+		qu->cmd2(FMED_QUE_ADD | FMED_QUE_MORE | FMED_QUE_ADD_DONE, cur, 0);
 		m->qu_cur = cur;
 	}
 

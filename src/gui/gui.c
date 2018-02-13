@@ -479,8 +479,14 @@ static void gui_que_onchange(fmed_que_entry *e, uint flags)
 {
 	int idx;
 
-	switch (flags) {
+	switch (flags & ~_FMED_QUE_FMASK) {
 	case FMED_QUE_ONADD:
+		if (flags & FMED_QUE_MORE)
+			ffui_redraw(&gg->wmain.vlist, 0);
+		else if (flags & FMED_QUE_ADD_DONE) {
+			ffui_redraw(&gg->wmain.vlist, 1);
+			break;
+		}
 		gui_media_added(e, 0);
 		break;
 

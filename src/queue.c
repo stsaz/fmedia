@@ -545,9 +545,14 @@ static fmed_que_entry* _que_add(fmed_que_entry *ent)
 
 static fmed_que_entry* que_add(fmed_que_entry *ent, uint flags)
 {
-	entry *e;
+	entry *e = NULL;
 
 	if (flags & FMED_QUE_ADD_DONE) {
+		if (ent == NULL) {
+			if (!(flags & FMED_QUE_NO_ONCHANGE) && qu->onchange != NULL)
+				qu->onchange(&e->e, FMED_QUE_ONADD | FMED_QUE_ADD_DONE);
+			return NULL;
+		}
 		e = FF_GETPTR(entry, e, ent);
 		goto done;
 	}
@@ -597,7 +602,7 @@ static fmed_que_entry* que_add(fmed_que_entry *ent, uint flags)
 
 done:
 	if (!(flags & FMED_QUE_NO_ONCHANGE) && qu->onchange != NULL)
-		qu->onchange(&e->e, FMED_QUE_ONADD);
+		qu->onchange(&e->e, FMED_QUE_ONADD | (flags & FMED_QUE_MORE));
 	return &e->e;
 }
 
