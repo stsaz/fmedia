@@ -130,6 +130,8 @@ static const struct cmd cmds[] = {
 	{ SHOWINFO,	F0 | CMD_FCORE,	&gui_media_showinfo },
 	{ FILTER_SHOW,	F0,	&gui_filt_show },
 
+	{ CHECKUPDATE,	F0 | CMD_FCORE,	&gui_upd_check },
+
 	{ CONF_EDIT,	F1,	&gui_showtextfile },
 	{ USRCONF_EDIT,	F1,	&gui_showtextfile },
 	{ FMEDGUI_EDIT,	F1,	&gui_showtextfile },

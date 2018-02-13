@@ -203,6 +203,9 @@ menu mhelp {
 	item "Show Changelog..." {
 		action CHANGES_SHOW
 	}
+	item "Check for &Updates" {
+		action CHECKUPDATE
+	}
 	item "&About" {
 		action ABOUT
 	}

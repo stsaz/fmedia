@@ -21,6 +21,7 @@ track: ... -> gui-trk -> ...
 
 const fmed_core *core;
 ggui *gg;
+static const fmed_net_http *net;
 
 
 //FMEDIA MODULE
@@ -40,6 +41,7 @@ static void gui_que_onchange(fmed_que_entry *e, uint flags);
 static void gui_ghk_reg(void);
 static void gui_savelists(void);
 static int gui_loadlists(void);
+static void upd_done(void *obj);
 
 //GUI-TRACK
 static void* gtrk_open(fmed_filt *d);
@@ -329,6 +331,7 @@ static const char *const scmds[] = {
 	"SHOW",
 	"QUIT",
 	"ABOUT",
+	"CHECKUPDATE",
 
 	"CONF_EDIT",
 	"USRCONF_EDIT",
@@ -749,6 +752,126 @@ static int gui_conf(const char *name, ffpars_ctx *ctx)
 	if (!ffsz_cmp(name, "gui"))
 		return gtrk_conf(ctx);
 	return -1;
+}
+
+
+/*
+fmedia-ver-os-arch.tar.xz
+...
+*/
+#define UPD_URL  FMED_HOMEPAGE "/latest.txt"
+
+struct httpreq {
+	void *con;
+	ffarr data;
+	uint status;
+	ffui_handler ondone;
+};
+
+static void httpreq_free(struct httpreq *h)
+{
+	FF_SAFECLOSE(h->con, NULL, net->close);
+	ffarr_free(&h->data);
+	ffmem_free(h);
+}
+
+static void http_sig(void *obj)
+{
+	struct httpreq *h = obj;
+	ffhttp_response *resp;
+	ffstr d;
+	int r = net->recv(h->con, &resp, &d);
+	h->status = r;
+	switch (r) {
+	case FMED_NET_RESP_RECV:
+		ffarr_append(&h->data, d.ptr, d.len);
+		break;
+	case FMED_NET_DONE:
+		ffarr_append(&h->data, d.ptr, d.len);
+		ffui_thd_post(h->ondone, h);
+		break;
+	case FMED_NET_ERR:
+		ffui_thd_post(h->ondone, h);
+		break;
+	}
+}
+
+#if defined FF_WIN
+#define OS_STR  "win"
+#elif defined FF_BSD
+#define OS_STR  "bsd"
+#else
+#define OS_STR  "linux"
+#endif
+
+#if defined FF_WIN
+	#ifdef FF_64
+	#define CPU_STR  "x64"
+	#else
+	#define CPU_STR  "x86"
+	#endif
+#else
+	#ifdef FF_64
+	#define CPU_STR  "amd64"
+	#else
+	#define CPU_STR  "i686"
+	#endif
+#endif
+
+
+static void upd_done(void *obj)
+{
+	struct httpreq *h = obj;
+
+	switch (h->status) {
+	case FMED_NET_DONE: {
+		ffstr s, v;
+		ffstr_set2(&s, &h->data);
+		while (s.len != 0) {
+			ffstr_nextval3(&s, &v, '\n');
+			if (-1 != ffstr_findz(&v, OS_STR "-" CPU_STR)) {
+				ffstr fn = v, pt, ver;
+				ffstr_setz(&ver, FMED_VER);
+				ffstr_nextval3(&fn, &pt, '-'); //"fmedia"
+				ffstr_nextval3(&fn, &pt, '-'); //"ver"
+				int r = ffstr_vercmp(&ver, &pt);
+				if (r == FFSTR_VERCMP_1LESS2) {
+					ffarr a = {0};
+					ffstr_catfmt(&a, "A new version is available: %S\nDownload it from " FMED_HOMEPAGE
+						, &v);
+					ffui_msgdlg_show("Updates", a.ptr, a.len, FFUI_MSGDLG_INFO);
+					ffarr_free(&a);
+					goto done;
+				}
+			}
+		}
+		ffui_msgdlg_showz("Updates", "You have the latest version", FFUI_MSGDLG_INFO);
+		break;
+	}
+	case FMED_NET_ERR:
+		ffui_msgdlg_showz("Updates", "Error while requesting " UPD_URL, FFUI_MSGDLG_ERR);
+		break;
+	}
+
+done:
+	httpreq_free(h);
+}
+
+void gui_upd_check(void)
+{
+	if (net == NULL && NULL == (net = core->getmod("net.httpif")))
+		return;
+	struct httpreq *h;
+	if (NULL == (h = ffmem_new(struct httpreq)))
+		return;
+	h->ondone = &upd_done;
+	if (NULL == (h->con = net->request("GET", UPD_URL, 0))) {
+		httpreq_free(h);
+		return;
+	}
+	net->sethandler(h->con, &http_sig, h);
+	ffstr s = {0};
+	net->send(h->con, &s);
 }
 
 

@@ -314,6 +314,7 @@ enum CMDS {
 	SHOW,
 	QUIT,
 	ABOUT,
+	CHECKUPDATE,
 
 	CONF_EDIT,
 	USRCONF_EDIT,
@@ -374,6 +375,7 @@ void gui_media_added(fmed_que_entry *ent, uint flags);
 void gui_media_removed(uint i);
 void gui_rec(uint cmd);
 char* gui_usrconf_filename(void);
+void gui_upd_check(void);
 
 enum GUI_FILT {
 	GUI_FILT_URL = 1,
