@@ -1132,9 +1132,10 @@ static void* netin_create(icy *c)
 
 static void netin_write(netin *n, const ffstr *data)
 {
-	if (data == NULL)
+	if (data == NULL) {
 		n->fin = 1;
-	else
+		n->c = NULL;
+	} else
 		ffarr_append(&n->d[n->idx], data->ptr, data->len);
 	if (n->state == IN_WAIT)
 		core->task(&n->task, FMED_TASK_POST);
@@ -1156,7 +1157,7 @@ static void netin_close(void *ctx)
 	ffarr_free(&n->d[0]);
 	ffarr_free(&n->d[1]);
 	core->task(&n->task, FMED_TASK_DEL);
-	if (n->c->netin == n)
+	if (n->c != NULL && n->c->netin == n)
 		n->c->netin = NULL;
 	ffmem_free(n);
 }
