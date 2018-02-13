@@ -43,6 +43,7 @@ mixer                 mixer
 // ADEV
 // QUEUE
 // GLOBCMD
+// NET
 
 
 // CORE
@@ -635,3 +636,39 @@ typedef struct fmed_globcmd_iface {
 	int (*ctl)(uint cmd, ...);
 	int (*write)(const void *data, size_t len);
 } fmed_globcmd_iface;
+
+
+// NET
+
+#include <FF/net/http.h>
+
+typedef struct fmed_net_http {
+	/** Create HTTP request.
+	Return connection object. */
+	void* (*request)(const char *method, const char *url, uint flags);
+
+	/** Close connection. */
+	void (*close)(void *con);
+
+	/** Set asynchronous callback function.
+	User function is called every time the connection status changes. */
+	void (*sethandler)(void *con, fftask_handler func, void *udata);
+
+	/** Connect, send request, receive response. */
+	void (*send)(void *con, const ffstr *data);
+
+	/** Get response data.
+	@data: response body
+	Return enum FMED_NET_ST. */
+	int (*recv)(void *con, ffhttp_response **resp, ffstr *data);
+} fmed_net_http;
+
+enum FMED_NET_ST {
+	FMED_NET_ERR = -1,
+	FMED_NET_DONE = 0,
+	FMED_NET_DNS_WAIT, // resolving hostname via DNS
+	FMED_NET_IP_WAIT, // connecting to host
+	FMED_NET_REQ_WAIT, // sending request
+	FMED_NET_RESP_WAIT, // receiving response (HTTP headers)
+	FMED_NET_RESP_RECV, // receiving data
+};

@@ -58,6 +58,11 @@ typedef struct netin {
 	icy *c;
 } netin;
 
+struct filter {
+	const struct ffhttp_filter *iface;
+	void *p;
+};
+
 typedef struct nethttp {
 	uint state;
 	fmed_filt *d;
@@ -94,6 +99,11 @@ typedef struct nethttp {
 		, preload :1 //fill all buffers
 		, icy_meta_req :1
 		;
+
+	fftask_handler handler;
+	void *udata;
+	uint status;
+	struct filter f;
 } nethttp;
 
 struct icy {
@@ -142,6 +152,17 @@ static const fmed_filter fmed_http = {
 static int http_conf_done(ffparser_schem *p, void *obj);
 static int http_prepreq(nethttp *c, ffstr *dst);
 static int http_parse(nethttp *c);
+static int http_recv(nethttp *c, uint tcpfin);
+
+// HTTP IFACE
+static void* http_if_request(const char *method, const char *url, uint flags);
+static void http_if_close(void *con);
+static void http_if_sethandler(void *con, fftask_handler func, void *udata);
+static void http_if_send(void *con, const ffstr *data);
+static int http_if_recv(void *con, ffhttp_response **resp, ffstr *data);
+static const fmed_net_http http_iface = {
+	&http_if_request, &http_if_close, &http_if_sethandler, &http_if_send, &http_if_recv,
+};
 
 //ICY
 static void* icy_open(fmed_filt *d);
@@ -209,6 +230,8 @@ static const void* net_iface(const char *name)
 		return &fmed_netin;
 	else if (!ffsz_cmp(name, "http"))
 		return &fmed_http;
+	else if (!ffsz_cmp(name, "httpif"))
+		return &http_iface;
 	return NULL;
 }
 
@@ -255,6 +278,300 @@ static void net_destroy(void)
 }
 
 
+static int buf_alloc(nethttp *c, size_t size);
+
+static const struct ffhttp_filter*const filters[] = {
+	&ffhttp_chunked_filter, &ffhttp_contlen_filter, &ffhttp_connclose_filter
+};
+
+static void* http_if_request(const char *method, const char *url, uint flags)
+{
+	nethttp *c;
+	if (NULL != (c = (void*)fflist1_pop(&net->recycled_cons)))
+		c = FF_GETPTR(nethttp, recycled, c);
+	else if (NULL == (c = ffmem_new(nethttp)))
+		return NULL;
+	c->d = ffmem_new(fmed_filt); //logger needs c->d->trk
+	c->sk = FF_BADSKT;
+	ffhttp_respinit(&c->resp);
+
+	if (NULL == (c->host = ffsz_alcopyz(url)))
+		goto done;
+	c->orighost = c->host;
+	c->method = method;
+
+	if (NULL == (c->bufs = ffmem_callocT(net->conf.nbufs, ffstr))) {
+		goto done;
+	}
+	if (0 != buf_alloc(c, net->conf.bufsize))
+		goto done;
+
+	c->tmr.handler = &tcp_ontmr;
+	c->tmr.param = c;
+
+	return c;
+
+done:
+	http_if_close(c);
+	return NULL;
+}
+
+static void http_if_close(void *con)
+{
+	nethttp *c = con;
+	core->timer(&c->tmr, 0, 0);
+
+	if (c->f.p != NULL)
+		c->f.iface->close(c->f.p);
+
+	FF_SAFECLOSE(c->addr, NULL, ffaddr_free);
+	if (c->sk != FF_BADSKT) {
+		ffskt_fin(c->sk);
+		ffskt_close(c->sk);
+		c->sk = FF_BADSKT;
+	}
+	if (c->host != c->orighost)
+		ffmem_safefree(c->host);
+	ffmem_safefree(c->orighost);
+	ffaio_fin(&c->aio);
+	ffhttp_respfree(&c->resp);
+
+	uint i;
+	for (i = 0;  i != net->conf.nbufs;  i++) {
+		ffstr_free(&c->bufs[i]);
+	}
+	ffmem_safefree(c->bufs);
+
+	ffstr_free(&c->hbuf);
+
+	uint inst = c->aio.instance;
+	ffmem_tzero(c);
+	c->aio.instance = inst;
+	fflist1_push(&net->recycled_cons, &c->recycled);
+}
+
+static void http_if_sethandler(void *con, fftask_handler func, void *udata)
+{
+	nethttp *c = con;
+	c->handler = func;
+	c->udata = udata;
+}
+
+enum {
+	I_ADDR, I_NEXTADDR, I_CONN,
+	I_HTTP_REQ, I_HTTP_REQ_SEND, I_HTTP_RESP, I_HTTP_RESP_PARSE, I_HTTP_RECVBODY1, I_HTTP_RECVBODY, I_HTTP_RESPBODY,
+	I_DONE, I_ERR,
+};
+
+static void call_handler(nethttp *c, uint status)
+{
+	c->status = status;
+	c->handler(c->udata);
+}
+
+static void http_if_process(nethttp *c)
+{
+	int r;
+	ffaddr a = {0};
+
+	for (;;) {
+	switch (c->state) {
+
+	case I_ADDR:
+		call_handler(c, FMED_NET_DNS_WAIT);
+		if (0 != ip_resolve(c)) {
+			c->state = I_ERR;
+			continue;
+		}
+		call_handler(c, FMED_NET_IP_WAIT);
+		c->state = I_NEXTADDR;
+		// fall through
+
+	case I_NEXTADDR:
+		if (0 != tcp_prepare(c, &a)) {
+			c->state = I_ERR;
+			continue;
+		}
+		c->state = I_CONN;
+		// fall through
+
+	case I_CONN:
+		r = tcp_connect(c, &a.a, a.len);
+		if (r == FMED_RASYNC)
+			return;
+		else if (r == FMED_RMORE) {
+			c->state = I_NEXTADDR;
+			continue;
+		}
+		call_handler(c, FMED_NET_REQ_WAIT);
+		c->state = I_HTTP_REQ;
+		// fall through
+
+	case I_HTTP_REQ:
+		http_prepreq(c, &c->data);
+		c->state = I_HTTP_REQ_SEND;
+		// fall through
+
+	case I_HTTP_REQ_SEND:
+		r = tcp_send(c);
+		if (r == FMED_RASYNC)
+			return;
+		else if (r == FMED_RERR) {
+			tcp_ioerr(c);
+			continue;
+		}
+
+		dbglog(c->d->trk, "receiving response...");
+		ffstr_set(&c->data, c->bufs[0].ptr, net->conf.bufsize);
+		call_handler(c, FMED_NET_RESP_WAIT);
+		c->state = I_HTTP_RESP;
+		// fall through
+
+	case I_HTTP_RESP:
+		r = tcp_recvhdrs(c);
+		if (r == FMED_RASYNC)
+			return;
+		else if (r == FMED_RMORE) {
+			c->state = I_ERR;
+			continue;
+		} else if (r == FMED_RERR) {
+			tcp_ioerr(c);
+			continue;
+		}
+		c->state = I_HTTP_RESP_PARSE;
+		//fall through
+
+	case I_HTTP_RESP_PARSE:
+		r = http_parse(c);
+		switch (r) {
+		case 0:
+			break;
+		case -1:
+			c->state = I_ERR;
+			continue;
+		case -2:
+			ffstr_set2(&c->data, &c->bufs[0]);
+			ffstr_shift(&c->data, c->resp.h.len);
+			c->bufs[0].len = 0;
+			c->state = I_DONE;
+			continue;
+		case 1:
+			c->state = I_HTTP_RESP;
+			continue;
+		case 2:
+			c->state = I_ADDR;
+			continue;
+		}
+
+		if (c->resp.h.has_body) {
+			const struct ffhttp_filter *const *f;
+			FFARRS_FOREACH(filters, f) {
+				void *d = (*f)->open(&c->resp.h);
+				if (d == NULL)
+				{}
+				else if (d == (void*)-1) {
+					c->state = I_ERR;
+					continue;
+				} else {
+					c->f.iface = *f;
+					c->f.p = d;
+					break;
+				}
+			}
+		}
+
+		call_handler(c, FMED_NET_RESP_RECV);
+		ffstr_set2(&c->data, &c->bufs[0]);
+		ffstr_shift(&c->data, c->resp.h.len);
+		c->bufs[0].len = 0;
+		if (c->resp.h.has_body)
+			c->state = I_HTTP_RESPBODY;
+		else
+			c->state = I_DONE;
+		continue;
+
+	case I_HTTP_RECVBODY:
+		r = tcp_recv(c);
+		if (r == FMED_RASYNC)
+			return;
+		else if (r == FMED_RERR) {
+			tcp_ioerr(c);
+			continue;
+		} else if (r == FMED_RDONE) {
+			r = http_recv(c, 1);
+			switch (r) {
+			case -1:
+				c->state = I_ERR;
+				continue;
+			case 0:
+				c->state = I_DONE;
+				continue;
+			}
+			c->state = I_DONE;
+			continue;
+		} else if (r == FMED_RMORE) {
+			c->state = I_ERR;
+			continue;
+		}
+		c->data = c->bufs[c->rbuf];
+		c->bufs[c->rbuf].len = 0;
+		c->rbuf = ffint_cycleinc(c->rbuf, net->conf.nbufs);
+		c->state = I_HTTP_RESPBODY;
+		// fall through
+
+	case I_HTTP_RESPBODY:
+		r = http_recv(c, 0);
+		switch (r) {
+		case -1:
+			c->state = I_ERR;
+			continue;
+		case 0:
+			c->state = I_DONE;
+			continue;
+		}
+		call_handler(c, FMED_NET_RESP_RECV);
+		c->state = I_HTTP_RECVBODY;
+		continue;
+
+	case I_ERR:
+	case I_DONE:
+		call_handler(c, (c->state == I_ERR) ? FMED_NET_ERR : FMED_NET_DONE);
+		return;
+	}
+	}
+}
+
+static int http_recv(nethttp *c, uint tcpfin)
+{
+	int r;
+	ffstr s;
+	if (!tcpfin)
+		r = c->f.iface->process(c->f.p, &c->data, &s);
+	else
+		r = c->f.iface->process(c->f.p, NULL, &s);
+	c->data = s;
+	if (ffhttp_iserr(r))
+		return -1;
+	else if (r == FFHTTP_DONE)
+		return 0;
+	return 1;
+}
+
+static void http_if_send(void *con, const ffstr *data)
+{
+	http_if_process(con);
+}
+
+static int http_if_recv(void *con, ffhttp_response **resp, ffstr *data)
+{
+	nethttp *c = con;
+	*resp = &c->resp;
+	ffstr_set2(data, &c->data);
+	c->data.len = 0;
+	return c->status;
+}
+
+
 static int http_config(ffpars_ctx *ctx)
 {
 	net->conf.bufsize = 16 * 1024;
@@ -285,12 +602,6 @@ static int buf_alloc(nethttp *c, size_t size)
 	}
 	return 0;
 }
-
-enum {
-	I_ADDR, I_NEXTADDR, I_CONN,
-	I_HTTP_REQ, I_HTTP_REQ_SEND, I_HTTP_RESP, I_HTTP_RESP_PARSE, I_HTTP_RECVBODY1, I_HTTP_RECVBODY,
-	I_DONE, I_ERR,
-};
 
 static void* http_open(fmed_filt *d)
 {
@@ -461,7 +772,10 @@ static void tcp_aio(void *udata)
 	nethttp *c = udata;
 	c->async = 0;
 	core->timer(&c->tmr, 0, 0);
-	c->d->handler(c->d->trk);
+	if (c->d->handler == NULL)
+		http_if_process(c);
+	else
+		c->d->handler(c->d->trk);
 }
 
 static int tcp_connect(nethttp *c, const struct sockaddr *addr, socklen_t addr_size)
@@ -493,7 +807,10 @@ static void tcp_ontmr(void *param)
 	warnlog(c->d->trk, "I/O timeout", 0);
 	c->async = 0;
 	tcp_ioerr(c);
-	c->d->handler(c->d->trk);
+	if (c->d->handler == NULL)
+		http_if_process(c);
+	else
+		c->d->handler(c->d->trk);
 }
 
 static int tcp_recvhdrs(nethttp *c)
