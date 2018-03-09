@@ -8,6 +8,14 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v0.34 - Mar 9, 2018
+
+ + Dynamic Audio Normalizer filter (--dynanorm switch)
+ * gui: don't stop playback when starting conversion
+ - windows: --aac-profile didn't work
+ - .flac write: segfault on recording to FLAC (v0.32 bug)
+
+
 fmedia v0.33 - Feb 13, 2018
 
  + core: add --globcmd.pipe-name command line argument

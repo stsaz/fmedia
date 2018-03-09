@@ -187,7 +187,7 @@ static void* m3u_open(fmed_filt *d)
 static void m3u_close(void *ctx)
 {
 	m3u *m = ctx;
-	ffpars_free(&m->m3u.pars);
+	ffm3u_close(&m->m3u);
 	ffpls_entry_free(&m->pls_ent);
 	ffmem_free(m);
 }
@@ -217,7 +217,7 @@ static int m3u_process(void *ctx, fmed_filt *d)
 		return FMED_RFIN;
 	}
 
-	r2 = ffm3u_entry_get(&m->pls_ent, r, &m->m3u.pars.val);
+	r2 = ffm3u_entry_get(&m->pls_ent, r, &m->m3u.val);
 
 	if (r2 == 1) {
 		fmed_que_entry ent, *cur;
@@ -254,7 +254,7 @@ static int m3u_process(void *ctx, fmed_filt *d)
 		return FMED_RMORE;
 
 	} else if (ffpars_iserr(-r)) {
-		errlog(core, d->trk, "m3u", "parse error at line %u", m->m3u.pars.line);
+		errlog(core, d->trk, "m3u", "parse error at line %u", m->m3u.line);
 		return FMED_RERR;
 	}
 
@@ -275,7 +275,7 @@ static void* pls_open(fmed_filt *d)
 static void pls_close(void *ctx)
 {
 	pls_in *p = ctx;
-	ffpars_free(&p->pls.pars);
+	ffpls_close(&p->pls);
 	ffpls_entry_free(&p->pls_ent);
 	ffmem_free(p);
 }
@@ -303,7 +303,7 @@ static int pls_process(void *ctx, fmed_filt *d)
 		r = FFPLS_FIN;
 	}
 
-	r2 = ffpls_entry_get(&p->pls_ent, r, &p->pls.pars.val);
+	r2 = ffpls_entry_get(&p->pls_ent, r, &p->pls.val);
 
 	if (r2 == 1) {
 		fmed_que_entry ent, *cur;
@@ -338,7 +338,7 @@ static int pls_process(void *ctx, fmed_filt *d)
 		return FMED_RMORE;
 
 	} else if (ffpars_iserr(-r)) {
-		errlog(core, d->trk, "pls", "parse error at line %u", p->pls.pars.line);
+		errlog(core, d->trk, "pls", "parse error at line %u", p->pls.line);
 		return FMED_RERR;
 	}
 
@@ -411,7 +411,7 @@ static void* cue_open(fmed_filt *d)
 static void cue_close(void *ctx)
 {
 	cue *c = ctx;
-	ffpars_free(&c->cue.pars);
+	ffcue_close(&c->cue);
 	ffstr_free(&c->ent.url);
 	ffarr *m;
 	FFARR_WALKT(&c->metas, m, ffarr) {
@@ -464,11 +464,11 @@ static int cue_process(void *ctx, fmed_filt *d)
 
 		} else if (ffpars_iserr(-r)) {
 			errlog(core, d->trk, "cue", "parse error at line %u: %s"
-				, c->cue.pars.line, ffpars_errstr(-r));
+				, c->cue.line, ffpars_errstr(-r));
 			goto err;
 		}
 
-		ffstr *v = &c->cue.pars.val;
+		ffstr *v = &c->cue.val;
 		if (c->utf8 && ffutf8_valid(v->ptr, v->len))
 			ffarr_copy(&val, v->ptr, v->len);
 		else {
@@ -533,7 +533,7 @@ add_metaname:
 			break;
 		}
 
-		if (NULL == (ctrk = ffcue_index(&c->cu, r, (int)c->cue.pars.intval)))
+		if (NULL == (ctrk = ffcue_index(&c->cu, r, (int)c->cue.intval)))
 			continue;
 
 add:

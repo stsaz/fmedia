@@ -55,7 +55,7 @@ static int globcmd_accept1(void);
 static void globcmd_onaccept(fffd peer);
 
 typedef struct cmd_parser {
-	ffparser conf;
+	ffconf conf;
 	uint cmd;
 	const fmed_queue *qu;
 	const fmed_que_entry *first;
@@ -279,7 +279,7 @@ static void globcmd_onaccept(fffd peer)
 
 done:
 	ffarr_free(&buf);
-	ffpars_free(&c.conf);
+	ffconf_parseclose(&c.conf);
 	dbglog(core, NULL, "globcmd", "done with client");
 }
 

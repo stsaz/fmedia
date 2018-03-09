@@ -2,13 +2,19 @@
 OVERVIEW
 ---------------
 
-fmedia is a fast asynchronous media player/recorder/converter for Windows, Linux and FreeBSD.  Its goal is to provide smooth playback even if input device is very slow and unresponsive.  The architecture allows to extend the functionality of the application in any way: adding a new audio input/output format, a new DSP filter or even a new GUI.  fmedia is very small and fast: it has low CPU & memory consumption making it ideal to listen to music or process audio files while running on a notebook's battery.
+fmedia is a fast asynchronous media player/recorder/converter for Windows, Linux and FreeBSD.
+It provides smooth playback and recording even if devices are very slow.
+It's highly customizable and can be easily extended with additional plugins.
+Its low CPU & memory consumption saves energy when running on a notebook's battery.
+
+Play or convert audio files, record new audio tracks from microphone, save songs from Internet radio, and much more!
+fmedia is free and open-source project, and you can use it as a standalone application or as a library for your own software.
 
 fmedia can decode: .mp3, .ogg (Vorbis, Opus), .opus, .m4a/.mp4 (AAC, ALAC, MPEG), .mka/.mkv (AAC, ALAC, MPEG, Vorbis), .avi (AAC, MPEG), .aac, .mpc, .flac, .ape, .wv, .wav.
 
 fmedia can encode into: .mp3, .ogg, .opus, .m4a (AAC), .flac, .wav.
 
-Note: it's beta version - not tested well enough, not all functions will work as expected.  See section "USE-CASES" to have an idea of which features should work.
+Note: it's beta version - not tested well enough, not all functions will work as expected.
 
 ### Contents:
 
@@ -30,7 +36,6 @@ Note: it's beta version - not tested well enough, not all functions will work as
 ---------------
 FEATURES
 ---------------
-All features are provided by fmedia modules divided into 3 groups:
 
 ### INPUT
 * File
@@ -189,11 +194,11 @@ You can build fmedia without dependencies on 3rd-party libraries.  This will be 
 ---------------
 CONFIG
 ---------------
-The global configuration file "fmedia.conf" is located within the fmedia directory itself.  It contains all supported settings and their default values.  You must restart fmedia after you make changes to this file.
+The global configuration file `fmedia.conf` is located within the fmedia directory itself.  It contains all supported settings and their default values.  You must restart fmedia after you make changes to this file.
 
-Additional settings may be stored in file "fmedia-ext.conf".  This makes it easier to upgrade fmedia without the need to edit "fmedia.conf".
+Additional settings may be stored in file `fmedia-ext.conf`.  This makes it easier to upgrade fmedia without the need to edit `fmedia.conf`.
 
-Per-user configuration settings are also supported, they must be stored in "fmedia-user.conf" file in home directory:
+Per-user configuration settings are also supported, they must be stored in `fmedia-user.conf` file in home directory:
 
 	Windows: %APPDATA%/fmedia/fmedia-user.conf
 	Linux:   $HOME/.config/fmedia/fmedia-user.conf
@@ -210,7 +215,7 @@ Core configuration settings start with "core.", e.g. set codepage for non-Unicod
 ---------------
 EXTRACT TRACKS FROM flac.cue
 ---------------
-If you're extracting a track from the album using CUE sheet, please note, that a track isn't exactly copied but first decoded to PCM and then re-encoded with FLAC.  Luckily, this behaviour won't result in any audio quality loss since FLAC is a lossless codec.  However, fmedia doesn't support pictures (album covers) in FLAC header, so they won't be copied into the output file.
+When you're extracting a track from the album in FLAC using CUE sheet, track is first decoded to PCM and then re-encoded with FLAC.  This behaviour won't result in any audio quality loss since FLAC is a lossless codec.
 
 
 ---------------

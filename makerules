@@ -46,16 +46,16 @@ FF_O := $(FFOS_OBJ) \
 $(OBJ_DIR)/%.o: $(SRCDIR)/%.c $(SRCDIR)/fmedia.h $(SRCDIR)/core-cmd.h $(SRCDIR)/core.h $(FF_HDR) $(FF_AUDIO_HDR)
 	$(C)  $(CFLAGS) $<  -o$@
 
-$(OBJ_DIR)/%.o: $(SRCDIR)/adev/%.c $(SRCDIR)/fmedia.h $(SRCDIR)/core.h $(FF_HDR) $(FF_AUDIO_HDR)
+$(OBJ_DIR)/%.o: $(SRCDIR)/adev/%.c $(SRCDIR)/fmedia.h $(FF_HDR) $(FF_AUDIO_HDR)
 	$(C)  $(CFLAGS) $<  -o$@
 
-$(OBJ_DIR)/%.o: $(SRCDIR)/acodec/%.c $(SRCDIR)/fmedia.h $(SRCDIR)/core.h $(FF_HDR) $(FF_AUDIO_HDR)
+$(OBJ_DIR)/%.o: $(SRCDIR)/acodec/%.c $(SRCDIR)/fmedia.h $(FF_HDR) $(FF_AUDIO_HDR)
 	$(C)  $(CFLAGS) $<  -o$@
 
 $(OBJ_DIR)/%.o: $(SRCDIR)/afilt/%.c $(SRCDIR)/fmedia.h $(FF_HDR) $(FF_AUDIO_HDR)
 	$(C)  $(CFLAGS) $<  -o$@
 
-$(OBJ_DIR)/%.o: $(SRCDIR)/format/%.c $(SRCDIR)/fmedia.h $(SRCDIR)/core.h $(FF_HDR) $(FF_AUDIO_HDR)
+$(OBJ_DIR)/%.o: $(SRCDIR)/format/%.c $(SRCDIR)/fmedia.h $(FF_HDR) $(FF_AUDIO_HDR)
 	$(C)  $(CFLAGS) $<  -o$@
 
 $(RES): $(PROJDIR)/res/fmedia.rc $(PROJDIR)/res/fmedia.ico
@@ -415,8 +415,9 @@ strip: $(BINS:.$(SO)=.$(SO).debug) $(BIN).debug $(BINS:.exe=.exe.debug)
 install-only:
 	mkdir -vp $(INSTDIR)
 	$(CP) $(BIN) \
-		$(PROJDIR)/fmedia.conf $(PROJDIR)/help*.txt $(PROJDIR)/README.txt $(PROJDIR)/CHANGES.txt \
+		$(PROJDIR)/fmedia.conf $(PROJDIR)/help*.txt $(PROJDIR)/CHANGES.txt \
 		$(INSTDIR)/
+	$(CP) $(PROJDIR)/README.md $(INSTDIR)/README.txt
 
 ifeq ($(OS),win)
 	$(CP) ./fmedia-gui.exe \
@@ -467,8 +468,9 @@ install-nodeps: build-nodeps
 
 	mkdir -vp $(INSTDIR)
 	$(CP) $(BINS_NODEPS) \
-		$(PROJDIR)/fmedia.conf $(PROJDIR)/help*.txt $(PROJDIR)/README.txt $(PROJDIR)/CHANGES.txt \
+		$(PROJDIR)/fmedia.conf $(PROJDIR)/help*.txt $(PROJDIR)/CHANGES.txt \
 		$(INSTDIR)/
+	$(CP) $(PROJDIR)/README.md $(INSTDIR)/README.txt
 
 ifneq ($(OS),win)
 	chmod 644 $(INSTDIR)/*

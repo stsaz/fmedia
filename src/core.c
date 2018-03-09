@@ -288,8 +288,9 @@ static int fmed_conf_ext_val(ffparser_schem *p, void *obj, ffstr *val)
 	size_t n;
 	inmap_item *it;
 	ffstr3 *map = obj;
+	ffconf *conf = p->p;
 
-	if (p->p->type == FFCONF_TKEY) {
+	if (conf->type == FFCONF_TKEY) {
 		const fmed_modinfo *mod = core_getmod2(FMED_MOD_INFO, val->ptr, val->len);
 		if (mod == NULL) {
 			return FFPARS_EBADVAL;
@@ -371,15 +372,16 @@ static int fmed_confusr_mod(ffparser_schem *ps, void *obj, ffstr *val)
 	fmed_config *conf = obj;
 	const core_mod *mod;
 	int r;
+	ffconf *pconf = ps->p;
 
 	if (conf->skip_line) {
-		if (ps->p->type == FFCONF_TVAL) {
+		if (pconf->type == FFCONF_TVAL) {
 			conf->skip_line = 0;
 		}
 		return 0;
 	}
 
-	if (ps->p->type != FFCONF_TKEYCTX)
+	if (pconf->type != FFCONF_TKEYCTX)
 		return FFPARS_EUKNKEY;
 
 	if (ffstr_eqcz(val, "core"))
@@ -441,7 +443,7 @@ end:
 
 static int fmed_conf_fn(const char *filename, uint flags)
 {
-	ffparser pconf;
+	ffconf pconf;
 	ffparser_schem ps;
 	ffpars_ctx ctx = {0};
 	int r = FFPARS_ESYS;
@@ -497,8 +499,8 @@ err:
 		errlog(core, NULL, "core"
 			, "parse config: %s: %u:%u: near \"%S\": \"%s\": %s"
 			, filename
-			, ps.p->line, ps.p->ch
-			, &ps.p->val, (ps.curarg != NULL) ? ps.curarg->name : ""
+			, pconf.line, pconf.ch
+			, &pconf.val, (ps.curarg != NULL) ? ps.curarg->name : ""
 			, (r == FFPARS_ESYS) ? fferr_strp(fferr_last()) : ser);
 		goto fail;
 	}
@@ -506,7 +508,7 @@ err:
 	r = 0;
 
 fail:
-	ffpars_free(&pconf);
+	ffconf_parseclose(&pconf);
 	ffpars_schemfree(&ps);
 	ffmem_safefree(buf);
 	if (f != FF_BADFD)
@@ -667,7 +669,7 @@ static void mod_destroy(core_modinfo *m)
 static core_modinfo* mod_load(const ffstr *ps)
 {
 	fmed_getmod_t getmod;
-	core_modinfo *minfo, *rc = NULL;
+	core_modinfo *minfo = NULL, *rc = NULL;
 	const fmed_mod *m;
 	ffdl dl = NULL;
 	ffstr s = *ps;
@@ -737,7 +739,8 @@ static core_modinfo* mod_load(const ffstr *ps)
 
 fail:
 	if (rc == NULL) {
-		mod_destroy(minfo);
+		if (minfo != NULL)
+			mod_destroy(minfo);
 		fmed->bmods.len--;
 		FF_SAFECLOSE(dl, NULL, ffdl_close);
 	}

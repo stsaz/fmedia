@@ -172,8 +172,8 @@ static int aac_decode(void *ctx, fmed_filt *d)
 
 	r = ffaac_decode(&a->aac);
 	if (r == FFAAC_RERR) {
-		errlog(core, d->trk, NULL, "ffaac_decode(): %s", ffaac_errstr(&a->aac));
-		return FMED_RERR;
+		warnlog(core, d->trk, NULL, "ffaac_decode(): %s", ffaac_errstr(&a->aac));
+		return FMED_RMORE;
 
 	} else if (r == FFAAC_RMORE) {
 		if (!(d->flags & FMED_FLAST))

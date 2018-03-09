@@ -321,7 +321,7 @@ static int fmed_arg_out_chk(ffparser_schem *p, void *obj, const ffstr *val)
 static int fmed_cmdline(int argc, char **argv, uint main_only)
 {
 	ffparser_schem ps;
-	ffparser p;
+	ffpsarg_parser p;
 	ffpars_ctx ctx = {0};
 	int r = 0;
 	int ret = 1;
@@ -372,7 +372,7 @@ static int fmed_cmdline(int argc, char **argv, uint main_only)
 fail:
 	ffpsarg_destroy(&a);
 	ffpars_schemfree(&ps);
-	ffpars_free(&p);
+	ffpsarg_parseclose(&p);
 	return ret;
 }
 
