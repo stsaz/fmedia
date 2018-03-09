@@ -44,6 +44,7 @@ static void gui_wfilter_action(ffui_wnd *wnd, int id);
 void wconvert_init()
 {
 	gg->wconvert.wconvert.hide_on_close = 1;
+	gg->wconvert.wconvert.onactivate_id = CVT_ACTIVATE;
 	gg->wconvert.wconvert.on_action = &gui_cvt_action;
 	gg->wconvert.vsets.edit_id = CVT_SETS_EDITDONE;
 }
@@ -65,6 +66,14 @@ static void gui_cvt_action(ffui_wnd *wnd, int id)
 	}
 
 	switch (id) {
+	case CVT_ACTIVATE: {
+		char buf[255];
+		ffs_fmt2(buf, sizeof(buf), "Convert %u file(s) to:%Z"
+			, (int)ffui_view_selcount(&gg->wmain.vlist));
+		ffui_settextz(&gg->wconvert.lfn, buf);
+		break;
+	}
+
 	case CVT_SETS_EDIT: {
 		int i, isub;
 		ffui_point pt;

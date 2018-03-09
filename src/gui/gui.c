@@ -136,6 +136,7 @@ static int gui_conf_ghk_add(ffparser_schem *p, void *obj, ffstr *val)
 static const ffui_ldr_ctl wconvert_ctls[] = {
 	add(gui_wconvert, wconvert),
 	add(gui_wconvert, mmconv),
+	add(gui_wconvert, lfn),
 	add(gui_wconvert, eout),
 	add(gui_wconvert, boutbrowse),
 	add(gui_wconvert, vsets),

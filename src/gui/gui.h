@@ -30,6 +30,7 @@ typedef struct gui_wmain {
 typedef struct gui_wconvert {
 	ffui_wnd wconvert;
 	ffui_menu mmconv;
+	ffui_label lfn;
 	ffui_combx eout;
 	ffui_btn boutbrowse;
 	ffui_view vsets;
@@ -330,6 +331,7 @@ enum CMDS {
 	//private:
 	ONCLOSE,
 	CVT_SETS_EDITDONE,
+	CVT_ACTIVATE,
 	STARTPLAY,
 };
 
