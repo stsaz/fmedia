@@ -21,8 +21,9 @@ static const fmed_mod soxr_mod = {
 static void* soxr_open(fmed_filt *d);
 static int soxr_conv(void *ctx, fmed_filt *d);
 static void soxr_close(void *ctx);
-static const fmed_filter fmed_soxr = {
-	&soxr_open, &soxr_conv, &soxr_close
+static ssize_t soxr_cmd(void *ctx, uint cmd, ...);
+static const struct fmed_filter2 fmed_soxr = {
+	&soxr_open, &soxr_conv, &soxr_close, &soxr_cmd
 };
 
 
@@ -58,7 +59,7 @@ static void soxr_mod_destroy(void)
 typedef struct soxr {
 	uint state;
 	ffsoxr soxr;
-	ffpcm inpcm;
+	ffpcmex inpcm, outpcm;
 } soxr;
 
 static void* soxr_open(fmed_filt *d)
@@ -75,6 +76,27 @@ static void soxr_close(void *ctx)
 	soxr *c = ctx;
 	ffsoxr_destroy(&c->soxr);
 	ffmem_free(c);
+}
+
+static ssize_t soxr_cmd(void *ctx, uint cmd, ...)
+{
+	soxr *c = ctx;
+	va_list va;
+	va_start(va, cmd);
+	ssize_t r = -1;
+
+	switch (cmd) {
+	case 0: {
+		const struct fmed_aconv *conf = va_arg(va, void*);
+		c->inpcm = conf->in;
+		c->outpcm = conf->out;
+		r = 0;
+		break;
+	}
+	}
+
+	va_end(va);
+	return r;
 }
 
 static void log_pcmconv(const char *module, int r, const ffpcmex *in, const ffpcmex *out, void *trk)
@@ -103,8 +125,8 @@ static int soxr_conv(void *ctx, fmed_filt *d)
 
 	switch (c->state) {
 	case 0:
-		inpcm = d->audio.convfmt_in;
-		outpcm = d->audio.convfmt;
+		inpcm = c->inpcm;
+		outpcm = c->outpcm;
 
 		// c->soxr.dither = 1;
 		if (0 != (val = ffsoxr_create(&c->soxr, &inpcm, &outpcm))

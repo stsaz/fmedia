@@ -354,7 +354,6 @@ struct fmed_trk {
 	const char *datatype;
 	struct {
 		ffpcmex fmt;
-		ffpcmex convfmt_in; //the format used as input to the next converter (e.g. for conv -> soxr)
 		ffpcmex convfmt; //format of audio data produced by converter filter
 		uint64 pos; //samples
 		uint64 total; //samples

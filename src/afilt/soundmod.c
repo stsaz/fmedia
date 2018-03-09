@@ -174,15 +174,23 @@ static int sndmod_conv_prepare(sndmod_conv *c, fmed_filt *d)
 
 	if (in->sample_rate != out->sample_rate) {
 
-		if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, "soxr.conv"))
+		const struct fmed_filter2 *soxr = core->getmod("soxr.conv");
+		void *f = (void*)d->track->cmd(d->trk, FMED_TRACK_FILT_ADD, "soxr.conv");
+		if (f == NULL)
 			return FMED_RERR;
+		void *fi = (void*)d->track->cmd(d->trk, FMED_TRACK_FILT_INSTANCE, f);
+		if (fi == NULL)
+			return FMED_RERR;
+		struct fmed_aconv conf = {0};
 
 		if (in->channels == out->channels) {
 			// The next filter will convert format and sample rate:
 			// soxr
-			d->audio.convfmt_in = *in;
+			conf.in = *in;
+			conf.out = d->audio.convfmt;
 			d->out = d->data;
 			d->outlen = d->datalen;
+			soxr->cmd(fi, 0, &conf);
 			return FMED_RDONE;
 		}
 
@@ -193,9 +201,11 @@ static int sndmod_conv_prepare(sndmod_conv *c, fmed_filt *d)
 		c->outpcm.sample_rate = in->sample_rate;
 		c->outpcm.ileaved = 0;
 
-		d->audio.convfmt_in = c->outpcm;
-		d->audio.convfmt_in.channels = (c->outpcm.channels & FFPCM_CHMASK);
+		conf.in = c->outpcm;
+		conf.in.channels = (c->outpcm.channels & FFPCM_CHMASK);
 		d->audio.convfmt.channels = (c->outpcm.channels & FFPCM_CHMASK);
+		conf.out = d->audio.convfmt;
+		soxr->cmd(fi, 0, &conf);
 
 	} else {
 		// This filter will convert format and channels:
