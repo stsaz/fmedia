@@ -584,8 +584,12 @@ enum FMED_QUE {
 	FMED_QUE_PLAY_EXCL,
 	FMED_QUE_MIX,
 	FMED_QUE_STOP_AFTER,
-	FMED_QUE_NEXT,
-	FMED_QUE_PREV,
+
+	/** Start playing next/previous track.
+	@param: fmed_que_entry* */
+	FMED_QUE_NEXT2,
+	FMED_QUE_PREV2,
+
 	FMED_QUE_SAVE, //save playlist to file, @param: "const char *filename"
 	FMED_QUE_CLEAR,
 	FMED_QUE_ADD,
