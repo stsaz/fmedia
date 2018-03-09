@@ -16,7 +16,7 @@ typedef struct gtui {
 	ffkevent kev;
 
 	fflock lktrk;
-	struct tui *curtrk;
+	struct tui *curtrk; //currently playing track
 
 	uint vol;
 
@@ -29,6 +29,7 @@ static gtui *gt;
 typedef struct tui {
 	fmed_filt *d;
 	void *trk;
+	fmed_que_entry *qent;
 	uint64 total_samples;
 	uint64 played_samples;
 	uint lastpos;
@@ -87,7 +88,6 @@ enum CMDS {
 	_CMD_F3 = 1 << 27, //use 'cmdfunc3'
 	_CMD_CURTRK = 1 << 28,
 	_CMD_CORE = 1 << 29,
-	_CMD_PLAYONLY = 1 << 30,
 	_CMD_F1 = 1 << 31, //use 'cmdfunc1'
 };
 
@@ -122,6 +122,7 @@ static void tui_rmfile(tui *t, uint cmd);
 static int tui_setvol(tui *t, uint vol);
 static void tui_vol(tui *t, uint cmd);
 static void tui_seek(tui *t, uint cmd, void *udata);
+static void tui_op_trk(struct tui *t, uint cmd);
 
 struct key;
 static void tui_corecmd(void *param);
@@ -242,6 +243,8 @@ static void* tui_open(fmed_filt *d)
 	t->lastpos = (uint)-1;
 	t->d = d;
 
+	t->qent = (void*)fmed_getval("queue_item");
+
 	if (d->type == FMED_TRK_TYPE_REC) {
 		t->rec = 1;
 		gt->rec = 1;
@@ -257,12 +260,14 @@ static void* tui_open(fmed_filt *d)
 	}
 
 	t->trk = d->trk;
-	fflk_lock(&gt->lktrk);
-	gt->curtrk = t;
-	fflk_unlock(&gt->lktrk);
 
 	if (FMED_PNULL != d->track->getvalstr(d->trk, "output"))
 		t->conversion = 1;
+	else if (t->qent != FMED_PNULL) {
+		fflk_lock(&gt->lktrk);
+		gt->curtrk = t;
+		fflk_unlock(&gt->lktrk);
+	}
 
 	if (gt->vol != 100 && !t->conversion)
 		tui_setvol(t, gt->vol);
@@ -279,9 +284,9 @@ static void tui_close(void *ctx)
 		fflk_lock(&gt->lktrk);
 		gt->curtrk = NULL;
 		fflk_unlock(&gt->lktrk);
-		if (t->rec)
-			gt->rec = 0;
 	}
+	if (t->rec)
+		gt->rec = 0;
 	ffarr_free(&t->buf);
 	ffmem_free(t);
 }
@@ -302,7 +307,6 @@ static void tui_info(tui *t, fmed_filt *d)
 	const char *input;
 	ffstr *tstr, artist = {0}, title = {0};
 	ffpcm fmt;
-	fmed_que_entry *qent;
 
 	ffpcm_fmtcopy(&fmt, &d->audio.fmt);
 	t->sample_rate = fmt.sample_rate;
@@ -310,8 +314,6 @@ static void tui_info(tui *t, fmed_filt *d)
 
 	if (FMED_PNULL == (input = d->track->getvalstr(d->trk, "input")))
 		return;
-
-	qent = (void*)fmed_getval("queue_item");
 
 	total_time = ((int64)t->total_samples != FMED_NULL) ? ffpcm_time(t->total_samples, t->sample_rate) : 0;
 	tmsec = (uint)(total_time / 1000);
@@ -339,7 +341,7 @@ static void tui_info(tui *t, fmed_filt *d)
 		, ffpcm_channelstr(fmt.channels));
 
 	if (1 == core->getval("show_tags")) {
-		tui_addtags(t, qent, &t->buf);
+		tui_addtags(t, t->qent, &t->buf);
 	}
 
 	ffstd_write(ffstderr, t->buf.ptr, t->buf.len);
@@ -410,7 +412,7 @@ static int tui_setvol(tui *t, uint vol)
 
 static void tui_rmfile(tui *t, uint cmd)
 {
-	fmed_que_entry *qtrk = (void*)gt->track->getval(t->trk, "queue_item");
+	fmed_que_entry *qtrk = t->qent;
 	if ((cmd & CMD_MASK) == CMD_DELFILE) {
 		ffarr fn = {0};
 		if (0 != ffstr_catfmt(&fn, "%S.deleted%Z", &qtrk->url)
@@ -533,23 +535,28 @@ pass:
 	return FMED_ROK;
 }
 
+static void tui_op_trk(struct tui *t, uint cmd)
+{
+	switch (cmd) {
+	case CMD_SHOWTAGS:
+		t->buf.len = 0;
+		tui_addtags(t, t->qent, &t->buf);
+		ffstd_write(ffstderr, t->buf.ptr, t->buf.len);
+		t->buf.len = 0;
+		break;
+
+	case CMD_SAVETRK:
+		fmed_infolog(core, t->trk, "tui", "Saving track to disk");
+		t->d->save_trk = 1;
+		break;
+	}
+}
+
 static void tui_op(uint cmd)
 {
-	tui *t;
-
 	switch (cmd) {
 	case CMD_STOP:
 		gt->track->cmd((void*)-1, FMED_TRACK_STOPALL);
-		break;
-
-	case CMD_NEXT:
-		gt->track->cmd(NULL, FMED_TRACK_STOPALL);
-		gt->qu->cmd(FMED_QUE_NEXT, NULL);
-		break;
-
-	case CMD_PREV:
-		gt->track->cmd(NULL, FMED_TRACK_STOPALL);
-		gt->qu->cmd(FMED_QUE_PREV, NULL);
 		break;
 
 	case CMD_PLAY:
@@ -569,26 +576,20 @@ static void tui_op(uint cmd)
 		gt->curtrk->paused = 1;
 		break;
 
+	case CMD_NEXT:
+		if (gt->curtrk != NULL)
+			gt->track->cmd(gt->curtrk->trk, FMED_TRACK_STOP);
+		gt->qu->cmd(FMED_QUE_NEXT2, (gt->curtrk != NULL) ? gt->curtrk->qent : NULL);
+		break;
+
+	case CMD_PREV:
+		if (gt->curtrk != NULL)
+			gt->track->cmd(gt->curtrk->trk, FMED_TRACK_STOP);
+		gt->qu->cmd(FMED_QUE_PREV2, (gt->curtrk != NULL) ? gt->curtrk->qent : NULL);
+		break;
+
 	case CMD_QUIT:
 		gt->track->cmd(NULL, FMED_TRACK_STOPALL_EXIT);
-		break;
-
-	case CMD_SHOWTAGS:
-		t = gt->curtrk;
-		if (t == NULL)
-			break;
-		t->buf.len = 0;
-		tui_addtags(t, (void*)gt->track->getval(t->trk, "queue_item"), &t->buf);
-		ffstd_write(ffstderr, t->buf.ptr, t->buf.len);
-		t->buf.len = 0;
-		break;
-
-	case CMD_SAVETRK:
-		t = gt->curtrk;
-		if (t == NULL)
-			break;
-		fmed_infolog(core, t->trk, "tui", "Saving track to disk");
-		t->d->save_trk = 1;
 		break;
 	}
 }
@@ -603,19 +604,19 @@ struct key {
 static struct key hotkeys[] = {
 	{ ' ',	CMD_PLAY | _CMD_F1 | _CMD_CORE,	&tui_op },
 	{ 'D',	CMD_DELFILE | _CMD_CURTRK | _CMD_CORE,	&tui_rmfile },
-	{ 'T',	CMD_SAVETRK | _CMD_F1 | _CMD_CORE,	&tui_op },
+	{ 'T',	CMD_SAVETRK | _CMD_CURTRK | _CMD_CORE,	&tui_op_trk },
 	{ 'd',	CMD_RM | _CMD_CURTRK | _CMD_CORE,	&tui_rmfile },
 	{ 'h',	_CMD_F1,	&tui_help },
-	{ 'i',	CMD_SHOWTAGS | _CMD_F1 | _CMD_CORE,	&tui_op },
-	{ 'm',	CMD_MUTE | _CMD_CURTRK | _CMD_CORE | _CMD_PLAYONLY,	&tui_vol },
+	{ 'i',	CMD_SHOWTAGS | _CMD_CURTRK | _CMD_CORE,	&tui_op_trk },
+	{ 'm',	CMD_MUTE | _CMD_CURTRK | _CMD_CORE,	&tui_vol },
 	{ 'n',	CMD_NEXT | _CMD_F1 | _CMD_CORE,	&tui_op },
 	{ 'p',	CMD_PREV | _CMD_F1 | _CMD_CORE,	&tui_op },
 	{ 'q',	CMD_QUIT | _CMD_F1 | _CMD_CORE,	&tui_op },
 	{ 's',	CMD_STOP | _CMD_F1 | _CMD_CORE,	&tui_op },
-	{ FFKEY_UP,	CMD_VOLUP | _CMD_CURTRK | _CMD_CORE | _CMD_PLAYONLY,	&tui_vol },
-	{ FFKEY_DOWN,	CMD_VOLDOWN | _CMD_CURTRK | _CMD_CORE | _CMD_PLAYONLY,	&tui_vol },
-	{ FFKEY_RIGHT,	CMD_SEEKRIGHT | _CMD_F3 | _CMD_CORE | _CMD_PLAYONLY,	&tui_seek },
-	{ FFKEY_LEFT,	CMD_SEEKLEFT | _CMD_F3 | _CMD_CORE | _CMD_PLAYONLY,	&tui_seek },
+	{ FFKEY_UP,	CMD_VOLUP | _CMD_CURTRK | _CMD_CORE,	&tui_vol },
+	{ FFKEY_DOWN,	CMD_VOLDOWN | _CMD_CURTRK | _CMD_CORE,	&tui_vol },
+	{ FFKEY_RIGHT,	CMD_SEEKRIGHT | _CMD_F3 | _CMD_CORE,	&tui_seek },
+	{ FFKEY_LEFT,	CMD_SEEKLEFT | _CMD_F3 | _CMD_CORE,	&tui_seek },
 };
 
 static const struct key* key2cmd(int key)
@@ -664,18 +665,18 @@ static void tui_corecmd(void *param)
 {
 	struct corecmd *c = param;
 
-	if ((c->k->cmd & _CMD_PLAYONLY) && gt->curtrk != NULL && gt->curtrk->conversion)
+	if ((c->k->cmd & (_CMD_F3 | _CMD_CURTRK)) && gt->curtrk == NULL)
 		goto done;
 
 	if (c->k->cmd & _CMD_F1) {
 		cmdfunc1 func1 = (void*)c->k->func;
 		func1(c->k->cmd & CMD_MASK);
 
-	} else if ((c->k->cmd & _CMD_F3) && gt->curtrk != NULL) {
+	} else if (c->k->cmd & _CMD_F3) {
 		cmdfunc3 func3 = (void*)c->k->func;
 		func3(gt->curtrk, c->k->cmd & CMD_MASK, c->udata);
 
-	} else if ((c->k->cmd & _CMD_CURTRK) && gt->curtrk != NULL) {
+	} else if (c->k->cmd & _CMD_CURTRK) {
 		cmdfunc func = (void*)c->k->func;
 		func(gt->curtrk, c->k->cmd & CMD_MASK);
 	}
