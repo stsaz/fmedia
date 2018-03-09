@@ -94,7 +94,7 @@ static const ffpars_arg fmed_cmdline_args[] = {
 	{ "opus.bitrate",	FFPARS_TINT,  OFF(opus_brate) },
 	{ "mpeg-quality",	FFPARS_TINT | FFPARS_F16BIT,  OFF(mpeg_qual) },
 	{ "aac-quality",	FFPARS_TINT,  OFF(aac_qual) },
-	{ "aac-profile",	FFPARS_TSTR,  OFF(aac_profile) },
+	{ "aac-profile",	FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY | FFPARS_FNOTEMPTY,  OFF(aac_profile) },
 	{ "flac-compression",	FFPARS_TINT8,  OFF(flac_complevel) },
 	{ "stream-copy",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(stream_copy) },
 
@@ -525,8 +525,8 @@ static void trk_prep(fmed_cmd *fmed, fmed_trk *trk)
 
 	if (fmed->aac_qual != (uint)-1)
 		trk->aac.quality = fmed->aac_qual;
-	if (fmed->aac_profile.len != 0)
-		trk->aac.profile = fmed->aac_profile;
+	if (fmed->aac_profile != NULL)
+		ffstr_setz(&trk->aac.profile, fmed->aac_profile);
 	if (fmed->vorbis_qual != -255)
 		trk->vorbis.quality = (fmed->vorbis_qual + 1.0) * 10;
 	if (fmed->opus_brate != 0)

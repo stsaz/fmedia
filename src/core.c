@@ -539,6 +539,7 @@ static void cmd_destroy(fmed_cmd *cmd)
 	ffstr_free(&cmd->outfn);
 
 	ffstr_free(&cmd->meta);
+	ffmem_safefree(cmd->aac_profile);
 	ffmem_safefree(cmd->trackno);
 	ffmem_safefree(cmd->conf_fn);
 
