@@ -587,11 +587,6 @@ static void trk_process(void *udata)
 			r = FFLIST_CUR_NEXT | FFLIST_CUR_RM;
 			break;
 
-		case FMED_RDONE_PREV:
-			f->d.datalen = 0;
-			r = FFLIST_CUR_PREV | FFLIST_CUR_RM;
-			break;
-
 		case FMED_RLASTOUT:
 			f->d.datalen = 0;
 			r = FFLIST_CUR_NEXT | FFLIST_CUR_RM | FFLIST_CUR_RMPREV;
