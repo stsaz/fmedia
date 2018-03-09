@@ -40,14 +40,14 @@ typedef struct cue {
 	ffcue cu;
 	fmed_que_entry ent;
 	fmed_que_entry *qu_cur;
-	struct { FFARR(ffstr) } metas;
+	ffarr metas;
 	uint nmeta;
 	ffarr trackno;
 	uint curtrk;
 	uint gmeta;
-	uint utf8 :1
-		, have_glob_artist :1
-		, artist_trk :1;
+	uint i_glob_artist; // meta index of global PERFORMER
+	uint artist_trk[2]; // whether track PERFORMER is specified for the current and next track
+	uint utf8 :1;
 } cue;
 
 
@@ -413,6 +413,10 @@ static void cue_close(void *ctx)
 	cue *c = ctx;
 	ffpars_free(&c->cue.pars);
 	ffstr_free(&c->ent.url);
+	ffarr *m;
+	FFARR_WALKT(&c->metas, m, ffarr) {
+		ffarr_free(m);
+	}
 	ffarr_free(&c->metas);
 	ffarr_free(&c->trackno);
 	ffmem_free(c);
@@ -423,7 +427,8 @@ static int cue_process(void *ctx, fmed_filt *d)
 	cue *c = ctx;
 	size_t n;
 	int rc = FMED_RERR, r, done = 0, fin = 0;
-	ffstr *meta, metaname, in;
+	ffarr *meta;
+	ffstr metaname, in;
 	ffarr val = {0};
 	ffcuetrk *ctrk;
 	uint codepage = core->getval("codepage");
@@ -438,14 +443,17 @@ static int cue_process(void *ctx, fmed_filt *d)
 		ffstr_shift(&in, n);
 
 		if (r == FFPARS_MORE) {
-			if (!(d->flags & FMED_FLAST))
-				return FMED_RMORE;
+			if (!(d->flags & FMED_FLAST)) {
+				rc = FMED_RMORE;
+				goto err;
+			}
 
 			if (fin) {
 				// end of .cue file
 				if (NULL == (ctrk = ffcue_index(&c->cu, FFCUE_FIN, 0)))
 					break;
 				done = 1;
+				c->artist_trk[0] = c->artist_trk[1];
 				c->nmeta = c->metas.len;
 				goto add;
 			}
@@ -478,6 +486,8 @@ static int cue_process(void *ctx, fmed_filt *d)
 			goto add_metaname;
 
 		case FFCUE_TRACKNO:
+			c->artist_trk[0] = c->artist_trk[1];
+			c->artist_trk[1] = 0;
 			c->nmeta = c->metas.len;
 			ffstr_setcz(&metaname, "tracknumber");
 			goto add_metaname;
@@ -487,26 +497,31 @@ static int cue_process(void *ctx, fmed_filt *d)
 			goto add_metaname;
 
 		case FFCUE_TRK_PERFORMER:
-			c->artist_trk = 1;
+			c->artist_trk[1] = 1;
+			ffstr_setcz(&metaname, "artist");
+			goto add_metaname;
+
 		case FFCUE_PERFORMER:
+			c->i_glob_artist = c->metas.len;
 			ffstr_setcz(&metaname, "artist");
 
 add_metaname:
-			if (NULL == (meta = ffarr_push(&c->metas, ffstr)))
+			if (NULL == (meta = ffarr_pushT(&c->metas, ffarr)))
 				goto err;
-			*meta = metaname;
+			ffstr_set2(meta, &metaname);
+			meta->cap = 0;
 			// break;
 
 		case FFCUE_REM_VAL:
-			if (NULL == (meta = ffarr_push(&c->metas, ffstr)))
+			if (NULL == (meta = ffarr_pushT(&c->metas, ffarr)))
 				goto err;
-			ffstr_acqstr3(meta, &val);
+			ffarr_acq(meta, &val);
 			break;
 
 		case FFCUE_REM_NAME:
-			if (NULL == (meta = ffarr_push(&c->metas, ffstr)))
+			if (NULL == (meta = ffarr_pushT(&c->metas, ffarr)))
 				goto err;
-			ffstr_acqstr3(meta, &val);
+			ffarr_acq(meta, &val);
 			break;
 
 		case FFCUE_FILE:
@@ -516,13 +531,6 @@ add_metaname:
 			if (0 != plist_fullname(d, (ffstr*)&val, &c->ent.url))
 				goto err;
 			break;
-		}
-
-		if (r == FFCUE_PERFORMER) {
-			/* swap {FIRST_ENTRY_NAME, FIRST_ENTRY_VAL} <-> {"artist", ARTIST_VAL}
-			This allows to easily skip global artist key-value pair when track artist name is specified. */
-			c->have_glob_artist = 1;
-			_ffarr_swap(c->metas.ptr, c->metas.ptr + c->metas.len - 2, 2, sizeof(ffstr));
 		}
 
 		if (NULL == (ctrk = ffcue_index(&c->cu, r, (int)c->cue.pars.intval)))
@@ -547,18 +555,16 @@ add:
 		c->ent.to = -(int)ctrk->to;
 		c->ent.dur = (ctrk->to != 0) ? (ctrk->to - ctrk->from) * 1000 / 75 : 0;
 
-		uint i = 0;
-		if (c->have_glob_artist && c->artist_trk) {
-			i += 2; // skip global artist
-			c->artist_trk = 0;
-		}
-
 		c->ent.prev = c->qu_cur;
 		cur = (void*)qu->cmd2(FMED_QUE_ADD | FMED_QUE_NO_ONCHANGE | FMED_QUE_COPY_PROPS, &c->ent, 0);
 
-		const ffstr *m = c->metas.ptr;
-		for (;  i != c->nmeta;  i += 2) {
-			ffstr pair[2] = { m[i], m[i + 1] };
+		const ffarr *m = (void*)c->metas.ptr;
+		for (uint i = 0;  i != c->nmeta;  i += 2) {
+			if (i == c->i_glob_artist && c->artist_trk[0])
+				continue; // skip global artist, because track artist name is specified
+			ffstr pair[2];
+			ffstr_set2(&pair[0], &m[i]);
+			ffstr_set2(&pair[1], &m[i + 1]);
 			qu->cmd2(FMED_QUE_METASET, cur, (size_t)pair);
 		}
 		qu->cmd2(FMED_QUE_ADD | FMED_QUE_ADD_DONE, cur, 0);
@@ -567,8 +573,14 @@ add:
 next:
 		/* 'metas': GLOBAL TRACK_N TRACK_N+1
 		Remove the items for TRACK_N. */
-		ffmemcpy(c->metas.ptr + c->gmeta, c->metas.ptr + c->nmeta, (c->metas.len - c->nmeta) * sizeof(ffstr));
-		c->metas.len = c->gmeta + c->metas.len - c->nmeta;
+		{
+		ffarr *m = (void*)c->metas.ptr;
+		for (uint i = c->gmeta;  i != c->nmeta;  i++) {
+			ffarr_free(&m[i]);
+		}
+		}
+		_ffarr_rm(&c->metas, c->gmeta, c->nmeta - c->gmeta, sizeof(ffarr));
+		c->nmeta = c->metas.len;
 	}
 
 	qu->cmd(FMED_QUE_RM, (void*)fmed_getval("queue_item"));
