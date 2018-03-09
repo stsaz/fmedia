@@ -222,6 +222,9 @@ static int trk_setout(fm_trk *t)
 		addfilter(t, "#soundmod.gain");
 	}
 
+	if (t->props.use_dynanorm)
+		addfilter(t, "dynanorm.filter");
+
 	addfilter(t, "#soundmod.autoconv");
 
 	if (t->props.type == FMED_TRK_TYPE_MIXIN) {

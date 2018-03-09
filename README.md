@@ -75,6 +75,7 @@ All features are provided by fmedia modules divided into 3 groups:
 	* PCM converter
 	* PCM peaks
 	* Mixer
+	* Dynamic Audio Normalizer
 	* Terminal UI
 	* Graphical UI
 
@@ -86,7 +87,7 @@ All features are provided by fmedia modules divided into 3 groups:
 * Pulse Audio Playback
 * OSS Playback
 
-fmedia uses modified versions of these 3rd party libraries: libALAC, libfdk-aac, libFLAC, libMAC, libmp3lame, libmpg123, libmpc, libogg, libopus, libsoxr, libvorbisenc, libvorbis, libwavpack.  See `ff-3pt/README.txt` for details.
+fmedia uses modified versions of these 3rd party libraries: libALAC, libfdk-aac, libFLAC, libMAC, libmp3lame, libmpg123, libmpc, libogg, libopus, libsoxr, libvorbisenc, libvorbis, libwavpack, libDynamicAudioNormalizer.  See `ff-3pt/README.txt` for details.
 
 
 ---------------

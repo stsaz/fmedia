@@ -38,6 +38,7 @@ typedef struct fmed_cmd {
 	byte volume;
 	byte pcm_peaks;
 	byte pcm_crc;
+	byte dynanorm;
 
 	float vorbis_qual;
 	uint opus_brate;

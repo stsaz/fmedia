@@ -411,6 +411,7 @@ struct fmed_trk {
 		uint out_file_del :1;
 		uint save_trk :1;
 		uint net_reconnect :1;
+		uint use_dynanorm :1;
 	};
 	};
 

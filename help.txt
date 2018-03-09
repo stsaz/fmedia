@@ -49,6 +49,8 @@ INPUT:
 FILTERS:
 --volume=INT       Set volume (0% .. 125%)
 --gain=FLT         Set gain/attenuation in dB
+--dynanorm         Use Dynamic Audio Normalizer filter.
+                   Set parameters in section `mod_conf dynanorm.filter` in fmedia.conf.
 
 --pcm-peaks        Analyze PCM and print some details
 --pcm-crc          Print CRC of PCM data (must be used with --pcm-peaks)

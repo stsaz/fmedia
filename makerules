@@ -3,10 +3,13 @@ OBJ_DIR := .
 BIN_CONTAINERS := avi.$(SO) mkv.$(SO) mp4.$(SO) ogg.$(SO)
 BIN_ACODECS := wav.$(SO) \
 	aac.$(SO) alac.$(SO) ape.$(SO) flac.$(SO) mpeg.$(SO) mpc.$(SO) opus.$(SO) vorbis.$(SO) wavpack.$(SO)
-BINS := $(BIN) core.$(SO) tui.$(SO) net.$(SO) plist.$(SO) mixer.$(SO) \
+BIN_AFILTERS := dynanorm.$(SO) \
 	soxr.$(SO) \
+	mixer.$(SO)
+BINS := $(BIN) core.$(SO) tui.$(SO) net.$(SO) plist.$(SO) \
 	$(BIN_CONTAINERS) \
-	$(BIN_ACODECS)
+	$(BIN_ACODECS) \
+	$(BIN_AFILTERS)
 
 # OS-specific modules
 OS_BINS :=
@@ -47,6 +50,9 @@ $(OBJ_DIR)/%.o: $(SRCDIR)/adev/%.c $(SRCDIR)/fmedia.h $(SRCDIR)/core.h $(FF_HDR)
 	$(C)  $(CFLAGS) $<  -o$@
 
 $(OBJ_DIR)/%.o: $(SRCDIR)/acodec/%.c $(SRCDIR)/fmedia.h $(SRCDIR)/core.h $(FF_HDR) $(FF_AUDIO_HDR)
+	$(C)  $(CFLAGS) $<  -o$@
+
+$(OBJ_DIR)/%.o: $(SRCDIR)/afilt/%.c $(SRCDIR)/fmedia.h $(FF_HDR) $(FF_AUDIO_HDR)
 	$(C)  $(CFLAGS) $<  -o$@
 
 $(OBJ_DIR)/%.o: $(SRCDIR)/format/%.c $(SRCDIR)/fmedia.h $(SRCDIR)/core.h $(FF_HDR) $(FF_AUDIO_HDR)
@@ -133,6 +139,13 @@ SOXR_O := $(OBJ_DIR)/soxr.o \
 	$(FF_O)
 soxr.$(SO): $(SOXR_O)
 	$(LD) -shared $(SOXR_O) $(LDFLAGS) $(LD_RPATH_ORIGIN) -lsoxr-ff  -o$@
+
+
+#
+DYNANORM_O := $(OBJ_DIR)/dynanorm.o \
+	$(FF_O)
+dynanorm.$(SO): $(DYNANORM_O)
+	$(LD) -shared $(DYNANORM_O) $(LDFLAGS) $(LD_RPATH_ORIGIN) -ldynanorm-ff  -o$@
 
 
 #
@@ -430,6 +443,7 @@ endif
 		$(FF3PTLIB)/libfdk-aac-ff.$(SO) \
 		$(FF3PTLIB)/libALAC-ff.$(SO) \
 		$(FF3PTLIB)/libsoxr-ff.$(SO) \
+		$(FF3PTLIB)/libdynanorm-ff.$(SO) \
 		$(INSTDIR)/mod
 	chmod 644 $(INSTDIR)/mod/*
 

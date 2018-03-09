@@ -85,6 +85,7 @@ static const ffpars_arg fmed_cmdline_args[] = {
 	//FILTERS
 	{ "volume",	FFPARS_TINT8,  OFF(volume) },
 	{ "gain",	FFPARS_TFLOAT | FFPARS_FSIGN,  OFF(gain) },
+	{ "dynanorm",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(dynanorm) },
 	{ "pcm-peaks",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(pcm_peaks) },
 	{ "pcm-crc",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(pcm_crc) },
 
@@ -508,6 +509,7 @@ static void trk_prep(fmed_cmd *fmed, fmed_trk *trk)
 
 	trk->pcm_peaks = fmed->pcm_peaks;
 	trk->pcm_peaks_crc = fmed->pcm_crc;
+	trk->use_dynanorm = fmed->dynanorm;
 
 	if (fmed->volume != 100) {
 		double db;
