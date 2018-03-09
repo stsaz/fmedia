@@ -663,6 +663,11 @@ static void que_meta_set(fmed_que_entry *ent, const ffstr *name, const ffstr *va
 			return;
 	}
 
+	if (!(flags & FMED_QUE_PRIV) && ffstr_matchz(name, "__")) {
+		fmed_warnlog(core, NULL, "queue", "meta names starting with \"__\" are considered private");
+		return;
+	}
+
 	if (flags & (FMED_QUE_OVWRITE | FMED_QUE_METADEL)) {
 		int i = que_arrfind(a->ptr, a->len, name->ptr, name->len);
 
@@ -767,6 +772,9 @@ static ffstr* que_meta(fmed_que_entry *ent, size_t n, ffstr *name, uint flags)
 				return FMED_QUE_SKIP;
 		}
 	}
+
+	if (ffstr_matchz(name, "__"))
+		return FMED_QUE_SKIP;
 
 	return &m[nn + 1];
 }

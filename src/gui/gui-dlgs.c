@@ -547,6 +547,8 @@ static void gui_convert(void)
 		ffstr sname, *sval;
 		size_t n;
 		for (n = 0;  NULL != (sval = gg->qu->meta(inp, n, &sname, FMED_QUE_NO_TMETA));  n++) {
+			if (sval == FMED_QUE_SKIP)
+				continue;
 			gg->qu->meta_set(qent, sname.ptr, sname.len, sval->ptr, sval->len, 0);
 		}
 
@@ -1004,6 +1006,8 @@ void gui_media_showinfo(void)
 	ffui_view_insgrp(&gg->winfo.vinfo, -1, grp, &vg);
 
 	for (i = 0;  NULL != (val = gg->qu->meta(e, i, &name, 0));  i++) {
+		if (val == FMED_QUE_SKIP)
+			continue;
 		ffui_view_iteminit(&it);
 		ffui_view_settextstr(&it, &name);
 		ffui_view_setgroupid(&it, grp);

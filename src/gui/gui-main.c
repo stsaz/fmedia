@@ -639,6 +639,11 @@ static void gui_trk_setinfo(int idx, fmed_que_entry *ent, uint sec, uint flags)
 	} else
 		title = *val;
 
+	if (NULL != (val = gg->qu->meta_find(ent, FFSTR("__info")))) {
+		ffui_view_settextstr(&it, val);
+		ffui_view_set(&gg->wmain.vlist, H_INF, &it);
+	}
+
 	if (NULL != (val = gg->qu->meta_find(ent, FFSTR("date")))) {
 		ffui_view_settextstr(&it, val);
 		ffui_view_set(&gg->wmain.vlist, H_DATE, &it);
@@ -1085,15 +1090,8 @@ int gui_setmeta(gui_trk *g, fmed_que_entry *plid)
 /** Update all properties of the playlist item with a new info. */
 void gui_newtrack(gui_trk *g, fmed_filt *d, fmed_que_entry *plid)
 {
-	ffui_viewitem it = {0};
 	char buf[1024];
 	size_t n;
-	ssize_t idx;
-
-	if (-1 == (idx = gui_setmeta(g, plid)))
-		goto done;
-	ffui_view_setindex(&it, idx);
-	ffui_view_focus(&it, 1);
 
 	n = ffs_fmt(buf, buf + sizeof(buf), "%u kbps, %s, %u Hz, %s, %s"
 		, (d->audio.bitrate + 500) / 1000
@@ -1101,8 +1099,10 @@ void gui_newtrack(gui_trk *g, fmed_filt *d, fmed_que_entry *plid)
 		, g->sample_rate
 		, ffpcm_fmtstr(d->audio.fmt.format)
 		, ffpcm_channelstr(d->audio.fmt.channels));
-	ffui_view_settext(&it, buf, n);
-	ffui_view_set(&gg->wmain.vlist, H_INF, &it);
+	gg->qu->meta_set(g->qent, FFSTR("__info"), buf, n, FMED_QUE_PRIV);
+
+	if (-1 == gui_setmeta(g, plid))
+		goto done;
 
 done:
 	ffui_trk_setrange(&gg->wmain.tpos, g->total_time_sec);
