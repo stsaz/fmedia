@@ -216,10 +216,17 @@ enum FMED_TRACK_CMD {
 	FMED_TRACK_LAST, //the last track in queue is finished
 
 	/** Add new filter to the track chain.
+	Obsolete.
 	@param: char *filter_name */
 	FMED_TRACK_ADDFILT,
 	FMED_TRACK_ADDFILT_PREV,
 	FMED_TRACK_ADDFILT_BEGIN,
+
+	/** Add new filter to the track chain.
+	@param: char *filter_name
+	Return filter ID;  NULL on error. */
+	FMED_TRACK_FILT_ADD,
+	FMED_TRACK_FILT_ADDPREV,
 
 	FMED_TRACK_META_HAVEUSER,
 
@@ -232,6 +239,7 @@ enum FMED_TRACK_CMD {
 	FMED_TRACK_META_COPYFROM,
 
 	FMED_TRACK_FILT_GETPREV, // get context pointer of the previous filter
+	FMED_TRACK_FILT_INSTANCE, // get (create) filter instance.  @param: void *filter_id
 };
 
 enum FMED_TRK_TYPE {
@@ -424,10 +432,13 @@ struct fmed_trk {
 enum FMED_R {
 	FMED_ROK //output data is ready.  The module will be called again if there's unprocessed input data.
 	, FMED_RDATA //output data is ready, the module will be called again
-	, FMED_RMORE //more input data is needed
-	, FMED_RASYNC //an asynchronous operation is scheduled.  The module will call fmed_filt.handler.
 	, FMED_RDONE //output data is completed, remove this module from the chain
 	, FMED_RLASTOUT //output data is completed, remove this & all previous modules from the chain
+
+	, FMED_RMORE //more input data is needed
+	, FMED_RBACK //same as FMED_RMORE, but pass the current output data to the previous filter
+
+	, FMED_RASYNC //an asynchronous operation is scheduled.  The module will call fmed_filt.handler.
 	, FMED_RFIN //close the track
 	, FMED_RSYSERR //system error.  Print error message and close the track.
 	, FMED_RERR = -1 //fatal error, the track will be closed.
@@ -445,6 +456,19 @@ struct fmed_filter {
 	int (*process)(void *ctx, fmed_filt *d);
 
 	void (*close)(void *ctx);
+};
+
+struct fmed_filter2 {
+	void* (*open)(fmed_filt *d);
+	int (*process)(void *ctx, fmed_filt *d);
+	void (*close)(void *ctx);
+
+	/** Send a command directly to a filter instance. */
+	ssize_t (*cmd)(void *ctx, uint cmd, ...);
+};
+
+struct fmed_aconv {
+	ffpcmex in, out;
 };
 
 static FFINL int64 fmed_popval_def(fmed_filt *d, const char *name, int64 def)

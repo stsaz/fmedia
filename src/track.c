@@ -472,7 +472,9 @@ static void trk_free(fm_trk *t)
 #ifdef _DEBUG
 // enum FMED_R
 static const char *const fmed_retstr[] = {
-	"err", "ok", "data", "more", "async", "done", "done-prev", "last-out", "fin", "syserr",
+	"err", "ok", "data", "done", "last-out",
+	"more", "back",
+	"async", "fin", "syserr",
 };
 #endif
 
@@ -570,6 +572,11 @@ static void trk_process(void *udata)
 			return;
 
 		case FMED_RMORE:
+			FF_ASSERT(t->props.outlen == 0);
+			r = FFLIST_CUR_PREV;
+			break;
+
+		case FMED_RBACK:
 			r = FFLIST_CUR_PREV;
 			break;
 
@@ -626,6 +633,11 @@ shift:
 		case FFLIST_CUR_SAME:
 		case FFLIST_CUR_PREV:
 			nf = FF_GETPTR(fmed_f, sib, t->cur);
+			if (e == FMED_RBACK) {
+				nf->d.data = t->props.out,  nf->d.datalen = t->props.outlen;
+				nf->newdata = 1;
+			}
+			t->props.outlen = 0;
 			if (nf->want_input && nf->d.datalen == 0 && &nf->sib != ffchain_first(&t->filt_chain)) {
 				nf->want_input = 0;
 				r = FFLIST_CUR_PREV;
@@ -791,12 +803,14 @@ static fmed_f* filt_add(fm_trk *t, uint cmd, const char *name)
 		ffmem_tzero(f);
 		break;
 
+	case FMED_TRACK_FILT_ADD:
 	case FMED_TRACK_ADDFILT:
 		f = ffarr_end(&t->filters);
 		ffmem_tzero(f);
 		ffchain_append(&f->sib, t->cur);
 		break;
 
+	case FMED_TRACK_FILT_ADDPREV:
 	case FMED_TRACK_ADDFILT_PREV:
 		f = ffarr_end(&t->filters);
 		ffmem_tzero(f);
@@ -874,6 +888,13 @@ static ssize_t trk_cmd(void *trk, uint cmd, ...)
 			core->sig(FMED_STOP);
 		break;
 
+	case FMED_TRACK_FILT_ADD:
+	case FMED_TRACK_FILT_ADDPREV: {
+		const char *name = va_arg(va, char*);
+		fmed_f *f = filt_add(t, cmd, name);
+		r = (size_t)f;
+		break;
+	}
 	case FMED_TRACK_ADDFILT:
 	case FMED_TRACK_ADDFILT_PREV:
 	case FMED_TRACK_ADDFILT_BEGIN: {
@@ -895,6 +916,20 @@ static ssize_t trk_cmd(void *trk, uint cmd, ...)
 		fmed_f *f = FF_GETPTR(fmed_f, sib, t->cur->prev);
 		void **dst = va_arg(va, void**);
 		*dst = f->ctx;
+		break;
+	}
+
+	case FMED_TRACK_FILT_INSTANCE: {
+		fmed_f *f = va_arg(va, void*);
+		if (!f->opened) {
+			dbglog(t, "creating instance of %s...", f->name);
+			f->ctx = f->filt->open(&t->props);
+			FF_ASSERT(f->ctx != NULL);
+			if (f->ctx == NULL)
+				t->state = TRK_ST_ERR;
+			f->opened = 1;
+		}
+		r = (size_t)f->ctx;
 		break;
 	}
 
