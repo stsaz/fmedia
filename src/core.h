@@ -37,15 +37,11 @@ typedef struct fmedia {
 	fftimer_queue tmrq;
 	uint period;
 
-	uint trkid;
-	fflist trks; //fm_trk[]
-
 	fffd kq;
 	ffkqu_time kqutime;
 	ffkevpost kqpost;
 
 	uint stopped :1
-		, stop_sig :1
 		;
 
 	ffarr bmods; //fmed_modinfo[]

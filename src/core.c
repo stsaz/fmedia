@@ -55,6 +55,9 @@ enum {
 FF_EXP fmed_core* core_init(fmed_cmd **ptr, char **argv, char **env);
 FF_EXP void core_free(void);
 
+extern int tracks_init(void);
+extern void tracks_destroy(void);
+
 static const fmed_mod* fmed_getmod_core(const fmed_core *_core);
 extern const fmed_mod* fmed_getmod_file(const fmed_core *_core);
 extern const fmed_mod* fmed_getmod_sndmod(const fmed_core *_core);
@@ -575,7 +578,6 @@ fmed_core* core_init(fmed_cmd **ptr, char **argv, char **env)
 	fmed->kq = FF_BADFD;
 	fftask_init(&fmed->taskmgr);
 	fftmrq_init(&fmed->tmrq);
-	fflist_init(&fmed->trks);
 	fflist_init(&fmed->mods);
 	core_insmod("#core.core", NULL);
 
@@ -623,7 +625,7 @@ void core_free(void)
 
 	fftmrq_destroy(&fmed->tmrq, fmed->kq);
 
-	_fmed_track.cmd(NULL, FMED_TRACK_STOPALL);
+	tracks_destroy();
 
 	if (fmed->kq != FF_BADFD) {
 		ffkqu_post_detach(&fmed->kqpost, fmed->kq);
@@ -903,6 +905,8 @@ static int core_open(void)
 	fmed->evposted.handler = &core_posted;
 
 	fmed->qu = core->getmod("#queue.queue");
+	if (0 != tracks_init())
+		return 1;
 	return 0;
 }
 

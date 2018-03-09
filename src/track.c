@@ -24,6 +24,14 @@ enum {
 	N_RUNTIME_FILTERS = 4, //allow up to this number of filters to be added while track is running
 };
 
+struct tracks {
+	ffatomic trkid;
+	fflist trks; //fm_trk[]
+	uint stop_sig :1;
+};
+
+static struct tracks *g;
+
 typedef struct fmed_f {
 	fflist_item sib;
 	void *ctx;
@@ -114,6 +122,22 @@ const fmed_track _fmed_track = {
 	&trk_loginfo,
 };
 
+
+int tracks_init(void)
+{
+	if (NULL == (g = ffmem_new(struct tracks)))
+		return -1;
+	fflist_init(&g->trks);
+	return 0;
+}
+
+void tracks_destroy(void)
+{
+	if (g == NULL)
+		return;
+	trk_cmd(NULL, FMED_TRACK_STOPALL);
+	ffmem_free0(g);
+}
 
 static fmed_f* _addfilter1(fm_trk *t)
 {
@@ -277,7 +301,7 @@ static int trk_opened(fm_trk *t)
 		dbglog(t, "properties: %*xb", sizeof(t->props), &t->props);
 	}
 
-	fflist_ins(&fmed->trks, &t->sib);
+	fflist_ins(&g->trks, &t->sib);
 	t->state = TRK_ST_ACTIVE;
 	t->cur = &t->filters.ptr->sib;
 	return 0;
@@ -306,7 +330,7 @@ static void* trk_create(uint cmd, const char *fn)
 	t->props.handler = &trk_process;
 	t->props.trk = t;
 
-	t->id.len = ffs_fmt(t->sid, t->sid + sizeof(t->sid), "*%u", ++fmed->trkid);
+	t->id.len = ffs_fmt(t->sid, t->sid + sizeof(t->sid), "*%L", ffatom_incret(&g->trkid));
 	t->id.ptr = t->sid;
 
 	if (NULL == ffarr_allocT((ffarr*)&t->filters, 8, fmed_f))
@@ -461,14 +485,14 @@ static void trk_free(fm_trk *t)
 		dict_ent_free(e);
 	}
 
-	if (fflist_exists(&fmed->trks, &t->sib))
-		fflist_rm(&fmed->trks, &t->sib);
+	if (fflist_exists(&g->trks, &t->sib))
+		fflist_rm(&g->trks, &t->sib);
 
 	dbglog(t, "closed");
 	ffmem_free(t);
 
 	if ((type == FMED_TRK_TYPE_REC && !fmed->cmd.gui)
-		|| (fmed->stop_sig && fmed->trks.len == 0))
+		|| (g->stop_sig && g->trks.len == 0))
 		core->sig(FMED_STOP);
 }
 
@@ -841,16 +865,16 @@ static ssize_t trk_cmd(void *trk, uint cmd, ...)
 
 	switch (cmd) {
 	case FMED_TRACK_STOPALL_EXIT:
-		if (fmed->trks.len == 0 || fmed->stop_sig) {
+		if (g->trks.len == 0 || g->stop_sig) {
 			core->sig(FMED_STOP);
 			break;
 		}
-		fmed->stop_sig = 1;
+		g->stop_sig = 1;
 		trk = (void*)-1;
 		// break
 
 	case FMED_TRACK_STOPALL:
-		FFLIST_WALKSAFE(&fmed->trks, t, sib, next) {
+		FFLIST_WALKSAFE(&g->trks, t, sib, next) {
 			if (t->props.type == FMED_TRK_TYPE_REC && trk == NULL)
 				continue;
 
