@@ -399,7 +399,12 @@ void gui_corecmd_op(uint cmd, void *udata)
 {
 	switch (cmd) {
 	case PLAY:
-		gg->track->cmd(NULL, FMED_TRACK_STOPALL);
+		if (gg->curtrk != NULL)
+			gg->track->cmd(gg->curtrk->trk, FMED_TRACK_STOP);
+		gg->qu->cmd(FMED_QUE_PLAY, udata);
+		break;
+
+	case STARTPLAY:
 		gg->qu->cmd(FMED_QUE_PLAY, udata);
 		break;
 
@@ -433,13 +438,15 @@ void gui_corecmd_op(uint cmd, void *udata)
 		break;
 
 	case NEXT:
-		gg->track->cmd(NULL, FMED_TRACK_STOPALL);
-		gg->qu->cmd(FMED_QUE_NEXT, NULL);
+		if (gg->curtrk != NULL)
+			gg->track->cmd(gg->curtrk->trk, FMED_TRACK_STOP);
+		gg->qu->cmd(FMED_QUE_NEXT2, (gg->curtrk != NULL) ? gg->curtrk->qent : NULL);
 		break;
 
 	case PREV:
-		gg->track->cmd(NULL, FMED_TRACK_STOPALL);
-		gg->qu->cmd(FMED_QUE_PREV, NULL);
+		if (gg->curtrk != NULL)
+			gg->track->cmd(gg->curtrk->trk, FMED_TRACK_STOP);
+		gg->qu->cmd(FMED_QUE_PREV2, (gg->curtrk != NULL) ? gg->curtrk->qent : NULL);
 		break;
 
 
@@ -452,7 +459,7 @@ void gui_corecmd_op(uint cmd, void *udata)
 		break;
 
 	case VOL:
-		if (gg->curtrk == NULL || gg->curtrk->conversion)
+		if (gg->curtrk == NULL)
 			break;
 		gg->curtrk->d->audio.gain = gg->vol;
 		break;
@@ -1033,7 +1040,6 @@ static int gtrk_conf(ffpars_ctx *ctx)
 
 static void* gtrk_open(fmed_filt *d)
 {
-	fmed_que_entry *plid;
 	gui_trk *g = ffmem_tcalloc1(gui_trk);
 	if (g == NULL)
 		return NULL;
@@ -1043,19 +1049,21 @@ static void* gtrk_open(fmed_filt *d)
 	g->task.handler = d->handler;
 	g->task.param = d->trk;
 
-	plid = (void*)fmed_getval("queue_item");
-	if (plid == FMED_PNULL)
+	g->qent = (void*)fmed_getval("queue_item");
+	if (g->qent == FMED_PNULL) {
+		ffmem_free(g);
 		return FMED_FILT_SKIP; //tracks being recorded are not started from "queue"
-
-	fflk_lock(&gg->lktrk);
-	gg->curtrk = g;
-	fflk_unlock(&gg->lktrk);
+	}
 
 	if (FMED_PNULL != d->track->getvalstr(d->trk, "output"))
 		g->conversion = 1;
+	else {
+		fflk_lock(&gg->lktrk);
+		gg->curtrk = g;
+		fflk_unlock(&gg->lktrk);
 
-	if (!g->conversion)
 		gui_corecmd_op(VOL, NULL);
+	}
 
 	g->state = ST_PLAYING;
 	return g;
@@ -1065,8 +1073,7 @@ static void gtrk_close(void *ctx)
 {
 	gui_trk *g = ctx;
 	core->task(&g->task, FMED_TASK_DEL);
-	fmed_que_entry *qent = (void*)gg->track->getval(g->trk, "queue_item");
-	gui_setmeta(NULL, qent);
+	gui_setmeta(NULL, g->qent);
 
 	if (gg->curtrk == g) {
 		fflk_lock(&gg->lktrk);
@@ -1085,6 +1092,11 @@ static int gtrk_process(void *ctx, fmed_filt *d)
 	int64 playpos;
 	uint playtime;
 
+	if (g->conversion) {
+		gui_conv_progress(g);
+		goto done;
+	}
+
 	if (d->meta_block)
 		goto done;
 
@@ -1097,9 +1109,7 @@ static int gtrk_process(void *ctx, fmed_filt *d)
 		g->sample_rate = d->audio.fmt.sample_rate;
 		g->total_time_sec = ffpcm_time(d->audio.total, g->sample_rate) / 1000;
 
-		fmed_que_entry *plid;
-		plid = (void*)fmed_getval("queue_item");
-		gui_newtrack(g, d, plid);
+		gui_newtrack(g, d, g->qent);
 		d->meta_changed = 0;
 	}
 
@@ -1115,8 +1125,7 @@ static int gtrk_process(void *ctx, fmed_filt *d)
 
 	if (d->meta_changed) {
 		d->meta_changed = 0;
-		void *qent = (void*)fmed_getval("queue_item");
-		gui_setmeta(g, qent);
+		gui_setmeta(g, g->qent);
 	}
 
 	playpos = d->audio.pos;

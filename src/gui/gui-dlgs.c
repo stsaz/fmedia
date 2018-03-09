@@ -575,7 +575,7 @@ static void gui_convert(void)
 
 	if (ar.len != 0) {
 		qent = *(void**)ar.ptr;
-		gui_corecmd_add(&cmd_play, qent);
+		gui_corecmd_add(&cmd_startplay, qent);
 	}
 
 end:

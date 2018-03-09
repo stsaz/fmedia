@@ -163,7 +163,7 @@ void rec_sets_destroy(rec_sets_t *sets);
 
 typedef struct ggui {
 	fflock lktrk;
-	gui_trk *curtrk;
+	gui_trk *curtrk; //currently playing track
 	const fmed_queue *qu;
 	const fmed_track *track;
 	uint load_err;
@@ -241,6 +241,7 @@ struct gui_trk {
 	fmed_filt *d;
 	void *trk;
 	fftask task;
+	fmed_que_entry *qent;
 
 	uint goback :1
 		, conversion :1;
@@ -329,6 +330,7 @@ enum CMDS {
 	//private:
 	ONCLOSE,
 	CVT_SETS_EDITDONE,
+	STARTPLAY,
 };
 
 typedef void (*cmdfunc0)(void);
@@ -355,6 +357,7 @@ struct cmd {
 };
 
 const struct cmd cmd_play;
+const struct cmd cmd_startplay;
 const struct cmd cmd_add;
 
 const struct cmd* getcmd(uint cmd, const struct cmd *cmds, uint n);
@@ -369,6 +372,7 @@ void gui_corecmd_op(uint cmd, void *udata);
 void gui_corecmd_add(const struct cmd *cmd, void *udata);
 void gui_newtrack(gui_trk *g, fmed_filt *d, fmed_que_entry *plid);
 int gui_setmeta(gui_trk *g, fmed_que_entry *qent);
+void gui_conv_progress(gui_trk *g);
 void gui_clear(void);
 void gui_status(const char *s, size_t len);
 void gui_media_added(fmed_que_entry *ent, uint flags);
