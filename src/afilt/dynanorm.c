@@ -136,7 +136,12 @@ static int danorm_f_process(void *ctx, fmed_filt *d)
 			conv.out = d->audio.fmt;
 			conv.out.format = FFPCM_FLOAT64;
 			conv.out.ileaved = 0;
-			d->audio.convfmt = d->audio.fmt;
+			if (d->audio.convfmt.format == 0)
+				d->audio.convfmt.format = d->audio.fmt.format;
+			if (d->audio.convfmt.channels == 0)
+				d->audio.convfmt.channels = d->audio.fmt.channels;
+			if (d->audio.convfmt.sample_rate == 0)
+				d->audio.convfmt.sample_rate = d->audio.fmt.sample_rate;
 			d->audio.fmt = conv.out;
 			void *f = (void*)d->track->cmd(d->trk, FMED_TRACK_FILT_ADDPREV, "#soundmod.conv");
 			if (f == NULL)
