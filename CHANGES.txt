@@ -8,6 +8,12 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v0.34.1 - Mar 14, 2018
+
+ - --dynanorm: couldn't be used with --record for short length recordings
+ - --dynanorm: couldn't be used with --format/--channels/--sample-rate
+
+
 fmedia v0.34 - Mar 9, 2018
 
  + Dynamic Audio Normalizer filter (--dynanorm switch)
