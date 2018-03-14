@@ -525,9 +525,6 @@ static int filt_call(fm_trk *t, fmed_f *f)
 	t->props.data = f->d.data,  t->props.datalen = f->d.datalen;
 
 	if (!f->opened) {
-		if (t->props.flags & FMED_FSTOP)
-			return FMED_RFIN;
-
 		dbglog(t, "creating context for %s...", f->name);
 		f->ctx = f->filt->open(&t->props);
 		f->d.data = t->props.data,  f->d.datalen = t->props.datalen;
