@@ -839,7 +839,7 @@ static void upd_done(void *obj)
 			ffstr_nextval3(&s, &v, '\n');
 			if (-1 != ffstr_findz(&v, OS_STR "-" CPU_STR)) {
 				ffstr fn = v, pt, ver;
-				ffstr_setz(&ver, FMED_VER);
+				ffstr_setz(&ver, core->props->version_str);
 				ffstr_nextval3(&fn, &pt, '-'); //"fmedia"
 				ffstr_nextval3(&fn, &pt, '-'); //"ver"
 				int r = ffstr_vercmp(&ver, &pt);
@@ -1092,12 +1092,7 @@ static int gtrk_process(void *ctx, fmed_filt *d)
 	char buf[255];
 	size_t n;
 	int64 playpos;
-	uint playtime;
-
-	if (g->conversion) {
-		gui_conv_progress(g);
-		goto done;
-	}
+	uint playtime, first = 0;
 
 	if (d->meta_block)
 		goto done;
@@ -1110,7 +1105,15 @@ static int gtrk_process(void *ctx, fmed_filt *d)
 
 		g->sample_rate = d->audio.fmt.sample_rate;
 		g->total_time_sec = ffpcm_time(d->audio.total, g->sample_rate) / 1000;
+		first = 1;
+	}
 
+	if (g->conversion) {
+		gui_conv_progress(g);
+		goto done;
+	}
+
+	if (first) {
 		gui_newtrack(g, d, g->qent);
 		d->meta_changed = 0;
 	}

@@ -49,7 +49,6 @@ struct plist {
 };
 
 typedef struct que {
-	fflock lk;
 	fflist plists; //plist[]
 	plist *curlist;
 	const fmed_track *track;
@@ -399,7 +398,7 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 
 	dbglog(core, NULL, "que", "received command:%s, param:%p", scmds[cmd], param);
 
-	switch (cmd) {
+	switch ((enum FMED_QUE)cmd) {
 	case FMED_QUE_PLAY_EXCL:
 		qu->track->cmd(NULL, FMED_TRACK_STOPALL);
 		// break
@@ -571,9 +570,14 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 			e = FF_GETPTR(entry, e, *ent);
 			it = e->sib.next;
 		}
-		if (it == fflist_sentl(ents))
-			return 0;
-		e = FF_GETPTR(entry, sib, it);
+		for (;;) {
+			if (it == fflist_sentl(ents))
+				return 0;
+			e = FF_GETPTR(entry, sib, it);
+			if (!e->rm)
+				break;
+			it = e->sib.next;
+		}
 		*ent = &e->e;
 		}
 		return 1;
@@ -636,10 +640,8 @@ static fmed_que_entry* que_add(fmed_que_entry *ent, uint flags)
 		qu->track->copy_info(&e->trk, NULL);
 	e->e.trk = &e->trk;
 
-	fflk_lock(&qu->lk);
 	ffchain_append(&e->sib, (ent->prev != NULL) ? &FF_GETPTR(entry, e, ent->prev)->sib : qu->curlist->ents.last);
 	qu->curlist->ents.len++;
-	fflk_unlock(&qu->lk);
 
 	dbglog(core, NULL, "que", "added: (%d: %d-%d) %S"
 		, ent->dur, ent->from, ent->to, &ent->url);

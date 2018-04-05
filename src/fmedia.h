@@ -24,9 +24,9 @@ mixer                 mixer
 
 
 #define FMED_VER_MAJOR  0
-#define FMED_VER_MINOR  34
+#define FMED_VER_MINOR  35
 #define FMED_VER_FULL  ((FMED_VER_MAJOR << 8) | FMED_VER_MINOR)
-#define FMED_VER  "0.34"
+#define FMED_VER  "0.35"
 
 #define FMED_VER_GETMAJ(fullver)  ((fullver) >> 8)
 #define FMED_VER_GETMIN(fullver)  ((fullver) & 0xff)
@@ -174,6 +174,7 @@ enum FMED_INSTANCE_MODE {
 struct fmed_props {
 	uint stdout_busy :1;
 	uint stdin_busy :1;
+	char *version_str; // "X.XX[.XX]"
 };
 
 struct fmed_mod {

@@ -177,24 +177,30 @@ static const ffpars_arg fmed_confusr_args[] = {
 	{ "*",	FFPARS_TSTR | FFPARS_FMULTI, FFPARS_DST(&fmed_confusr_mod) },
 };
 
+#define MODS_WIN_ONLY  "wasapi.", "direct-sound."
+#define MODS_LINUX_ONLY  "alsa.", "pulse."
+#define MODS_BSD_ONLY  "oss."
+#define MODS_MAC_ONLY
+
+static const char *const mods_skip[] = {
+#if defined FF_WIN
+	MODS_LINUX_ONLY, MODS_BSD_ONLY, MODS_MAC_ONLY
+#elif defined FF_LINUX
+	MODS_WIN_ONLY, MODS_BSD_ONLY, MODS_MAC_ONLY
+#elif defined FF_BSD
+	MODS_WIN_ONLY, MODS_LINUX_ONLY, MODS_MAC_ONLY
+#elif defined FF_APPLE
+	MODS_WIN_ONLY, MODS_LINUX_ONLY, MODS_BSD_ONLY
+#endif
+};
 
 static int allowed_mod(const ffstr *name)
 {
-#if defined FF_WIN
-	if (ffstr_matchcz(name, "alsa.")
-		|| ffstr_matchcz(name, "pulse.")
-		|| ffstr_matchcz(name, "oss."))
-#elif defined FF_LINUX
-	if (ffstr_matchcz(name, "wasapi.")
-		|| ffstr_matchcz(name, "direct-sound.")
-		|| ffstr_matchcz(name, "oss."))
-#elif defined FF_BSD
-	if (ffstr_matchcz(name, "wasapi.")
-		|| ffstr_matchcz(name, "direct-sound.")
-		|| ffstr_matchcz(name, "alsa.")
-		|| ffstr_matchcz(name, "pulse."))
-#endif
-		return 0;
+	const char *const *s;
+	FFARRS_FOREACH(mods_skip, s) {
+		if (ffstr_matchz(name, *s))
+			return 0;
+	}
 	return 1;
 }
 
@@ -629,6 +635,7 @@ fmed_core* core_init(fmed_cmd **ptr, char **argv, char **env)
 
 	*ptr = &fmed->cmd;
 	core->loglev = FMED_LOG_INFO;
+	fmed->props.version_str = FMED_VER;
 	core->props = &fmed->props;
 	return core;
 

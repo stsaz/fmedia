@@ -420,7 +420,7 @@ static int mpeg_out_addmeta(mpeg_out *m, fmed_filt *d)
 			continue;
 
 		if (0 != ffmpg_addtag(&m->mpgw, r, meta.val.ptr, meta.val.len)) {
-			warnlog(core, d->trk, "mpeg", "%s", "can't add tag: %S", &meta.name);
+			warnlog(core, d->trk, "mpeg", "can't add tag: %S", &meta.name);
 		}
 	}
 	return 0;

@@ -8,6 +8,15 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v0.35 - Apr 2, 2018
+
+ + --prebuffer: Start recording by a command from user ('T' key), saving the previously bufferred seconds of audio
+ + gui convert: aac_bandwidth conf option
+ * gui convert: create/use just 1 playlist
+ * flac: support variable-length frame stream
+ - --seek, --until: time greater than 24h couldn't be used
+
+
 fmedia v0.34.1 - Mar 14, 2018
 
  - --dynanorm: couldn't be used with --record for short length recordings

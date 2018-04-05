@@ -17,10 +17,10 @@ typedef struct gtui {
 
 	fflock lktrk;
 	struct tui *curtrk; //currently playing track
+	struct tui *curtrk_rec; //currently recording track
 
 	uint vol;
 
-	uint rec :1;
 	uint mute :1;
 } gtui;
 
@@ -248,7 +248,7 @@ static void* tui_open(fmed_filt *d)
 
 	if (d->type == FMED_TRK_TYPE_REC) {
 		t->rec = 1;
-		gt->rec = 1;
+		gt->curtrk_rec = t;
 		t->maxdb = -MINDB;
 
 		ffpcm fmt;
@@ -287,8 +287,8 @@ static void tui_close(void *ctx)
 		gt->curtrk = NULL;
 		fflk_unlock(&gt->lktrk);
 	}
-	if (t->rec)
-		gt->rec = 0;
+	if (t == gt->curtrk_rec)
+		gt->curtrk_rec = NULL;
 	ffarr_free(&t->buf);
 	ffmem_free(t);
 }
@@ -483,7 +483,7 @@ static int tui_process(void *ctx, fmed_filt *d)
 			return FMED_RFIN;
 	}
 
-	if (gt->rec && !t->rec)
+	if (gt->curtrk_rec != NULL && !t->rec)
 		goto done; //don't show playback bar while recording in another track
 
 	if (FMED_NULL == (playpos = d->audio.pos))
@@ -724,8 +724,12 @@ static void tui_cmdread(void *param)
 		uint key = ffstd_key(ev.data, &ev.datalen);
 
 		const struct key *k = key2cmd(key);
-		if (k == NULL)
+		if (k == NULL) {
+			dbglog(core, NULL, "tui", "unknown key seq %*xb"
+				, (size_t)ev.datalen, ev.data);
 			continue;
+		}
+		dbglog(core, NULL, "tui", "received command %u", k->cmd & CMD_MASK);
 
 		if (k->cmd & _CMD_CORE) {
 			void *udata = NULL;

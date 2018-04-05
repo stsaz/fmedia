@@ -246,6 +246,7 @@ static const ffpars_arg cvt_sets_conf[] = {
 	{ "opus_bitrate",	FFPARS_TINT, FFPARS_DSTOFF(cvt_sets_t, opus_bitrate) },
 	{ "mpeg_quality",	FFPARS_TINT, FFPARS_DSTOFF(cvt_sets_t, mpg_quality) },
 	{ "aac_quality",	FFPARS_TINT, FFPARS_DSTOFF(cvt_sets_t, aac_quality) },
+	{ "aac_bandwidth",	FFPARS_TINT, FFPARS_DSTOFF(cvt_sets_t, aac_bandwidth) },
 	{ "flac_complevel",	FFPARS_TINT, FFPARS_DSTOFF(cvt_sets_t, flac_complevel) },
 
 	{ "pcm_rate",	FFPARS_TINT, FFPARS_DSTOFF(cvt_sets_t, conv_pcm_rate) },
@@ -1052,9 +1053,12 @@ static void gui_wgoto_action(ffui_wnd *wnd, int id)
 
 void wabout_init(void)
 {
-	ffui_settextz(&gg->wabout.labout,
-		"fmedia v" FMED_VER "\n\n"
-		"Fast media player, recorder, converter");
+	char buf[255];
+	int r = ffs_fmt(buf, buf + sizeof(buf),
+		"fmedia v%s\n\n"
+		"Fast media player, recorder, converter"
+		, core->props->version_str);
+	ffui_settext(&gg->wabout.labout, buf, r);
 	ffui_settextz(&gg->wabout.lurl, FMED_HOMEPAGE);
 	gg->wabout.wabout.hide_on_close = 1;
 	gg->wabout.wabout.on_action = &gui_wabout_action;

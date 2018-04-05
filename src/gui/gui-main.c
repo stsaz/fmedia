@@ -219,6 +219,8 @@ static void gui_action(ffui_wnd *wnd, int id)
 		ffui_show(&gg->wgoto.wgoto, 0);
 		ffui_show(&gg->wconvert.wconvert, 0);
 		ffui_show(&gg->wrec.wrec, 0);
+		ffui_show(&gg->wdev.wnd, 0);
+		ffui_show(&gg->wlog.wlog, 0);
 		ffui_show(&gg->wuri.wuri, 0);
 		ffui_show(&gg->wfilter.wnd, 0);
 		gg->min_tray = 1;
@@ -1118,11 +1120,10 @@ done:
 void gui_conv_progress(gui_trk *g)
 {
 	char buf[255];
-	uint playtime = (uint)(ffpcm_time(g->d->audio.pos, g->d->audio.fmt.sample_rate) / 1000);
-	g->total_time_sec = ffpcm_time(g->d->audio.total, g->d->audio.fmt.sample_rate) / 1000;
-	size_t n = ffs_fmt(buf, buf + sizeof(buf), "%u:%02u / %u:%02u"
-		, playtime / 60, playtime % 60
-		, g->total_time_sec / 60, g->total_time_sec % 60);
+	uint playtime = (uint)(ffpcm_time(g->d->audio.pos, g->sample_rate) / 1000);
+	if (playtime == g->lastpos && !(g->d->flags & FMED_FLAST))
+		return;
+	g->lastpos = playtime;
 
 	fmed_que_entry *plid;
 	plid = (void*)g->d->track->getval(g->d->trk, "queue_item");
@@ -1135,7 +1136,11 @@ void gui_conv_progress(gui_trk *g)
 	ffui_view_setindex(&it, idx);
 	if (g->d->flags & FMED_FLAST)
 		ffui_view_settextz(&it, "Done");
-	else
+	else {
+		size_t n = ffs_fmt(buf, buf + sizeof(buf), "%u:%02u / %u:%02u"
+			, playtime / 60, playtime % 60
+			, g->total_time_sec / 60, g->total_time_sec % 60);
 		ffui_view_settext(&it, buf, n);
+	}
 	ffui_view_set(&gg->wmain.vlist, H_DUR, &it);
 }

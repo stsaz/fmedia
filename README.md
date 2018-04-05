@@ -2,7 +2,7 @@
 OVERVIEW
 ---------------
 
-fmedia is a fast asynchronous media player/recorder/converter for Windows, Linux and FreeBSD.
+fmedia is a fast media player/recorder/converter for Windows, Linux and FreeBSD.
 It provides smooth playback and recording even if devices are very slow.
 It's highly customizable and can be easily extended with additional plugins.
 Its low CPU & memory consumption saves energy when running on a notebook's battery.
@@ -128,6 +128,10 @@ INSTALL
 		ln -s /usr/local/fmedia-0/fmedia /usr/local/bin/fmedia
 
 ### BUILD ON LINUX
+
+0. Requirements:
+	* GNU make
+	* gcc or clang
 
 1. Create a directory for all needed sources:
 

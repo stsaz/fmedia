@@ -171,11 +171,18 @@ static int wasapi_sig(uint signo)
 	return 0;
 }
 
+static void wasapi_closedev(void)
+{
+	ffwas_close(&mod->out);
+	ffmem_tzero(&mod->out);
+	mod->out_valid = 0;
+}
+
 static void wasapi_destroy(void)
 {
 	if (mod != NULL) {
 		if (mod->out_valid)
-			ffwas_close(&mod->out);
+			wasapi_closedev();
 		FF_SAFECLOSE(mod->woh, NULL, ffwoh_free);
 		ffmem_free(mod);
 		mod = NULL;
@@ -339,9 +346,7 @@ static int wasapi_create(wasapi_out *w, fmed_filt *d)
 			goto fin;
 		}
 
-		ffwas_close(&mod->out);
-		ffmem_tzero(&mod->out);
-		mod->out_valid = 0;
+		wasapi_closedev();
 	}
 
 	if (w->state == WAS_TRYOPEN
@@ -417,9 +422,7 @@ static void wasapi_close(void *ctx)
 	if (mod->usedby == w) {
 		void *trk = w->task.param;
 		if (FMED_NULL != mod->track->getval(trk, "stopped")) {
-			ffwas_close(&mod->out);
-			ffmem_tzero(&mod->out);
-			mod->out_valid = 0;
+			wasapi_closedev();
 		} else {
 			ffwas_stop(&mod->out);
 			ffwas_clear(&mod->out);
@@ -528,9 +531,7 @@ static int wasapi_write(void *ctx, fmed_filt *d)
 	return FMED_ROK;
 
 err:
-	ffwas_close(&mod->out);
-	ffmem_tzero(&mod->out);
-	mod->out_valid = 0;
+	wasapi_closedev();
 	core->timer(&mod->tmr, 0, 0);
 	mod->usedby = NULL;
 	return FMED_RERR;

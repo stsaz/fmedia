@@ -163,8 +163,11 @@ static void flac_meta(flac *f, fmed_filt *d)
 	dbglog(core, d->trk, "flac", "%S: %S", &f->fl.vtag.name, &f->fl.vtag.val);
 
 	ffstr name = f->fl.vtag.name;
-	if (f->fl.vtag.tag != 0)
+	if (f->fl.vtag.tag == FFMMTAG_PICTURE)
+		return;
+	if (f->fl.vtag.tag != 0) {
 		ffstr_setz(&name, ffmmtag_str[f->fl.vtag.tag]);
+	}
 	qu->meta_set((void*)fmed_getval("queue_item"), name.ptr, name.len
 		, f->fl.vtag.val.ptr, f->fl.vtag.val.len, FMED_QUE_TMETA);
 }

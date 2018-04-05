@@ -47,7 +47,7 @@ static void fgui_log(uint flags, fmed_logdata *ld)
 	*s++ = '\r';
 	*s++ = '\n';
 
-	ffui_msgdlg_show("fmedia " FMED_VER, buf, s - buf, FFUI_MSGDLG_ERR);
+	ffui_msgdlg_show("fmedia", buf, s - buf, FFUI_MSGDLG_ERR);
 }
 
 

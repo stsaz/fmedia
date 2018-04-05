@@ -209,7 +209,7 @@ static int sndmod_conv_prepare(sndmod_conv *c, fmed_filt *d)
 		void *fi = (void*)d->track->cmd(d->trk, FMED_TRACK_FILT_INSTANCE, f);
 		if (fi == NULL)
 			return FMED_RERR;
-		struct fmed_aconv conf = {0};
+		struct fmed_aconv conf = {};
 
 		if (in->channels == out->channels) {
 			// The next filter will convert format and sample rate:
@@ -397,7 +397,7 @@ static int autoconv_process(void *ctx, fmed_filt *d)
 	if (fi == NULL)
 		return FMED_RERR;
 
-	struct fmed_aconv conf = {0};
+	struct fmed_aconv conf = {};
 	conf.in = *in;
 	conf.out = *out;
 	conv->cmd(fi, 0, &conf);

@@ -705,14 +705,24 @@ end:
 #define OS_STR  "win"
 #elif defined FF_BSD
 #define OS_STR  "bsd"
+#elif defined FF_APPLE
+#define OS_STR  "mac"
 #else
 #define OS_STR  "linux"
 #endif
 
-#ifdef FF_64
-#define CPU_STR  "amd64"
+#if defined FF_WIN
+	#ifdef FF_64
+	#define CPU_STR  "x64"
+	#else
+	#define CPU_STR  "x86"
+	#endif
 #else
-#define CPU_STR  "i686"
+	#ifdef FF_64
+	#define CPU_STR  "amd64"
+	#else
+	#define CPU_STR  "i686"
+	#endif
 #endif
 
 int main(int argc, char **argv, char **env)
@@ -725,8 +735,6 @@ int main(int argc, char **argv, char **env)
 		return 1;
 	ffsig_init(&g->sigs_task);
 
-	fffile_writecz(ffstderr, "fmedia v" FMED_VER " (" OS_STR "-" CPU_STR ")\n");
-
 	ffsig_mask(SIG_BLOCK, sigs_block, FFCNT(sigs_block));
 
 	if (0 != loadcore(argv[0]))
@@ -734,6 +742,8 @@ int main(int argc, char **argv, char **env)
 
 	if (NULL == (core = g->core_init(&g->cmd, argv, env)))
 		goto end;
+	fffile_fmt(ffstderr, NULL, "fmedia v%s (" OS_STR "-" CPU_STR ")\n"
+		, core->props->version_str);
 	g->cmd->log = &std_logger;
 	gcmd = g->cmd;
 

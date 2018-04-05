@@ -35,7 +35,7 @@ INPUT:
 --record           Capture audio.  Set default audio format in fmedia.conf::record_format.
 --mix              Play input files simultaneously.  Set audio format in fmedia.conf::mod_conf "mixer.out".
                    Note: all inputs must have channels number and sample rate equal to the output.
---seek=TIME        Seek to time: [MM:]SS[:MSC]
+--seek=TIME        Seek to time: [[HH:]MM:]SS[:MSC]
 --until=TIME       Stop at time
 --prebuffer=TIME   Start recording by a command from user, saving the previously bufferred seconds of audio
 --fseek=BYTE       Set input file offset
