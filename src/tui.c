@@ -85,6 +85,7 @@ enum CMDS {
 
 	CMD_MASK = 0xff,
 
+	_CMD_CURTRK_REC = 1 << 26,
 	_CMD_F3 = 1 << 27, //use 'cmdfunc3'
 	_CMD_CURTRK = 1 << 28,
 	_CMD_CORE = 1 << 29,
@@ -255,8 +256,9 @@ static void* tui_open(fmed_filt *d)
 		t->sample_rate = fmt.sample_rate;
 		t->sampsize = ffpcm_size1(&fmt);
 
-		core->log(FMED_LOG_USER, d->trk, NULL, "Recording...  Source: %s %uHz %s.  Press \"s\" to stop."
-			, ffpcm_fmtstr(fmt.format), fmt.sample_rate, ffpcm_channelstr(fmt.channels));
+		core->log(FMED_LOG_USER, d->trk, NULL, "Recording...  Source: %s %uHz %s.  %sPress \"s\" to stop."
+			, ffpcm_fmtstr(fmt.format), fmt.sample_rate, ffpcm_channelstr(fmt.channels)
+			, (d->a_prebuffer != 0) ? "Press \"T\" to start writing to a file.  " : "");
 	}
 
 	t->trk = d->trk;
@@ -604,7 +606,7 @@ struct key {
 static struct key hotkeys[] = {
 	{ ' ',	CMD_PLAY | _CMD_F1 | _CMD_CORE,	&tui_op },
 	{ 'D',	CMD_DELFILE | _CMD_CURTRK | _CMD_CORE,	&tui_rmfile },
-	{ 'T',	CMD_SAVETRK | _CMD_CURTRK | _CMD_CORE,	&tui_op_trk },
+	{ 'T',	CMD_SAVETRK | _CMD_CURTRK | _CMD_CURTRK_REC | _CMD_CORE,	&tui_op_trk },
 	{ 'd',	CMD_RM | _CMD_CURTRK | _CMD_CORE,	&tui_rmfile },
 	{ 'h',	_CMD_F1,	&tui_help },
 	{ 'i',	CMD_SHOWTAGS | _CMD_CURTRK | _CMD_CORE,	&tui_op_trk },
@@ -665,20 +667,26 @@ static void tui_corecmd(void *param)
 {
 	struct corecmd *c = param;
 
-	if ((c->k->cmd & (_CMD_F3 | _CMD_CURTRK)) && gt->curtrk == NULL)
-		goto done;
-
 	if (c->k->cmd & _CMD_F1) {
 		cmdfunc1 func1 = (void*)c->k->func;
 		func1(c->k->cmd & CMD_MASK);
 
 	} else if (c->k->cmd & _CMD_F3) {
+		if (gt->curtrk == NULL)
+			goto done;
 		cmdfunc3 func3 = (void*)c->k->func;
 		func3(gt->curtrk, c->k->cmd & CMD_MASK, c->udata);
 
-	} else if (c->k->cmd & _CMD_CURTRK) {
+	} else if (c->k->cmd & (_CMD_CURTRK | _CMD_CURTRK_REC)) {
 		cmdfunc func = (void*)c->k->func;
-		func(gt->curtrk, c->k->cmd & CMD_MASK);
+		struct tui *t = NULL;
+		if ((c->k->cmd & _CMD_CURTRK) && gt->curtrk != NULL)
+			t = gt->curtrk;
+		else if ((c->k->cmd & _CMD_CURTRK_REC) && gt->curtrk_rec != NULL)
+			t = gt->curtrk_rec;
+		if (t == NULL)
+			goto done;
+		func(t, c->k->cmd & CMD_MASK);
 	}
 
 done:

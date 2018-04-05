@@ -8,7 +8,8 @@ n      Next track
 p      Previous track
 q      Quit
 h      Show help
-T      Save this track from radio
+T      a) Save this track from radio.
+       b) Start writing the recording to disk (with --prebuffer).
 
 Right  Seek forward
 Left   Seek backward
