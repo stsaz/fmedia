@@ -35,6 +35,9 @@ typedef struct entry {
 		, stop_after :1
 		, no_tmeta :1
 		, expand :1
+		, trk_stopped :1
+		, trk_err :1
+		, trk_mixed :1
 		;
 } entry;
 
@@ -51,10 +54,6 @@ typedef struct que {
 	plist *curlist;
 	const fmed_track *track;
 	fmed_que_onchange_t onchange;
-
-	fftask tsk;
-	uint tsk_cmd;
-	void *tsk_param;
 
 	uint quit_if_done :1
 		, next_if_err :1
@@ -91,7 +90,16 @@ static void que_save(entry *first, const fflist_item *sentl, const char *fn);
 static void ent_rm(entry *e);
 static void ent_free(entry *e);
 static void que_taskfunc(void *udata);
-static void que_task_add(uint cmd);
+enum CMD {
+	CMD_TRKFIN = 0x010000,
+};
+struct quetask {
+	uint cmd; //enum FMED_QUE or enum CMD
+	size_t param;
+	fftask tsk;
+	ffchain_item sib;
+};
+static void que_task_add(struct quetask *qt);
 static void que_mix(void);
 static entry* que_getnext(entry *from);
 
@@ -134,8 +142,6 @@ static int que_sig(uint signo)
 			qu->quit_if_done = 1;
 		if (1 == core->getval("next_if_error"))
 			qu->next_if_err = 1;
-
-		qu->tsk.handler = &que_taskfunc;
 		break;
 	}
 	return 0;
@@ -154,6 +160,20 @@ static void ent_rm(entry *e)
 	if (e->plist->ents.len == 0 && e->plist->rm)
 		ffmem_free(e->plist);
 	ent_free(e);
+}
+
+static void ent_ref(entry *e)
+{
+	FF_ASSERT(!e->active);
+	e->active = 1;
+}
+
+static void ent_unref(entry *e)
+{
+	FF_ASSERT(e->active);
+	e->active = 0;
+	if (e->rm)
+		ent_rm(e);
 }
 
 static void ent_free(entry *e)
@@ -176,7 +196,6 @@ static void que_destroy(void)
 {
 	if (qu == NULL)
 		return;
-	core->task(&qu->tsk, FMED_TASK_DEL);
 	FFLIST_ENUMSAFE(&qu->plists, plist_free, plist, sib);
 	ffmem_free(qu);
 }
@@ -217,8 +236,14 @@ static void que_play(entry *ent)
 	if (trk == NULL)
 		return;
 	else if (trk == FMED_TRK_EFMT) {
-		if (NULL != (qu->tsk_param = que_getnext(ent)))
-			que_task_add(FMED_QUE_PLAY);
+		entry *next;
+		if (NULL != (next = que_getnext(ent))) {
+			struct quetask *qt = ffmem_new(struct quetask);
+			FF_ASSERT(qt != NULL);
+			qt->cmd = FMED_QUE_PLAY;
+			qt->param = (size_t)next;
+			que_task_add(qt);
+		}
 
 		que_cmd(FMED_QUE_RM, e);
 		return;
@@ -254,6 +279,7 @@ static void que_play(entry *ent)
 	FFARR2_FREE_ALL(&ent->tmeta, ffstr_free, ffstr);
 
 	qu->track->setval(trk, "queue_item", (int64)e);
+	ent_ref(ent);
 	qu->track->cmd(trk, FMED_TRACK_START);
 }
 
@@ -347,6 +373,7 @@ static void que_mix(void)
 		que_play(e);
 	}
 
+	ent_ref(e);
 	qu->track->cmd(mxout, FMED_TRACK_START);
 }
 
@@ -443,6 +470,7 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 		t->input_info = 1;
 		e->expand = 1;
 		qu->track->setval(trk, "queue_item", (int64)e);
+		ent_ref(e);
 		qu->track->cmd(trk, FMED_TRACK_START);
 		return (size_t)r;
 	}
@@ -780,17 +808,39 @@ static ffstr* que_meta(fmed_que_entry *ent, size_t n, ffstr *name, uint flags)
 }
 
 
-static void que_taskfunc(void *udata)
+static void que_ontrkfin(entry *e)
 {
-	void *param = qu->tsk_param;
-	qu->tsk_param = NULL;
-	que_cmd(qu->tsk_cmd, param);
+	if (qu->mixing) {
+		if (qu->quit_if_done && e->trk_mixed)
+			core->sig(FMED_STOP);
+	} else if (e->stop_after)
+		e->stop_after = 0;
+	else if (e->expand || e->trk_stopped)
+	{}
+	else if (!e->trk_err || qu->next_if_err)
+		que_cmd(FMED_QUE_NEXT2, NULL);
+	ent_unref(e);
 }
 
-static void que_task_add(uint cmd)
+static void que_taskfunc(void *udata)
 {
-	qu->tsk_cmd = cmd;
-	core->task(&qu->tsk, FMED_TASK_POST);
+	struct quetask *qt = udata;
+	qt->tsk.handler = NULL;
+	switch ((enum CMD)qt->cmd) {
+	case CMD_TRKFIN:
+		que_ontrkfin((void*)qt->param);
+		break;
+	default:
+		que_cmd(qt->cmd, (void*)qt->param);
+	}
+	ffmem_free(qt);
+}
+
+static void que_task_add(struct quetask *qt)
+{
+	qt->tsk.handler = &que_taskfunc;
+	qt->tsk.param = qt;
+	core->task(&qt->tsk, FMED_TASK_POST);
 }
 
 
@@ -810,13 +860,14 @@ static void* que_trk_open(fmed_filt *d)
 		return FMED_FILT_SKIP; //the track wasn't created by this module
 
 	t = ffmem_tcalloc1(que_trk);
-	if (t == NULL)
+	if (t == NULL) {
+		ent_unref(e);
 		return NULL;
+	}
 	t->track = d->track;
 	t->trk = d->trk;
 	t->e = e;
 	t->d = d;
-	e->active = 1;
 
 	if (1 == fmed_getval("error")) {
 		que_trk_close(t);
@@ -828,42 +879,21 @@ static void* que_trk_open(fmed_filt *d)
 static void que_trk_close(void *ctx)
 {
 	que_trk *t = ctx;
-	entry *next = NULL;
 
 	if ((int64)t->d->audio.total != FMED_NULL)
 		t->e->e.dur = ffpcm_time(t->d->audio.total, t->d->audio.fmt.sample_rate);
 
-	if (t->e->expand)
-		goto done;
-
-	if (qu->mixing) {
-		if (qu->quit_if_done && FMED_NULL != t->track->getval(t->trk, "mix_tracks"))
-			core->sig(FMED_STOP);
-		goto done;
-	}
-
 	int stopped = t->track->getval(t->trk, "stopped");
 	int err = t->track->getval(t->trk, "error");
+	t->e->trk_stopped = (stopped != FMED_NULL);
+	t->e->trk_err = (err != FMED_NULL);
+	t->e->trk_mixed = (FMED_NULL != t->track->getval(t->trk, "mix_tracks"));
 
-	if (stopped == FMED_NULL && (err == FMED_NULL || qu->next_if_err))
-		next = que_getnext(t->e);
-
-	if (t->e->stop_after) {
-		t->e->stop_after = 0;
-		next = NULL;
-	}
-
-	if (next != NULL) {
-		qu->tsk_param = next;
-		que_task_add(FMED_QUE_PLAY);
-	}
-
-done:
-	t->e->active = 0;
-
-	if (t->e->rm) {
-		ent_rm(t->e);
-	}
+	struct quetask *qt = ffmem_new(struct quetask);
+	FF_ASSERT(qt != NULL);
+	qt->cmd = CMD_TRKFIN;
+	qt->param = (size_t)t->e;
+	que_task_add(qt);
 
 	ffmem_free(t);
 }
