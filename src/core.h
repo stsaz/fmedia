@@ -30,16 +30,10 @@ typedef struct fmed_config {
 	uint skip_line :1;
 } fmed_config;
 
+struct worker;
 typedef struct fmedia {
-	fftaskmgr taskmgr;
-	ffkevent evposted;
-
-	fftimer_queue tmrq;
-	uint period;
-
-	fffd kq;
+	struct worker *worker;
 	ffkqu_time kqutime;
-	ffkevpost kqpost;
 
 	uint stopped :1
 		;
@@ -63,3 +57,8 @@ typedef struct fmedia {
 extern fmedia *fmed;
 extern fmed_core *core;
 extern const fmed_track _fmed_track;
+
+
+extern void core_job_enter(uint id, size_t *ctx);
+
+extern ffbool core_job_shouldyield(uint id, size_t *ctx);

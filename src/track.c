@@ -570,7 +570,8 @@ static void trk_process(void *udata)
 	fmed_f *nf;
 	fmed_f *f;
 	int r, e;
-	size_t ntasks = fmed->taskmgr.tasks.len;
+	size_t jobdata;
+	core_job_enter(0, &jobdata);
 
 	for (;;) {
 
@@ -580,7 +581,7 @@ static void trk_process(void *udata)
 			return;
 		}
 
-		if (fmed->taskmgr.tasks.len != ntasks) {
+		if (core_job_shouldyield(0, &jobdata)) {
 			core->task(&t->tsk, FMED_TASK_POST);
 			return;
 		}
@@ -901,7 +902,7 @@ static ssize_t trk_cmd(void *trk, uint cmd, ...)
 		if (fmed->cmd.print_time)
 			ffps_perf(&t->psperf, FFPS_PERF_REALTIME | FFPS_PERF_CPUTIME | FFPS_PERF_RUSAGE);
 
-		trk_process(t);
+		core->task(&t->tsk, FMED_TASK_POST);
 		break;
 
 	case FMED_TRACK_PAUSE:

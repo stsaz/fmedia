@@ -15,8 +15,21 @@ Copyright (c) 2015 Simon Zolin */
 #include <FFOS/dir.h>
 
 
+#undef syserrlog
 #define syswarnlog(trk, ...)  fmed_syswarnlog(core, NULL, "core", __VA_ARGS__)
+#define syserrlog(...)  fmed_syserrlog(core, NULL, "core", __VA_ARGS__)
 
+
+struct worker {
+	fffd kq;
+
+	fftaskmgr taskmgr;
+	ffkevpost kqpost;
+	ffkevent evposted;
+
+	fftimer_queue tmrq;
+	uint period;
+};
 
 typedef struct inmap_item {
 	const fmed_modinfo *mod;
@@ -72,6 +85,10 @@ static const fmed_modinfo* core_modbyext(const ffstr3 *map, const ffstr *ext);
 static core_modinfo* mod_load(const ffstr *ps);
 static void mod_destroy(core_modinfo *m);
 static int core_filetype(const char *fn);
+
+static int wrk_init(struct worker *w);
+static void wrk_destroy(struct worker *w);
+static int core_work(void *param);
 
 static const void* core_iface(const char *name);
 static int core_sig2(uint signo);
@@ -464,7 +481,7 @@ static int fmed_conf_fn(const char *filename, uint flags)
 			r = 0;
 			goto fail;
 		}
-		syserrlog(core, NULL, "core", "%s: %s", fffile_open_S, filename);
+		syserrlog("%s: %s", fffile_open_S, filename);
 		goto fail;
 	}
 
@@ -578,11 +595,10 @@ fmed_core* core_init(fmed_cmd **ptr, char **argv, char **env)
 	fftime_storelocal(&tz);
 	fftime_init();
 
-	fmed->kq = FF_BADFD;
-	fftask_init(&fmed->taskmgr);
-	fftmrq_init(&fmed->tmrq);
 	fflist_init(&fmed->mods);
 	core_insmod("#core.core", NULL);
+
+	ffkqu_settm(&fmed->kqutime, (uint)-1);
 
 	if (0 != cmd_init(&fmed->cmd)
 		|| 0 != conf_init(&fmed->conf)) {
@@ -626,14 +642,10 @@ void core_free(void)
 	core_mod *mod;
 	fflist_item *next;
 
-	fftmrq_destroy(&fmed->tmrq, fmed->kq);
+	if (fmed->worker != NULL)
+		wrk_destroy(fmed->worker);
 
 	tracks_destroy();
-
-	if (fmed->kq != FF_BADFD) {
-		ffkqu_post_detach(&fmed->kqpost, fmed->kq);
-		ffkqu_close(fmed->kq);
-	}
 
 	FFLIST_WALKSAFE(&fmed->mods, mod, sib, next) {
 		ffmem_free(mod);
@@ -896,17 +908,12 @@ static int core_open(void)
 #if defined FF_WIN && FF_WIN < 0x0600
 	ffkqu_init();
 #endif
-	if (FF_BADFD == (fmed->kq = ffkqu_create())) {
-		syserrlog(core, NULL, "core", "%s", ffkqu_create_S);
+	if (NULL == (fmed->worker = ffmem_new(struct worker)))
 		return 1;
-	}
-	core->kq = fmed->kq;
-	ffkqu_post_attach(&fmed->kqpost, fmed->kq);
-
-	ffkqu_settm(&fmed->kqutime, (uint)-1);
-	ffkev_init(&fmed->evposted);
-	fmed->evposted.oneshot = 0;
-	fmed->evposted.handler = &core_posted;
+	struct worker *w = fmed->worker;
+	if (0 != wrk_init(w))
+		return 1;
+	core->kq = w->kq;
 
 	fmed->qu = core->getmod("#queue.queue");
 	if (0 != tracks_init())
@@ -914,19 +921,56 @@ static int core_open(void)
 	return 0;
 }
 
-void core_work(void)
+static int wrk_init(struct worker *w)
 {
+	fftask_init(&w->taskmgr);
+	fftmrq_init(&w->tmrq);
+
+	if (FF_BADFD == (w->kq = ffkqu_create())) {
+		syserrlog("%s", ffkqu_create_S);
+		return 1;
+	}
+	ffkqu_post_attach(&w->kqpost, w->kq);
+
+	ffkev_init(&w->evposted);
+	w->evposted.oneshot = 0;
+	w->evposted.handler = &core_posted;
+	return 0;
+}
+
+static void wrk_destroy(struct worker *w)
+{
+	fftmrq_destroy(&w->tmrq, w->kq);
+	if (w->kq != FF_BADFD) {
+		ffkqu_post_detach(&w->kqpost, w->kq);
+		ffkqu_close(w->kq);
+	}
+}
+
+void core_job_enter(uint id, size_t *ctx)
+{
+	*ctx = fmed->worker->taskmgr.tasks.len;
+}
+
+ffbool core_job_shouldyield(uint id, size_t *ctx)
+{
+	return (*ctx != fmed->worker->taskmgr.tasks.len);
+}
+
+static int core_work(void *param)
+{
+	struct worker *w = param;
 	ffkqu_entry *ents = ffmem_callocT(FMED_KQ_EVS, ffkqu_entry);
 	if (ents == NULL)
-		return;
+		return -1;
 
 	while (!fmed->stopped) {
 
-		uint nevents = ffkqu_wait(fmed->kq, ents, FMED_KQ_EVS, &fmed->kqutime);
+		uint nevents = ffkqu_wait(w->kq, ents, FMED_KQ_EVS, &fmed->kqutime);
 
 		if ((int)nevents < 0) {
 			if (fferr_last() != EINTR) {
-				syserrlog(core, NULL, "core", "%s", ffkqu_wait_S);
+				syserrlog("%s", ffkqu_wait_S);
 				break;
 			}
 			continue;
@@ -936,11 +980,12 @@ void core_work(void)
 			ffkqu_entry *ev = &ents[i];
 			ffkev_call(ev);
 
-			fftask_run(&fmed->taskmgr);
+			fftask_run(&w->taskmgr);
 		}
 	}
 
 	ffmem_free(ents);
+	return 0;
 }
 
 static char* core_getpath(const char *name, size_t len)
@@ -1019,14 +1064,15 @@ static ssize_t core_cmd(uint signo, ...)
 		break;
 
 	case FMED_START:
-		core_work();
+		core_work(fmed->worker);
 		break;
 
-	case FMED_STOP:
+	case FMED_STOP: {
 		core_sigmods(signo);
 		fmed->stopped = 1;
-		ffkqu_post(&fmed->kqpost, &fmed->evposted);
+		ffkqu_post(&fmed->worker->kqpost, &fmed->worker->evposted);
 		break;
+	}
 
 	case FMED_FILETYPE:
 		r = core_filetype(va_arg(va, char*));
@@ -1069,16 +1115,18 @@ static int core_sig(uint signo)
 
 static void core_task(fftask *task, uint cmd)
 {
+	struct worker *w = fmed->worker;
+
 	dbglog(core, NULL, "core", "task:%p, cmd:%u, active:%u, handler:%p, param:%p"
-		, task, cmd, fftask_active(&fmed->taskmgr, task), task->handler, task->param);
+		, task, cmd, fftask_active(&w->taskmgr, task), task->handler, task->param);
 
 	switch (cmd) {
 	case FMED_TASK_POST:
-		if (1 == fftask_post(&fmed->taskmgr, task))
-			ffkqu_post(&fmed->kqpost, &fmed->evposted);
+		if (1 == fftask_post(&w->taskmgr, task))
+			ffkqu_post(&w->kqpost, &w->evposted);
 		break;
 	case FMED_TASK_DEL:
-		fftask_del(&fmed->taskmgr, task);
+		fftask_del(&w->taskmgr, task);
 		break;
 	default:
 		FF_ASSERT(0);
@@ -1087,39 +1135,40 @@ static void core_task(fftask *task, uint cmd)
 
 static int core_timer(fftmrq_entry *tmr, int64 _interval, uint flags)
 {
+	struct worker *w = fmed->worker;
 	int interval = _interval;
 	uint period = ffmin((uint)ffabs(interval), TMR_INT);
 	dbglog(core, NULL, "core", "timer:%p  interval:%d  handler:%p  param:%p"
 		, tmr, interval, tmr->handler, tmr->param);
 
-	if (fftmrq_active(&fmed->tmrq, tmr))
-		fftmrq_rm(&fmed->tmrq, tmr);
+	if (fftmrq_active(&w->tmrq, tmr))
+		fftmrq_rm(&w->tmrq, tmr);
 	else if (interval == 0)
 		return 0;
 
 	if (interval == 0) {
-		if (fftmrq_empty(&fmed->tmrq)) {
-			fftmrq_stop(&fmed->tmrq, fmed->kq);
+		if (fftmrq_empty(&w->tmrq)) {
+			fftmrq_stop(&w->tmrq, w->kq);
 			dbglog(core, NULL, "core", "stopped kernel timer", 0);
 		}
 		return 0;
 	}
 
-	if (fftmrq_started(&fmed->tmrq) && period < fmed->period) {
-		fftmrq_stop(&fmed->tmrq, fmed->kq);
+	if (fftmrq_started(&w->tmrq) && period < w->period) {
+		fftmrq_stop(&w->tmrq, w->kq);
 		dbglog(core, NULL, "core", "restarting kernel timer", 0);
 	}
 
-	if (!fftmrq_started(&fmed->tmrq)) {
-		if (0 != fftmrq_start(&fmed->tmrq, fmed->kq, period)) {
-			syserrlog(core, NULL, "core", "fftmrq_start()", 0);
+	if (!fftmrq_started(&w->tmrq)) {
+		if (0 != fftmrq_start(&w->tmrq, w->kq, period)) {
+			syserrlog("%s", "fftmrq_start()");
 			return -1;
 		}
-		fmed->period = period;
+		w->period = period;
 		dbglog(core, NULL, "core", "started kernel timer  interval:%u", period);
 	}
 
-	fftmrq_add(&fmed->tmrq, tmr, interval);
+	fftmrq_add(&w->tmrq, tmr, interval);
 	return 0;
 }
 
