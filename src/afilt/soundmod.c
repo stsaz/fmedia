@@ -6,6 +6,7 @@ Copyright (c) 2015 Simon Zolin */
 #include <FF/audio/pcm.h>
 #include <FF/array.h>
 #include <FF/crc.h>
+#include <FF/ring.h>
 
 
 static const fmed_core *core;
@@ -89,6 +90,14 @@ static void silgen_close(void *ctx);
 static int silgen_process(void *ctx, fmed_filt *d);
 static const fmed_filter sndmod_silgen = { &silgen_open, &silgen_process, &silgen_close };
 
+//MEMBUF
+static void* membuf_open(fmed_filt *d);
+static void membuf_close(void *ctx);
+static int membuf_write(void *ctx, fmed_filt *d);
+static const struct fmed_filter sndmod_membuf = {
+	&membuf_open, &membuf_write, &membuf_close
+};
+
 
 const fmed_mod* fmed_getmod_sndmod(const fmed_core *_core)
 {
@@ -110,6 +119,7 @@ static const struct submod submods[] = {
 	{ "peaks", &fmed_sndmod_peaks },
 	{ "rtpeak", &fmed_sndmod_rtpeak },
 	{ "silgen", &sndmod_silgen },
+	{ "membuf", &sndmod_membuf },
 };
 
 static const void* sndmod_iface(const char *name)
@@ -697,4 +707,57 @@ static int silgen_process(void *ctx, fmed_filt *d)
 
 	d->out = c->buf,  d->outlen = c->cap;
 	return FMED_RDATA;
+}
+
+
+struct membuf {
+	ffringbuf buf;
+	size_t size;
+};
+
+static void* membuf_open(fmed_filt *d)
+{
+	if (!d->audio.fmt.ileaved) {
+		errlog(core, d->trk, "#soundmod.membuf", "non-interleaved audio format isn't supported");
+		return NULL;
+	}
+
+	struct membuf *m = ffmem_new(struct membuf);
+	if (m == NULL)
+		return NULL;
+
+	size_t size = ffpcm_bytes(&d->audio.fmt, d->a_prebuffer);
+	m->size = size;
+	size = ff_align_power2(size + 1);
+	void *p = ffmem_alloc(size);
+	if (p == NULL) {
+		ffmem_free(m);
+		return NULL;
+	}
+	ffringbuf_init(&m->buf, p, size);
+	return m;
+}
+
+static void membuf_close(void *ctx)
+{
+	struct membuf *m = ctx;
+	ffmem_free(ffringbuf_data(&m->buf));
+}
+
+static int membuf_write(void *ctx, fmed_filt *d)
+{
+	struct membuf *m = ctx;
+
+	if (d->save_trk) {
+		ffstr s;
+		ffringbuf_readptr(&m->buf, &s, m->size);
+		d->out = s.ptr,  d->outlen = s.len;
+		return (s.len == 0) ? FMED_RDONE : FMED_RDATA;
+	}
+
+	if (d->flags & FMED_FSTOP)
+		return FMED_RFIN;
+
+	ffringbuf_overwrite(&m->buf, d->data, d->datalen);
+	return FMED_RMORE;
 }

@@ -77,6 +77,7 @@ static const ffpars_arg fmed_cmdline_args[] = {
 	{ "mix",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(mix) },
 	{ "seek",	FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_seek) },
 	{ "until",	FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_seek) },
+	{ "prebuffer",	FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_seek) },
 	{ "fseek",	FFPARS_TINT | FFPARS_F64BIT,  OFF(fseek) },
 	{ "info",	FFPARS_SETVAL('i') | FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(info) },
 	{ "tags",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(tags) },
@@ -276,8 +277,10 @@ static int fmed_arg_seek(ffparser_schem *p, void *obj, const ffstr *val)
 
 	if (!ffsz_cmp(p->curarg->name, "seek"))
 		cmd->seek_time = i;
-	else
+	else if (!ffsz_cmp(p->curarg->name, "until"))
 		cmd->until_time = i;
+	else
+		cmd->prebuffer = i;
 	return 0;
 }
 
@@ -496,6 +499,8 @@ static void trk_prep(fmed_cmd *fmed, fmed_trk *trk)
 		trk->audio.seek = fmed->seek_time;
 	if (fmed->until_time != 0)
 		trk->audio.until = fmed->until_time;
+	if (fmed->prebuffer != 0)
+		trk->a_prebuffer = fmed->prebuffer;
 
 	trk->out_overwrite = fmed->overwrite;
 	trk->out_preserve_date = fmed->preserve_date;

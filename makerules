@@ -97,6 +97,7 @@ CORE_O := $(OBJ_DIR)/core.o \
 	$(FF_OBJ_DIR)/ffrbtree.o \
 	$(FF_OBJ_DIR)/fftime.o \
 	$(FF_OBJ_DIR)/fflist.o \
+	$(FF_OBJ_DIR)/ffring.o \
 	$(FF_OBJ_DIR)/ffcrc.o \
 	$(FF_OBJ_DIR)/ffpath.o \
 	$(FF_OBJ_DIR)/ffparse.o $(FF_OBJ_DIR)/ffconf.o \

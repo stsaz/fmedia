@@ -242,6 +242,10 @@ static int trk_setout(fm_trk *t)
 			addfilter(t, "tui.tui");
 	}
 
+	if (t->props.type == FMED_TRK_TYPE_REC && t->props.a_prebuffer != 0) {
+		addfilter(t, "#soundmod.membuf");
+	}
+
 	if (t->props.type != FMED_TRK_TYPE_MIXOUT && !stream_copy) {
 		addfilter(t, "#soundmod.gain");
 	}
@@ -394,6 +398,7 @@ static void trk_copy_info(fmed_trk *dst, const fmed_trk *src)
 		return;
 	}
 	ffmemcpy(&dst->audio, &src->audio, FFOFF(fmed_trk, bits) - FFOFF(fmed_trk, audio));
+	dst->a_prebuffer = src->a_prebuffer;
 	dst->bits = src->bits;
 }
 

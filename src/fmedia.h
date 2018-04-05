@@ -427,6 +427,8 @@ struct fmed_trk {
 	const char *out;
 	void **outni;
 	};
+
+	uint64 a_prebuffer; //msec
 };
 
 enum FMED_R {

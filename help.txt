@@ -37,6 +37,7 @@ INPUT:
                    Note: all inputs must have channels number and sample rate equal to the output.
 --seek=TIME        Seek to time: [MM:]SS[:MSC]
 --until=TIME       Stop at time
+--prebuffer=TIME   Start recording by a command from user, saving the previously bufferred seconds of audio
 --fseek=BYTE       Set input file offset
 -i, --info         Don't play but show media information
 --tags             Print all meta tags

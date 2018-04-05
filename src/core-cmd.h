@@ -31,6 +31,7 @@ typedef struct fmed_cmd {
 	byte info;
 	uint seek_time;
 	uint until_time;
+	uint prebuffer;
 	uint64 fseek;
 	ffstr meta;
 
