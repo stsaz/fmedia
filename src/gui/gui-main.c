@@ -821,7 +821,7 @@ void gui_que_new(void)
 	gg->qu->cmd(FMED_QUE_SEL, (void*)(size_t)itab);
 }
 
-static void gui_showque(uint i)
+void gui_showque(uint i)
 {
 	gg->qu->cmd(FMED_QUE_SEL, (void*)(size_t)i);
 
@@ -845,6 +845,12 @@ void gui_que_del(void)
 	int sel = ffui_tab_active(&gg->wmain.tabs);
 	if (sel == -1)
 		return;
+
+	if (sel == gg->itab_convert)
+		gg->itab_convert = -1;
+	else if (gg->itab_convert > sel)
+		gg->itab_convert--;
+
 	ffui_tab_del(&gg->wmain.tabs, sel);
 	ffbool last = (0 == ffui_tab_count(&gg->wmain.tabs));
 	sel = ffmax(sel - 1, 0);

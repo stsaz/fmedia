@@ -522,8 +522,14 @@ static void gui_convert(void)
 	if (0 != gui_cvt_getsettings(cvt_sets, FFCNT(cvt_sets), &gg->conv_sets, &gg->wconvert.vsets))
 		goto end;
 
-	int itab = gui_newtab(GUI_TAB_CONVERT);
-	gg->qu->cmd(FMED_QUE_NEW, NULL);
+	int itab = gg->itab_convert;
+	if (itab == -1) {
+		itab = gui_newtab(GUI_TAB_CONVERT);
+		gg->qu->cmd(FMED_QUE_NEW, NULL);
+		gg->itab_convert = itab;
+	} else {
+		ffui_tab_setactive(&gg->wmain.tabs, itab);
+	}
 	gg->qu->cmd(FMED_QUE_SEL, (void*)(size_t)itab);
 
 	while (-1 != (i = ffui_view_selnext(&gg->wmain.vlist, i))) {
@@ -578,11 +584,7 @@ static void gui_convert(void)
 		}
 	}
 
-	ffui_view_clear(&gg->wmain.vlist);
-	fmed_que_entry **pq;
-	FFARR_WALKT(&ar, pq, fmed_que_entry*) {
-		gui_media_added(*pq, 0);
-	}
+	gui_showque(itab);
 
 	if (ar.len != 0) {
 		qent = *(void**)ar.ptr;

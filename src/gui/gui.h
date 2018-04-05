@@ -212,6 +212,7 @@ typedef struct ggui {
 		, min_tray :1
 		;
 	uint state;
+	int itab_convert;
 } ggui;
 
 const fmed_core *core;
@@ -400,6 +401,7 @@ int gui_newtab(uint flags);
 void gui_que_new(void);
 void gui_que_del(void);
 void gui_que_sel(void);
+void gui_showque(uint i);
 
 double gui_getvol(void);
 void gui_seek(uint cmd);
