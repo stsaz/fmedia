@@ -15,6 +15,7 @@ fmedia v0.35 - Apr 2, 2018
  * gui convert: create/use just 1 playlist
  * flac: support variable-length frame stream
  - --seek, --until: time greater than 24h couldn't be used
+ - core: segfault on using channel + sample rate conversion on an ICY stream (v0.34 bug)
 
 
 fmedia v0.34.1 - Mar 14, 2018

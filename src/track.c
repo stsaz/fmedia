@@ -21,7 +21,7 @@ Copyright (c) 2016 Simon Zolin */
 
 
 enum {
-	N_RUNTIME_FILTERS = 4, //allow up to this number of filters to be added while track is running
+	N_RUNTIME_FILTERS = 8, //allow up to this number of filters to be added while track is running
 };
 
 struct tracks {
@@ -817,6 +817,10 @@ static fmed_f* filt_add(fm_trk *t, uint cmd, const char *name)
 {
 	fmed_f *f;
 	const void *iface;
+	if (ffarr_isfull(&t->filters)) {
+		errlog(t, "can't add more filters", 0);
+		return NULL;
+	}
 
 	if (NULL == (iface = core->getmod2(FMED_MOD_IFACE, name, -1))) {
 		errlog(t, "no such interface %s", name);
