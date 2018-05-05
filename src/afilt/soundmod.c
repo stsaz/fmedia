@@ -90,6 +90,14 @@ static void silgen_close(void *ctx);
 static int silgen_process(void *ctx, fmed_filt *d);
 static const fmed_filter sndmod_silgen = { &silgen_open, &silgen_process, &silgen_close };
 
+//START-LEVEL
+static void* startlev_open(fmed_filt *d);
+static void startlev_close(void *ctx);
+static int startlev_process(void *ctx, fmed_filt *d);
+static const struct fmed_filter sndmod_startlev = {
+	&startlev_open, &startlev_process, &startlev_close
+};
+
 //MEMBUF
 static void* membuf_open(fmed_filt *d);
 static void membuf_close(void *ctx);
@@ -119,6 +127,7 @@ static const struct submod submods[] = {
 	{ "peaks", &fmed_sndmod_peaks },
 	{ "rtpeak", &fmed_sndmod_rtpeak },
 	{ "silgen", &sndmod_silgen },
+	{ "startlevel", &sndmod_startlev },
 	{ "membuf", &sndmod_membuf },
 };
 
@@ -708,6 +717,78 @@ static int silgen_process(void *ctx, fmed_filt *d)
 	d->out = c->buf,  d->outlen = c->cap;
 	return FMED_RDATA;
 }
+
+
+#define FILT_NAME "soundmod.startlevel"
+
+struct startlev {
+	ffpcmex fmt;
+	double level;
+	double val;
+	uint64 offset; //number of skipped samples
+	void *ni[8];
+};
+
+static void* startlev_open(fmed_filt *d)
+{
+	if (d->audio.fmt.channels > 8)
+		return NULL;
+	struct startlev *c = ffmem_new(struct startlev);
+	if (c == NULL)
+		return NULL;
+	c->fmt = d->audio.fmt;
+	c->level = ffpcm_db2gain(-d->a_start_level);
+	return c;
+}
+
+static void startlev_close(void *ctx)
+{
+	struct startlev *c = ctx;
+	ffmem_free(c);
+}
+
+static int startlev_cb(void *ctx, double val)
+{
+	struct startlev *c = ctx;
+	if (val > c->level) {
+		c->val = val;
+		return 1;
+	}
+	return 0;
+}
+
+/** Skip audio until the signal level becomes loud enough, and then exit. */
+static int startlev_process(void *ctx, fmed_filt *d)
+{
+	struct startlev *c = ctx;
+	size_t samples = d->datalen / ffpcm_size1(&c->fmt);
+	ssize_t r = ffpcm_process(&c->fmt, d->data, samples, &startlev_cb, c);
+	if (r == -1) {
+		c->offset += samples;
+		return FMED_RMORE;
+	} else if (r < 0) {
+		return FMED_RERR;
+	}
+	c->offset += r;
+
+	double db = ffpcm_gain2db(c->val);
+	uint64 tms = ffpcm_time(c->offset, c->fmt.sample_rate);
+	infolog(d->trk, "found %.2FdB peak at %u:%02u.%03u (%,U samples)"
+		, db, (uint)((tms / 1000) / 60), (uint)((tms / 1000) % 60), (uint)(tms % 1000), c->offset);
+
+	if (c->fmt.ileaved) {
+		d->out = (void*)(d->data + r * ffpcm_size1(&c->fmt));
+	} else {
+		for (uint i = 0;  i != c->fmt.channels;  i++) {
+			c->ni[i] = (char*)d->datani[i] + r * ffpcm_bits(c->fmt.format) / 8;
+		}
+		d->outni = c->ni;
+	}
+	d->outlen = d->datalen - r * ffpcm_size1(&c->fmt);
+	return FMED_RDONE;
+}
+
+#undef FILT_NAME
 
 
 struct membuf {

@@ -80,6 +80,7 @@ static const ffpars_arg fmed_cmdline_args[] = {
 	{ "seek",	FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_seek) },
 	{ "until",	FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_seek) },
 	{ "prebuffer",	FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_seek) },
+	{ "start-dblevel",	FFPARS_TFLOAT | FFPARS_FSIGN,  OFF(start_level) },
 	{ "fseek",	FFPARS_TINT | FFPARS_F64BIT,  OFF(fseek) },
 	{ "info",	FFPARS_SETVAL('i') | FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(info) },
 	{ "tags",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(tags) },
@@ -565,6 +566,7 @@ static void trk_prep(fmed_cmd *fmed, fmed_trk *trk)
 	trk->pcm_peaks = fmed->pcm_peaks;
 	trk->pcm_peaks_crc = fmed->pcm_crc;
 	trk->use_dynanorm = fmed->dynanorm;
+	trk->a_start_level = ffabs(fmed->start_level);
 
 	if (fmed->volume != 100) {
 		double db;

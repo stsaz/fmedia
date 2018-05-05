@@ -32,6 +32,7 @@ typedef struct fmed_cmd {
 	uint seek_time;
 	uint until_time;
 	uint prebuffer;
+	float start_level; //dB
 	uint64 fseek;
 	ffstr meta;
 

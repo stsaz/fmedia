@@ -39,6 +39,7 @@ INPUT:
 --seek=TIME        Seek to time: [[HH:]MM:]SS[:MSC]
 --until=TIME       Stop at time
 --prebuffer=TIME   Start recording by a command from user, saving the previously bufferred seconds of audio
+--start-dblevel=DB Skip initial audio until input signal level goes above DB (-100dB..0dB)
 --fseek=BYTE       Set input file offset
 -i, --info         Don't play but show media information
 --tags             Print all meta tags

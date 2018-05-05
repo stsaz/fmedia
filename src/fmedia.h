@@ -437,6 +437,7 @@ struct fmed_trk {
 	};
 
 	uint64 a_prebuffer; //msec
+	float a_start_level; //dB
 };
 
 enum FMED_R {
