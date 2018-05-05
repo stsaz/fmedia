@@ -649,8 +649,10 @@ void core_free(void)
 	core_mod *mod;
 	fflist_item *next;
 
-	if (fmed->worker != NULL)
-		wrk_destroy(fmed->worker);
+	struct worker *w;
+	FFARR_WALKT(&fmed->workers, w, struct worker) {
+		wrk_destroy(w);
+	}
 
 	tracks_destroy();
 
@@ -915,9 +917,11 @@ static int core_open(void)
 #if defined FF_WIN && FF_WIN < 0x0600
 	ffkqu_init();
 #endif
-	if (NULL == (fmed->worker = ffmem_new(struct worker)))
+	uint n = 1;
+	if (NULL == ffarr_alloczT(&fmed->workers, n, struct worker))
 		return 1;
-	struct worker *w = fmed->worker;
+	fmed->workers.len = n;
+	struct worker *w = (void*)fmed->workers.ptr;
 	if (0 != wrk_init(w))
 		return 1;
 	core->kq = w->kq;
@@ -956,12 +960,14 @@ static void wrk_destroy(struct worker *w)
 
 void core_job_enter(uint id, size_t *ctx)
 {
-	*ctx = fmed->worker->taskmgr.tasks.len;
+	struct worker *w = ffarr_itemT(&fmed->workers, id, struct worker);
+	*ctx = w->taskmgr.tasks.len;
 }
 
 ffbool core_job_shouldyield(uint id, size_t *ctx)
 {
-	return (*ctx != fmed->worker->taskmgr.tasks.len);
+	struct worker *w = ffarr_itemT(&fmed->workers, id, struct worker);
+	return (*ctx != w->taskmgr.tasks.len);
 }
 
 static int core_work(void *param)
@@ -1071,13 +1077,16 @@ static ssize_t core_cmd(uint signo, ...)
 		break;
 
 	case FMED_START:
-		core_work(fmed->worker);
+		core_work(fmed->workers.ptr);
 		break;
 
 	case FMED_STOP: {
 		core_sigmods(signo);
 		fmed->stopped = 1;
-		ffkqu_post(&fmed->worker->kqpost, &fmed->worker->evposted);
+		struct worker *w;
+		FFARR_WALKT(&fmed->workers, w, struct worker) {
+			ffkqu_post(&w->kqpost, &w->evposted);
+		}
 		break;
 	}
 
@@ -1122,7 +1131,7 @@ static int core_sig(uint signo)
 
 static void core_task(fftask *task, uint cmd)
 {
-	struct worker *w = fmed->worker;
+	struct worker *w = (void*)fmed->workers.ptr;
 
 	dbglog(core, NULL, "core", "task:%p, cmd:%u, active:%u, handler:%p, param:%p"
 		, task, cmd, fftask_active(&w->taskmgr, task), task->handler, task->param);
@@ -1142,7 +1151,7 @@ static void core_task(fftask *task, uint cmd)
 
 static int core_timer(fftmrq_entry *tmr, int64 _interval, uint flags)
 {
-	struct worker *w = fmed->worker;
+	struct worker *w = (void*)fmed->workers.ptr;
 	int interval = _interval;
 	uint period = ffmin((uint)ffabs(interval), TMR_INT);
 	dbglog(core, NULL, "core", "timer:%p  interval:%d  handler:%p  param:%p"

@@ -30,9 +30,8 @@ typedef struct fmed_config {
 	uint skip_line :1;
 } fmed_config;
 
-struct worker;
 typedef struct fmedia {
-	struct worker *worker;
+	ffarr workers; //worker[]
 	ffkqu_time kqutime;
 
 	uint stopped :1
