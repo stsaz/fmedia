@@ -439,17 +439,18 @@ static int tui_process(void *ctx, fmed_filt *d)
 	}
 
 	if (t->rec) {
+		double db = d->audio.maxpeak;
+		if (t->maxdb < db)
+			t->maxdb = db;
+
 		playtime = ffpcm_time(d->audio.pos, t->sample_rate);
 		if (playtime / REC_STATUS_UPDATE == t->lastpos / REC_STATUS_UPDATE)
 			goto done;
 		t->lastpos = playtime;
 		playtime /= 1000;
 
-		double db = d->audio.maxpeak;
 		if (db < -MINDB)
 			db = -MINDB;
-		if (t->maxdb < db)
-			t->maxdb = db;
 
 		size_t pos = ((MINDB + db) / MINDB) * 10;
 		t->buf.len = 0;
