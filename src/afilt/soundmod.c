@@ -9,6 +9,9 @@ Copyright (c) 2015 Simon Zolin */
 #include <FF/ring.h>
 
 
+#define infolog(trk, ...)  fmed_infolog(core, trk, FILT_NAME, __VA_ARGS__)
+
+
 static const fmed_core *core;
 
 typedef struct sndmod_conv {
@@ -613,7 +616,7 @@ static int sndmod_peaks_process(void *ctx, fmed_filt *d)
 
 	if (d->flags & FMED_FLAST) {
 		ffstr3 buf = {0};
-		ffstr_catfmt(&buf, "\nPCM peaks (%,U total samples):\n"
+		ffstr_catfmt(&buf, FF_NEWLN "PCM peaks (%,U total samples):" FF_NEWLN
 			, p->total);
 
 		if (p->total != 0) {
@@ -621,14 +624,14 @@ static int sndmod_peaks_process(void *ctx, fmed_filt *d)
 
 				double hi = ffpcm_gain2db(_ffpcm_16le_flt(p->ch[ich].high));
 				double avg = ffpcm_gain2db(_ffpcm_16le_flt(p->ch[ich].sum / p->total));
-				ffstr_catfmt(&buf, "Channel #%L: highest peak:%.2FdB, avg peak:%.2FdB.  Clipped: %U (%.4F%%).  CRC:%08xu\n"
+				ffstr_catfmt(&buf, "Channel #%L: highest peak:%.2FdB, avg peak:%.2FdB.  Clipped: %U (%.4F%%).  CRC:%08xu" FF_NEWLN
 					, ich + 1, hi, avg
 					, p->ch[ich].clipped, ((double)p->ch[ich].clipped * 100 / p->total)
 					, p->ch[ich].crc);
 			}
 		}
 
-		fffile_write(ffstdout, buf.ptr, buf.len);
+		core->log(FMED_LOG_USER, d->trk, NULL, "%S", &buf);
 		ffarr_free(&buf);
 		return FMED_RDONE;
 	}
@@ -646,7 +649,7 @@ static void* sndmod_rtpeak_open(fmed_filt *d)
 	if (p == NULL)
 		return NULL;
 	p->fmt = d->audio.fmt;
-	float t;
+	double t;
 	if (0 != ffpcm_peak(&p->fmt, NULL, 0, &t)) {
 		errlog(core, d->trk, "rtpeak", "ffpcm_peak(): unsupported format");
 		ffmem_free(p);
@@ -665,10 +668,11 @@ static int sndmod_rtpeak_process(void *ctx, fmed_filt *d)
 {
 	sndmod_rtpeak *p = ctx;
 
-	float maxpeak;
+	double maxpeak;
 	ffpcm_peak(&p->fmt, d->data, d->datalen / ffpcm_size1(&p->fmt), &maxpeak);
 	double db = ffpcm_gain2db(maxpeak);
 	d->audio.maxpeak = db;
+	dbglog(core, d->trk, "rtpeak", "maxpeak:%.2F", db);
 
 	d->out = d->data;
 	d->outlen = d->datalen;

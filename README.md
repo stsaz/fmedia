@@ -132,6 +132,8 @@ INSTALL
 0. Requirements:
 	* GNU make
 	* gcc or clang
+	* libalsa-devel (for ALSA module)
+	* libpulse-devel (for Pulse Audio module)
 
 1. Create a directory for all needed sources:
 

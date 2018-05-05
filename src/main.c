@@ -483,7 +483,7 @@ static void std_log(uint flags, fmed_logdata *ld)
 	*s++ = '\n';
 
 	uint lev = flags & _FMED_LOG_LEVMASK;
-	fffd fd = (lev > FMED_LOG_WARN && !core->props->stdout_busy) ? ffstdout : ffstderr;
+	fffd fd = (lev > FMED_LOG_USER && !core->props->stdout_busy) ? ffstdout : ffstderr;
 	ffstd_write(fd, buf, s - buf);
 }
 

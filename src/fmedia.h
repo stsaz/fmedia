@@ -24,15 +24,15 @@ mixer                 mixer
 
 
 #define FMED_VER_MAJOR  0
-#define FMED_VER_MINOR  35
+#define FMED_VER_MINOR  36
 #define FMED_VER_FULL  ((FMED_VER_MAJOR << 8) | FMED_VER_MINOR)
-#define FMED_VER  "0.35"
+#define FMED_VER  "0.36"
 
 #define FMED_VER_GETMAJ(fullver)  ((fullver) >> 8)
 #define FMED_VER_GETMIN(fullver)  ((fullver) & 0xff)
 
 /** Inter-module compatibility version. */
-#define FMED_VER_CORE  ((FMED_VER_MAJOR << 8) | 34)
+#define FMED_VER_CORE  ((FMED_VER_MAJOR << 8) | 36)
 
 #define FMED_HOMEPAGE  "http://fmedia.firmdev.com"
 

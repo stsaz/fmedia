@@ -239,6 +239,7 @@ opus.$(SO): $(OPUS_O)
 
 #
 FLAC_O := $(OBJ_DIR)/flac.o \
+	$(OBJ_DIR)/flac-fmt.o \
 	$(FF_O) \
 	$(FF_OBJ_DIR)/ffflac-fmt.o \
 	$(FF_OBJ_DIR)/ffflac-ext.o \

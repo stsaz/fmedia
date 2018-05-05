@@ -557,7 +557,7 @@ static int filt_call(fm_trk *t, fmed_f *f)
 			return FMED_RDONE;
 		}
 
-		dbglog(t, "context for %s created", f->name);
+		dbglog(t, "context for %s created: 0x%p", f->name, f->ctx);
 		f->opened = 1;
 	}
 

@@ -7,6 +7,10 @@ Copyright (c) 2015 Simon Zolin */
 #include <FFOS/dir.h>
 
 
+#undef syserrlog
+#define syserrlog(...)  fmed_syserrlog(core, NULL, "que", __VA_ARGS__)
+
+
 /*
 Metadata priority:
   . from user (--meta)
@@ -30,8 +34,8 @@ typedef struct entry {
 	ffarr2 tmeta; //ffstr[]. transient meta
 	ffarr2 dict; //ffstr[]
 
-	uint active :1
-		, rm :1
+	uint refcount;
+	uint rm :1
 		, stop_after :1
 		, no_tmeta :1
 		, expand :1
@@ -148,7 +152,7 @@ static int que_sig(uint signo)
 
 static void ent_rm(entry *e)
 {
-	if (e->active) {
+	if (e->refcount != 0) {
 		e->rm = 1;
 		return;
 	}
@@ -163,15 +167,13 @@ static void ent_rm(entry *e)
 
 static void ent_ref(entry *e)
 {
-	FF_ASSERT(!e->active);
-	e->active = 1;
+	e->refcount++;
 }
 
 static void ent_unref(entry *e)
 {
-	FF_ASSERT(e->active);
-	e->active = 0;
-	if (e->rm)
+	FF_ASSERT(e->refcount != 0);
+	if (--e->refcount == 0 && e->rm)
 		ent_rm(e);
 }
 
@@ -295,7 +297,7 @@ static void que_save(entry *first, const fflist_item *sentl, const char *fn)
 		if (0 != ffdir_make_path((void*)fn, 0))
 			goto done;
 		if (FF_BADFD == (f = fffile_open(fn, O_CREAT | O_TRUNC | O_WRONLY))) {
-			syserrlog(core, NULL, "que", "%s: %s", fffile_open_S, fn);
+			syserrlog("%s: %s", fffile_open_S, fn);
 			goto done;
 		}
 	}
@@ -330,7 +332,7 @@ static void que_save(entry *first, const fflist_item *sentl, const char *fn)
 
 done:
 	if (rc != 0)
-		syserrlog(core, NULL, "que", "saving playlist to file: %s", fn);
+		syserrlog("saving playlist to file: %s", fn);
 	FF_SAFECLOSE(f, FF_BADFD, fffile_close);
 	ffm3u_fin(&m3);
 }
@@ -425,7 +427,7 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 
 	case FMED_QUE_STOP_AFTER:
 		pl = qu->curlist;
-		if (pl->cur != NULL && pl->cur->active)
+		if (pl->cur != NULL && pl->cur->refcount != 0)
 			pl->cur->stop_after = 1;
 		break;
 
@@ -490,10 +492,7 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 			e = FF_GETPTR(entry, sib, it);
 			it = it->next;
 			if (!fffile_exists(e->e.url.ptr)) {
-				dbglog(core, NULL, "que", "removed item %S", &e->e.url);
-				if (!(flags & FMED_QUE_NO_ONCHANGE) && qu->onchange != NULL)
-					qu->onchange(&e->e, FMED_QUE_ONRM);
-				ent_rm(e);
+				que_cmd(FMED_QUE_RM, e);
 			}
 		}
 		}
@@ -751,7 +750,7 @@ static void que_meta_set(fmed_que_entry *ent, const ffstr *name, const ffstr *va
 	return;
 
 err:
-	syserrlog(core, NULL, "que", "%s", ffmem_alloc_S);
+	syserrlog("%s", ffmem_alloc_S);
 }
 
 static ffstr* que_meta_find(fmed_que_entry *ent, const char *name, size_t name_len)

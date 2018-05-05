@@ -48,8 +48,9 @@ INPUT:
 --meta='[clear;]NAME=STR;...'
                    Set meta data
                    If "clear;" is specified, skip all meta from input file.
-                   Supported tags: album, albumartist, artist, comment, composer, copyright, date, discnumber, genre, lyrics, picture, publisher, title, tracknumber, tracktotal.
-                   Note: file format may not support some of these tags.
+                   .mp3 supports: album, albumartist, artist, comment, date, genre, picture, publisher, title, tracknumber, tracktotal.
+                   .mp4 supports: album, albumartist, artist, comment, composer, copyright, date, discnumber, genre, lyrics, title, tracknumber.
+                   .flac, .ogg support tags of any name.
 
 FILTERS:
 --volume=INT       Set volume (0% .. 125%)

@@ -8,6 +8,24 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v0.36 - May 5, 2018
+
+ + "--start-dblevel=DB" - Skip initial audio until input signal level goes above DB
+ + "--stop-dblevel=DB[;TIME]" - Stop processing if input signal level goes below DB for TIME time
+ + "--meta": support "@file:FILENAME" - Read meta from file
+ + "--flist=FILE" - Read filenames from FILE
+ - "--flac-compression": named as "--flac-level" in help info (v0.16 bug)
+
+ + GUI: File->"Analyze & Show PCM Info" command
+ - GUI: queue: the next track is played in the same playlist (v0.35 bug)
+ - GUI: List->Filter: segfault on use (v0.34 bug)
+ - TUI: recording: "max dB" value could be incorrect
+
+ + .flac: write picture block (via --meta="picture=@file:FILENAME")
+ + .cue: support REM in TRACK context
+ - PulseAudio: fix hanging
+
+
 fmedia v0.35 - Apr 2, 2018
 
  + --prebuffer: Start recording by a command from user ('T' key), saving the previously bufferred seconds of audio
