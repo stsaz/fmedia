@@ -50,9 +50,9 @@ typedef struct icy icy;
 
 typedef struct netin {
 	uint state;
+	void *trk;
 	ffarr d[2];
 	uint idx;
-	fftask task;
 	uint fin :1;
 	uint fn_dyn :1;
 	icy *c;
@@ -772,10 +772,10 @@ static void tcp_aio(void *udata)
 	nethttp *c = udata;
 	c->async = 0;
 	core->timer(&c->tmr, 0, 0);
-	if (c->d->handler == NULL)
+	if (c->d->trk == NULL)
 		http_if_process(c);
 	else
-		c->d->handler(c->d->trk);
+		net->track->cmd(c->d->trk, FMED_TRACK_WAKE);
 }
 
 static int tcp_connect(nethttp *c, const struct sockaddr *addr, socklen_t addr_size)
@@ -807,10 +807,10 @@ static void tcp_ontmr(void *param)
 	warnlog(c->d->trk, "I/O timeout", 0);
 	c->async = 0;
 	tcp_ioerr(c);
-	if (c->d->handler == NULL)
+	if (c->d->trk == NULL)
 		http_if_process(c);
 	else
-		c->d->handler(c->d->trk);
+		net->track->cmd(c->d->trk, FMED_TRACK_WAKE);
 }
 
 static int tcp_recvhdrs(nethttp *c)
@@ -935,7 +935,7 @@ static void tcp_recv_a(void *udata)
 	if (c->iowait) {
 		dbglog(c->d->trk, "waking up track...");
 		c->iowait = 0;
-		c->d->handler(c->d->trk);
+		net->track->cmd(c->d->trk, FMED_TRACK_WAKE);
 	}
 }
 
@@ -1487,16 +1487,15 @@ static void netin_write(netin *n, const ffstr *data)
 	} else
 		ffarr_append(&n->d[n->idx], data->ptr, data->len);
 	if (n->state == IN_WAIT)
-		core->task(&n->task, FMED_TASK_POST);
+		net->track->cmd(n->trk, FMED_TRACK_WAKE);
 }
 
 static void* netin_open(fmed_filt *d)
 {
 	netin *n;
 	n = (void*)fmed_getval("netin_ptr");
+	n->trk = d->trk;
 	n->state = IN_DATANEXT;
-	n->task.param = d->trk;
-	n->task.handler = d->handler;
 	return n;
 }
 
@@ -1505,7 +1504,6 @@ static void netin_close(void *ctx)
 	netin *n = ctx;
 	ffarr_free(&n->d[0]);
 	ffarr_free(&n->d[1]);
-	core->task(&n->task, FMED_TASK_DEL);
 	if (n->c != NULL && n->c->netin == n)
 		n->c->netin = NULL;
 	ffmem_free(n);

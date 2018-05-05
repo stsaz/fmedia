@@ -22,7 +22,7 @@ typedef struct mxr {
 	uint trk_count;
 	uint filled;
 	uint sampsize;
-	fftask task;
+	void *trk;
 	unsigned first :1
 		, err :1;
 } mxr;
@@ -47,6 +47,7 @@ static struct mix_conf_t {
 
 static mxr *mx;
 static const fmed_core *core;
+static const fmed_track *track;
 
 //FMEDIA MODULE
 static const void* mix_iface(const char *name);
@@ -144,6 +145,9 @@ static int mix_sig(uint signo)
 	case FMED_SIG_INIT:
 		ffmem_init();
 		return 0;
+	case FMED_OPEN:
+		track = core->getmod("#core.track");
+		break;
 	}
 	return 0;
 }
@@ -247,8 +251,7 @@ static void* mix_open(fmed_filt *d)
 	}
 	ffmem_zero(m->data.ptr, DATA_SIZE);
 
-	m->task.handler = d->handler;
-	m->task.param = d->trk;
+	m->trk = d->trk;
 	fflist_init(&m->inputs);
 	m->first = 1;
 	m->sampsize = ffpcm_size(pcmfmt.format, pcmfmt.channels);
@@ -279,7 +282,6 @@ static void mix_close(void *ctx)
 		}
 		return;
 	}
-	core->task(&m->task, FMED_TASK_DEL);
 	ffstr_free(&m->data);
 	ffmem_free(m);
 	m = NULL;
@@ -291,7 +293,7 @@ static void mix_inputclosed(mxr *m)
 		if (m->err && m->inputs.len == 0)
 			mix_close(m);
 		else
-			core->task(&m->task, FMED_TASK_POST);
+			track->cmd(m->trk, FMED_TRACK_WAKE);
 	}
 }
 
@@ -310,7 +312,7 @@ static uint mix_write(mxr *m, uint off, const fmed_filt *d)
 
 		m->filled++;
 		if (m->filled == m->trk_count)
-			core->task(&m->task, FMED_TASK_POST);
+			track->cmd(m->trk, FMED_TRACK_WAKE);
 	}
 
 	return n;

@@ -34,7 +34,7 @@ struct wasapi_out {
 	ffwas_dev dev;
 	uint devidx;
 
-	fftask task;
+	void *trk;
 	unsigned stop :1;
 	uint async :1;
 };
@@ -45,7 +45,7 @@ typedef struct wasapi_in {
 	ffwasapi wa;
 	fftmrq_entry tmr;
 	uint latcorr;
-	fftask task;
+	void *trk;
 	uint64 total_samps;
 	unsigned async :1;
 	unsigned lpback :1;
@@ -91,6 +91,9 @@ static const fmed_filter fmed_wasapi_out = {
 	&wasapi_open, &wasapi_write, &wasapi_close
 };
 
+static void wasapi_ontmr(void *param);
+static void wasapi_onplay(void *udata);
+
 static const ffpars_arg wasapi_out_conf_args[] = {
 	{ "device_index",  FFPARS_TINT,  FFPARS_DSTOFF(struct wasapi_out_conf_t, idev) }
 	, { "buffer_length",  FFPARS_TINT | FFPARS_FNOTZERO,  FFPARS_DSTOFF(struct wasapi_out_conf_t, buflen) }
@@ -106,9 +109,7 @@ static const fmed_filter fmed_wasapi_in = {
 	&wasapi_in_open, &wasapi_in_read, &wasapi_in_close
 };
 
-static void wasapi_ontmr(void *param);
 static void wasapi_ontmr_capt(void *param);
-static void wasapi_onplay(void *udata);
 static void wasapi_oncapt(void *udata);
 
 static const ffpars_arg wasapi_in_conf_args[] = {
@@ -299,8 +300,7 @@ static void* wasapi_open(fmed_filt *d)
 	w = ffmem_tcalloc1(wasapi_out);
 	if (w == NULL)
 		return NULL;
-	w->task.handler = d->handler;
-	w->task.param = d->trk;
+	w->trk = d->trk;
 	return w;
 }
 
@@ -420,7 +420,7 @@ static void wasapi_close(void *ctx)
 {
 	wasapi_out *w = ctx;
 	if (mod->usedby == w) {
-		void *trk = w->task.param;
+		void *trk = w->trk;
 		if (FMED_NULL != mod->track->getval(trk, "stopped")) {
 			wasapi_closedev();
 		} else {
@@ -431,7 +431,6 @@ static void wasapi_close(void *ctx)
 		mod->usedby = NULL;
 	}
 	ffwas_devdestroy(&w->dev);
-	core->task(&w->task, FMED_TASK_DEL);
 	ffmem_free(w);
 }
 
@@ -441,7 +440,7 @@ static void wasapi_ontmr(void *param)
 	if (!w->async)
 		return;
 	w->async = 0;
-	w->task.handler(w->task.param);
+	mod->track->cmd(w->trk, FMED_TRACK_WAKE);
 }
 
 static void wasapi_onplay(void *udata)
@@ -450,7 +449,7 @@ static void wasapi_onplay(void *udata)
 	if (!w->async)
 		return;
 	w->async = 0;
-	core->task(&w->task, FMED_TASK_POST);
+	mod->track->cmd(w->trk, FMED_TRACK_WAKE);
 }
 
 static int wasapi_write(void *ctx, fmed_filt *d)
@@ -482,7 +481,6 @@ static int wasapi_write(void *ctx, fmed_filt *d)
 		d->snd_output_clear = 0;
 		ffwas_stop(&mod->out);
 		ffwas_clear(&mod->out);
-		core->task(&w->task, FMED_TASK_DEL);
 		return FMED_RMORE;
 	}
 
@@ -490,7 +488,6 @@ static int wasapi_write(void *ctx, fmed_filt *d)
 		d->snd_output_pause = 0;
 		d->track->cmd(d->trk, FMED_TRACK_PAUSE);
 		ffwas_stop(&mod->out);
-		core->task(&w->task, FMED_TASK_DEL);
 		return FMED_RASYNC;
 	}
 
@@ -563,8 +560,7 @@ static void* wasapi_in_open(fmed_filt *d)
 	w = ffmem_tcalloc1(wasapi_in);
 	if (w == NULL)
 		return NULL;
-	w->task.handler = d->handler;
-	w->task.param = d->trk;
+	w->trk = d->trk;
 
 	if (FMED_NULL != (idx = (int)d->track->getval(d->trk, "loopback_device")))
 		lpback = 1;
@@ -669,7 +665,6 @@ static void wasapi_in_close(void *ctx)
 {
 	wasapi_in *w = ctx;
 	core->timer(&w->tmr, 0, 0);
-	core->task(&w->task, FMED_TASK_DEL);
 	ffwas_capt_close(&w->wa);
 	ffmem_free(w);
 }
@@ -680,7 +675,7 @@ static void wasapi_ontmr_capt(void *param)
 	if (!w->async)
 		return;
 	w->async = 0;
-	w->task.handler(w->task.param);
+	mod->track->cmd(w->trk, FMED_TRACK_WAKE);
 }
 
 static void wasapi_oncapt(void *udata)
@@ -690,7 +685,7 @@ static void wasapi_oncapt(void *udata)
 	if (!w->async)
 		return;
 	w->async = 0;
-	core->task(&w->task, FMED_TASK_POST);
+	mod->track->cmd(w->trk, FMED_TRACK_WAKE);
 }
 
 static int wasapi_in_read(void *ctx, fmed_filt *d)

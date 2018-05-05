@@ -9,17 +9,18 @@ Copyright (c) 2015 Simon Zolin */
 
 
 static const fmed_core *core;
+static const fmed_track *track;
 
 typedef struct dsnd_out {
 	ffdsnd_buf snd;
-	fftask task;
+	void *trk;
 	unsigned async :1
 		, ileaved :1;
 } dsnd_out;
 
 typedef struct dsnd_in {
 	ffdsnd_capt snd;
-	fftask task;
+	void *trk;
 	uint frsize;
 	uint64 total_samps;
 	unsigned async :1;
@@ -125,6 +126,7 @@ static int dsnd_sig(uint signo)
 	case FMED_OPEN:
 		if (0 != ffdsnd_init())
 			return -1;
+		track = core->getmod("#core.track");
 		return 0;
 	}
 	return 0;
@@ -215,7 +217,7 @@ static void dsnd_onplay(void *udata)
 	if (!ds->async)
 		return; //the function may be called when we aren't expecting it
 	ds->async = 0;
-	core->task(&ds->task, FMED_TASK_POST);
+	track->cmd(ds->trk, FMED_TRACK_WAKE);
 }
 
 static int dsnd_out_config(ffpars_ctx *ctx)
@@ -241,8 +243,7 @@ static void* dsnd_open(fmed_filt *d)
 	ds = ffmem_tcalloc1(dsnd_out);
 	if (ds == NULL)
 		return NULL;
-	ds->task.handler = d->handler;
-	ds->task.param = d->trk;
+	ds->trk = d->trk;
 
 	if (FMED_NULL == (idx = (int)d->track->getval(d->trk, "playdev_name")))
 		idx = dsnd_out_conf.idev;
@@ -274,8 +275,6 @@ done:
 static void dsnd_close(void *ctx)
 {
 	dsnd_out *ds = ctx;
-
-	core->task(&ds->task, FMED_TASK_DEL);
 	ffdsnd_close(&ds->snd);
 	ffmem_free(ds);
 }
@@ -368,8 +367,7 @@ static void* dsnd_in_open(fmed_filt *d)
 	ds = ffmem_tcalloc1(dsnd_in);
 	if (ds == NULL)
 		return NULL;
-	ds->task.handler = d->handler;
-	ds->task.param = d->trk;
+	ds->trk = d->trk;
 
 	if (FMED_NULL == (idx = (int)d->track->getval(d->trk, "capture_device")))
 		idx = dsnd_in_conf.idev;
@@ -411,8 +409,6 @@ fail:
 static void dsnd_in_close(void *ctx)
 {
 	dsnd_in *ds = ctx;
-
-	core->task(&ds->task, FMED_TASK_DEL);
 	ffdsnd_capt_close(&ds->snd);
 	ffmem_free(ds);
 }
@@ -423,7 +419,7 @@ static void dsnd_in_onplay(void *udata)
 	if (!ds->async)
 		return;
 	ds->async = 0;
-	core->task(&ds->task, FMED_TASK_POST);
+	track->cmd(ds->trk, FMED_TRACK_WAKE);
 }
 
 static int dsnd_in_read(void *ctx, fmed_filt *d)

@@ -29,7 +29,7 @@ struct oss_out {
 	ffoss_dev dev;
 	uint devidx;
 
-	fftask task;
+	void *trk;
 	uint stop :1;
 };
 
@@ -223,8 +223,7 @@ static void* oss_open(fmed_filt *d)
 
 	if (NULL == (o = ffmem_new(oss_out)))
 		return NULL;
-	o->task.handler = d->handler;
-	o->task.param = d->trk;
+	o->trk = d->trk;
 	return o;
 }
 
@@ -234,7 +233,7 @@ static void oss_close(void *ctx)
 	int r;
 
 	if (mod->usedby == o) {
-		void *trk = o->task.param;
+		void *trk = o->trk;
 
 		if (FMED_NULL != mod->track->getval(trk, "stopped")) {
 			ffoss_close(&mod->out);
@@ -352,7 +351,7 @@ done:
 static void oss_onplay(void *udata)
 {
 	oss_out *o = udata;
-	core->task(&o->task, FMED_TASK_POST);
+	mod->track->cmd(o->trk, FMED_TRACK_WAKE);
 }
 
 static int oss_write(void *ctx, fmed_filt *d)

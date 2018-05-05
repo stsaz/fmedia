@@ -582,7 +582,7 @@ static void trk_process(void *udata)
 		}
 
 		if (core_job_shouldyield(0, &jobdata)) {
-			core->task(&t->tsk, FMED_TASK_POST);
+			trk_cmd(t, FMED_TRACK_WAKE);
 			return;
 		}
 
@@ -920,6 +920,10 @@ static ssize_t trk_cmd(void *trk, uint cmd, ...)
 	case FMED_TRACK_LAST:
 		if (!fmed->cmd.gui && !fmed->cmd.rec)
 			core->sig(FMED_STOP);
+		break;
+
+	case FMED_TRACK_WAKE:
+		core->task(&t->tsk, FMED_TASK_POST);
 		break;
 
 	case FMED_TRACK_FILT_ADD:

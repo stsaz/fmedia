@@ -29,7 +29,7 @@ struct pulse_out {
 	ffpulse_dev dev;
 	uint devidx;
 
-	fftask task;
+	void *trk;
 	uint stop :1;
 };
 
@@ -226,8 +226,7 @@ static void* pulse_open(fmed_filt *d)
 
 	if (NULL == (a = ffmem_new(pulse_out)))
 		return NULL;
-	a->task.handler = d->handler;
-	a->task.param = d->trk;
+	a->trk = d->trk;
 	return a;
 }
 
@@ -237,7 +236,7 @@ static void pulse_close(void *ctx)
 	int r;
 
 	if (mod->usedby == a) {
-		void *trk = a->task.param;
+		void *trk = a->trk;
 
 		if (FMED_NULL != mod->track->getval(trk, "stopped")) {
 			ffpulse_close(&mod->out);
@@ -343,7 +342,7 @@ done:
 static void pulse_onplay(void *udata)
 {
 	pulse_out *a = udata;
-	core->task(&a->task, FMED_TASK_POST);
+	mod->track->cmd(a->trk, FMED_TRACK_WAKE);
 }
 
 static int pulse_write(void *ctx, fmed_filt *d)

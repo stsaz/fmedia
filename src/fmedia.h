@@ -241,6 +241,9 @@ enum FMED_TRACK_CMD {
 
 	FMED_TRACK_FILT_GETPREV, // get context pointer of the previous filter
 	FMED_TRACK_FILT_INSTANCE, // get (create) filter instance.  @param: void *filter_id
+
+	/** Continue track processing after suspend and an asynchronous event. */
+	FMED_TRACK_WAKE,
 };
 
 enum FMED_TRK_TYPE {
