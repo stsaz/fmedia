@@ -1160,6 +1160,26 @@ static ssize_t core_cmd(uint signo, ...)
 		r = core_filetype(va_arg(va, char*));
 		break;
 
+	case FMED_TASK_XPOST: {
+		fftask *task = va_arg(va, fftask*);
+		uint wid = va_arg(va, uint);
+		struct worker *w = (void*)fmed->workers.ptr;
+		FF_ASSERT(ffthd_curid() == w->id);
+		FF_ASSERT(wid < fmed->workers.len);
+		if (wid >= fmed->workers.len) {
+			r = -1;
+			break;
+		}
+		w = &w[wid];
+
+		dbglog(core, NULL, "core", "task:%p, cmd:%u, active:%u, handler:%p, param:%p"
+			, task, signo, fftask_active(&w->taskmgr, task), task->handler, task->param);
+
+		if (1 == fftask_post(&w->taskmgr, task))
+			ffkqu_post(&w->kqpost, &w->evposted);
+		break;
+	}
+
 #ifdef FF_WIN
 	case FMED_WOH_INIT:
 		if (fmed->woh == NULL)

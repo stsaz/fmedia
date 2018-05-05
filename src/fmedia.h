@@ -81,6 +81,10 @@ enum FMED_SIG {
 	/** Windows: remove handle from WOH.
 	args: "HANDLE h" */
 	FMED_WOH_DEL,
+
+	/** Add a cross-worker task.
+	args: "fftask *task, uint wid" */
+	FMED_TASK_XPOST,
 };
 
 enum FMED_FT {
