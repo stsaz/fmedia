@@ -1048,6 +1048,8 @@ void gui_filter(const ffstr *text, uint flags)
 		else if (flags & GUI_FILT_META) {
 
 			for (uint i = 0;  NULL != (meta = gg->qu->meta(e, i, &name, 0));  i++) {
+				if (meta == FMED_QUE_SKIP)
+					continue;
 				if (-1 != ffstr_ifind(meta, text->ptr, text->len)) {
 					inc = 1;
 					break;
