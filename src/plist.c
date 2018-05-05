@@ -421,6 +421,18 @@ static void cue_close(void *ctx)
 	ffmem_free(c);
 }
 
+/** Find meta name in array.
+Return -1 if not found. */
+static ssize_t cue_meta_find(const ffarr *a, size_t n, const ffarr *search)
+{
+	const ffarr *m = (void*)a->ptr;
+	for (size_t i = 0;  i != n;  i += 2) {
+		if (ffstr_eq2(&m[i], search))
+			return i;
+	}
+	return -1;
+}
+
 static int cue_process(void *ctx, fmed_filt *d)
 {
 	cue *c = ctx;
@@ -558,6 +570,10 @@ add:
 		// add global meta that isn't set in TRACK context
 		m = (void*)c->gmetas.ptr;
 		for (uint i = 0;  i != c->gmetas.len;  i += 2) {
+
+			if (cue_meta_find(&c->metas, c->nmeta, &m[i]) >= 0)
+				continue;
+
 			ffstr pair[2];
 			ffstr_set2(&pair[0], &m[i]);
 			ffstr_set2(&pair[1], &m[i + 1]);
@@ -567,8 +583,6 @@ add:
 		// add TRACK meta
 		m = (void*)c->metas.ptr;
 		for (uint i = 0;  i != c->nmeta;  i += 2) {
-			if (i == c->i_glob_artist && c->artist_trk[0])
-				continue; // skip global artist, because track artist name is specified
 			ffstr pair[2];
 			ffstr_set2(&pair[0], &m[i]);
 			ffstr_set2(&pair[1], &m[i + 1]);
