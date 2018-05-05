@@ -47,6 +47,10 @@ static void open_input(void *udata);
 static void fmed_onsig(void *udata);
 static void rec_lpback_new_track(fmed_cmd *cmd);
 
+// TRACK MONITOR
+static void mon_onsig(fmed_trk *trk, uint sig);
+static const struct fmed_trk_mon mon_iface = { &mon_onsig };
+
 //LOG
 static void std_log(uint flags, fmed_logdata *ld);
 static const fmed_log std_logger = {
@@ -484,6 +488,21 @@ static void std_log(uint flags, fmed_logdata *ld)
 }
 
 
+static void mon_onsig(fmed_trk *trk, uint sig)
+{
+	switch (sig) {
+	case FMED_TRK_ONCLOSE:
+		if (trk->type == FMED_TRK_TYPE_REC && !g->cmd->gui)
+			core->sig(FMED_STOP);
+		break;
+	case FMED_TRK_ONLAST:
+		if (!g->cmd->gui && !g->cmd->rec)
+			core->sig(FMED_STOP);
+		break;
+	}
+}
+
+
 static const int sigs[] = { SIGINT };
 static const int sigs_block[] = { SIGINT, SIGIO };
 
@@ -897,6 +916,11 @@ int main(int argc, char **argv, char **env)
 
 	fftask_set(&gcmd->tsk_start, &open_input, g->cmd);
 	core->task(&gcmd->tsk_start, FMED_TASK_POST);
+
+	const fmed_track *track;
+	if (NULL == (track = core->getmod("#core.track")))
+		goto end;
+	track->fmed_trk_monitor(NULL, &mon_iface);
 
 	core->sig(FMED_START);
 	rc = 0;

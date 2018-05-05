@@ -27,6 +27,7 @@ enum {
 struct tracks {
 	ffatomic trkid;
 	fflist trks; //fm_trk[]
+	const struct fmed_trk_mon *mon;
 	uint stop_sig :1;
 };
 
@@ -458,7 +459,6 @@ static void trk_free(fm_trk *t)
 	fmed_f *pf;
 	dict_ent *e;
 	fftree_node *node, *next;
-	int type = t->props.type;
 
 	core->task(&t->tsk, FMED_TASK_DEL);
 
@@ -504,11 +504,13 @@ static void trk_free(fm_trk *t)
 	if (fflist_exists(&g->trks, &t->sib))
 		fflist_rm(&g->trks, &t->sib);
 
+	if (g->mon != NULL)
+		g->mon->onsig(&t->props, FMED_TRK_ONCLOSE);
+
 	dbglog(t, "closed");
 	ffmem_free(t);
 
-	if ((type == FMED_TRK_TYPE_REC && !fmed->cmd.gui)
-		|| (g->stop_sig && g->trks.len == 0))
+	if (g->stop_sig && g->trks.len == 0)
 		core->sig(FMED_STOP);
 }
 
@@ -938,8 +940,8 @@ static ssize_t trk_cmd(void *trk, uint cmd, ...)
 		break;
 
 	case FMED_TRACK_LAST:
-		if (!fmed->cmd.gui && !fmed->cmd.rec)
-			core->sig(FMED_STOP);
+		if (g->mon != NULL)
+			g->mon->onsig(&t->props, FMED_TRK_ONLAST);
 		break;
 
 	case FMED_TRACK_WAKE:
@@ -1016,6 +1018,10 @@ static ssize_t trk_cmd(void *trk, uint cmd, ...)
 		r = trk_meta_copy(t, src);
 		break;
 	}
+
+	case FMED_TRACK_MONITOR:
+		g->mon = va_arg(va, void*);
+		break;
 
 	default:
 		errlog(t, "invalid command:%u", cmd);

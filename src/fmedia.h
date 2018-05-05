@@ -248,6 +248,8 @@ enum FMED_TRACK_CMD {
 
 	/** Continue track processing after suspend and an asynchronous event. */
 	FMED_TRACK_WAKE,
+
+	FMED_TRACK_MONITOR,
 };
 
 enum FMED_TRK_TYPE {
@@ -333,6 +335,16 @@ typedef struct fmed_trk_meta {
 	uint idx;
 	uint flags;
 } fmed_trk_meta;
+
+enum FMED_TRK_MON {
+	FMED_TRK_ONCLOSE,
+	FMED_TRK_ONLAST,
+};
+struct fmed_trk_mon {
+	void (*onsig)(fmed_trk *trk, uint sig);
+};
+/** Associate monitor interface with tracks. */
+#define fmed_trk_monitor(trk, mon)  cmd(NULL, FMED_TRACK_MONITOR, mon)
 
 
 // FILTER
