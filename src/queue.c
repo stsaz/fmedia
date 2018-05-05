@@ -820,7 +820,7 @@ static void que_ontrkfin(entry *e)
 	else if (e->expand || e->trk_stopped)
 	{}
 	else if (!e->trk_err || qu->next_if_err)
-		que_cmd(FMED_QUE_NEXT2, NULL);
+		que_cmd(FMED_QUE_NEXT2, &e->e);
 	ent_unref(e);
 }
 
