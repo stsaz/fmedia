@@ -323,6 +323,7 @@ static const char *const scmds[] = {
 	"COPYFILE",
 	"DELFILE",
 	"SHOWINFO",
+	"SHOWPCM",
 	"INFOEDIT",
 	"FILTER_SHOW",
 	"FILTER_APPLY",
@@ -529,6 +530,29 @@ void gui_media_add1(const char *fn)
 
 	if (t == FMED_FT_DIR || t == FMED_FT_PLIST)
 		gg->qu->cmd2(FMED_QUE_EXPAND, pe, 0);
+}
+
+/** For each selected item in list start a new track to analyze PCM peaks. */
+void gui_media_showpcm(void)
+{
+	int i = -1;
+	fmed_que_entry *ent;
+	ffui_viewitem it;
+
+	while (-1 != (i = ffui_view_selnext(&gg->wmain.vlist, i))) {
+		ffui_view_iteminit(&it);
+		ffui_view_setindex(&it, i);
+		ffui_view_setparam(&it, 0);
+		ffui_view_get(&gg->wmain.vlist, 0, &it);
+		ent = (void*)ffui_view_param(&it);
+
+		void *trk;
+		if (NULL == (trk = gg->track->create(FMED_TRK_TYPE_PLAYBACK, ent->url.ptr)))
+			return;
+		fmed_trk *trkconf = gg->track->conf(trk);
+		trkconf->pcm_peaks = 1;
+		gg->track->cmd(trk, FMED_TRACK_START);
+	}
 }
 
 

@@ -128,6 +128,7 @@ static const struct cmd cmds[] = {
 	{ COPYFILE,	F1,	&gui_media_fileop },
 	{ DELFILE,	F1 | CMD_FCORE,	&gui_media_fileop },
 	{ SHOWINFO,	F0 | CMD_FCORE,	&gui_media_showinfo },
+	{ SHOWPCM,	F0 | CMD_FCORE,	&gui_media_showpcm },
 	{ FILTER_SHOW,	F0,	&gui_filt_show },
 
 	{ CHECKUPDATE,	F0 | CMD_FCORE,	&gui_upd_check },

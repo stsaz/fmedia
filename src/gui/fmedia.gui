@@ -19,6 +19,9 @@ menu mfile {
 		action SHOWINFO
 		hotkey "I"
 	}
+	item "Analyze && Show PCM Info" {
+		action SHOWPCM
+	}
 	item "C&opy to Clipboard" {
 		action COPYFILE
 		hotkey "Ctrl+C"

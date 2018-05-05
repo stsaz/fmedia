@@ -308,6 +308,7 @@ enum CMDS {
 	COPYFILE,
 	DELFILE,
 	SHOWINFO,
+	SHOWPCM,
 	INFOEDIT,
 	FILTER_SHOW,
 	FILTER_APPLY,
@@ -368,6 +369,7 @@ const struct cmd* getcmd(uint cmd, const struct cmd *cmds, uint n);
 
 void* gui_getctl(void *udata, const ffstr *name);
 void gui_media_add1(const char *fn);
+void gui_media_showpcm(void);
 
 void wmain_init(void);
 void gui_runcmd(const struct cmd *cmd, void *udata);
