@@ -64,7 +64,8 @@ ENCODING:
 --mpeg-quality=INT MPEG encoding quality: 9..0 (VBR) or 64..320 (CBR)
 --aac-quality=INT  AAC encoding quality: 1..5 (VBR) or 8..800 (CBR, kbit/s)
 --aac-profile=STR  Set AAC profile: LC | HE | HEv2
---flac-level=INT   FLAC compression level: 0..8
+--flac-compression=INT
+                   FLAC compression level: 0..8
 --stream-copy      Copy audio data without re-encoding.  Supported formats: OGG, MPEG.
 
 OUTPUT:
