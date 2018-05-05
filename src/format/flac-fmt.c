@@ -6,6 +6,12 @@ Copyright (c) 2018 Simon Zolin */
 #include <FF/aformat/flac.h>
 #include <FF/audio/flac.h>
 #include <FF/mtags/mmtag.h>
+#include <FF/pic/png.h>
+#include <FF/pic/jpeg.h>
+
+
+#undef warnlog
+#define warnlog(trk, ...)  fmed_warnlog(core, trk, "flac.out", __VA_ARGS__)
 
 
 extern const fmed_core *core;
@@ -46,6 +52,59 @@ int flac_out_config(ffpars_ctx *conf)
 	return 0;
 }
 
+static int pic_meta_png(struct flac_picinfo *info, const ffstr *data)
+{
+	struct ffpngr png = {};
+	int rc = -1, r;
+	if (0 != ffpngr_open(&png))
+		goto err;
+	png.input = *data;
+	r = ffpngr_read(&png);
+	if (r != FFPNG_HDR)
+		goto err;
+
+	info->mime = FFPNG_MIME;
+	info->width = png.info.width;
+	info->height = png.info.height;
+	info->bpp = png.info.bpp;
+	rc = 0;
+
+err:
+	ffpngr_close(&png);
+	return rc;
+}
+
+static int pic_meta_jpeg(struct flac_picinfo *info, const ffstr *data)
+{
+	struct ffjpegr jpeg = {};
+	int rc = -1, r;
+	if (0 != ffjpegr_open(&jpeg))
+		goto err;
+	jpeg.input = *data;
+	r = ffjpegr_read(&jpeg);
+	if (r != FFJPEG_HDR)
+		goto err;
+
+	info->mime = FFJPEG_MIME;
+	info->width = jpeg.info.width;
+	info->height = jpeg.info.height;
+	info->bpp = jpeg.info.bpp;
+	rc = 0;
+
+err:
+	ffjpegr_close(&jpeg);
+	return rc;
+}
+
+static void pic_meta(struct flac_picinfo *info, const ffstr *data, void *trk)
+{
+	if (0 == pic_meta_png(info, data))
+		return;
+	if (0 == pic_meta_jpeg(info, data))
+		return;
+	warnlog(trk, "picture write: can't detect MIME; writing without MIME and image dimensions");
+}
+
 static int flac_out_addmeta(flac_out *f, fmed_filt *d)
 {
 	uint i;
@@ -65,6 +124,14 @@ static int flac_out_addmeta(flac_out *f, fmed_filt *d)
 		if (val == FMED_QUE_SKIP
 			|| ffstr_eqcz(&name, "vendor"))
 			continue;
+
+		if (ffstr_eqcz(&name, "picture")) {
+			struct flac_picinfo info = {};
+			pic_meta(&info, val, d->trk);
+			ffflac_setpic(&f->fl, &info, val);
+			continue;
+		}
+
 		if (0 != ffflac_addtag(&f->fl, name.ptr, val->ptr, val->len)) {
 			syserrlog(core, d->trk, "flac", "can't add tag: %S", &name);
 			return -1;

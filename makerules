@@ -244,6 +244,8 @@ FLAC_O := $(OBJ_DIR)/flac.o \
 	$(FF_OBJ_DIR)/ffflac-fmt.o \
 	$(FF_OBJ_DIR)/ffflac-ext.o \
 	$(FF_OBJ_DIR)/ffflac.o \
+	$(FF_OBJ_DIR)/ffpng-fmt.o \
+	$(FF_OBJ_DIR)/ffjpeg-fmt.o \
 	$(FF_OBJ_DIR)/ffvorbistag.o \
 	$(FF_OBJ_DIR)/ffmmtag.o \
 	$(FF_OBJ_DIR)/ffpcm.o
