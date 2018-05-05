@@ -98,6 +98,14 @@ static const struct fmed_filter sndmod_startlev = {
 	&startlev_open, &startlev_process, &startlev_close
 };
 
+//STOP-LEVEL
+static void* stoplev_open(fmed_filt *d);
+static void stoplev_close(void *ctx);
+static int stoplev_process(void *ctx, fmed_filt *d);
+static const struct fmed_filter sndmod_stoplev = {
+	&stoplev_open, &stoplev_process, &stoplev_close
+};
+
 //MEMBUF
 static void* membuf_open(fmed_filt *d);
 static void membuf_close(void *ctx);
@@ -128,6 +136,7 @@ static const struct submod submods[] = {
 	{ "rtpeak", &fmed_sndmod_rtpeak },
 	{ "silgen", &sndmod_silgen },
 	{ "startlevel", &sndmod_startlev },
+	{ "stoplevel", &sndmod_stoplev },
 	{ "membuf", &sndmod_membuf },
 };
 
@@ -786,6 +795,82 @@ static int startlev_process(void *ctx, fmed_filt *d)
 	}
 	d->outlen = d->datalen - r * ffpcm_size1(&c->fmt);
 	return FMED_RDONE;
+}
+
+#undef FILT_NAME
+
+
+#define FILT_NAME "soundmod.stoplevel"
+
+struct stoplev {
+	ffpcmex fmt;
+	uint max_samples;
+	uint nsamples;
+	double level;
+	double val;
+};
+
+#define STOPLEV_DEF_TIME  5000
+
+static void* stoplev_open(fmed_filt *d)
+{
+	struct stoplev *c = ffmem_new(struct stoplev);
+	if (c == NULL)
+		return NULL;
+	c->fmt = d->audio.fmt;
+	c->level = ffpcm_db2gain(-d->a_stop_level);
+	uint t = (d->a_stop_level_time != 0) ? d->a_stop_level_time : STOPLEV_DEF_TIME;
+	c->max_samples = c->fmt.channels * ffpcm_samples(t, c->fmt.sample_rate);
+	return c;
+}
+
+static void stoplev_close(void *ctx)
+{
+	struct stoplev *c = ctx;
+	ffmem_free(c);
+}
+
+static int stoplev_cb(void *ctx, double val)
+{
+	struct stoplev *c = ctx;
+	if (val <= c->level) {
+		if (c->nsamples == 0)
+			c->val = val;
+		if (++c->nsamples == c->max_samples)
+			return 1;
+		return 0;
+	}
+	if (c->nsamples != 0)
+		c->nsamples = 0;
+	return 0;
+}
+
+static int stoplev_process(void *ctx, fmed_filt *d)
+{
+	struct stoplev *c = ctx;
+	size_t samples = d->datalen / ffpcm_size1(&c->fmt);
+	ssize_t r;
+
+	if (!(d->flags & FMED_FFWD))
+		return FMED_RMORE;
+
+	r = ffpcm_process(&c->fmt, d->data, samples, &stoplev_cb, c);
+	if (r == -1) {
+		d->out = d->data;
+		d->outlen = d->datalen;
+		d->datalen = 0;
+		return (d->flags & FMED_FLAST) ? FMED_RDONE : FMED_RDATA;
+	} else if (r < 0) {
+		return FMED_RERR;
+	}
+
+	double db = ffpcm_gain2db(c->val);
+	infolog(d->trk, "signal went below %.2FdB level (at %.2FdB) for %ums (%,L samples)"
+		, (double)d->a_stop_level, db, (int)ffpcm_time(c->max_samples, c->fmt.sample_rate), (size_t)c->max_samples);
+
+	d->out = d->data;
+	d->outlen = r * ffpcm_size1(&c->fmt);
+	return FMED_RLASTOUT;
 }
 
 #undef FILT_NAME

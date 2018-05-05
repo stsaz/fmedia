@@ -33,6 +33,8 @@ typedef struct fmed_cmd {
 	uint until_time;
 	uint prebuffer;
 	float start_level; //dB
+	float stop_level; //dB
+	uint stop_level_time; //msec
 	uint64 fseek;
 	ffstr meta;
 

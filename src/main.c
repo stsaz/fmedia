@@ -34,6 +34,7 @@ static int fmed_arg_skip(ffparser_schem *p, void *obj, const ffstr *val);
 static int fmed_arg_infile(ffparser_schem *p, void *obj, const ffstr *val);
 static int fmed_arg_listdev(void);
 static int arg_flist(ffparser_schem *p, void *obj, const char *fn);
+static int arg_astoplev(ffparser_schem *p, void *obj, const ffstr *val);
 static int fmed_arg_seek(ffparser_schem *p, void *obj, const ffstr *val);
 static int fmed_arg_install(ffparser_schem *p, void *obj, const ffstr *val);
 static int fmed_arg_channels(ffparser_schem *p, void *obj, ffstr *val);
@@ -81,6 +82,7 @@ static const ffpars_arg fmed_cmdline_args[] = {
 	{ "until",	FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_seek) },
 	{ "prebuffer",	FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_seek) },
 	{ "start-dblevel",	FFPARS_TFLOAT | FFPARS_FSIGN,  OFF(start_level) },
+	{ "stop-dblevel",	FFPARS_TSTR,  FFPARS_DST(&arg_astoplev) },
 	{ "fseek",	FFPARS_TINT | FFPARS_F64BIT,  OFF(fseek) },
 	{ "info",	FFPARS_SETVAL('i') | FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(info) },
 	{ "tags",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(tags) },
@@ -312,6 +314,31 @@ done:
 	FF_SAFECLOSE(f, FF_BADFD, fffile_close);
 	ffarr_free(&buf);
 	return r;
+}
+
+/* "DB[;TIME]" */
+static int arg_astoplev(ffparser_schem *p, void *obj, const ffstr *val)
+{
+	fmed_cmd *cmd = obj;
+	ffstr db, time;
+	ffs_split2by(val->ptr, val->len, ';', &db, &time);
+
+	double f;
+	if (db.len == 0 || db.len != ffs_tofloat(db.ptr, db.len, &f, 0))
+		return FFPARS_EBADVAL;
+	cmd->stop_level = f;
+
+	if (time.len != 0) {
+		ffdtm dt;
+		fftime t;
+		if (time.len != fftime_fromstr(&dt, time.ptr, time.len, FFTIME_HMS_MSEC_VAR))
+			return FFPARS_EBADVAL;
+
+		fftime_join(&t, &dt, FFTIME_TZNODATE);
+		cmd->stop_level_time = fftime_ms(&t);
+	}
+
+	return 0;
 }
 
 static int fmed_arg_seek(ffparser_schem *p, void *obj, const ffstr *val)
@@ -567,6 +594,8 @@ static void trk_prep(fmed_cmd *fmed, fmed_trk *trk)
 	trk->pcm_peaks_crc = fmed->pcm_crc;
 	trk->use_dynanorm = fmed->dynanorm;
 	trk->a_start_level = ffabs(fmed->start_level);
+	trk->a_stop_level = ffabs(fmed->stop_level);
+	trk->a_stop_level_time = fmed->stop_level_time;
 
 	if (fmed->volume != 100) {
 		double db;

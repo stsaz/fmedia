@@ -245,6 +245,9 @@ static int trk_setout(fm_trk *t)
 	if (t->props.a_start_level != 0)
 		addfilter(t, "#soundmod.startlevel");
 
+	if (t->props.a_stop_level != 0)
+		addfilter(t, "#soundmod.stoplevel");
+
 	if (t->props.type == FMED_TRK_TYPE_REC && t->props.a_prebuffer != 0) {
 		addfilter(t, "#soundmod.membuf");
 	}
@@ -403,6 +406,8 @@ static void trk_copy_info(fmed_trk *dst, const fmed_trk *src)
 	ffmemcpy(&dst->audio, &src->audio, FFOFF(fmed_trk, bits) - FFOFF(fmed_trk, audio));
 	dst->a_prebuffer = src->a_prebuffer;
 	dst->a_start_level = src->a_start_level;
+	dst->a_stop_level = src->a_stop_level;
+	dst->a_stop_level_time = src->a_stop_level_time;
 	dst->bits = src->bits;
 }
 
