@@ -206,7 +206,10 @@ static void que_destroy(void)
 @meta: string of format "[clear;]NAME=VAL;NAME=VAL..." */
 static int que_setmeta(entry *ent, const char *meta, void *trk)
 {
+	int rc = -1, f;
+	ffarr buf = {};
 	ffstr s, m, name, val;
+	char *fn = NULL;
 
 	ffstr_setz(&s, meta);
 	while (s.len != 0) {
@@ -220,12 +223,31 @@ static int que_setmeta(entry *ent, const char *meta, void *trk)
 		if (NULL == ffs_split2by(m.ptr, m.len, '=', &name, &val)
 			|| name.len == 0) {
 			errlog(core, trk, "que", "--meta: invalid data");
-			return -1;
+			goto end;
 		}
 
-		_que_meta_set(&ent->e, name.ptr, name.len, val.ptr, val.len, FMED_QUE_OVWRITE);
+		f = FMED_QUE_OVWRITE;
+		if (ffstr_matchz(&val, "@file:")) {
+			ffstr_shift(&val, FFSLEN("@file:"));
+			if (NULL == (fn = ffsz_alcopy(val.ptr, val.len)))
+				goto end;
+			if (0 != fffile_readall(&buf, fn, -1)) {
+				syserrlog("%s: %s", fffile_read_S, fn);
+				goto end;
+			}
+			ffstr_acqstr3(&val, &buf);
+			f |= FMED_QUE_ACQUIRE;
+		}
+
+		_que_meta_set(&ent->e, name.ptr, name.len, val.ptr, val.len, f);
 	}
-	return 0;
+
+	rc = 0;
+
+end:
+	ffarr_free(&buf);
+	ffmem_free(fn);
+	return rc;
 }
 
 static void que_play(entry *ent)
@@ -733,12 +755,13 @@ static void que_meta_set(fmed_que_entry *ent, const ffstr *name, const ffstr *va
 	if (NULL == ffarr2_grow(a, 2, sizeof(ffstr)))
 		goto err;
 
-	sname = ffsz_alcopylwr(name->ptr, name->len);
-	sval = ffsz_alcopy(val->ptr, val->len);
-	if (sname == NULL || sval == NULL) {
-		ffmem_safefree(sname);
-		ffmem_safefree(sval);
+	if (NULL == (sname = ffsz_alcopylwr(name->ptr, name->len)))
 		goto err;
+	if (flags & FMED_QUE_ACQUIRE)
+		sval = val->ptr;
+	else {
+		if (NULL == (sval = ffsz_alcopy(val->ptr, val->len)))
+			goto err;
 	}
 
 	ffstr *arr = a->ptr;
@@ -750,6 +773,8 @@ static void que_meta_set(fmed_que_entry *ent, const ffstr *name, const ffstr *va
 	return;
 
 err:
+	if (flags & FMED_QUE_ACQUIRE)
+		ffmem_free(val->ptr);
 	syserrlog("%s", ffmem_alloc_S);
 }
 

@@ -51,6 +51,8 @@ INPUT:
                    .mp3 supports: album, albumartist, artist, comment, date, genre, picture, publisher, title, tracknumber, tracktotal.
                    .mp4 supports: album, albumartist, artist, comment, composer, copyright, date, discnumber, genre, lyrics, title, tracknumber.
                    .flac, .ogg support tags of any name.
+                   Value may be read from file (e.g. album cover picture):
+                     "picture=@file:FILENAME"
 
 FILTERS:
 --volume=INT       Set volume (0% .. 125%)

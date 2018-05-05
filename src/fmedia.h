@@ -654,6 +654,7 @@ enum FMED_QUE_META_F {
 	FMED_QUE_METADEL = 0x20,
 	FMED_QUE_NO_TMETA = 0x40, //don't include transient meta
 	FMED_QUE_PRIV = 0x80, //private meta data
+	FMED_QUE_ACQUIRE = 0x0100, //don't copy data, acquire value buffer
 };
 
 #define FMED_QUE_SKIP  ((void*)-1)
