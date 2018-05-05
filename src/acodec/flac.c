@@ -168,8 +168,7 @@ static void flac_meta(flac *f, fmed_filt *d)
 	if (f->fl.vtag.tag != 0) {
 		ffstr_setz(&name, ffmmtag_str[f->fl.vtag.tag]);
 	}
-	qu->meta_set((void*)fmed_getval("queue_item"), name.ptr, name.len
-		, f->fl.vtag.val.ptr, f->fl.vtag.val.len, FMED_QUE_TMETA);
+	d->track->meta_set(d->trk, &name, &f->fl.vtag.val, FMED_QUE_TMETA);
 }
 
 static int flac_in_decode(void *ctx, fmed_filt *d)

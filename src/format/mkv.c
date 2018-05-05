@@ -97,7 +97,7 @@ static void mkv_meta(fmed_mkv *m, fmed_filt *d)
 		return;
 	ffstr_setz(&name, ffmmtag_str[m->mkv.tag]);
 	ffstr_set2(&val, &m->mkv.tagval);
-	qu->meta_set((void*)fmed_getval("queue_item"), name.ptr, name.len, val.ptr, val.len, FMED_QUE_TMETA);
+	d->track->meta_set(d->trk, &name, &val, FMED_QUE_TMETA);
 }
 
 static const ushort mkv_codecs[] = {

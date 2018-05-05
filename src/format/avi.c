@@ -96,7 +96,7 @@ static void avi_meta(fmed_avi *a, fmed_filt *d)
 		return;
 	ffstr_setz(&name, ffmmtag_str[a->avi.tag]);
 	ffstr_set2(&val, &a->avi.tagval);
-	qu->meta_set((void*)fmed_getval("queue_item"), name.ptr, name.len, val.ptr, val.len, FMED_QUE_TMETA);
+	d->track->meta_set(d->trk, &name, &val, FMED_QUE_TMETA);
 }
 
 static const ushort avi_codecs[] = {

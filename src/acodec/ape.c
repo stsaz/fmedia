@@ -107,7 +107,7 @@ static void ape_meta(ape *a, fmed_filt *d)
 	val = a->ap.tagval;
 	dbglog(core, d->trk, "ape", "tag: %S: %S", &name, &val);
 
-	qu->meta_set((void*)fmed_getval("queue_item"), name.ptr, name.len, val.ptr, val.len, FMED_QUE_TMETA);
+	d->track->meta_set(d->trk, &name, &val, FMED_QUE_TMETA);
 }
 
 static int ape_in_decode(void *ctx, fmed_filt *d)

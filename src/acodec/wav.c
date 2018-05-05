@@ -120,7 +120,7 @@ static void wav_meta(fmed_wav *w, fmed_filt *d)
 		return;
 	ffstr_setz(&name, ffmmtag_str[w->wav.tag]);
 	ffstr_set2(&val, &w->wav.tagval);
-	qu->meta_set((void*)fmed_getval("queue_item"), name.ptr, name.len, val.ptr, val.len, FMED_QUE_TMETA);
+	d->track->meta_set(d->trk, &name, &val, FMED_QUE_TMETA);
 }
 
 static int wav_process(void *ctx, fmed_filt *d)

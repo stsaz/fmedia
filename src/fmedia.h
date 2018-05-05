@@ -315,6 +315,10 @@ typedef struct fmed_track {
 	char* (*getvalstr3)(void *trk, const void *name, uint flags);
 
 	void (*loginfo)(void *trk, const ffstr **id, const char **module);
+
+	/**
+	@flags: enum FMED_QUE_META_F */
+	void (*meta_set)(void *trk, const ffstr *name, const ffstr *val, uint flags);
 } fmed_track;
 
 #define fmed_getval(name)  (d)->track->getval((d)->trk, name)

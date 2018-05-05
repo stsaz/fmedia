@@ -233,7 +233,7 @@ static int vorbis_in_decode(void *ctx, fmed_filt *d)
 
 		if (vtag->tag != 0)
 			ffstr_setz(&name, ffmmtag_str[vtag->tag]);
-		qu->meta_set((void*)fmed_getval("queue_item"), name.ptr, name.len, vtag->val.ptr, vtag->val.len, FMED_QUE_TMETA);
+		d->track->meta_set(d->trk, &name, &vtag->val, FMED_QUE_TMETA);
 		break;
 	}
 

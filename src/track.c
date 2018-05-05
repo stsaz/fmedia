@@ -116,10 +116,12 @@ static int trk_setvalstr(void *trk, const char *name, const char *val);
 static int64 trk_setval4(void *trk, const char *name, int64 val, uint flags);
 static char* trk_setvalstr4(void *trk, const char *name, const char *val, uint flags);
 static char* trk_getvalstr3(void *trk, const void *name, uint flags);
+static void trk_meta_set(void *trk, const ffstr *name, const ffstr *val, uint flags);
 const fmed_track _fmed_track = {
 	&trk_create, &trk_conf, &trk_copy_info, &trk_cmd, &trk_cmd2,
 	&trk_popval, &trk_getval, &trk_getvalstr, &trk_setval, &trk_setvalstr, &trk_setval4, &trk_setvalstr4, &trk_getvalstr3,
 	&trk_loginfo,
+	&trk_meta_set,
 };
 
 
@@ -757,6 +759,15 @@ static dict_ent* dict_add(fm_trk *t, const char *name, uint *f)
 	}
 
 	return ent;
+}
+
+static void trk_meta_set(void *trk, const ffstr *name, const ffstr *val, uint flags)
+{
+	fm_trk *t = trk;
+	void *qent = (void*)trk_getval(t, "queue_item");
+	if (qent == FMED_PNULL)
+		return;
+	fmed->qu->meta_set(qent, name->ptr, name->len, val->ptr, val->len, flags);
 }
 
 static dict_ent* meta_find(fm_trk *t, const ffstr *name)

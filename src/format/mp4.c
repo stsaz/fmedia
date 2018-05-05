@@ -118,7 +118,7 @@ static void mp4_meta(mp4 *m, fmed_filt *d)
 
 	dbglog(core, d->trk, "mp4", "tag: %S: %S", &name, &val);
 
-	qu->meta_set((void*)fmed_getval("queue_item"), name.ptr, name.len, val.ptr, val.len, FMED_QUE_TMETA);
+	d->track->meta_set(d->trk, &name, &val, FMED_QUE_TMETA);
 }
 
 static int mp4_in_decode(void *ctx, fmed_filt *d)

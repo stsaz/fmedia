@@ -179,7 +179,7 @@ static int mpc_process(void *ctx, fmed_filt *d)
 			ffstr_set2(&val, &m->mpc.tagval);
 
 			dbglog(core, d->trk, NULL, "tag: %S: %S", &name, &val);
-			qu->meta_set((void*)fmed_getval("queue_item"), name.ptr, name.len, val.ptr, val.len, FMED_QUE_TMETA);
+			d->track->meta_set(d->trk, &name, &val, FMED_QUE_TMETA);
 			continue;
 		}
 

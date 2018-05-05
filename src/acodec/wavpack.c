@@ -107,7 +107,7 @@ static void wvpk_meta(wvpk *w, fmed_filt *d)
 	val = w->wp.tagval;
 	dbglog(core, d->trk, "wvpk", "tag: %S: %S", &name, &val);
 
-	qu->meta_set((void*)fmed_getval("queue_item"), name.ptr, name.len, val.ptr, val.len, FMED_QUE_TMETA);
+	d->track->meta_set(d->trk, &name, &val, FMED_QUE_TMETA);
 }
 
 static int wvpk_in_decode(void *ctx, fmed_filt *d)
