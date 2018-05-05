@@ -58,6 +58,13 @@ extern fmed_core *core;
 extern const fmed_track _fmed_track;
 
 
+/** Find the worker with the least number of active jobs.
+Initialize data and create a thread if necessary.
+Return worker ID. */
+extern uint core_job_new(void);
+
+extern void core_job_done(uint id);
+
 extern void core_job_enter(uint id, size_t *ctx);
 
 extern ffbool core_job_shouldyield(uint id, size_t *ctx);

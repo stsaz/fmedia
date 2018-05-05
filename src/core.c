@@ -13,6 +13,7 @@ Copyright (c) 2015 Simon Zolin */
 #include <FFOS/process.h>
 #include <FFOS/timer.h>
 #include <FFOS/dir.h>
+#include <FFOS/thread.h>
 
 
 #undef syserrlog
@@ -21,6 +22,8 @@ Copyright (c) 2015 Simon Zolin */
 
 
 struct worker {
+	ffthd thd;
+	ffthd_id id;
 	fffd kq;
 
 	fftaskmgr taskmgr;
@@ -29,6 +32,9 @@ struct worker {
 
 	fftimer_queue tmrq;
 	uint period;
+
+	uint njobs;
+	uint init :1;
 };
 
 typedef struct inmap_item {
@@ -86,9 +92,9 @@ static core_modinfo* mod_load(const ffstr *ps);
 static void mod_destroy(core_modinfo *m);
 static int core_filetype(const char *fn);
 
-static int wrk_init(struct worker *w);
+static int wrk_init(struct worker *w, uint thread);
 static void wrk_destroy(struct worker *w);
-static int core_work(void *param);
+static int FFTHDCALL core_work(void *param);
 
 static const void* core_iface(const char *name);
 static int core_sig2(uint signo);
@@ -651,7 +657,8 @@ void core_free(void)
 
 	struct worker *w;
 	FFARR_WALKT(&fmed->workers, w, struct worker) {
-		wrk_destroy(w);
+		if (w->init)
+			wrk_destroy(w);
 	}
 
 	tracks_destroy();
@@ -922,7 +929,7 @@ static int core_open(void)
 		return 1;
 	fmed->workers.len = n;
 	struct worker *w = (void*)fmed->workers.ptr;
-	if (0 != wrk_init(w))
+	if (0 != wrk_init(w, 0))
 		return 1;
 	core->kq = w->kq;
 
@@ -932,7 +939,7 @@ static int core_open(void)
 	return 0;
 }
 
-static int wrk_init(struct worker *w)
+static int wrk_init(struct worker *w, uint thread)
 {
 	fftask_init(&w->taskmgr);
 	fftmrq_init(&w->tmrq);
@@ -946,36 +953,95 @@ static int wrk_init(struct worker *w)
 	ffkev_init(&w->evposted);
 	w->evposted.oneshot = 0;
 	w->evposted.handler = &core_posted;
+
+	if (thread) {
+		w->thd = ffthd_create(&core_work, w, 0);
+		if (w->thd == FFTHD_INV) {
+			syserrlog("%s", ffthd_create_S);
+			wrk_destroy(w);
+			return 1;
+		}
+		// w->id is set inside a new thread
+	} else {
+		w->id = ffthd_curid();
+	}
+
+	w->init = 1;
 	return 0;
 }
 
 static void wrk_destroy(struct worker *w)
 {
+	if (w->thd != FFTHD_INV) {
+		ffthd_join(w->thd, -1, NULL);
+		dbglog(core, NULL, "core", "thread %xU exited", w->id);
+		w->thd = FFTHD_INV;
+	}
 	fftmrq_destroy(&w->tmrq, w->kq);
 	if (w->kq != FF_BADFD) {
 		ffkqu_post_detach(&w->kqpost, w->kq);
 		ffkqu_close(w->kq);
+		w->kq = FF_BADFD;
 	}
+}
+
+uint core_job_new(void)
+{
+	struct worker *w, *ww = (void*)fmed->workers.ptr;
+	uint id = 0, j = -1;
+
+	FFARR_WALKT(&fmed->workers, w, struct worker) {
+		if (w->njobs < j) {
+			id = w - ww;
+			j = w->njobs;
+			if (w->njobs == 0)
+				break;
+		}
+	}
+	w = &ww[id];
+
+	if (!w->init
+		&& 0 != wrk_init(w, 1)) {
+		id = 0;
+		w = &ww[0];
+		goto done;
+	}
+
+done:
+	w->njobs++;
+	return id;
+}
+
+void core_job_done(uint id)
+{
+	struct worker *w = ffarr_itemT(&fmed->workers, id, struct worker);
+	FF_ASSERT(w->njobs != 0);
+	w->njobs--;
 }
 
 void core_job_enter(uint id, size_t *ctx)
 {
 	struct worker *w = ffarr_itemT(&fmed->workers, id, struct worker);
+	FF_ASSERT(w->id == ffthd_curid());
 	*ctx = w->taskmgr.tasks.len;
 }
 
 ffbool core_job_shouldyield(uint id, size_t *ctx)
 {
 	struct worker *w = ffarr_itemT(&fmed->workers, id, struct worker);
+	FF_ASSERT(w->id == ffthd_curid());
 	return (*ctx != w->taskmgr.tasks.len);
 }
 
-static int core_work(void *param)
+static int FFTHDCALL core_work(void *param)
 {
 	struct worker *w = param;
+	w->id = ffthd_curid();
 	ffkqu_entry *ents = ffmem_callocT(FMED_KQ_EVS, ffkqu_entry);
 	if (ents == NULL)
 		return -1;
+
+	dbglog(core, NULL, "core", "entering kqueue loop", 0);
 
 	while (!fmed->stopped) {
 

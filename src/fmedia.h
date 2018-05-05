@@ -154,11 +154,11 @@ struct fmed_core {
 
 	const fmed_modinfo* (*insmod)(const char *name, ffpars_ctx *ctx);
 
-	/**
+	/** Add task to the main worker.
 	@cmd: enum FMED_TASK. */
 	void (*task)(fftask *task, uint cmd);
 
-	/**
+	/** Set timer on the main worker.
 	@interval:  >0: periodic;  <0: one-shot;  0: disable.
 	Return 0 on success. */
 	int (*timer)(fftmrq_entry *tmr, int64 interval, uint flags);
