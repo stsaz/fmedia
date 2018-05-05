@@ -33,6 +33,7 @@ static int fmed_arg_usage(void);
 static int fmed_arg_skip(ffparser_schem *p, void *obj, const ffstr *val);
 static int fmed_arg_infile(ffparser_schem *p, void *obj, const ffstr *val);
 static int fmed_arg_listdev(void);
+static int arg_flist(ffparser_schem *p, void *obj, const char *fn);
 static int fmed_arg_seek(ffparser_schem *p, void *obj, const ffstr *val);
 static int fmed_arg_install(ffparser_schem *p, void *obj, const ffstr *val);
 static int fmed_arg_channels(ffparser_schem *p, void *obj, ffstr *val);
@@ -55,7 +56,7 @@ static const fmed_log std_logger = {
 #define OFF(member)  FFPARS_DSTOFF(fmed_cmd, member)
 
 static const ffpars_arg fmed_cmdline_args[] = {
-	{ "",	FFPARS_TSTR | FFPARS_FCOPY | FFPARS_FNOTEMPTY | FFPARS_FSTRZ | FFPARS_FMULTI,  FFPARS_DST(&fmed_arg_infile) },
+	{ "",	FFPARS_TSTR | FFPARS_FNOTEMPTY | FFPARS_FMULTI,  FFPARS_DST(&fmed_arg_infile) },
 
 	//QUEUE
 	{ "repeat-all",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(repeat_all) },
@@ -75,6 +76,7 @@ static const ffpars_arg fmed_cmdline_args[] = {
 	//INPUT
 	{ "record",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(rec) },
 	{ "mix",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(mix) },
+	{ "flist",	FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY | FFPARS_FNOTEMPTY | FFPARS_FMULTI, FFPARS_DST(&arg_flist) },
 	{ "seek",	FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_seek) },
 	{ "until",	FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_seek) },
 	{ "prebuffer",	FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_seek) },
@@ -177,7 +179,8 @@ static int fmed_arg_infile(ffparser_schem *p, void *obj, const ffstr *val)
 	char **fn;
 	if (NULL == (fn = ffarr_pushgrowT(&cmd->in_files, 4, char*)))
 		return FFPARS_ESYS;
-	*fn = val->ptr;
+	if (NULL == (*fn = ffsz_alcopystr(val)))
+		return FFPARS_ESYS;
 	return 0;
 }
 
@@ -261,6 +264,53 @@ static int fmed_arg_out_copy(ffparser_schem *p, void *obj, const ffstr *val)
 	}
 	cmd->out_copy = r;
 	return 0;
+}
+
+/** Read file line by line and add filenames as input arguments. */
+static int arg_flist(ffparser_schem *p, void *obj, const char *fn)
+{
+	int r = FFPARS_ESYS;
+	uint cnt = 0;
+	ssize_t n;
+	fffd f = FF_BADFD;
+	ffarr buf = {0};
+	ffstr line;
+	const char *d, *end, *lf, *ln_end;
+
+	dbglog(core, NULL, "core", "opening file %s", fn);
+
+	if (FF_BADFD == (f = fffile_open(fn, O_RDONLY | O_NOATIME)))
+		goto done;
+	if (NULL == ffarr_alloc(&buf, fffile_size(f)))
+		goto done;
+	if (0 > (n = fffile_read(f, buf.ptr, buf.cap)))
+		goto done;
+	d = buf.ptr;
+	end = buf.ptr + n;
+	while (d != end) {
+		lf = ffs_find(d, end - d, '\n');
+		d = ffs_skipof(d, lf - d, " \t", 2);
+		ln_end = ffs_rskipof(d, lf - d, " \t\r", 3);
+		ffstr_set(&line, d, ln_end - d);
+		if (lf != end)
+			d = lf + 1;
+		else
+			d = lf;
+		if (line.len == 0)
+			continue;
+		if (0 != fmed_arg_infile(p, obj, &line))
+			goto done;
+		cnt++;
+	}
+
+	dbglog(core, NULL, "core", "added %u filenames from %s", cnt, fn);
+
+	r = 0;
+
+done:
+	FF_SAFECLOSE(f, FF_BADFD, fffile_close);
+	ffarr_free(&buf);
+	return r;
 }
 
 static int fmed_arg_seek(ffparser_schem *p, void *obj, const ffstr *val)
