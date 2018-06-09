@@ -21,7 +21,7 @@ Copyright (c) 2016 Simon Zolin */
 
 
 enum {
-	N_RUNTIME_FILTERS = 8, //allow up to this number of filters to be added while track is running
+	N_FILTERS = 32, //allow up to this number of filters to be added while track is running
 };
 
 struct tracks {
@@ -98,6 +98,7 @@ static void trk_printtime(fm_trk *t);
 static int trk_meta_enum(fm_trk *t, fmed_trk_meta *meta);
 static int trk_meta_copy(fm_trk *t, fm_trk *src);
 static fmed_f* filt_add(fm_trk *t, uint cmd, const char *name);
+static char* chain_print(fm_trk *t, const ffchain_item *mark, char *buf, size_t cap);
 
 static dict_ent* dict_add(fm_trk *t, const char *name, uint *f);
 static void dict_ent_free(dict_ent *e);
@@ -142,29 +143,14 @@ void tracks_destroy(void)
 	ffmem_free0(g);
 }
 
-static fmed_f* _addfilter1(fm_trk *t)
-{
-	fmed_f *f;
-	if (NULL == (f = ffarr_pushgrowT((ffarr*)&t->filters, 4, fmed_f)))
-		return NULL;
-	ffmem_tzero(f);
-	return f;
-}
-
 static fmed_f* addfilter1(fm_trk *t, const fmed_modinfo *mod)
 {
-	fmed_f *f = _addfilter1(t);
-	f->name = mod->name;
-	f->filt = mod->iface;
-	return f;
+	return filt_add(t, FMED_TRACK_FILT_ADDLAST, mod->name);
 }
 
 static fmed_f* addfilter(fm_trk *t, const char *modname)
 {
-	fmed_f *f = _addfilter1(t);
-	f->name = modname;
-	f->filt = core->getmod(modname);
-	return f;
+	return filt_add(t, FMED_TRACK_FILT_ADDLAST, modname);
 }
 
 static fmed_f* trk_modbyext(fm_trk *t, uint flags, const ffstr *ext)
@@ -294,29 +280,13 @@ static int trk_setout(fm_trk *t)
 
 static int trk_opened(fm_trk *t)
 {
-	fmed_f *f;
-
-	if (NULL == ffarr_grow(&t->filters, N_RUNTIME_FILTERS, 0))
-		return -1;
-
-	FFARR_WALK(&t->filters, f) {
-		ffchain_add(&t->filt_chain, &f->sib);
-	}
-
 	if (core->loglev == FMED_LOG_DEBUG) {
-		ffarr schain = {0};
-		FFARR_WALK(&t->filters, f) {
-			const char *next = (f == t->filters.ptr) ? "" : " -> ";
-			ffstr_catfmt(&schain, "%s%s", next, f->name);
-		}
-		dbglog(t, "chain: %S", &schain);
-		ffarr_free(&schain);
 		dbglog(t, "properties: %*xb", sizeof(t->props), &t->props);
 	}
 
 	fflist_ins(&g->trks, &t->sib);
 	t->state = TRK_ST_ACTIVE;
-	t->cur = &t->filters.ptr->sib;
+	t->cur = ffchain_first(&t->filt_chain);
 	return 0;
 }
 
@@ -346,7 +316,7 @@ static void* trk_create(uint cmd, const char *fn)
 	t->id.len = ffs_fmt(t->sid, t->sid + sizeof(t->sid), "*%L", ffatom_incret(&g->trkid));
 	t->id.ptr = t->sid;
 
-	if (NULL == ffarr_allocT((ffarr*)&t->filters, 8, fmed_f))
+	if (NULL == ffarr_allocT((ffarr*)&t->filters, N_FILTERS, fmed_f))
 		goto err;
 
 	switch (cmd) {
@@ -838,48 +808,66 @@ static int trk_meta_copy(fm_trk *t, fm_trk *src)
 static fmed_f* filt_add(fm_trk *t, uint cmd, const char *name)
 {
 	fmed_f *f;
-	const void *iface;
 	if (ffarr_isfull(&t->filters)) {
 		errlog(t, "can't add more filters", 0);
 		return NULL;
 	}
 
-	if (NULL == (iface = core->getmod2(FMED_MOD_IFACE, name, -1))) {
+	f = ffarr_endT(&t->filters, fmed_f);
+	ffmem_tzero(f);
+	if (NULL == (f->filt = core->getmod2(FMED_MOD_IFACE, name, -1))) {
 		errlog(t, "no such interface %s", name);
 		return NULL;
 	}
 
 	switch (cmd) {
+	case FMED_TRACK_FILT_ADDFIRST:
 	case FMED_TRACK_ADDFILT_BEGIN:
-		FF_ASSERT(t->state != TRK_ST_ACTIVE);
-		if (NULL == ffarr_growT((ffarr*)&t->filters, 1, 4, fmed_f))
-			return NULL;
-		memmove(t->filters.ptr + 1, t->filters.ptr, t->filters.len * sizeof(fmed_f));
-		f = t->filters.ptr;
-		ffmem_tzero(f);
+		ffchain_addfront(&t->filt_chain, &f->sib);
+		break;
+
+	case FMED_TRACK_FILT_ADDLAST:
+		ffchain_add(&t->filt_chain, &f->sib);
 		break;
 
 	case FMED_TRACK_FILT_ADD:
 	case FMED_TRACK_ADDFILT:
-		f = ffarr_end(&t->filters);
-		ffmem_tzero(f);
 		ffchain_append(&f->sib, t->cur);
 		break;
 
 	case FMED_TRACK_FILT_ADDPREV:
 	case FMED_TRACK_ADDFILT_PREV:
-		f = ffarr_end(&t->filters);
-		ffmem_tzero(f);
 		ffchain_prepend(&f->sib, t->cur);
 		break;
 	}
 
-	f->filt = iface;
 	f->name = name;
 	t->filters.len++;
 
-	dbglog(t, "added %s to chain", f->name);
+	if (t->cur == ffchain_sentl(&t->filt_chain))
+		t->cur = ffchain_first(&t->filt_chain);
+
+	char buf[255];
+	dbglog(t, "added %s to chain [%s]"
+		, f->name, chain_print(t, &f->sib, buf, sizeof(buf)));
 	return f;
+}
+
+/** Print names of all filters in chain. */
+static char* chain_print(fm_trk *t, const ffchain_item *mark, char *buf, size_t cap)
+{
+	FF_ASSERT(cap != 0);
+	char *p = buf, *end = buf + cap - 1;
+	ffchain_item *it;
+	fmed_f *f;
+
+	FFCHAIN_WALK(&t->filt_chain, it) {
+		f = FF_GETPTR(fmed_f, sib, it);
+		p += ffs_fmt(p, end, (it == mark) ? "*%s -> " : "%s -> ", f->name);
+	}
+
+	*p = '\0';
+	return buf;
 }
 
 static ssize_t trk_cmd(void *trk, uint cmd, ...)
@@ -948,6 +936,8 @@ static ssize_t trk_cmd(void *trk, uint cmd, ...)
 		core->task(&t->tsk, FMED_TASK_POST);
 		break;
 
+	case FMED_TRACK_FILT_ADDFIRST:
+	case FMED_TRACK_FILT_ADDLAST:
 	case FMED_TRACK_FILT_ADD:
 	case FMED_TRACK_FILT_ADDPREV: {
 		const char *name = va_arg(va, char*);
