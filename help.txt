@@ -38,6 +38,8 @@ INPUT:
 --flist=FILE       Read filenames from FILE
 --include='WILDCARD[;WILDCARD]'
                    Only include files matching a wildcard (case-insensitive)
+--exclude='WILDCARD[;WILDCARD]'
+                   Exclude files & directories matching a wildcard (case-insensitive)
 --seek=TIME        Seek to time: [[HH:]MM:]SS[:MSC]
 --until=TIME       Stop at time
 --prebuffer=TIME   Start recording by a command from user, saving the previously bufferred seconds of audio

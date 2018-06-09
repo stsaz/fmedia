@@ -84,6 +84,7 @@ static const ffpars_arg fmed_cmdline_args[] = {
 	{ "mix",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(mix) },
 	{ "flist",	FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY | FFPARS_FNOTEMPTY | FFPARS_FMULTI, FFPARS_DST(&arg_flist) },
 	{ "include",	FFPARS_TSTR | FFPARS_FCOPY | FFPARS_FNOTEMPTY, FFPARS_DST(&arg_finclude) },
+	{ "exclude",	FFPARS_TSTR | FFPARS_FCOPY | FFPARS_FNOTEMPTY, FFPARS_DST(&arg_finclude) },
 	{ "seek",	FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_seek) },
 	{ "until",	FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_seek) },
 	{ "prebuffer",	FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_seek) },
@@ -336,7 +337,10 @@ static int arg_finclude(ffparser_schem *p, void *obj, const ffstr *val)
 		*dst = wc;
 	}
 
-	ffarr_set(&cmd->include_files, a.ptr, a.len);
+	if (ffsz_eq(p->curarg->name, "include"))
+		ffarr_set(&cmd->include_files, a.ptr, a.len);
+	else
+		ffarr_set(&cmd->exclude_files, a.ptr, a.len);
 	ffarr_null(&a);
 	rc = 0;
 
@@ -616,6 +620,7 @@ static void trk_prep(fmed_cmd *fmed, fmed_trk *trk)
 {
 	trk->input_info = fmed->info;
 	trk->include_files = fmed->include_files;
+	trk->exclude_files = fmed->exclude_files;
 	if (fmed->fseek != 0)
 		trk->input.seek = fmed->fseek;
 	if (fmed->seek_time != 0)

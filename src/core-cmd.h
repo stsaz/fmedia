@@ -38,6 +38,7 @@ typedef struct fmed_cmd {
 	uint64 fseek;
 	ffstr meta;
 	ffarr2 include_files; //ffstr[]
+	ffarr2 exclude_files; //ffstr[]
 
 	float gain;
 	byte volume;

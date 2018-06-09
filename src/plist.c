@@ -657,6 +657,8 @@ static void* dir_open(fmed_filt *d)
 }
 
 /**
+'include' filter matches files only.
+'exclude' filter matches files & directories.
 Return TRUE if filename matches user's filename wildcards. */
 static ffbool file_matches(fmed_filt *d, const char *fn, ffbool dir)
 {
@@ -671,6 +673,15 @@ static ffbool file_matches(fmed_filt *d, const char *fn, ffbool dir)
 				ok = 1;
 				break;
 			}
+		}
+		if (!ok)
+			return 0;
+	}
+
+	FFARR_WALKT(&d->exclude_files, wc, ffstr) {
+		if (0 == ffs_wildcard(wc->ptr, wc->len, fn, fnlen, FFS_WC_ICASE)) {
+			ok = 0;
+			break;
 		}
 	}
 	return ok;
