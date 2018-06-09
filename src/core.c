@@ -576,6 +576,7 @@ static void cmd_destroy(fmed_cmd *cmd)
 
 	ffmem_safefree(cmd->globcmd_pipename);
 	ffstr_free(&cmd->globcmd);
+	ffarr2_free(&cmd->include_files);
 }
 
 static int conf_init(fmed_config *conf)

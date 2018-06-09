@@ -656,6 +656,26 @@ static void* dir_open(fmed_filt *d)
 	return FMED_FILT_DUMMY;
 }
 
+/**
+Return TRUE if filename matches user's filename wildcards. */
+static ffbool file_matches(fmed_filt *d, const char *fn, ffbool dir)
+{
+	size_t fnlen = ffsz_len(fn);
+	const ffstr *wc;
+	ffbool ok = 1;
+
+	if (!dir) {
+		ok = (d->include_files.len == 0);
+		FFARR_WALKT(&d->include_files, wc, ffstr) {
+			if (0 == ffs_wildcard(wc->ptr, wc->len, fn, fnlen, FFS_WC_ICASE)) {
+				ok = 1;
+				break;
+			}
+		}
+	}
+	return ok;
+}
+
 struct dir_ent {
 	char *dir;
 	ffchain_item sib;
@@ -716,6 +736,9 @@ static int dir_open_r(const char *dirname, fmed_filt *d)
 				syserrlog(core, d->trk, NULL, "%s: %s", fffile_info_S, fn);
 				continue;
 			}
+
+			if (!file_matches(d, ffdir_expname(&dr, fn), fffile_isdir(fffile_infoattr(&fi))))
+				continue;
 
 			if (fffile_isdir(fffile_infoattr(&fi))) {
 

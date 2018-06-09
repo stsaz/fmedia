@@ -37,6 +37,7 @@ typedef struct fmed_cmd {
 	uint stop_level_time; //msec
 	uint64 fseek;
 	ffstr meta;
+	ffarr2 include_files; //ffstr[]
 
 	float gain;
 	byte volume;

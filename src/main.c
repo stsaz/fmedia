@@ -34,6 +34,7 @@ static int fmed_arg_skip(ffparser_schem *p, void *obj, const ffstr *val);
 static int fmed_arg_infile(ffparser_schem *p, void *obj, const ffstr *val);
 static int fmed_arg_listdev(void);
 static int arg_flist(ffparser_schem *p, void *obj, const char *fn);
+static int arg_finclude(ffparser_schem *p, void *obj, const ffstr *val);
 static int arg_astoplev(ffparser_schem *p, void *obj, const ffstr *val);
 static int fmed_arg_seek(ffparser_schem *p, void *obj, const ffstr *val);
 static int fmed_arg_install(ffparser_schem *p, void *obj, const ffstr *val);
@@ -82,6 +83,7 @@ static const ffpars_arg fmed_cmdline_args[] = {
 	{ "record",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(rec) },
 	{ "mix",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(mix) },
 	{ "flist",	FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY | FFPARS_FNOTEMPTY | FFPARS_FMULTI, FFPARS_DST(&arg_flist) },
+	{ "include",	FFPARS_TSTR | FFPARS_FCOPY | FFPARS_FNOTEMPTY, FFPARS_DST(&arg_finclude) },
 	{ "seek",	FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_seek) },
 	{ "until",	FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_seek) },
 	{ "prebuffer",	FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_seek) },
@@ -318,6 +320,29 @@ done:
 	FF_SAFECLOSE(f, FF_BADFD, fffile_close);
 	ffarr_free(&buf);
 	return r;
+}
+
+// "WILDCARD[;WILDCARD]"
+static int arg_finclude(ffparser_schem *p, void *obj, const ffstr *val)
+{
+	int rc = FFPARS_ESYS;
+	fmed_cmd *cmd = obj;
+	ffstr *dst, s = *val, wc;
+	ffarr a = {};
+	while (s.len != 0) {
+		ffstr_nextval3(&s, &wc, ';');
+		if (NULL == (dst = ffarr_pushgrowT(&a, 4, ffstr)))
+			goto end;
+		*dst = wc;
+	}
+
+	ffarr_set(&cmd->include_files, a.ptr, a.len);
+	ffarr_null(&a);
+	rc = 0;
+
+end:
+	ffarr_free(&a);
+	return rc;
 }
 
 /* "DB[;TIME]" */
@@ -590,6 +615,7 @@ static void qu_setprops(fmed_cmd *fmed, const fmed_queue *qu, fmed_que_entry *qe
 static void trk_prep(fmed_cmd *fmed, fmed_trk *trk)
 {
 	trk->input_info = fmed->info;
+	trk->include_files = fmed->include_files;
 	if (fmed->fseek != 0)
 		trk->input.seek = fmed->fseek;
 	if (fmed->seek_time != 0)

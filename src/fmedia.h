@@ -459,6 +459,7 @@ struct fmed_trk {
 	float a_start_level; //dB
 	float a_stop_level; //dB
 	uint a_stop_level_time; //msec
+	ffarr2 include_files; //ffstr[]
 };
 
 enum FMED_R {
