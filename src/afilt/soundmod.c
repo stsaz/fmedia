@@ -290,6 +290,11 @@ static int sndmod_conv_process(void *ctx, fmed_filt *d)
 	uint samples;
 	int r;
 
+	if (d->flags & FMED_FSTOP) {
+		d->outlen = 0;
+		return FMED_RDONE;
+	}
+
 	switch (c->state) {
 	case 0:
 		return FMED_RERR; // settings are empty
@@ -707,6 +712,12 @@ static void silgen_close(void *ctx)
 static int silgen_process(void *ctx, fmed_filt *d)
 {
 	struct silgen *c = ctx;
+
+	if (d->flags & FMED_FSTOP) {
+		d->outlen = 0;
+		return FMED_RDONE;
+	}
+
 	switch (c->state) {
 
 	case 0:

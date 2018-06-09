@@ -8,6 +8,13 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v0.37 -
+
+ + --include='WILDCARD[;WILDCARD]' - Only include files matching a wildcard (case-insensitive)
+ + --exclude='WILDCARD[;WILDCARD]' - Exclude files & directories matching a wildcard (case-insensitive)
+ - .m4a write: support conversion from .mp3 (inaccurate audio length)
+
+
 fmedia v0.36 - May 5, 2018
 
  + "--start-dblevel=DB" - Skip initial audio until input signal level goes above DB
