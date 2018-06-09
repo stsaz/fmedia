@@ -644,6 +644,14 @@ shift:
 			break;
 
 		case FFLIST_CUR_SAME:
+			if (f->sib.next == ffchain_sentl(&t->filt_chain)
+				&& (e == FMED_RDATA || e == FMED_ROK)) {
+				errlog(t, "module %s, the last in chain, outputs more data", f->name);
+				t->state = TRK_ST_ERR;
+				goto fin;
+			}
+			// fall through
+
 		case FFLIST_CUR_PREV:
 			nf = FF_GETPTR(fmed_f, sib, t->cur);
 			if (e == FMED_RBACK) {
