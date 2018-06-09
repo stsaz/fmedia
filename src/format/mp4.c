@@ -313,25 +313,25 @@ static int mp4_out_encode(void *ctx, fmed_filt *d)
 		// fall through
 
 	case I_INIT: {
-		ffstr asc;
-		ffstr_set(&asc, d->data, d->datalen);
+		struct ffmp4_info info = {};
+		ffstr_set(&info.conf, d->data, d->datalen);
 		d->datalen = 0;
-		ffpcm fmt;
-		ffpcm_fmtcopy(&fmt, &d->audio.convfmt);
+		ffpcm_fmtcopy(&info.fmt, &d->audio.convfmt);
 
-		if ((int64)d->audio.total != FMED_NULL)
-			m->mp.info.total_samples = ((d->audio.total - d->audio.pos) * d->audio.convfmt.sample_rate / d->audio.fmt.sample_rate);
+		if ((int64)d->audio.total != FMED_NULL
+			&& !d->duration_inaccurate)
+			info.total_samples = ((d->audio.total - d->audio.pos) * d->audio.convfmt.sample_rate / d->audio.fmt.sample_rate);
 
 		if (FMED_NULL == (r = (int)fmed_getval("audio_frame_samples")))
 			return FMED_RERR;
-		m->mp.info.frame_samples = r;
+		info.frame_samples = r;
 
 		if (FMED_NULL != (r = fmed_getval("audio_enc_delay")))
-			m->mp.info.enc_delay = r;
+			info.enc_delay = r;
 		if (FMED_NULL != (r = fmed_getval("audio_bitrate")))
-			m->mp.info.bitrate = r;
+			info.bitrate = r;
 
-		if (0 != (r = ffmp4_create_aac(&m->mp, &fmt, &asc))) {
+		if (0 != (r = ffmp4_create_aac(&m->mp, &info))) {
 			errlog(core, d->trk, NULL, "ffmp4_create_aac(): %s", ffmp4_werrstr(&m->mp));
 			return FMED_RERR;
 		}
