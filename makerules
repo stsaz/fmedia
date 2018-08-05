@@ -17,6 +17,9 @@ ifeq ($(OS),linux)
 
 OS_BINS += alsa.$(SO) pulse.$(SO)
 
+else ifeq ($(OS),apple)
+# OS_BINS += coreaudio.$(SO)
+
 else ifeq ($(OS),bsd)
 OS_BINS += oss.$(SO)
 
@@ -356,6 +359,14 @@ PULSE_O := $(OBJ_DIR)/pulse.o $(FF_O) \
 	$(FF_OBJ_DIR)/ffpulse.o
 pulse.$(SO): $(PULSE_O)
 	$(LD) -shared $(PULSE_O) $(LDFLAGS) -lpulse -o$@
+
+
+#
+COREAUDIO_O := $(OBJ_DIR)/coreaudio.o $(FF_O) \
+	$(FF_OBJ_DIR)/ffpcm.o \
+	$(FF_OBJ_DIR)/ffcoreaudio.o
+coreaudio.$(SO): $(COREAUDIO_O)
+	$(LD) -shared $(COREAUDIO_O) $(LDFLAGS) -framework CoreFoundation -framework CoreAudio -o$@
 
 
 #

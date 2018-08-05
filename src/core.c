@@ -186,7 +186,7 @@ static const ffpars_arg fmed_confusr_args[] = {
 #define MODS_WIN_ONLY  "wasapi.", "direct-sound."
 #define MODS_LINUX_ONLY  "alsa.", "pulse."
 #define MODS_BSD_ONLY  "oss."
-#define MODS_MAC_ONLY
+#define MODS_MAC_ONLY  "coreaudio."
 
 static const char *const mods_skip[] = {
 #if defined FF_WIN
@@ -197,6 +197,7 @@ static const char *const mods_skip[] = {
 	MODS_WIN_ONLY, MODS_LINUX_ONLY, MODS_MAC_ONLY
 #elif defined FF_APPLE
 	MODS_WIN_ONLY, MODS_LINUX_ONLY, MODS_BSD_ONLY
+	, MODS_MAC_ONLY
 #endif
 };
 
