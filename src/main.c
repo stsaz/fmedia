@@ -20,6 +20,8 @@ Copyright (c) 2015 Simon Zolin */
 struct gctx {
 	ffsignal sigs_task;
 	fmed_cmd *cmd;
+	void *rec_trk;
+	const fmed_track *track;
 
 	ffdl core_dl;
 	fmed_core* (*core_init)(fmed_cmd **ptr, char **argv, char **env);
@@ -37,6 +39,7 @@ static int arg_flist(ffparser_schem *p, void *obj, const char *fn);
 static int arg_finclude(ffparser_schem *p, void *obj, const ffstr *val);
 static int arg_astoplev(ffparser_schem *p, void *obj, const ffstr *val);
 static int fmed_arg_seek(ffparser_schem *p, void *obj, const ffstr *val);
+static int fmed_arg_until(ffparser_schem *p, void *obj, const ffstr *val);
 static int fmed_arg_install(ffparser_schem *p, void *obj, const ffstr *val);
 static int fmed_arg_channels(ffparser_schem *p, void *obj, ffstr *val);
 static int fmed_arg_format(ffparser_schem *p, void *obj, ffstr *val);
@@ -86,7 +89,7 @@ static const ffpars_arg fmed_cmdline_args[] = {
 	{ "include",	FFPARS_TSTR | FFPARS_FCOPY | FFPARS_FNOTEMPTY, FFPARS_DST(&arg_finclude) },
 	{ "exclude",	FFPARS_TSTR | FFPARS_FCOPY | FFPARS_FNOTEMPTY, FFPARS_DST(&arg_finclude) },
 	{ "seek",	FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_seek) },
-	{ "until",	FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_seek) },
+	{ "until",	FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_until) },
 	{ "prebuffer",	FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_seek) },
 	{ "start-dblevel",	FFPARS_TFLOAT | FFPARS_FSIGN,  OFF(start_level) },
 	{ "stop-dblevel",	FFPARS_TSTR,  FFPARS_DST(&arg_astoplev) },
@@ -395,6 +398,11 @@ static int fmed_arg_seek(ffparser_schem *p, void *obj, const ffstr *val)
 	return 0;
 }
 
+static int fmed_arg_until(ffparser_schem *p, void *obj, const ffstr *val)
+{
+	return fmed_arg_seek(p, obj, val);
+}
+
 static int fmed_arg_install(ffparser_schem *p, void *obj, const ffstr *val)
 {
 #ifdef FF_WIN
@@ -521,12 +529,19 @@ static void mon_onsig(fmed_trk *trk, uint sig)
 {
 	switch (sig) {
 	case FMED_TRK_ONCLOSE:
+		if (trk == g->rec_trk)
+			g->rec_trk = NULL;
 		if (trk->type == FMED_TRK_TYPE_REC && !g->cmd->gui)
 			core->sig(FMED_STOP);
 		break;
+
 	case FMED_TRK_ONLAST:
-		if (!g->cmd->gui && !g->cmd->rec)
-			core->sig(FMED_STOP);
+		if (g->cmd->gui)
+			break;
+		if (g->rec_trk != NULL) {
+			break;
+		}
+		core->sig(FMED_STOP);
 		break;
 	}
 }
@@ -537,16 +552,13 @@ static const int sigs_block[] = { SIGINT, SIGIO };
 
 static void fmed_onsig(void *udata)
 {
-	const fmed_track *track;
 	int sig;
 	ffsignal *sg = udata;
 
 	if (-1 == (sig = ffsig_read(sg, NULL)))
 		return;
 
-	if (NULL == (track = core->getmod("#core.track")))
-		return;
-	track->cmd((void*)-1, FMED_TRACK_STOPALL_EXIT);
+	g->track->cmd((void*)-1, FMED_TRACK_STOPALL_EXIT);
 }
 
 static void qu_setprops(fmed_cmd *fmed, const fmed_queue *qu, fmed_que_entry *qe);
@@ -679,15 +691,13 @@ static void trk_prep(fmed_cmd *fmed, fmed_trk *trk)
 static void open_input(void *udata)
 {
 	char **pfn;
-	const fmed_track *track;
+	const fmed_track *track = g->track;
 	const fmed_queue *qu;
 	fmed_que_entry e, *qe;
 	void *first = NULL;
 	fmed_cmd *fmed = udata;
 
 	if (NULL == (qu = core->getmod("#queue.queue")))
-		goto end;
-	if (NULL == (track = core->getmod("#core.track")))
 		goto end;
 
 	fmed_trk trkinfo;
@@ -743,6 +753,7 @@ static void open_input(void *udata)
 		if (fmed->rec)
 			track->setval(trk, "low_latency", 1);
 
+		g->rec_trk = trk;
 		track->cmd(trk, FMED_TRACK_START);
 	}
 
@@ -760,12 +771,10 @@ It generates silence and plays it via an audio device,
  so data from WASAPI in looopback mode can be read continuously. */
 static void rec_lpback_new_track(fmed_cmd *cmd)
 {
-	const fmed_track *track;
+	const fmed_track *track = g->track;
 	void *trk;
 	int r = 0;
 
-	if (NULL == (track = core->getmod("#core.track")))
-		return;
 	if (NULL == (trk = track->create(FMED_TRK_TYPE_NONE, NULL)))
 		return;
 
@@ -916,6 +925,9 @@ int main(int argc, char **argv, char **env)
 		}
 	}
 
+	if (NULL == (g->track = core->getmod("#core.track")))
+		goto end;
+
 	const fmed_globcmd_iface *globcmd = NULL;
 	ffbool gcmd_listen = 0;
 	if (gcmd->globcmd.len != 0
@@ -948,10 +960,7 @@ int main(int argc, char **argv, char **env)
 	fftask_set(&gcmd->tsk_start, &open_input, g->cmd);
 	core->task(&gcmd->tsk_start, FMED_TASK_POST);
 
-	const fmed_track *track;
-	if (NULL == (track = core->getmod("#core.track")))
-		goto end;
-	track->fmed_trk_monitor(NULL, &mon_iface);
+	g->track->fmed_trk_monitor(NULL, &mon_iface);
 
 	core->sig(FMED_START);
 	rc = 0;
