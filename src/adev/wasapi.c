@@ -16,14 +16,15 @@ typedef struct wasapi_out wasapi_out;
 
 typedef struct wasapi_mod {
 	ffwasapi out;
+	fftask excl_tsk; //registered in WOH
 	fftmrq_entry tmr;
 	ffpcm fmt;
 	wasapi_out *usedby;
 	const fmed_track *track;
-	ffwoh *woh;
 	uint devidx;
 	uint out_valid :1;
 	uint init_ok :1;
+	uint excl_init :1;
 } wasapi_mod;
 
 static wasapi_mod *mod;
@@ -43,6 +44,7 @@ enum { WAS_TRYOPEN, WAS_OPEN, WAS_DATA };
 
 typedef struct wasapi_in {
 	ffwasapi wa;
+	fftask excl_tsk; //registered in WOH
 	fftmrq_entry tmr;
 	uint latcorr;
 	void *trk;
@@ -174,6 +176,10 @@ static int wasapi_sig(uint signo)
 
 static void wasapi_closedev(void)
 {
+	if (mod->excl_tsk.handler != NULL) {
+		mod->excl_tsk.handler = NULL;
+		core->cmd(FMED_WOH_DEL, mod->out.evt);
+	}
 	ffwas_close(&mod->out);
 	ffmem_tzero(&mod->out);
 	mod->out_valid = 0;
@@ -184,7 +190,6 @@ static void wasapi_destroy(void)
 	if (mod != NULL) {
 		if (mod->out_valid)
 			wasapi_closedev();
-		FF_SAFECLOSE(mod->woh, NULL, ffwoh_free);
 		ffmem_free(mod);
 		mod = NULL;
 	}
@@ -356,12 +361,13 @@ static int wasapi_create(wasapi_out *w, fmed_filt *d)
 	}
 
 	if (excl) {
-		if (mod->woh == NULL) {
-			if (NULL == (mod->woh = ffwoh_create()))
+		if (!mod->excl_init) {
+			if (0 != core->cmd(FMED_WOH_INIT))
 				goto done;
 			fflk_setup();
+			mod->excl_init = 1;
 		}
-		ffwas_excl(&mod->out, mod->woh, &wasapi_onplay, w);
+		ffwas_excl(&mod->out, &wasapi_onplay, w);
 	}
 	in_fmt = fmt;
 	dbglog(core, d->trk, NULL, "opening device #%u, fmt:%s/%u/%u, excl:%u"
@@ -395,6 +401,11 @@ static int wasapi_create(wasapi_out *w, fmed_filt *d)
 	mod->out_valid = 1;
 	mod->fmt = fmt;
 	mod->devidx = w->devidx;
+	if (excl) {
+		mod->excl_tsk.handler = &_ffwas_onplay_excl;
+		mod->excl_tsk.param = &mod->out;
+		core->cmd(FMED_WOH_ADD, mod->out.evt, &mod->excl_tsk);
+	}
 
 fin:
 	if (!excl) {
@@ -404,7 +415,7 @@ fin:
 		if (0 != core->timer(&mod->tmr, nfy_int_ms, 0))
 			goto done;
 	} else
-		ffwas_excl(&mod->out, mod->woh, &wasapi_onplay, w);
+		ffwas_excl(&mod->out, &wasapi_onplay, w);
 
 	mod->usedby = w;
 	dbglog(core, d->trk, "wasapi", "%s buffer %ums, %uHz, excl:%u"
@@ -582,12 +593,13 @@ static void* wasapi_in_open(fmed_filt *d)
 	flags |= (excl) ? FFWAS_EXCL : 0;
 
 	if (excl) {
-		if (mod->woh == NULL) {
-			if (NULL == (mod->woh = ffwoh_create()))
+		if (!mod->excl_init) {
+			if (0 != core->cmd(FMED_WOH_INIT))
 				goto fail;
 			fflk_setup();
+			mod->excl_init = 1;
 		}
-		ffwas_excl(&w->wa, mod->woh, &wasapi_oncapt, w);
+		ffwas_excl(&w->wa, &wasapi_oncapt, w);
 	}
 	ffpcm_fmtcopy(&fmt, &d->audio.fmt);
 	in_fmt = fmt;
@@ -635,6 +647,11 @@ again:
 		if (0 != core->timer(&w->tmr, nfy_int_ms, 0))
 			goto fail;
 	}
+	if (excl) {
+		w->excl_tsk.handler = &_ffwas_onplay_excl;
+		w->excl_tsk.param = &w->wa;
+		core->cmd(FMED_WOH_ADD, w->wa.evt, &w->excl_tsk);
+	}
 
 	r = ffwas_start(&w->wa);
 	if (r != 0) {
@@ -665,6 +682,8 @@ static void wasapi_in_close(void *ctx)
 {
 	wasapi_in *w = ctx;
 	core->timer(&w->tmr, 0, 0);
+	if (w->excl_tsk.handler != NULL)
+		core->cmd(FMED_WOH_DEL, w->wa.evt);
 	ffwas_capt_close(&w->wa);
 	ffmem_free(w);
 }
