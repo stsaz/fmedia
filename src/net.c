@@ -759,7 +759,10 @@ static int tcp_prepare(nethttp *c, ffaddr *a)
 		ffaio_init(&c->aio);
 		c->aio.sk = c->sk;
 		c->aio.udata = c;
-		if (0 != ffaio_attach(&c->aio, core->kq, FFKQU_READ | FFKQU_WRITE)) {
+		fffd kq = core->kq;
+		if (c->d->trk != NULL)
+			kq = (fffd)net->track->cmd(c->d->trk, FMED_TRACK_KQ);
+		if (0 != ffaio_attach(&c->aio, kq, FFKQU_READ | FFKQU_WRITE)) {
 			syserrlog(c->d->trk, "%s", ffkqu_attach_S);
 			return -1;
 		}

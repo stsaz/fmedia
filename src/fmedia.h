@@ -253,6 +253,10 @@ enum FMED_TRACK_CMD {
 
 	FMED_TRACK_FILT_ADDFIRST,
 	FMED_TRACK_FILT_ADDLAST,
+
+	/** Get kernel queue associated with this track.
+	Return fffd. */
+	FMED_TRACK_KQ,
 };
 
 enum FMED_TRK_TYPE {

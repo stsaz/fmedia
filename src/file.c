@@ -280,7 +280,8 @@ static void* file_open(fmed_filt *d)
 
 	ffaio_finit(&f->ftask, f->fd, f);
 	f->ftask.kev.udata = f;
-	if (0 != ffaio_fattach(&f->ftask, core->kq, !!(flags & O_DIRECT))) {
+	fffd kq = (fffd)d->track->cmd(d->trk, FMED_TRACK_KQ);
+	if (0 != ffaio_fattach(&f->ftask, kq, !!(flags & O_DIRECT))) {
 		syserrlog(d->trk, "%s: %s", ffkqu_attach_S, f->fn);
 		goto done;
 	}

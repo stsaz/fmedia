@@ -1023,6 +1023,10 @@ static ssize_t trk_cmd(void *trk, uint cmd, ...)
 		g->mon = va_arg(va, void*);
 		break;
 
+	case FMED_TRACK_KQ:
+		r = (size_t)core->kq;
+		break;
+
 	default:
 		errlog(t, "invalid command:%u", cmd);
 	}
