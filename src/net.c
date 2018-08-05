@@ -29,6 +29,7 @@ typedef struct net_conf {
 	uint bufsize;
 	uint nbufs;
 	uint buf_lowat;
+	uint conn_tmout;
 	uint tmout;
 	byte user_agent;
 	byte max_redirect;
@@ -207,6 +208,7 @@ static const ffpars_arg net_conf_args[] = {
 	{ "bufsize",	FFPARS_TSIZE | FFPARS_FNOTZERO,  FFPARS_DSTOFF(net_conf, bufsize) },
 	{ "buffers",	FFPARS_TINT | FFPARS_FNOTZERO,  FFPARS_DSTOFF(net_conf, nbufs) },
 	{ "buffer_lowat",	FFPARS_TSIZE,  FFPARS_DSTOFF(net_conf, buf_lowat) },
+	{ "connect_timeout",	FFPARS_TINT,  FFPARS_DSTOFF(net_conf, conn_tmout) },
 	{ "timeout",	FFPARS_TINT,  FFPARS_DSTOFF(net_conf, tmout) },
 	{ "user_agent",	FFPARS_TENUM | FFPARS_F8BIT,  FFPARS_DST(&ua_enum) },
 	{ "max_redirect",	FFPARS_TINT | FFPARS_F8BIT,  FFPARS_DSTOFF(net_conf, max_redirect) },
@@ -577,6 +579,7 @@ static int http_config(ffpars_ctx *ctx)
 	net->conf.bufsize = 16 * 1024;
 	net->conf.nbufs = 2;
 	net->conf.buf_lowat = 8 * 1024;
+	net->conf.conn_tmout = 1500;
 	net->conf.tmout = 5000;
 	net->conf.user_agent = UA_OFF;
 	net->conf.max_redirect = 10;
@@ -791,7 +794,7 @@ static int tcp_connect(nethttp *c, const struct sockaddr *addr, socklen_t addr_s
 
 	} else if (r == FFAIO_ASYNC) {
 		c->async = 1;
-		core->timer(&c->tmr, -(int)net->conf.tmout, 0);
+		core->timer(&c->tmr, -(int)net->conf.conn_tmout, 0);
 		return FMED_RASYNC;
 	}
 
