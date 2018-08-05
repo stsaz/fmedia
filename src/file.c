@@ -695,7 +695,11 @@ static void* fileout_open(fmed_filt *d)
 		}
 	}
 
-	if (NULL == ffarr_alloc(&f->buf, mod->out_conf.bsize)) {
+	size_t bfsz = mod->out_conf.bsize;
+	int64 n;
+	if (FMED_NULL != (n = fmed_popval("out_bufsize")))
+		bfsz = n; //Note: a large value can slow down the thread because we write to a file synchronously
+	if (NULL == ffarr_alloc(&f->buf, bfsz)) {
 		syserrlog(d->trk, "%s", ffmem_alloc_S);
 		goto done;
 	}

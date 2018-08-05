@@ -1468,8 +1468,10 @@ static void* netin_create(icy *c)
 	net->track->setval(trk, "netin_ptr", (size_t)n);
 	n->c = c;
 
-	if (c->save_oncmd)
+	if (c->save_oncmd) {
+		net->track->setval(trk, "out_bufsize", 2 * 1024 * 1024);
 		trkconf->out_file_del = 1;
+	}
 
 	if (1 == net->track->getval(c->d->trk, "out_stream_copy"))
 		trkconf->stream_copy = 1;
