@@ -416,14 +416,13 @@ static void que_mix(void)
 	if (NULL == (mxout = qu->track->create(FMED_TRACK_MIX, NULL)))
 		return;
 	qu->track->setval(mxout, "mix_tracks", ents->len);
+	ent_ref(mxout);
+	qu->track->cmd(mxout, FMED_TRACK_START);
 
 	qu->mixing = 1;
 	FFLIST_WALK(ents, e, sib) {
 		que_play(e);
 	}
-
-	ent_ref(e);
-	qu->track->cmd(mxout, FMED_TRACK_START);
 }
 
 static void que_cmd(uint cmd, void *param)

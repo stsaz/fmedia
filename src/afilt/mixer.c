@@ -16,6 +16,10 @@ INPUT2 -> mixer-in /
 #include <FFOS/error.h>
 
 
+#undef dbglog
+#define dbglog(trk, ...)  fmed_dbglog(core, trk, "mixer", __VA_ARGS__)
+
+
 typedef struct mxr {
 	ffstr data;
 	fflist inputs; //mix_in[]
@@ -24,6 +28,7 @@ typedef struct mxr {
 	uint sampsize;
 	void *trk;
 	unsigned first :1
+		, clear :1
 		, err :1;
 } mxr;
 
@@ -31,8 +36,7 @@ typedef struct mix_in {
 	fflist_item sib;
 	uint off;
 	uint state;
-	fmed_handler handler;
-	void *udata;
+	void *trk;
 	mxr *m;
 	unsigned more :1
 		, filled :1;
@@ -77,7 +81,10 @@ static const fmed_filter fmed_mix_out = {
 };
 
 static uint mix_write(mxr *m, uint off, const fmed_filt *d);
-static void mix_inputclosed(mxr *m);
+static ffbool mix_input_opened(mxr *m, mix_in *mi);
+static void mix_input_closed(mxr *m, mix_in *mi);
+#define mix_err(m)  ((m) == NULL || (m)->err)
+static void mix_seterr(mxr *m);
 
 
 static int mix_conf_close(ffparser_schem *p, void *obj);
@@ -161,31 +168,25 @@ static void* mix_in_open(fmed_filt *d)
 {
 	mix_in *mi;
 
-	if (mx->err)
-		return NULL;
-
 	mi = ffmem_tcalloc1(mix_in);
 	if (mi == NULL) {
 		errlog(core, d->trk, "mixer", "%s", ffmem_alloc_S);
-		mx->err = 1;
+		mix_seterr(mx);
 		return NULL;
 	}
-	fflist_ins(&mx->inputs, &mi->sib);
-	mi->m = mx;
-	mi->handler = d->handler;
-	mi->udata = d->trk;
+	if (!mix_input_opened(mx, mi)) {
+		ffmem_free(mi);
+		return NULL;
+	}
+	mi->trk = d->trk;
 	return mi;
 }
 
 static void mix_in_close(void *ctx)
 {
 	mix_in *mi = ctx;
-	fflist_rm(&mi->m->inputs, &mi->sib);
-	FF_ASSERT(mi->m->trk_count != 0);
-	mi->m->trk_count--;
-	if (mi->filled)
-		mi->m->filled--;
-	mix_inputclosed(mi->m);
+	if (mi->m != NULL)
+		mix_input_closed(mi->m, mi);
 	ffmem_free(mi);
 }
 
@@ -194,7 +195,7 @@ static int mix_in_write(void *ctx, fmed_filt *d)
 	uint n;
 	mix_in *mi = ctx;
 
-	if (mi->m->err)
+	if (mix_err(mi->m))
 		return FMED_RERR;
 
 	switch (mi->state) {
@@ -209,7 +210,7 @@ static int mix_in_write(void *ctx, fmed_filt *d)
 			|| pcmfmt.channels != d->audio.convfmt.channels
 			|| pcmfmt.sample_rate != d->audio.convfmt.sample_rate) {
 			errlog(core, d->trk, "mixer", "input format doesn't match output");
-			mx->err = 1;
+			mix_seterr(mi->m);
 			return FMED_RERR;
 		}
 		pcmfmt.ileaved = d->audio.convfmt.ileaved;
@@ -246,7 +247,6 @@ static void* mix_open(fmed_filt *d)
 	if (NULL == ffstr_alloc(&m->data, DATA_SIZE)) {
 		errlog(core, d->trk, "mixer", "%s", ffmem_alloc_S);
 		ffmem_free(m);
-		m = NULL;
 		return NULL;
 	}
 	ffmem_zero(m->data.ptr, DATA_SIZE);
@@ -262,39 +262,60 @@ static void* mix_open(fmed_filt *d)
 	m->trk_count = fmed_getval("mix_tracks");
 
 	mx = m;
+	d->datatype = "pcm";
 	return m;
 }
 
 static void mix_close(void *ctx)
 {
 	mxr *m = ctx;
-	if (m->inputs.len != 0) {
-		mix_in *mi;
-		fflist_item *next;
+	mix_in *mi;
 
-		m->err = 1; //stop all input tracks
-
-		FFLIST_WALKSAFE(&m->inputs, mi, sib, next) {
-			if (mi->more) {
-				mi->more = 0;
-				mi->handler(mi->udata);
-			}
+	FFLIST_WALK(&m->inputs, mi, sib) {
+		mi->m = NULL;
+		if (mi->more) {
+			mi->more = 0;
+			track->cmd(mi->trk, FMED_TRACK_WAKE);
 		}
-		return;
 	}
 	ffstr_free(&m->data);
 	ffmem_free(m);
-	m = NULL;
+	mx = NULL;
 }
 
-static void mix_inputclosed(mxr *m)
+static void mix_seterr(mxr *m)
 {
+	if (m->err)
+		return;
+	m->err = 1;
+	track->cmd(m->trk, FMED_TRACK_WAKE);
+}
+
+static ffbool mix_input_opened(mxr *m, mix_in *mi)
+{
+	if (m->err)
+		return 0;
+
+	fflist_ins(&m->inputs, &mi->sib);
+	FF_ASSERT(m->inputs.len <= m->trk_count);
+	mi->m = m;
+	dbglog(m->trk, "input opened: %p  [%u]"
+		, mi, (int)m->inputs.len);
+	return 1;
+}
+
+static void mix_input_closed(mxr *m, mix_in *mi)
+{
+	fflist_rm(&m->inputs, &mi->sib);
+	FF_ASSERT(m->trk_count != 0);
+	m->trk_count--;
+	if (mi->filled)
+		m->filled--;
 	if (m->filled == m->trk_count) {
-		if (m->err && m->inputs.len == 0)
-			mix_close(m);
-		else
-			track->cmd(m->trk, FMED_TRACK_WAKE);
+		track->cmd(m->trk, FMED_TRACK_WAKE);
 	}
+	dbglog(m->trk, "input closed: %p  [%u]"
+		, mi, m->trk_count);
 }
 
 static uint mix_write(mxr *m, uint off, const fmed_filt *d)
@@ -315,46 +336,53 @@ static uint mix_write(mxr *m, uint off, const fmed_filt *d)
 			track->cmd(m->trk, FMED_TRACK_WAKE);
 	}
 
+	dbglog(m->trk, "added more data: +%u  offset:%xu  [%u/%u]"
+		, n, off - n, m->filled, m->trk_count);
 	return n;
 }
 
 static int mix_read(void *ctx, fmed_filt *d)
 {
-	mix_in *mi;
-	fflist_item *next;
 	mxr *m = ctx;
+	mix_in *mi;
+
+	if (m->err)
+		return FMED_RERR;
 
 	if (m->first) {
 		m->first = 0;
 		return FMED_RASYNC;
 	}
 
-	if (m->filled != m->inputs.len)
-		return FMED_RASYNC; //mixed data is not ready
+	if (m->clear) {
+		m->clear = 0;
+		ffmem_zero(m->data.ptr, DATA_SIZE);
+		m->data.len = 0;
+		m->filled = 0;
+		FFLIST_WALK(&m->inputs, mi, sib) {
+			mi->off = 0;
+			mi->filled = 0;
+		}
 
-	if (d->outlen != m->data.len) {
+	} else if (m->data.len != 0 && m->filled == m->trk_count) {
 		d->out = m->data.ptr;
 		d->outlen = m->data.len;
-		return FMED_ROK;
+		d->audio.pos += d->outlen / m->sampsize;
+		m->clear = 1;
+		return FMED_RDATA;
 	}
 
-	ffmem_zero(m->data.ptr, DATA_SIZE);
-	d->outlen = 0;
-	m->data.len = 0;
-	m->filled = 0;
-	FFLIST_WALK(&m->inputs, mi, sib) {
-		mi->off = 0;
-		mi->filled = 0;
-	}
 
-	if (m->inputs.len == 0)
+	if (m->trk_count == 0) {
+		d->outlen = 0;
 		return FMED_RDONE;
+	}
 
 	//notify those streams that have more output
-	FFLIST_WALKSAFE(&m->inputs, mi, sib, next) {
+	FFLIST_WALK(&m->inputs, mi, sib) {
 		if (mi->more) {
 			mi->more = 0;
-			mi->handler(mi->udata);
+			track->cmd(mi->trk, FMED_TRACK_WAKE);
 		}
 	}
 
