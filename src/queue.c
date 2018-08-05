@@ -52,12 +52,17 @@ struct plist {
 	uint rm :1;
 };
 
+struct que_conf {
+	byte next_if_err;
+};
+
 typedef struct que {
 	fflist plists; //plist[]
 	plist *curlist;
 	const fmed_track *track;
 	fmed_que_onchange_t onchange;
 
+	struct que_conf conf;
 	uint quit_if_done :1
 		, next_if_err :1
 		, fmeta_lowprio :1 //meta from file has lower priority
@@ -69,11 +74,12 @@ static que *qu;
 
 //FMEDIA MODULE
 static const void* que_iface(const char *name);
+static int que_mod_conf(const char *name, ffpars_ctx *ctx);
 static int que_sig(uint signo);
 static void que_destroy(void);
 static const fmed_mod fmed_que_mod = {
 	.ver = FMED_VER_FULL, .ver_core = FMED_VER_CORE,
-	&que_iface, &que_sig, &que_destroy
+	&que_iface, &que_sig, &que_destroy, &que_mod_conf
 };
 
 static ssize_t que_cmd2(uint cmd, void *param, size_t param2);
@@ -113,6 +119,15 @@ static void que_trk_close(void *ctx);
 static const fmed_filter fmed_que_trk = {
 	&que_trk_open, &que_trk_process, &que_trk_close
 };
+static const ffpars_arg que_conf_args[] = {
+	{ "next_if_error",	FFPARS_TBOOL8,  FFPARS_DSTOFF(struct que_conf, next_if_err) },
+};
+static int que_config(ffpars_ctx *ctx)
+{
+	qu->conf.next_if_err = 1;
+	ffpars_setargs(ctx, &qu->conf, que_conf_args, FFCNT(que_conf_args));
+	return 0;
+}
 
 
 const fmed_mod* fmed_getmod_queue(const fmed_core *_core)
@@ -131,18 +146,29 @@ static const void* que_iface(const char *name)
 	return NULL;
 }
 
+static int que_mod_conf(const char *name, ffpars_ctx *ctx)
+{
+	if (!ffsz_cmp(name, "track"))
+		return que_config(ctx);
+	return -1;
+}
+
 static int que_sig(uint signo)
 {
 	switch (signo) {
-	case FMED_OPEN:
+	case FMED_SIG_INIT:
 		if (NULL == (qu = ffmem_tcalloc1(que)))
 			return 1;
 		fflist_init(&qu->plists);
+		break;
+
+	case FMED_OPEN:
 		que_cmd2(FMED_QUE_NEW, NULL, 0);
 		que_cmd2(FMED_QUE_SEL, (void*)0, 0);
 		qu->track = core->getmod("#core.track");
 		if (1 != core->getval("gui"))
 			qu->quit_if_done = 1;
+		qu->next_if_err = qu->conf.next_if_err;
 		if (1 == core->getval("next_if_error"))
 			qu->next_if_err = 1;
 		break;
