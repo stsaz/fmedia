@@ -266,6 +266,7 @@ static void* file_open(fmed_filt *d)
 	}
 
 	if (f->fd == FF_BADFD) {
+		d->e_no_source = (fferr_last() == ENOENT);
 		syserrlog(d->trk, "%s: %s", fffile_open_S, f->fn);
 		goto done;
 	}

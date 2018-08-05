@@ -767,6 +767,7 @@ static int tcp_prepare(nethttp *c, ffaddr *a)
 	}
 
 	errlog(c->d->trk, "no next address to connect");
+	c->d->e_no_source = 1;
 	return -1;
 }
 
