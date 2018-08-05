@@ -913,7 +913,9 @@ static int tcp_ioerr(nethttp *c)
 	ffmem_tzero(&c->iplist);
 	ffmem_tzero(&c->ip);
 
-	c->bufs[0].len = 0;
+	for (uint i = 0;  i != net->conf.nbufs;  i++) {
+		c->bufs[i].len = 0;
+	}
 	c->curbuf_len = 0;
 	c->wbuf = c->rbuf = 0;
 	c->lowat = 0;

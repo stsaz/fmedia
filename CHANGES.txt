@@ -8,10 +8,16 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
-fmedia v0.37 -
+fmedia v0.37 - Aug 5, 2018
 
  + --include='WILDCARD[;WILDCARD]' - Only include files matching a wildcard (case-insensitive)
  + --exclude='WILDCARD[;WILDCARD]' - Exclude files & directories matching a wildcard (case-insensitive)
+ + --until=playback-end - Stop recording when the last playback track is finished
+ + net.http: connect_timeout config setting
+ + net.icy: support OGG stream
+ *! queue: start the next track in list after an error has occurred with the current track
+    + queue: next_if_error config setting
+ - mixer: --mix didn't work
  - .m4a write: support conversion from .mp3 (inaccurate audio length)
 
 
