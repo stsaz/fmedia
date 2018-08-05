@@ -400,6 +400,11 @@ static int fmed_arg_seek(ffparser_schem *p, void *obj, const ffstr *val)
 
 static int fmed_arg_until(ffparser_schem *p, void *obj, const ffstr *val)
 {
+	fmed_cmd *cmd = obj;
+	if (ffstr_eqcz(val, "playback-end")) {
+		cmd->until_plback_end = 1;
+		return 0;
+	}
 	return fmed_arg_seek(p, obj, val);
 }
 
@@ -539,6 +544,8 @@ static void mon_onsig(fmed_trk *trk, uint sig)
 		if (g->cmd->gui)
 			break;
 		if (g->rec_trk != NULL) {
+			if (g->cmd->until_plback_end)
+				g->track->cmd(g->rec_trk, FMED_TRACK_STOP);
 			break;
 		}
 		core->sig(FMED_STOP);

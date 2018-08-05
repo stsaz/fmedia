@@ -71,4 +71,6 @@ typedef struct fmed_cmd {
 	byte preserve_date;
 
 	ffstr dummy;
+
+	uint until_plback_end :1;
 } fmed_cmd;

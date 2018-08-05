@@ -42,6 +42,8 @@ INPUT:
                    Exclude files & directories matching a wildcard (case-insensitive)
 --seek=TIME        Seek to time: [[HH:]MM:]SS[:MSC]
 --until=TIME       Stop at time
+                   Special values:
+                     'playback-end': stop recording when the last playback track is finished
 --prebuffer=TIME   Start recording by a command from user, saving the previously bufferred seconds of audio
 --start-dblevel=DB Skip initial audio until input signal level goes above DB (-100dB..0dB)
 --stop-dblevel=DB[;TIME]
