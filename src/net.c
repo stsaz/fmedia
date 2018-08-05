@@ -1284,6 +1284,8 @@ static int icy_reset(icy *c, fmed_filt *d)
 			ffstr_setz(&ext, "mp3");
 		else if (ffstr_ieqz(&s, "audio/aacp"))
 			ffstr_setz(&ext, "aac");
+		else if (ffstr_ieqz(&s, "application/ogg"))
+			ffstr_setz(&ext, "ogg");
 		else {
 			errlog(d->trk, "unsupported Content-Type: %S", &s);
 			return FMED_RERR;
@@ -1463,6 +1465,8 @@ static void* netin_create(icy *c)
 
 	if (ffstr_eqcz(&c->next_filt_ext, "aac"))
 		net->track->setvalstr(trk, "input", "?.aac");
+	else if (ffstr_eqcz(&c->next_filt_ext, "ogg"))
+		net->track->setvalstr(trk, "input", "?.ogg");
 	else
 		net->track->setvalstr(trk, "input", "?.mp3");
 	net->track->setval(trk, "netin_ptr", (size_t)n);

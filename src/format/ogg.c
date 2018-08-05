@@ -136,6 +136,8 @@ static void* ogg_open(fmed_filt *d)
 
 	if ((int64)d->input.size != FMED_NULL)
 		o->og.total_size = d->input.size;
+	else
+		d->audio.total = 0;
 
 	if (ogg_in_conf.seekable)
 		o->og.seekable = 1;
