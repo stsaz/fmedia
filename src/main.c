@@ -511,7 +511,13 @@ static void std_log(uint flags, fmed_logdata *ld)
 	const char *end = buf + FFCNT(buf) - FFSLEN("\n");
 
 	if (flags != FMED_LOG_USER) {
-		s += ffs_fmt(s, end, "%s [%s] %s: ", ld->stime, ld->level, ld->module);
+		if (ld->tid != 0) {
+			s += ffs_fmt(s, end, "%s :%xU [%s] %s: "
+				, ld->stime, ld->tid, ld->level, ld->module);
+		} else {
+			s += ffs_fmt(s, end, "%s [%s] %s: "
+				, ld->stime, ld->level, ld->module);
+		}
 
 		if (ld->ctx != NULL)
 			s += ffs_fmt(s, end, "%S:\t", ld->ctx);

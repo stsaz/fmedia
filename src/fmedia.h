@@ -566,6 +566,7 @@ do { \
 #define syserrlog  fmed_syserrlog
 
 typedef struct fmed_logdata {
+	uint64 tid;
 	const char *level;
 	const char *stime;
 	const char *module;

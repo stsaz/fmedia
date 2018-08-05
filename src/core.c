@@ -1318,6 +1318,7 @@ static void core_log(uint flags, void *trk, const char *module, const char *fmt,
 	r = fftime_tostr(&dt, stime, sizeof(stime), FFTIME_HMS_MSEC);
 	stime[r] = '\0';
 	ld.stime = stime;
+	ld.tid = 0;
 
 	FF_ASSERT(lev != 0);
 	ld.level = loglevs[lev - 1];
