@@ -13,6 +13,7 @@ Copyright (c) 2018 Simon Zolin */
 
 
 static const fmed_core *core;
+static const fmed_track *track;
 
 //FMEDIA MODULE
 static const void* coraud_iface(const char *name);
@@ -35,6 +36,8 @@ static int coraud_out_config(ffpars_ctx *ctx);
 static const fmed_filter fmed_coraud_out = {
 	&coraud_open, &coraud_write, &coraud_close
 };
+
+static void coraud_ontmr(void *param);
 
 struct coraud_out_conf_t {
 	uint idev;
@@ -84,9 +87,11 @@ static int coraud_sig(uint signo)
 	switch (signo) {
 	case FMED_SIG_INIT:
 		ffmem_init();
+		fflk_setup();
 		return 0;
 
 	case FMED_OPEN:
+		track = core->getmod("#core.track");
 		return 0;
 	}
 	return 0;
@@ -123,7 +128,7 @@ static int coraud_adev_list(fmed_adev_ent **ents, uint flags)
 
 		if (NULL == (e = ffarr_pushgrowT(&o, 4, fmed_adev_ent)))
 			goto end;
-		if (NULL == (e->name = ffsz_alcopyz(d.name)))
+		if (NULL == (e->name = ffsz_alfmt("%s [%d]", d.name, ffcoraud_dev_id(&d))))
 			goto end;
 	}
 
@@ -164,6 +169,10 @@ static int coraud_out_config(ffpars_ctx *ctx)
 struct coraud_out {
 	uint state;
 	ffcoraud_buf out;
+	fftmrq_entry tmr;
+	void *trk;
+	uint async :1;
+	uint opened :1;
 };
 
 static void* coraud_open(fmed_filt *d)
@@ -176,33 +185,67 @@ static void* coraud_open(fmed_filt *d)
 	struct coraud_out *a;
 	if (NULL == (a = ffmem_new(struct coraud_out)))
 		return NULL;
-	// a->task.handler = d->handler;
-	// a->task.param = d->trk;
+	a->trk = d->trk;
 	return a;
 }
 
 static void coraud_close(void *ctx)
 {
 	struct coraud_out *a = ctx;
-	ffcoraud_close(&a->out);
+	if (a->opened) {
+		core->timer(&a->tmr, 0, 0);
+		ffcoraud_close(&a->out);
+	}
 	ffmem_free(a);
+}
+
+/** Get device ID by index. */
+static int coraud_finddev(uint idx, uint flags)
+{
+	int r, id = -1;
+	ffcoraud_dev d;
+
+	ffcoraud_devinit(&d);
+
+	for (uint i = 1;  ;  i++) {
+		r = ffcoraud_devnext(&d, flags);
+		if (r == 1)
+			break;
+		else if (r < 0) {
+			errlog("ffcoraud_devnext(): (%d) %s", r, ffcoraud_errstr(r));
+			goto end;
+		}
+		if (i == idx) {
+			id = ffcoraud_dev_id(&d);
+			goto end;
+		}
+	}
+
+end:
+	ffcoraud_devdestroy(&d);
+	return id;
 }
 
 static int coraud_create(struct coraud_out *a, fmed_filt *d)
 {
-	int r, dev_id = -1;
+	int r, dev_idx, dev_id = -1;
 	ffpcm fmt, in_fmt;
 
-	if (FMED_NULL != (int)(dev_id = (int)d->track->getval(d->trk, "playdev_name")))
-		return FMED_RERR;
+	if (FMED_NULL != (int)(dev_idx = (int)d->track->getval(d->trk, "playdev_name"))) {
+		dev_id = coraud_finddev(dev_idx, FFCORAUD_DEV_PLAYBACK);
+		if (dev_id == -1) {
+			errlog("no audio device by index #%u", dev_idx);
+			return FMED_RERR;
+		}
+	}
 
-	ffpcm_fmtcopy(&fmt, d->audio.convfmt);
+	ffpcm_fmtcopy(&fmt, &d->audio.convfmt);
 
 	dbglog("opening device \"%d\", %s/%u/%u"
 		, dev_id, ffpcm_fmtstr(fmt.format), fmt.sample_rate, fmt.channels);
 
 	in_fmt = fmt;
-	r = ffcoraud_open(&a->out, dev_id, &fmt, 500);
+	r = ffcoraud_open(&a->out, dev_id, &fmt, 0, FFCORAUD_DEV_PLAYBACK);
 
 	if (r == FFCORAUD_EFMT && a->state == 0) {
 		if (!!ffmemcmp(&fmt, &in_fmt, sizeof(ffpcm))) {
@@ -225,15 +268,39 @@ static int coraud_create(struct coraud_out *a, fmed_filt *d)
 		return FMED_RERR;
 	}
 
-	dbglog("opened buffer %uHz", fmt.sample_rate);
+	a->opened = 1;
+
+	uint nfy_int_ms = ffpcm_bytes2time(&fmt, ffcoraud_bufsize(&a->out) / 4);
+	a->tmr.handler = &coraud_ontmr;
+	a->tmr.param = a;
+	if (0 != core->timer(&a->tmr, nfy_int_ms, 0))
+		return FMED_RERR;
+
+	dbglog("opened buffer %ums, %uHz"
+		, ffcoraud_bufsize(&a->out), fmt.sample_rate);
+	a->out.autostart = 1;
 	d->datatype = "pcm";
 	return 0;
+}
+
+static void coraud_ontmr(void *param)
+{
+	struct coraud_out *a = param;
+	if (!a->async)
+		return;
+	a->async = 0;
+	track->cmd(a->trk, FMED_TRACK_WAKE);
 }
 
 static int coraud_write(void *ctx, fmed_filt *d)
 {
 	int r;
 	struct coraud_out *a = ctx;
+
+	if (d->flags & FMED_FSTOP) {
+		d->outlen = 0;
+		return FMED_RDONE;
+	}
 
 	switch (a->state) {
 	case 0:
@@ -266,19 +333,50 @@ static int coraud_write(void *ctx, fmed_filt *d)
 		break;
 	}
 
+	if (d->snd_output_clear) {
+		d->snd_output_clear = 0;
+		ffcoraud_stop(&a->out);
+		ffcoraud_clear(&a->out);
+		return FMED_RMORE;
+	}
+
+	if (d->snd_output_pause) {
+		d->snd_output_pause = 0;
+		d->track->cmd(d->trk, FMED_TRACK_PAUSE);
+		ffcoraud_stop(&a->out);
+		return FMED_RASYNC;
+	}
+
 	while (d->datalen != 0) {
 
-		r = ffcoraud_write(&mod->out, d->data, d->datalen);
+		r = ffcoraud_write(&a->out, d->data, d->datalen);
 		if (r < 0) {
 			errlog("ffcoraud_write(): (%d) %s", r, ffcoraud_errstr(r));
 			return FMED_RERR;
 
-		// } else if (r == 0) {
-		// 	return FMED_RASYNC;
+		} else if (r == 0) {
+			a->async = 1;
+			return FMED_RASYNC;
 		}
 
+		d->data += r;
 		d->datalen -= r;
-		dbglog("written %u bytes", r);
+		dbglog("written %u bytes (%u%% filled)"
+			, r, ffcoraud_filled(&a->out) * 100 / ffcoraud_bufsize(&a->out));
+	}
+
+	if (d->flags & FMED_FLAST) {
+
+		r = ffcoraud_stoplazy(&a->out);
+		if (r == 1)
+			return FMED_RDONE;
+		else if (r < 0) {
+			errlog("ffcoraud_stoplazy(): (%d) %s", r, ffcoraud_errstr(r));
+			return FMED_RERR;
+		}
+
+		a->async = 1;
+		return FMED_RASYNC; //wait until all filled bytes are played
 	}
 
 	return 0;
