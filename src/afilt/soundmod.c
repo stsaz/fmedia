@@ -819,6 +819,7 @@ static int startlev_process(void *ctx, fmed_filt *d)
 
 struct stoplev {
 	ffpcmex fmt;
+	uint state;
 	uint max_samples;
 	uint nsamples;
 	double level;
@@ -848,15 +849,29 @@ static void stoplev_close(void *ctx)
 static int stoplev_cb(void *ctx, double val)
 {
 	struct stoplev *c = ctx;
-	if (val <= c->level) {
-		if (c->nsamples == 0)
-			c->val = val;
-		if (++c->nsamples == c->max_samples)
-			return 1;
-		return 0;
+
+	switch (c->state) {
+	case 0:
+		if (val > c->level)
+			break;
+		c->val = val;
+		c->state = 1;
+		//fallthrough
+
+	case 1:
+		if (val > c->level) {
+			c->nsamples = 0;
+			c->state = 0;
+			break;
+		}
+		if (++c->nsamples != c->max_samples)
+			break;
+		c->state = 2;
+		//fallthrough
+
+	case 2:
+		return 1;
 	}
-	if (c->nsamples != 0)
-		c->nsamples = 0;
 	return 0;
 }
 
