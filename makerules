@@ -363,6 +363,7 @@ pulse.$(SO): $(PULSE_O)
 
 #
 COREAUDIO_O := $(OBJ_DIR)/coreaudio.o $(FF_O) \
+	$(FF_OBJ_DIR)/ffring.o \
 	$(FF_OBJ_DIR)/ffpcm.o \
 	$(FF_OBJ_DIR)/ffcoreaudio.o
 coreaudio.$(SO): $(COREAUDIO_O)
