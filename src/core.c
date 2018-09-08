@@ -17,6 +17,8 @@ Copyright (c) 2015 Simon Zolin */
 
 
 #undef syserrlog
+#define dbglog0(...)  fmed_dbglog(core, NULL, "core", __VA_ARGS__)
+#define errlog0(...)  fmed_errlog(core, NULL, "core", __VA_ARGS__)
 #define syswarnlog(trk, ...)  fmed_syswarnlog(core, NULL, "core", __VA_ARGS__)
 #define syserrlog(...)  fmed_syserrlog(core, NULL, "core", __VA_ARGS__)
 
@@ -86,6 +88,7 @@ extern const fmed_mod* fmed_getmod_globcmd(const fmed_core *_core);
 static int core_open(void);
 static int core_sigmods(uint signo);
 static core_modinfo* core_findmod(const ffstr *name);
+static const fmed_modinfo* core_insmod_delayed(const char *sname, ffpars_ctx *ctx);
 static const fmed_modinfo* core_getmodinfo(const ffstr *name);
 static const fmed_modinfo* core_modbyext(const ffstr3 *map, const ffstr *ext);
 static int core_filetype(const char *fn);
@@ -218,13 +221,9 @@ static int allowed_mod(const ffstr *name)
 
 static int fmed_conf_mod(ffparser_schem *p, void *obj, ffstr *val)
 {
-	if (ffstr_matchcz(val, "gui.") && !fmed->cmd.gui)
-		goto done;
-
-	if (NULL == core->insmod(val->ptr, NULL))
+	if (NULL == core_insmod_delayed(val->ptr, NULL))
 		return FFPARS_ESYS;
 
-done:
 	ffstr_free(val);
 	return 0;
 }
@@ -326,7 +325,7 @@ static int fmed_conf_ext_val(ffparser_schem *p, void *obj, ffstr *val)
 	ffconf *conf = p->p;
 
 	if (conf->type == FFCONF_TKEY) {
-		const fmed_modinfo *mod = core_getmod2(FMED_MOD_INFO, val->ptr, val->len);
+		const fmed_modinfo *mod = core_getmodinfo(val);
 		if (mod == NULL) {
 			return FFPARS_EBADVAL;
 		}
@@ -836,6 +835,49 @@ end:
 	return -1;
 }
 
+/** Enlist a new module which will be loaded later. */
+static const fmed_modinfo* core_insmod_delayed(const char *sname, ffpars_ctx *ctx)
+{
+	core_mod *mod = NULL;
+	core_modinfo *bmod = NULL;
+	ffstr name;
+	ffstr_setz(&name, sname);
+
+	if (sname[0] == '#')
+		return core_insmod(sname, ctx);
+
+	ffstr soname, modname;
+	ffs_split2by(name.ptr, name.len, '.', &soname, &modname);
+	if (soname.len == 0 || modname.len == 0) {
+		fferr_set(EINVAL);
+		goto fail;
+	}
+
+	if (NULL == (bmod = core_findmod(&soname))) {
+		if (NULL == (bmod = mod_create(&soname)))
+			goto fail;
+	}
+
+	if (NULL == (mod = mod_createiface(&name)))
+		goto fail;
+
+	if (ctx != NULL)
+		goto fail;
+
+	return (void*)mod;
+
+fail:
+	if (mod != NULL) {
+		fflist_rm(&fmed->mods, &mod->sib);
+		mod_freeiface(mod);
+	}
+	if (bmod != NULL) {
+		mod_destroy(bmod);
+		fmed->bmods.len--;
+	}
+	return NULL;
+}
+
 static const fmed_modinfo* core_insmod(const char *sname, ffpars_ctx *ctx)
 {
 	core_mod *mod = NULL;
@@ -853,11 +895,12 @@ static const fmed_modinfo* core_insmod(const char *sname, ffpars_ctx *ctx)
 	if (NULL == (minfo = core_findmod(&s))) {
 		if (NULL == (minfo = mod_create(&s)))
 			goto fail;
-		if (0 != mod_load(minfo)) {
-			mod_destroy(minfo);
-			fmed->bmods.len--;
-			goto fail;
-		}
+	}
+
+	if (minfo->m == NULL && 0 != mod_load(minfo)) {
+		mod_destroy(minfo);
+		fmed->bmods.len--;
+		goto fail;
 	}
 
 	if (NULL == (mod = mod_createiface(&name)))
@@ -923,6 +966,30 @@ static const fmed_modinfo* core_modbyext(const ffstr3 *map, const ffstr *ext)
 	return NULL;
 }
 
+static int mod_load_delayed(core_mod *mod)
+{
+	ffstr soname, modname;
+	ffs_split2by(mod->name, ffsz_len(mod->name), '.', &soname, &modname);
+
+	core_modinfo *bmod;
+	if (NULL == (bmod = core_findmod(&soname)))
+		goto fail;
+	if (bmod->m == NULL && 0 != mod_load(bmod))
+		goto fail;
+
+	if (0 != mod_loadiface(mod, bmod))
+		goto fail;
+
+	return 0;
+
+fail:
+	errlog0("can't load module %s", mod->name);
+	mod->dl = NULL;
+	mod->m = NULL;
+	mod->iface = NULL;
+	return -1;
+}
+
 const void* core_getmod2(uint flags, const char *name, ssize_t name_len)
 {
 	const fmed_modinfo *mod;
@@ -951,6 +1018,8 @@ const void* core_getmod2(uint flags, const char *name, ssize_t name_len)
 	case FMED_MOD_IFACE:
 		if (NULL == (mod = core_getmodinfo(&s)))
 			goto err;
+		if (mod->m == NULL && 0 != mod_load_delayed((core_mod*)mod))
+			return NULL;
 		return mod->iface;
 
 	case FMED_MOD_SOINFO:
@@ -960,6 +1029,10 @@ const void* core_getmod2(uint flags, const char *name, ssize_t name_len)
 		ffs_split2by(s.ptr, s.len, '.', &smod, &iface);
 		if (NULL == (mi = (void*)core_findmod(&smod)))
 			goto err;
+		if (mi->m == NULL) {
+			if (0 != mod_load(mi))
+				goto err;
+		}
 		if (t == FMED_MOD_SOINFO)
 			return mi;
 		if (iface.len == 0)
@@ -980,6 +1053,8 @@ const void* core_getmod2(uint flags, const char *name, ssize_t name_len)
 
 	if (mod == NULL)
 		goto err;
+	if (mod->m == NULL && 0 != mod_load_delayed((core_mod*)mod))
+		return NULL;
 	return mod;
 
 err:
@@ -1155,7 +1230,7 @@ static int core_sigmods(uint signo)
 {
 	core_modinfo *mod;
 	FFARR_WALKT(&fmed->bmods, mod, core_modinfo) {
-		if (0 != mod->m->sig(signo))
+		if (mod->m != NULL && 0 != mod->m->sig(signo))
 			return 1;
 	}
 	return 0;
