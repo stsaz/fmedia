@@ -352,12 +352,15 @@ end:
 	return rc;
 }
 
-/* "DB[;TIME]" */
+/* "DB[;TIME][;TIME]" */
 static int arg_astoplev(ffparser_schem *p, void *obj, const ffstr *val)
 {
 	fmed_cmd *cmd = obj;
-	ffstr db, time;
+	ffstr db, time, mintime;
+	ffdtm dt;
+	fftime t;
 	ffs_split2by(val->ptr, val->len, ';', &db, &time);
+	ffs_split2by(time.ptr, time.len, ';', &time, &mintime);
 
 	double f;
 	if (db.len == 0 || db.len != ffs_tofloat(db.ptr, db.len, &f, 0))
@@ -365,13 +368,19 @@ static int arg_astoplev(ffparser_schem *p, void *obj, const ffstr *val)
 	cmd->stop_level = f;
 
 	if (time.len != 0) {
-		ffdtm dt;
-		fftime t;
 		if (time.len != fftime_fromstr(&dt, time.ptr, time.len, FFTIME_HMS_MSEC_VAR))
 			return FFPARS_EBADVAL;
 
 		fftime_join(&t, &dt, FFTIME_TZNODATE);
 		cmd->stop_level_time = fftime_ms(&t);
+	}
+
+	if (mintime.len != 0) {
+		if (mintime.len != fftime_fromstr(&dt, mintime.ptr, mintime.len, FFTIME_HMS_MSEC_VAR))
+			return FFPARS_EBADVAL;
+
+		fftime_join(&t, &dt, FFTIME_TZNODATE);
+		cmd->stop_level_mintime = fftime_ms(&t);
 	}
 
 	return 0;
@@ -671,6 +680,7 @@ static void trk_prep(fmed_cmd *fmed, fmed_trk *trk)
 	trk->a_start_level = ffabs(fmed->start_level);
 	trk->a_stop_level = ffabs(fmed->stop_level);
 	trk->a_stop_level_time = fmed->stop_level_time;
+	trk->a_stop_level_mintime = fmed->stop_level_mintime;
 
 	if (fmed->volume != 100) {
 		double db;

@@ -820,7 +820,9 @@ static int startlev_process(void *ctx, fmed_filt *d)
 struct stoplev {
 	ffpcmex fmt;
 	uint state;
+	uint all_samples;
 	uint max_samples;
+	uint min_stop_samples;
 	uint nsamples;
 	double level;
 	double val;
@@ -837,6 +839,9 @@ static void* stoplev_open(fmed_filt *d)
 	c->level = ffpcm_db2gain(-d->a_stop_level);
 	uint t = (d->a_stop_level_time != 0) ? d->a_stop_level_time : STOPLEV_DEF_TIME;
 	c->max_samples = c->fmt.channels * ffpcm_samples(t, c->fmt.sample_rate);
+	c->min_stop_samples = (d->a_stop_level_mintime != 0)
+		? c->fmt.channels * ffpcm_samples(d->a_stop_level_mintime, c->fmt.sample_rate)
+		: 0;
 	return c;
 }
 
@@ -849,6 +854,8 @@ static void stoplev_close(void *ctx)
 static int stoplev_cb(void *ctx, double val)
 {
 	struct stoplev *c = ctx;
+
+	c->all_samples++;
 
 	switch (c->state) {
 	case 0:
@@ -870,7 +877,10 @@ static int stoplev_cb(void *ctx, double val)
 		//fallthrough
 
 	case 2:
-		return 1;
+		if (c->min_stop_samples == 0
+			|| c->all_samples == c->min_stop_samples)
+			return 1;
+		break;
 	}
 	return 0;
 }

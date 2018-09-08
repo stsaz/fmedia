@@ -381,6 +381,7 @@ static void trk_copy_info(fmed_trk *dst, const fmed_trk *src)
 	dst->a_start_level = src->a_start_level;
 	dst->a_stop_level = src->a_stop_level;
 	dst->a_stop_level_time = src->a_stop_level_time;
+	dst->a_stop_level_mintime = src->a_stop_level_mintime;
 	dst->include_files = src->include_files;
 	dst->exclude_files = src->exclude_files;
 	dst->bits = src->bits;
