@@ -88,9 +88,15 @@ static int core_sigmods(uint signo);
 static core_modinfo* core_findmod(const ffstr *name);
 static const fmed_modinfo* core_getmodinfo(const ffstr *name);
 static const fmed_modinfo* core_modbyext(const ffstr3 *map, const ffstr *ext);
-static core_modinfo* mod_load(const ffstr *ps);
-static void mod_destroy(core_modinfo *m);
 static int core_filetype(const char *fn);
+
+static core_modinfo* mod_create(const ffstr *soname);
+static int mod_load(core_modinfo *minfo);
+static void mod_destroy(core_modinfo *m);
+
+static core_mod* mod_createiface(const ffstr *name);
+static int mod_loadiface(core_mod *mod, const core_modinfo *bmod);
+static void mod_freeiface(core_mod *m);
 
 static int wrk_init(struct worker *w, uint thread);
 static void wrk_destroy(struct worker *w);
@@ -666,7 +672,7 @@ void core_free(void)
 	tracks_destroy();
 
 	FFLIST_WALKSAFE(&fmed->mods, mod, sib, next) {
-		ffmem_free(mod);
+		mod_freeiface(mod);
 	}
 
 	core_modinfo *minfo;
@@ -696,14 +702,37 @@ static void mod_destroy(core_modinfo *m)
 		ffdl_close(m->dl);
 }
 
-static core_modinfo* mod_load(const ffstr *ps)
+/** Get pointer for a new module. */
+static core_modinfo* mod_create(const ffstr *soname)
 {
+	core_modinfo *bmod;
+	if (NULL == (bmod = ffarr_pushgrowT(&fmed->bmods, 8, core_modinfo)))
+		goto fail;
+	ffmem_tzero(bmod);
+	if (NULL == (bmod->name = ffsz_alcopystr(soname)))
+		goto fail;
+	return bmod;
+
+fail:
+	mod_destroy(bmod);
+	return NULL;
+}
+
+/** Load module (internal or external).
+. load .so module
+. get its fmedia module interface
+. check if module's version is supported
+. send 'initialize' signal */
+static int mod_load(core_modinfo *minfo)
+{
+	int rc = -1;
 	fmed_getmod_t getmod;
-	core_modinfo *minfo = NULL, *rc = NULL;
 	const fmed_mod *m;
 	ffdl dl = NULL;
-	ffstr s = *ps;
+	ffstr s;
 	ffarr a = {0};
+
+	ffstr_setz(&s, minfo->name);
 
 	if (s.ptr[0] == '#') {
 		if (ffstr_eqcz(&s, "#core"))
@@ -740,12 +769,8 @@ static core_modinfo* mod_load(const ffstr *ps)
 		}
 	}
 
-	if (NULL == (minfo = ffarr_pushgrowT(&fmed->bmods, 8, core_modinfo)))
-		goto fail;
-	ffmem_tzero(minfo);
-	minfo->name = ffsz_alcopy(s.ptr, s.len);
 	m = getmod(core);
-	if (minfo->name == NULL || m == NULL)
+	if (m == NULL)
 		goto fail;
 
 	if (m->ver_core != FMED_VER_CORE) {
@@ -765,48 +790,80 @@ static core_modinfo* mod_load(const ffstr *ps)
 
 	minfo->m = m;
 	minfo->dl = dl;
-	rc = minfo;
+	rc = 0;
 
 fail:
-	if (rc == NULL) {
-		if (minfo != NULL)
-			mod_destroy(minfo);
-		fmed->bmods.len--;
+	if (rc != 0) {
 		FF_SAFECLOSE(dl, NULL, ffdl_close);
 	}
 	ffarr_free(&a);
 	return rc;
 }
 
+/** Get pointer for a new module interface. */
+static core_mod* mod_createiface(const ffstr *name)
+{
+	core_mod *mod;
+	if (NULL == (mod = ffmem_calloc(1, sizeof(core_mod) + name->len + 1)))
+		return NULL;
+	fflist_ins(&fmed->mods, &mod->sib);
+	ffsz_fcopy(mod->name_s, name->ptr, name->len);
+	mod->name = mod->name_s;
+	return mod;
+}
+
+static void mod_freeiface(core_mod *m)
+{
+	ffmem_free(m);
+}
+
+/** Load module interface. */
+static int mod_loadiface(core_mod *mod, const core_modinfo *bmod)
+{
+	ffstr soname, modname;
+	ffs_split2by(mod->name, ffsz_len(mod->name), '.', &soname, &modname);
+
+	if (NULL == (mod->iface = bmod->m->iface(modname.ptr))) {
+		errlog(core, NULL, "core", "can't initialize %s", mod->name);
+		goto end;
+	}
+
+	mod->dl = bmod->dl;
+	mod->m = bmod->m;
+	return 0;
+
+end:
+	return -1;
+}
+
 static const fmed_modinfo* core_insmod(const char *sname, ffpars_ctx *ctx)
 {
+	core_mod *mod = NULL;
 	ffstr s, modname;
-	size_t sname_len = ffsz_len(sname);
-	core_mod *mod = ffmem_calloc(1, sizeof(core_mod) + sname_len + 1);
-	if (mod == NULL)
-		return NULL;
+	ffstr name;
+	ffstr_setz(&name, sname);
 
-	ffs_split2by(sname, sname_len, '.', &s, &modname);
+	ffs_split2by(name.ptr, name.len, '.', &s, &modname);
 	if (s.len == 0 || modname.len == 0) {
 		fferr_set(EINVAL);
 		goto fail;
 	}
 
 	core_modinfo *minfo;
-	if (NULL == (minfo = (void*)core_getmod2(FMED_MOD_SOINFO | FMED_MOD_NOLOG, s.ptr, s.len))) {
-		if (NULL == (minfo = mod_load(&s)))
+	if (NULL == (minfo = core_findmod(&s))) {
+		if (NULL == (minfo = mod_create(&s)))
 			goto fail;
+		if (0 != mod_load(minfo)) {
+			mod_destroy(minfo);
+			fmed->bmods.len--;
+			goto fail;
+		}
 	}
 
-	mod->dl = minfo->dl;
-	mod->m = minfo->m;
-	if (NULL == (mod->iface = minfo->m->iface(modname.ptr))) {
-		errlog(core, NULL, "core", "can't initialize %s", sname);
+	if (NULL == (mod = mod_createiface(&name)))
 		goto fail;
-	}
-
-	ffsz_fcopy(mod->name_s, sname, sname_len);
-	mod->name = mod->name_s;
+	if (0 != mod_loadiface(mod, minfo))
+		goto fail;
 
 	if (ctx != NULL) {
 		if (minfo->m->conf == NULL)
@@ -816,11 +873,13 @@ static const fmed_modinfo* core_insmod(const char *sname, ffpars_ctx *ctx)
 		mod->conf_ctx = *ctx;
 	}
 
-	fflist_ins(&fmed->mods, &mod->sib);
 	return (fmed_modinfo*)mod;
 
 fail:
-	ffmem_free(mod);
+	if (mod != NULL) {
+		fflist_rm(&fmed->mods, &mod->sib);
+		mod_freeiface(mod);
+	}
 	return NULL;
 }
 
@@ -878,15 +937,16 @@ const void* core_getmod2(uint flags, const char *name, ssize_t name_len)
 	switch (t) {
 
 	case FMED_MOD_INEXT:
-		return core_modbyext(&fmed->conf.inmap, &s);
+		mod = core_modbyext(&fmed->conf.inmap, &s);
+		break;
 
 	case FMED_MOD_OUTEXT:
-		return core_modbyext(&fmed->conf.outmap, &s);
+		mod = core_modbyext(&fmed->conf.outmap, &s);
+		break;
 
 	case FMED_MOD_INFO:
-		if (NULL == (mod = core_getmodinfo(&s)))
-			goto err;
-		return mod;
+		mod = core_getmodinfo(&s);
+		break;
 
 	case FMED_MOD_IFACE:
 		if (NULL == (mod = core_getmodinfo(&s)))
@@ -910,10 +970,17 @@ const void* core_getmod2(uint flags, const char *name, ssize_t name_len)
 	}
 
 	case FMED_MOD_INFO_ADEV_IN:
-		return fmed->conf.input;
+		mod = fmed->conf.input;
+		break;
+
 	case FMED_MOD_INFO_ADEV_OUT:
-		return fmed->conf.output;
+		mod = fmed->conf.output;
+		break;
 	}
+
+	if (mod == NULL)
+		goto err;
+	return mod;
 
 err:
 	if (!(flags & FMED_MOD_NOLOG))
