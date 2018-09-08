@@ -10,8 +10,14 @@ Copyright (c) 2018 Simon Zolin */
 #include <FF/pic/jpeg.h>
 
 
+#undef dbglog
 #undef warnlog
-#define warnlog(trk, ...)  fmed_warnlog(core, trk, "flac.out", __VA_ARGS__)
+#undef errlog
+#undef syserrlog
+#define dbglog(trk, ...)  fmed_dbglog(core, trk, NULL, __VA_ARGS__)
+#define warnlog(trk, ...)  fmed_warnlog(core, trk, NULL, __VA_ARGS__)
+#define errlog(trk, ...)  fmed_errlog(core, trk, NULL, __VA_ARGS__)
+#define syserrlog(trk, ...)  fmed_syserrlog(core, trk, NULL, __VA_ARGS__)
 
 
 extern const fmed_core *core;
@@ -279,7 +285,7 @@ static int flac_out_addmeta(flac_out *f, fmed_filt *d)
 
 	const char *vendor = flac_vendor();
 	if (0 != ffflac_addtag(&f->fl, NULL, vendor, ffsz_len(vendor))) {
-		syserrlog(core, d->trk, "flac", "can't add tag: %S", &name);
+		syserrlog(d->trk, "can't add tag: %S", &name);
 		return -1;
 	}
 
@@ -299,7 +305,7 @@ static int flac_out_addmeta(flac_out *f, fmed_filt *d)
 		}
 
 		if (0 != ffflac_addtag(&f->fl, name.ptr, val->ptr, val->len)) {
-			syserrlog(core, d->trk, "flac", "can't add tag: %S", &name);
+			syserrlog(d->trk, "can't add tag: %S", &name);
 			return -1;
 		}
 	}
@@ -342,7 +348,7 @@ static int flac_out_encode(void *ctx, fmed_filt *d)
 
 	case I_INIT:
 		if (!ffsz_eq(d->datatype, "flac")) {
-			errlog(core, d->trk, NULL, "unsupported input data format: %s", d->datatype);
+			errlog(d->trk, "unsupported input data format: %s", d->datatype);
 			return FMED_RERR;
 		}
 
@@ -353,12 +359,12 @@ static int flac_out_encode(void *ctx, fmed_filt *d)
 		f->fl.min_meta = flac_out_conf.min_meta_size;
 
 		if (d->datalen != sizeof(ffflac_info)) {
-			errlog(core, d->trk, NULL, "invalid first input data block");
+			errlog(d->trk, "invalid first input data block");
 			return FMED_RERR;
 		}
 
 		if (0 != ffflac_wnew(&f->fl, (void*)d->data)) {
-			errlog(core, d->trk, "flac", "ffflac_wnew(): %s", ffflac_out_errstr(&f->fl));
+			errlog(d->trk, "ffflac_wnew(): %s", ffflac_out_errstr(&f->fl));
 			return FMED_RERR;
 		}
 		d->datalen = 0;
@@ -377,7 +383,7 @@ static int flac_out_encode(void *ctx, fmed_filt *d)
 		ffstr_set(&f->fl.in, (const void**)d->datani, d->datalen);
 		if (d->flags & FMED_FLAST) {
 			if (d->datalen != sizeof(ffflac_info)) {
-				errlog(core, d->trk, NULL, "invalid last input data block");
+				errlog(d->trk, "invalid last input data block");
 				return FMED_RERR;
 			}
 			ffflac_wfin(&f->fl, (void*)d->data);
@@ -407,13 +413,13 @@ static int flac_out_encode(void *ctx, fmed_filt *d)
 
 	case FFFLAC_RERR:
 	default:
-		errlog(core, d->trk, "flac", "ffflac_write(): %s", ffflac_out_errstr(&f->fl));
+		errlog(d->trk, "ffflac_write(): %s", ffflac_out_errstr(&f->fl));
 		return FMED_RERR;
 	}
 	}
 
 data:
-	dbglog(core, d->trk, "flac", "output: %L bytes", f->fl.out.len);
+	dbglog(d->trk, "output: %L bytes", f->fl.out.len);
 	d->out = f->fl.out.ptr;
 	d->outlen = f->fl.out.len;
 	if (r == FFFLAC_RDONE)

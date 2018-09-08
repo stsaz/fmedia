@@ -2,7 +2,7 @@
 OVERVIEW
 ---------------
 
-fmedia is a fast media player/recorder/converter for Windows, Linux and FreeBSD.
+fmedia is a fast media player/recorder/converter for Windows, macOS, Linux and FreeBSD.
 It provides smooth playback and recording even if devices are very slow.
 It's highly customizable and can be easily extended with additional plugins.
 Its low CPU & memory consumption saves energy when running on a notebook's battery.
@@ -103,7 +103,7 @@ INSTALL
 
 1. Unpack archive to the directory of your choice, e.g. to `"C:\Program Files\fmedia"`
 
-	* Right click on fmedia package file (e.g. `fmedia-0.33-win-x64.zip`) in Explorer
+	* Right click on fmedia package file (e.g. `fmedia-1.0-win-x64.zip`) in Explorer
 	* Choose "Extract All..." in the popup menu
 	* Follow the Wizard steps
 
@@ -119,13 +119,13 @@ INSTALL
 
 ### INSTALL ON LINUX
 
-1. Unpack archive to the directory of your choice, e.g. to `/usr/local/fmedia-0`:
+1. Unpack archive to the directory of your choice, e.g. to `/usr/local/fmedia-1`:
 
-		tar Jxf ./fmedia-0.33-linux-amd64.tar.xz -C /usr/local
+		tar Jxf ./fmedia-1.0-linux-amd64.tar.xz -C /usr/local
 
 2. Optionally, create a symbolic link:
 
-		ln -s /usr/local/fmedia-0/fmedia /usr/local/bin/fmedia
+		ln -s /usr/local/fmedia-1/fmedia /usr/local/bin/fmedia
 
 ### BUILD ON LINUX
 
@@ -164,7 +164,7 @@ INSTALL
 
 	You'll also need to specify the proper path to ff-3pt binaries in `LD_LIBRARY_PATH`.
 
-5. Ready!  You can copy the directory `./fmedia-0` anywhere you want (see section "INSTALL ON LINUX").
+5. Ready!  You can copy the directory `./fmedia-1` anywhere you want (see section "INSTALL ON LINUX").
 
 ### LIGHT BUILD
 

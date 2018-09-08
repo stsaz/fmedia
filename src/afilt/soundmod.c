@@ -905,8 +905,9 @@ static int stoplev_process(void *ctx, fmed_filt *d)
 	}
 
 	double db = ffpcm_gain2db(c->val);
+	uint maxsamp = c->max_samples / c->fmt.channels;
 	infolog(d->trk, "signal went below %.2FdB level (at %.2FdB) for %ums (%,L samples)"
-		, (double)d->a_stop_level, db, (int)ffpcm_time(c->max_samples, c->fmt.sample_rate), (size_t)c->max_samples);
+		, (double)d->a_stop_level, db, (int)ffpcm_time(maxsamp, c->fmt.sample_rate), (size_t)maxsamp);
 
 	d->out = d->data;
 	d->outlen = r * ffpcm_size1(&c->fmt);

@@ -49,6 +49,7 @@ typedef struct core_modinfo {
 	char *name;
 	void *dl; //ffdl
 	const fmed_mod *m;
+	void *iface; //dummy
 } core_modinfo;
 
 typedef struct core_mod {
@@ -121,7 +122,7 @@ static char* core_env_expand(char *dst, size_t cap, const char *src);
 static int core_sig(uint signo);
 static ssize_t core_cmd(uint cmd, ...);
 static const void* core_getmod(const char *name);
-const void* core_getmod2(uint flags, const char *name, ssize_t name_len);
+static const void* core_getmod2(uint flags, const char *name, ssize_t name_len);
 static const fmed_modinfo* core_insmod(const char *name, ffpars_ctx *ctx);
 static void core_task(fftask *task, uint cmd);
 static int core_timer(fftmrq_entry *tmr, int64 interval, uint flags);
@@ -938,6 +939,9 @@ static core_modinfo* core_findmod(const ffstr *name)
 
 static const void* core_getmod(const char *name)
 {
+	const void *m = core_getmod2(FMED_MOD_IFACE | FMED_MOD_NOLOG, name, -1);
+	if (m != NULL)
+		return m;
 	return core_getmod2(FMED_MOD_IFACE_ANY, name, -1);
 }
 
@@ -990,7 +994,7 @@ fail:
 	return -1;
 }
 
-const void* core_getmod2(uint flags, const char *name, ssize_t name_len)
+static const void* core_getmod2(uint flags, const char *name, ssize_t name_len)
 {
 	const fmed_modinfo *mod;
 	ffstr s, smod, iface;

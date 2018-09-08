@@ -8,6 +8,15 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.0 - Sep 8, 2018
+
+ + macOS: CoreAudio playback & capture
+ + delay modules loading (alac ape avi mkv mp4 mpc soxr wav wavpack)
+ + --stop-dblevel=DB[;TIME][;MINTIME] - If MINTIME is specified,
+   stop only after MINTIME time has passed
+ - file: windows: reading from EOF position doesn't result in an error
+
+
 fmedia v0.37 - Aug 5, 2018
 
  + --include='WILDCARD[;WILDCARD]' - Only include files matching a wildcard (case-insensitive)

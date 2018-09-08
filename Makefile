@@ -19,11 +19,11 @@ include $(FFOS)/makeconf
 ifeq ($(OS),win)
 BIN := fmedia.exe
 INSTDIR := fmedia
-CFLAGS += -DFF_WIN=0x0501
+CFLAGS += -DFF_WIN=0x0501 -fvisibility=hidden
 
 else
 BIN := fmedia
-INSTDIR := fmedia-0
+INSTDIR := fmedia-1
 endif
 
 

@@ -37,7 +37,7 @@ typedef struct fmedia {
 	uint stopped :1
 		;
 
-	ffarr bmods; //fmed_modinfo[]
+	ffarr bmods; //core_modinfo[]
 	fflist mods; //core_mod[]
 
 	ffenv env;

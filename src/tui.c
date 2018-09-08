@@ -455,7 +455,7 @@ static int tui_process(void *ctx, fmed_filt *d)
 		size_t pos = ((MINDB + db) / MINDB) * 10;
 		t->buf.len = 0;
 		ffstr_catfmt(&t->buf, "%*c%u:%02u  [%*c%*c] %3.02FdB / %.02FdB  "
-			, (size_t)t->nback, '\b'
+			, (size_t)t->nback, '\r'
 			, playtime / 60, playtime % 60
 			, pos, '='
 			, (size_t)(10 - pos), '.'
@@ -500,7 +500,7 @@ static int tui_process(void *ctx, fmed_filt *d)
 
 		t->buf.len = 0;
 		ffstr_catfmt(&t->buf, "%*c%u:%02u"
-			, (size_t)t->nback, '\b'
+			, (size_t)t->nback, '\r'
 			, playtime / 60, playtime % 60);
 
 		goto print;
@@ -508,7 +508,7 @@ static int tui_process(void *ctx, fmed_filt *d)
 
 	t->buf.len = 0;
 	ffstr_catfmt(&t->buf, "%*c[%*c%*c] %u:%02u / %u:%02u"
-		, (size_t)t->nback, '\b'
+		, (size_t)t->nback, '\r'
 		, (size_t)(playpos * dots / t->total_samples), '='
 		, (size_t)(dots - (playpos * dots / t->total_samples)), '.'
 		, playtime / 60, playtime % 60
@@ -516,7 +516,7 @@ static int tui_process(void *ctx, fmed_filt *d)
 
 print:
 	fffile_write(ffstderr, t->buf.ptr, t->buf.len);
-	t->nback = t->buf.len - t->nback;
+	t->nback = 1;
 	if (core->loglev == FMED_LOG_DEBUG)
 		t->nback = 0;
 	t->buf.len = 0;

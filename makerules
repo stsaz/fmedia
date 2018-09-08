@@ -438,7 +438,7 @@ install-only:
 ifeq ($(OS),win)
 	$(CP) ./fmedia-gui.exe \
 		$(PROJDIR)/src/gui/fmedia.gui \
-		$(PROJDIR)/res/fmedia*.ico \
+		$(PROJDIR)/res/fmedia-rec.ico \
 		$(INSTDIR)/
 	unix2dos $(INSTDIR)/*.txt $(INSTDIR)/*.conf $(INSTDIR)/*.gui
 endif
@@ -496,7 +496,7 @@ else
 
 	$(CP) ./fmedia-gui.exe \
 		$(PROJDIR)/src/gui/fmedia.gui \
-		$(PROJDIR)/res/fmedia*.ico \
+		$(PROJDIR)/res/fmedia-rec.ico \
 		$(INSTDIR)/
 	unix2dos $(INSTDIR)/*.txt $(INSTDIR)/*.conf $(INSTDIR)/*.gui
 	chmod 644 $(INSTDIR)/*

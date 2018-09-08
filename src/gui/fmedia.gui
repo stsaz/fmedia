@@ -265,7 +265,7 @@ window wmain {
 	borderstick 7
 	# style visible
 	icon {
-		filename "fmedia.ico"
+		resource 2
 	}
 	font {
 		name Arial
@@ -649,7 +649,7 @@ window wabout {
 		style visible
 		position 0 5 85 85
 		icon {
-			filename "fmedia.ico"
+			resource 2
 			size 128 128
 		}
 	}
