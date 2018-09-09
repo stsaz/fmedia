@@ -487,7 +487,7 @@ ok:
 			break; //all buffers are filled or end-of-file is reached
 	}
 
-	if ((f->unread_bufs != 0 || f->err) && f->want_read) {
+	if ((f->unread_bufs != 0 || f->done || f->err) && f->want_read) {
 		f->want_read = 0;
 		f->handler(f->trk);
 	}
