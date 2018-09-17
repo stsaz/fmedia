@@ -984,6 +984,9 @@ static int mod_load_delayed(core_mod *mod)
 	if (0 != mod_loadiface(mod, bmod))
 		goto fail;
 
+	if (0 != mod->m->sig(FMED_OPEN))
+		goto fail;
+
 	return 0;
 
 fail:
