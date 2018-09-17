@@ -68,10 +68,7 @@ void wmain_init(void)
 	ffui_fdrop_accept(&gg->wmain.wmain, 1);
 
 	char *fn;
-	if (NULL == (fn = core->getpath(FFSTR("fmedia.ico"))))
-		return;
-	ffui_icon_load(&gg->wmain.ico, fn, 0, FFUI_ICON_SMALL);
-	ffmem_free(fn);
+	ffui_icon_loadres(&gg->wmain.ico, L"#2", 0, 0);
 
 	if (NULL == (fn = core->getpath(FFSTR("fmedia-rec.ico"))))
 		return;
