@@ -8,6 +8,12 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.0.1 - Sep 17, 2018
+
+ - .m4a write: fix segfault (v1.0 bug)
+ - gui: tray icon disappeared (v1.0 bug)
+
+
 fmedia v1.0 - Sep 8, 2018
 
  + macOS: CoreAudio playback & capture
