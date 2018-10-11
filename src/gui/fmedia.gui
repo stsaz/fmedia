@@ -299,9 +299,9 @@ window wmain {
 		text "►"
 		tooltip "Play/Pause"
 		action PAUSE
-		font {
-			name Arial
-			height 12
+		icon {
+			resource 3
+			size 30 30
 		}
 	}
 
@@ -311,9 +311,9 @@ window wmain {
 		text "■"
 		tooltip "Stop"
 		action STOP
-		font {
-			name Tahoma
-			height 11
+		icon {
+			resource 4
+			size 30 30
 		}
 	}
 
@@ -323,9 +323,9 @@ window wmain {
 		text "<<"
 		tooltip "Previous"
 		action PREV
-		font {
-			name Arial
-			height 10
+		icon {
+			resource 5
+			size 30 30
 		}
 	}
 
@@ -335,9 +335,9 @@ window wmain {
 		text ">>"
 		tooltip "Next"
 		action NEXT
-		font {
-			name Arial
-			height 10
+		icon {
+			resource 6
+			size 30 30
 		}
 	}
 
