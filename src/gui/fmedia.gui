@@ -294,57 +294,65 @@ window wmain {
 	}
 
 	button bpause {
-		position 0 0 20 20
+		position 5 5 30 30
 		style visible
 		text "►"
 		tooltip "Play/Pause"
 		action PAUSE
-		font {
-			name Arial
-			height 10
+		icon {
+			resource 3
+			size 30 30
 		}
 	}
 
 	button bstop {
-		position 25 0 20 20
+		position 40 5 30 30
 		style visible
 		text "■"
 		tooltip "Stop"
 		action STOP
-		font {
-			name Arial
-			height 13
+		icon {
+			resource 4
+			size 30 30
 		}
 	}
 
 	button bprev {
-		position 50 0 20 20
+		position 75 5 30 30
 		style visible
 		text "<<"
 		tooltip "Previous"
 		action PREV
+		icon {
+			resource 5
+			size 30 30
+		}
 	}
 
 	button bnext {
-		position 75 0 20 20
+		position 110 5 30 30
 		style visible
 		text ">>"
 		tooltip "Next"
 		action NEXT
+		icon {
+			resource 6
+			size 30 30
+		}
 	}
 
 	label lpos {
-		position 100 0 200 20
+		position 155 10 200 20
 		style visible
 		font {
 			name Arial
-			height 13
+			height 12
 			style bold
 		}
 	}
 
 	trackbar tpos {
-		position 0 20 300 20
+		position 0 42 300 20
 		style no_ticks both visible
 		range 0
 		page_size 15
@@ -353,7 +361,7 @@ window wmain {
 	}
 
 	trackbar tvol {
-		position 300 0 60 20
+		position 300 10 60 20
 		style no_ticks both visible
 		range 125
 		value 100
@@ -362,13 +370,13 @@ window wmain {
 	}
 
 	tab tabs {
-		position 0 45 300 20
+		position 0 65 300 20
 		style visible
 		onchange QUE_SEL
 	}
 
 	listview vlist {
-		position 0 65 360 175
+		position 0 85 360 175
 		style explorer_theme grid_lines multi_select visible
 		dblclick PLAY
 		popupmenu mlist_popup
