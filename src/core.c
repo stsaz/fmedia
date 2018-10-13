@@ -60,6 +60,7 @@ typedef struct core_mod {
 	const void *iface;
 
 	ffpars_ctx conf_ctx;
+	ffstr conf_data;
 	fflist_item sib;
 	char name_s[0];
 } core_mod;
@@ -519,6 +520,24 @@ static int fmed_conf_fn(const char *filename, uint flags)
 
 		while (s.len != 0) {
 			r = ffconf_parsestr(&pconf, &s);
+			if (ffpars_iserr(r))
+				goto err;
+
+			if (fmed->conf_copy_mod != NULL) {
+				int r2 = ffconf_ctx_copy(&fmed->conf_copy, &pconf);
+				if (r2 < 0) {
+					errlog0("parse config: %s: %u:%u: ffconf_ctx_copy()"
+						, filename
+						, pconf.line, pconf.ch);
+					goto fail;
+				} else if (r2 > 0) {
+					core_mod *m = (void*)fmed->conf_copy_mod;
+					m->conf_data = ffconf_ctxcopy_acquire(&fmed->conf_copy);
+					fmed->conf_copy_mod = NULL;
+				}
+				continue;
+			}
+
 			r = ffconf_schemrun(&ps);
 
 			if (ffpars_iserr(r))
@@ -543,6 +562,8 @@ err:
 	r = 0;
 
 fail:
+	fmed->conf_copy_mod = NULL;
+	ffconf_ctxcopy_destroy(&fmed->conf_copy);
 	ffconf_parseclose(&pconf);
 	ffpars_schemfree(&ps);
 	ffmem_safefree(buf);
@@ -814,6 +835,7 @@ static core_mod* mod_createiface(const ffstr *name)
 
 static void mod_freeiface(core_mod *m)
 {
+	ffstr_free(&m->conf_data);
 	ffmem_free(m);
 }
 

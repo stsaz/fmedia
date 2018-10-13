@@ -12,6 +12,7 @@ Copyright (c) 2015 Simon Zolin */
 #ifdef FF_WIN
 #include <FF/sys/wohandler.h>
 #endif
+#include <FF/data/conf.h>
 #include <FFOS/asyncio.h>
 #include <FFOS/file.h>
 #include <FFOS/process.h>
@@ -47,6 +48,9 @@ typedef struct fmedia {
 	fmed_props props;
 
 	const fmed_queue *qu;
+
+	ffconf_ctxcopy conf_copy;
+	fmed_modinfo *conf_copy_mod; //core_mod
 
 #ifdef FF_WIN
 	ffwoh *woh;
