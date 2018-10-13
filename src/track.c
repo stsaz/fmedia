@@ -22,12 +22,14 @@ Copyright (c) 2016 Simon Zolin */
 
 enum {
 	N_FILTERS = 32, //allow up to this number of filters to be added while track is running
+	ALLOWSLEEP_TIMEOUT = 5000,
 };
 
 struct tracks {
 	ffatomic trkid;
 	fflist trks; //fm_trk[]
 	const struct fmed_trk_mon *mon;
+	fftmrq_entry allowsleep_tmr;
 	uint stop_sig :1;
 };
 
@@ -99,6 +101,7 @@ static int trk_meta_enum(fm_trk *t, fmed_trk_meta *meta);
 static int trk_meta_copy(fm_trk *t, fm_trk *src);
 static fmed_f* filt_add(fm_trk *t, uint cmd, const char *name);
 static char* chain_print(fm_trk *t, const ffchain_item *mark, char *buf, size_t cap);
+static void allowsleep(uint val);
 
 static dict_ent* dict_add(fm_trk *t, const char *name, uint *f);
 static void dict_ent_free(dict_ent *e);
@@ -140,6 +143,8 @@ void tracks_destroy(void)
 	if (g == NULL)
 		return;
 	trk_cmd(NULL, FMED_TRACK_STOPALL);
+	if (g->allowsleep_tmr.handler != NULL)
+		allowsleep(2);
 	ffmem_free0(g);
 }
 
@@ -278,6 +283,51 @@ static int trk_setout(fm_trk *t)
 	return 0;
 }
 
+static void allowsleep_tmr_func(void *param)
+{
+	g->allowsleep_tmr.handler = NULL;
+	allowsleep(2);
+}
+
+/** Pause/resume system sleep timer.
+Pause system sleep timer when the first track is created.
+Arm 'allowsleep' timer upon completion of the last track.
+If a new track is created before 'allowsleep' timer expires - deactivate it.
+Otherwise, resume system sleep timer. */
+static void allowsleep(uint val)
+{
+	if (!fmed->conf.prevent_sleep)
+		return;
+
+#ifdef FF_WIN
+	switch (val) {
+	case 0:
+		if (g->trks.len == 1) {
+			core->timer(&g->allowsleep_tmr, 0, 0);
+			if (g->allowsleep_tmr.handler == NULL) {
+				ffps_systimer(ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_AWAYMODE_REQUIRED);
+				dbglog(NULL, "pause system sleep timer");
+			}
+		}
+		break;
+
+	case 1:
+		if (g->trks.len == 0) {
+			g->allowsleep_tmr.handler = &allowsleep_tmr_func;
+			core->timer(&g->allowsleep_tmr, -ALLOWSLEEP_TIMEOUT, 0);
+		}
+		break;
+
+	case 2:
+		dbglog(NULL, "resume system sleep timer");
+		ffps_systimer(ES_CONTINUOUS);
+		break;
+	}
+#else
+	(void)allowsleep_tmr_func;
+#endif
+}
+
 static int trk_opened(fm_trk *t)
 {
 	if (core->loglev == FMED_LOG_DEBUG) {
@@ -285,6 +335,7 @@ static int trk_opened(fm_trk *t)
 	}
 
 	fflist_ins(&g->trks, &t->sib);
+	allowsleep(0);
 	t->state = TRK_ST_ACTIVE;
 	t->cur = ffchain_first(&t->filt_chain);
 	return 0;
@@ -474,8 +525,10 @@ static void trk_free(fm_trk *t)
 		dict_ent_free(e);
 	}
 
-	if (fflist_exists(&g->trks, &t->sib))
+	if (fflist_exists(&g->trks, &t->sib)) {
 		fflist_rm(&g->trks, &t->sib);
+		allowsleep(1);
+	}
 
 	if (g->mon != NULL)
 		g->mon->onsig(&t->props, FMED_TRK_ONCLOSE);

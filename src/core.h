@@ -21,6 +21,7 @@ Copyright (c) 2015 Simon Zolin */
 typedef struct fmed_config {
 	byte codepage;
 	byte instance_mode;
+	byte prevent_sleep;
 	ffpcm inp_pcm;
 	const fmed_modinfo *output;
 	const fmed_modinfo *input;

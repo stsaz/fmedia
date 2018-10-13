@@ -187,6 +187,7 @@ static const ffpars_arg fmed_conf_args[] = {
 	, { "codepage",  FFPARS_TSTR, FFPARS_DST(&fmed_conf_codepage) }
 	, { "instance_mode",  FFPARS_TENUM | FFPARS_F8BIT, FFPARS_DST(&im_enum) }
 	,
+	{ "prevent_sleep",  FFPARS_TBOOL8, FFPARS_DSTOFF(fmed_config, prevent_sleep) },
 	{ "include",  FFPARS_TSTR | FFPARS_FNOTEMPTY, FFPARS_DST(&fmed_conf_include) },
 	{ "include_user",  FFPARS_TSTR | FFPARS_FNOTEMPTY, FFPARS_DST(&fmed_conf_include) },
 };
