@@ -525,7 +525,7 @@ static void gui_convert(void)
 	int itab = gg->itab_convert;
 	if (itab == -1) {
 		itab = gui_newtab(GUI_TAB_CONVERT);
-		gg->qu->cmd(FMED_QUE_NEW, NULL);
+		gg->qu->cmdv(FMED_QUE_NEW, FMED_QUE_NORND);
 		gg->itab_convert = itab;
 	} else {
 		ffui_tab_setactive(&gg->wmain.tabs, itab);

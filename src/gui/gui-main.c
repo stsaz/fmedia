@@ -30,6 +30,7 @@ static void gui_media_savelist(void);
 static void gui_plist_recount(uint from);
 static void gui_media_remove(void);
 static void gui_list_rmdead(void);
+static void gui_list_random(void);
 static void gui_tonxtlist(void);
 static void gui_goto_show(void);
 static void gui_go_set(void);
@@ -118,6 +119,7 @@ static const struct cmd cmds[] = {
 	{ QUE_SEL,	F0 | CMD_FCORE,	&gui_que_sel },
 	{ SAVELIST,	F0,	&gui_media_savelist },
 	{ REMOVE,	F0 | CMD_FCORE,	&gui_media_remove },
+	{ RANDOM,	F0 | CMD_FCORE,	&gui_list_random },
 	{ LIST_RMDEAD,	F0 | CMD_FCORE,	&gui_list_rmdead },
 	{ CLEAR,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op },
 	{ TO_NXTLIST,	F0 | CMD_FCORE,	&gui_tonxtlist },
@@ -891,6 +893,19 @@ static void gui_list_rmdead(void)
 	gg->qu->cmd(FMED_QUE_RMDEAD, NULL);
 	gui_plist_recount(0);
 	ffui_redraw(&gg->wmain.vlist, 1);
+}
+
+/** Set core module's property and check/uncheck menu item. */
+static void gui_list_random(void)
+{
+	gg->list_random = !gg->list_random;
+	core->props->list_random = gg->list_random;
+	ffui_menuitem mi = {};
+	if (gg->list_random)
+		ffui_menu_addstate(&mi, FFUI_MENU_CHECKED);
+	else
+		ffui_menu_clearstate(&mi, FFUI_MENU_CHECKED);
+	ffui_menu_set_byid(&gg->mlist, RANDOM, &mi);
 }
 
 static void gui_tonxtlist(void)

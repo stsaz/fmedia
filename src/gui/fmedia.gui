@@ -82,6 +82,10 @@ menu mlist {
 		action FILTER_SHOW
 		hotkey "Ctrl+F"
 	}
+	item "Random" {
+		action RANDOM
+		hotkey "R"
+	}
 }
 
 menu mplay {

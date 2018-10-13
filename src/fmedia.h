@@ -179,6 +179,7 @@ struct fmed_props {
 	uint stdout_busy :1;
 	uint stdin_busy :1;
 	char *version_str; // "X.XX[.XX]"
+	uint list_random;
 };
 
 struct fmed_mod {
@@ -644,7 +645,11 @@ enum FMED_QUE {
 	FMED_QUE_EXPAND, // @param: fmed_que_entry*
 	FMED_QUE_HAVEUSERMETA, // @param: fmed_que_entry*
 
+	/** Create new list.
+	flags: enum FMED_QUE_CMDF
+	void new(uint flags) */
 	FMED_QUE_NEW,
+
 	FMED_QUE_DEL, // @param: uint
 	FMED_QUE_SEL, // @param: uint
 	FMED_QUE_LIST, // @param: fmed_que_entry*
@@ -674,6 +679,9 @@ enum FMED_QUE_CMDF {
 
 	/* More items will follow until FMED_QUE_ADD | FMED_QUE_ADD_DONE is sent with param=NULL. */
 	FMED_QUE_MORE = 0x080000,
+
+	/** FMED_QUE_NEW: Don't allow random play for this list. */
+	FMED_QUE_NORND = 0x100000,
 };
 
 enum FMED_QUE_META_F {

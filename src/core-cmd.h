@@ -13,6 +13,7 @@ typedef struct fmed_cmd {
 	fftask tsk_start;
 
 	byte repeat_all;
+	byte list_random;
 	char *trackno;
 
 	uint playdev_name;

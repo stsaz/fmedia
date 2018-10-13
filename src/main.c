@@ -69,6 +69,7 @@ static const ffpars_arg fmed_cmdline_args[] = {
 
 	//QUEUE
 	{ "repeat-all",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(repeat_all) },
+	{ "random",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(list_random) },
 	{ "track",	FFPARS_TCHARPTR | FFPARS_FCOPY | FFPARS_FNOTEMPTY | FFPARS_FSTRZ,  OFF(trackno) },
 
 	//AUDIO DEVICES
@@ -950,6 +951,7 @@ int main(int argc, char **argv, char **env)
 
 	if (NULL == (g->track = core->getmod("#core.track")))
 		goto end;
+	core->props->list_random = g->cmd->list_random;
 
 	const fmed_globcmd_iface *globcmd = NULL;
 	ffbool gcmd_listen = 0;

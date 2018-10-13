@@ -5,6 +5,7 @@ Copyright (c) 2015 Simon Zolin */
 #include <FF/list.h>
 #include <FF/data/m3u.h>
 #include <FFOS/dir.h>
+#include <FFOS/random.h>
 
 
 #undef syserrlog
@@ -52,6 +53,7 @@ struct plist {
 	entry *cur;
 	struct plist *filtered_plist; //list with the filtered tracks
 	uint rm :1;
+	uint allow_random :1;
 };
 
 static void plist_free(plist *pl);
@@ -71,6 +73,7 @@ typedef struct que {
 	uint quit_if_done :1
 		, next_if_err :1
 		, fmeta_lowprio :1 //meta from file has lower priority
+		, rnd_ready :1
 		, mixing :1;
 } que;
 
@@ -421,7 +424,21 @@ done:
 static entry* que_getnext(entry *from)
 {
 	ffchain_item *it;
-	fflist *ents = (from == NULL) ? &qu->curlist->ents : &from->plist->ents;
+	plist *pl = (from == NULL) ? qu->curlist : from->plist;
+	fflist *ents = &pl->ents;
+
+	if (pl->allow_random && core->props->list_random && pl->indexes.len != 0) {
+		if (!qu->rnd_ready) {
+			qu->rnd_ready = 1;
+			fftime t;
+			fftime_now(&t);
+			ffrnd_seed(t.sec);
+		}
+
+		uint i = ffrnd_get() % pl->indexes.len;
+		entry *e = ((entry**)pl->indexes.ptr) [i];
+		return e;
+	}
 
 	it = (from == NULL) ? ents->first : from->sib.next;
 	if (it == fflist_sentl(ents)) {
@@ -520,9 +537,8 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 			pl->cur = param;
 
 		} else if (pl->cur == NULL) {
-			if (fflist_empty(ents))
+			if (NULL == (pl->cur = que_getnext(NULL)))
 				break;
-			pl->cur = FF_GETPTR(entry, sib, ents->first);
 		}
 		qu->mixing = 0;
 		que_play(pl->cur);
@@ -640,12 +656,15 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 		break;
 
 
-	case FMED_QUE_NEW:
+	case FMED_QUE_NEW: {
+		uint f = (size_t)param;
 		if (NULL == (pl = ffmem_tcalloc1(plist)))
 			return -1;
+		pl->allow_random = !(f & FMED_QUE_NORND);
 		fflist_init(&pl->ents);
 		fflist_ins(&qu->plists, &pl->sib);
 		break;
+	}
 
 	case FMED_QUE_DEL:
 		fflist_rm(&qu->plists, &qu->curlist->sib);

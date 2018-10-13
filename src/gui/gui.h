@@ -211,6 +211,7 @@ typedef struct ggui {
 		, wrec_init :1
 		, min_tray :1
 		, list_filter :1
+		, list_random :1
 		;
 	uint state;
 	int itab_convert;
@@ -298,6 +299,7 @@ enum CMDS {
 	QUE_SEL,
 	SAVELIST,
 	REMOVE,
+	RANDOM,
 	LIST_RMDEAD,
 	CLEAR,
 	SELALL,

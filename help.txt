@@ -12,6 +12,7 @@ OPTIONS:
 QUEUE:
 --track=N1[,N2...] Select specific track numbers in playlist
 --repeat-all       Repeat all
+--random           Choose the next track randomly
 
 AUDIO DEVICES:
 --list-dev          List available sound devices and exit
