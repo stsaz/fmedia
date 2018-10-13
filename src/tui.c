@@ -329,8 +329,12 @@ static void tui_info(tui *t, fmed_filt *d)
 	if (FMED_PNULL != (tstr = (void*)d->track->getvalstr3(d->trk, "title", FMED_TRK_META | FMED_TRK_VALSTR)))
 		title = *tstr;
 
+	fmed_que_entry *qtrk = (void*)d->track->getval(d->trk, "queue_item");
+	size_t trkid = (qtrk != FMED_PNULL) ? gt->qu->cmdv(FMED_QUE_ID, qtrk) + 1 : 1;
+
 	t->buf.len = 0;
-	ffstr_catfmt(&t->buf, "\n\"%S - %S\" %s %.02F MB, %u:%02u.%03u (%,U samples), %u kbps, %s, %u Hz, %s, %s\n\n"
+	ffstr_catfmt(&t->buf, "\n#%L \"%S - %S\" %s %.02F MB, %u:%02u.%03u (%,U samples), %u kbps, %s, %u Hz, %s, %s\n\n"
+		, trkid
 		, &artist, &title
 		, input
 		, (double)tsize / (1024 * 1024)
