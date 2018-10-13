@@ -82,6 +82,7 @@ static const fmed_mod fmed_que_mod = {
 	&que_iface, &que_sig, &que_destroy, &que_mod_conf
 };
 
+static ssize_t que_cmdv(uint cmd, ...);
 static ssize_t que_cmd2(uint cmd, void *param, size_t param2);
 static fmed_que_entry* _que_add(fmed_que_entry *ent);
 static void que_cmd(uint cmd, void *param);
@@ -89,7 +90,7 @@ static void _que_meta_set(fmed_que_entry *ent, const char *name, size_t name_len
 static ffstr* que_meta_find(fmed_que_entry *ent, const char *name, size_t name_len);
 static ffstr* que_meta(fmed_que_entry *ent, size_t n, ffstr *name, uint flags);
 static const fmed_queue fmed_que_mgr = {
-	&que_cmd2, &_que_add, &que_cmd, &_que_meta_set, &que_meta_find, &que_meta
+	&que_cmd2, &_que_add, &que_cmd, &_que_meta_set, &que_meta_find, &que_meta, &que_cmdv
 };
 
 static fmed_que_entry* que_add(fmed_que_entry *ent, uint flags);
@@ -436,6 +437,19 @@ static const char *const scmds[] = {
 	"meta-set", "setonchange", "expand", "have-user-meta",
 	"que-new", "que-del", "que-sel", "que-list",
 };
+
+static ssize_t que_cmdv(uint cmd, ...)
+{
+	va_list va;
+	va_start(va, cmd);
+
+	void *param = va_arg(va, void*);
+	size_t param2 = va_arg(va, size_t);
+	ssize_t r = que_cmd2(cmd, param, param2);
+
+	va_end(va);
+	return r;
+}
 
 static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 {

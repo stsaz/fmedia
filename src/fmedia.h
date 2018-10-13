@@ -691,6 +691,11 @@ typedef struct fmed_queue {
 	@flags: enum FMED_QUE_META_F.
 	Return meta value;  NULL: no more entries;  FMED_QUE_SKIP: skip this entry. */
 	ffstr* (*meta)(fmed_que_entry *ent, size_t n, ffstr *name, uint flags);
+
+	/**
+	@cmd: enum FMED_QUE + enum FMED_QUE_CMDF
+	*/
+	ssize_t (*cmdv)(uint cmd, ...);
 } fmed_queue;
 
 
