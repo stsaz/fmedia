@@ -11,7 +11,6 @@ Copyright (c) 2015 Simon Zolin */
 
 
 static const fmed_core *core;
-static const fmed_queue *qu;
 
 typedef struct fmed_wav {
 	ffwav wav;
@@ -82,10 +81,6 @@ static int wav_sig(uint signo)
 	case FMED_SIG_INIT:
 		ffmem_init();
 		return 0;
-
-	case FMED_OPEN:
-		qu = core->getmod("#queue.queue");
-		break;
 	}
 	return 0;
 }

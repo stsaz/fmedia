@@ -68,13 +68,8 @@ void wmain_init(void)
 	gg->wmain.wmain.on_dropfiles = &gui_on_dropfiles;
 	ffui_fdrop_accept(&gg->wmain.wmain, 1);
 
-	char *fn;
 	ffui_icon_loadres(&gg->wmain.ico, L"#2", 0, 0);
-
-	if (NULL == (fn = core->getpath(FFSTR("fmedia-rec.ico"))))
-		return;
-	ffui_icon_load(&gg->wmain.ico_rec, fn, 0, FFUI_ICON_SMALL);
-	ffmem_free(fn);
+	ffui_icon_loadres(&gg->wmain.ico_rec, L"#7", 0, 0);
 }
 
 
@@ -569,9 +564,9 @@ static void gui_showtextfile(uint cmd)
 	if (fn == NULL)
 		goto end;
 
-	const char *args[2];
-	args[0] = fn;
-	args[1] = NULL;
+	const char *args[3] = {
+		notepad, fn, NULL
+	};
 	fffd ps;
 	if (FF_BADFD != (ps = ffps_exec(notepad, args, NULL)))
 		ffps_close(ps);
@@ -1090,7 +1085,7 @@ void gui_newtrack(gui_trk *g, fmed_filt *d, fmed_que_entry *plid)
 		, g->sample_rate
 		, ffpcm_fmtstr(d->audio.fmt.format)
 		, ffpcm_channelstr(d->audio.fmt.channels));
-	gg->qu->meta_set(g->qent, FFSTR("__info"), buf, n, FMED_QUE_PRIV);
+	gg->qu->meta_set(g->qent, FFSTR("__info"), buf, n, FMED_QUE_PRIV | FMED_QUE_OVWRITE);
 
 	if (-1 == gui_setmeta(g, plid))
 		goto done;

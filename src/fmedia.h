@@ -24,9 +24,9 @@ mixer                 mixer
 
 
 #define FMED_VER_MAJOR  1
-#define FMED_VER_MINOR  0
+#define FMED_VER_MINOR  1
 #define FMED_VER_FULL  ((FMED_VER_MAJOR << 8) | FMED_VER_MINOR)
-#define FMED_VER  "1.0"
+#define FMED_VER  "1.1"
 
 #define FMED_VER_GETMAJ(fullver)  ((fullver) >> 8)
 #define FMED_VER_GETMIN(fullver)  ((fullver) & 0xff)
@@ -306,6 +306,8 @@ typedef struct fmed_track {
 	/**
 	@cmd: enum FMED_TRACK_CMD. */
 	ssize_t (*cmd)(void *trk, uint cmd, ...);
+
+	// obsolete
 	int (*cmd2)(void *trk, uint cmd, void *param);
 
 	int64 (*popval)(void *trk, const char *name);
@@ -607,6 +609,13 @@ typedef struct fmed_adev {
 
 // QUEUE
 
+/** Properties for an element in queue.
+Can be passed into or returned from the queue module.
+
+When an object is returned from queue module:
+User must not use it out of the current function's scope.
+The single worker thread indirectly protects the pointer from invalidation.
+*/
 typedef struct fmed_que_entry {
 	ffstr url;
 	int from // >0: msec;  <0: CD frames (1/75 sec)
@@ -626,8 +635,11 @@ enum FMED_QUE_EVT {
 typedef void (*fmed_que_onchange_t)(fmed_que_entry *e, uint flags);
 
 enum FMED_QUE {
+	/** Start playing track.
+	@param: fmed_que_entry* */
 	FMED_QUE_PLAY,
 	FMED_QUE_PLAY_EXCL,
+
 	FMED_QUE_MIX,
 	FMED_QUE_STOP_AFTER,
 
@@ -640,8 +652,16 @@ enum FMED_QUE {
 	FMED_QUE_SAVE,
 
 	FMED_QUE_CLEAR,
+
+	/** Add an item.
+	@param: fmed_que_entry*
+	Return fmed_que_entry*. */
 	FMED_QUE_ADD,
+
+	/** Remove an item.
+	@param: fmed_que_entry* */
 	FMED_QUE_RM,
+
 	FMED_QUE_RMDEAD,
 	FMED_QUE_METASET, // @param2: ffstr name_val_pair[2]
 	FMED_QUE_SETONCHANGE, // @param: fmed_que_onchange_t
@@ -655,7 +675,11 @@ enum FMED_QUE {
 
 	FMED_QUE_DEL, // @param: uint
 	FMED_QUE_SEL, // @param: uint
-	FMED_QUE_LIST, // @param: fmed_que_entry*
+
+	/** List playlist entries.
+	int list(fmed_que_entry **pent)
+	Return 0 if no more entries. */
+	FMED_QUE_LIST,
 
 	/** Return 1 if entry is inside the currently selected playlist.
 	bool iscurlist(fmed_que_entry *ent) */
@@ -702,7 +726,7 @@ enum FMED_QUE_META_F {
 #define FMED_QUE_SKIP  ((void*)-1)
 
 typedef struct fmed_queue {
-	/**
+	/** (obsolete)
 	@cmd: enum FMED_QUE + enum FMED_QUE_CMDF
 	*/
 	ssize_t (*cmd2)(uint cmd, void *param, size_t param2);

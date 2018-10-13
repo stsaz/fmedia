@@ -8,6 +8,21 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.1 - Oct 14, 2018
+
+ + GUI: use icons on playback control buttons
+ + GUI: load multiple playlists from previous session on startup
+ * GUI: faster playlists (show 1000 items 5x faster)
+ - GUI: 'Add URL' command didn't work for radio stream URLs (v0.23 bug)
+ + GUI: 'List' -> 'Random' - Choose the next track randomly
+ + --random - Choose the next track randomly
+ + TUI: show track number
+ + core: on-demand modules loading (all except UI)
+   Now the modules don't affect fmedia startup time.
+ + core: "prevent_sleep" config setting - Don't allow the system to put
+    itself to sleep after some time of inactivity
+
+
 fmedia v1.0.1 - Sep 17, 2018
 
  - .m4a write: fix segfault (v1.0 bug)

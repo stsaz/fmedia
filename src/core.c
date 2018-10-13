@@ -94,6 +94,7 @@ static int core_sigmods(uint signo);
 static core_modinfo* core_findmod(const ffstr *name);
 static const fmed_modinfo* core_insmod_delayed(const char *sname, ffpars_ctx *ctx);
 static int mod_readconf(core_mod *mod, const char *name);
+static int mod_load_delayed(core_mod *mod);
 static const fmed_modinfo* core_getmodinfo(const ffstr *name);
 static const fmed_modinfo* core_modbyext(const ffstr3 *map, const ffstr *ext);
 static int core_filetype(const char *fn);
@@ -216,8 +217,13 @@ static const char *const mods_skip[] = {
 #endif
 };
 
+/** Return 1 if the module is allowed to load. */
 static int allowed_mod(const ffstr *name)
 {
+	if (ffstr_matchz(name, "gui.") && !fmed->cmd.gui)
+		return 0;
+	if (ffstr_matchz(name, "tui.") && (fmed->cmd.notui || fmed->cmd.gui))
+		return 0;
 	const char *const *s;
 	FFARRS_FOREACH(mods_skip, s) {
 		if (ffstr_matchz(name, *s))
@@ -245,16 +251,6 @@ static int fmed_conf_modconf(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
 	char *zname;
 
 	if (!allowed_mod(name)) {
-		ffpars_ctx_skip(ctx);
-		return 0;
-	}
-
-	if (ffstr_eqcz(name, "tui.tui") && (fmed->cmd.notui || fmed->cmd.gui)) {
-		ffpars_ctx_skip(ctx);
-		return 0;
-	}
-
-	if (ffstr_eqcz(name, "gui.gui") && !fmed->cmd.gui) {
 		ffpars_ctx_skip(ctx);
 		return 0;
 	}
@@ -1057,6 +1053,7 @@ fail:
 	return -1;
 }
 
+/** Actually load a module. */
 static int mod_load_delayed(core_mod *mod)
 {
 	ffstr soname, modname;
@@ -1433,7 +1430,6 @@ static ssize_t core_cmd(uint signo, ...)
 		fftask *task = va_arg(va, fftask*);
 		uint wid = va_arg(va, uint);
 		struct worker *w = (void*)fmed->workers.ptr;
-		FF_ASSERT(ffthd_curid() == w->id);
 		FF_ASSERT(wid < fmed->workers.len);
 		if (wid >= fmed->workers.len) {
 			r = -1;
@@ -1512,6 +1508,11 @@ static int core_timer(fftmrq_entry *tmr, int64 _interval, uint flags)
 	dbglog(core, NULL, "core", "timer:%p  interval:%d  handler:%p  param:%p"
 		, tmr, interval, tmr->handler, tmr->param);
 
+	if (w->kq == FF_BADFD) {
+		dbglog0("timer's not ready", 0);
+		return -1;
+	}
+
 	if (fftmrq_active(&w->tmrq, tmr))
 		fftmrq_rm(&w->tmrq, tmr);
 	else if (interval == 0)
@@ -1584,7 +1585,7 @@ static void core_log(uint flags, void *trk, const char *module, const char *fmt,
 	r = fftime_tostr(&dt, stime, sizeof(stime), FFTIME_HMS_MSEC);
 	stime[r] = '\0';
 	ld.stime = stime;
-	ld.tid = 0;
+	ld.tid = ffthd_curid();
 
 	FF_ASSERT(lev != 0);
 	ld.level = loglevs[lev - 1];

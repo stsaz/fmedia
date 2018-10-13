@@ -9,7 +9,6 @@ Copyright (c) 2017 Simon Zolin */
 
 
 static const fmed_core *core;
-static const fmed_queue *qu;
 
 //FMEDIA MODULE
 static const void* mpc_iface(const char *name);
@@ -76,10 +75,6 @@ static int mpc_sig(uint signo)
 	case FMED_SIG_INIT:
 		ffmem_init();
 		return 0;
-
-	case FMED_OPEN:
-		qu = core->getmod("#queue.queue");
-		break;
 	}
 	return 0;
 }

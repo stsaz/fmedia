@@ -1,4 +1,4 @@
-# fmedia v0.36 GUI
+# fmedia v1.1 GUI
 
 menu mfile {
 	item "&Open..." {
@@ -300,7 +300,6 @@ window wmain {
 	button bpause {
 		position 5 5 30 30
 		style visible
-		text "►"
 		tooltip "Play/Pause"
 		action PAUSE
 		icon {
@@ -312,7 +311,6 @@ window wmain {
 	button bstop {
 		position 40 5 30 30
 		style visible
-		text "■"
 		tooltip "Stop"
 		action STOP
 		icon {
@@ -324,7 +322,6 @@ window wmain {
 	button bprev {
 		position 75 5 30 30
 		style visible
-		text "<<"
 		tooltip "Previous"
 		action PREV
 		icon {
@@ -336,7 +333,6 @@ window wmain {
 	button bnext {
 		position 110 5 30 30
 		style visible
-		text ">>"
 		tooltip "Next"
 		action NEXT
 		icon {

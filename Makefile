@@ -42,7 +42,7 @@ endif
 
 CFLAGS += \
 	-DFFS_FMT_NO_e \
-	-Werror -Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -Wno-implicit-fallthrough \
+	-Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -Wno-implicit-fallthrough \
 	-I$(SRCDIR) -I$(FF) -I$(FFOS) -I$(FF3PT)
 LDFLAGS += -L$(FF3PTLIB) $(LD_LWS2_32)
 

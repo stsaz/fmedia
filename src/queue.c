@@ -9,6 +9,7 @@ Copyright (c) 2015 Simon Zolin */
 
 
 #undef syserrlog
+#define dbglog0(...)  fmed_dbglog(core, NULL, "que", __VA_ARGS__)
 #define syserrlog(...)  fmed_syserrlog(core, NULL, "que", __VA_ARGS__)
 
 
@@ -522,6 +523,7 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 	uint flags = cmd & _FMED_QUE_FMASK;
 	cmd &= ~_FMED_QUE_FMASK;
 
+	FF_ASSERT(_FMED_QUE_LAST == FFCNT(scmds));
 	dbglog(core, NULL, "que", "received command:%s, param:%p", scmds[cmd], param);
 
 	switch ((enum FMED_QUE)cmd) {
@@ -771,6 +773,9 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 		plist_free(qu->curlist->filtered_plist);
 		qu->curlist->filtered_plist = NULL;
 		break;
+
+	case _FMED_QUE_LAST:
+		break;
 	}
 
 	return 0;
@@ -808,7 +813,7 @@ static fmed_que_entry* que_add(fmed_que_entry *ent, uint flags)
 		ent_free(e);
 		return NULL;
 	}
-	e->e.url.len = ffsz_len(e->e.url.ptr);
+	e->e.url.len = ent->url.len;
 
 	e->e.from = ent->from;
 	e->e.to = ent->to;
@@ -887,8 +892,8 @@ static void que_meta_set(fmed_que_entry *ent, const ffstr *name, const ffstr *va
 	ffarr2 *a;
 
 	if (!(flags & FMED_QUE_NUM)) {
-		dbglog(core, NULL, "que", "meta #%u: %S: %S"
-			, (e->meta.len + e->tmeta.len) / 2 + 1, name, val);
+		dbglog0("meta #%u: %S: %S f:%xu"
+			, (e->meta.len + e->tmeta.len) / 2 + 1, name, val, flags);
 	}
 
 	a = &e->meta;
@@ -904,7 +909,8 @@ static void que_meta_set(fmed_que_entry *ent, const ffstr *name, const ffstr *va
 	}
 
 	if (!(flags & FMED_QUE_PRIV) && ffstr_matchz(name, "__")) {
-		fmed_warnlog(core, NULL, "queue", "meta names starting with \"__\" are considered private");
+		fmed_warnlog(core, NULL, "queue", "meta names starting with \"__\" are considered private: \"%S\""
+			, name);
 		return;
 	}
 
@@ -931,7 +937,7 @@ static void que_meta_set(fmed_que_entry *ent, const ffstr *name, const ffstr *va
 		if (a == &e->meta) {
 			ffstr empty;
 			empty.len = 0;
-			que_meta_set(ent, name, &empty, FMED_QUE_TMETA | FMED_QUE_METADEL);
+			que_meta_set(ent, name, &empty, FMED_QUE_TMETA | FMED_QUE_METADEL | (flags & ~FMED_QUE_OVWRITE));
 		}
 
 		if (i != -1)

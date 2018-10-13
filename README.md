@@ -14,8 +14,6 @@ fmedia can decode: .mp3, .ogg (Vorbis, Opus), .opus, .m4a/.mp4 (AAC, ALAC, MPEG)
 
 fmedia can encode into: .mp3, .ogg, .opus, .m4a (AAC), .flac, .wav.
 
-Note: it's beta version - not tested well enough, not all functions will work as expected.
-
 ### Contents:
 
 * FEATURES

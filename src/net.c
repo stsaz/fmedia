@@ -825,7 +825,8 @@ static int tcp_recvhdrs(nethttp *c)
 	ssize_t r;
 
 	if (c->bufs[0].len == net->conf.bufsize) {
-		errlog(c->d->trk, "too large response headers");
+		errlog(c->d->trk, "too large response headers [%L]"
+			, c->bufs[0].len);
 		return FMED_RMORE;
 	}
 
@@ -1026,6 +1027,7 @@ static int http_prepreq(nethttp *c, ffstr *dst)
 	ffhttp_cook ck;
 
 	ffhttp_cookinit(&ck, NULL, 0);
+	ffstr_setcz(&ck.proto, "HTTP/1.0");
 	s = ffurl_get(&c->url, c->host, FFURL_PATHQS);
 	if (s.len == 0)
 		ffstr_setcz(&s, "/");

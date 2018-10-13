@@ -163,7 +163,7 @@ typedef struct rec_sets_t {
 void rec_sets_destroy(rec_sets_t *sets);
 
 typedef struct ggui {
-	fflock lktrk;
+	fflock lktrk, lklog;
 	gui_trk *curtrk; //currently playing track
 	const fmed_queue *qu;
 	const fmed_track *track;
@@ -214,7 +214,7 @@ typedef struct ggui {
 		, list_random :1
 		;
 	uint state;
-	int itab_convert;
+	int itab_convert; // index of "conversion" tab;  -1:none
 } ggui;
 
 const fmed_core *core;

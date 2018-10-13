@@ -11,7 +11,6 @@ Copyright (c) 2016 Simon Zolin */
 
 
 static const fmed_core *core;
-static const fmed_queue *qu;
 
 typedef struct fmed_mkv {
 	ffmkv mkv;
@@ -58,10 +57,6 @@ static int mkv_sig(uint signo)
 	case FMED_SIG_INIT:
 		ffmem_init();
 		return 0;
-
-	case FMED_OPEN:
-		qu = core->getmod("#queue.queue");
-		break;
 	}
 	return 0;
 }
@@ -200,12 +195,14 @@ again:
 			return FMED_RMORE;
 
 		case FFMKV_RWARN:
-			warnlog(core, d->trk, NULL, "ffmkv_read(): %s", ffmkv_errstr(&m->mkv));
+			fmed_warnlog(core, d->trk, NULL, "ffmkv_read(): %s  offset:%xU"
+				, ffmkv_errstr(&m->mkv), ffmkv_off(&m->mkv));
 			break;
 
 		case FFMKV_RERR:
 		default:
-			errlog(core, d->trk, NULL, "ffmkv_read(): %s", ffmkv_errstr(&m->mkv));
+			fmed_errlog(core, d->trk, NULL, "ffmkv_read(): %s  offset:%xU"
+				, ffmkv_errstr(&m->mkv), ffmkv_off(&m->mkv));
 			return FMED_RERR;
 		}
 	}

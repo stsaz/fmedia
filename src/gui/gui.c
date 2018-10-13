@@ -1047,6 +1047,7 @@ static int gui_sig(uint signo)
 		gg->go_pos = (uint)-1;
 		gg->itab_convert = -1;
 		fflk_init(&gg->lktrk);
+		fflk_init(&gg->lklog);
 		return 0;
 
 	case FMED_OPEN:
@@ -1244,7 +1245,9 @@ static void gui_log(uint flags, fmed_logdata *ld)
 	*s++ = '\r';
 	*s++ = '\n';
 
+	fflk_lock(&gg->lklog);
 	ffui_edit_addtext(&gg->wlog.tlog, buf, s - buf);
+	fflk_unlock(&gg->lklog);
 
 	if ((flags & _FMED_LOG_LEVMASK) <= FMED_LOG_USER)
 		ffui_show(&gg->wlog.wlog, 1);

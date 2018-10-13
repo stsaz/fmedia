@@ -49,7 +49,7 @@ FF_O := $(FFOS_OBJ) \
 $(OBJ_DIR)/%.o: $(SRCDIR)/%.c $(SRCDIR)/fmedia.h $(SRCDIR)/core-cmd.h $(SRCDIR)/core.h $(FF_HDR) $(FF_AUDIO_HDR)
 	$(C)  $(CFLAGS) $<  -o$@
 
-$(OBJ_DIR)/%.o: $(SRCDIR)/adev/%.c $(SRCDIR)/fmedia.h $(FF_HDR) $(FF_AUDIO_HDR)
+$(OBJ_DIR)/%.o: $(SRCDIR)/adev/%.c $(SRCDIR)/fmedia.h $(FF_HDR) $(FF_AUDIO_HDR) $(FF_ADEV_HDR)
 	$(C)  $(CFLAGS) $<  -o$@
 
 $(OBJ_DIR)/%.o: $(SRCDIR)/acodec/%.c $(SRCDIR)/fmedia.h $(FF_HDR) $(FF_AUDIO_HDR)
@@ -61,7 +61,7 @@ $(OBJ_DIR)/%.o: $(SRCDIR)/afilt/%.c $(SRCDIR)/fmedia.h $(FF_HDR) $(FF_AUDIO_HDR)
 $(OBJ_DIR)/%.o: $(SRCDIR)/format/%.c $(SRCDIR)/fmedia.h $(FF_HDR) $(FF_AUDIO_HDR)
 	$(C)  $(CFLAGS) $<  -o$@
 
-$(RES): $(PROJDIR)/res/fmedia.rc $(PROJDIR)/res/fmedia.ico
+$(RES): $(PROJDIR)/res/fmedia.rc $(wildcard $(PROJDIR)/res/*.ico)
 	$(WINDRES) -I$(SRCDIR) -I$(FF) -I$(FFOS) $(PROJDIR)/res/fmedia.rc $@
 
 
@@ -438,7 +438,6 @@ install-only:
 ifeq ($(OS),win)
 	$(CP) ./fmedia-gui.exe \
 		$(PROJDIR)/src/gui/fmedia.gui \
-		$(PROJDIR)/res/fmedia-rec.ico \
 		$(INSTDIR)/
 	unix2dos $(INSTDIR)/*.txt $(INSTDIR)/*.conf $(INSTDIR)/*.gui
 endif
@@ -496,7 +495,6 @@ else
 
 	$(CP) ./fmedia-gui.exe \
 		$(PROJDIR)/src/gui/fmedia.gui \
-		$(PROJDIR)/res/fmedia-rec.ico \
 		$(INSTDIR)/
 	unix2dos $(INSTDIR)/*.txt $(INSTDIR)/*.conf $(INSTDIR)/*.gui
 	chmod 644 $(INSTDIR)/*
