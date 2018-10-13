@@ -891,7 +891,9 @@ done:
 
 void gui_upd_check(void)
 {
-	if (net == NULL && NULL == (net = core->getmod("net.httpif")))
+	if (net == NULL
+		&& (NULL == core->getmod("net.http")
+			|| NULL == (net = core->getmod("net.httpif"))))
 		return;
 	struct httpreq *h;
 	if (NULL == (h = ffmem_new(struct httpreq)))

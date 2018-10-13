@@ -50,6 +50,8 @@ typedef struct core_modinfo {
 	void *dl; //ffdl
 	const fmed_mod *m;
 	void *iface; //dummy
+
+	uint opened :1;
 } core_modinfo;
 
 typedef struct core_mod {
@@ -91,6 +93,7 @@ static int core_open(void);
 static int core_sigmods(uint signo);
 static core_modinfo* core_findmod(const ffstr *name);
 static const fmed_modinfo* core_insmod_delayed(const char *sname, ffpars_ctx *ctx);
+static int mod_readconf(core_mod *mod, const char *name);
 static const fmed_modinfo* core_getmodinfo(const ffstr *name);
 static const fmed_modinfo* core_modbyext(const ffstr3 *map, const ffstr *ext);
 static int core_filetype(const char *fn);
@@ -223,9 +226,13 @@ static int allowed_mod(const ffstr *name)
 
 static int fmed_conf_mod(ffparser_schem *p, void *obj, ffstr *val)
 {
+	if (!allowed_mod(val))
+		goto end;
+
 	if (NULL == core_insmod_delayed(val->ptr, NULL))
 		return FFPARS_ESYS;
 
+end:
 	ffstr_free(val);
 	return 0;
 }
@@ -254,10 +261,26 @@ static int fmed_conf_modconf(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
 	if (zname == NULL)
 		return FFPARS_ESYS;
 
-	if (NULL == core->insmod(zname, ctx)) {
+	const fmed_modinfo *m;
+	if (ffstr_matchz(name, "tui.")
+		|| ffstr_matchz(name, "gui.")
+		|| fmed->conf_copy_mod != NULL) {
+		// UI module must load immediately
+		// Note: delayed modules loading from "include" config directive isn't supported
+		m = core_insmod(zname, ctx);
+	} else {
+		m = core_insmod_delayed(zname, ctx);
+		if (m != NULL && zname[0] != '#') {
+			ffconf_ctxcopy_init(&fmed->conf_copy, p);
+			fmed->conf_copy_mod = (void*)m;
+		}
+	}
+
+	if (m == NULL) {
 		ffmem_free(zname);
 		return FFPARS_ESYS;
 	}
+
 	ffmem_free(zname);
 	return 0;
 }
@@ -884,9 +907,6 @@ static const fmed_modinfo* core_insmod_delayed(const char *sname, ffpars_ctx *ct
 	if (NULL == (mod = mod_createiface(&name)))
 		goto fail;
 
-	if (ctx != NULL)
-		goto fail;
-
 	return (void*)mod;
 
 fail:
@@ -992,6 +1012,49 @@ static const fmed_modinfo* core_modbyext(const ffstr3 *map, const ffstr *ext)
 	return NULL;
 }
 
+/** Read module's configuration parameters. */
+static int mod_readconf(core_mod *mod, const char *name)
+{
+	int r;
+	ffparser_schem ps;
+	ffconf conf;
+
+	if (mod->m->conf == NULL)
+		return -1;
+
+	ffpars_ctx ctx;
+	if (0 != mod->m->conf(name, &ctx))
+		return -1;
+
+	if (0 != (r = ffconf_scheminit(&ps, &conf, &ctx)))
+		goto fail;
+	mod->conf_ctx = ctx;
+
+	ffstr data = mod->conf_data;
+	while (data.len != 0) {
+		r = ffconf_parsestr(&conf, &data);
+		r = ffconf_schemrun(&ps);
+		if (ffpars_iserr(r))
+			goto fail;
+	}
+
+	r = ffconf_schemfin(&ps);
+	if (ffpars_iserr(r))
+		goto fail;
+
+	ffstr_free(&mod->conf_data);
+	ffconf_parseclose(&conf);
+	ffpars_schemfree(&ps);
+	return 0;
+
+fail:
+	errlog0("can't load module %s: config parser: %s"
+		, mod->name, ffpars_errstr(r));
+	ffconf_parseclose(&conf);
+	ffpars_schemfree(&ps);
+	return -1;
+}
+
 static int mod_load_delayed(core_mod *mod)
 {
 	ffstr soname, modname;
@@ -1006,8 +1069,17 @@ static int mod_load_delayed(core_mod *mod)
 	if (0 != mod_loadiface(mod, bmod))
 		goto fail;
 
-	if (0 != mod->m->sig(FMED_OPEN))
-		goto fail;
+	if (mod->conf_data.len != 0) {
+		if (0 != mod_readconf(mod, modname.ptr))
+			goto fail;
+	}
+
+	if (!bmod->opened) {
+		dbglog0("signal:%u for module %s", (int)FMED_OPEN, bmod->name);
+		if (0 != bmod->m->sig(FMED_OPEN))
+			goto fail;
+		bmod->opened = 1;
+	}
 
 	return 0;
 
@@ -1259,8 +1331,12 @@ static int core_sigmods(uint signo)
 {
 	core_modinfo *mod;
 	FFARR_WALKT(&fmed->bmods, mod, core_modinfo) {
-		if (mod->m != NULL && 0 != mod->m->sig(signo))
+		if (mod->m == NULL)
+			continue;
+		if (0 != mod->m->sig(signo))
 			return 1;
+		if (signo == FMED_OPEN)
+			mod->opened = 1;
 	}
 	return 0;
 }
