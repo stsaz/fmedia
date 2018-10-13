@@ -177,6 +177,7 @@ static const char *const im_enumstr[] = {
 static const ffpars_enumlist im_enum = { im_enumstr, FFCNT(im_enumstr), FFPARS_DSTOFF(fmed_config, instance_mode) };
 
 static const ffpars_arg fmed_conf_args[] = {
+	{ "workers",  FFPARS_TINT8, FFPARS_DSTOFF(fmed_config, workers) },
 	{ "mod",  FFPARS_TSTR | FFPARS_FNOTEMPTY | FFPARS_FSTRZ | FFPARS_FCOPY | FFPARS_FMULTI, FFPARS_DST(&fmed_conf_mod) }
 	, { "mod_conf",  FFPARS_TOBJ | FFPARS_FOBJ1 | FFPARS_FNOTEMPTY | FFPARS_FMULTI, FFPARS_DST(&fmed_conf_modconf) }
 	, { "output",  FFPARS_TSTR | FFPARS_FNOTEMPTY | FFPARS_FMULTI, FFPARS_DST(&fmed_conf_output) }
@@ -1170,7 +1171,12 @@ static int core_open(void)
 #if defined FF_WIN && FF_WIN < 0x0600
 	ffkqu_init();
 #endif
-	uint n = 1;
+	uint n = fmed->conf.workers;
+	if (n == 0) {
+		ffsysconf sc;
+		ffsc_init(&sc);
+		n = ffsc_get(&sc, _SC_NPROCESSORS_ONLN);
+	}
 	if (NULL == ffarr_alloczT(&fmed->workers, n, struct worker))
 		return 1;
 	fmed->workers.len = n;
@@ -1231,10 +1237,16 @@ static void wrk_destroy(struct worker *w)
 	}
 }
 
-uint core_job_new(void)
+uint core_job_new(uint flags)
 {
 	struct worker *w, *ww = (void*)fmed->workers.ptr;
 	uint id = 0, j = -1;
+
+	if (flags == 0) {
+		id = 0;
+		w = &ww[0];
+		goto done;
+	}
 
 	FFARR_WALKT(&fmed->workers, w, struct worker) {
 		if (w->njobs < j) {
@@ -1277,6 +1289,12 @@ ffbool core_job_shouldyield(uint id, size_t *ctx)
 	struct worker *w = ffarr_itemT(&fmed->workers, id, struct worker);
 	FF_ASSERT(w->id == ffthd_curid());
 	return (*ctx != w->taskmgr.tasks.len);
+}
+
+ffbool core_ismainthr(void)
+{
+	struct worker *w = ffarr_itemT(&fmed->workers, 0, struct worker);
+	return (w->id == ffthd_curid());
 }
 
 static int FFTHDCALL core_work(void *param)
@@ -1397,6 +1415,7 @@ static ssize_t core_cmd(uint signo, ...)
 		break;
 
 	case FMED_STOP: {
+		FF_ASSERT(core_ismainthr());
 		core_sigmods(signo);
 		fmed->stopped = 1;
 		struct worker *w;

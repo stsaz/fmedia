@@ -76,7 +76,8 @@ typedef struct fm_trk {
 	ffrbtree dict;
 	ffrbtree meta;
 	struct ffps_perf psperf;
-	fftask tsk;
+	fftask tsk, tsk_stop;
+	uint wid;
 
 	ffstr id;
 	char sid[FFSLEN("*") + FFINT_MAXCHARS];
@@ -93,6 +94,7 @@ static int filt_call(fm_trk *t, fmed_f *f);
 static int trk_open(fm_trk *t, const char *fn);
 static void trk_open_capt(fm_trk *t);
 static void trk_free(fm_trk *t);
+static void trk_fin(fm_trk *t);
 static void trk_process(void *udata);
 static void trk_stop(fm_trk *t, uint flags);
 static fmed_f* trk_modbyext(fm_trk *t, uint flags, const ffstr *ext);
@@ -142,7 +144,12 @@ void tracks_destroy(void)
 {
 	if (g == NULL)
 		return;
-	trk_cmd(NULL, FMED_TRACK_STOPALL);
+	g->stop_sig = 0;
+	fm_trk *t;
+	fflist_item *next;
+	FFLIST_WALKSAFE(&g->trks, t, sib, next) {
+		trk_free(t);
+	}
 	if (g->allowsleep_tmr.handler != NULL)
 		allowsleep(2);
 	ffmem_free0(g);
@@ -438,12 +445,21 @@ static void trk_copy_info(fmed_trk *dst, const fmed_trk *src)
 	dst->bits = src->bits;
 }
 
-static void trk_stop(fm_trk *t, uint flags)
+/** Stop the track.  Thread: worker. */
+static void trk_onstop(void *p)
 {
-	trk_setval(t, "stopped", flags);
+	fm_trk *t = p;
+	trk_setval(t, "stopped", 1);
 	t->props.flags |= FMED_FSTOP;
 	if (t->state != TRK_ST_ACTIVE)
-		trk_free(t);
+		trk_fin(t);
+}
+
+/** Submit track stop event. */
+static void trk_stop(fm_trk *t, uint flags)
+{
+	fftask_set(&t->tsk_stop, &trk_onstop, t);
+	core->cmd(FMED_TASK_XPOST, &t->tsk_stop, t->wid);
 }
 
 static void trk_printtime(fm_trk *t)
@@ -478,6 +494,19 @@ static void dict_ent_free(dict_ent *e)
 	ffmem_free(e);
 }
 
+static void trk_free_tsk(void *param)
+{
+	trk_free(param);
+}
+
+/** Finish processing for the track.  Thread: worker. */
+static void trk_fin(fm_trk *t)
+{
+	t->tsk.handler = &trk_free_tsk;
+	core->task(&t->tsk, FMED_TASK_POST);
+}
+
+/** Free memory associated with the track.  Thread: main. */
 static void trk_free(fm_trk *t)
 {
 	fmed_f *pf;
@@ -485,6 +514,7 @@ static void trk_free(fm_trk *t)
 	fftree_node *node, *next;
 
 	core->task(&t->tsk, FMED_TASK_DEL);
+	core->task(&t->tsk_stop, FMED_TASK_DEL);
 
 	if (fmed->cmd.print_time) {
 		struct ffps_perf i2 = {};
@@ -527,6 +557,7 @@ static void trk_free(fm_trk *t)
 
 	if (fflist_exists(&g->trks, &t->sib)) {
 		fflist_rm(&g->trks, &t->sib);
+		core_job_done(t->wid);
 		allowsleep(1);
 	}
 
@@ -610,7 +641,7 @@ static void trk_process(void *udata)
 	fmed_f *f;
 	int r, e;
 	size_t jobdata;
-	core_job_enter(0, &jobdata);
+	core_job_enter(t->wid, &jobdata);
 
 	for (;;) {
 
@@ -620,7 +651,7 @@ static void trk_process(void *udata)
 			return;
 		}
 
-		if (core_job_shouldyield(0, &jobdata)) {
+		if (core_job_shouldyield(t->wid, &jobdata)) {
 			trk_cmd(t, FMED_TRACK_WAKE);
 			return;
 		}
@@ -735,7 +766,7 @@ fin:
 	if (t->state == TRK_ST_ERR)
 		trk_setval(t, "error", 1);
 
-	trk_free(t);
+	trk_fin(t);
 }
 
 
@@ -955,6 +986,7 @@ static ssize_t trk_cmd(void *trk, uint cmd, ...)
 		// break
 
 	case FMED_TRACK_STOPALL:
+		FF_ASSERT(core_ismainthr());
 		FFLIST_WALKSAFE(&g->trks, t, sib, next) {
 			if (t->props.type == FMED_TRK_TYPE_REC && trk == NULL)
 				continue;
@@ -964,10 +996,12 @@ static ssize_t trk_cmd(void *trk, uint cmd, ...)
 		break;
 
 	case FMED_TRACK_STOP:
+		FF_ASSERT(core_ismainthr());
 		trk_stop(t, FMED_TRACK_STOP);
 		break;
 
 	case FMED_TRACK_START:
+	case FMED_TRACK_XSTART:
 		if (0 != trk_setout(t)) {
 			trk_setval(t, "error", 1);
 		}
@@ -980,7 +1014,11 @@ static ssize_t trk_cmd(void *trk, uint cmd, ...)
 		if (fmed->cmd.print_time)
 			ffps_perf(&t->psperf, FFPS_PERF_REALTIME | FFPS_PERF_CPUTIME | FFPS_PERF_RUSAGE);
 
-		core->task(&t->tsk, FMED_TASK_POST);
+		if (cmd == FMED_TRACK_XSTART)
+			t->wid = core_job_new(1);
+		else
+			t->wid = core_job_new(0);
+		core->cmd(FMED_TASK_XPOST, &t->tsk, t->wid);
 		break;
 
 	case FMED_TRACK_PAUSE:
@@ -997,7 +1035,7 @@ static ssize_t trk_cmd(void *trk, uint cmd, ...)
 		break;
 
 	case FMED_TRACK_WAKE:
-		core->task(&t->tsk, FMED_TASK_POST);
+		core->cmd(FMED_TASK_XPOST, &t->tsk, t->wid);
 		break;
 
 	case FMED_TRACK_FILT_ADDFIRST:

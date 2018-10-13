@@ -258,6 +258,9 @@ enum FMED_TRACK_CMD {
 	/** Get kernel queue associated with this track.
 	Return fffd. */
 	FMED_TRACK_KQ,
+
+	/** Start a track in any worker. */
+	FMED_TRACK_XSTART,
 };
 
 enum FMED_TRK_TYPE {

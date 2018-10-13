@@ -22,6 +22,7 @@ typedef struct fmed_config {
 	byte codepage;
 	byte instance_mode;
 	byte prevent_sleep;
+	byte workers;
 	ffpcm inp_pcm;
 	const fmed_modinfo *output;
 	const fmed_modinfo *input;
@@ -66,10 +67,12 @@ extern const fmed_track _fmed_track;
 /** Find the worker with the least number of active jobs.
 Initialize data and create a thread if necessary.
 Return worker ID. */
-extern uint core_job_new(void);
+extern uint core_job_new(uint flags);
 
 extern void core_job_done(uint id);
 
 extern void core_job_enter(uint id, size_t *ctx);
 
 extern ffbool core_job_shouldyield(uint id, size_t *ctx);
+
+extern ffbool core_ismainthr(void);
