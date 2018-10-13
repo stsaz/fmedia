@@ -652,6 +652,13 @@ enum FMED_QUE {
 	/** Return 1 if entry is inside the currently selected playlist.
 	bool iscurlist(fmed_que_entry *ent) */
 	FMED_QUE_ISCURLIST,
+
+	/** size_t get_id(fmed_que_entry *ent) */
+	FMED_QUE_ID,
+	/** fmed_que_entry* item(size_t plid, size_t id) */
+	FMED_QUE_ITEM,
+
+	_FMED_QUE_LAST
 };
 
 enum FMED_QUE_CMDF {
@@ -703,6 +710,12 @@ typedef struct fmed_queue {
 	*/
 	ssize_t (*cmdv)(uint cmd, ...);
 } fmed_queue;
+
+/** Get playlist entry.
+plid: playlist ID. -1: current.
+id: item ID
+Return fmed_que_entry*. */
+#define fmed_queue_item(plid, id)  cmdv(FMED_QUE_ITEM, (ssize_t)(plid), (size_t)(id))
 
 #define fmed_queue_save(qid, filename) \
 	cmdv(FMED_QUE_SAVE, (size_t)(qid), (void*)(filename))

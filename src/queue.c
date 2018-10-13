@@ -48,9 +48,13 @@ typedef struct entry {
 struct plist {
 	fflist_item sib;
 	fflist ents; //entry[]
+	ffarr indexes; //entry*[]  Get an entry by its number;  find a number by an entry pointer.
 	entry *cur;
 	uint rm :1;
 };
+
+static void plist_free(plist *pl);
+static ssize_t plist_ent_idx(plist *pl, entry *e);
 
 struct que_conf {
 	byte next_if_err;
@@ -179,6 +183,12 @@ static int que_sig(uint signo)
 
 static void ent_rm(entry *e)
 {
+	if (!e->rm) {
+		ssize_t i = plist_ent_idx(e->plist, e);
+		if (i >= 0)
+			_ffarr_rmshift_i(&e->plist->indexes, i, 1, sizeof(entry*));
+	}
+
 	if (e->refcount != 0) {
 		e->rm = 1;
 		return;
@@ -188,7 +198,7 @@ static void ent_rm(entry *e)
 		e->plist->cur = NULL;
 	fflist_rm(&e->plist->ents, &e->sib);
 	if (e->plist->ents.len == 0 && e->plist->rm)
-		ffmem_free(e->plist);
+		plist_free(e->plist);
 	ent_free(e);
 }
 
@@ -217,7 +227,19 @@ static void ent_free(entry *e)
 static void plist_free(plist *pl)
 {
 	FFLIST_ENUMSAFE(&pl->ents, ent_free, entry, sib);
+	ffarr_free(&pl->indexes);
 	ffmem_free(pl);
+}
+
+/** Find a number by an entry pointer. */
+static ssize_t plist_ent_idx(plist *pl, entry *e)
+{
+	entry **p;
+	FFARR_WALKT(&pl->indexes, p, entry*) {
+		if (*p == e)
+			return p - (entry**)pl->indexes.ptr;
+	}
+	return -1;
 }
 
 static void que_destroy(void)
@@ -448,6 +470,7 @@ static const char *const scmds[] = {
 	"play", "play-excl", "mix", "stop-after", "next", "prev", "save", "clear", "add", "rm", "rmdead",
 	"meta-set", "setonchange", "expand", "have-user-meta",
 	"que-new", "que-del", "que-sel", "que-list", "is-curlist",
+	"id", "item",
 };
 
 static ssize_t que_cmdv(uint cmd, ...)
@@ -617,7 +640,7 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 		fflist_rm(&qu->plists, &qu->curlist->sib);
 		FFLIST_ENUMSAFE(&qu->curlist->ents, ent_rm, entry, sib);
 		if (fflist_empty(&qu->curlist->ents))
-			ffmem_free(qu->curlist);
+			plist_free(qu->curlist);
 		else
 			qu->curlist->rm = 1;
 		qu->curlist = NULL;
@@ -664,6 +687,19 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 	case FMED_QUE_ISCURLIST:
 		e = param;
 		return (e->plist == qu->curlist);
+
+	case FMED_QUE_ID:
+		e = param;
+		return plist_ent_idx(e->plist, e);
+
+	case FMED_QUE_ITEM: {
+		ssize_t plid = (size_t)param;
+		pl = (plid != -1) ? plist_by_idx(plid) : qu->curlist;
+		if (param2 >= pl->indexes.len)
+			return 0;
+		e = ((entry**)pl->indexes.ptr) [param2];
+		return (size_t)e;
+	}
 	}
 
 	return 0;
@@ -729,6 +765,22 @@ static fmed_que_entry* que_add(fmed_que_entry *ent, uint flags)
 
 	ffchain_append(&e->sib, (ent->prev != NULL) ? &FF_GETPTR(entry, e, ent->prev)->sib : e->plist->ents.last);
 	e->plist->ents.len++;
+	if (NULL == ffarr_growT(&e->plist->indexes, 1, 16, entry*)) {
+		ent_free(e);
+		return NULL;
+	}
+	if (ent->prev != NULL) {
+		entry *prev = FF_GETPTR(entry, e, ent->prev);
+		ssize_t i = plist_ent_idx(e->plist, prev);
+		FF_ASSERT(i != -1);
+		if (i != -1) {
+			i++;
+			_ffarr_shiftr(&e->plist->indexes, i, 1, sizeof(entry*));
+			((entry**)e->plist->indexes.ptr) [i] = e;
+			e->plist->indexes.len++;
+		}
+	} else
+		*ffarr_pushT(&e->plist->indexes, entry*) = e;
 
 	dbglog(core, NULL, "que", "added: (%d: %d-%d) %S"
 		, ent->dur, ent->from, ent->to, &ent->url);
