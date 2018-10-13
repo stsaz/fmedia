@@ -400,15 +400,15 @@ void gui_corecmd_add(const struct cmd *cmd, void *udata)
 void gui_corecmd_op(uint cmd, void *udata)
 {
 	switch (cmd) {
-	case PLAY:
+	case PLAY: {
+		int focused;
+		if (-1 == (focused = ffui_view_focused(&gg->wmain.vlist)))
+			break;
 		if (gg->curtrk != NULL)
 			gg->track->cmd(gg->curtrk->trk, FMED_TRACK_STOP);
-		gg->qu->cmd(FMED_QUE_PLAY, udata);
+		gg->qu->cmd(FMED_QUE_PLAY, (void*)gg->qu->fmed_queue_item(-1, focused));
 		break;
-
-	case STARTPLAY:
-		gg->qu->cmd(FMED_QUE_PLAY, udata);
-		break;
+	}
 
 	case PAUSE:
 		if (gg->curtrk == NULL) {
@@ -509,12 +509,12 @@ static void gui_que_onchange(fmed_que_entry *e, uint flags)
 			ffui_redraw(&gg->wmain.vlist, 1);
 			break;
 		}
-		gui_media_added(e, 0);
+		idx = gg->qu->cmdv(FMED_QUE_ID, e);
+		gui_media_added2(e, 0, idx);
 		break;
 
 	case FMED_QUE_ONRM:
-		if (-1 == (idx = ffui_view_search(&gg->wmain.vlist, (size_t)e)))
-			break;
+		idx = gg->qu->cmdv(FMED_QUE_ID, e);
 		gui_media_removed(idx);
 		break;
 
@@ -547,14 +547,9 @@ void gui_media_showpcm(void)
 {
 	int i = -1;
 	fmed_que_entry *ent;
-	ffui_viewitem it;
 
 	while (-1 != (i = ffui_view_selnext(&gg->wmain.vlist, i))) {
-		ffui_view_iteminit(&it);
-		ffui_view_setindex(&it, i);
-		ffui_view_setparam(&it, 0);
-		ffui_view_get(&gg->wmain.vlist, 0, &it);
-		ent = (void*)ffui_view_param(&it);
+		ent = (fmed_que_entry*)gg->qu->fmed_queue_item(-1, i);
 
 		void *trk;
 		if (NULL == (trk = gg->track->create(FMED_TRK_TYPE_PLAYBACK, ent->url.ptr)))

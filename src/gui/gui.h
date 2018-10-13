@@ -334,7 +334,6 @@ enum CMDS {
 	ONCLOSE,
 	CVT_SETS_EDITDONE,
 	CVT_ACTIVATE,
-	STARTPLAY,
 };
 
 typedef void (*cmdfunc0)(void);
@@ -360,8 +359,6 @@ struct cmd {
 	void *func; // cmdfunc*
 };
 
-const struct cmd cmd_play;
-const struct cmd cmd_startplay;
 const struct cmd cmd_add;
 
 const struct cmd* getcmd(uint cmd, const struct cmd *cmds, uint n);
@@ -381,6 +378,7 @@ void gui_conv_progress(gui_trk *g);
 void gui_clear(void);
 void gui_status(const char *s, size_t len);
 void gui_media_added(fmed_que_entry *ent, uint flags);
+void gui_media_added2(fmed_que_entry *ent, uint flags, int idx);
 void gui_media_removed(uint i);
 void gui_rec(uint cmd);
 char* gui_usrconf_filename(void);

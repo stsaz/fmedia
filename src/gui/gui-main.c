@@ -31,7 +31,6 @@ static void gui_plist_recount(uint from);
 static void gui_media_remove(void);
 static void gui_list_rmdead(void);
 static void gui_tonxtlist(void);
-static fmed_que_entry* gui_list_getent(void);
 static void gui_goto_show(void);
 static void gui_go_set(void);
 static void gui_vol(uint id);
@@ -79,6 +78,7 @@ void wmain_init(void)
 
 
 static const struct cmd cmds[] = {
+	{ PLAY,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op },
 	{ PAUSE,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op },
 	{ STOP,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op },
 	{ STOP_AFTER,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op },
@@ -121,9 +121,9 @@ static const struct cmd cmds[] = {
 	{ LIST_RMDEAD,	F0 | CMD_FCORE,	&gui_list_rmdead },
 	{ CLEAR,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op },
 	{ TO_NXTLIST,	F0 | CMD_FCORE,	&gui_tonxtlist },
-	{ SHOWDIR,	F0,	&gui_media_showdir },
-	{ COPYFN,	F0,	&gui_media_copyfn },
-	{ COPYFILE,	F1,	&gui_media_fileop },
+	{ SHOWDIR,	F0 | CMD_FCORE,	&gui_media_showdir },
+	{ COPYFN,	F0 | CMD_FCORE,	&gui_media_copyfn },
+	{ COPYFILE,	F1 | CMD_FCORE,	&gui_media_fileop },
 	{ DELFILE,	F1 | CMD_FCORE,	&gui_media_fileop },
 	{ SHOWINFO,	F0 | CMD_FCORE,	&gui_media_showinfo },
 	{ SHOWPCM,	F0 | CMD_FCORE,	&gui_media_showpcm },
@@ -140,8 +140,6 @@ static const struct cmd cmds[] = {
 
 static const struct cmd cmd_open = { OPEN,	F1 | CMD_FCORE,	&gui_media_open };
 const struct cmd cmd_add = { ADD,	F1 | CMD_FCORE,	&gui_media_open };
-const struct cmd cmd_play = { PLAY,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op };
-const struct cmd cmd_startplay = { STARTPLAY,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op };
 static const struct cmd cmd_quit = { QUIT,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op };
 static const struct cmd cmd_savelist = { SAVELIST,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op };
 static const struct cmd cmd_seek = { SEEK, F1 | CMD_FCORE | CMD_FUDATA, &gui_corecmd_op };
@@ -174,16 +172,6 @@ static void gui_action(ffui_wnd *wnd, int id)
 	}
 
 	switch (id) {
-
-	case PLAY: {
-		void *play_id;
-		if (NULL == (play_id = gui_list_getent()))
-			break;
-		gui_corecmd_add(&cmd_play, play_id);
-		break;
-	}
-
-
 	case SEEKING:
 		{
 		uint pos = ffui_trk_val(&gg->wmain.tpos);
@@ -430,8 +418,10 @@ static void gui_vol(uint id)
 static void gui_media_showdir(void)
 {
 	const fmed_que_entry *ent;
-
-	if (NULL == (ent = gui_list_getent()))
+	int focused;
+	if (-1 == (focused = ffui_view_focused(&gg->wmain.vlist)))
+		return;
+	if (NULL == (ent = (fmed_que_entry*)gg->qu->fmed_queue_item(-1, focused)))
 		return;
 
 	ffui_openfolder((const char *const *)&ent->url.ptr, 1);
@@ -460,15 +450,10 @@ static void gui_media_copyfn(void)
 {
 	int i = -1;
 	fmed_que_entry *ent;
-	ffui_viewitem it;
 	ffarr buf = {0};
 
 	while (-1 != (i = ffui_view_selnext(&gg->wmain.vlist, i))) {
-		ffui_view_iteminit(&it);
-		ffui_view_setindex(&it, i);
-		ffui_view_setparam(&it, 0);
-		ffui_view_get(&gg->wmain.vlist, 0, &it);
-		ent = (void*)ffui_view_param(&it);
+		ent = (fmed_que_entry*)gg->qu->fmed_queue_item(-1, i);
 
 		if (0 == ffstr_catfmt(&buf, "%S" FF_NEWLN, &ent->url))
 			goto done;
@@ -493,7 +478,6 @@ static void gui_media_fileop(uint cmd)
 	int i = -1;
 	fmed_que_entry *ent;
 	struct ent_idx *ei;
-	ffui_viewitem it;
 	ffarr buf = {0}; //char*[]
 	ffarr ents = {0}; //ent_idx[]
 	char st[255];
@@ -501,11 +485,7 @@ static void gui_media_fileop(uint cmd)
 	char **pitem;
 
 	while (-1 != (i = ffui_view_selnext(&gg->wmain.vlist, i))) {
-		ffui_view_iteminit(&it);
-		ffui_view_setindex(&it, i);
-		ffui_view_setparam(&it, 0);
-		ffui_view_get(&gg->wmain.vlist, 0, &it);
-		ent = (void*)ffui_view_param(&it);
+		ent = (fmed_que_entry*)gg->qu->fmed_queue_item(-1, i);
 
 		if (NULL == (pitem = ffarr_pushgrowT(&buf, 16, char*)))
 			goto done;
@@ -689,29 +669,29 @@ static void gui_trk_setinfo2(fmed_que_entry *ent, uint flags)
 	}
 }
 
-void gui_media_added(fmed_que_entry *ent, uint flags)
+void gui_media_added2(fmed_que_entry *ent, uint flags, int idx)
 {
 	char buf[255];
 	ffui_viewitem it;
 	ffmem_tzero(&it);
 
-	int idx = -1;
-	if (ent->prev != NULL)
-		idx = ffui_view_search(&gg->wmain.vlist, (size_t)ent->prev);
-
 	if (idx == -1) {
-		gui_list_add(&it, (size_t)ent);
+		gui_list_add(&it, 0);
 		idx = it.item.iItem;
 	} else {
-		size_t n = ffs_fromint(idx + 2, buf, sizeof(buf), 0);
+		size_t n = ffs_fromint(idx + 1, buf, sizeof(buf), 0);
 		ffui_view_settext(&it, buf, n);
-		ffui_view_setparam(&it, (size_t)ent);
-		ffui_view_ins(&gg->wmain.vlist, ++idx, &it);
+		ffui_view_ins(&gg->wmain.vlist, idx, &it);
 	}
 
 	if (ent->dur != 0)
 		flags |= GUI_TRKINFO_DUR;
 	gui_trk_setinfo(idx, ent, ent->dur / 1000, flags);
+}
+
+void gui_media_added(fmed_que_entry *ent, uint flags)
+{
+	gui_media_added2(ent, flags, -1);
 }
 
 static void gui_media_opendlg(uint id)
@@ -890,17 +870,12 @@ static void gui_media_remove(void)
 {
 	int i, first;
 	void *id;
-	ffui_viewitem it;
 
 	ffui_redraw(&gg->wmain.vlist, 0);
 
 	first = ffui_view_selnext(&gg->wmain.vlist, -1);
 	while (-1 != (i = ffui_view_selnext(&gg->wmain.vlist, -1))) {
-		ffui_view_iteminit(&it);
-		ffui_view_setindex(&it, i);
-		ffui_view_setparam(&it, 0);
-		ffui_view_get(&gg->wmain.vlist, 0, &it);
-		id = (void*)ffui_view_param(&it);
+		id = (fmed_que_entry*)gg->qu->fmed_queue_item(-1, i);
 		gg->qu->cmd2(FMED_QUE_RM | FMED_QUE_NO_ONCHANGE, id, 0);
 		ffui_view_rm(&gg->wmain.vlist, i);
 	}
@@ -921,7 +896,6 @@ static void gui_list_rmdead(void)
 static void gui_tonxtlist(void)
 {
 	int i = -1, sel;
-	ffui_viewitem it;
 	fmed_que_entry e = {0}, *ent;
 
 	if (0 == ffui_view_selcount(&gg->wmain.vlist))
@@ -938,11 +912,7 @@ static void gui_tonxtlist(void)
 	gg->qu->cmd(FMED_QUE_SEL, (void*)(size_t)sel + 1);
 
 	while (-1 != (i = ffui_view_selnext(&gg->wmain.vlist, i))) {
-		ffui_view_iteminit(&it);
-		ffui_view_setindex(&it, i);
-		ffui_view_setparam(&it, 0);
-		ffui_view_get(&gg->wmain.vlist, 0, &it);
-		ent = (void*)ffui_view_param(&it);
+		ent = (fmed_que_entry*)gg->qu->fmed_queue_item(sel, i);
 		e.url = ent->url;
 		e.from = ent->from;
 		e.to = ent->to;
@@ -953,27 +923,11 @@ static void gui_tonxtlist(void)
 	gg->qu->cmd(FMED_QUE_SEL, (void*)(size_t)sel);
 }
 
-static fmed_que_entry* gui_list_getent(void)
-{
-	int focused;
-	ffui_viewitem it = {0};
-	size_t entid;
-	if (-1 == (focused = ffui_view_focused(&gg->wmain.vlist)))
-		return NULL;
-	ffui_view_setindex(&it, focused);
-	ffui_view_setparam(&it, 0);
-	ffui_view_get(&gg->wmain.vlist, 0, &it);
-	if (0 == (entid = ffui_view_param(&it)))
-		return NULL;
-	return (void*)entid;
-}
-
 static void gui_list_add(ffui_viewitem *it, size_t par)
 {
 	char buf[FFINT_MAXCHARS];
 	size_t n = ffs_fromint(ffui_view_nitems(&gg->wmain.vlist) + 1, buf, sizeof(buf), 0);
 	ffui_view_settext(it, buf, n);
-	ffui_view_setparam(it, par);
 	ffui_view_append(&gg->wmain.vlist, it);
 }
 
@@ -1078,7 +1032,13 @@ void gui_filter(const ffstr *text, uint flags)
 int gui_setmeta(gui_trk *g, fmed_que_entry *plid)
 {
 	ssize_t idx;
-	if (-1 != (idx = ffui_view_search(&gg->wmain.vlist, (size_t)plid))) {
+	if (-1 != (idx = gg->qu->cmdv(FMED_QUE_ID, plid))) {
+		fmed_que_entry *e2 = (void*)gg->qu->fmed_queue_item(-1, idx);
+		if (e2 != plid)
+			idx = -1; //'plid' track isn't from the current playlist
+	}
+
+	if (idx != -1) {
 		if (g == NULL) {
 			gui_trk_setinfo(idx, plid, 0, GUI_TRKINFO_STOPPED);
 			return idx;
@@ -1128,8 +1088,10 @@ void gui_conv_progress(gui_trk *g)
 	plid = (void*)g->d->track->getval(g->d->trk, "queue_item");
 
 	ssize_t idx;
-	if (-1 == (idx = ffui_view_search(&gg->wmain.vlist, (size_t)plid)))
+	if (-1 == (idx = gg->qu->cmdv(FMED_QUE_ID, plid))) {
+		FF_ASSERT(0);
 		return;
+	}
 
 	ffui_viewitem it = {0};
 	ffui_view_setindex(&it, idx);

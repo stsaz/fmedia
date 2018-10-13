@@ -504,7 +504,6 @@ end:
 static void gui_convert(void)
 {
 	int i = -1;
-	ffui_viewitem it;
 	fmed_que_entry e, *qent, *inp;
 	ffstr fn, name;
 	uint k;
@@ -512,7 +511,6 @@ static void gui_convert(void)
 
 	cvt_sets_destroy(&gg->conv_sets);
 
-	ffui_view_iteminit(&it);
 	ffui_textstr(&gg->wconvert.eout, &fn);
 	gg->conv_sets.output = fn.ptr;
 	if (fn.len == 0 || 0 == ffui_view_selcount(&gg->wmain.vlist)) {
@@ -523,6 +521,7 @@ static void gui_convert(void)
 	if (0 != gui_cvt_getsettings(cvt_sets, FFCNT(cvt_sets), &gg->conv_sets, &gg->wconvert.vsets))
 		goto end;
 
+	int curtab = ffui_tab_active(&gg->wmain.tabs);
 	int itab = gg->itab_convert;
 	if (itab == -1) {
 		itab = gui_newtab(GUI_TAB_CONVERT);
@@ -534,11 +533,7 @@ static void gui_convert(void)
 	gg->qu->cmd(FMED_QUE_SEL, (void*)(size_t)itab);
 
 	while (-1 != (i = ffui_view_selnext(&gg->wmain.vlist, i))) {
-		ffui_view_iteminit(&it);
-		ffui_view_setindex(&it, i);
-		ffui_view_setparam(&it, 0);
-		ffui_view_get(&gg->wmain.vlist, 0, &it);
-		inp = (void*)ffui_view_param(&it);
+		inp = (fmed_que_entry*)gg->qu->fmed_queue_item(curtab, i);
 
 		ffmem_tzero(&e);
 		e.url = inp->url;
@@ -589,12 +584,11 @@ static void gui_convert(void)
 
 	if (ar.len != 0) {
 		qent = *(void**)ar.ptr;
-		gui_corecmd_add(&cmd_startplay, qent);
+		gg->qu->cmd(FMED_QUE_PLAY, qent);
 	}
 
 end:
 	ffarr_free(&ar);
-	ffui_view_itemreset(&it);
 }
 
 static void gui_conv_browse(void)
@@ -992,11 +986,7 @@ void gui_media_showinfo(void)
 		return;
 	}
 
-	ffui_view_iteminit(&it);
-	ffui_view_setindex(&it, i);
-	ffui_view_setparam(&it, 0);
-	ffui_view_get(&gg->wmain.vlist, 0, &it);
-	e = (void*)ffui_view_param(&it);
+	e = (fmed_que_entry*)gg->qu->fmed_queue_item(-1, i);
 
 	ffui_settextstr(&gg->winfo.winfo, &e->url);
 
@@ -1106,20 +1096,33 @@ void wfilter_init(void)
 	gg->wfilter.wnd.on_action = &gui_wfilter_action;
 }
 
-static void gui_wfilter_action(ffui_wnd *wnd, int id)
+static void gui_filt_apply()
 {
 	ffstr s;
-	switch (id) {
-	case FILTER_APPLY: {
-		ffui_textstr(&gg->wfilter.ttext, &s);
-		uint flags = GUI_FILT_META;
-		if (ffui_chbox_checked(&gg->wfilter.cbfilename))
-			flags |= GUI_FILT_URL;
-		gui_filter(&s, flags);
-		ffstr_free(&s);
-		break;
+	ffui_textstr(&gg->wfilter.ttext, &s);
+	uint flags = GUI_FILT_META;
+	if (ffui_chbox_checked(&gg->wfilter.cbfilename))
+		flags |= GUI_FILT_URL;
+	gui_filter(&s, flags);
+	ffstr_free(&s);
+}
+
+static const struct cmd wfilt_cmds[] = {
+	{ FILTER_APPLY,	F0 | CMD_FCORE,	&gui_filt_apply },
+};
+
+static void gui_wfilter_action(ffui_wnd *wnd, int id)
+{
+	const struct cmd *cmd = getcmd(id, wfilt_cmds, FFCNT(wfilt_cmds));
+	if (cmd != NULL) {
+		if (cmd->flags & CMD_FCORE)
+			gui_corecmd_add(cmd, NULL);
+		else
+			gui_runcmd(cmd, NULL);
+		return;
 	}
 
+	switch (id) {
 	case FILTER_RESET:
 		ffui_cleartext(&gg->wfilter.ttext);
 		break;
