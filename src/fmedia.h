@@ -648,6 +648,10 @@ enum FMED_QUE {
 	FMED_QUE_DEL, // @param: uint
 	FMED_QUE_SEL, // @param: uint
 	FMED_QUE_LIST, // @param: fmed_que_entry*
+
+	/** Return 1 if entry is inside the currently selected playlist.
+	bool iscurlist(fmed_que_entry *ent) */
+	FMED_QUE_ISCURLIST,
 };
 
 enum FMED_QUE_CMDF {

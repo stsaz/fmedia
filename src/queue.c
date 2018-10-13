@@ -447,7 +447,7 @@ static void que_cmd(uint cmd, void *param)
 static const char *const scmds[] = {
 	"play", "play-excl", "mix", "stop-after", "next", "prev", "save", "clear", "add", "rm", "rmdead",
 	"meta-set", "setonchange", "expand", "have-user-meta",
-	"que-new", "que-del", "que-sel", "que-list",
+	"que-new", "que-del", "que-sel", "que-list", "is-curlist",
 };
 
 static ssize_t que_cmdv(uint cmd, ...)
@@ -660,6 +660,10 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 		*ent = &e->e;
 		}
 		return 1;
+
+	case FMED_QUE_ISCURLIST:
+		e = param;
+		return (e->plist == qu->curlist);
 	}
 
 	return 0;
@@ -688,6 +692,10 @@ static fmed_que_entry* que_add(fmed_que_entry *ent, uint flags)
 	if (e == NULL)
 		return NULL;
 	e->plist = qu->curlist;
+	if (ent->prev != NULL) {
+		entry *prev = FF_GETPTR(entry, e, ent->prev);
+		e->plist = prev->plist;
+	}
 
 	if (NULL == (e->e.url.ptr = ffsz_alcopy(ent->url.ptr, ent->url.len))) {
 		ent_free(e);
@@ -719,8 +727,8 @@ static fmed_que_entry* que_add(fmed_que_entry *ent, uint flags)
 		qu->track->copy_info(&e->trk, NULL);
 	e->e.trk = &e->trk;
 
-	ffchain_append(&e->sib, (ent->prev != NULL) ? &FF_GETPTR(entry, e, ent->prev)->sib : qu->curlist->ents.last);
-	qu->curlist->ents.len++;
+	ffchain_append(&e->sib, (ent->prev != NULL) ? &FF_GETPTR(entry, e, ent->prev)->sib : e->plist->ents.last);
+	e->plist->ents.len++;
 
 	dbglog(core, NULL, "que", "added: (%d: %d-%d) %S"
 		, ent->dur, ent->from, ent->to, &ent->url);

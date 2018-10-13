@@ -493,6 +493,16 @@ static void gui_que_onchange(fmed_que_entry *e, uint flags)
 
 	switch (flags & ~_FMED_QUE_FMASK) {
 	case FMED_QUE_ONADD:
+		if (flags & FMED_QUE_ADD_DONE)
+			break;
+		//fallthrough
+	case FMED_QUE_ONRM:
+		if (!gg->qu->cmdv(FMED_QUE_ISCURLIST, e))
+			return;
+	}
+
+	switch (flags & ~_FMED_QUE_FMASK) {
+	case FMED_QUE_ONADD:
 		if (flags & FMED_QUE_MORE)
 			ffui_redraw(&gg->wmain.vlist, 0);
 		else if (flags & FMED_QUE_ADD_DONE) {
