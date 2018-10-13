@@ -977,7 +977,12 @@ void gui_filter(const ffstr *text, uint flags)
 {
 	fmed_que_entry *active_qent = NULL, *e = NULL;
 	ffstr *meta, name;
-	uint nfilt = 0, nall = 0, inc = 0;
+	uint nfilt = 0, nall = 0, inc;
+
+	if (!gg->list_filter && text->len < 2)
+		return; //too small filter text
+
+	gg->qu->cmdv(FMED_QUE_NEW_FILTERED);
 
 	ffui_redraw(&gg->wmain.vlist, 0);
 	ffui_view_clear(&gg->wmain.vlist);
@@ -987,8 +992,9 @@ void gui_filter(const ffstr *text, uint flags)
 
 	for (;;) {
 
-		if (0 == gg->qu->cmd2(FMED_QUE_LIST, &e, 0))
+		if (0 == gg->qu->cmd2(FMED_QUE_LIST_NOFILTER, &e, 0))
 			break;
+		inc = 0;
 
 		if (text->len == 0)
 			inc = 1;
@@ -1009,7 +1015,7 @@ void gui_filter(const ffstr *text, uint flags)
 		}
 
 		if (inc) {
-			inc = 0;
+			gg->qu->cmdv(FMED_QUE_ADD_FILTERED, e);
 			gui_media_added(e, (e == active_qent) ? GUI_TRKINFO_PLAYING : 0);
 			nfilt++;
 		}
@@ -1019,12 +1025,15 @@ void gui_filter(const ffstr *text, uint flags)
 
 	ffui_redraw(&gg->wmain.vlist, 1);
 
+	gg->list_filter = (text->len != 0);
 	if (text->len != 0) {
 		char buf[128];
 		size_t n = ffs_fmt(buf, buf + sizeof(buf), "Filter: %u (%u)", nfilt, nall);
 		gui_status(buf, n);
-	} else
+	} else {
+		gg->qu->cmdv(FMED_QUE_DEL_FILTERED);
 		gui_status(NULL, 0);
+	}
 }
 
 

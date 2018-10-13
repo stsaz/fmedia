@@ -658,6 +658,11 @@ enum FMED_QUE {
 	/** fmed_que_entry* item(size_t plid, size_t id) */
 	FMED_QUE_ITEM,
 
+	FMED_QUE_NEW_FILTERED,
+	FMED_QUE_ADD_FILTERED,
+	FMED_QUE_DEL_FILTERED,
+	FMED_QUE_LIST_NOFILTER,
+
 	_FMED_QUE_LAST
 };
 

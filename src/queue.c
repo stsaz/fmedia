@@ -50,6 +50,7 @@ struct plist {
 	fflist ents; //entry[]
 	ffarr indexes; //entry*[]  Get an entry by its number;  find a number by an entry pointer.
 	entry *cur;
+	struct plist *filtered_plist; //list with the filtered tracks
 	uint rm :1;
 };
 
@@ -187,6 +188,12 @@ static void ent_rm(entry *e)
 		ssize_t i = plist_ent_idx(e->plist, e);
 		if (i >= 0)
 			_ffarr_rmshift_i(&e->plist->indexes, i, 1, sizeof(entry*));
+
+		if (e->plist->filtered_plist != NULL) {
+			i = plist_ent_idx(e->plist->filtered_plist, e);
+			if (i >= 0)
+				_ffarr_rmshift_i(&e->plist->filtered_plist->indexes, i, 1, sizeof(entry*));
+		}
 	}
 
 	if (e->refcount != 0) {
@@ -226,8 +233,11 @@ static void ent_free(entry *e)
 
 static void plist_free(plist *pl)
 {
+	if (pl == NULL)
+		return;
 	FFLIST_ENUMSAFE(&pl->ents, ent_free, entry, sib);
 	ffarr_free(&pl->indexes);
+	plist_free(pl->filtered_plist);
 	ffmem_free(pl);
 }
 
@@ -471,6 +481,7 @@ static const char *const scmds[] = {
 	"meta-set", "setonchange", "expand", "have-user-meta",
 	"que-new", "que-del", "que-sel", "que-list", "is-curlist",
 	"id", "item",
+	"flt-new", "flt-add", "flt-del", "lst-noflt",
 };
 
 static ssize_t que_cmdv(uint cmd, ...)
@@ -663,6 +674,20 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 		break;
 
 	case FMED_QUE_LIST:
+		if (qu->curlist->filtered_plist != NULL) {
+			fmed_que_entry **ent = param;
+			pl = qu->curlist->filtered_plist;
+			uint i = 0;
+			if (*ent != NULL)
+				i = que_cmdv(FMED_QUE_ID, *ent) + 1;
+			if (i == pl->indexes.len)
+				return 0;
+			*ent = (void*)que_cmdv(FMED_QUE_ITEM, (size_t)i);
+			return 1;
+		}
+		//fallthrough
+
+	case FMED_QUE_LIST_NOFILTER:
 		{
 		fmed_que_entry **ent = param;
 		ffchain_item *it;
@@ -690,16 +715,43 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 
 	case FMED_QUE_ID:
 		e = param;
-		return plist_ent_idx(e->plist, e);
+		pl = e->plist;
+		if (pl->filtered_plist != NULL)
+			pl = pl->filtered_plist;
+		return plist_ent_idx(pl, e);
 
 	case FMED_QUE_ITEM: {
 		ssize_t plid = (size_t)param;
 		pl = (plid != -1) ? plist_by_idx(plid) : qu->curlist;
+		if (pl->filtered_plist != NULL)
+			pl = pl->filtered_plist;
 		if (param2 >= pl->indexes.len)
 			return 0;
 		e = ((entry**)pl->indexes.ptr) [param2];
 		return (size_t)e;
 	}
+
+	case FMED_QUE_NEW_FILTERED:
+		if (qu->curlist->filtered_plist != NULL)
+			que_cmdv(FMED_QUE_DEL_FILTERED);
+		if (NULL == (pl = ffmem_new(struct plist)))
+			return -1;
+		fflist_init(&pl->ents);
+		qu->curlist->filtered_plist = pl;
+		break;
+
+	case FMED_QUE_ADD_FILTERED:
+		e = param;
+		pl = qu->curlist->filtered_plist;
+		if (NULL == ffarr_growT(&pl->indexes, 1, 16, entry*))
+			return -1;
+		*ffarr_pushT(&pl->indexes, entry*) = e;
+		break;
+
+	case FMED_QUE_DEL_FILTERED:
+		plist_free(qu->curlist->filtered_plist);
+		qu->curlist->filtered_plist = NULL;
+		break;
 	}
 
 	return 0;

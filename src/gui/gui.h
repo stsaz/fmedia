@@ -210,6 +210,7 @@ typedef struct ggui {
 	uint wconv_init :1
 		, wrec_init :1
 		, min_tray :1
+		, list_filter :1
 		;
 	uint state;
 	int itab_convert;
