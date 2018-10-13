@@ -60,6 +60,7 @@ void wmain_init(void)
 	gg->wmain.wmain.top = 1;
 	gg->wmain.wmain.on_action = &gui_action;
 	gg->wmain.wmain.onclose_id = ONCLOSE;
+	gg->wmain.wmain.manual_close = 1;
 	gg->wmain.wmain.onminimize_id = (gg->minimize_to_tray) ? HIDE : 0;
 	gui_newtab(0);
 	ffui_tray_settooltipz(&gg->wmain.tray_icon, "fmedia");
@@ -240,8 +241,6 @@ static void gui_action(ffui_wnd *wnd, int id)
 	case ONCLOSE:
 		gui_corecmd_add(&cmd_quit, NULL);
 		gui_onclose();
-		if (id == QUIT)
-			ffui_wnd_close(&gg->wmain.wmain);
 		break;
 	}
 }

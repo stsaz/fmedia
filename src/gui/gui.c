@@ -474,15 +474,15 @@ void gui_corecmd_op(uint cmd, void *udata)
 
 	case SAVELIST: {
 		char *list_fn = udata;
-		gg->qu->cmd(FMED_QUE_SAVE, list_fn);
+		gg->qu->fmed_queue_save(-1, list_fn);
 		ffmem_free(list_fn);
 		break;
 	}
 
 	case QUIT:
-		core->sig(FMED_STOP);
 		if (gg->autosave_playlists)
 			gui_savelists();
+		core->sig(FMED_STOP);
 		break;
 	}
 }
@@ -661,20 +661,39 @@ char* gui_usrconf_filename(void)
 /** Save playlists to disk. */
 static void gui_savelists(void)
 {
-	char *fn;
+	ffarr buf = {};
+	char *fn = NULL;
 
 	if (gg->portable_conf)
-		fn = core->getpath(FFSTR(GUI_PLIST_PATH_PORT));
+		fn = core->getpath(FFSTR("."));
 	else
 		fn = core->env_expand(NULL, 0, GUI_PLIST_PATH);
 	if (fn == NULL)
 		goto end;
 
-	gg->qu->cmd(FMED_QUE_SAVE, fn);
-	ffmem_free(fn);
+	if (NULL == ffarr_alloc(&buf, ffsz_len(fn) + FFSLEN(GUI_PLIST_NAME) + FFINT_MAXCHARS + 1))
+		goto end;
+
+	uint n = 1;
+	for (uint i = 0; ; i++) {
+		if (i == (uint)gg->itab_convert)
+			continue;
+
+		buf.len = 0;
+		ffstr_catfmt(&buf, "%s" GUI_PLIST_NAME "%Z", fn, n++);
+
+		if (i == ffui_tab_count(&gg->wmain.tabs)) {
+			if (fffile_exists(buf.ptr))
+				fffile_rm(buf.ptr);
+			break;
+		}
+
+		gg->qu->fmed_queue_save(i, buf.ptr);
+	}
 
 end:
-	return;
+	ffmem_free(fn);
+	ffarr_free(&buf);
 }
 
 /** Load playlists saved in the previous session. */
