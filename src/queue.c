@@ -426,6 +426,18 @@ static void que_mix(void)
 	}
 }
 
+/** Get playlist by its index. */
+static plist* plist_by_idx(size_t idx)
+{
+	uint i = 0;
+	fflist_item *li;
+	FFLIST_FOREACH(&qu->plists, li) {
+		if (i++ == idx)
+			return FF_GETPTR(plist, sib, li);
+	}
+	return NULL;
+}
+
 static void que_cmd(uint cmd, void *param)
 {
 	que_cmd2(cmd, param, 0);
@@ -572,7 +584,14 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 
 
 	case FMED_QUE_SAVE:
-		que_save(FF_GETPTR(entry, sib, ents->first), fflist_sentl(ents), param);
+		if ((ssize_t)param == -1)
+			pl = qu->curlist;
+		else
+			pl = plist_by_idx((size_t)param);
+		if (pl == NULL)
+			break;
+		ents = &pl->ents;
+		que_save(FF_GETPTR(entry, sib, ents->first), fflist_sentl(ents), (void*)param2);
 		break;
 
 	case FMED_QUE_CLEAR:

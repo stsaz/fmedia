@@ -632,7 +632,9 @@ enum FMED_QUE {
 	FMED_QUE_NEXT2,
 	FMED_QUE_PREV2,
 
-	FMED_QUE_SAVE, //save playlist to file, @param: "const char *filename"
+	/** Save playlist to file. */
+	FMED_QUE_SAVE,
+
 	FMED_QUE_CLEAR,
 	FMED_QUE_ADD,
 	FMED_QUE_RM,
@@ -697,6 +699,9 @@ typedef struct fmed_queue {
 	*/
 	ssize_t (*cmdv)(uint cmd, ...);
 } fmed_queue;
+
+#define fmed_queue_save(qid, filename) \
+	cmdv(FMED_QUE_SAVE, (size_t)(qid), (void*)(filename))
 
 
 // GLOBCMD
