@@ -40,7 +40,7 @@ static FFTHDCALL int gui_worker(void *param);
 static void gui_que_onchange(fmed_que_entry *e, uint flags);
 static void gui_ghk_reg(void);
 static void gui_savelists(void);
-static int gui_loadlists(void);
+static void gui_loadlists(void);
 static void upd_done(void *obj);
 
 //GUI-TRACK
@@ -697,39 +697,38 @@ end:
 }
 
 /** Load playlists saved in the previous session. */
-static int gui_loadlists(void)
+static void gui_loadlists(void)
 {
-	fffd f = FF_BADFD;
 	char *fn;
-	char **ps;
-	int r = -1;
+	ffarr buf = {};
 
 	if (gg->portable_conf)
-		fn = core->getpath(FFSTR(GUI_PLIST_PATH_PORT));
+		fn = core->getpath(FFSTR("."));
 	else
 		fn = core->env_expand(NULL, 0, GUI_PLIST_PATH);
 	if (fn == NULL)
 		goto end;
 
-	if (FF_BADFD == (f = fffile_open(fn, O_RDONLY)))
+	if (NULL == ffarr_alloc(&buf, ffsz_len(fn) + FFSLEN(GUI_PLIST_NAME) + FFINT_MAXCHARS + 1))
 		goto end;
 
-	if (NULL == (ps = ffarr_push(&gg->filenames, char*)))
-		goto end;
-	if (NULL == (*ps = ffsz_alcopyz(fn))) {
-		gg->filenames.len--;
-		goto end;
+	for (uint i = 1;  ;  i++) {
+		buf.len = 0;
+		ffstr_catfmt(&buf, "%s" GUI_PLIST_NAME "%Z", fn, i);
+		if (!fffile_exists(buf.ptr))
+			break;
+		if (i != 1)
+			gui_que_new();
+		gui_media_add1(buf.ptr);
 	}
-	gui_corecmd_add(&cmd_add, NULL);
-	r = 0;
 
 end:
-	if (r != 0)
-		FFARR_FREE_ALL_PTR(&gg->filenames, ffmem_free, char*);
-	FF_SAFECLOSE(f, FF_BADFD, fffile_close);
 	ffmem_safefree(fn);
-	return r;
+	ffarr_free(&buf);
+	return;
 }
+
+static const struct cmd cmd_loadlists = { 0, F0 | CMD_FCORE, &gui_loadlists };
 
 static FFTHDCALL int gui_worker(void *param)
 {
@@ -775,10 +774,10 @@ static FFTHDCALL int gui_worker(void *param)
 
 	gg->vol = gui_getvol() * 100;
 
-	if (gg->autosave_playlists)
-		gui_loadlists();
-
 	FF_WRITEONCE(&gg->state, 1);
+
+	if (gg->autosave_playlists)
+		gui_corecmd_add(&cmd_loadlists, NULL);
 
 	gui_ghk_reg();
 
