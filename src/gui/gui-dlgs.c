@@ -1078,7 +1078,7 @@ static void gui_wuri_action(ffui_wnd *wnd, int id)
 	case URL_ADD:
 		ffui_textstr(&gg->wuri.turi, &s);
 		if (s.len != 0)
-			gui_media_add1(s.ptr);
+			gui_media_add2(s.ptr, 0);
 		ffstr_free(&s);
 		ffui_show(&gg->wuri.wuri, 0);
 		break;

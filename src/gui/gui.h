@@ -369,6 +369,10 @@ const struct cmd* getcmd(uint cmd, const struct cmd *cmds, uint n);
 
 void* gui_getctl(void *udata, const ffstr *name);
 void gui_media_add1(const char *fn);
+enum {
+	ADDF_CHECKTYPE = 1, // don't add items of unsupported type
+};
+void gui_media_add2(const char *fn, uint flags);
 void gui_media_showpcm(void);
 
 void wmain_init(void);

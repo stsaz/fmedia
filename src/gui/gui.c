@@ -527,11 +527,24 @@ static void gui_que_onchange(fmed_que_entry *e, uint flags)
 
 void gui_media_add1(const char *fn)
 {
-	fmed_que_entry e, *pe;
-	int t = core->cmd(FMED_FILETYPE, fn);
+	gui_media_add2(fn, ADDF_CHECKTYPE);
+}
 
-	if (t == FMED_FT_UKN)
-		return;
+void gui_media_add2(const char *fn, uint flags)
+{
+	fmed_que_entry e, *pe;
+	int t = FMED_FT_FILE;
+
+	if (flags & ADDF_CHECKTYPE) {
+		if (ffs_matchz(fn, ffsz_len(fn), "http://"))
+			flags &= ~ADDF_CHECKTYPE;
+	}
+
+	if (flags & ADDF_CHECKTYPE) {
+		t = core->cmd(FMED_FILETYPE, fn);
+		if (t == FMED_FT_UKN)
+			return;
+	}
 
 	ffmem_tzero(&e);
 	ffstr_setz(&e.url, fn);
