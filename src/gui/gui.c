@@ -749,6 +749,8 @@ static FFTHDCALL int gui_worker(void *param)
 	ffui_wnd_initstyle();
 	ffui_ldr_init(&ldr);
 
+	gg->wmain.vlist.dispinfo_id = LIST_DISPINFO;
+
 	if (NULL == (fn = core->getpath(FFSTR("./fmedia.gui"))))
 		goto err;
 	if (NULL == (fnconf = gui_usrconf_filename()))

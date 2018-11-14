@@ -340,6 +340,7 @@ enum CMDS {
 
 	//private:
 	ONCLOSE,
+	LIST_DISPINFO,
 	CVT_SETS_EDITDONE,
 	CVT_ACTIVATE,
 };

@@ -44,6 +44,7 @@ static void gui_onclose(void);
 static void gui_media_addurl(uint id);
 static void gui_showrecdir(void);
 static void gui_filt_show(void);
+static void list_setdata(void);
 
 enum {
 	GUI_TRKINFO_WNDCAPTION = 1,
@@ -133,6 +134,8 @@ static const struct cmd cmds[] = {
 	{ FMEDGUI_EDIT,	F1,	&gui_showtextfile },
 	{ README_SHOW,	F1,	&gui_showtextfile },
 	{ CHANGES_SHOW,	F1,	&gui_showtextfile },
+
+	{ LIST_DISPINFO,	F0,	&list_setdata },
 };
 
 static const struct cmd cmd_open = { OPEN,	F1 | CMD_FCORE,	&gui_media_open };
@@ -155,6 +158,81 @@ const struct cmd* getcmd(uint cmd, const struct cmd *cmds, uint n)
 			start = i + 1;
 	}
 	return NULL;
+}
+
+/** Provide GUI subsystem with the information it needs for a playlist item. */
+static void list_setdata(void)
+{
+	char buf[256];
+	LVITEM *it = gg->wmain.vlist.dispinfo_item;
+	fmed_que_entry *ent;
+	size_t n;
+	ffstr *val = NULL, s;
+
+	if (!(it->mask & LVIF_TEXT))
+		return;
+
+	ent = (fmed_que_entry*)gg->qu->fmed_queue_item_locked(-1, it->iItem);
+	if (ent == NULL)
+		return;
+
+	switch (it->iSubItem) {
+
+	case H_IDX: {
+		fmed_que_entry *active_qent = NULL;
+		fflk_lock(&gg->lktrk);
+		if (gg->curtrk != NULL)
+			active_qent = gg->curtrk->qent;
+		fflk_unlock(&gg->lktrk);
+		n = ffs_fmt(buf, buf + sizeof(buf), "%s%u"
+			, (ent == active_qent) ? "> " : "", it->iItem + 1);
+		ffstr_set(&s, buf, n);
+		val = &s;
+		break;
+	}
+
+	case H_ART:
+		val = gg->qu->meta_find(ent, FFSTR("artist"));
+		break;
+
+	case H_TIT:
+		if (NULL == (val = gg->qu->meta_find(ent, FFSTR("title")))) {
+			//use filename as a title
+			ffpath_split3(ent->url.ptr, ent->url.len, NULL, &s, NULL);
+			val = &s;
+		}
+		break;
+
+	case H_DUR:
+		if (ent->dur != 0) {
+			uint sec = ent->dur / 1000;
+			n = ffs_fmt(buf, buf + sizeof(buf), "%u:%02u", sec / 60, sec % 60);
+			ffstr_set(&s, buf, n);
+			val = &s;
+		}
+		break;
+
+	case H_INF:
+		val = gg->qu->meta_find(ent, FFSTR("__info"));
+		break;
+
+	case H_DATE:
+		val = gg->qu->meta_find(ent, FFSTR("date"));
+		break;
+
+	case H_ALBUM:
+		val = gg->qu->meta_find(ent, FFSTR("album"));
+		break;
+
+	case H_FN:
+		val = &ent->url;
+		break;
+	}
+
+	if (val != NULL)
+		ffui_view_dispinfo_settext(it, val->ptr, val->len);
+
+	gg->qu->cmdv(FMED_QUE_ITEMUNLOCK, ent);
 }
 
 static void gui_action(ffui_wnd *wnd, int id)
@@ -579,74 +657,6 @@ static void gui_showtextfile(uint cmd)
 	ffmem_free(fn);
 end:
 	ffmem_free(notepad);
-}
-
-static void gui_trk_setinfo(int idx, fmed_que_entry *ent, uint sec, uint flags)
-{
-	uint n;
-	char buf[255];
-	ffstr artist = {0}, title = {0}, *val;
-	ffui_viewitem it;
-	ffui_view_iteminit(&it);
-	ffui_view_setindex(&it, idx);
-
-	if (flags & GUI_TRKINFO_STOPPED) {
-		ffui_view_gettext(&it);
-		ffui_view_get(&gg->wmain.vlist, H_IDX, &it);
-		ffsyschar *s = ffui_view_textq(&it);
-		if (s[0] == '>') {
-			ffui_view_settext_q(&it, s + FFSLEN("> "));
-			ffui_view_set(&gg->wmain.vlist, H_IDX, &it);
-		}
-		return;
-
-	} else if (flags & GUI_TRKINFO_PLAYING) {
-		ffui_view_gettext(&it);
-		ffui_view_get(&gg->wmain.vlist, H_IDX, &it);
-		n = ffs_fmt(buf, buf + sizeof(buf), "> %q", ffui_view_textq(&it));
-		ffui_view_settext(&it, buf, n);
-		ffui_view_set(&gg->wmain.vlist, H_IDX, &it);
-	}
-
-	ffui_view_settextstr(&it, &ent->url);
-	ffui_view_set(&gg->wmain.vlist, H_FN, &it);
-
-	if (NULL != (val = gg->qu->meta_find(ent, FFSTR("artist"))))
-		artist = *val;
-
-	if (NULL == (val = gg->qu->meta_find(ent, FFSTR("title")))) {
-		//use filename as a title
-		ffpath_split3(ent->url.ptr, ent->url.len, NULL, &title, NULL);
-	} else
-		title = *val;
-
-	if (NULL != (val = gg->qu->meta_find(ent, FFSTR("__info")))) {
-		ffui_view_settextstr(&it, val);
-		ffui_view_set(&gg->wmain.vlist, H_INF, &it);
-	}
-
-	if (NULL != (val = gg->qu->meta_find(ent, FFSTR("date")))) {
-		ffui_view_settextstr(&it, val);
-		ffui_view_set(&gg->wmain.vlist, H_DATE, &it);
-	}
-
-	if (NULL != (val = gg->qu->meta_find(ent, FFSTR("album")))) {
-		ffui_view_settextstr(&it, val);
-		ffui_view_set(&gg->wmain.vlist, H_ALBUM, &it);
-	}
-
-
-	ffui_view_settextstr(&it, &artist);
-	ffui_view_set(&gg->wmain.vlist, H_ART, &it);
-
-	ffui_view_settextstr(&it, &title);
-	ffui_view_set(&gg->wmain.vlist, H_TIT, &it);
-
-	if (flags & GUI_TRKINFO_DUR) {
-		n = ffs_fmt(buf, buf + sizeof(buf), "%u:%02u", sec / 60, sec % 60);
-		ffui_view_settext(&it, buf, n);
-		ffui_view_set(&gg->wmain.vlist, H_DUR, &it);
-	}
 }
 
 static void gui_trk_setinfo2(fmed_que_entry *ent, uint flags)
