@@ -889,6 +889,16 @@ end:
 	#endif
 #endif
 
+#ifndef _DEBUG
+extern void _crash_handler(const char *fullname, struct ffsig_info *inf);
+
+/** Called by FFOS on program crash. */
+static void crash_handler(struct ffsig_info *inf)
+{
+	_crash_handler("fmedia (" OS_STR "-" CPU_STR ")", inf);
+}
+#endif
+
 int main(int argc, char **argv, char **env)
 {
 	int rc = 1;
@@ -898,6 +908,12 @@ int main(int argc, char **argv, char **env)
 	if (NULL == (g = ffmem_new(struct gctx)))
 		return 1;
 	ffsig_init(&g->sigs_task);
+
+#ifndef _DEBUG
+	static const uint sigs_fault[] = { FFSIG_SEGV, FFSIG_ILL, FFSIG_FPE };
+	ffsig_subscribe(&crash_handler, sigs_fault, FFCNT(sigs_fault));
+	// ffsig_raise(FFSIG_SEGV);
+#endif
 
 	ffsig_mask(SIG_BLOCK, sigs_block, FFCNT(sigs_block));
 

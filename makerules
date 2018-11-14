@@ -66,6 +66,7 @@ $(RES): $(PROJDIR)/res/fmedia.rc $(wildcard $(PROJDIR)/res/*.ico)
 
 
 BIN_O := \
+	$(OBJ_DIR)/crash.o \
 	$(OBJ_DIR)/main.o \
 	$(FF_O) \
 	$(FFOS_WREG) \
@@ -396,7 +397,8 @@ gui.$(SO): $(GUI_O)
 	$(LD) -shared $(GUI_O) $(LDFLAGS) -lshell32 -luxtheme -lcomctl32 -lcomdlg32 -lgdi32 -lole32 -luuid -o$@
 
 BINGUI_O := \
-	fmedia-gui.o \
+	$(OBJ_DIR)/crash.o \
+	$(OBJ_DIR)/fmedia-gui.o \
 	$(FF_O) \
 	$(FFOS_WREG) \
 	$(FF_OBJ_DIR)/ffpath.o \

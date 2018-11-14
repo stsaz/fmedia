@@ -9,6 +9,7 @@ Copyright (c) 2015 Simon Zolin */
 #include <FF/gui/winapi.h>
 #include <FFOS/process.h>
 #include <FFOS/mem.h>
+#include <FFOS/sig.h>
 
 
 struct gctx {
@@ -158,12 +159,28 @@ end:
 	return rc;
 }
 
+#ifndef _DEBUG
+extern void _crash_handler(const char *fullname, struct ffsig_info *inf);
+
+/** Called by FFOS on program crash. */
+static void crash_handler(struct ffsig_info *inf)
+{
+	_crash_handler("fmedia", inf);
+}
+#endif
+
 int __stdcall WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
 {
 	char *argv[1] = { NULL };
 	ffmem_init();
 	if (NULL == (g = ffmem_new(struct gctx)))
 		return 1;
+
+#ifndef _DEBUG
+	static const uint sigs_fault[] = { FFSIG_SEGV, FFSIG_ILL, FFSIG_FPE };
+	ffsig_subscribe(&crash_handler, sigs_fault, FFCNT(sigs_fault));
+	// ffsig_raise(FFSIG_SEGV);
+#endif
 
 	if (0 != loadcore(NULL))
 		goto end;
