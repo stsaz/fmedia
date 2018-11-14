@@ -134,7 +134,7 @@ NET_O := $(OBJ_DIR)/net.o \
 	$(FF_O) \
 	$(FFOS_SKT)
 net.$(SO): $(NET_O)
-	$(LD) -shared $(NET_O) $(LDFLAGS)  -o$@
+	$(LD) -shared $(NET_O) $(LDFLAGS) $(LD_LWS2_32) -o$@
 
 
 #

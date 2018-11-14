@@ -511,8 +511,6 @@ static void trk_fin(fm_trk *t)
 static void trk_free(fm_trk *t)
 {
 	fmed_f *pf;
-	dict_ent *e;
-	fftree_node *node, *next;
 
 	core->task(&t->tsk_main, FMED_TASK_DEL);
 	core->cmd(FMED_TASK_XDEL, &t->tsk, t->wid);
@@ -545,17 +543,8 @@ static void trk_free(fm_trk *t)
 
 	ffarr_free(&t->filters);
 
-	FFTREE_WALKSAFE(&t->dict, node, next) {
-		e = FF_GETPTR(dict_ent, nod, node);
-		ffrbt_rm(&t->dict, &e->nod);
-		dict_ent_free(e);
-	}
-
-	FFTREE_WALKSAFE(&t->meta, node, next) {
-		e = FF_GETPTR(dict_ent, nod, node);
-		ffrbt_rm(&t->meta, &e->nod);
-		dict_ent_free(e);
-	}
+	ffrbt_freeall(&t->dict, (ffrbt_free_t)&dict_ent_free, FFOFF(dict_ent, nod));
+	ffrbt_freeall(&t->meta, (ffrbt_free_t)&dict_ent_free, FFOFF(dict_ent, nod));
 
 	if (fflist_exists(&g->trks, &t->sib)) {
 		fflist_rm(&g->trks, &t->sib);

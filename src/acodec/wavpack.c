@@ -116,7 +116,7 @@ static int wvpk_in_decode(void *ctx, fmed_filt *d)
 		return FMED_RLASTOUT;
 	}
 
-	w->wp.data = (byte*)d->data;
+	w->wp.data = d->data;
 	w->wp.datalen = d->datalen;
 	if (d->flags & FMED_FLAST)
 		w->wp.fin = 1;

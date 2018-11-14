@@ -225,6 +225,7 @@ static void* wavout_open(fmed_filt *d)
 static void wavout_close(void *ctx)
 {
 	wavout *wav = ctx;
+	ffwav_wclose(&wav->wav);
 	ffmem_free(wav);
 }
 

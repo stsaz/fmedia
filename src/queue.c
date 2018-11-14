@@ -46,6 +46,8 @@ typedef struct entry {
 		, trk_err :1
 		, trk_mixed :1
 		;
+
+	char url[0];
 } entry;
 
 struct plist {
@@ -236,7 +238,6 @@ static void ent_free(entry *e)
 	FFARR2_FREE_ALL(&e->dict, ffstr_free, ffstr);
 	FFARR2_FREE_ALL(&e->tmeta, ffstr_free, ffstr);
 
-	ffstr_free(&e->e.url);
 	ffmem_free(e);
 }
 
@@ -934,19 +935,18 @@ static fmed_que_entry* que_add(fmed_que_entry *ent, uint flags)
 		goto done;
 	}
 
-	e = ffmem_tcalloc1(entry);
+	e = ffmem_alloc(sizeof(entry) + ent->url.len + 1);
 	if (e == NULL)
 		return NULL;
+	ffmem_tzero(e);
 	e->plist = qu->curlist;
 	if (ent->prev != NULL) {
 		entry *prev = FF_GETPTR(entry, e, ent->prev);
 		e->plist = prev->plist;
 	}
 
-	if (NULL == (e->e.url.ptr = ffsz_alcopy(ent->url.ptr, ent->url.len))) {
-		ent_free(e);
-		return NULL;
-	}
+	ffsz_copy(e->url, ent->url.len + 1, ent->url.ptr, ent->url.len);
+	e->e.url.ptr = e->url;
 	e->e.url.len = ent->url.len;
 
 	e->e.from = ent->from;

@@ -19,6 +19,11 @@ track: ... -> gui-trk -> ...
 #include <FF/sys/wreg.h>
 
 
+#define dbglog0(...)  fmed_dbglog(core, NULL, "gui", __VA_ARGS__)
+#define errlog0(...)  fmed_errlog(core, NULL, "gui", __VA_ARGS__)
+#define syserrlog0(...)  fmed_syserrlog(core, NULL, "gui", __VA_ARGS__)
+
+
 const fmed_core *core;
 ggui *gg;
 static const fmed_net_http *net;
@@ -138,6 +143,7 @@ static const ffui_ldr_ctl wconvert_ctls[] = {
 	add(gui_wconvert, wconvert),
 	add(gui_wconvert, mmconv),
 	add(gui_wconvert, lfn),
+	add(gui_wconvert, lsets),
 	add(gui_wconvert, eout),
 	add(gui_wconvert, boutbrowse),
 	add(gui_wconvert, vsets),
@@ -149,6 +155,8 @@ static const ffui_ldr_ctl wconvert_ctls[] = {
 static const ffui_ldr_ctl wrec_ctls[] = {
 	add(gui_wrec, wrec),
 	add(gui_wrec, mmrec),
+	add(gui_wrec, lfn),
+	add(gui_wrec, lsets),
 	add(gui_wrec, eout),
 	add(gui_wrec, boutbrowse),
 	add(gui_wrec, vsets),
@@ -693,7 +701,7 @@ static void gui_savelists(void)
 		buf.len = 0;
 		ffstr_catfmt(&buf, "%s" GUI_PLIST_NAME "%Z", fn, n++);
 
-		if (i == ffui_tab_count(&gg->wmain.tabs)) {
+		if (i == (uint)ffui_tab_count(&gg->wmain.tabs)) {
 			if (fffile_exists(buf.ptr))
 				fffile_rm(buf.ptr);
 			break;
@@ -787,7 +795,7 @@ static FFTHDCALL int gui_worker(void *param)
 
 	gg->vol = gui_getvol() * 100;
 
-	FF_WRITEONCE(&gg->state, 1);
+	FF_WRITEONCE(gg->state, 1);
 
 	if (gg->autosave_playlists)
 		gui_corecmd_add(&cmd_loadlists, NULL);
@@ -801,7 +809,7 @@ static FFTHDCALL int gui_worker(void *param)
 	goto done;
 
 err:
-	FF_WRITEONCE(&gg->state, 1);
+	FF_WRITEONCE(gg->state, 1);
 	gg->load_err = 1;
 	ffmem_safefree(fn);
 	ffmem_safefree(fnconf);
@@ -1100,7 +1108,7 @@ static void gui_destroy(void)
 	gui_themes_destroy();
 	cvt_sets_destroy(&gg->conv_sets);
 	rec_sets_destroy(&gg->rec_sets);
-	ffmem_free(gg);
+	ffmem_free0(gg);
 }
 
 

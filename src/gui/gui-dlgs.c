@@ -385,7 +385,8 @@ void gui_showconvert(void)
 		if (!gg->conv_sets.init)
 			gui_cvt_sets_init(&gg->conv_sets);
 
-		ffui_settextz(&gg->wconvert.eout, gg->conv_sets.output);
+		if (ffui_textlen(&gg->wconvert.eout) == 0)
+			ffui_settextz(&gg->wconvert.eout, gg->conv_sets.output);
 
 		ffui_view_showgroups(&gg->wconvert.vsets, 1);
 		const char *const *grp;
@@ -1071,18 +1072,32 @@ void wuri_init(void)
 	gg->wuri.wuri.on_action = &gui_wuri_action;
 }
 
-static void gui_wuri_action(ffui_wnd *wnd, int id)
+static void cmd_url_add()
 {
 	ffstr s;
-	switch (id) {
-	case URL_ADD:
-		ffui_textstr(&gg->wuri.turi, &s);
-		if (s.len != 0)
-			gui_media_add2(s.ptr, 0);
-		ffstr_free(&s);
-		ffui_show(&gg->wuri.wuri, 0);
-		break;
+	ffui_textstr(&gg->wuri.turi, &s);
+	if (s.len != 0)
+		gui_media_add2(s.ptr, 0);
+	ffstr_free(&s);
+	ffui_show(&gg->wuri.wuri, 0);
+}
 
+static const struct cmd wuri_cmds[] = {
+	{ URL_ADD,	F0 | CMD_FCORE,	&cmd_url_add },
+};
+
+static void gui_wuri_action(ffui_wnd *wnd, int id)
+{
+	const struct cmd *cmd = getcmd(id, wuri_cmds, FFCNT(wuri_cmds));
+	if (cmd != NULL) {
+		if (cmd->flags & CMD_FCORE)
+			gui_corecmd_add(cmd, NULL);
+		else
+			gui_runcmd(cmd, NULL);
+		return;
+	}
+
+	switch (id) {
 	case URL_CLOSE:
 		ffui_show(&gg->wuri.wuri, 0);
 		break;

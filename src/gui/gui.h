@@ -30,7 +30,7 @@ typedef struct gui_wmain {
 typedef struct gui_wconvert {
 	ffui_wnd wconvert;
 	ffui_menu mmconv;
-	ffui_label lfn;
+	ffui_label lfn, lsets;
 	ffui_combx eout;
 	ffui_btn boutbrowse;
 	ffui_view vsets;
@@ -41,6 +41,7 @@ typedef struct gui_wconvert {
 typedef struct gui_wrec {
 	ffui_wnd wrec;
 	ffui_menu mmrec;
+	ffui_label lfn, lsets;
 	ffui_edit eout;
 	ffui_btn boutbrowse;
 	ffui_view vsets;

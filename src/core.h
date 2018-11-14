@@ -37,8 +37,7 @@ typedef struct fmedia {
 	ffarr workers; //worker[]
 	ffkqu_time kqutime;
 
-	uint stopped :1
-		;
+	uint stopped;
 
 	ffarr bmods; //core_modinfo[]
 	fflist mods; //core_mod[]

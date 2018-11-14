@@ -720,8 +720,8 @@ void core_free(void)
 		if (w->init)
 			wrk_destroy(w);
 	}
-
 	tracks_destroy();
+	ffarr_free(&fmed->workers);
 
 	FFLIST_WALKSAFE(&fmed->mods, mod, sib, next) {
 		mod_freeiface(mod);
@@ -1056,8 +1056,10 @@ static int mod_readconf(core_mod *mod, const char *name)
 	return 0;
 
 fail:
-	errlog0("can't load module %s: config parser: %s"
-		, mod->name, ffpars_errstr(r));
+	errlog0("can't load module %s: config parser: %u:%u: \"%s\": %s"
+		, mod->name, conf.line, conf.ch
+		, (ps.curarg != NULL) ? ps.curarg->name : ""
+		, ffpars_errstr(r));
 	ffconf_parseclose(&conf);
 	ffpars_schemfree(&ps);
 	return -1;
@@ -1076,11 +1078,11 @@ static int mod_load_delayed(core_mod *mod)
 		goto fail;
 
 	if (0 != mod_loadiface(mod, bmod))
-		goto fail;
+		goto end;
 
 	if (mod->conf_data.len != 0) {
 		if (0 != mod_readconf(mod, modname.ptr))
-			goto fail;
+			goto end;
 	}
 
 	if (!bmod->opened) {
@@ -1094,6 +1096,7 @@ static int mod_load_delayed(core_mod *mod)
 
 fail:
 	errlog0("can't load module %s", mod->name);
+end:
 	mod->dl = NULL;
 	mod->m = NULL;
 	mod->iface = NULL;
@@ -1233,7 +1236,7 @@ static void wrk_destroy(struct worker *w)
 {
 	if (w->thd != FFTHD_INV) {
 		ffthd_join(w->thd, -1, NULL);
-		dbglog(core, NULL, "core", "thread %xU exited", w->id);
+		dbglog0("thread %xU exited", (int64)w->id);
 		w->thd = FFTHD_INV;
 	}
 	fftmrq_destroy(&w->tmrq, w->kq);
@@ -1330,7 +1333,7 @@ static int FFTHDCALL core_work(void *param)
 
 	dbglog(core, NULL, "core", "entering kqueue loop", 0);
 
-	while (!fmed->stopped) {
+	while (!FF_READONCE(fmed->stopped)) {
 
 		uint nevents = ffkqu_wait(w->kq, ents, FMED_KQ_EVS, &fmed->kqutime);
 
@@ -1374,6 +1377,8 @@ static int core_sigmods(uint signo)
 	core_modinfo *mod;
 	FFARR_WALKT(&fmed->bmods, mod, core_modinfo) {
 		if (mod->m == NULL)
+			continue;
+		if (signo == FMED_OPEN && mod->opened)
 			continue;
 		if (0 != mod->m->sig(signo))
 			return 1;
@@ -1440,7 +1445,7 @@ static ssize_t core_cmd(uint signo, ...)
 	case FMED_STOP: {
 		FF_ASSERT(core_ismainthr());
 		core_sigmods(signo);
-		fmed->stopped = 1;
+		FF_WRITEONCE(fmed->stopped, 1);
 		struct worker *w;
 		FFARR_WALKT(&fmed->workers, w, struct worker) {
 			ffkqu_post(&w->kqpost, &w->evposted);

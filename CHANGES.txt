@@ -8,6 +8,14 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.2 - Nov 10, 2018
+
+ + GUI: support custom themes (theme.conf file)
+ + GUI: 'File'->'Theme: Dark' - a simple dark theme
+ * GUI: instant playlist switching
+ - GUI: button text could be empty if no icon is set (FF v18.10 bug)
+
+
 fmedia v1.1 - Oct 14, 2018
 
  + GUI: use icons on playback control buttons

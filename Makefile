@@ -19,7 +19,7 @@ include $(FFOS)/makeconf
 ifeq ($(OS),win)
 BIN := fmedia.exe
 INSTDIR := fmedia
-CFLAGS += -DFF_WIN=0x0501 -fvisibility=hidden
+CFLAGS += -DFF_WIN=0x0501
 
 else
 BIN := fmedia
@@ -44,7 +44,7 @@ CFLAGS += \
 	-DFFS_FMT_NO_e \
 	-Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -Wno-implicit-fallthrough \
 	-I$(SRCDIR) -I$(FF) -I$(FFOS) -I$(FF3PT)
-LDFLAGS += -L$(FF3PTLIB) $(LD_LWS2_32)
+LDFLAGS += -L$(FF3PTLIB)
 
 include $(PROJDIR)/makerules
 
