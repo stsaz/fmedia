@@ -23,6 +23,13 @@ Copyright (c) 2015 Simon Zolin */
 #define syserrlog(...)  fmed_syserrlog(core, NULL, "core", __VA_ARGS__)
 
 
+#define FMED_ASSERT(expr) \
+while (!(expr)) { \
+	FF_ASSERT(0); \
+	ffps_exit(1); \
+}
+
+
 struct worker {
 	ffthd thd;
 	ffthd_id id;
@@ -35,7 +42,7 @@ struct worker {
 	fftimer_queue tmrq;
 	uint period;
 
-	uint njobs;
+	ffatomic njobs;
 	uint init :1;
 };
 
@@ -109,6 +116,9 @@ static void mod_freeiface(core_mod *m);
 
 static int wrk_init(struct worker *w, uint thread);
 static void wrk_destroy(struct worker *w);
+static uint work_assign(uint flags);
+static void work_release(uint wid, uint flags);
+static uint work_avail();
 static int FFTHDCALL core_work(void *param);
 
 static const void* core_iface(const char *name);
@@ -1234,7 +1244,10 @@ static void wrk_destroy(struct worker *w)
 	}
 }
 
-uint core_job_new(uint flags)
+/** Find the worker with the least number of active jobs.
+Initialize data and create a thread if necessary.
+Return worker ID. */
+static uint work_assign(uint flags)
 {
 	struct worker *w, *ww = (void*)fmed->workers.ptr;
 	uint id = 0, j = -1;
@@ -1246,10 +1259,11 @@ uint core_job_new(uint flags)
 	}
 
 	FFARR_WALKT(&fmed->workers, w, struct worker) {
-		if (w->njobs < j) {
+		uint nj = ffatom_get(&w->njobs);
+		if (nj < j) {
 			id = w - ww;
-			j = w->njobs;
-			if (w->njobs == 0)
+			j = nj;
+			if (nj == 0)
 				break;
 		}
 	}
@@ -1263,15 +1277,27 @@ uint core_job_new(uint flags)
 	}
 
 done:
-	w->njobs++;
+	ffatom_inc(&w->njobs);
 	return id;
 }
 
-void core_job_done(uint id)
+/** A job is completed. */
+static void work_release(uint wid, uint flags)
 {
-	struct worker *w = ffarr_itemT(&fmed->workers, id, struct worker);
-	FF_ASSERT(w->njobs != 0);
-	w->njobs--;
+	struct worker *w = ffarr_itemT(&fmed->workers, wid, struct worker);
+	ssize_t n = ffatom_decret(&w->njobs);
+	FMED_ASSERT(n >= 0);
+}
+
+/** Get the number of available workers. */
+static uint work_avail()
+{
+	struct worker *w;
+	FFARR_WALKT(&fmed->workers, w, struct worker) {
+		if (ffatom_get(&w->njobs) == 0)
+			return 1;
+	}
+	return 0;
 }
 
 void core_job_enter(uint id, size_t *ctx)
@@ -1426,7 +1452,8 @@ static ssize_t core_cmd(uint signo, ...)
 		r = core_filetype(va_arg(va, char*));
 		break;
 
-	case FMED_TASK_XPOST: {
+	case FMED_TASK_XPOST:
+	case FMED_TASK_XDEL: {
 		fftask *task = va_arg(va, fftask*);
 		uint wid = va_arg(va, uint);
 		struct worker *w = (void*)fmed->workers.ptr;
@@ -1440,10 +1467,33 @@ static ssize_t core_cmd(uint signo, ...)
 		dbglog(core, NULL, "core", "task:%p, cmd:%u, active:%u, handler:%p, param:%p"
 			, task, signo, fftask_active(&w->taskmgr, task), task->handler, task->param);
 
-		if (1 == fftask_post(&w->taskmgr, task))
-			ffkqu_post(&w->kqpost, &w->evposted);
+		if (signo == FMED_TASK_XPOST) {
+			if (1 == fftask_post(&w->taskmgr, task))
+				ffkqu_post(&w->kqpost, &w->evposted);
+		} else
+			fftask_del(&w->taskmgr, task);
 		break;
 	}
+
+	case FMED_WORKER_ASSIGN: {
+		fffd *pkq = va_arg(va, fffd*);
+		uint flags = va_arg(va, uint);
+		r = work_assign(flags);
+		struct worker *w = ffarr_itemT(&fmed->workers, r, struct worker);
+		*pkq = w->kq;
+		break;
+	}
+
+	case FMED_WORKER_RELEASE: {
+		uint wid = va_arg(va, uint);
+		uint flags = va_arg(va, uint);
+		work_release(wid, flags);
+		break;
+	}
+
+	case FMED_WORKER_AVAIL:
+		r = work_avail();
+		break;
 
 #ifdef FF_WIN
 	case FMED_WOH_INIT:

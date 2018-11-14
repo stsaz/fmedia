@@ -76,8 +76,9 @@ typedef struct fm_trk {
 	ffrbtree dict;
 	ffrbtree meta;
 	struct ffps_perf psperf;
-	fftask tsk, tsk_stop;
-	uint wid;
+	fftask tsk, tsk_stop, tsk_main;
+	uint wid; //associated worker ID
+	fffd kq; //worker's kqueue
 
 	ffstr id;
 	char sid[FFSLEN("*") + FFINT_MAXCHARS];
@@ -502,8 +503,8 @@ static void trk_free_tsk(void *param)
 /** Finish processing for the track.  Thread: worker. */
 static void trk_fin(fm_trk *t)
 {
-	t->tsk.handler = &trk_free_tsk;
-	core->task(&t->tsk, FMED_TASK_POST);
+	fftask_set(&t->tsk_main, &trk_free_tsk, t);
+	core->task(&t->tsk_main, FMED_TASK_POST);
 }
 
 /** Free memory associated with the track.  Thread: main. */
@@ -513,8 +514,9 @@ static void trk_free(fm_trk *t)
 	dict_ent *e;
 	fftree_node *node, *next;
 
-	core->task(&t->tsk, FMED_TASK_DEL);
-	core->task(&t->tsk_stop, FMED_TASK_DEL);
+	core->task(&t->tsk_main, FMED_TASK_DEL);
+	core->cmd(FMED_TASK_XDEL, &t->tsk, t->wid);
+	core->cmd(FMED_TASK_XDEL, &t->tsk_stop, t->wid);
 
 	if (fmed->cmd.print_time) {
 		struct ffps_perf i2 = {};
@@ -557,7 +559,7 @@ static void trk_free(fm_trk *t)
 
 	if (fflist_exists(&g->trks, &t->sib)) {
 		fflist_rm(&g->trks, &t->sib);
-		core_job_done(t->wid);
+		core->cmd(FMED_WORKER_RELEASE, t->wid, 0);
 		allowsleep(1);
 	}
 
@@ -1014,10 +1016,8 @@ static ssize_t trk_cmd(void *trk, uint cmd, ...)
 		if (fmed->cmd.print_time)
 			ffps_perf(&t->psperf, FFPS_PERF_REALTIME | FFPS_PERF_CPUTIME | FFPS_PERF_RUSAGE);
 
-		if (cmd == FMED_TRACK_XSTART)
-			t->wid = core_job_new(1);
-		else
-			t->wid = core_job_new(0);
+		t->wid = core->cmd(FMED_WORKER_ASSIGN, &t->kq, (cmd == FMED_TRACK_XSTART) ? FMED_WORKER_FPARALLEL : 0);
+
 		core->cmd(FMED_TASK_XPOST, &t->tsk, t->wid);
 		break;
 
@@ -1116,7 +1116,7 @@ static ssize_t trk_cmd(void *trk, uint cmd, ...)
 		break;
 
 	case FMED_TRACK_KQ:
-		r = (size_t)core->kq;
+		r = (size_t)t->kq;
 		break;
 
 	default:

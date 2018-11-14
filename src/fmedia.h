@@ -85,6 +85,29 @@ enum FMED_SIG {
 	/** Add a cross-worker task.
 	args: "fftask *task, uint wid" */
 	FMED_TASK_XPOST,
+
+	/** Remove a cross-worker task.
+	void task_xdel(fftask *task, uint wid) */
+	FMED_TASK_XDEL,
+
+	/** Assign command to worker.  Must be called on main thread.
+	uint assign(fffd *kq, uint flags)
+	flags: enum FMED_WORKER_F
+	Return worker ID. */
+	FMED_WORKER_ASSIGN,
+
+	/** Release command from worker.
+	void release(uint wid, uint flags)
+	*/
+	FMED_WORKER_RELEASE,
+
+	/** Get the number of available workers.
+	Return 0: workers are busy;  1: at least 1 worker is free. */
+	FMED_WORKER_AVAIL,
+};
+
+enum FMED_WORKER_F {
+	FMED_WORKER_FPARALLEL = 1,
 };
 
 enum FMED_FT {
