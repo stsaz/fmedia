@@ -512,6 +512,59 @@ static plist* plist_by_idx(size_t idx)
 	return NULL;
 }
 
+struct plist_sortdata {
+	ffstr meta; // meta key by which to sort
+	uint url :1
+		, dur :1
+		, reverse :1;
+};
+
+/** Compare two entries. */
+static int plist_entcmp(const void *a, const void *b, void *udata)
+{
+	struct plist_sortdata *ps = udata;
+	struct entry *e1 = *(void**)a, *e2 = *(void**)b;
+	ffstr *s1, *s2;
+	int r = 0;
+
+	if (ps->url) {
+		r = ffstr_cmp2(&e1->e.url, &e2->e.url);
+
+	} else if (ps->dur) {
+		r = ffint_cmp(e1->e.dur, e2->e.dur);
+
+	} else if (ps->meta.len != 0) {
+		s1 = que_meta_find(&e1->e, ps->meta.ptr, ps->meta.len);
+		s2 = que_meta_find(&e2->e, ps->meta.ptr, ps->meta.len);
+		if (s1 == NULL && s2 == NULL)
+			r = 0;
+		else if (s1 == NULL)
+			r = 1;
+		else if (s2 == NULL)
+			r = -1;
+		else
+			r = ffstr_cmp2(s1, s2);
+	}
+
+	if (ps->reverse)
+		r = -r;
+	return r;
+}
+
+/** Sort playlist entries. */
+static void plist_sort(struct plist *pl, const char *by, uint flags)
+{
+	struct plist_sortdata ps = {};
+	if (ffsz_eq(by, "__url"))
+		ps.url = 1;
+	else if (ffsz_eq(by, "__dur"))
+		ps.dur = 1;
+	else
+		ffstr_setz(&ps.meta, by);
+	ps.reverse = !!(flags & 1);
+	ffsort(pl->indexes.ptr, pl->indexes.len, sizeof(void*), &plist_entcmp, &ps);
+}
+
 static void que_cmd(uint cmd, void *param)
 {
 	que_cmd2(cmd, param, 0);
@@ -524,17 +577,51 @@ static const char *const scmds[] = {
 	"que-new", "que-del", "que-sel", "que-list", "is-curlist",
 	"id", "item",
 	"flt-new", "flt-add", "flt-del", "lst-noflt",
+	"sort", "count",
 };
 
 static ssize_t que_cmdv(uint cmd, ...)
 {
+	ssize_t r = 0;
+	struct plist *pl;
 	va_list va;
 	va_start(va, cmd);
 
+	switch (cmd) {
+	case FMED_QUE_SORT:
+	case FMED_QUE_COUNT:
+		FF_ASSERT(_FMED_QUE_LAST == FFCNT(scmds));
+		dbglog0("received command:%s", scmds[cmd]);
+		break;
+	}
+
+	switch ((enum FMED_QUE)cmd) {
+	case FMED_QUE_COUNT: {
+		pl = qu->curlist;
+		r = pl->ents.len;
+		goto end;
+	}
+
+	case FMED_QUE_SORT: {
+		int plist_idx = va_arg(va, int);
+		const char *by = va_arg(va, char*);
+		int flags = va_arg(va, int);
+		pl = qu->curlist;
+		if (plist_idx >= 0)
+			pl = plist_by_idx(plist_idx);
+		plist_sort(pl, by, flags);
+		goto end;
+	}
+
+	default:
+		break;
+	}
+
 	void *param = va_arg(va, void*);
 	size_t param2 = va_arg(va, size_t);
-	ssize_t r = que_cmd2(cmd, param, param2);
+	r = que_cmd2(cmd, param, param2);
 
+end:
 	va_end(va);
 	return r;
 }
@@ -797,6 +884,9 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 		break;
 
 	case _FMED_QUE_LAST:
+		break;
+
+	default:
 		break;
 	}
 

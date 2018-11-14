@@ -695,6 +695,15 @@ enum FMED_QUE {
 	FMED_QUE_DEL_FILTERED,
 	FMED_QUE_LIST_NOFILTER,
 
+	/**
+	void sort(int plist, const char *by, uint reverse)
+	'by': meta name or "__dur" (duration) or "__url" */
+	FMED_QUE_SORT,
+
+	/**
+	uint count() */
+	FMED_QUE_COUNT,
+
 	_FMED_QUE_LAST
 };
 
