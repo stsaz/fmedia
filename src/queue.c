@@ -72,6 +72,7 @@ typedef struct que {
 	plist *curlist;
 	const fmed_track *track;
 	fmed_que_onchange_t onchange;
+	fflock plist_lock;
 
 	struct que_conf conf;
 	uint quit_if_done :1
@@ -173,6 +174,7 @@ static int que_sig(uint signo)
 		if (NULL == (qu = ffmem_tcalloc1(que)))
 			return 1;
 		fflist_init(&qu->plists);
+		fflk_init(&qu->plist_lock);
 		break;
 
 	case FMED_OPEN:
@@ -575,7 +577,7 @@ static const char *const scmds[] = {
 	"play", "play-excl", "mix", "stop-after", "next", "prev", "save", "clear", "add", "rm", "rmdead",
 	"meta-set", "setonchange", "expand", "have-user-meta",
 	"que-new", "que-del", "que-sel", "que-list", "is-curlist",
-	"id", "item",
+	"id", "item", "item-locked", "item-unlock",
 	"flt-new", "flt-add", "flt-del", "lst-noflt",
 	"sort", "count",
 };
@@ -610,6 +612,22 @@ static ssize_t que_cmdv(uint cmd, ...)
 		if (plist_idx >= 0)
 			pl = plist_by_idx(plist_idx);
 		plist_sort(pl, by, flags);
+		goto end;
+	}
+
+	case FMED_QUE_ITEMLOCKED: {
+		ssize_t plid = va_arg(va, size_t);
+		ssize_t idx = va_arg(va, size_t);
+		fflk_lock(&qu->plist_lock);
+		r = que_cmdv(FMED_QUE_ITEM, plid, idx);
+		if ((void*)r == NULL)
+			fflk_unlock(&qu->plist_lock);
+		goto end;
+	}
+
+	case FMED_QUE_ITEMUNLOCK: {
+		// struct entry *e = va_arg(va, void*);
+		fflk_unlock(&qu->plist_lock);
 		goto end;
 	}
 
@@ -719,7 +737,9 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 		if (!(flags & FMED_QUE_NO_ONCHANGE) && qu->onchange != NULL)
 			qu->onchange(&e->e, FMED_QUE_ONRM);
 
+		fflk_lock(&qu->plist_lock);
 		ent_rm(e);
+		fflk_unlock(&qu->plist_lock);
 		break;
 
 	case FMED_QUE_RMDEAD: {
@@ -758,7 +778,9 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 		break;
 
 	case FMED_QUE_CLEAR:
+		fflk_lock(&qu->plist_lock);
 		FFLIST_ENUMSAFE(ents, ent_rm, entry, sib);
+		fflk_unlock(&qu->plist_lock);
 		dbglog(core, NULL, "que", "cleared");
 		if (!(flags & FMED_QUE_NO_ONCHANGE) && qu->onchange != NULL)
 			qu->onchange(NULL, FMED_QUE_ONCLEAR);
@@ -951,10 +973,13 @@ static fmed_que_entry* que_add(fmed_que_entry *ent, uint flags)
 		qu->track->copy_info(&e->trk, NULL);
 	e->e.trk = &e->trk;
 
+	fflk_lock(&qu->plist_lock);
+
 	ffchain_append(&e->sib, (ent->prev != NULL) ? &FF_GETPTR(entry, e, ent->prev)->sib : e->plist->ents.last);
 	e->plist->ents.len++;
-	if (NULL == ffarr_growT(&e->plist->indexes, 1, 16, entry*)) {
-		ent_free(e);
+	if (NULL == ffarr_growT(&e->plist->indexes, 1, FFARR_GROWQUARTER | 16, entry*)) {
+		ent_rm(e);
+		fflk_unlock(&qu->plist_lock);
 		return NULL;
 	}
 	ssize_t i = e->plist->indexes.len;
@@ -968,6 +993,7 @@ static fmed_que_entry* que_add(fmed_que_entry *ent, uint flags)
 	e->list_pos = i;
 	((entry**)e->plist->indexes.ptr) [i] = e;
 	e->plist->indexes.len++;
+	fflk_unlock(&qu->plist_lock);
 
 	dbglog(core, NULL, "que", "added: (%d: %d-%d) %S"
 		, ent->dur, ent->from, ent->to, &ent->url);
@@ -1031,18 +1057,22 @@ static void que_meta_set(fmed_que_entry *ent, const ffstr *name, const ffstr *va
 		if (i == -1) {
 
 		} else if (flags & FMED_QUE_METADEL) {
+			fflk_lock(&qu->plist_lock);
 			ffarr ar;
 			ffarr_set3(&ar, (void*)a->ptr, a->len, a->len);
 			_ffarr_rm(&ar, i, 2, sizeof(ffstr));
 			a->len -= 2;
+			fflk_unlock(&qu->plist_lock);
 
 		} else {
 			if (NULL == (sval = ffsz_alcopy(val->ptr, val->len)))
 				goto err;
 
+			fflk_lock(&qu->plist_lock);
 			ffstr *arr = a->ptr;
 			ffstr_free(&arr[i + 1]);
 			ffstr_set(&arr[i + 1], sval, val->len);
+			fflk_unlock(&qu->plist_lock);
 		}
 
 		if (a == &e->meta) {
@@ -1058,9 +1088,6 @@ static void que_meta_set(fmed_que_entry *ent, const ffstr *name, const ffstr *va
 			return;
 	}
 
-	if (NULL == ffarr2_grow(a, 2, sizeof(ffstr)))
-		goto err;
-
 	if (NULL == (sname = ffsz_alcopylwr(name->ptr, name->len)))
 		goto err;
 	if (flags & FMED_QUE_ACQUIRE)
@@ -1070,12 +1097,19 @@ static void que_meta_set(fmed_que_entry *ent, const ffstr *name, const ffstr *va
 			goto err;
 	}
 
+	fflk_lock(&qu->plist_lock);
+	if (NULL == ffarr2_grow(a, 2, sizeof(ffstr))) {
+		fflk_unlock(&qu->plist_lock);
+		goto err;
+	}
+
 	ffstr *arr = a->ptr;
 	ffstr_set(&arr[a->len], sname, name->len);
 	ffstr_set(&arr[a->len + 1], sval, val->len);
 	if ((flags & (FMED_QUE_TRKDICT | FMED_QUE_NUM)) == (FMED_QUE_TRKDICT | FMED_QUE_NUM))
 		arr[a->len + 1].len = -(ssize_t)arr[a->len + 1].len;
 	a->len += 2;
+	fflk_unlock(&qu->plist_lock);
 	return;
 
 err:

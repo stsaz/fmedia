@@ -690,6 +690,14 @@ enum FMED_QUE {
 	/** fmed_que_entry* item(size_t plid, size_t id) */
 	FMED_QUE_ITEM,
 
+	/** Get an item and protect it from change.  Thread-safe.
+	fmed_que_entry* item_getlocked(size_t plid, size_t id) */
+	FMED_QUE_ITEMLOCKED,
+
+	/** Unlock an item.  Thread-safe.
+	void item_unlock(fmed_que_entry *ent) */
+	FMED_QUE_ITEMUNLOCK,
+
 	FMED_QUE_NEW_FILTERED,
 	FMED_QUE_ADD_FILTERED,
 	FMED_QUE_DEL_FILTERED,
@@ -765,6 +773,8 @@ plid: playlist ID. -1: current.
 id: item ID
 Return fmed_que_entry*. */
 #define fmed_queue_item(plid, id)  cmdv(FMED_QUE_ITEM, (ssize_t)(plid), (size_t)(id))
+
+#define fmed_queue_item_locked(plid, id)  cmdv(FMED_QUE_ITEMLOCKED, (ssize_t)(plid), (size_t)(id))
 
 #define fmed_queue_save(qid, filename) \
 	cmdv(FMED_QUE_SAVE, (size_t)(qid), (void*)(filename))
