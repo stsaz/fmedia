@@ -88,6 +88,7 @@ static const ffpars_arg gui_conf_args[] = {
 	{ "seek_leap",	FFPARS_TINT | FFPARS_F8BIT | FFPARS_FNOTZERO, FFPARS_DSTOFF(ggui, seek_leap_delta) },
 	{ "autosave_playlists",	FFPARS_TBOOL8, FFPARS_DSTOFF(ggui, autosave_playlists) },
 	{ "global_hotkeys",	FFPARS_TOBJ, FFPARS_DST(&gui_conf_ghk) },
+	{ "theme",	FFPARS_TINT | FFPARS_F8BIT, FFPARS_DSTOFF(ggui, theme_startup) },
 };
 
 //LOG
@@ -329,6 +330,7 @@ static const char *const scmds[] = {
 	"FILTER_SHOW",
 	"FILTER_APPLY",
 	"FILTER_RESET",
+	"SETTHEME",
 
 	"HIDE",
 	"SHOW",
@@ -788,6 +790,9 @@ static FFTHDCALL int gui_worker(void *param)
 	if (gg->autosave_playlists)
 		gui_corecmd_add(&cmd_loadlists, NULL);
 
+	gui_themes_read();
+	gui_themes_add(gg->theme_startup);
+
 	gui_ghk_reg();
 
 	ffui_run();
@@ -1089,6 +1094,7 @@ static void gui_destroy(void)
 	ffui_wnd_close(&gg->wmain.wmain);
 	ffthd_join(gg->th, -1, NULL);
 
+	gui_themes_destroy();
 	cvt_sets_destroy(&gg->conv_sets);
 	rec_sets_destroy(&gg->rec_sets);
 	ffmem_free(gg);

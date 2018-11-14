@@ -168,6 +168,11 @@ static void gui_action(ffui_wnd *wnd, int id)
 		return;
 	}
 
+	if ((id & 0xff) == SETTHEME) {
+		gui_theme_set(id >> 8);
+		return;
+	}
+
 	switch (id) {
 	case SEEKING:
 		{

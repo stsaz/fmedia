@@ -383,7 +383,7 @@ oss.$(SO): $(OSS_O)
 $(OBJ_DIR)/%.o: $(SRCDIR)/gui/%.c $(SRCDIR)/gui/gui.h $(SRCDIR)/fmedia.h $(FF_GUIHDR)
 	$(C) $(CFLAGS)  $< -o$@
 
-GUI_O := $(OBJ_DIR)/gui.o $(OBJ_DIR)/gui-main.o $(OBJ_DIR)/gui-dlgs.o \
+GUI_O := $(OBJ_DIR)/gui.o $(OBJ_DIR)/gui-main.o $(OBJ_DIR)/gui-dlgs.o $(OBJ_DIR)/gui-theme.o \
 	$(FF_O) \
 	$(FFOS_WREG) \
 	$(FF_OBJ_DIR)/ffsys.o \
@@ -440,6 +440,7 @@ install-only:
 ifeq ($(OS),win)
 	$(CP) ./fmedia-gui.exe \
 		$(PROJDIR)/src/gui/fmedia.gui \
+		$(PROJDIR)/src/gui/theme.conf \
 		$(INSTDIR)/
 	unix2dos $(INSTDIR)/*.txt $(INSTDIR)/*.conf $(INSTDIR)/*.gui
 endif

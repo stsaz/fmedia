@@ -174,6 +174,9 @@ typedef struct ggui {
 	ffarr filenames; //char*[]
 	void *rec_trk;
 
+	uint theme_index;
+	ffarr themes; //struct theme[]
+
 	ffui_menu mfile
 		, mlist
 		, mplay
@@ -207,6 +210,7 @@ typedef struct ggui {
 	byte status_tray;
 	byte portable_conf;
 	byte autosave_playlists;
+	byte theme_startup;
 	uint wconv_init :1
 		, wrec_init :1
 		, min_tray :1
@@ -316,6 +320,7 @@ enum CMDS {
 	FILTER_SHOW,
 	FILTER_APPLY,
 	FILTER_RESET,
+	SETTHEME, // 0xffffff00: mask for menu item index
 
 	HIDE,
 	SHOW,
@@ -374,6 +379,11 @@ enum {
 };
 void gui_media_add2(const char *fn, uint flags);
 void gui_media_showpcm(void);
+
+void gui_themes_read(void);
+void gui_themes_add(uint def);
+void gui_themes_destroy(void);
+void gui_theme_set(int idx);
 
 void wmain_init(void);
 void gui_runcmd(const struct cmd *cmd, void *udata);

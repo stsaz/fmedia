@@ -38,6 +38,11 @@ menu mfile {
 	}
 	item "-" {
 	}
+	item "Theme: Default" {
+		action SETTHEME
+	}
+	item "-" {
+	}
 	item "&Minimize to Tray" {
 		action HIDE
 		hotkey "Ctrl+M"
