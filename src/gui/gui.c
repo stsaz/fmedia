@@ -1052,6 +1052,7 @@ static int gui_sig(uint signo)
 		if (NULL == (gg = ffmem_tcalloc1(ggui)))
 			return -1;
 		gg->go_pos = (uint)-1;
+		gg->sort_col = -1;
 		gg->itab_convert = -1;
 		fflk_init(&gg->lktrk);
 		fflk_init(&gg->lklog);

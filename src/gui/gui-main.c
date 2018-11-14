@@ -21,6 +21,17 @@ enum LIST_HDR {
 	H_FN,
 };
 
+static const char* const list_colname[] = {
+	NULL,
+	"artist",
+	"title",
+	"__dur",
+	NULL,
+	"date",
+	"album",
+	"__url",
+};
+
 static void gui_action(ffui_wnd *wnd, int id);
 static void gui_list_add(ffui_viewitem *it, size_t par);
 static int __stdcall gui_list_sortfunc(LPARAM p1, LPARAM p2, LPARAM udata);
@@ -271,10 +282,26 @@ static void gui_action(ffui_wnd *wnd, int id)
 		ffui_view_sel_invert(&gg->wmain.vlist);
 		break;
 
-	case SORT:
-		if (gg->wmain.vlist.col == H_TIT || gg->wmain.vlist.col == H_ART || gg->wmain.vlist.col == H_FN)
-			ffui_view_sort(&gg->wmain.vlist, &gui_list_sortfunc, gg->wmain.vlist.col);
+	case SORT: {
+		if (list_colname[gg->wmain.vlist.col] == NULL)
+			break;
+		ffui_viewcol vc = {};
+
+		if (gg->sort_col >= 0 && gg->sort_col != gg->wmain.vlist.col) {
+			ffui_viewcol_setsort(&vc, 0);
+			ffui_view_setcol(&gg->wmain.vlist, gg->sort_col, &vc);
+			gg->sort_reverse = 0;
+		}
+
+		gg->qu->cmdv(FMED_QUE_SORT, -1, list_colname[gg->wmain.vlist.col], gg->sort_reverse);
+
+		ffui_viewcol_setsort(&vc, (gg->sort_reverse == 0) ? HDF_SORTUP : HDF_SORTDOWN);
+		ffui_view_setcol(&gg->wmain.vlist, gg->wmain.vlist.col, &vc);
+		gg->sort_col = gg->wmain.vlist.col;
+		gg->sort_reverse = !gg->sort_reverse;
+		ffui_ctl_invalidate(&gg->wmain.vlist);
 		break;
+	}
 
 	case HIDE:
 		if (!ffui_tray_visible(&gg->wmain.tray_icon)) {
@@ -311,36 +338,6 @@ static void gui_action(ffui_wnd *wnd, int id)
 		gui_onclose();
 		break;
 	}
-}
-
-static int __stdcall gui_list_sortfunc(LPARAM p1, LPARAM p2, LPARAM udata)
-{
-	fmed_que_entry *e1 = (void*)p1, *e2 = (void*)p2;
-	ffstr *s1, *s2, nm;
-
-	switch (udata) {
-	case H_ART:
-	case H_TIT:
-		if (udata == H_ART)
-			ffstr_setcz(&nm, "artist");
-		else
-			ffstr_setcz(&nm, "title");
-
-		s1 = gg->qu->meta_find(e1, nm.ptr, nm.len);
-		s2 = gg->qu->meta_find(e2, nm.ptr, nm.len);
-		if (s1 == NULL || s2 == NULL) {
-			if (s1 == NULL && s2 == NULL)
-				return 0;
-			else
-				return (s1 == NULL) ? 1 : -1;
-		}
-		return ffstr_cmp2(s1, s2);
-
-	case H_FN:
-		return ffstr_cmp2(&e1->url, &e2->url);
-	}
-
-	return 0;
 }
 
 static const char *const setts[] = {

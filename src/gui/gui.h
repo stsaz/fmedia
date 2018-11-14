@@ -169,6 +169,7 @@ typedef struct ggui {
 	const fmed_track *track;
 	uint load_err;
 	int vol;
+	int sort_col;
 
 	uint go_pos;
 	ffarr filenames; //char*[]
@@ -216,6 +217,7 @@ typedef struct ggui {
 		, min_tray :1
 		, list_filter :1
 		, list_random :1
+		, sort_reverse :1
 		;
 	uint state;
 	int itab_convert; // index of "conversion" tab;  -1:none
