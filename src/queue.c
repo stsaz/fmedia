@@ -36,6 +36,7 @@ typedef struct entry {
 	ffarr2 tmeta; //ffstr[]. transient meta
 	ffarr2 dict; //ffstr[]
 
+	size_t list_pos; //position number within playlist.  May be invalid.
 	uint refcount;
 	uint rm :1
 		, stop_after :1
@@ -55,10 +56,12 @@ struct plist {
 	struct plist *filtered_plist; //list with the filtered tracks
 	uint rm :1;
 	uint allow_random :1;
+	uint filtered :1;
 };
 
 static void plist_free(plist *pl);
 static ssize_t plist_ent_idx(plist *pl, entry *e);
+static struct entry* plist_ent(struct plist *pl, size_t idx);
 
 struct que_conf {
 	byte next_if_err;
@@ -248,13 +251,34 @@ static void plist_free(plist *pl)
 /** Find a number by an entry pointer. */
 static ssize_t plist_ent_idx(plist *pl, entry *e)
 {
+	int update = 0;
+	if (!pl->filtered) {
+		entry *e2 = plist_ent(pl, e->list_pos);
+		if (e == e2)
+			return e->list_pos;
+		update = 1;
+	}
+
 	entry **p;
 	FFARR_WALKT(&pl->indexes, p, entry*) {
-		if (*p == e)
+		if (*p == e) {
+			if (update)
+				e->list_pos = p - (entry**)pl->indexes.ptr;
 			return p - (entry**)pl->indexes.ptr;
+		}
 	}
 	return -1;
 }
+
+/** Get an entry pointer by its index. */
+static struct entry* plist_ent(struct plist *pl, size_t idx)
+{
+	if (idx >= pl->indexes.len)
+		return NULL;
+	struct entry *e = ((entry**)pl->indexes.ptr) [idx];
+	return e;
+}
+
 
 static void que_destroy(void)
 {
@@ -746,10 +770,7 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 		pl = (plid != -1) ? plist_by_idx(plid) : qu->curlist;
 		if (pl->filtered_plist != NULL)
 			pl = pl->filtered_plist;
-		if (param2 >= pl->indexes.len)
-			return 0;
-		e = ((entry**)pl->indexes.ptr) [param2];
-		return (size_t)e;
+		return (size_t)plist_ent(pl, param2);
 	}
 
 	case FMED_QUE_NEW_FILTERED:
@@ -758,6 +779,7 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 		if (NULL == (pl = ffmem_new(struct plist)))
 			return -1;
 		fflist_init(&pl->ents);
+		pl->filtered = 1;
 		qu->curlist->filtered_plist = pl;
 		break;
 
@@ -845,18 +867,17 @@ static fmed_que_entry* que_add(fmed_que_entry *ent, uint flags)
 		ent_free(e);
 		return NULL;
 	}
+	ssize_t i = e->plist->indexes.len;
 	if (ent->prev != NULL) {
 		entry *prev = FF_GETPTR(entry, e, ent->prev);
-		ssize_t i = plist_ent_idx(e->plist, prev);
+		i = plist_ent_idx(e->plist, prev);
 		FF_ASSERT(i != -1);
-		if (i != -1) {
-			i++;
-			_ffarr_shiftr(&e->plist->indexes, i, 1, sizeof(entry*));
-			((entry**)e->plist->indexes.ptr) [i] = e;
-			e->plist->indexes.len++;
-		}
-	} else
-		*ffarr_pushT(&e->plist->indexes, entry*) = e;
+		i++;
+		_ffarr_shiftr(&e->plist->indexes, i, 1, sizeof(entry*));
+	}
+	e->list_pos = i;
+	((entry**)e->plist->indexes.ptr) [i] = e;
+	e->plist->indexes.len++;
 
 	dbglog(core, NULL, "que", "added: (%d: %d-%d) %S"
 		, ent->dur, ent->from, ent->to, &ent->url);
