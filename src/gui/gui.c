@@ -512,8 +512,7 @@ static void gui_que_onchange(fmed_que_entry *e, uint flags)
 			ffui_redraw(&gg->wmain.vlist, 1);
 			break;
 		}
-		idx = gg->qu->cmdv(FMED_QUE_ID, e);
-		gui_media_added2(e, 0, idx);
+		gui_media_added(e);
 		break;
 
 	case FMED_QUE_ONRM:
@@ -523,6 +522,7 @@ static void gui_que_onchange(fmed_que_entry *e, uint flags)
 
 	case FMED_QUE_ONCLEAR:
 		ffui_view_clear(&gg->wmain.vlist);
+		ffui_view_redraw(&gg->wmain.vlist, 0, 0);
 		break;
 	}
 }
@@ -552,7 +552,7 @@ void gui_media_add2(const char *fn, uint flags)
 	ffstr_setz(&e.url, fn);
 	if (NULL == (pe = (void*)gg->qu->cmd2(FMED_QUE_ADD | FMED_QUE_NO_ONCHANGE, &e, 0)))
 		return;
-	gui_media_added(pe, 0);
+	gui_media_added(pe);
 
 	if (t == FMED_FT_DIR || t == FMED_FT_PLIST)
 		gg->qu->cmd2(FMED_QUE_EXPAND, pe, 0);

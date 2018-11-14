@@ -33,12 +33,9 @@ static const char* const list_colname[] = {
 };
 
 static void gui_action(ffui_wnd *wnd, int id);
-static void gui_list_add(ffui_viewitem *it, size_t par);
-static int __stdcall gui_list_sortfunc(LPARAM p1, LPARAM p2, LPARAM udata);
 static void gui_media_opendlg(uint id);
 static void gui_media_open(uint id);
 static void gui_media_savelist(void);
-static void gui_plist_recount(uint from);
 static void gui_media_remove(void);
 static void gui_list_rmdead(void);
 static void gui_list_random(void);
@@ -59,11 +56,7 @@ static void list_setdata(void);
 
 enum {
 	GUI_TRKINFO_WNDCAPTION = 1,
-	GUI_TRKINFO_PLAYING = 2,
-	GUI_TRKINFO_STOPPED = 4,
-	GUI_TRKINFO_DUR = 8,
 };
-static void gui_trk_setinfo(int idx, fmed_que_entry *ent, uint sec, uint flags);
 
 
 void wmain_init(void)
@@ -545,6 +538,14 @@ done:
 	ffarr_free(&buf);
 }
 
+/** Update number of total list items and set to redraw the next items. */
+static void list_update(uint idx, int delta)
+{
+	uint n = ffui_view_nitems(&gg->wmain.vlist);
+	ffui_view_setcount(&gg->wmain.vlist, n + delta);
+	ffui_view_redraw(&gg->wmain.vlist, idx, idx + 100);
+}
+
 struct ent_idx {
 	uint idx;
 	fmed_que_entry *ent;
@@ -591,18 +592,12 @@ static void gui_media_fileop(uint cmd)
 
 	case DELFILE:
 		if (0 == ffui_fop_del((const char *const *)buf.ptr, buf.len, FFUI_FOP_ALLOWUNDO)) {
-			ffui_redraw(&gg->wmain.vlist, 0);
 			FFARR_WALKT(&ents, ei, struct ent_idx) {
 				gg->qu->cmd(FMED_QUE_RM | FMED_QUE_NO_ONCHANGE, ei->ent);
 			}
-			FFARR_RWALKT(&ents, ei, struct ent_idx) {
-				ffui_view_rm(&gg->wmain.vlist, ei->idx);
-			}
-			if (ents.len != 0) {
-				ei = ffarr_itemT(&ents, 0, struct ent_idx);
-				gui_plist_recount(ei->idx);
-			}
-			ffui_redraw(&gg->wmain.vlist, 1);
+			ffui_view_unselall(&gg->wmain.vlist);
+			ei = (void*)ents.ptr;
+			list_update(ei->idx, -(int)buf.len);
 			n = ffs_fmt(st, st + sizeof(st), "Deleted %L files", buf.len);
 			gui_status(st, n);
 		}
@@ -678,29 +673,10 @@ static void gui_trk_setinfo2(fmed_que_entry *ent, uint flags)
 	}
 }
 
-void gui_media_added2(fmed_que_entry *ent, uint flags, int idx)
+void gui_media_added(fmed_que_entry *ent)
 {
-	char buf[255];
-	ffui_viewitem it;
-	ffmem_tzero(&it);
-
-	if (idx == -1) {
-		gui_list_add(&it, 0);
-		idx = it.item.iItem;
-	} else {
-		size_t n = ffs_fromint(idx + 1, buf, sizeof(buf), 0);
-		ffui_view_settext(&it, buf, n);
-		ffui_view_ins(&gg->wmain.vlist, idx, &it);
-	}
-
-	if (ent->dur != 0)
-		flags |= GUI_TRKINFO_DUR;
-	gui_trk_setinfo(idx, ent, ent->dur / 1000, flags);
-}
-
-void gui_media_added(fmed_que_entry *ent, uint flags)
-{
-	gui_media_added2(ent, flags, -1);
+	uint idx = gg->qu->cmdv(FMED_QUE_ID, ent);
+	list_update(idx, 1);
 }
 
 static void gui_media_opendlg(uint id)
@@ -759,28 +735,9 @@ static void gui_media_addurl(uint id)
 	ffui_show(&gg->wuri.wuri, 1);
 }
 
-static void gui_plist_recount(uint from)
-{
-	ffui_viewitem it;
-	char buf[FFINT_MAXCHARS];
-	size_t n;
-	uint i;
-	for (i = from;  ;  i++) {
-		ffui_view_iteminit(&it);
-		ffui_view_setindex(&it, i);
-		n = ffs_fromint(i + 1, buf, sizeof(buf), 0);
-		ffui_view_settext(&it, buf, n);
-		if (0 != ffui_view_set(&gg->wmain.vlist, H_IDX, &it))
-			break;
-	}
-}
-
 void gui_media_removed(uint i)
 {
-	ffui_redraw(&gg->wmain.vlist, 0);
-	ffui_view_rm(&gg->wmain.vlist, i);
-	gui_plist_recount(i);
-	ffui_redraw(&gg->wmain.vlist, 1);
+	list_update(i, -1);
 }
 
 int gui_newtab(uint flags)
@@ -812,20 +769,9 @@ void gui_que_new(void)
 void gui_showque(uint i)
 {
 	gg->qu->cmd(FMED_QUE_SEL, (void*)(size_t)i);
-
-	fmed_que_entry *active_qent = NULL;
-	if (gg->curtrk != NULL)
-		active_qent = (void*)gg->track->getval(gg->curtrk->trk, "queue_item");
-
-	ffui_redraw(&gg->wmain.vlist, 0);
-	ffui_view_clear(&gg->wmain.vlist);
-	fmed_que_entry *e = NULL;
-	for (;;) {
-		if (0 == gg->qu->cmd2(FMED_QUE_LIST, &e, 0))
-			break;
-		gui_media_added(e, (e == active_qent) ? GUI_TRKINFO_PLAYING : 0);
-	}
-	ffui_redraw(&gg->wmain.vlist, 1);
+	uint n = gg->qu->cmdv(FMED_QUE_COUNT);
+	ffui_view_setcount(&gg->wmain.vlist, n);
+	ffui_view_redraw(&gg->wmain.vlist, 0, 100);
 }
 
 void gui_que_del(void)
@@ -877,28 +823,24 @@ static void gui_media_savelist(void)
 
 static void gui_media_remove(void)
 {
-	int i, first;
+	int i = -1, n = 0, first = -1;
 	void *id;
 
-	ffui_redraw(&gg->wmain.vlist, 0);
-
-	first = ffui_view_selnext(&gg->wmain.vlist, -1);
-	while (-1 != (i = ffui_view_selnext(&gg->wmain.vlist, -1))) {
-		id = (fmed_que_entry*)gg->qu->fmed_queue_item(-1, i);
+	while (-1 != (i = ffui_view_selnext(&gg->wmain.vlist, i))) {
+		if (first < 0)
+			first = i;
+		id = (fmed_que_entry*)gg->qu->fmed_queue_item(-1, i - n);
 		gg->qu->cmd2(FMED_QUE_RM | FMED_QUE_NO_ONCHANGE, id, 0);
-		ffui_view_rm(&gg->wmain.vlist, i);
+		n++;
 	}
-
-	if (first != -1)
-		gui_plist_recount(first);
-	ffui_redraw(&gg->wmain.vlist, 1);
+	ffui_view_unselall(&gg->wmain.vlist);
+	list_update(first, -n);
 }
 
 static void gui_list_rmdead(void)
 {
 	ffui_redraw(&gg->wmain.vlist, 0);
 	gg->qu->cmd(FMED_QUE_RMDEAD, NULL);
-	gui_plist_recount(0);
 	ffui_redraw(&gg->wmain.vlist, 1);
 }
 
@@ -945,14 +887,6 @@ static void gui_tonxtlist(void)
 	gg->qu->cmd(FMED_QUE_SEL, (void*)(size_t)sel);
 }
 
-static void gui_list_add(ffui_viewitem *it, size_t par)
-{
-	char buf[FFINT_MAXCHARS];
-	size_t n = ffs_fromint(ffui_view_nitems(&gg->wmain.vlist) + 1, buf, sizeof(buf), 0);
-	ffui_view_settext(it, buf, n);
-	ffui_view_append(&gg->wmain.vlist, it);
-}
-
 void gui_status(const char *s, size_t len)
 {
 	ffui_stbar_settext(&gg->wmain.stbar, 1, s, len);
@@ -997,7 +931,7 @@ static void gui_filt_show(void)
 
 void gui_filter(const ffstr *text, uint flags)
 {
-	fmed_que_entry *active_qent = NULL, *e = NULL;
+	fmed_que_entry *e = NULL;
 	ffstr *meta, name;
 	uint nfilt = 0, nall = 0, inc;
 
@@ -1008,9 +942,6 @@ void gui_filter(const ffstr *text, uint flags)
 
 	ffui_redraw(&gg->wmain.vlist, 0);
 	ffui_view_clear(&gg->wmain.vlist);
-
-	if (gg->curtrk != NULL)
-		active_qent = (void*)gg->track->getval(gg->curtrk->trk, "queue_item");
 
 	for (;;) {
 
@@ -1038,7 +969,7 @@ void gui_filter(const ffstr *text, uint flags)
 
 		if (inc) {
 			gg->qu->cmdv(FMED_QUE_ADD_FILTERED, e);
-			gui_media_added(e, (e == active_qent) ? GUI_TRKINFO_PLAYING : 0);
+			gui_media_added(e);
 			nfilt++;
 		}
 
@@ -1071,11 +1002,12 @@ int gui_setmeta(gui_trk *g, fmed_que_entry *plid)
 
 	if (idx != -1) {
 		if (g == NULL) {
-			gui_trk_setinfo(idx, plid, 0, GUI_TRKINFO_STOPPED);
+			ffui_view_redraw(&gg->wmain.vlist, idx, idx);
 			return idx;
 		}
 
-		gui_trk_setinfo(idx, plid, g->total_time_sec, GUI_TRKINFO_PLAYING | GUI_TRKINFO_DUR);
+		plid->dur = g->total_time_sec * 1000;
+		ffui_view_redraw(&gg->wmain.vlist, idx, idx);
 	}
 
 	if (g == NULL)
