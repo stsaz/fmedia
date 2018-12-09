@@ -737,6 +737,11 @@ enum FMED_QUE {
 	uint count() */
 	FMED_QUE_COUNT,
 
+	/** Start processing several tracks in parallel, if possible.
+	void xplay(fmed_que_entry *first)
+	'first': the first track to start. */
+	FMED_QUE_XPLAY,
+
 	_FMED_QUE_LAST
 };
 

@@ -54,11 +54,12 @@ struct plist {
 	fflist_item sib;
 	fflist ents; //entry[]
 	ffarr indexes; //entry*[]  Get an entry by its number;  find a number by an entry pointer.
-	entry *cur;
+	entry *cur, *xcursor;
 	struct plist *filtered_plist; //list with the filtered tracks
 	uint rm :1;
 	uint allow_random :1;
 	uint filtered :1;
+	uint parallel :1; // every item in this queue will start via FMED_TRACK_XSTART
 };
 
 static void plist_free(plist *pl);
@@ -111,6 +112,7 @@ static const fmed_queue fmed_que_mgr = {
 static fmed_que_entry* que_add(fmed_que_entry *ent, uint flags);
 static void que_meta_set(fmed_que_entry *ent, const ffstr *name, const ffstr *val, uint flags);
 static void que_play(entry *e);
+static void que_play2(entry *ent, uint flags);
 static void que_save(entry *first, const fflist_item *sentl, const char *fn);
 static void ent_rm(entry *e);
 static void ent_free(entry *e);
@@ -214,6 +216,8 @@ static void ent_rm(entry *e)
 
 	if (e->plist->cur == e)
 		e->plist->cur = NULL;
+	if (e->plist->xcursor == e)
+		e->plist->xcursor = NULL;
 	fflist_rm(&e->plist->ents, &e->sib);
 	if (e->plist->ents.len == 0 && e->plist->rm)
 		plist_free(e->plist);
@@ -340,7 +344,35 @@ end:
 	return rc;
 }
 
-static void que_play(entry *ent)
+/** Start multiple tracks. */
+static void que_xplay(entry *e)
+{
+	for (;;) {
+		e->plist->xcursor = e;
+		que_play2(e, 1);
+		if (0 == core->cmd(FMED_WORKER_AVAIL))
+			break;
+		if (e->sib.next == fflist_sentl(&e->plist->ents))
+			break;
+		e = FF_GETPTR(entry, sib, e->sib.next);
+	}
+}
+
+static void que_play(entry *e)
+{
+	if (e->plist->parallel) {
+		e = e->plist->xcursor;
+		if (e == NULL || e->sib.next == fflist_sentl(&e->plist->ents))
+			return;
+		e = FF_GETPTR(entry, sib, e->sib.next);
+		que_xplay(e);
+		return;
+	}
+
+	que_play2(e, 0);
+}
+
+static void que_play2(entry *ent, uint flags)
 {
 	fmed_que_entry *e = &ent->e;
 	void *trk = qu->track->create(FMED_TRACK_OPEN, e->url.ptr);
@@ -393,7 +425,10 @@ static void que_play(entry *ent)
 
 	qu->track->setval(trk, "queue_item", (int64)e);
 	ent_ref(ent);
-	qu->track->cmd(trk, FMED_TRACK_START);
+	if (flags & 1)
+		qu->track->cmd(trk, FMED_TRACK_XSTART);
+	else
+		qu->track->cmd(trk, FMED_TRACK_START);
 }
 
 /** Save playlist file. */
@@ -581,6 +616,7 @@ static const char *const scmds[] = {
 	"id", "item", "item-locked", "item-unlock",
 	"flt-new", "flt-add", "flt-del", "lst-noflt",
 	"sort", "count",
+	"xplay",
 };
 
 static ssize_t que_cmdv(uint cmd, ...)
@@ -599,6 +635,18 @@ static ssize_t que_cmdv(uint cmd, ...)
 	}
 
 	switch ((enum FMED_QUE)cmd) {
+	case FMED_QUE_XPLAY: {
+		fmed_que_entry *first = va_arg(va, fmed_que_entry*);
+		entry *e = FF_GETPTR(entry, e, first);
+		dbglog0("received command:%s  first-entry:%p", scmds[cmd], e);
+		/* Note: we should reset it after the last track is stopped,
+		 but this isn't required now - no one will call FMED_QUE_PLAY on this playlist.
+		*/
+		e->plist->parallel = 1;
+		que_xplay(e);
+		goto end;
+	}
+
 	case FMED_QUE_COUNT: {
 		pl = qu->curlist;
 		r = pl->ents.len;
