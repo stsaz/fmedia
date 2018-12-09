@@ -172,8 +172,9 @@ static int flac_dec_decode(void *ctx, fmed_filt *d)
 		return FMED_RMORE;
 	}
 
-	uint64 abs_seek = d->audio.pos - pos;
-	d->audio.pos = ffflac_dec_cursample(&f->fl) - abs_seek;
+	d->audio.pos = ffflac_dec_cursample(&f->fl);
+	if (d->audio.abs_seek != 0)
+		d->audio.pos -= fmed_apos_samples(d->audio.abs_seek, f->fmt.sample_rate);
 
 	d->datalen = 0;
 	d->outlen = ffflac_dec_output(&f->fl, &d->outni);

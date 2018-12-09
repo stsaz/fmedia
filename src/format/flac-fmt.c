@@ -43,7 +43,7 @@ const fmed_filter fmed_flac_output = {
 
 struct flac {
 	ffflac fl;
-	int64 abs_seek;
+	uint64 abs_seek;
 	uint seek_ready :1;
 };
 
@@ -203,7 +203,9 @@ static int flac_in_read(void *ctx, fmed_filt *d)
 data:
 	dbglog(d->trk, "frame samples:%u pos:%U"
 		, f->fl.frame.samples, ffflac_cursample(&f->fl));
-	d->audio.pos = ffflac_cursample(&f->fl) - f->abs_seek;
+	d->audio.pos = ffflac_cursample(&f->fl);
+	if (d->audio.pos > f->abs_seek)
+		d->audio.pos -= f->abs_seek;
 
 	fmed_setval("flac.in.frsamples", f->fl.frame.samples);
 	fmed_setval("flac.in.frpos", f->fl.frame.pos);
