@@ -415,6 +415,12 @@ void gui_corecmd_op(uint cmd, void *udata)
 		int focused;
 		if (-1 == (focused = ffui_view_focused(&gg->wmain.vlist)))
 			break;
+		/* Note: we should use 'gg->lktrk' here,
+		 but because it's only relevant for non-conversion tracks,
+		 and 'curtrk' is modified only within main thread,
+		 and this function always runs within main thread,
+		 nothing will break here without the lock.
+		*/
 		if (gg->curtrk != NULL)
 			gg->track->cmd(gg->curtrk->trk, FMED_TRACK_STOP);
 		gg->qu->cmd(FMED_QUE_PLAY, (void*)gg->qu->fmed_queue_item(-1, focused));
@@ -1129,8 +1135,6 @@ static void* gtrk_open(fmed_filt *d)
 	g->lastpos = (uint)-1;
 	g->d = d;
 	g->trk = d->trk;
-	g->task.handler = d->handler;
-	g->task.param = d->trk;
 
 	g->qent = (void*)fmed_getval("queue_item");
 	if (g->qent == FMED_PNULL) {
@@ -1155,7 +1159,6 @@ static void* gtrk_open(fmed_filt *d)
 static void gtrk_close(void *ctx)
 {
 	gui_trk *g = ctx;
-	core->task(&g->task, FMED_TASK_DEL);
 	gui_setmeta(NULL, g->qent);
 
 	if (gg->curtrk == g) {

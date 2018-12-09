@@ -119,7 +119,7 @@ static void wrk_destroy(struct worker *w);
 static uint work_assign(uint flags);
 static void work_release(uint wid, uint flags);
 static uint work_avail();
-static int FFTHDCALL core_work(void *param);
+static int FFTHDCALL work_loop(void *param);
 
 static const void* core_iface(const char *name);
 static int core_sig2(uint signo);
@@ -1201,6 +1201,7 @@ static int core_open(void)
 	return 0;
 }
 
+/** Initialize worker object. */
 static int wrk_init(struct worker *w, uint thread)
 {
 	fftask_init(&w->taskmgr);
@@ -1217,7 +1218,7 @@ static int wrk_init(struct worker *w, uint thread)
 	w->evposted.handler = &core_posted;
 
 	if (thread) {
-		w->thd = ffthd_create(&core_work, w, 0);
+		w->thd = ffthd_create(&work_loop, w, 0);
 		if (w->thd == FFTHD_INV) {
 			syserrlog("%s", ffthd_create_S);
 			wrk_destroy(w);
@@ -1232,6 +1233,7 @@ static int wrk_init(struct worker *w, uint thread)
 	return 0;
 }
 
+/** Destroy worker object. */
 static void wrk_destroy(struct worker *w)
 {
 	if (w->thd != FFTHD_INV) {
@@ -1326,7 +1328,8 @@ ffbool core_ismainthr(void)
 	return (w->id == ffthd_curid());
 }
 
-static int FFTHDCALL core_work(void *param)
+/** Worker's event loop. */
+static int FFTHDCALL work_loop(void *param)
 {
 	struct worker *w = param;
 	w->id = ffthd_curid();
@@ -1442,7 +1445,7 @@ static ssize_t core_cmd(uint signo, ...)
 		break;
 
 	case FMED_START:
-		core_work(fmed->workers.ptr);
+		work_loop(fmed->workers.ptr);
 		break;
 
 	case FMED_STOP: {

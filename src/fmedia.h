@@ -24,9 +24,9 @@ mixer                 mixer
 
 
 #define FMED_VER_MAJOR  1
-#define FMED_VER_MINOR  2
+#define FMED_VER_MINOR  3
 #define FMED_VER_FULL  ((FMED_VER_MAJOR << 8) | FMED_VER_MINOR)
-#define FMED_VER  "1.2"
+#define FMED_VER  "1.3"
 
 #define FMED_VER_GETMAJ(fullver)  ((fullver) >> 8)
 #define FMED_VER_GETMIN(fullver)  ((fullver) & 0xff)
@@ -380,6 +380,7 @@ enum FMED_TRK_MON {
 	FMED_TRK_ONLAST,
 };
 struct fmed_trk_mon {
+	/** Called within the worker thread when track object is about to be destroyed. */
 	void (*onsig)(fmed_trk *trk, uint sig);
 };
 /** Associate monitor interface with tracks. */

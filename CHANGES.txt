@@ -8,6 +8,16 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.3 - Dec 9, 2018
+
+ + GUI: Parallel conversion (fmedia.conf::workers).
+ + Parallel conversion from command line ('--parallel' switch)
+ - .m4a write: Couldn't convert from broken .mp3
+ - GUI: Conversion progress didn't update (v1.2 bug)
+ - .flac read: Unsynchronized output from .cue files (v1.0 bug)
+   Audio positioning could be incorrect for the tracks in .cue file.
+
+
 fmedia v1.2 - Nov 10, 2018
 
  + GUI: support custom themes (theme.conf file)

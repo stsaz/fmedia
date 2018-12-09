@@ -251,7 +251,6 @@ struct gui_trk {
 
 	fmed_filt *d;
 	void *trk;
-	fftask task;
 	fmed_que_entry *qent;
 
 	uint goback :1
