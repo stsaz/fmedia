@@ -208,7 +208,8 @@ static void list_setdata(void)
 		break;
 
 	case H_DUR:
-		if (ent->dur != 0) {
+		val = gg->qu->meta_find(ent, FFSTR("__dur"));
+		if (val == NULL && ent->dur != 0) {
 			uint sec = ent->dur / 1000;
 			n = ffs_fmt(buf, buf + sizeof(buf), "%u:%02u", sec / 60, sec % 60);
 			ffstr_set(&s, buf, n);
@@ -1056,15 +1057,15 @@ void gui_conv_progress(gui_trk *g)
 		return;
 	}
 
-	ffui_viewitem it = {0};
-	ffui_view_setindex(&it, idx);
+	ffstr val;
 	if (g->d->flags & FMED_FLAST)
-		ffui_view_settextz(&it, "Done");
+		ffstr_setz(&val, "Done");
 	else {
 		size_t n = ffs_fmt(buf, buf + sizeof(buf), "%u:%02u / %u:%02u"
 			, playtime / 60, playtime % 60
 			, g->total_time_sec / 60, g->total_time_sec % 60);
-		ffui_view_settext(&it, buf, n);
+		ffstr_set(&val, buf, n);
 	}
-	ffui_view_set(&gg->wmain.vlist, H_DUR, &it);
+	gg->qu->meta_set(plid, FFSTR("__dur"), val.ptr, val.len, FMED_QUE_PRIV | FMED_QUE_OVWRITE);
+	ffui_view_redraw(&gg->wmain.vlist, idx, idx);
 }
