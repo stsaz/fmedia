@@ -98,10 +98,12 @@ enum FMED_SIG {
 
 	/** Release command from worker.
 	void release(uint wid, uint flags)
+	flags: enum FMED_WORKER_F
 	*/
 	FMED_WORKER_RELEASE,
 
 	/** Get the number of available workers.
+	Worker is considered to be busy only if it has a command with FMED_WORKER_FPARALLEL.
 	Return 0: workers are busy;  1: at least 1 worker is free. */
 	FMED_WORKER_AVAIL,
 };

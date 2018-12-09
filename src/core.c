@@ -1280,7 +1280,8 @@ static uint work_assign(uint flags)
 	}
 
 done:
-	ffatom_inc(&w->njobs);
+	if (flags & FMED_WORKER_FPARALLEL)
+		ffatom_inc(&w->njobs);
 	return id;
 }
 
@@ -1288,8 +1289,10 @@ done:
 static void work_release(uint wid, uint flags)
 {
 	struct worker *w = ffarr_itemT(&fmed->workers, wid, struct worker);
-	ssize_t n = ffatom_decret(&w->njobs);
-	FMED_ASSERT(n >= 0);
+	if (flags & FMED_WORKER_FPARALLEL) {
+		ssize_t n = ffatom_decret(&w->njobs);
+		FMED_ASSERT(n >= 0);
+	}
 }
 
 /** Get the number of available workers. */

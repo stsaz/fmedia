@@ -84,6 +84,7 @@ typedef struct fm_trk {
 	char sid[FFSLEN("*") + FFINT_MAXCHARS];
 
 	uint state; //enum TRK_ST
+	uint wflags;
 } fm_trk;
 
 
@@ -548,7 +549,7 @@ static void trk_free(fm_trk *t)
 
 	if (fflist_exists(&g->trks, &t->sib)) {
 		fflist_rm(&g->trks, &t->sib);
-		core->cmd(FMED_WORKER_RELEASE, t->wid, 0);
+		core->cmd(FMED_WORKER_RELEASE, t->wid, t->wflags);
 		allowsleep(1);
 	}
 
@@ -1005,7 +1006,8 @@ static ssize_t trk_cmd(void *trk, uint cmd, ...)
 		if (fmed->cmd.print_time)
 			ffps_perf(&t->psperf, FFPS_PERF_REALTIME | FFPS_PERF_CPUTIME | FFPS_PERF_RUSAGE);
 
-		t->wid = core->cmd(FMED_WORKER_ASSIGN, &t->kq, (cmd == FMED_TRACK_XSTART) ? FMED_WORKER_FPARALLEL : 0);
+		t->wflags = (cmd == FMED_TRACK_XSTART) ? FMED_WORKER_FPARALLEL : 0;
+		t->wid = core->cmd(FMED_WORKER_ASSIGN, &t->kq, t->wflags);
 
 		core->cmd(FMED_TASK_XPOST, &t->tsk, t->wid);
 		break;
