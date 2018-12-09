@@ -195,8 +195,10 @@ again:
 			d->audio.total = ffmpg_length(&m->mpg.rdr);
 			if (m->mpg.rdr.duration_inaccurate) {
 				dbglog(core, d->trk, NULL, "duration may be inaccurate");
-				d->duration_inaccurate = 1;
 			}
+			/* Broken .mp3 files prevent from writing header-first .mp4 files.
+			This tells .mp4 writer not to trust us. */
+			d->duration_inaccurate = 1;
 			m->state = I_DATA;
 			fmed_setval("mpeg_delay", m->mpg.rdr.delay);
 
