@@ -71,6 +71,7 @@ typedef struct fmed_cmd {
 	byte overwrite;
 	byte out_copy;
 	byte preserve_date;
+	byte parallel;
 
 	ffstr dummy;
 

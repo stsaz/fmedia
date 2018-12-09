@@ -106,6 +106,8 @@ OUTPUT:
                      cmd: save each track only by user's command
 
 OTHER OPTIONS:
+--parallel         Process input files in parallel (fmedia.conf::workers).
+                   Must be used with '--out'.
 --background       Create a new process that will run in background
 --globcmd=STR      Send commands to another running fmedia process.
                    Supported commands:

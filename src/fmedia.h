@@ -203,6 +203,7 @@ enum FMED_INSTANCE_MODE {
 struct fmed_props {
 	uint stdout_busy :1;
 	uint stdin_busy :1;
+	uint parallel :1;
 	char *version_str; // "X.XX[.XX]"
 	uint list_random;
 };

@@ -585,7 +585,7 @@ static void gui_convert(void)
 
 	if (ar.len != 0) {
 		qent = *(void**)ar.ptr;
-		gg->qu->cmd(FMED_QUE_PLAY, qent);
+		gg->qu->cmdv(FMED_QUE_XPLAY, qent);
 	}
 
 end:

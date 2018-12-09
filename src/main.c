@@ -135,6 +135,7 @@ static const ffpars_arg fmed_cmdline_args[] = {
 	{ "debug",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(debug) },
 	{ "help",	FFPARS_SETVAL('h') | FFPARS_TBOOL | FFPARS_FALONE,  FFPARS_DST(&fmed_arg_usage) },
 	{ "cue-gaps",	FFPARS_TINT8,  OFF(cue_gaps) },
+	{ "parallel",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(parallel) },
 
 	//INSTALL
 	{ "install",	FFPARS_TBOOL | FFPARS_FALONE,  FFPARS_DST(&fmed_arg_install) },
@@ -750,10 +751,13 @@ static void open_input(void *udata)
 	FFARR_FREE_ALL_PTR(&fmed->in_files, ffmem_free, char*);
 
 	if (first != NULL) {
-		if (!fmed->mix)
-			qu->cmd(FMED_QUE_PLAY, first);
-		else
+		if (fmed->mix)
 			qu->cmd(FMED_QUE_MIX, NULL);
+		else if (fmed->outfn.len != 0 && fmed->parallel) {
+			core->props->parallel = 1;
+			qu->cmdv(FMED_QUE_XPLAY, first);
+		} else
+			qu->cmd(FMED_QUE_PLAY, first);
 	}
 
 	if (fmed->rec) {

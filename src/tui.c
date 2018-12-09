@@ -488,6 +488,13 @@ static int tui_process(void *ctx, fmed_filt *d)
 			return FMED_RFIN;
 	}
 
+	if (core->props->parallel) {
+		/* We don't print progress bars because it would be a mess. */
+		d->out = d->data;
+		d->outlen = d->datalen;
+		return FMED_RDONE;
+	}
+
 	if (gt->curtrk_rec != NULL && !t->rec)
 		goto done; //don't show playback bar while recording in another track
 
