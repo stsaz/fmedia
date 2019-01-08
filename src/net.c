@@ -100,7 +100,6 @@ typedef struct nethttp {
 		, iowait :1 //waiting for I/O, all input data is consumed
 		, async :1
 		, preload :1 //fill all buffers
-		, icy_meta_req :1
 		;
 
 	fftask_handler handler;
@@ -140,16 +139,15 @@ static int tcp_recv(nethttp *c);
 static void tcp_ontmr(void *param);
 static int tcp_recvhdrs(nethttp *c);
 static int tcp_send(nethttp *c);
-static int tcp_getdata(nethttp *c, ffstr *dst);
 static int tcp_ioerr(nethttp *c);
 
 //HTTP
 static int http_config(ffpars_ctx *ctx);
-static void* http_open(fmed_filt *d);
-static int http_process(void *ctx, fmed_filt *d);
-static void http_close(void *ctx);
+static void* httpcli_open(fmed_filt *d);
+static int httpcli_process(void *ctx, fmed_filt *d);
+static void httpcli_close(void *ctx);
 static const fmed_filter fmed_http = {
-	&http_open, &http_process, &http_close
+	&httpcli_open, &httpcli_process, &httpcli_close
 };
 
 static int http_conf_done(ffparser_schem *p, void *obj);
@@ -315,6 +313,7 @@ static void* http_if_request(const char *method, const char *url, uint flags)
 
 	c->tmr.handler = &tcp_ontmr;
 	c->tmr.param = c;
+	c->max_reconnect = net->conf.max_reconnect;
 
 	return c;
 
@@ -367,7 +366,7 @@ static void http_if_sethandler(void *con, fftask_handler func, void *udata)
 
 enum {
 	I_START, I_ADDR, I_NEXTADDR, I_CONN,
-	I_HTTP_REQ, I_HTTP_REQ_SEND, I_HTTP_RESP, I_HTTP_RESP_PARSE, I_HTTP_RECVBODY1, I_HTTP_RECVBODY, I_HTTP_RESPBODY,
+	I_HTTP_REQ, I_HTTP_REQ_SEND, I_HTTP_RESP, I_HTTP_RESP_PARSE, I_HTTP_RECVBODY, I_HTTP_RESPBODY,
 	I_DONE, I_ERR, I_NOOP,
 };
 
@@ -460,12 +459,6 @@ static void http_if_process(nethttp *c)
 			break;
 		case -1:
 			c->state = I_ERR;
-			continue;
-		case -2:
-			ffstr_set2(&c->data, &c->bufs[0]);
-			ffstr_shift(&c->data, c->resp.h.len);
-			c->bufs[0].len = 0;
-			c->state = I_DONE;
 			continue;
 		case 1:
 			c->state = I_HTTP_RESP;
@@ -631,74 +624,6 @@ static int buf_alloc(nethttp *c, size_t size)
 	return 0;
 }
 
-static void* http_open(fmed_filt *d)
-{
-	nethttp *c;
-
-	if (NULL != (c = (void*)fflist1_pop(&net->recycled_cons)))
-		c = FF_GETPTR(nethttp, recycled, c);
-	else if (NULL == (c = ffmem_new(nethttp)))
-		return NULL;
-	c->d = d;
-	c->sk = FF_BADSKT;
-	ffhttp_respinit(&c->resp);
-
-	c->host = (void*)d->track->getvalstr(d->trk, "input");
-	if (NULL == (c->host = ffsz_alcopyz(c->host)))
-		goto done;
-	c->orighost = c->host;
-
-	if (NULL == (c->bufs = ffmem_callocT(net->conf.nbufs, ffstr))) {
-		syserrlog(d->trk, "%s", ffmem_alloc_S);
-		goto done;
-	}
-	if (0 != buf_alloc(c, net->conf.bufsize))
-		goto done;
-
-	c->tmr.handler = &tcp_ontmr;
-	c->tmr.param = c;
-	c->method = "GET";
-	c->max_reconnect = net->conf.max_reconnect;
-	c->icy_meta_req = net->conf.meta;
-
-	return c;
-
-done:
-	http_close(c);
-	return NULL;
-}
-
-static void http_close(void *ctx)
-{
-	nethttp *c = ctx;
-
-	core->timer(&c->tmr, 0, 0);
-	FF_SAFECLOSE(c->addr, NULL, ffaddr_free);
-	if (c->sk != FF_BADSKT) {
-		ffskt_fin(c->sk);
-		ffskt_close(c->sk);
-		c->sk = FF_BADSKT;
-	}
-	if (c->host != c->orighost)
-		ffmem_safefree(c->host);
-	ffmem_safefree(c->orighost);
-	ffaio_fin(&c->aio);
-	ffhttp_respfree(&c->resp);
-
-	uint i;
-	for (i = 0;  i != net->conf.nbufs;  i++) {
-		ffstr_free(&c->bufs[i]);
-	}
-	ffmem_safefree(c->bufs);
-
-	ffstr_free(&c->hbuf);
-
-	uint inst = c->aio.instance;
-	ffmem_tzero(c);
-	c->aio.instance = inst;
-	fflist1_push(&net->recycled_cons, &c->recycled);
-}
-
 static int ip_resolve(nethttp *c)
 {
 	ffstr s;
@@ -804,10 +729,7 @@ static void tcp_aio(void *udata)
 	nethttp *c = udata;
 	c->async = 0;
 	core->timer(&c->tmr, 0, 0);
-	if (c->d->trk == NULL)
-		http_if_process(c);
-	else
-		net->track->cmd(c->d->trk, FMED_TRACK_WAKE);
+	http_if_process(c);
 }
 
 static int tcp_connect(nethttp *c, const struct sockaddr *addr, socklen_t addr_size)
@@ -839,10 +761,7 @@ static void tcp_ontmr(void *param)
 	warnlog(c->d->trk, "I/O timeout", 0);
 	c->async = 0;
 	tcp_ioerr(c);
-	if (c->d->trk == NULL)
-		http_if_process(c);
-	else
-		net->track->cmd(c->d->trk, FMED_TRACK_WAKE);
+	http_if_process(c);
 }
 
 static int tcp_recvhdrs(nethttp *c)
@@ -874,48 +793,6 @@ static int tcp_recvhdrs(nethttp *c)
 	c->bufs[0].len += r;
 	dbglog(c->d->trk, "recv: +%L [%L]", r, c->bufs[0].len);
 	return 0;
-}
-
-static int tcp_getdata(nethttp *c, ffstr *dst)
-{
-	int r;
-	if (c->buflock) {
-		c->buflock = 0;
-		c->bufs[c->rbuf].len = 0;
-		dbglog(c->d->trk, "unlock buf #%u", c->rbuf);
-		c->rbuf = ffint_cycleinc(c->rbuf, net->conf.nbufs);
-	}
-
-	if (c->bufs[c->rbuf].len == 0) {
-		FF_ASSERT(!c->async);
-		r = tcp_recv(c);
-		if (r == FMED_RASYNC) {
-			infolog(c->d->trk, "precaching data...");
-			c->iowait = 1;
-			c->preload = 1;
-			c->lowat = net->conf.bufsize;
-			return FMED_RASYNC;
-		} else if (r == FMED_RERR) {
-			tcp_ioerr(c);
-			return FMED_RMORE;
-		} else if (r == FMED_RDONE) {
-			c->state = I_DONE;
-			return FMED_RMORE;
-		} else if (r == FMED_RMORE) {
-			c->state = I_ERR;
-			return FMED_RMORE;
-		}
-	}
-
-	if (c->preload) {
-		c->preload = 0;
-		c->lowat = net->conf.buf_lowat;
-	}
-
-	ffstr_set2(dst, &c->bufs[c->rbuf]);
-	c->buflock = 1;
-	dbglog(c->d->trk, "lock buf #%u", c->rbuf);
-	return FMED_RDATA;
 }
 
 static int tcp_ioerr(nethttp *c)
@@ -953,27 +830,6 @@ static int tcp_ioerr(nethttp *c)
 	return 0;
 }
 
-static void tcp_recv_a(void *udata)
-{
-	nethttp *c = udata;
-	core->timer(&c->tmr, 0, 0);
-	c->async = 0;
-	int r = tcp_recv(c);
-	if (r == FMED_RASYNC)
-		return;
-	else if (r == FMED_RERR)
-		tcp_ioerr(c);
-	else if (r == FMED_RDONE)
-		c->state = I_DONE;
-	else if (r == FMED_RMORE)
-		c->state = I_ERR;
-	if (c->iowait) {
-		dbglog(c->d->trk, "waking up track...");
-		c->iowait = 0;
-		net->track->cmd(c->d->trk, FMED_TRACK_WAKE);
-	}
-}
-
 static int tcp_recv(nethttp *c)
 {
 	ssize_t r;
@@ -988,7 +844,7 @@ static int tcp_recv(nethttp *c)
 		dbglog(c->d->trk, "buf #%u recv...  rpending:%u  size:%u"
 			, c->wbuf, c->aio.rpending
 			, (int)net->conf.bufsize - (int)c->curbuf_len);
-		r = ffaio_recv(&c->aio, &tcp_recv_a, c->bufs[c->wbuf].ptr + c->curbuf_len, net->conf.bufsize - c->curbuf_len);
+		r = ffaio_recv(&c->aio, &tcp_aio, c->bufs[c->wbuf].ptr + c->curbuf_len, net->conf.bufsize - c->curbuf_len);
 		if (r == FFAIO_ASYNC) {
 			dbglog(c->d->trk, "buf #%u async recv...", c->wbuf);
 			c->async = 1;
@@ -1068,10 +924,6 @@ static int http_prepreq(nethttp *c, ffstr *dst)
 		ffstr_setz(&s, http_ua[net->conf.user_agent - 1]);
 		ffhttp_addihdr(&ck, FFHTTP_USERAGENT, s.ptr, s.len);
 	}
-	if (c->icy_meta_req) {
-		ffstr_setz(&s, "1");
-		ffhttp_addhdr_str(&ck, &fficy_shdr[FFICY_HMETADATA], &s);
-	}
 	ffhttp_cookfin(&ck);
 	ffstr_acqstr3(&c->hbuf, &ck.buf);
 	ffstr_set2(dst, &c->hbuf);
@@ -1080,7 +932,7 @@ static int http_prepreq(nethttp *c, ffstr *dst)
 }
 
 /**
-Return 0 on success;  1 - need more data;  2 - redirect;  -1 on error;  -2 if non-200 response. */
+Return 0 on success;  1 - need more data;  2 - redirect;  -1 on error. */
 static int http_parse(nethttp *c)
 {
 	ffstr s;
@@ -1119,144 +971,9 @@ static int http_parse(nethttp *c)
 		ffhttp_respfree(&c->resp);
 		ffhttp_respinit(&c->resp);
 		return 2;
-
-	} else if (c->resp.code != 200) {
-		ffstr ln = ffhttp_respstatus(&c->resp);
-		errlog(c->d->trk, "resource unavailable: %S", &ln);
-		return -2;
 	}
 
 	return 0;
-}
-
-static int http_process(void *ctx, fmed_filt *d)
-{
-	nethttp *c = ctx;
-	ssize_t r;
-	ffaddr a = {0};
-
-	if (d->flags & FMED_FSTOP) {
-		d->outlen = 0;
-		return FMED_RLASTOUT;
-	}
-
-	for (;;) {
-	switch (c->state) {
-	case I_ADDR:
-		if (0 != ip_resolve(c))
-			goto done;
-		c->state = I_NEXTADDR;
-		// break
-
-	case I_NEXTADDR:
-		if (0 != tcp_prepare(c, &a))
-			goto done;
-		c->state = I_CONN;
-		// break
-
-	case I_CONN:
-		r = tcp_connect(c, &a.a, a.len);
-		if (r == FMED_RASYNC)
-			return FMED_RASYNC;
-		else if (r == FMED_RMORE) {
-			c->state = I_NEXTADDR;
-			continue;
-		}
-		c->state = I_HTTP_REQ;
-		// break
-
-	case I_HTTP_REQ:
-		http_prepreq(c, &c->data);
-		c->state = I_HTTP_REQ_SEND;
-		// break
-
-	case I_HTTP_REQ_SEND:
-		r = tcp_send(c);
-		if (r == FMED_RASYNC)
-			return FMED_RASYNC;
-		else if (r == FMED_RERR) {
-			tcp_ioerr(c);
-			continue;
-		}
-
-		dbglog(c->d->trk, "receiving response...");
-		ffstr_set(&c->data, c->bufs[0].ptr, net->conf.bufsize);
-		c->state = I_HTTP_RESP;
-		// break
-
-	case I_HTTP_RESP:
-		r = tcp_recvhdrs(c);
-		if (r == FMED_RASYNC)
-			return FMED_RASYNC;
-		else if (r == FMED_RMORE) {
-			c->state = I_ERR;
-			continue;
-		} else if (r == FMED_RERR) {
-			tcp_ioerr(c);
-			continue;
-		}
-		c->state = I_HTTP_RESP_PARSE;
-		//fall through
-
-	case I_HTTP_RESP_PARSE:
-		r = http_parse(c);
-		switch (r) {
-		case 0:
-			break;
-		case -1:
-		case -2:
-			goto done;
-		case 1:
-			c->state = I_HTTP_RESP;
-			continue;
-		case 2:
-			c->state = I_ADDR;
-			continue;
-		}
-
-		ffstr_set2(&c->data, &c->bufs[0]);
-		ffstr_shift(&c->data, c->resp.h.len);
-		c->bufs[0].len = 0;
-		d->net_reconnect = 1;
-		d->out = c->data.ptr,  d->outlen = c->data.len;
-		c->state = I_HTTP_RECVBODY1;
-		return FMED_RDATA;
-
-	case I_HTTP_RECVBODY1:
-		ffhttp_respfree(&c->resp);
-		c->state = I_HTTP_RECVBODY;
-		//fall through
-
-	case I_HTTP_RECVBODY:
-		r = tcp_getdata(c, &c->data);
-		if (r == FMED_RASYNC)
-			return FMED_RASYNC;
-		else if (r == FMED_RERR)
-			goto done;
-		else if (r == FMED_RMORE)
-			continue;
-		d->out = c->data.ptr,  d->outlen = c->data.len;
-		return FMED_RDATA;
-
-	case I_DONE:
-		d->outlen = 0;
-		return FMED_RDONE;
-
-	case I_ERR:
-		return FMED_RERR;
-	}
-	}
-
-	//unreachable
-
-done:
-	return FMED_RERR;
-}
-
-/** Find HTTP response header. */
-static int http_findhdr(nethttp *c, const ffstr *name, ffstr *dst)
-{
-	return ffhttp_findhdr(&c->resp.h, name->ptr, name->len, dst);
 }
 
 
@@ -1278,18 +995,14 @@ static void* icy_open(fmed_filt *d)
 		return NULL;
 	c->d = d;
 
-	if (0 != net->track->cmd2(d->trk, FMED_TRACK_ADDFILT_PREV, "net.http"))
-		goto end;
-
 	int v = net->track->getval(d->trk, "out-copy");
 	c->out_copy = (v != FMED_NULL);
 	c->save_oncmd = (v == FMED_OUTCP_CMD);
 
-	return c;
+	const char *s = net->track->getvalstr(d->trk, "icy_format");
+	ffstr_setz(&c->next_filt_ext, s);
 
-end:
-	icy_close(c);
-	return NULL;
+	return c;
 }
 
 static void icy_close(void *ctx)
@@ -1309,53 +1022,7 @@ static void icy_close(void *ctx)
 /** Initialize after a new connection is established. */
 static int icy_reset(icy *c, fmed_filt *d)
 {
-	ffstr s;
-	void *http_ptr;
-	if (0 != fmed_trk_filt_prev(d, &http_ptr))
-		return FMED_RERR;
-
-	ffstr ext;
-	if (0 != http_findhdr(http_ptr, &ffhttp_shdr[FFHTTP_CONTENT_TYPE], &s)) {
-		if (ffstr_ieqz(&s, "audio/mpeg"))
-			ffstr_setz(&ext, "mp3");
-		else if (ffstr_ieqz(&s, "audio/aacp"))
-			ffstr_setz(&ext, "aac");
-		else if (ffstr_ieqz(&s, "application/ogg"))
-			ffstr_setz(&ext, "ogg");
-		else {
-			errlog(d->trk, "unsupported Content-Type: %S", &s);
-			return FMED_RERR;
-		}
-	} else {
-		ffstr_setz(&ext, "mp3");
-		dbglog(d->trk, "no Content-Type HTTP header in response, assuming MPEG");
-	}
-
-	if (c->next_filt_ext.len == 0) {
-		const fmed_modinfo *mi;
-		if (NULL == (mi = core->getmod2(FMED_MOD_INEXT, ext.ptr, ext.len))) {
-			errlog(d->trk, "no module configured to open .%S stream", &ext);
-			return FMED_RERR;
-		}
-		if (0 != net->track->cmd2(d->trk, FMED_TRACK_ADDFILT, mi->name))
-			return FMED_RERR;
-		c->next_filt_ext = ext;
-	} else if (!ffstr_eq2(&c->next_filt_ext, &ext)) {
-		errlog(d->trk, "unsupported behaviour: stream is changing audio format from %S to %S"
-			, &c->next_filt_ext, &ext);
-		return FMED_RERR;
-	}
-
-	uint meta_int = FFICY_NOMETA;
-	if (0 != http_findhdr(http_ptr, &fficy_shdr[FFICY_HMETAINT], &s)) {
-		uint n;
-		if (ffstr_toint(&s, &n, FFS_INT32))
-			meta_int = n;
-		else
-			warnlog(d->trk, "invalid value for HTTP response header %S: %S"
-				, &fficy_shdr[FFICY_HMETAINT], &s);
-	}
-	fficy_parseinit(&c->icy, meta_int);
+	fficy_parseinit(&c->icy, fmed_getval("icy_meta_int"));
 
 	// "netin" may be initialized if we've reconnected after I/O failure
 	if (c->out_copy && c->netin == NULL)
@@ -1583,4 +1250,187 @@ static int netin_process(void *ctx, fmed_filt *d)
 	}
 
 	return FMED_RDATA;
+}
+
+
+struct httpclient {
+	void *con;
+	void *trk;
+	uint st;
+	uint status;
+	ffstr data;
+	ffstr next_filt_ext;
+	fmed_filt *d;
+};
+
+static void* httpcli_open(fmed_filt *d)
+{
+	struct httpclient *c;
+	if (NULL == (c = ffmem_new(struct httpclient)))
+		return NULL;
+	c->trk = d->trk;
+	c->d = d;
+	return c;
+}
+
+static void httpcli_close(void *ctx)
+{
+	struct httpclient *c = ctx;
+	http_iface.close(c->con);
+	ffmem_free(c);
+}
+
+/** Process response: add appropriate filters to the chain */
+static int httpcli_resp(struct httpclient *c, ffhttp_response *resp)
+{
+	if (resp->code != 200) {
+		ffstr ln = ffhttp_respstatus(resp);
+		errlog(c->trk, "resource unavailable: %S", &ln);
+		return FMED_RERR;
+	}
+
+	ffstr s, ext;
+	if (0 != ffhttp_findihdr(&resp->h, FFHTTP_CONTENT_TYPE, &s)) {
+		if (ffstr_ieqz(&s, "audio/mpeg"))
+			ffstr_setz(&ext, "mp3");
+		else if (ffstr_ieqz(&s, "audio/aac") || ffstr_ieqz(&s, "audio/aacp"))
+			ffstr_setz(&ext, "aac");
+		else if (ffstr_ieqz(&s, "application/ogg"))
+			ffstr_setz(&ext, "ogg");
+		else {
+			errlog(c->trk, "unsupported Content-Type: %S", &s);
+			return FMED_RERR;
+		}
+	} else {
+		ffstr_setz(&ext, "mp3");
+		dbglog(c->trk, "no Content-Type HTTP header in response, assuming MPEG");
+	}
+
+	if (c->next_filt_ext.len != 0) {
+
+		if (!ffstr_eq2(&c->next_filt_ext, &ext)) {
+			errlog(c->trk, "unsupported behaviour: stream is changing audio format from %S to %S"
+				, &c->next_filt_ext, &ext);
+			return FMED_RERR;
+		}
+		return FMED_RDATA;
+	}
+
+	const fmed_modinfo *mi;
+	if (NULL == (mi = core->getmod2(FMED_MOD_INEXT, ext.ptr, ext.len))) {
+		errlog(c->trk, "no module configured to open .%S stream", &ext);
+		return FMED_RERR;
+	}
+	if (0 == net->track->cmd(c->trk, FMED_TRACK_FILT_ADD, mi->name))
+		return FMED_RERR;
+	c->next_filt_ext = ext;
+
+	s = fficy_shdr[FFICY_HMETAINT];
+	if (0 != ffhttp_findhdr(&resp->h, s.ptr, s.len, &s)) {
+		uint n;
+		if (ffstr_toint(&s, &n, FFS_INT32)) {
+			if (0 == net->track->cmd(c->trk, FMED_TRACK_FILT_ADD, "net.icy"))
+				return FMED_RERR;
+			net->track->setvalstr(c->trk, "icy_format", ext.ptr);
+			net->track->setval(c->trk, "icy_meta_int", n);
+		} else {
+			warnlog(c->trk, "invalid value for HTTP response header %S: %S"
+				, &fficy_shdr[FFICY_HMETAINT], &s);
+		}
+	}
+
+
+	return FMED_RDATA;
+}
+
+/** Handle events from 'httpif'. */
+static void httpcli_handler(void *param)
+{
+	struct httpclient *c = param;
+	ffhttp_response *resp;
+	ffstr data;
+	int r = http_iface.recv(c->con, &resp, &data);
+	c->status = r;
+
+	switch ((enum FMED_NET_ST)r) {
+
+	case FMED_NET_RESP:
+		c->d->net_reconnect = 1;
+		r = httpcli_resp(c, resp);
+		if (r == FMED_RERR) {
+			c->st = 3;
+			net->track->cmd(c->trk, FMED_TRACK_WAKE);
+			return;
+		}
+		break;
+
+	case FMED_NET_RESP_RECV:
+		c->data = data;
+		//fallthrough
+	case FMED_NET_DONE:
+	case FMED_NET_ERR:
+		net->track->cmd(c->trk, FMED_TRACK_WAKE);
+		return;
+
+	default:
+		break;
+	}
+
+	http_iface.send(c->con, NULL);
+}
+
+/**
+Make request via 'httpif'.
+Get data from 'httpif' and pass further through the chain. */
+static int httpcli_process(void *ctx, fmed_filt *d)
+{
+	struct httpclient *c = ctx;
+
+	if (d->flags & FMED_FSTOP) {
+		d->outlen = 0;
+		return FMED_RDONE;
+	}
+
+	switch (c->st) {
+	case 0: {
+		const char *url = d->track->getvalstr(d->trk, "input");
+		if (NULL == (c->con = http_iface.request("GET", url, 0)))
+			return FMED_RERR;
+
+		core->getmod("net.icy"); // load net.icy config
+		if (net->conf.meta) {
+			ffstr val;
+			ffstr_setz(&val, "1");
+			http_iface.header(c->con, &fficy_shdr[FFICY_HMETADATA], &val, 0);
+		}
+
+		http_iface.sethandler(c->con, &httpcli_handler, c);
+		c->st = 1;
+		http_iface.send(c->con, NULL);
+		return FMED_RASYNC;
+	}
+
+	case 1:
+		switch (c->status) {
+		case FMED_NET_RESP_RECV:
+			c->st = 2;
+			d->out = c->data.ptr,  d->outlen = c->data.len;
+			return FMED_RDATA;
+
+		case FMED_NET_DONE:
+			d->outlen = 0;
+			return FMED_RDONE;
+		}
+		return FMED_RERR;
+
+	case 2:
+		c->st = 1;
+		http_iface.send(c->con, NULL);
+		return FMED_RASYNC;
+
+	case 3:
+		return FMED_RERR;
+	}
+
+	return FMED_RERR;
 }

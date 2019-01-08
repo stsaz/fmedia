@@ -191,7 +191,7 @@ static int trk_open(fm_trk *t, const char *fn)
 	}
 
 	if (ffs_match(fn, ffsz_len(fn), "http://", 7)) {
-		addfilter(t, "net.icy");
+		addfilter(t, "net.http");
 	} else {
 		uint have_path = (NULL != ffpath_split2(fn, ffsz_len(fn), NULL, &name));
 		ffpath_splitname(name.ptr, name.len, &name, &ext);
