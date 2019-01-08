@@ -687,6 +687,107 @@ char* gui_userpath(const char *fn)
 	return ffsz_alfmt("%s%s", core->props->user_path, fn);
 }
 
+static const char *const usrconf_setts[] = {
+	"gui.gui.theme", "gui.gui.record.output", "gui.gui.convert.output",
+};
+
+/** Write user configuration value. */
+static void usrconf_write_val(ffconfw *conf, uint i)
+{
+	switch (i) {
+	case 0:
+		ffconf_writeint(conf, gg->theme_index, 0, FFCONF_TVAL);
+		break;
+	case 1:
+		ffconf_writez(conf, gg->rec_sets.output, FFCONF_TVAL);
+		break;
+	case 2:
+		ffconf_writez(conf, gg->conv_sets.output, FFCONF_TVAL);
+		break;
+	}
+}
+
+/** Write the current GUI settings to a user configuration file.
+All unsupported keys or comments are left as is.
+Empty lines are removed. */
+void usrconf_write(void)
+{
+	char *fn;
+	ffarr buf = {};
+	fffd f = FF_BADFD;
+	ffconfw conf;
+	ffconf_winit(&conf, NULL, 0);
+	conf.flags |= FFCONF_CRLF;
+	byte flags[FFCNT(usrconf_setts)] = {};
+
+	if (gg->wrec_init) {
+		ffmem_free0(gg->rec_sets.output);
+		ffstr s;
+		ffui_textstr(&gg->wrec.eout, &s);
+		gg->rec_sets.output = s.ptr;
+	}
+
+	if (gg->wconv_init) {
+		ffmem_free0(gg->conv_sets.output);
+		ffstr s;
+		ffui_textstr(&gg->wconvert.eout, &s);
+		gg->conv_sets.output = s.ptr;
+	}
+
+	if (NULL == (fn = gui_userpath(FMED_USERCONF)))
+		return;
+
+	if (FF_BADFD == (f = fffile_open(fn, FFO_CREATE | O_RDWR)))
+		goto end;
+	uint64 fsz = fffile_size(f);
+	if ((int)fsz < 0
+		|| NULL == ffarr_alloc(&buf, fsz))
+		goto end;
+	ssize_t r = fffile_read(f, buf.ptr, buf.cap);
+	if (r < 0)
+		goto end;
+	ffstr in;
+	ffstr_set(&in, buf.ptr, r);
+
+	while (in.len != 0) {
+		ffstr ln;
+		ffstr_nextval3(&in, &ln, '\n' | FFS_NV_CR);
+		ffbool found = 0;
+		for (uint i = 0;  i != FFCNT(usrconf_setts);  i++) {
+			if (ffstr_matchz(&ln, usrconf_setts[i])) {
+				found = 1;
+				flags[i] = 1;
+				ffconf_writez(&conf, usrconf_setts[i], FFCONF_TKEY | FFCONF_ASIS);
+				usrconf_write_val(&conf, i);
+				break;
+			}
+		}
+		if (!found && ln.len != 0)
+			ffconf_writeln(&conf, &ln, 0);
+	}
+
+	for (uint i = 0;  i != FFCNT(usrconf_setts);  i++) {
+		if (flags[i])
+			continue;
+		ffconf_writez(&conf, usrconf_setts[i], FFCONF_TKEY | FFCONF_ASIS);
+		usrconf_write_val(&conf, i);
+	}
+
+	ffconf_writefin(&conf);
+
+	ffstr out;
+	ffconf_output(&conf, &out);
+	fffile_seek(f, 0, SEEK_SET);
+	fffile_write(f, out.ptr, out.len);
+	fffile_trunc(f, out.len);
+
+end:
+	ffarr_free(&buf);
+	ffmem_free(fn);
+	ffconf_wdestroy(&conf);
+	fffile_safeclose(f);
+}
+
 /** Save playlists to disk. */
 static void gui_savelists(void)
 {

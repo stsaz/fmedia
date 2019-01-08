@@ -345,7 +345,7 @@ static const char *const setts[] = {
 	"wfilter.position",
 };
 
-static void gui_onclose(void)
+static void gui_usrconf_write(void)
 {
 	char *fn;
 	ffui_loaderw ldr = {0};
@@ -369,6 +369,12 @@ static void gui_onclose(void)
 done:
 	ffmem_free(fn);
 	ffui_ldrw_fin(&ldr);
+}
+
+static void gui_onclose(void)
+{
+	gui_usrconf_write();
+	usrconf_write();
 }
 
 static void gui_go_set(void)

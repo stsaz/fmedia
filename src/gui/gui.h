@@ -404,6 +404,7 @@ void gui_rec(uint cmd);
 char* gui_usrconf_filename(void);
 char* gui_userpath(const char *fn);
 void gui_upd_check(void);
+void usrconf_write(void);
 
 enum GUI_FILT {
 	GUI_FILT_URL = 1,
