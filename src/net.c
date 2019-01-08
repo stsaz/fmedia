@@ -467,6 +467,8 @@ static void http_if_process(nethttp *c)
 			c->state = I_HTTP_RESP;
 			continue;
 		case 2:
+			if (c->flags & FMED_NET_NOREDIRECT)
+				break;
 			c->state = I_ADDR;
 			continue;
 		}

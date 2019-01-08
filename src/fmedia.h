@@ -848,6 +848,7 @@ typedef struct fmed_globcmd_iface {
 
 enum FMED_NET_F {
 	FMED_NET_HTTP10 = 1, /** Use HTTP ver 1.0. */
+	FMED_NET_NOREDIRECT = 2, /** Don't follow redirections. */
 };
 
 typedef struct fmed_net_http {
