@@ -622,7 +622,7 @@ static void gui_showtextfile(uint cmd)
 		fn = core->getpath(FFSTR(FMED_GLOBCONF));
 		break;
 	case USRCONF_EDIT:
-		fn = core->env_expand(NULL, 0, "%APPDATA%/fmedia/fmedia-user.conf");
+		fn = gui_userpath(FMED_USERCONF);
 		break;
 	case FMEDGUI_EDIT:
 		fn = core->getpath(FFSTR("fmedia.gui"));
