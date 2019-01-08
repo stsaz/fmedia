@@ -105,7 +105,7 @@ static const struct cmd cmds[] = {
 	{ PLAYREC,	F1 | CMD_FCORE,	&gui_rec },
 	{ MIXREC,	F1 | CMD_FCORE,	&gui_rec },
 	{ SHOWRECS,	F0,	&gui_showrecdir },
-	{ DEVLIST_SHOWREC,	F0,	&gui_dev_show },
+	{ DEVLIST_SHOWREC,	F1,	&gui_dev_show },
 
 	{ SHOWCONVERT,	F0,	&gui_showconvert },
 	{ SETCONVPOS_SEEK,	F1,	&gui_setconvpos },

@@ -218,6 +218,7 @@ typedef struct ggui {
 		, list_filter :1
 		, list_random :1
 		, sort_reverse :1
+		, devlist_rec :1 // whether 'device list' window is opened for capture devices
 		;
 	uint state;
 	int itab_convert; // index of "conversion" tab;  -1:none
@@ -436,7 +437,7 @@ void gui_rec_show(void);
 int gui_rec_addsetts(void *trk);
 
 void wdev_init(void);
-void gui_dev_show(void);
+void gui_dev_show(uint cmd);
 
 void winfo_init(void);
 void gui_media_showinfo(void);

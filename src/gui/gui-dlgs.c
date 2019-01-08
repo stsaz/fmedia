@@ -870,7 +870,7 @@ enum {
 	VDEV_NAME,
 };
 
-void gui_dev_show(void)
+void gui_dev_show(uint cmd)
 {
 	ffui_viewitem it = {0};
 	fmed_adev_ent *ents = NULL;
@@ -882,16 +882,22 @@ void gui_dev_show(void)
 
 	ffui_view_clear(&gg->wdev.vdev);
 
-	if (NULL == (mod = core->getmod2(FMED_MOD_INFO_ADEV_IN, NULL, 0)))
+	uint mode = (cmd == DEVLIST_SHOW) ? FMED_MOD_INFO_ADEV_OUT : FMED_MOD_INFO_ADEV_IN;
+	if (NULL == (mod = core->getmod2(mode, NULL, 0)))
 		goto end;
 	if (NULL == (adev = mod->m->iface("adev")))
 		goto end;
 
-	ndev = adev->list(&ents, FMED_ADEV_CAPTURE);
+	mode = (cmd == DEVLIST_SHOW) ? FMED_ADEV_PLAYBACK : FMED_ADEV_CAPTURE;
+	ndev = adev->list(&ents, mode);
 	if ((int)ndev < 0)
 		goto end;
 
+	uint sel_dev_index = 0;
+
 	ffui_view_settextz(&it, "0");
+	if (sel_dev_index == 0)
+		ffui_view_select(&it, 1);
 	ffui_view_append(&gg->wdev.vdev, &it);
 	ffui_view_settextz(&it, "(default)");
 	ffui_view_set(&gg->wdev.vdev, VDEV_NAME, &it);
@@ -899,6 +905,8 @@ void gui_dev_show(void)
 	for (i = 0;  i != ndev;  i++) {
 		n = ffs_fromint(i + 1, buf, sizeof(buf), 0);
 		ffui_view_settext(&it, buf, n);
+		if (sel_dev_index == i + 1)
+			ffui_view_select(&it, 1);
 		ffui_view_append(&gg->wdev.vdev, &it);
 
 		ffui_view_settextz(&it, ents[i].name);
@@ -908,38 +916,51 @@ void gui_dev_show(void)
 end:
 	if (ents != NULL)
 		adev->listfree(ents);
+
+	char *title = ffsz_alfmt("Choose an Audio Device (%s)"
+		, (cmd == DEVLIST_SHOW) ? "Playback" : "Capture");
+	if (title != NULL)
+		ffui_settextz(&gg->wdev.wnd, title);
+	ffmem_free(title);
+
 	ffui_show(&gg->wdev.wnd, 1);
 	ffui_wnd_setfront(&gg->wdev.wnd);
+	gg->devlist_rec = (cmd != DEVLIST_SHOW);
 }
 
-static void gui_dev_action(ffui_wnd *wnd, int id)
+static void devlist_sel()
 {
-	switch (id) {
-	case DEVLIST_SELOK: {
-		uint i, idev, n;
-		ffui_viewitem it = {0};
-		char buf[64];
+	uint idev = ffui_view_selnext(&gg->wdev.vdev, -1);
+	if ((int)idev < 0)
+		return;
 
+	if (gg->devlist_rec) {
+		ffui_viewitem it = {};
+		char buf[64];
+		uint n = ffs_fromint(idev, buf, sizeof(buf), 0);
+
+		gui_rec_init();
+
+		uint i;
 		for (i = 0;  i != FFCNT(rec_sets);  i++) {
 			if (rec_sets[i].settname == SETT_DEV_REC)
 				break;
 		}
 
-		idev = ffui_view_selnext(&gg->wdev.vdev, -1);
-		if ((int)idev < 0)
-			return;
-
-		n = ffs_fromint(idev, buf, sizeof(buf), 0);
-
-		gui_rec_init();
-
 		ffui_view_setindex(&it, i);
 		ffui_view_settext(&it, buf, n);
 		ffui_view_set(&gg->wrec.vsets, VSETS_VAL, &it);
-
-		ffui_show(&gg->wdev.wnd, 0);
-		return;
 	}
+
+	ffui_show(&gg->wdev.wnd, 0);
+}
+
+static void gui_dev_action(ffui_wnd *wnd, int id)
+{
+	switch (id) {
+	case DEVLIST_SELOK:
+		devlist_sel();
+		break;
 	}
 }
 
