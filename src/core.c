@@ -416,7 +416,6 @@ static int fmed_conf_include(ffparser_schem *p, void *obj, ffstr *val)
 {
 	int r = FFPARS_EBADVAL;
 	char *fn = NULL;
-	ffarr name = {0};
 
 	if (!ffsz_cmp(p->curarg->name, "include")) {
 		if (NULL == (fn = core->getpath(val->ptr, val->len))) {
@@ -425,11 +424,7 @@ static int fmed_conf_include(ffparser_schem *p, void *obj, ffstr *val)
 		}
 
 	} else {
-		if (0 == ffstr_catfmt(&name, "%s/fmedia/%S%Z", FFDIR_USER_CONFIG, val)) {
-			r = FFPARS_ESYS;
-			goto end;
-		}
-		if (NULL == (fn = ffenv_expand(&fmed->env, NULL, 0, name.ptr))) {
+		if (NULL == (fn = ffsz_alfmt("%s%S", fmed->props.user_path, val))) {
 			r = FFPARS_ESYS;
 			goto end;
 		}
@@ -441,7 +436,6 @@ static int fmed_conf_include(ffparser_schem *p, void *obj, ffstr *val)
 	r = 0;
 end:
 	ffmem_safefree(fn);
-	ffarr_free(&name);
 	return r;
 }
 
