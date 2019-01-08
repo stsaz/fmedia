@@ -217,6 +217,7 @@ struct fmed_props {
 	char *user_path;
 
 	const fmed_modinfo *playback_module;
+	uint playback_dev_index;
 	const fmed_modinfo *record_module;
 	ffpcm record_format;
 	struct fmed_cmd *cmd;

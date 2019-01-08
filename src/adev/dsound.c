@@ -127,6 +127,7 @@ static int dsnd_sig(uint signo)
 		if (0 != ffdsnd_init())
 			return -1;
 		track = core->getmod("#core.track");
+		core->props->playback_dev_index = dsnd_out_conf.idev;
 		return 0;
 	}
 	return 0;
@@ -246,7 +247,7 @@ static void* dsnd_open(fmed_filt *d)
 	ds->trk = d->trk;
 
 	if (FMED_NULL == (idx = (int)d->track->getval(d->trk, "playdev_name")))
-		idx = dsnd_out_conf.idev;
+		idx = core->props->playback_dev_index;
 	if (0 != dsnd_devbyidx(&dhead, &dev, idx, FFDSND_DEV_RENDER)) {
 		errlog(core, d->trk, "dsound", "no audio device by index #%u", idx);
 		goto done;

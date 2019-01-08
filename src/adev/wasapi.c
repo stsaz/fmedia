@@ -169,6 +169,7 @@ static int wasapi_sig(uint signo)
 		if (NULL == (mod = ffmem_tcalloc1(wasapi_mod)))
 			return -1;
 		mod->track = core->getmod("#core.track");
+		core->props->playback_dev_index = wasapi_out_conf.idev;
 		return 0;
 	}
 	return 0;
@@ -317,7 +318,7 @@ static int wasapi_create(wasapi_out *w, fmed_filt *d)
 
 	if (w->state == WAS_TRYOPEN
 		&& FMED_NULL == (int)(w->devidx = (int)d->track->getval(d->trk, "playdev_name")))
-		w->devidx = wasapi_out_conf.idev;
+		w->devidx = core->props->playback_dev_index;
 
 	ffpcm_fmtcopy(&fmt, &d->audio.convfmt);
 

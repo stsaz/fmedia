@@ -303,6 +303,7 @@ static const char *const scmds[] = {
 	"MIXREC",
 	"SHOWRECS",
 	"DEVLIST_SHOWREC",
+	"DEVLIST_SHOW",
 	"DEVLIST_SELOK",
 
 	"SHOWCONVERT",

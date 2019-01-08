@@ -157,6 +157,11 @@ menu mplay {
 	item "Reset Volume" {
 		action VOLRESET
 	}
+	item "-" {
+	}
+	item "Select Audio Device..." {
+		action DEVLIST_SHOW
+	}
 }
 
 menu mrec {

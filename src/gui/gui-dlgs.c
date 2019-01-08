@@ -893,7 +893,7 @@ void gui_dev_show(uint cmd)
 	if ((int)ndev < 0)
 		goto end;
 
-	uint sel_dev_index = 0;
+	uint sel_dev_index = (cmd == DEVLIST_SHOW) ? core->props->playback_dev_index : 0;
 
 	ffui_view_settextz(&it, "0");
 	if (sel_dev_index == 0)
@@ -950,6 +950,9 @@ static void devlist_sel()
 		ffui_view_setindex(&it, i);
 		ffui_view_settext(&it, buf, n);
 		ffui_view_set(&gg->wrec.vsets, VSETS_VAL, &it);
+
+	} else {
+		core->props->playback_dev_index = idev;
 	}
 
 	ffui_show(&gg->wdev.wnd, 0);
