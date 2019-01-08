@@ -872,6 +872,9 @@ typedef struct fmed_net_http {
 	@data: response body
 	Return enum FMED_NET_ST. */
 	int (*recv)(void *con, ffhttp_response **resp, ffstr *data);
+
+	/** Add request header. */
+	void (*header)(void *con, const ffstr *name, const ffstr *val, uint flags);
 } fmed_net_http;
 
 enum FMED_NET_ST {

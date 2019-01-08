@@ -81,6 +81,7 @@ typedef struct nethttp {
 	ffaio_task aio;
 	uint reconnects;
 	fftmrq_entry tmr;
+	ffhttp_cook hdrs;
 
 	ffstr *bufs;
 	uint rbuf;
@@ -162,8 +163,9 @@ static void http_if_close(void *con);
 static void http_if_sethandler(void *con, fftask_handler func, void *udata);
 static void http_if_send(void *con, const ffstr *data);
 static int http_if_recv(void *con, ffhttp_response **resp, ffstr *data);
+static void http_if_header(void *con, const ffstr *name, const ffstr *val, uint flags);
 static const fmed_net_http http_iface = {
-	&http_if_request, &http_if_close, &http_if_sethandler, &http_if_send, &http_if_recv,
+	&http_if_request, &http_if_close, &http_if_sethandler, &http_if_send, &http_if_recv, &http_if_header,
 };
 
 //ICY
@@ -297,6 +299,7 @@ static void* http_if_request(const char *method, const char *url, uint flags)
 	c->d = ffmem_new(fmed_filt); //logger needs c->d->trk
 	c->sk = FF_BADSKT;
 	ffhttp_respinit(&c->resp);
+	ffhttp_cookinit(&c->hdrs, NULL, 0);
 
 	if (NULL == (c->host = ffsz_alcopyz(url)))
 		goto done;
@@ -339,6 +342,7 @@ static void http_if_close(void *con)
 	ffmem_safefree(c->orighost);
 	ffaio_fin(&c->aio);
 	ffhttp_respfree(&c->resp);
+	ffhttp_cookdestroy(&c->hdrs);
 
 	uint i;
 	for (i = 0;  i != net->conf.nbufs;  i++) {
@@ -586,6 +590,12 @@ static int http_if_recv(void *con, ffhttp_response **resp, ffstr *data)
 	ffstr_set2(data, &c->data);
 	c->data.len = 0;
 	return c->status;
+}
+
+static void http_if_header(void *con, const ffstr *name, const ffstr *val, uint flags)
+{
+	nethttp *c = con;
+	ffhttp_addhdr_str(&c->hdrs, name, val);
 }
 
 
@@ -1051,6 +1061,9 @@ static int http_prepreq(nethttp *c, ffstr *dst)
 	ffhttp_addrequest(&ck, c->method, ffsz_len(c->method), s.ptr, s.len);
 	s = ffurl_get(&c->url, c->host, FFURL_FULLHOST);
 	ffhttp_addihdr(&ck, FFHTTP_HOST, s.ptr, s.len);
+
+	ffarr_append(&ck.buf, c->hdrs.buf.ptr, c->hdrs.buf.len);
+
 	if (net->conf.user_agent != 0) {
 		ffstr_setz(&s, http_ua[net->conf.user_agent - 1]);
 		ffhttp_addihdr(&ck, FFHTTP_USERAGENT, s.ptr, s.len);
