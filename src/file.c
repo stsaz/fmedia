@@ -636,8 +636,8 @@ data:
 
 		switch (r) {
 		case FFSVAR_S:
-			ffpath_makefn(ffarr_end(&buf), -1, val.ptr, val.len, '_');
-			buf.len += val.len;
+			r = ffpath_makefn(ffarr_end(&buf), -1, val.ptr, val.len, '_');
+			buf.len += r;
 			break;
 
 		case FFSVAR_TEXT:
