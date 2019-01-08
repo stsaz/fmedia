@@ -86,7 +86,6 @@ static int gui_conf_ghk(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
 static const ffpars_arg gui_conf_args[] = {
 	{ "record",	FFPARS_TOBJ, FFPARS_DST(&gui_conf_rec) },
 	{ "convert",	FFPARS_TOBJ, FFPARS_DST(&gui_conf_convert) },
-	{ "portable_conf",	FFPARS_TBOOL | FFPARS_F8BIT, FFPARS_DSTOFF(ggui, portable_conf) },
 	{ "minimize_to_tray",	FFPARS_TBOOL | FFPARS_F8BIT, FFPARS_DSTOFF(ggui, minimize_to_tray) },
 	{ "status_tray",	FFPARS_TBOOL | FFPARS_F8BIT, FFPARS_DSTOFF(ggui, status_tray) },
 	{ "seek_step",	FFPARS_TINT | FFPARS_F8BIT | FFPARS_FNOTZERO, FFPARS_DSTOFF(ggui, seek_step_delta) },

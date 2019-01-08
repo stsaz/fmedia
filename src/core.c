@@ -180,6 +180,7 @@ static int fmed_conf_ext(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
 static int fmed_conf_ext_val(ffparser_schem *p, void *obj, ffstr *val);
 static int fmed_conf_codepage(ffparser_schem *p, void *obj, ffstr *val);
 static int fmed_conf_include(ffparser_schem *p, void *obj, ffstr *val);
+static int fmed_conf_portable(ffparser_schem *p, void *obj, const int64 *val);
 
 // enum FMED_INSTANCE_MODE
 static const char *const im_enumstr[] = {
@@ -202,6 +203,7 @@ static const ffpars_arg fmed_conf_args[] = {
 	{ "prevent_sleep",  FFPARS_TBOOL8, FFPARS_DSTOFF(fmed_config, prevent_sleep) },
 	{ "include",  FFPARS_TSTR | FFPARS_FNOTEMPTY, FFPARS_DST(&fmed_conf_include) },
 	{ "include_user",  FFPARS_TSTR | FFPARS_FNOTEMPTY, FFPARS_DST(&fmed_conf_include) },
+	{ "portable_conf",  FFPARS_TBOOL8, FFPARS_DST(&fmed_conf_portable) },
 };
 
 static int fmed_confusr_mod(ffparser_schem *ps, void *obj, ffstr *val);
@@ -400,6 +402,16 @@ static int fmed_conf_codepage(ffparser_schem *p, void *obj, ffstr *val)
 	return 0;
 }
 
+static int fmed_conf_portable(ffparser_schem *p, void *obj, const int64 *val)
+{
+	if (*val == 0)
+		return 0;
+	ffmem_free(fmed->props.user_path);
+	if (NULL == (fmed->props.user_path = core_getpath(NULL, 0)))
+		return FFPARS_ESYS;
+	return 0;
+}
+
 static int fmed_conf_include(ffparser_schem *p, void *obj, ffstr *val)
 {
 	int r = FFPARS_EBADVAL;
@@ -491,7 +503,10 @@ end:
 static int fmed_conf(const char *filename)
 {
 	int r = -1;
-	char *fn;
+	char *fn = NULL;
+
+	if (NULL == (fmed->props.user_path = ffenv_expand(&fmed->env, NULL, 0, FFDIR_USER_CONFIG "/fmedia/")))
+		goto end;
 
 	if (filename != NULL)
 		fn = (void*)filename;
@@ -735,6 +750,7 @@ void core_free(void)
 
 	cmd_destroy(&fmed->cmd);
 	conf_destroy(&fmed->conf);
+	ffmem_free(fmed->props.user_path);
 	ffstr_free(&fmed->root);
 	ffenv_destroy(&fmed->env);
 

@@ -210,7 +210,6 @@ typedef struct ggui {
 	byte seek_leap_delta;
 	byte minimize_to_tray;
 	byte status_tray;
-	byte portable_conf;
 	byte autosave_playlists;
 	byte theme_startup;
 	uint wconv_init :1

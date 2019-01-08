@@ -206,6 +206,12 @@ struct fmed_props {
 	uint parallel :1;
 	char *version_str; // "X.XX[.XX]"
 	uint list_random;
+
+	/** Path to user configuration directory (with the trailing slash).
+	Portable mode: "{FMEDIA_DIR}/"
+	Windows: "%APPDATA%/fmedia/"
+	Linux:   "$HOME/.config/fmedia/" */
+	char *user_path;
 };
 
 struct fmed_mod {
