@@ -35,6 +35,10 @@ typedef struct net_conf {
 	byte max_redirect;
 	byte max_reconnect;
 	byte meta;
+	struct {
+		char *host;
+		uint port;
+	} proxy;
 } net_conf;
 
 typedef struct netmod {
@@ -153,6 +157,7 @@ static const fmed_filter fmed_http = {
 	&httpcli_open, &httpcli_process, &httpcli_close
 };
 
+static int http_conf_proxy(ffparser_schem *p, void *obj, ffstr *val);
 static int http_conf_done(ffparser_schem *p, void *obj);
 static int http_prepreq(nethttp *c, ffstr *dst);
 static int http_parse(nethttp *c);
@@ -217,6 +222,7 @@ static const ffpars_arg net_conf_args[] = {
 	{ "user_agent",	FFPARS_TENUM | FFPARS_F8BIT,  FFPARS_DST(&ua_enum) },
 	{ "max_redirect",	FFPARS_TINT | FFPARS_F8BIT,  FFPARS_DSTOFF(net_conf, max_redirect) },
 	{ "max_reconnect",	FFPARS_TINT8,  FFPARS_DSTOFF(net_conf, max_reconnect) },
+	{ "proxy",	FFPARS_TSTR,  FFPARS_DST(&http_conf_proxy) },
 	{ NULL,	FFPARS_TCLOSE,	FFPARS_DST(&http_conf_done) },
 };
 
@@ -279,6 +285,7 @@ static void net_destroy(void)
 	while (NULL != (c = (void*)fflist1_pop(&net->recycled_cons))) {
 		ffmem_free(FF_GETPTR(nethttp, recycled, c));
 	}
+	ffmem_free(net->conf.proxy.host);
 	ffmem_free0(net);
 	ffhttp_freeheaders();
 }
@@ -336,6 +343,12 @@ static void* http_if_request(const char *method, const char *url, uint flags)
 	if (0 != http_prep_url(c, url))
 		goto done;
 	ffstr_set2(&c->target_url, &c->orig_target_url);
+
+	if (net->conf.proxy.host != NULL) {
+		ffstr_setz(&c->hostname, net->conf.proxy.host);
+		c->hostport = net->conf.proxy.port;
+		c->proxy = 1;
+	}
 
 	if (!ffhttp_check_method(method, ffsz_len(method))) {
 		errlog(c->d->trk, "invalid HTTP method: %s", method);
@@ -650,6 +663,28 @@ static int http_config(ffpars_ctx *ctx)
 	return 0;
 }
 
+static int http_conf_proxy(ffparser_schem *p, void *obj, ffstr *val)
+{
+	ffurl u;
+	ffurl_init(&u);
+	int r = ffurl_parse(&u, val->ptr, val->len);
+	if (r != FFURL_EOK)
+		return FFPARS_EBADVAL;
+
+	if (ffurl_has(&u, FFURL_SCHEME)
+		|| ffurl_has(&u, FFURL_PATH))
+		return FFPARS_EBADVAL;
+
+	ffstr host = ffurl_get(&u, val->ptr, FFURL_HOST);
+	if (NULL == (net->conf.proxy.host = ffsz_alcopystr(&host)))
+		return FFPARS_ESYS;
+	net->conf.proxy.port = u.port;
+	if (u.port == 0)
+		net->conf.proxy.port = FFHTTP_PORT;
+
+	return 0;
+}
+
 static int http_conf_done(ffparser_schem *p, void *obj)
 {
 	net->conf.buf_lowat = ffmin(net->conf.buf_lowat, net->conf.bufsize);
@@ -687,6 +722,8 @@ static int ip_resolve(nethttp *c)
 		ffstr_set2(&c->hostname, &host);
 		c->hostport = c->url.port;
 		r = ffurl_parse_ip(&c->url, c->target_url.ptr, &c->ip);
+	} else {
+		r = ffip_parse(c->hostname.ptr, c->hostname.len, &c->ip);
 	}
 
 	if (r < 0) {
@@ -958,7 +995,10 @@ static int http_prepreq(nethttp *c, ffstr *dst)
 	if (c->flags & FMED_NET_HTTP10)
 		ffstr_setcz(&ck.proto, "HTTP/1.0");
 
-	s = ffurl_get(&c->url, c->target_url.ptr, FFURL_PATHQS);
+	if (!c->proxy)
+		s = ffurl_get(&c->url, c->target_url.ptr, FFURL_PATHQS);
+	else
+		ffstr_set2(&s, &c->target_url);
 	ffhttp_addrequest(&ck, c->method, ffsz_len(c->method), s.ptr, s.len);
 
 	s = ffurl_get(&c->url, c->target_url.ptr, FFURL_FULLHOST);
