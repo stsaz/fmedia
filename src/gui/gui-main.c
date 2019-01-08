@@ -136,6 +136,7 @@ static const struct cmd cmds[] = {
 	{ CONF_EDIT,	F1,	&gui_showtextfile },
 	{ USRCONF_EDIT,	F1,	&gui_showtextfile },
 	{ FMEDGUI_EDIT,	F1,	&gui_showtextfile },
+	{ THEMES_EDIT,	F1,	&gui_showtextfile },
 	{ README_SHOW,	F1,	&gui_showtextfile },
 	{ CHANGES_SHOW,	F1,	&gui_showtextfile },
 
@@ -626,6 +627,9 @@ static void gui_showtextfile(uint cmd)
 		break;
 	case FMEDGUI_EDIT:
 		fn = core->getpath(FFSTR("fmedia.gui"));
+		break;
+	case THEMES_EDIT:
+		fn = core->getpath(FFSTR("theme.conf"));
 		break;
 	case README_SHOW:
 		fn = core->getpath(FFSTR("README.txt"));

@@ -207,6 +207,9 @@ menu mhelp {
 	item "Edit GUI..." {
 		action FMEDGUI_EDIT
 	}
+	item "Edit GUI Themes..." {
+		action THEMES_EDIT
+	}
 	item "-" {
 	}
 	item "Show Readme File..." {

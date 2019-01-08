@@ -348,6 +348,7 @@ static const char *const scmds[] = {
 	"CONF_EDIT",
 	"USRCONF_EDIT",
 	"FMEDGUI_EDIT",
+	"THEMES_EDIT",
 	"README_SHOW",
 	"CHANGES_SHOW",
 
