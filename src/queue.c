@@ -292,7 +292,7 @@ static void que_destroy(void)
 	if (qu == NULL)
 		return;
 	FFLIST_ENUMSAFE(&qu->plists, plist_free, plist, sib);
-	ffmem_free(qu);
+	ffmem_free0(qu);
 }
 
 

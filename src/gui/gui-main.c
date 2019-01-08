@@ -338,7 +338,7 @@ static void gui_action(ffui_wnd *wnd, int id)
 
 static const char *const setts[] = {
 	"wmain.placement", "wmain.tvol.value",
-	"wconvert.position", "wconvert.eout.text",
+	"wconvert.position",
 	"wrec.position",
 	"winfo.position",
 	"wlog.position",

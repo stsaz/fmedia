@@ -8,6 +8,23 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.4 - Jan 7, 2019
+
+ + net.http: config: "proxy" - Connect via HTTP proxy server
+ + GUI: Restore user-selected theme on startup
+ + GUI: Playback -> "Select Audio Device" - Select playback audio device
+ + GUI: Help -> "Edit GUI Themes..."
+ - GUI: Help -> "Edit User Settings": Set the correct path for portable mode
+   Set the path to application directory for this command if fmedia is
+    configured in portable mode.
+ + Load "fmedia-user.conf" in portable mode
+ *! Moved "gui.gui.portable_conf" -> "core.portable_conf"
+ - ICY: Couldn't play radio streams with "Content-Type: audio/aac"
+ - file.out: Invalid characters in filename when using auto-naming (v0.22 bug)
+   If the value of $-variable ends with a space, then it might result in
+    corrupted output filename.
+
+
 fmedia v1.3 - Dec 9, 2018
 
  + GUI: Parallel conversion (fmedia.conf::workers).

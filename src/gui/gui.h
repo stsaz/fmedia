@@ -432,11 +432,13 @@ void wconvert_init(void);
 void gui_showconvert(void);
 void gui_setconvpos(uint cmd);
 int gui_conf_convert(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
+void gui_cvt_sets_init(cvt_sets_t *sets);
 
 int gui_conf_rec(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
 void wrec_init(void);
 void gui_rec_show(void);
 int gui_rec_addsetts(void *trk);
+void rec_sets_init(rec_sets_t *sets);
 
 void wdev_init(void);
 void gui_dev_show(uint cmd);

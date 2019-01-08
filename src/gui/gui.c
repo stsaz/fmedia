@@ -39,6 +39,7 @@ static const fmed_mod fmed_gui_mod = {
 	&gui_iface, &gui_sig, &gui_destroy, &gui_conf
 };
 
+static void gui_stop(void);
 static int gui_install(uint sig);
 
 static FFTHDCALL int gui_worker(void *param);
@@ -844,6 +845,12 @@ end:
 
 static const struct cmd cmd_loadlists = { 0, F0 | CMD_FCORE, &gui_loadlists };
 
+/** Load GUI:
+. Read fmedia.gui - create controls
+. Read fmedia.gui.conf - set user properties on the controls
+. Load user playlists from the previous session
+. Enter GUI message processing loop
+*/
 static FFTHDCALL int gui_worker(void *param)
 {
 	char *fn = NULL, *fnconf = NULL;
@@ -1181,6 +1188,10 @@ static int gui_sig(uint signo)
 		ffatom_waitchange(&gg->state, 0); //give the GUI thread some time to create controls
 		return gg->load_err;
 
+	case FMED_STOP:
+		gui_stop();
+		break;
+
 	case FMED_SIG_INSTALL:
 	case FMED_SIG_UNINSTALL:
 		gui_install(signo);
@@ -1189,17 +1200,20 @@ static int gui_sig(uint signo)
 	return 0;
 }
 
-static void gui_destroy(void)
+static void gui_stop(void)
 {
-	if (gg == NULL)
-		return;
-
+	ffui_wnd_close(&gg->wmain.wmain);
+	ffthd_join(gg->th, -1, NULL);
 	ffarr_free(&gg->ghks);
 	FFARR_FREE_ALL_PTR(&gg->filenames, ffmem_free, char*);
 	ffui_icon_destroy(&gg->wmain.ico);
 	ffui_icon_destroy(&gg->wmain.ico_rec);
-	ffui_wnd_close(&gg->wmain.wmain);
-	ffthd_join(gg->th, -1, NULL);
+}
+
+static void gui_destroy(void)
+{
+	if (gg == NULL)
+		return;
 
 	gui_themes_destroy();
 	cvt_sets_destroy(&gg->conv_sets);
@@ -1213,6 +1227,8 @@ static int gtrk_conf(ffpars_ctx *ctx)
 	gg->seek_step_delta = 5;
 	gg->seek_leap_delta = 60;
 	gg->status_tray = 1;
+	rec_sets_init(&gg->rec_sets);
+	gui_cvt_sets_init(&gg->conv_sets);
 	ffpars_setargs(ctx, gg, gui_conf_args, FFCNT(gui_conf_args));
 	return 0;
 }

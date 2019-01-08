@@ -256,7 +256,7 @@ static const ffpars_arg cvt_sets_conf[] = {
 	{ "preserve_date",	FFPARS_TINT, FFPARS_DSTOFF(cvt_sets_t, out_preserve_date) },
 };
 
-static void gui_cvt_sets_init(cvt_sets_t *sets)
+void gui_cvt_sets_init(cvt_sets_t *sets)
 {
 	sets->init = 1;
 	sets->format = sets->conv_pcm_rate = sets->channels = SETT_EMPTY_INT;
@@ -279,7 +279,6 @@ static void gui_cvt_sets_init(cvt_sets_t *sets)
 
 int gui_conf_convert(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
 {
-	gui_cvt_sets_init(&gg->conv_sets);
 	ffpars_setargs(ctx, &gg->conv_sets, cvt_sets_conf, FFCNT(cvt_sets_conf));
 	return 0;
 }
@@ -683,7 +682,7 @@ static const ffpars_arg rec_sets_conf[] = {
 	{ "flac_complevel",	FFPARS_TINT, FFPARS_DSTOFF(rec_sets_t, flac_complevel) },
 };
 
-static void rec_sets_init(rec_sets_t *sets)
+void rec_sets_init(rec_sets_t *sets)
 {
 	sets->init = 1;
 	sets->format = sets->sample_rate = sets->channels = SETT_EMPTY_INT;
@@ -706,7 +705,6 @@ void rec_sets_destroy(rec_sets_t *sets)
 
 int gui_conf_rec(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
 {
-	rec_sets_init(&gg->rec_sets);
 	ffpars_setargs(ctx, &gg->rec_sets, rec_sets_conf, FFCNT(rec_sets_conf));
 	return 0;
 }
@@ -719,7 +717,8 @@ static void gui_rec_init(void)
 	if (!gg->rec_sets.init)
 		rec_sets_init(&gg->rec_sets);
 
-	ffui_settextz(&gg->wrec.eout, gg->rec_sets.output);
+	if (ffui_textlen(&gg->wrec.eout) == 0)
+		ffui_settextz(&gg->wrec.eout, gg->rec_sets.output);
 
 	ffui_view_showgroups(&gg->wrec.vsets, 1);
 	const char *const *grp;

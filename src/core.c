@@ -1453,6 +1453,7 @@ static int core_sigmods(uint signo)
 			continue;
 		if (signo == FMED_OPEN && mod->opened)
 			continue;
+		dbglog0("signal:%u for module %s", signo, mod->name);
 		if (0 != mod->m->sig(signo))
 			return 1;
 		if (signo == FMED_OPEN)

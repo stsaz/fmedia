@@ -24,14 +24,17 @@ mixer                 mixer
 
 
 #define FMED_VER_MAJOR  1
-#define FMED_VER_MINOR  3
+#define FMED_VER_MINOR  4
 #define FMED_VER_FULL  ((FMED_VER_MAJOR << 8) | FMED_VER_MINOR)
-#define FMED_VER  "1.3"
+#define FMED_VER  "1.4"
 
 #define FMED_VER_GETMAJ(fullver)  ((fullver) >> 8)
 #define FMED_VER_GETMIN(fullver)  ((fullver) & 0xff)
 
-/** Inter-module compatibility version. */
+/** Inter-module compatibility version.
+It must be updated when incompatible changes are made to this file,
+ then all modules must be rebuilt.
+The core will refuse to load modules built for any other core version. */
 #define FMED_VER_CORE  ((FMED_VER_MAJOR << 8) | 0)
 
 #define FMED_HOMEPAGE  "http://fmedia.firmdev.com"

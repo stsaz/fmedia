@@ -17,12 +17,12 @@ Copyright (c) 2016 Simon Zolin */
 #undef warnlog
 #undef errlog
 #undef syserrlog
-#define dbglog(trk, ...)  fmed_dbglog(core, trk, "net.icy", __VA_ARGS__)
-#define infolog(trk, ...)  fmed_infolog(core, trk, "net.icy", __VA_ARGS__)
-#define warnlog(trk, ...)  fmed_warnlog(core, trk, "net.icy", __VA_ARGS__)
-#define syswarnlog(trk, ...)  fmed_syswarnlog(core, trk, "net.icy", __VA_ARGS__)
-#define errlog(trk, ...)  fmed_errlog(core, trk, "net.icy", __VA_ARGS__)
-#define syserrlog(trk, ...)  fmed_syserrlog(core, trk, "net.icy", __VA_ARGS__)
+#define dbglog(trk, ...)  fmed_dbglog(core, trk, FILT_NAME, __VA_ARGS__)
+#define infolog(trk, ...)  fmed_infolog(core, trk, FILT_NAME, __VA_ARGS__)
+#define warnlog(trk, ...)  fmed_warnlog(core, trk, FILT_NAME, __VA_ARGS__)
+#define syswarnlog(trk, ...)  fmed_syswarnlog(core, trk, FILT_NAME, __VA_ARGS__)
+#define errlog(trk, ...)  fmed_errlog(core, trk, FILT_NAME, __VA_ARGS__)
+#define syserrlog(trk, ...)  fmed_syserrlog(core, trk, FILT_NAME, __VA_ARGS__)
 
 
 typedef struct net_conf {
@@ -291,6 +291,8 @@ static void net_destroy(void)
 }
 
 
+#define FILT_NAME "net.httpif"
+
 static int buf_alloc(nethttp *c, size_t size);
 
 static const struct ffhttp_filter*const filters[] = {
@@ -377,6 +379,9 @@ done:
 
 static void http_if_close(void *con)
 {
+	if (con == NULL)
+		return;
+
 	nethttp *c = con;
 	core->timer(&c->tmr, 0, 0);
 
@@ -396,9 +401,11 @@ static void http_if_close(void *con)
 	ffhttp_respfree(&c->resp);
 	ffhttp_cookdestroy(&c->hdrs);
 
-	uint i;
-	for (i = 0;  i != net->conf.nbufs;  i++) {
-		ffstr_free(&c->bufs[i]);
+	if (c->bufs != NULL) {
+		uint i;
+		for (i = 0;  i != net->conf.nbufs;  i++) {
+			ffstr_free(&c->bufs[i]);
+		}
 	}
 	ffmem_safefree(c->bufs);
 
@@ -426,6 +433,7 @@ enum {
 static void call_handler(nethttp *c, uint status)
 {
 	c->status = status;
+	dbglog(c->d->trk, "calling user handler.  status:%d", status);
 	c->handler(c->udata);
 }
 
@@ -630,6 +638,7 @@ static int http_recv(nethttp *c, uint tcpfin)
 
 static void http_if_send(void *con, const ffstr *data)
 {
+	FF_ASSERT(data == NULL);
 	http_if_process(con);
 }
 
@@ -1062,6 +1071,10 @@ static int http_parse(nethttp *c)
 	return 0;
 }
 
+#undef FILT_NAME
+
+
+#define FILT_NAME  "net.icy"
 
 static const ffpars_arg icy_conf_args[] = {
 	{ "meta",	FFPARS_TBOOL | FFPARS_F8BIT,  FFPARS_DSTOFF(net_conf, meta) },
@@ -1227,6 +1240,8 @@ static int icy_setmeta(icy *c, const ffstr *_data)
 	return 0;
 }
 
+#undef FILT_NAME
+
 
 enum { IN_WAIT = 1, IN_DATANEXT };
 
@@ -1338,6 +1353,8 @@ static int netin_process(void *ctx, fmed_filt *d)
 	return FMED_RDATA;
 }
 
+
+#define FILT_NAME  "net.httpcli"
 
 struct httpclient {
 	void *con;
@@ -1520,3 +1537,5 @@ static int httpcli_process(void *ctx, fmed_filt *d)
 
 	return FMED_RERR;
 }
+
+#undef FILT_NAME
