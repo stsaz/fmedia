@@ -94,6 +94,7 @@ typedef struct nethttp {
 	uint nredirect;
 	uint max_reconnect;
 
+	uint flags;
 	uint buflock :1
 		, iowait :1 //waiting for I/O, all input data is consumed
 		, async :1
@@ -301,6 +302,7 @@ static void* http_if_request(const char *method, const char *url, uint flags)
 		goto done;
 	c->orighost = c->host;
 	c->method = method;
+	c->flags = flags;
 
 	if (NULL == (c->bufs = ffmem_callocT(net->conf.nbufs, ffstr))) {
 		goto done;
@@ -1038,7 +1040,8 @@ static int http_prepreq(nethttp *c, ffstr *dst)
 	ffhttp_cook ck;
 
 	ffhttp_cookinit(&ck, NULL, 0);
-	ffstr_setcz(&ck.proto, "HTTP/1.0");
+	if (c->flags & FMED_NET_HTTP10)
+		ffstr_setcz(&ck.proto, "HTTP/1.0");
 	s = ffurl_get(&c->url, c->host, FFURL_PATHQS);
 	if (s.len == 0)
 		ffstr_setcz(&s, "/");

@@ -846,8 +846,13 @@ typedef struct fmed_globcmd_iface {
 
 #include <FF/net/http.h>
 
+enum FMED_NET_F {
+	FMED_NET_HTTP10 = 1, /** Use HTTP ver 1.0. */
+};
+
 typedef struct fmed_net_http {
 	/** Create HTTP request.
+	flags: enum FMED_NET_F
 	Return connection object. */
 	void* (*request)(const char *method, const char *url, uint flags);
 
