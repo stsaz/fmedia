@@ -360,9 +360,9 @@ static void http_if_sethandler(void *con, fftask_handler func, void *udata)
 }
 
 enum {
-	I_ADDR, I_NEXTADDR, I_CONN,
+	I_START, I_ADDR, I_NEXTADDR, I_CONN,
 	I_HTTP_REQ, I_HTTP_REQ_SEND, I_HTTP_RESP, I_HTTP_RESP_PARSE, I_HTTP_RECVBODY1, I_HTTP_RECVBODY, I_HTTP_RESPBODY,
-	I_DONE, I_ERR,
+	I_DONE, I_ERR, I_NOOP,
 };
 
 static void call_handler(nethttp *c, uint status)
@@ -379,15 +379,19 @@ static void http_if_process(nethttp *c)
 	for (;;) {
 	switch (c->state) {
 
-	case I_ADDR:
+	case I_START:
+		c->state = I_ADDR;
 		call_handler(c, FMED_NET_DNS_WAIT);
+		return;
+
+	case I_ADDR:
 		if (0 != ip_resolve(c)) {
 			c->state = I_ERR;
 			continue;
 		}
-		call_handler(c, FMED_NET_IP_WAIT);
 		c->state = I_NEXTADDR;
-		// fall through
+		call_handler(c, FMED_NET_IP_WAIT);
+		return;
 
 	case I_NEXTADDR:
 		if (0 != tcp_prepare(c, &a)) {
@@ -405,9 +409,9 @@ static void http_if_process(nethttp *c)
 			c->state = I_NEXTADDR;
 			continue;
 		}
-		call_handler(c, FMED_NET_REQ_WAIT);
 		c->state = I_HTTP_REQ;
-		// fall through
+		call_handler(c, FMED_NET_REQ_WAIT);
+		return;
 
 	case I_HTTP_REQ:
 		http_prepreq(c, &c->data);
@@ -425,9 +429,9 @@ static void http_if_process(nethttp *c)
 
 		dbglog(c->d->trk, "receiving response...");
 		ffstr_set(&c->data, c->bufs[0].ptr, net->conf.bufsize);
-		call_handler(c, FMED_NET_RESP_WAIT);
 		c->state = I_HTTP_RESP;
-		// fall through
+		call_handler(c, FMED_NET_RESP_WAIT);
+		return;
 
 	case I_HTTP_RESP:
 		r = tcp_recvhdrs(c);
@@ -482,7 +486,6 @@ static void http_if_process(nethttp *c)
 			}
 		}
 
-		call_handler(c, FMED_NET_RESP_RECV);
 		ffstr_set2(&c->data, &c->bufs[0]);
 		ffstr_shift(&c->data, c->resp.h.len);
 		c->bufs[0].len = 0;
@@ -490,7 +493,8 @@ static void http_if_process(nethttp *c)
 			c->state = I_HTTP_RESPBODY;
 		else
 			c->state = I_DONE;
-		continue;
+		call_handler(c, FMED_NET_RESP);
+		return;
 
 	case I_HTTP_RECVBODY:
 		r = tcp_recv(c);
@@ -531,13 +535,20 @@ static void http_if_process(nethttp *c)
 			c->state = I_DONE;
 			continue;
 		}
+		if (c->data.len == 0)
+			c->state = I_HTTP_RECVBODY;
 		call_handler(c, FMED_NET_RESP_RECV);
-		c->state = I_HTTP_RECVBODY;
-		continue;
+		return;
 
 	case I_ERR:
-	case I_DONE:
-		call_handler(c, (c->state == I_ERR) ? FMED_NET_ERR : FMED_NET_DONE);
+	case I_DONE: {
+		uint r = (c->state == I_ERR) ? FMED_NET_ERR : FMED_NET_DONE;
+		c->state = I_NOOP;
+		call_handler(c, r);
+		return;
+	}
+
+	case I_NOOP:
 		return;
 	}
 	}

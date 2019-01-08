@@ -855,7 +855,8 @@ typedef struct fmed_net_http {
 	void (*close)(void *con);
 
 	/** Set asynchronous callback function.
-	User function is called every time the connection status changes. */
+	User function is called every time the connection status changes.
+	Processing is suspended until user calls send(). */
 	void (*sethandler)(void *con, fftask_handler func, void *udata);
 
 	/** Connect, send request, receive response. */
@@ -874,5 +875,6 @@ enum FMED_NET_ST {
 	FMED_NET_IP_WAIT, // connecting to host
 	FMED_NET_REQ_WAIT, // sending request
 	FMED_NET_RESP_WAIT, // receiving response (HTTP headers)
+	FMED_NET_RESP, // received response headers
 	FMED_NET_RESP_RECV, // receiving data
 };

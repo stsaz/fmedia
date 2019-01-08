@@ -872,6 +872,7 @@ static void http_sig(void *obj)
 		ffui_thd_post(h->ondone, h);
 		break;
 	}
+	net->send(h->con, NULL);
 }
 
 #if defined FF_WIN
