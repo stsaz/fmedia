@@ -68,10 +68,12 @@ typedef struct nethttp {
 	uint state;
 	fmed_filt *d;
 
-	const char *method;
+	char *method;
 	fflist1_item recycled;
-	char *orighost;
-	char *host;
+	ffstr orig_target_url; // original target URL
+	ffarr target_url; // target URL (possibly relocated)
+	ffarr hostname; // server hostname (may be a proxy)
+	uint hostport; // server port (may be a proxy)
 	ffurl url;
 	ffiplist iplist;
 	ffip6 ip;
@@ -88,7 +90,7 @@ typedef struct nethttp {
 	uint wbuf;
 	size_t curbuf_len;
 	uint lowat; //low-watermark number of filled bytes for buffer
-	ffstr data;
+	ffstr data, outdata;
 
 	ffstr hbuf;
 	ffhttp_response resp;
@@ -100,6 +102,7 @@ typedef struct nethttp {
 		, iowait :1 //waiting for I/O, all input data is consumed
 		, async :1
 		, preload :1 //fill all buffers
+		, proxy :1 // connect via a proxy server
 		;
 
 	fftask_handler handler;
@@ -287,6 +290,37 @@ static const struct ffhttp_filter*const filters[] = {
 	&ffhttp_chunked_filter, &ffhttp_contlen_filter, &ffhttp_connclose_filter
 };
 
+/** Prepare a normal request URL. */
+static int http_prep_url(nethttp *c, const char *url)
+{
+	int r;
+	ffurl u;
+	ffstr s;
+	ffstr_setz(&s, url);
+	ffurl_init(&u);
+	if (0 != (r = ffurl_parse(&u, s.ptr, s.len))) {
+		errlog(c->d->trk, "URL parse: %S: %s"
+			, &s, ffurl_errstr(r));
+		return -1;
+	}
+	if (!ffurl_has(&u, FFURL_HOST)) {
+		errlog(c->d->trk, "incorrect URL: %S", &s);
+		return -1;
+	}
+	ffstr scheme = ffurl_get(&u, s.ptr, FFURL_SCHEME);
+	if (scheme.len == 0)
+		ffstr_setz(&scheme, "http");
+	if (u.port == FFHTTP_PORT && ffstr_eqz(&scheme, "http"))
+		u.port = 0;
+	ffstr host = ffurl_get(&u, s.ptr, FFURL_HOST);
+	ffstr path = ffurl_get(&u, s.ptr, FFURL_PATH);
+	ffstr qs = ffurl_get(&u, s.ptr, FFURL_QS);
+	if (0 == ffurl_joinstr(&c->orig_target_url, &scheme, &host, u.port, &path, &qs))
+		return -1;
+
+	return 0;
+}
+
 static void* http_if_request(const char *method, const char *url, uint flags)
 {
 	nethttp *c;
@@ -299,11 +333,16 @@ static void* http_if_request(const char *method, const char *url, uint flags)
 	ffhttp_respinit(&c->resp);
 	ffhttp_cookinit(&c->hdrs, NULL, 0);
 
-	if (NULL == (c->host = ffsz_alcopyz(url)))
+	if (0 != http_prep_url(c, url))
 		goto done;
-	c->orighost = c->host;
-	c->method = method;
-	c->flags = flags;
+	ffstr_set2(&c->target_url, &c->orig_target_url);
+
+	if (!ffhttp_check_method(method, ffsz_len(method))) {
+		errlog(c->d->trk, "invalid HTTP method: %s", method);
+		goto done;
+	}
+	if (NULL == (c->method = ffsz_alcopyz(method)))
+		goto done;
 
 	if (NULL == (c->bufs = ffmem_callocT(net->conf.nbufs, ffstr))) {
 		goto done;
@@ -314,6 +353,7 @@ static void* http_if_request(const char *method, const char *url, uint flags)
 	c->tmr.handler = &tcp_ontmr;
 	c->tmr.param = c;
 	c->max_reconnect = net->conf.max_reconnect;
+	c->flags = flags;
 
 	return c;
 
@@ -336,9 +376,9 @@ static void http_if_close(void *con)
 		ffskt_close(c->sk);
 		c->sk = FF_BADSKT;
 	}
-	if (c->host != c->orighost)
-		ffmem_safefree(c->host);
-	ffmem_safefree(c->orighost);
+	ffarr_free(&c->target_url);
+	ffstr_free(&c->orig_target_url);
+	ffmem_free(c->method);
 	ffaio_fin(&c->aio);
 	ffhttp_respfree(&c->resp);
 	ffhttp_cookdestroy(&c->hdrs);
@@ -477,9 +517,11 @@ static void http_if_process(nethttp *c)
 				if (d == NULL)
 				{}
 				else if (d == (void*)-1) {
+					warnlog(c->d->trk, "filter #%u open error", (int)(f - filters));
 					c->state = I_ERR;
 					continue;
 				} else {
+					dbglog(c->d->trk, "opened filter #%u", (int)(f - filters));
 					c->f.iface = *f;
 					c->f.p = d;
 					break;
@@ -563,10 +605,12 @@ static int http_recv(nethttp *c, uint tcpfin)
 		r = c->f.iface->process(c->f.p, &c->data, &s);
 	else
 		r = c->f.iface->process(c->f.p, NULL, &s);
-	c->data = s;
-	if (ffhttp_iserr(r))
+	if (ffhttp_iserr(r)) {
+		warnlog(c->d->trk, "filter error: (%d) %s", r, ffhttp_errstr(r));
 		return -1;
-	else if (r == FFHTTP_DONE)
+	}
+	c->outdata = s;
+	if (r == FFHTTP_DONE)
 		return 0;
 	return 1;
 }
@@ -580,8 +624,8 @@ static int http_if_recv(void *con, ffhttp_response **resp, ffstr *data)
 {
 	nethttp *c = con;
 	*resp = &c->resp;
-	ffstr_set2(data, &c->data);
-	c->data.len = 0;
+	ffstr_set2(data, &c->outdata);
+	c->outdata.len = 0;
 	return c->status;
 }
 
@@ -626,21 +670,27 @@ static int buf_alloc(nethttp *c, size_t size)
 
 static int ip_resolve(nethttp *c)
 {
-	ffstr s;
 	char *hostz;
 	int r;
 
-	if (0 != ffurl_parse(&c->url, c->host, ffsz_len(c->host))) {
-		errlog(c->d->trk, "ffurl_parse");
+	ffurl_init(&c->url);
+	if (0 != (r = ffurl_parse(&c->url, c->target_url.ptr, c->target_url.len))) {
+		errlog(c->d->trk, "URL parse: %S: %s"
+			, &c->target_url, ffurl_errstr(r));
 		goto done;
 	}
 	if (c->url.port == 0)
 		c->url.port = FFHTTP_PORT;
 
-	r = ffurl_parse_ip(&c->url, c->host, &c->ip);
+	if (!c->proxy) {
+		ffstr host = ffurl_get(&c->url, c->target_url.ptr, FFURL_HOST);
+		ffstr_set2(&c->hostname, &host);
+		c->hostport = c->url.port;
+		r = ffurl_parse_ip(&c->url, c->target_url.ptr, &c->ip);
+	}
+
 	if (r < 0) {
-		s = ffurl_get(&c->url, c->host, FFURL_HOST);
-		errlog(c->d->trk, "bad IP address: %S", &s);
+		errlog(c->d->trk, "bad IP address: %S", &c->hostname);
 		goto done;
 	} else if (r != 0) {
 		ffip_list_set(&c->iplist, r, &c->ip);
@@ -648,13 +698,12 @@ static int ip_resolve(nethttp *c)
 		return 0;
 	}
 
-	s = ffurl_get(&c->url, c->host, FFURL_HOST);
-	if (NULL == (hostz = ffsz_alcopy(s.ptr, s.len))) {
+	if (NULL == (hostz = ffsz_alcopystr(&c->hostname))) {
 		syserrlog(c->d->trk, "%s", ffmem_alloc_S);
 		goto done;
 	}
 
-	infolog(c->d->trk, "resolving host %S...", &s);
+	infolog(c->d->trk, "resolving host %S...", &c->hostname);
 	r = ffaddr_info(&c->addr, hostz, NULL, 0);
 	ffmem_free(hostz);
 	if (r != 0) {
@@ -689,12 +738,11 @@ static int tcp_prepare(nethttp *c, ffaddr *a)
 	while (0 != (family = ffip_next(&c->curaddr, &ip))) {
 
 		ffaddr_setip(a, family, ip);
-		ffip_setport(a, c->url.port);
+		ffip_setport(a, c->hostport);
 
 		char saddr[FF_MAXIP6];
 		size_t n = ffaddr_tostr(a, saddr, sizeof(saddr), FFADDR_USEPORT);
-		ffstr host = ffurl_get(&c->url, c->host, FFURL_HOST);
-		infolog(c->d->trk, "connecting to %S (%*s)...", &host, n, saddr);
+		infolog(c->d->trk, "connecting to %S (%*s)...", &c->hostname, n, saddr);
 
 		if (FF_BADSKT == (c->sk = ffskt_create(family, SOCK_STREAM | SOCK_NONBLOCK, IPPROTO_TCP))) {
 			syswarnlog(c->d->trk, "%s", ffskt_create_S);
@@ -808,10 +856,8 @@ static int tcp_ioerr(nethttp *c)
 	c->sk = FF_BADSKT;
 	ffaio_fin(&c->aio);
 
-	if (c->host != c->orighost) {
-		ffmem_free(c->host);
-		c->host = c->orighost;
-	}
+	ffarr_free(&c->target_url);
+	ffstr_set2(&c->target_url, &c->orig_target_url);
 	ffmem_tzero(&c->url);
 	ffmem_tzero(&c->iplist);
 	ffmem_tzero(&c->ip);
@@ -908,14 +954,14 @@ static int http_prepreq(nethttp *c, ffstr *dst)
 	ffhttp_cook ck;
 
 	ffhttp_cookinit(&ck, NULL, 0);
+
 	if (c->flags & FMED_NET_HTTP10)
 		ffstr_setcz(&ck.proto, "HTTP/1.0");
-	s = ffurl_get(&c->url, c->host, FFURL_PATHQS);
-	if (s.len == 0)
-		ffstr_setcz(&s, "/");
-	dbglog(c->d->trk, "sending request %s %S", c->method, &s);
+
+	s = ffurl_get(&c->url, c->target_url.ptr, FFURL_PATHQS);
 	ffhttp_addrequest(&ck, c->method, ffsz_len(c->method), s.ptr, s.len);
-	s = ffurl_get(&c->url, c->host, FFURL_FULLHOST);
+
+	s = ffurl_get(&c->url, c->target_url.ptr, FFURL_FULLHOST);
 	ffhttp_addihdr(&ck, FFHTTP_HOST, s.ptr, s.len);
 
 	ffarr_append(&ck.buf, c->hdrs.buf.ptr, c->hdrs.buf.len);
@@ -928,6 +974,7 @@ static int http_prepreq(nethttp *c, ffstr *dst)
 	ffstr_acqstr3(&c->hbuf, &ck.buf);
 	ffstr_set2(dst, &c->hbuf);
 	ffhttp_cookdestroy(&ck);
+	dbglog(c->d->trk, "sending request: %S", dst);
 	return 0;
 }
 
@@ -960,9 +1007,8 @@ static int http_parse(nethttp *c)
 			c->sk = FF_BADSKT;
 		}
 		ffaio_fin(&c->aio);
-		if (c->host != c->orighost)
-			ffmem_free(c->host);
-		if (NULL == (c->host = ffsz_alcopy(s.ptr, s.len))) {
+		ffarr_free(&c->target_url);
+		if (0 == ffstr_fmt(&c->target_url, "%S", &s)) {
 			syserrlog(c->d->trk, "%s", ffmem_alloc_S);
 			return -1;
 		}
