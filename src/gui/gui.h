@@ -233,9 +233,8 @@ enum {
 	DLG_FILT_PLAYLISTS,
 };
 
-#define GUI_USRCONF  "%APPDATA%/fmedia/fmedia.gui.conf"
-#define GUI_USRCONF_PORT  "fmedia.gui.conf"
-#define GUI_PLIST_PATH  "%APPDATA%/fmedia/"
+#define GUI_USERCONF  "fmedia.gui.conf"
+#define FMED_USERCONF  "fmedia-user.conf"
 #define GUI_PLIST_NAME  "list%u.m3u8"
 
 enum ST {
@@ -401,6 +400,7 @@ void gui_media_added(fmed_que_entry *ent);
 void gui_media_removed(uint i);
 void gui_rec(uint cmd);
 char* gui_usrconf_filename(void);
+char* gui_userpath(const char *fn);
 void gui_upd_check(void);
 
 enum GUI_FILT {

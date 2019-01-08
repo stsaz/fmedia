@@ -678,23 +678,19 @@ static void gui_ghk_reg(void)
 
 char* gui_usrconf_filename(void)
 {
-	if (!gg->portable_conf)
-		return core->env_expand(NULL, 0, GUI_USRCONF);
-	return core->getpath(FFSTR(GUI_USRCONF_PORT));
+	return gui_userpath(GUI_USERCONF);
+}
+
+char* gui_userpath(const char *fn)
+{
+	return ffsz_alfmt("%s%s", core->props->user_path, fn);
 }
 
 /** Save playlists to disk. */
 static void gui_savelists(void)
 {
 	ffarr buf = {};
-	char *fn = NULL;
-
-	if (gg->portable_conf)
-		fn = core->getpath(FFSTR("."));
-	else
-		fn = core->env_expand(NULL, 0, GUI_PLIST_PATH);
-	if (fn == NULL)
-		goto end;
+	const char *fn = core->props->user_path;
 
 	if (NULL == ffarr_alloc(&buf, ffsz_len(fn) + FFSLEN(GUI_PLIST_NAME) + FFINT_MAXCHARS + 1))
 		goto end;
@@ -717,22 +713,14 @@ static void gui_savelists(void)
 	}
 
 end:
-	ffmem_free(fn);
 	ffarr_free(&buf);
 }
 
 /** Load playlists saved in the previous session. */
 static void gui_loadlists(void)
 {
-	char *fn;
+	const char *fn = core->props->user_path;
 	ffarr buf = {};
-
-	if (gg->portable_conf)
-		fn = core->getpath(FFSTR("."));
-	else
-		fn = core->env_expand(NULL, 0, GUI_PLIST_PATH);
-	if (fn == NULL)
-		goto end;
 
 	if (NULL == ffarr_alloc(&buf, ffsz_len(fn) + FFSLEN(GUI_PLIST_NAME) + FFINT_MAXCHARS + 1))
 		goto end;
@@ -748,7 +736,6 @@ static void gui_loadlists(void)
 	}
 
 end:
-	ffmem_safefree(fn);
 	ffarr_free(&buf);
 	return;
 }
