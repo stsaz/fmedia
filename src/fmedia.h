@@ -200,10 +200,13 @@ enum FMED_INSTANCE_MODE {
 	FMED_IM_CLEARPLAY,
 };
 
+struct fmed_cmd;
+
 struct fmed_props {
 	uint stdout_busy :1;
 	uint stdin_busy :1;
 	uint parallel :1;
+	uint prevent_sleep :1;
 	char *version_str; // "X.XX[.XX]"
 	uint list_random;
 
@@ -212,6 +215,11 @@ struct fmed_props {
 	Windows: "%APPDATA%/fmedia/"
 	Linux:   "$HOME/.config/fmedia/" */
 	char *user_path;
+
+	const fmed_modinfo *playback_module;
+	const fmed_modinfo *record_module;
+	ffpcm record_format;
+	struct fmed_cmd *cmd;
 };
 
 struct fmed_mod {

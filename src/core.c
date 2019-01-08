@@ -8,12 +8,20 @@ Copyright (c) 2015 Simon Zolin */
 #include <FF/data/conf.h>
 #include <FF/data/utf8.h>
 #include <FF/time.h>
+#include <FF/rbtree.h>
+#include <FF/list.h>
 #include <FF/sys/filemap.h>
+#include <FF/sys/taskqueue.h>
+#ifdef FF_WIN
+#include <FF/sys/wohandler.h>
+#endif
 #include <FFOS/error.h>
 #include <FFOS/process.h>
 #include <FFOS/timer.h>
 #include <FFOS/dir.h>
 #include <FFOS/thread.h>
+#include <FFOS/asyncio.h>
+#include <FFOS/file.h>
 
 
 #undef syserrlog
@@ -29,6 +37,46 @@ while (!(expr)) { \
 	ffps_exit(1); \
 }
 
+
+typedef struct fmed_config {
+	byte codepage;
+	byte instance_mode;
+	byte prevent_sleep;
+	byte workers;
+	ffpcm inp_pcm;
+	const fmed_modinfo *output;
+	const fmed_modinfo *input;
+	ffstr3 inmap; //inmap_item[]
+	ffstr3 outmap; //inmap_item[]
+	const fmed_modinfo *inmap_curmod;
+	char *usrconf_modname;
+	uint skip_line :1;
+} fmed_config;
+
+typedef struct fmedia {
+	ffarr workers; //worker[]
+	ffkqu_time kqutime;
+
+	uint stopped;
+
+	ffarr bmods; //core_modinfo[]
+	fflist mods; //core_mod[]
+
+	ffenv env;
+	ffstr root;
+	fmed_config conf;
+	fmed_cmd cmd;
+	fmed_props props;
+
+	const fmed_queue *qu;
+
+	ffconf_ctxcopy conf_copy;
+	fmed_modinfo *conf_copy_mod; //core_mod
+
+#ifdef FF_WIN
+	ffwoh *woh;
+#endif
+} fmedia;
 
 struct worker {
 	ffthd thd;
@@ -75,7 +123,7 @@ typedef struct core_mod {
 } core_mod;
 
 
-fmedia *fmed;
+static fmedia *fmed;
 
 enum {
 	FMED_KQ_EVS = 8,
@@ -506,8 +554,16 @@ static int fmed_conf(const char *filename)
 		fn = (void*)filename;
 	else if (NULL == (fn = core->getpath(FFSTR(FMED_GLOBCONF))))
 		goto end;
+
 	if (0 != fmed_conf_fn(fn, 0))
 		goto end;
+
+	fmed->props.playback_module = fmed->conf.output;
+	fmed->props.record_module = fmed->conf.input;
+	fmed->props.record_format = fmed->conf.inp_pcm;
+	fmed->props.record_format = fmed->conf.inp_pcm;
+	fmed->props.prevent_sleep = fmed->conf.prevent_sleep;
+
 	if (fn != filename)
 		ffmem_free0(fn);
 
@@ -711,6 +767,7 @@ fmed_core* core_init(fmed_cmd **ptr, char **argv, char **env)
 	*ptr = &fmed->cmd;
 	core->loglev = FMED_LOG_INFO;
 	fmed->props.version_str = FMED_VER;
+	fmed->props.cmd = &fmed->cmd;
 	core->props = &fmed->props;
 	return core;
 

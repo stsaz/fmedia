@@ -30,6 +30,7 @@ struct tracks {
 	fflist trks; //fm_trk[]
 	const struct fmed_trk_mon *mon;
 	fftmrq_entry allowsleep_tmr;
+	const fmed_queue *qu;
 	uint stop_sig :1;
 };
 
@@ -138,6 +139,7 @@ int tracks_init(void)
 {
 	if (NULL == (g = ffmem_new(struct tracks)))
 		return -1;
+	g->qu = core->getmod("#queue.queue");
 	fflist_init(&g->trks);
 	return 0;
 }
@@ -207,14 +209,14 @@ static int trk_open(fm_trk *t, const char *fn)
 
 static void trk_open_capt(fm_trk *t)
 {
-	ffpcm_fmtcopy(&t->props.audio.fmt, &fmed->conf.inp_pcm);
+	ffpcm_fmtcopy(&t->props.audio.fmt, &core->props->record_format);
 
-	if (fmed->conf.inp_pcm.channels & ~FFPCM_CHMASK) {
-		t->props.audio.convfmt.channels = fmed->conf.inp_pcm.channels;
-		t->props.audio.fmt.channels = fmed->conf.inp_pcm.channels & FFPCM_CHMASK;
+	if (core->props->record_format.channels & ~FFPCM_CHMASK) {
+		t->props.audio.convfmt.channels = core->props->record_format.channels;
+		t->props.audio.fmt.channels = core->props->record_format.channels & FFPCM_CHMASK;
 	}
 
-	addfilter1(t, fmed->conf.input);
+	addfilter1(t, core->props->record_module);
 
 	addfilter(t, "#soundmod.until");
 	addfilter(t, "#soundmod.rtpeak");
@@ -239,9 +241,9 @@ static int trk_setout(fm_trk *t)
 	} else if (t->props.type != FMED_TRK_TYPE_MIXIN) {
 		if (t->props.type != FMED_TRK_TYPE_REC)
 			addfilter(t, "#soundmod.until");
-		if (fmed->cmd.gui)
+		if (core->props->cmd->gui)
 			addfilter(t, "gui.gui");
-		else if (!fmed->cmd.notui)
+		else if (!core->props->cmd->notui)
 			addfilter(t, "tui.tui");
 	}
 
@@ -285,8 +287,8 @@ static int trk_setout(fm_trk *t)
 			t->props.out_seekable = 1;
 		}
 
-	} else if (fmed->conf.output != NULL) {
-		addfilter1(t, fmed->conf.output);
+	} else if (core->props->playback_module != NULL) {
+		addfilter1(t, core->props->playback_module);
 	}
 
 	return 0;
@@ -305,7 +307,7 @@ If a new track is created before 'allowsleep' timer expires - deactivate it.
 Otherwise, resume system sleep timer. */
 static void allowsleep(uint val)
 {
-	if (!fmed->conf.prevent_sleep)
+	if (!core->props->prevent_sleep)
 		return;
 
 #ifdef FF_WIN
@@ -517,7 +519,7 @@ static void trk_free(fm_trk *t)
 	core->cmd(FMED_TASK_XDEL, &t->tsk, t->wid);
 	core->cmd(FMED_TASK_XDEL, &t->tsk_stop, t->wid);
 
-	if (fmed->cmd.print_time) {
+	if (core->props->cmd->print_time) {
 		struct ffps_perf i2 = {};
 		ffps_perf(&i2, FFPS_PERF_REALTIME | FFPS_PERF_CPUTIME | FFPS_PERF_RUSAGE);
 		ffps_perf_diff(&t->psperf, &i2);
@@ -826,7 +828,7 @@ static void trk_meta_set(void *trk, const ffstr *name, const ffstr *val, uint fl
 	void *qent = (void*)trk_getval(t, "queue_item");
 	if (qent == FMED_PNULL)
 		return;
-	fmed->qu->meta_set(qent, name->ptr, name->len, val->ptr, val->len, flags);
+	g->qu->meta_set(qent, name->ptr, name->len, val->ptr, val->len, flags);
 }
 
 static dict_ent* meta_find(fm_trk *t, const ffstr *name)
@@ -869,7 +871,7 @@ static int trk_meta_enum(fm_trk *t, fmed_trk_meta *meta)
 		&& FMED_PNULL == (meta->qent = (void*)trk_getval(t, "queue_item")))
 		return 1;
 	for (;;) {
-		val = fmed->qu->meta(meta->qent, meta->idx++, &meta->name, meta->flags);
+		val = g->qu->meta(meta->qent, meta->idx++, &meta->name, meta->flags);
 		if (val == FMED_QUE_SKIP)
 			continue;
 		break;
@@ -1003,7 +1005,7 @@ static ssize_t trk_cmd(void *trk, uint cmd, ...)
 			break;
 		}
 
-		if (fmed->cmd.print_time)
+		if (core->props->cmd->print_time)
 			ffps_perf(&t->psperf, FFPS_PERF_REALTIME | FFPS_PERF_CPUTIME | FFPS_PERF_RUSAGE);
 
 		t->wflags = (cmd == FMED_TRACK_XSTART) ? FMED_WORKER_FPARALLEL : 0;
@@ -1086,7 +1088,7 @@ static ssize_t trk_cmd(void *trk, uint cmd, ...)
 			r = 0;
 			break;
 		}
-		r = fmed->qu->cmd2(FMED_QUE_HAVEUSERMETA, qent, 0);
+		r = g->qu->cmd2(FMED_QUE_HAVEUSERMETA, qent, 0);
 		break;
 	}
 
@@ -1184,7 +1186,7 @@ static char* trk_getvalstr3(void *trk, const void *name, uint flags)
 			if (FMED_PNULL == (qent = (void*)trk_getval(t, "queue_item")))
 				return FMED_PNULL;
 			ffstr *val;
-			if (NULL == (val = fmed->qu->meta_find(qent, nm.ptr, nm.len)))
+			if (NULL == (val = g->qu->meta_find(qent, nm.ptr, nm.len)))
 				return FMED_PNULL;
 			if (flags & FMED_TRK_VALSTR)
 				return (void*)val;
