@@ -481,23 +481,33 @@ static int icy_setmeta(icy *c, const ffstr *_data)
 		}
 	}
 
-	ffstr_free(&c->artist);
-	ffstr_free(&c->title);
-
 	qent = (void*)c->d->track->getval(c->d->trk, "queue_item");
-	ffstr_setcz(&pair[0], "artist");
 	ffarr utf = {0};
-	ffutf8_strencode(&utf, artist.ptr, artist.len, FFU_WIN1252);
-	ffstr_set2(&pair[1], &utf);
-	net->qu->cmd2(FMED_QUE_METASET | ((FMED_QUE_TMETA | FMED_QUE_OVWRITE) << 16), qent, (size_t)pair);
+
+	if (ffutf8_valid(artist.ptr, artist.len))
+		ffarr_append(&utf, artist.ptr, artist.len);
+	else
+		ffutf8_strencode(&utf, artist.ptr, artist.len, FFU_WIN1252);
+	ffstr_free(&c->artist);
 	ffstr_acqstr3(&c->artist, &utf);
 
-	ffstr_setcz(&pair[0], "title");
-	ffutf8_strencode(&utf, title.ptr, title.len, FFU_WIN1252);
-	ffstr_set2(&pair[1], &utf);
-	net->qu->cmd2(FMED_QUE_METASET | ((FMED_QUE_TMETA | FMED_QUE_OVWRITE) << 16), qent, (size_t)pair);
-	c->d->meta_changed = 1;
+	ffarr_null(&utf);
+	if (ffutf8_valid(title.ptr, title.len))
+		ffarr_append(&utf, title.ptr, title.len);
+	else
+		ffutf8_strencode(&utf, title.ptr, title.len, FFU_WIN1252);
+	ffstr_free(&c->title);
 	ffstr_acqstr3(&c->title, &utf);
+
+	ffstr_setcz(&pair[0], "artist");
+	ffstr_set2(&pair[1], &c->artist);
+	net->qu->cmd2(FMED_QUE_METASET | ((FMED_QUE_TMETA | FMED_QUE_OVWRITE) << 16), qent, (size_t)pair);
+
+	ffstr_setcz(&pair[0], "title");
+	ffstr_set2(&pair[1], &c->title);
+	net->qu->cmd2(FMED_QUE_METASET | ((FMED_QUE_TMETA | FMED_QUE_OVWRITE) << 16), qent, (size_t)pair);
+
+	c->d->meta_changed = 1;
 
 	if (c->netin != NULL && c->netin->fn_dyn) {
 		netin_write(c->netin, NULL);
