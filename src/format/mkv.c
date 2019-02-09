@@ -16,6 +16,7 @@ typedef struct fmed_mkv {
 	ffmkv mkv;
 	ffmkv_vorbis mkv_vorbis;
 	uint state;
+	uint seeking :1;
 } fmed_mkv;
 
 
@@ -137,6 +138,11 @@ again:
 		break;
 
 	case I_DATA:
+		if ((int64)d->audio.seek != FMED_NULL && !m->seeking) {
+			m->seeking = 1;
+			uint64 seek = ffpcm_samples(d->audio.seek, m->mkv.info.sample_rate);
+			ffmkv_seek(&m->mkv, seek);
+		}
 		break;
 	}
 
@@ -173,6 +179,12 @@ again:
 			d->audio.fmt.sample_rate = m->mkv.info.sample_rate;
 			d->audio.total = m->mkv.info.total_samples;
 			d->audio.bitrate = m->mkv.info.bitrate;
+
+			if ((int64)d->audio.seek != FMED_NULL) {
+				m->seeking = 1;
+				uint64 seek = ffpcm_samples(d->audio.seek, m->mkv.info.sample_rate);
+				ffmkv_seek(&m->mkv, seek);
+			}
 
 			if (m->mkv.info.format == FFMKV_AUDIO_VORBIS) {
 				ffstr_set2(&m->mkv_vorbis.data, &m->mkv.info.asc);
@@ -211,5 +223,6 @@ data:
 	d->audio.pos = ffmkv_cursample(&m->mkv);
 	d->out = m->mkv.out.ptr,  d->outlen = m->mkv.out.len;
 	dbglog(core, d->trk, NULL, "data size:%L", d->outlen);
+	m->seeking = 0;
 	return FMED_RDATA;
 }
