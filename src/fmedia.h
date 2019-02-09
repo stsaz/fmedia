@@ -850,16 +850,11 @@ typedef struct fmed_globcmd_iface {
 
 // NET
 
-#include <FF/net/http.h>
-
-enum FMED_NET_F {
-	FMED_NET_HTTP10 = 1, /** Use HTTP ver 1.0. */
-	FMED_NET_NOREDIRECT = 2, /** Don't follow redirections. */
-};
+#include <FF/net/http-client.h>
 
 typedef struct fmed_net_http {
 	/** Create HTTP request.
-	flags: enum FMED_NET_F
+	flags: enum FFHTTPCL_F
 	Return connection object. */
 	void* (*request)(const char *method, const char *url, uint flags);
 
@@ -869,27 +864,21 @@ typedef struct fmed_net_http {
 	/** Set asynchronous callback function.
 	User function is called every time the connection status changes.
 	Processing is suspended until user calls send(). */
-	void (*sethandler)(void *con, fftask_handler func, void *udata);
+	void (*sethandler)(void *con, ffhttpcl_handler func, void *udata);
 
 	/** Connect, send request, receive response. */
 	void (*send)(void *con, const ffstr *data);
 
 	/** Get response data.
 	@data: response body
-	Return enum FMED_NET_ST. */
+	Return enum FFHTTPCL_ST. */
 	int (*recv)(void *con, ffhttp_response **resp, ffstr *data);
 
 	/** Add request header. */
 	void (*header)(void *con, const ffstr *name, const ffstr *val, uint flags);
-} fmed_net_http;
 
-enum FMED_NET_ST {
-	FMED_NET_ERR = -1,
-	FMED_NET_DONE = 0,
-	FMED_NET_DNS_WAIT, // resolving hostname via DNS
-	FMED_NET_IP_WAIT, // connecting to host
-	FMED_NET_REQ_WAIT, // sending request
-	FMED_NET_RESP_WAIT, // receiving response (HTTP headers)
-	FMED_NET_RESP, // received response headers
-	FMED_NET_RESP_RECV, // receiving data
-};
+	/** Configure connection object.
+	May be called only before the first send().
+	flags: enum FFHTTPCL_CONF_F */
+	void (*conf)(void *con, struct ffhttpcl_conf *conf, uint flags);
+} fmed_net_http;

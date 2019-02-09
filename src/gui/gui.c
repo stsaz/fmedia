@@ -976,10 +976,9 @@ static void http_sig(void *obj)
 		ffarr_append(&h->data, d.ptr, d.len);
 		ffui_thd_post(h->ondone, h);
 		break;
-	case FMED_NET_ERR:
-		ffui_thd_post(h->ondone, h);
-		break;
 	}
+	if (r < 0)
+		ffui_thd_post(h->ondone, h);
 	net->send(h->con, NULL);
 }
 
@@ -1035,10 +1034,10 @@ static void upd_done(void *obj)
 		ffui_msgdlg_showz("Updates", "You have the latest version", FFUI_MSGDLG_INFO);
 		break;
 	}
-	case FMED_NET_ERR:
-		ffui_msgdlg_showz("Updates", "Error while requesting " UPD_URL, FFUI_MSGDLG_ERR);
-		break;
 	}
+
+	if (h->status < 0)
+		ffui_msgdlg_showz("Updates", "Error while requesting " UPD_URL, FFUI_MSGDLG_ERR);
 
 done:
 	httpreq_free(h);

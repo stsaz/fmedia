@@ -3,6 +3,7 @@ Copyright (c) 2016 Simon Zolin */
 
 #include <fmedia.h>
 
+#include <FF/net/http-client.h>
 #include <FF/audio/icy.h>
 #include <FF/net/url.h>
 #include <FF/net/http.h>
@@ -16,13 +17,9 @@ Copyright (c) 2016 Simon Zolin */
 #undef dbglog
 #undef warnlog
 #undef errlog
-#undef syserrlog
 #define dbglog(trk, ...)  fmed_dbglog(core, trk, FILT_NAME, __VA_ARGS__)
-#define infolog(trk, ...)  fmed_infolog(core, trk, FILT_NAME, __VA_ARGS__)
 #define warnlog(trk, ...)  fmed_warnlog(core, trk, FILT_NAME, __VA_ARGS__)
-#define syswarnlog(trk, ...)  fmed_syswarnlog(core, trk, FILT_NAME, __VA_ARGS__)
 #define errlog(trk, ...)  fmed_errlog(core, trk, FILT_NAME, __VA_ARGS__)
-#define syserrlog(trk, ...)  fmed_syserrlog(core, trk, FILT_NAME, __VA_ARGS__)
 
 
 typedef struct net_conf {
@@ -44,7 +41,6 @@ typedef struct net_conf {
 typedef struct netmod {
 	const fmed_queue *qu;
 	const fmed_track *track;
-	fflist1 recycled_cons;
 	net_conf conf;
 } netmod;
 
@@ -62,58 +58,6 @@ typedef struct netin {
 	uint fn_dyn :1;
 	icy *c;
 } netin;
-
-struct filter {
-	const struct ffhttp_filter *iface;
-	void *p;
-};
-
-typedef struct nethttp {
-	uint state;
-	fmed_filt *d;
-
-	char *method;
-	fflist1_item recycled;
-	ffstr orig_target_url; // original target URL
-	ffarr target_url; // target URL (possibly relocated)
-	ffarr hostname; // server hostname (may be a proxy)
-	uint hostport; // server port (may be a proxy)
-	ffurl url;
-	ffiplist iplist;
-	ffip6 ip;
-	ffaddrinfo *addr;
-	ffip_iter curaddr;
-	ffskt sk;
-	ffaio_task aio;
-	uint reconnects;
-	fftmrq_entry tmr;
-	ffhttp_cook hdrs;
-
-	ffstr *bufs;
-	uint rbuf;
-	uint wbuf;
-	size_t curbuf_len;
-	uint lowat; //low-watermark number of filled bytes for buffer
-	ffstr data, outdata;
-
-	ffstr hbuf;
-	ffhttp_response resp;
-	uint nredirect;
-	uint max_reconnect;
-
-	uint flags;
-	uint buflock :1
-		, iowait :1 //waiting for I/O, all input data is consumed
-		, async :1
-		, preload :1 //fill all buffers
-		, proxy :1 // connect via a proxy server
-		;
-
-	fftask_handler handler;
-	void *udata;
-	uint status;
-	struct filter f;
-} nethttp;
 
 struct icy {
 	fmed_filt *d;
@@ -139,15 +83,6 @@ static const fmed_mod fmed_net_mod = {
 	&net_iface, &net_sig, &net_destroy, &net_mod_conf
 };
 
-static int ip_resolve(nethttp *c);
-static int tcp_prepare(nethttp *c, ffaddr *a);
-static int tcp_connect(nethttp *c, const struct sockaddr *addr, socklen_t addr_size);
-static int tcp_recv(nethttp *c);
-static void tcp_ontmr(void *param);
-static int tcp_recvhdrs(nethttp *c);
-static int tcp_send(nethttp *c);
-static int tcp_ioerr(nethttp *c);
-
 //HTTP
 static int http_config(ffpars_ctx *ctx);
 static void* httpcli_open(fmed_filt *d);
@@ -159,19 +94,18 @@ static const fmed_filter fmed_http = {
 
 static int http_conf_proxy(ffparser_schem *p, void *obj, ffstr *val);
 static int http_conf_done(ffparser_schem *p, void *obj);
-static int http_prepreq(nethttp *c, ffstr *dst);
-static int http_parse(nethttp *c);
-static int http_recv(nethttp *c, uint tcpfin);
 
 // HTTP IFACE
 static void* http_if_request(const char *method, const char *url, uint flags);
 static void http_if_close(void *con);
-static void http_if_sethandler(void *con, fftask_handler func, void *udata);
+static void http_if_sethandler(void *con, ffhttpcl_handler func, void *udata);
 static void http_if_send(void *con, const ffstr *data);
 static int http_if_recv(void *con, ffhttp_response **resp, ffstr *data);
 static void http_if_header(void *con, const ffstr *name, const ffstr *val, uint flags);
+static void http_if_conf(void *con, struct ffhttpcl_conf *conf, uint flags);
 static const fmed_net_http http_iface = {
 	&http_if_request, &http_if_close, &http_if_sethandler, &http_if_send, &http_if_recv, &http_if_header,
+	&http_if_conf,
 };
 
 //ICY
@@ -279,382 +213,12 @@ static int net_sig(uint signo)
 
 static void net_destroy(void)
 {
-	nethttp *c;
 	if (net == NULL)
 		return;
-	while (NULL != (c = (void*)fflist1_pop(&net->recycled_cons))) {
-		ffmem_free(FF_GETPTR(nethttp, recycled, c));
-	}
+	ffhttpcl_deinit();
 	ffmem_free(net->conf.proxy.host);
 	ffmem_free0(net);
 	ffhttp_freeheaders();
-}
-
-
-#define FILT_NAME "net.httpif"
-
-static int buf_alloc(nethttp *c, size_t size);
-
-static const struct ffhttp_filter*const filters[] = {
-	&ffhttp_chunked_filter, &ffhttp_contlen_filter, &ffhttp_connclose_filter
-};
-
-/** Prepare a normal request URL. */
-static int http_prep_url(nethttp *c, const char *url)
-{
-	int r;
-	ffurl u;
-	ffstr s;
-	ffstr_setz(&s, url);
-	ffurl_init(&u);
-	if (0 != (r = ffurl_parse(&u, s.ptr, s.len))) {
-		errlog(c->d->trk, "URL parse: %S: %s"
-			, &s, ffurl_errstr(r));
-		return -1;
-	}
-	if (!ffurl_has(&u, FFURL_HOST)) {
-		errlog(c->d->trk, "incorrect URL: %S", &s);
-		return -1;
-	}
-	ffstr scheme = ffurl_get(&u, s.ptr, FFURL_SCHEME);
-	if (scheme.len == 0)
-		ffstr_setz(&scheme, "http");
-	if (u.port == FFHTTP_PORT && ffstr_eqz(&scheme, "http"))
-		u.port = 0;
-	ffstr host = ffurl_get(&u, s.ptr, FFURL_HOST);
-	ffstr path = ffurl_get(&u, s.ptr, FFURL_PATH);
-	ffstr qs = ffurl_get(&u, s.ptr, FFURL_QS);
-	if (0 == ffurl_joinstr(&c->orig_target_url, &scheme, &host, u.port, &path, &qs))
-		return -1;
-
-	return 0;
-}
-
-static void* http_if_request(const char *method, const char *url, uint flags)
-{
-	nethttp *c;
-	if (NULL != (c = (void*)fflist1_pop(&net->recycled_cons)))
-		c = FF_GETPTR(nethttp, recycled, c);
-	else if (NULL == (c = ffmem_new(nethttp)))
-		return NULL;
-	c->d = ffmem_new(fmed_filt); //logger needs c->d->trk
-	c->sk = FF_BADSKT;
-	ffhttp_respinit(&c->resp);
-	ffhttp_cookinit(&c->hdrs, NULL, 0);
-
-	if (0 != http_prep_url(c, url))
-		goto done;
-	ffstr_set2(&c->target_url, &c->orig_target_url);
-
-	if (net->conf.proxy.host != NULL) {
-		ffstr_setz(&c->hostname, net->conf.proxy.host);
-		c->hostport = net->conf.proxy.port;
-		c->proxy = 1;
-	}
-
-	if (!ffhttp_check_method(method, ffsz_len(method))) {
-		errlog(c->d->trk, "invalid HTTP method: %s", method);
-		goto done;
-	}
-	if (NULL == (c->method = ffsz_alcopyz(method)))
-		goto done;
-
-	if (NULL == (c->bufs = ffmem_callocT(net->conf.nbufs, ffstr))) {
-		goto done;
-	}
-	if (0 != buf_alloc(c, net->conf.bufsize))
-		goto done;
-
-	c->tmr.handler = &tcp_ontmr;
-	c->tmr.param = c;
-	c->max_reconnect = net->conf.max_reconnect;
-	c->flags = flags;
-
-	return c;
-
-done:
-	http_if_close(c);
-	return NULL;
-}
-
-static void http_if_close(void *con)
-{
-	if (con == NULL)
-		return;
-
-	nethttp *c = con;
-	core->timer(&c->tmr, 0, 0);
-
-	if (c->f.p != NULL)
-		c->f.iface->close(c->f.p);
-
-	FF_SAFECLOSE(c->addr, NULL, ffaddr_free);
-	if (c->sk != FF_BADSKT) {
-		ffskt_fin(c->sk);
-		ffskt_close(c->sk);
-		c->sk = FF_BADSKT;
-	}
-	ffarr_free(&c->target_url);
-	ffstr_free(&c->orig_target_url);
-	ffmem_free(c->method);
-	ffaio_fin(&c->aio);
-	ffhttp_respfree(&c->resp);
-	ffhttp_cookdestroy(&c->hdrs);
-
-	if (c->bufs != NULL) {
-		uint i;
-		for (i = 0;  i != net->conf.nbufs;  i++) {
-			ffstr_free(&c->bufs[i]);
-		}
-	}
-	ffmem_safefree(c->bufs);
-
-	ffstr_free(&c->hbuf);
-
-	uint inst = c->aio.instance;
-	ffmem_tzero(c);
-	c->aio.instance = inst;
-	fflist1_push(&net->recycled_cons, &c->recycled);
-}
-
-static void http_if_sethandler(void *con, fftask_handler func, void *udata)
-{
-	nethttp *c = con;
-	c->handler = func;
-	c->udata = udata;
-}
-
-enum {
-	I_START, I_ADDR, I_NEXTADDR, I_CONN,
-	I_HTTP_REQ, I_HTTP_REQ_SEND, I_HTTP_RESP, I_HTTP_RESP_PARSE, I_HTTP_RECVBODY, I_HTTP_RESPBODY,
-	I_DONE, I_ERR, I_NOOP,
-};
-
-static void call_handler(nethttp *c, uint status)
-{
-	c->status = status;
-	dbglog(c->d->trk, "calling user handler.  status:%d", status);
-	c->handler(c->udata);
-}
-
-static void http_if_process(nethttp *c)
-{
-	int r;
-	ffaddr a = {0};
-
-	for (;;) {
-	switch (c->state) {
-
-	case I_START:
-		c->state = I_ADDR;
-		call_handler(c, FMED_NET_DNS_WAIT);
-		return;
-
-	case I_ADDR:
-		if (0 != ip_resolve(c)) {
-			c->state = I_ERR;
-			continue;
-		}
-		c->state = I_NEXTADDR;
-		call_handler(c, FMED_NET_IP_WAIT);
-		return;
-
-	case I_NEXTADDR:
-		if (0 != tcp_prepare(c, &a)) {
-			c->state = I_ERR;
-			continue;
-		}
-		c->state = I_CONN;
-		// fall through
-
-	case I_CONN:
-		r = tcp_connect(c, &a.a, a.len);
-		if (r == FMED_RASYNC)
-			return;
-		else if (r == FMED_RMORE) {
-			c->state = I_NEXTADDR;
-			continue;
-		}
-		c->state = I_HTTP_REQ;
-		call_handler(c, FMED_NET_REQ_WAIT);
-		return;
-
-	case I_HTTP_REQ:
-		http_prepreq(c, &c->data);
-		c->state = I_HTTP_REQ_SEND;
-		// fall through
-
-	case I_HTTP_REQ_SEND:
-		r = tcp_send(c);
-		if (r == FMED_RASYNC)
-			return;
-		else if (r == FMED_RERR) {
-			tcp_ioerr(c);
-			continue;
-		}
-
-		dbglog(c->d->trk, "receiving response...");
-		ffstr_set(&c->data, c->bufs[0].ptr, net->conf.bufsize);
-		c->state = I_HTTP_RESP;
-		call_handler(c, FMED_NET_RESP_WAIT);
-		return;
-
-	case I_HTTP_RESP:
-		r = tcp_recvhdrs(c);
-		if (r == FMED_RASYNC)
-			return;
-		else if (r == FMED_RMORE) {
-			c->state = I_ERR;
-			continue;
-		} else if (r == FMED_RERR) {
-			tcp_ioerr(c);
-			continue;
-		}
-		c->state = I_HTTP_RESP_PARSE;
-		//fall through
-
-	case I_HTTP_RESP_PARSE:
-		r = http_parse(c);
-		switch (r) {
-		case 0:
-			break;
-		case -1:
-			c->state = I_ERR;
-			continue;
-		case 1:
-			c->state = I_HTTP_RESP;
-			continue;
-		case 2:
-			if (c->flags & FMED_NET_NOREDIRECT)
-				break;
-			c->state = I_ADDR;
-			continue;
-		}
-
-		if (c->resp.h.has_body) {
-			const struct ffhttp_filter *const *f;
-			FFARRS_FOREACH(filters, f) {
-				void *d = (*f)->open(&c->resp.h);
-				if (d == NULL)
-				{}
-				else if (d == (void*)-1) {
-					warnlog(c->d->trk, "filter #%u open error", (int)(f - filters));
-					c->state = I_ERR;
-					continue;
-				} else {
-					dbglog(c->d->trk, "opened filter #%u", (int)(f - filters));
-					c->f.iface = *f;
-					c->f.p = d;
-					break;
-				}
-			}
-		}
-
-		ffstr_set2(&c->data, &c->bufs[0]);
-		ffstr_shift(&c->data, c->resp.h.len);
-		c->bufs[0].len = 0;
-		if (c->resp.h.has_body)
-			c->state = I_HTTP_RESPBODY;
-		else
-			c->state = I_DONE;
-		call_handler(c, FMED_NET_RESP);
-		return;
-
-	case I_HTTP_RECVBODY:
-		r = tcp_recv(c);
-		if (r == FMED_RASYNC)
-			return;
-		else if (r == FMED_RERR) {
-			tcp_ioerr(c);
-			continue;
-		} else if (r == FMED_RDONE) {
-			r = http_recv(c, 1);
-			switch (r) {
-			case -1:
-				c->state = I_ERR;
-				continue;
-			case 0:
-				c->state = I_DONE;
-				continue;
-			}
-			c->state = I_DONE;
-			continue;
-		} else if (r == FMED_RMORE) {
-			c->state = I_ERR;
-			continue;
-		}
-		c->data = c->bufs[c->rbuf];
-		c->bufs[c->rbuf].len = 0;
-		c->rbuf = ffint_cycleinc(c->rbuf, net->conf.nbufs);
-		c->state = I_HTTP_RESPBODY;
-		// fall through
-
-	case I_HTTP_RESPBODY:
-		r = http_recv(c, 0);
-		switch (r) {
-		case -1:
-			c->state = I_ERR;
-			continue;
-		case 0:
-			c->state = I_DONE;
-			continue;
-		}
-		if (c->data.len == 0)
-			c->state = I_HTTP_RECVBODY;
-		call_handler(c, FMED_NET_RESP_RECV);
-		return;
-
-	case I_ERR:
-	case I_DONE: {
-		uint r = (c->state == I_ERR) ? FMED_NET_ERR : FMED_NET_DONE;
-		c->state = I_NOOP;
-		call_handler(c, r);
-		return;
-	}
-
-	case I_NOOP:
-		return;
-	}
-	}
-}
-
-static int http_recv(nethttp *c, uint tcpfin)
-{
-	int r;
-	ffstr s;
-	if (!tcpfin)
-		r = c->f.iface->process(c->f.p, &c->data, &s);
-	else
-		r = c->f.iface->process(c->f.p, NULL, &s);
-	if (ffhttp_iserr(r)) {
-		warnlog(c->d->trk, "filter error: (%d) %s", r, ffhttp_errstr(r));
-		return -1;
-	}
-	c->outdata = s;
-	if (r == FFHTTP_DONE)
-		return 0;
-	return 1;
-}
-
-static void http_if_send(void *con, const ffstr *data)
-{
-	FF_ASSERT(data == NULL);
-	http_if_process(con);
-}
-
-static int http_if_recv(void *con, ffhttp_response **resp, ffstr *data)
-{
-	nethttp *c = con;
-	*resp = &c->resp;
-	ffstr_set2(data, &c->outdata);
-	c->outdata.len = 0;
-	return c->status;
-}
-
-static void http_if_header(void *con, const ffstr *name, const ffstr *val, uint flags)
-{
-	nethttp *c = con;
-	ffhttp_addhdr_str(&c->hdrs, name, val);
 }
 
 
@@ -700,378 +264,83 @@ static int http_conf_done(ffparser_schem *p, void *obj)
 	return 0;
 }
 
-static int buf_alloc(nethttp *c, size_t size)
+
+static void http_if_log(void *udata, uint level, const char *fmt, ...)
 {
-	uint i;
-	for (i = 0;  i != net->conf.nbufs;  i++) {
-		if (NULL == (ffstr_alloc(&c->bufs[i], size))) {
-			syserrlog(c->d->trk, "%s", ffmem_alloc_S);
-			return -1;
-		}
-	}
-	return 0;
-}
-
-static int ip_resolve(nethttp *c)
-{
-	char *hostz;
-	int r;
-
-	ffurl_init(&c->url);
-	if (0 != (r = ffurl_parse(&c->url, c->target_url.ptr, c->target_url.len))) {
-		errlog(c->d->trk, "URL parse: %S: %s"
-			, &c->target_url, ffurl_errstr(r));
-		goto done;
-	}
-	if (c->url.port == 0)
-		c->url.port = FFHTTP_PORT;
-
-	if (!c->proxy) {
-		ffstr host = ffurl_get(&c->url, c->target_url.ptr, FFURL_HOST);
-		ffstr_set2(&c->hostname, &host);
-		c->hostport = c->url.port;
-		r = ffurl_parse_ip(&c->url, c->target_url.ptr, &c->ip);
-	} else {
-		r = ffip_parse(c->hostname.ptr, c->hostname.len, &c->ip);
-	}
-
-	if (r < 0) {
-		errlog(c->d->trk, "bad IP address: %S", &c->hostname);
-		goto done;
-	} else if (r != 0) {
-		ffip_list_set(&c->iplist, r, &c->ip);
-		ffip_iter_set(&c->curaddr, &c->iplist, NULL);
-		return 0;
-	}
-
-	if (NULL == (hostz = ffsz_alcopystr(&c->hostname))) {
-		syserrlog(c->d->trk, "%s", ffmem_alloc_S);
-		goto done;
-	}
-
-	infolog(c->d->trk, "resolving host %S...", &c->hostname);
-	r = ffaddr_info(&c->addr, hostz, NULL, 0);
-	ffmem_free(hostz);
-	if (r != 0) {
-		syserrlog(c->d->trk, "%s", ffaddr_info_S);
-		goto done;
-	}
-	ffip_iter_set(&c->curaddr, NULL, c->addr);
-
-	if (core->loglev == FMED_LOG_DEBUG) {
-		size_t n;
-		char buf[FF_MAXIP6];
-		ffip_iter it;
-		ffip_iter_set(&it, NULL, c->addr);
-		uint fam;
-		void *ip;
-		while (0 != (fam = ffip_next(&it, &ip))) {
-			n = ffip_tostr(buf, sizeof(buf), fam, ip, 0);
-			dbglog(c->d->trk, "%*s", n, buf);
-		}
-	}
-
-	return 0;
-
-done:
-	return -1;
-}
-
-static int tcp_prepare(nethttp *c, ffaddr *a)
-{
-	void *ip;
-	int family;
-	while (0 != (family = ffip_next(&c->curaddr, &ip))) {
-
-		ffaddr_setip(a, family, ip);
-		ffip_setport(a, c->hostport);
-
-		char saddr[FF_MAXIP6];
-		size_t n = ffaddr_tostr(a, saddr, sizeof(saddr), FFADDR_USEPORT);
-		infolog(c->d->trk, "connecting to %S (%*s)...", &c->hostname, n, saddr);
-
-		if (FF_BADSKT == (c->sk = ffskt_create(family, SOCK_STREAM | SOCK_NONBLOCK, IPPROTO_TCP))) {
-			syswarnlog(c->d->trk, "%s", ffskt_create_S);
-			ffskt_close(c->sk);
-			c->sk = FF_BADSKT;
-			continue;
-		}
-
-		if (0 != ffskt_setopt(c->sk, IPPROTO_TCP, TCP_NODELAY, 1))
-			syswarnlog(c->d->trk, "%s", ffskt_setopt_S);
-
-		ffaio_init(&c->aio);
-		c->aio.sk = c->sk;
-		c->aio.udata = c;
-		fffd kq = core->kq;
-		if (c->d->trk != NULL)
-			kq = (fffd)net->track->cmd(c->d->trk, FMED_TRACK_KQ);
-		if (0 != ffaio_attach(&c->aio, kq, FFKQU_READ | FFKQU_WRITE)) {
-			syserrlog(c->d->trk, "%s", ffkqu_attach_S);
-			return -1;
-		}
-		return 0;
-	}
-
-	errlog(c->d->trk, "no next address to connect");
-	c->d->e_no_source = 1;
-	return -1;
-}
-
-static void tcp_aio(void *udata)
-{
-	nethttp *c = udata;
-	c->async = 0;
-	core->timer(&c->tmr, 0, 0);
-	http_if_process(c);
-}
-
-static int tcp_connect(nethttp *c, const struct sockaddr *addr, socklen_t addr_size)
-{
-	int r;
-	r = ffaio_connect(&c->aio, &tcp_aio, addr, addr_size);
-	if (r == FFAIO_ERROR) {
-		syswarnlog(c->d->trk, "%s", ffskt_connect_S);
-		ffskt_close(c->sk);
-		c->sk = FF_BADSKT;
-		ffaio_fin(&c->aio);
-		return FMED_RMORE;
-
-	} else if (r == FFAIO_ASYNC) {
-		c->async = 1;
-		core->timer(&c->tmr, -(int)net->conf.conn_tmout, 0);
-		return FMED_RASYNC;
-	}
-
-	dbglog(c->d->trk, "%s ok", ffskt_connect_S);
-	FF_SAFECLOSE(c->addr, NULL, ffaddr_free);
-	ffmem_tzero(&c->curaddr);
-	return 0;
-}
-
-static void tcp_ontmr(void *param)
-{
-	nethttp *c = param;
-	warnlog(c->d->trk, "I/O timeout", 0);
-	c->async = 0;
-	tcp_ioerr(c);
-	http_if_process(c);
-}
-
-static int tcp_recvhdrs(nethttp *c)
-{
-	ssize_t r;
-
-	if (c->bufs[0].len == net->conf.bufsize) {
-		errlog(c->d->trk, "too large response headers [%L]"
-			, c->bufs[0].len);
-		return FMED_RMORE;
-	}
-
-	r = ffaio_recv(&c->aio, &tcp_aio, ffarr_end(&c->bufs[0]), net->conf.bufsize - c->bufs[0].len);
-	if (r == FFAIO_ASYNC) {
-		dbglog(c->d->trk, "async recv...");
-		c->async = 1;
-		core->timer(&c->tmr, -(int)net->conf.tmout, 0);
-		return FMED_RASYNC;
-	}
-
-	if (r <= 0) {
-		if (r == 0)
-			errlog(c->d->trk, "server has closed connection");
-		else
-			syserrlog(c->d->trk, "%s", ffskt_recv_S);
-		return FMED_RERR;
-	}
-
-	c->bufs[0].len += r;
-	dbglog(c->d->trk, "recv: +%L [%L]", r, c->bufs[0].len);
-	return 0;
-}
-
-static int tcp_ioerr(nethttp *c)
-{
-	if (c->reconnects++ == c->max_reconnect) {
-		errlog(c->d->trk, "reached max number of reconnections", 0);
-		c->state = I_ERR;
-		return 1;
-	}
-
-	ffskt_fin(c->sk);
-	ffskt_close(c->sk);
-	c->sk = FF_BADSKT;
-	ffaio_fin(&c->aio);
-
-	ffarr_free(&c->target_url);
-	ffstr_set2(&c->target_url, &c->orig_target_url);
-	ffmem_tzero(&c->url);
-	ffmem_tzero(&c->iplist);
-	ffmem_tzero(&c->ip);
-
-	for (uint i = 0;  i != net->conf.nbufs;  i++) {
-		c->bufs[i].len = 0;
-	}
-	c->curbuf_len = 0;
-	c->wbuf = c->rbuf = 0;
-	c->lowat = 0;
-
-	ffhttp_respfree(&c->resp);
-	ffhttp_respinit(&c->resp);
-	c->state = I_ADDR;
-	dbglog(c->d->trk, "reconnecting...", 0);
-	return 0;
-}
-
-static int tcp_recv(nethttp *c)
-{
-	ssize_t r;
-
-	if (c->curbuf_len == net->conf.bufsize) {
-		errlog(c->d->trk, "buffer #%u is full", c->wbuf);
-		return FMED_RMORE;
-	}
-
-	for (;;) {
-
-		dbglog(c->d->trk, "buf #%u recv...  rpending:%u  size:%u"
-			, c->wbuf, c->aio.rpending
-			, (int)net->conf.bufsize - (int)c->curbuf_len);
-		r = ffaio_recv(&c->aio, &tcp_aio, c->bufs[c->wbuf].ptr + c->curbuf_len, net->conf.bufsize - c->curbuf_len);
-		if (r == FFAIO_ASYNC) {
-			dbglog(c->d->trk, "buf #%u async recv...", c->wbuf);
-			c->async = 1;
-			core->timer(&c->tmr, -(int)net->conf.tmout, 0);
-			return FMED_RASYNC;
-		}
-
-		if (r == 0) {
-			dbglog(c->d->trk, "server has closed connection");
-			return FMED_RDONE;
-		} else if (r < 0) {
-			syserrlog(c->d->trk, "%s", ffskt_recv_S);
-			return FMED_RERR;
-		}
-
-		c->curbuf_len += r;
-		dbglog(c->d->trk, "buf #%u recv: +%L [%L]", c->wbuf, r, c->curbuf_len);
-		if (c->curbuf_len < c->lowat)
-			continue;
-
-		c->bufs[c->wbuf].len = c->curbuf_len;
-		c->curbuf_len = 0;
-		c->wbuf = ffint_cycleinc(c->wbuf, net->conf.nbufs);
-		if (c->preload && c->bufs[c->wbuf].len == 0) {
-			// the next buffer is free, so start filling it
-			continue;
-		}
-
-		break;
-	}
-
-	return FMED_RDATA;
-}
-
-static int tcp_send(nethttp *c)
-{
-	int r;
-
-	for (;;) {
-		r = ffaio_send(&c->aio, &tcp_aio, c->data.ptr, c->data.len);
-		if (r == FFAIO_ERROR) {
-			syserrlog(c->d->trk, "%s", ffskt_send_S);
-			return FMED_RERR;
-
-		} else if (r == FFAIO_ASYNC) {
-			c->async = 1;
-			core->timer(&c->tmr, -(int)net->conf.tmout, 0);
-			return FMED_RASYNC;
-		}
-
-		dbglog(c->d->trk, "send: +%u", r);
-		ffstr_shift(&c->data, r);
-		if (c->data.len == 0)
-			return 0;
-	}
-}
-
-static int http_prepreq(nethttp *c, ffstr *dst)
-{
-	ffstr s;
-	ffhttp_cook ck;
-
-	ffhttp_cookinit(&ck, NULL, 0);
-
-	if (c->flags & FMED_NET_HTTP10)
-		ffstr_setcz(&ck.proto, "HTTP/1.0");
-
-	if (!c->proxy)
-		s = ffurl_get(&c->url, c->target_url.ptr, FFURL_PATHQS);
-	else
-		ffstr_set2(&s, &c->target_url);
-	ffhttp_addrequest(&ck, c->method, ffsz_len(c->method), s.ptr, s.len);
-
-	s = ffurl_get(&c->url, c->target_url.ptr, FFURL_FULLHOST);
-	ffhttp_addihdr(&ck, FFHTTP_HOST, s.ptr, s.len);
-
-	ffarr_append(&ck.buf, c->hdrs.buf.ptr, c->hdrs.buf.len);
-
-	if (net->conf.user_agent != 0) {
-		ffstr_setz(&s, http_ua[net->conf.user_agent - 1]);
-		ffhttp_addihdr(&ck, FFHTTP_USERAGENT, s.ptr, s.len);
-	}
-	ffhttp_cookfin(&ck);
-	ffstr_acqstr3(&c->hbuf, &ck.buf);
-	ffstr_set2(dst, &c->hbuf);
-	ffhttp_cookdestroy(&ck);
-	dbglog(c->d->trk, "sending request: %S", dst);
-	return 0;
-}
-
-/**
-Return 0 on success;  1 - need more data;  2 - redirect;  -1 on error. */
-static int http_parse(nethttp *c)
-{
-	ffstr s;
-	int r = ffhttp_respparse_all(&c->resp, c->bufs[0].ptr, c->bufs[0].len, FFHTTP_IGN_STATUS_PROTO);
-	switch (r) {
-	case FFHTTP_DONE:
-		break;
-	case FFHTTP_MORE:
-		return 1;
+	uint lev;
+	switch (level & 0x0f) {
+	case FFHTTPCL_LOG_ERR:
+		lev = FMED_LOG_ERR; break;
+	case FFHTTPCL_LOG_WARN:
+		lev = FMED_LOG_WARN; break;
+	case FFHTTPCL_LOG_USER:
+		lev = FMED_LOG_USER; break;
+	case FFHTTPCL_LOG_INFO:
+		lev = FMED_LOG_INFO; break;
+	case FFHTTPCL_LOG_DEBUG:
+		lev = FMED_LOG_DEBUG; break;
 	default:
-		errlog(c->d->trk, "parse HTTP response: %s", ffhttp_errstr(r));
-		return -1;
+		return;
 	}
+	if (level & FFHTTPCL_LOG_SYS)
+		lev |= FMED_LOG_SYS;
 
-	dbglog(c->d->trk, "HTTP response: %*s", c->resp.h.len, c->bufs[0].ptr);
-
-	if ((c->resp.code == 301 || c->resp.code == 302)
-		&& c->nredirect++ != net->conf.max_redirect
-		&& 0 != ffhttp_findihdr(&c->resp.h, FFHTTP_LOCATION, &s)) {
-
-		infolog(c->d->trk, "HTTP redirect: %S", &s);
-		if (c->sk != FF_BADSKT) {
-			ffskt_fin(c->sk);
-			ffskt_close(c->sk);
-			c->sk = FF_BADSKT;
-		}
-		ffaio_fin(&c->aio);
-		ffarr_free(&c->target_url);
-		if (0 == ffstr_fmt(&c->target_url, "%S", &s)) {
-			syserrlog(c->d->trk, "%s", ffmem_alloc_S);
-			return -1;
-		}
-		ffurl_init(&c->url);
-		c->bufs[0].len = 0;
-		ffhttp_respfree(&c->resp);
-		ffhttp_respinit(&c->resp);
-		return 2;
-	}
-
-	return 0;
+	va_list va;
+	va_start(va, fmt);
+	core->logv(lev, NULL, "net.httpif", fmt, va);
+	va_end(va);
 }
 
-#undef FILT_NAME
+static void http_if_timer(fftmrq_entry *tmr, uint value_ms)
+{
+	core->timer(tmr, -(int)value_ms, 0);
+}
+
+static void* http_if_request(const char *method, const char *url, uint flags)
+{
+	void *c = ffhttpcl_request(method, url, flags);
+	if (c == NULL)
+		return NULL;
+
+	struct ffhttpcl_conf conf;
+	ffhttpcl_conf(c, &conf, FFHTTPCL_CONF_GET);
+	conf.kq = core->kq;
+	conf.log = &http_if_log;
+	conf.timer = &http_if_timer;
+	conf.nbuffers = net->conf.nbufs;
+	conf.buffer_size = net->conf.bufsize;
+	conf.connect_timeout = net->conf.conn_tmout;
+	conf.timeout = net->conf.tmout;
+	conf.max_redirect = net->conf.max_redirect;
+	conf.max_reconnect = net->conf.max_reconnect;
+	conf.debug_log = (core->loglev == FMED_LOG_DEBUG);
+	ffhttpcl_conf(c, &conf, FFHTTPCL_CONF_SET);
+	return c;
+}
+static void http_if_close(void *con)
+{
+	ffhttpcl_close(con);
+}
+static void http_if_sethandler(void *con, ffhttpcl_handler func, void *udata)
+{
+	ffhttpcl_sethandler(con, func, udata);
+}
+static void http_if_send(void *con, const ffstr *data)
+{
+	ffhttpcl_send(con, data);
+}
+static int http_if_recv(void *con, ffhttp_response **resp, ffstr *data)
+{
+	return ffhttpcl_recv(con, resp, data);
+}
+static void http_if_header(void *con, const ffstr *name, const ffstr *val, uint flags)
+{
+	ffhttpcl_header(con, name, val, flags);
+}
+static void http_if_conf(void *con, struct ffhttpcl_conf *conf, uint flags)
+{
+	ffhttpcl_conf(con, conf, flags);
+}
 
 
 #define FILT_NAME  "net.icy"
@@ -1455,9 +724,9 @@ static void httpcli_handler(void *param)
 	int r = http_iface.recv(c->con, &resp, &data);
 	c->status = r;
 
-	switch ((enum FMED_NET_ST)r) {
+	switch (r) {
 
-	case FMED_NET_RESP:
+	case FFHTTPCL_RESP:
 		c->d->net_reconnect = 1;
 		r = httpcli_resp(c, resp);
 		if (r == FMED_RERR) {
@@ -1467,19 +736,48 @@ static void httpcli_handler(void *param)
 		}
 		break;
 
-	case FMED_NET_RESP_RECV:
+	case FFHTTPCL_RESP_RECV:
 		c->data = data;
 		//fallthrough
-	case FMED_NET_DONE:
-	case FMED_NET_ERR:
+	case FFHTTPCL_DONE:
 		net->track->cmd(c->trk, FMED_TRACK_WAKE);
 		return;
+	}
 
-	default:
-		break;
+	if (r < 0) {
+		net->track->cmd(c->trk, FMED_TRACK_WAKE);
+		return;
 	}
 
 	http_iface.send(c->con, NULL);
+}
+
+static void httpcli_log(void *udata, uint level, const char *fmt, ...)
+{
+	struct httpclient *c = udata;
+
+	uint lev;
+	switch (level & 0x0f) {
+	case FFHTTPCL_LOG_ERR:
+		lev = FMED_LOG_ERR; break;
+	case FFHTTPCL_LOG_WARN:
+		lev = FMED_LOG_WARN; break;
+	case FFHTTPCL_LOG_USER:
+		lev = FMED_LOG_USER; break;
+	case FFHTTPCL_LOG_INFO:
+		lev = FMED_LOG_INFO; break;
+	case FFHTTPCL_LOG_DEBUG:
+		lev = FMED_LOG_DEBUG; break;
+	default:
+		return;
+	}
+	if (level & FFHTTPCL_LOG_SYS)
+		lev |= FMED_LOG_SYS;
+
+	va_list va;
+	va_start(va, fmt);
+	core->logv(lev, c->d->trk, "net.httpif", fmt, va);
+	va_end(va);
 }
 
 /**
@@ -1500,11 +798,24 @@ static int httpcli_process(void *ctx, fmed_filt *d)
 		if (NULL == (c->con = http_iface.request("GET", url, 0)))
 			return FMED_RERR;
 
+		struct ffhttpcl_conf conf;
+		http_iface.conf(c->con, &conf, FFHTTPCL_CONF_GET);
+		if (d->trk != NULL)
+			conf.kq = (fffd)net->track->cmd(d->trk, FMED_TRACK_KQ);
+		conf.log = &httpcli_log;
+		http_iface.conf(c->con, &conf, FFHTTPCL_CONF_SET);
+
 		core->getmod("net.icy"); // load net.icy config
 		if (net->conf.meta) {
 			ffstr val;
 			ffstr_setz(&val, "1");
 			http_iface.header(c->con, &fficy_shdr[FFICY_HMETADATA], &val, 0);
+		}
+
+		if (net->conf.user_agent != 0) {
+			ffstr s;
+			ffstr_setz(&s, http_ua[net->conf.user_agent - 1]);
+			http_iface.header(c->con, &ffhttp_shdr[FFHTTP_USERAGENT], &s, 0);
 		}
 
 		http_iface.sethandler(c->con, &httpcli_handler, c);
@@ -1515,14 +826,18 @@ static int httpcli_process(void *ctx, fmed_filt *d)
 
 	case 1:
 		switch (c->status) {
-		case FMED_NET_RESP_RECV:
+		case FFHTTPCL_RESP_RECV:
 			c->st = 2;
 			d->out = c->data.ptr,  d->outlen = c->data.len;
 			return FMED_RDATA;
 
-		case FMED_NET_DONE:
+		case FFHTTPCL_DONE:
 			d->outlen = 0;
 			return FMED_RDONE;
+
+		case FFHTTPCL_ENOADDR:
+			c->d->e_no_source = 1;
+			break;
 		}
 		return FMED_RERR;
 
