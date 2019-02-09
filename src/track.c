@@ -229,11 +229,6 @@ static int trk_setout(fm_trk *t)
 	ffbool stream_copy = t->props.stream_copy;
 
 	if (t->props.type == FMED_TRK_TYPE_NETIN) {
-		ffstr ext;
-		const char *input = trk_getvalstr(t, "input");
-		ffpath_splitname(input, ffsz_len(input), NULL, &ext);
-		if (NULL == trk_modbyext(t, FMED_MOD_INEXT, &ext))
-			return -1;
 
 	} else if (t->props.type == FMED_TRK_TYPE_NONE) {
 		return 0;

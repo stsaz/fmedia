@@ -106,7 +106,7 @@ static void _que_meta_set(fmed_que_entry *ent, const char *name, size_t name_len
 static ffstr* que_meta_find(fmed_que_entry *ent, const char *name, size_t name_len);
 static ffstr* que_meta(fmed_que_entry *ent, size_t n, ffstr *name, uint flags);
 static const fmed_queue fmed_que_mgr = {
-	&que_cmd2, &_que_add, &que_cmd, &_que_meta_set, &que_meta_find, &que_meta, &que_cmdv
+	&que_cmdv, &que_cmd, &que_cmd2, &_que_add, &_que_meta_set, &que_meta_find, &que_meta
 };
 
 static fmed_que_entry* que_add(fmed_que_entry *ent, uint flags);
@@ -375,7 +375,7 @@ static void que_play(entry *e)
 static void que_play2(entry *ent, uint flags)
 {
 	fmed_que_entry *e = &ent->e;
-	void *trk = qu->track->create(FMED_TRACK_OPEN, e->url.ptr);
+	void *trk = qu->track->create(FMED_TRK_TYPE_PLAYBACK, e->url.ptr);
 	uint i;
 
 	if (trk == NULL)
@@ -769,7 +769,7 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 	case FMED_QUE_EXPAND: {
 		void *r = param;
 		e = FF_GETPTR(entry, e, r);
-		void *trk = qu->track->create(FMED_TRACK_OPEN, e->e.url.ptr);
+		void *trk = qu->track->create(FMED_TRK_TYPE_PLAYBACK, e->e.url.ptr);
 		fmed_trk *t = qu->track->conf(trk);
 		t->input_info = 1;
 		e->expand = 1;

@@ -24,9 +24,9 @@ mixer                 mixer
 
 
 #define FMED_VER_MAJOR  1
-#define FMED_VER_MINOR  4
+#define FMED_VER_MINOR  5
 #define FMED_VER_FULL  ((FMED_VER_MAJOR << 8) | FMED_VER_MINOR)
-#define FMED_VER  "1.4"
+#define FMED_VER  "1.5"
 
 #define FMED_VER_GETMAJ(fullver)  ((fullver) >> 8)
 #define FMED_VER_GETMIN(fullver)  ((fullver) & 0xff)
@@ -35,7 +35,7 @@ mixer                 mixer
 It must be updated when incompatible changes are made to this file,
  then all modules must be rebuilt.
 The core will refuse to load modules built for any other core version. */
-#define FMED_VER_CORE  ((FMED_VER_MAJOR << 8) | 0)
+#define FMED_VER_CORE  ((FMED_VER_MAJOR << 8) | 5)
 
 #define FMED_HOMEPAGE  "http://fmedia.firmdev.com"
 
@@ -278,6 +278,8 @@ enum FMED_TRACK_CMD {
 	Return filter ID;  NULL on error. */
 	FMED_TRACK_FILT_ADD,
 	FMED_TRACK_FILT_ADDPREV,
+	FMED_TRACK_FILT_ADDFIRST,
+	FMED_TRACK_FILT_ADDLAST,
 
 	FMED_TRACK_META_HAVEUSER,
 
@@ -297,9 +299,6 @@ enum FMED_TRACK_CMD {
 
 	FMED_TRACK_MONITOR,
 
-	FMED_TRACK_FILT_ADDFIRST,
-	FMED_TRACK_FILT_ADDLAST,
-
 	/** Get kernel queue associated with this track.
 	Return fffd. */
 	FMED_TRACK_KQ,
@@ -318,10 +317,8 @@ enum FMED_TRK_TYPE {
 	_FMED_TRK_TYPE_END,
 
 	//obsolete:
-	FMED_TRACK_OPEN = FMED_TRK_TYPE_PLAYBACK,
 	FMED_TRACK_REC = FMED_TRK_TYPE_REC,
 	FMED_TRACK_MIX = FMED_TRK_TYPE_MIXOUT,
-	FMED_TRACK_NET = FMED_TRK_TYPE_NETIN,
 };
 
 enum FMED_TRK_FVAL {
@@ -448,6 +445,11 @@ struct fmed_trk {
 		uint bitrate; //bit/s
 		const char *decoder;
 	} audio;
+	uint64 a_prebuffer; //msec
+	float a_start_level; //dB
+	float a_stop_level; //dB
+	uint a_stop_level_time; //msec
+	uint a_stop_level_mintime; //msec
 
 	struct {
 		ffstr profile;
@@ -475,6 +477,8 @@ struct fmed_trk {
 		uint64 seek;
 	} input, output;
 	fftime mtime;
+	ffarr2 include_files; //ffstr[]
+	ffarr2 exclude_files; //ffstr[]
 	union {
 	uint bits;
 	struct {
@@ -512,14 +516,6 @@ struct fmed_trk {
 	const char *out;
 	void **outni;
 	};
-
-	uint64 a_prebuffer; //msec
-	float a_start_level; //dB
-	float a_stop_level; //dB
-	uint a_stop_level_time; //msec
-	uint a_stop_level_mintime; //msec
-	ffarr2 include_files; //ffstr[]
-	ffarr2 exclude_files; //ffstr[]
 };
 
 enum FMED_R {
@@ -796,15 +792,21 @@ enum FMED_QUE_META_F {
 #define FMED_QUE_SKIP  ((void*)-1)
 
 typedef struct fmed_queue {
+	/**
+	@cmd: enum FMED_QUE + enum FMED_QUE_CMDF
+	*/
+	ssize_t (*cmdv)(uint cmd, ...);
+
+	/** (obsolete)
+	@cmd: enum FMED_QUE */
+	void (*cmd)(uint cmd, void *param);
+
 	/** (obsolete)
 	@cmd: enum FMED_QUE + enum FMED_QUE_CMDF
 	*/
 	ssize_t (*cmd2)(uint cmd, void *param, size_t param2);
 
 	fmed_que_entry* (*add)(fmed_que_entry *ent);
-
-	/** @cmd: enum FMED_QUE */
-	void (*cmd)(uint cmd, void *param);
 
 	/** flags: enum FMED_QUE_META_F */
 	void (*meta_set)(fmed_que_entry *ent, const char *name, size_t name_len, const char *val, size_t val_len, uint flags);
@@ -814,11 +816,6 @@ typedef struct fmed_queue {
 	@flags: enum FMED_QUE_META_F.
 	Return meta value;  NULL: no more entries;  FMED_QUE_SKIP: skip this entry. */
 	ffstr* (*meta)(fmed_que_entry *ent, size_t n, ffstr *name, uint flags);
-
-	/**
-	@cmd: enum FMED_QUE + enum FMED_QUE_CMDF
-	*/
-	ssize_t (*cmdv)(uint cmd, ...);
 } fmed_queue;
 
 /** Get playlist entry.

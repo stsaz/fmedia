@@ -1,4 +1,4 @@
-/** IP|TCP|HTTP input;  ICY input.
+/** HTTP, ICY input;  ICY stream-copy filter;  HTTP client interface.
 Copyright (c) 2016 Simon Zolin */
 
 #include <fmedia.h>
@@ -541,13 +541,19 @@ static void* netin_create(icy *c)
 	void *trk;
 	fmed_trk *trkconf;
 	if (NULL == (n = ffmem_tcalloc1(netin)))
-		return NULL;
+		goto fail;
 
-	if (NULL == (trk = net->track->create(FMED_TRACK_NET, "")))
-		return NULL;
+	if (NULL == (trk = net->track->create(FMED_TRK_TYPE_NETIN, "")))
+		goto fail;
 
-	if (0 != net->track->cmd2(trk, FMED_TRACK_ADDFILT_BEGIN, "net.in"))
-		return NULL;
+	if (0 == net->track->cmd(trk, FMED_TRACK_FILT_ADDLAST, "net.in"))
+		goto fail;
+
+	const fmed_modinfo *mi = core->getmod2(FMED_MOD_INEXT, c->next_filt_ext.ptr, c->next_filt_ext.len);
+	if (mi == NULL)
+		goto fail;
+	if (0 == net->track->cmd(trk, FMED_TRACK_FILT_ADDLAST, mi->name))
+		goto fail;
 
 	trkconf = net->track->conf(trk);
 	trkconf->out_overwrite = c->d->out_overwrite;
@@ -557,12 +563,6 @@ static void* netin_create(icy *c)
 	n->fn_dyn = (NULL != ffsz_findc(output, '$'));
 	net->track->setvalstr(trk, "output", output);
 
-	if (ffstr_eqcz(&c->next_filt_ext, "aac"))
-		net->track->setvalstr(trk, "input", "?.aac");
-	else if (ffstr_eqcz(&c->next_filt_ext, "ogg"))
-		net->track->setvalstr(trk, "input", "?.ogg");
-	else
-		net->track->setvalstr(trk, "input", "?.mp3");
 	net->track->setval(trk, "netin_ptr", (size_t)n);
 	n->c = c;
 
@@ -581,6 +581,10 @@ static void* netin_create(icy *c)
 
 	net->track->cmd(trk, FMED_TRACK_START);
 	return n;
+
+fail:
+	ffmem_free(n);
+	return NULL;
 }
 
 static void netin_write(netin *n, const ffstr *data)

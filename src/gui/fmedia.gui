@@ -355,7 +355,7 @@ window wmain {
 	}
 
 	label lpos {
-		position 155 10 100 20
+		position 155 10 150 20
 		style visible
 		font {
 			name Arial

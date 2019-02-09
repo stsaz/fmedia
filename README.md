@@ -38,6 +38,7 @@ FEATURES
 ### INPUT
 * File
 * ICY
+* HLS
 * WASAPI Capture
 * Windows Direct Sound Capture
 * ALSA Capture

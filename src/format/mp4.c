@@ -123,6 +123,13 @@ static void mp4_meta(mp4 *m, fmed_filt *d)
 	d->track->meta_set(d->trk, &name, &val, FMED_QUE_TMETA);
 }
 
+/**
+. Read .mp4 data.
+. Add the appropriate audio decoding filter.
+  Set decoder properties.
+  The first output data block contains codec-specific configuration data.
+. The subsequent blocks are audio frames.
+*/
 static int mp4_in_decode(void *ctx, fmed_filt *d)
 {
 	enum { I_HDR, I_DATA1, I_DATA, };
@@ -154,6 +161,7 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 			m->state = I_DATA;
 			return FMED_RDATA;
 		}
+		//fallthrough
 
 	case I_HDR:
 		r = ffmp4_read(&m->mp);
@@ -175,8 +183,8 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 			if (m->mp.codec == FFMP4_ALAC) {
 				filt = "alac.decode";
 				d->audio.bitrate = ffmp4_bitrate(&m->mp);
-			}
-			else if (m->mp.codec == FFMP4_AAC) {
+
+			} else if (m->mp.codec == FFMP4_AAC) {
 				filt = "aac.decode";
 				if (!d->stream_copy) {
 					fmed_setval("audio_enc_delay", m->mp.enc_delay);

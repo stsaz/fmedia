@@ -950,7 +950,7 @@ fmedia-ver-os-arch.tar.xz
 struct httpreq {
 	void *con;
 	ffarr data;
-	uint status;
+	int status;
 	ffui_handler ondone;
 };
 
@@ -969,11 +969,10 @@ static void http_sig(void *obj)
 	int r = net->recv(h->con, &resp, &d);
 	h->status = r;
 	switch (r) {
-	case FMED_NET_RESP_RECV:
+	case FFHTTPCL_RESP_RECV:
 		ffarr_append(&h->data, d.ptr, d.len);
 		break;
-	case FMED_NET_DONE:
-		ffarr_append(&h->data, d.ptr, d.len);
+	case FFHTTPCL_DONE:
 		ffui_thd_post(h->ondone, h);
 		break;
 	}
@@ -1010,7 +1009,7 @@ static void upd_done(void *obj)
 	struct httpreq *h = obj;
 
 	switch (h->status) {
-	case FMED_NET_DONE: {
+	case FFHTTPCL_DONE: {
 		ffstr s, v;
 		ffstr_set2(&s, &h->data);
 		while (s.len != 0) {
@@ -1058,8 +1057,7 @@ void gui_upd_check(void)
 		return;
 	}
 	net->sethandler(h->con, &http_sig, h);
-	ffstr s = {0};
-	net->send(h->con, &s);
+	net->send(h->con, NULL);
 }
 
 

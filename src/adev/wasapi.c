@@ -399,7 +399,11 @@ static int wasapi_create(wasapi_out *w, fmed_filt *d)
 			return FMED_RMORE;
 		}
 
-		errlog(core, d->trk, "wasapi", "ffwas_open(): (%xu) %s", r, ffwas_errstr(r));
+		errlog(core, d->trk, "wasapi", "opening device #%u: %s: (%xu) %s, format:%s/%u/%u, excl:%u"
+			, w->dev.idx
+			, mod->out.errfunc, r, ffwas_errstr(r)
+			, ffpcm_fmtstr(in_fmt.format), in_fmt.sample_rate, in_fmt.channels
+			, excl);
 		goto done;
 	}
 
@@ -642,7 +646,11 @@ again:
 			goto again;
 		}
 
-		errlog(core, d->trk, "wasapi", "ffwas_capt_open(): (%xu) %s", r, ffwas_errstr(r));
+		errlog(core, d->trk, "wasapi", "opening device #%u: %s: (%xu) %s, format:%s/%u/%u, excl:%u"
+			, dev.idx
+			, w->wa.errfunc, r, ffwas_errstr(r)
+			, ffpcm_fmtstr(in_fmt.format), in_fmt.sample_rate, in_fmt.channels
+			, excl);
 		goto fail;
 	}
 

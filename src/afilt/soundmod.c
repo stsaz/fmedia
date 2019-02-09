@@ -524,6 +524,7 @@ static int sndmod_untl_process(void *ctx, fmed_filt *d)
 	}
 
 	samps = d->datalen / u->sampsize;
+	dbglog(core, d->trk, "until", "at %U..%U", pos, pos + samps);
 	d->datalen = 0;
 	if (pos + samps >= u->until) {
 		dbglog(core, d->trk, "until", "reached sample #%U", u->until);

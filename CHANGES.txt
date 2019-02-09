@@ -8,6 +8,16 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.5 - Feb 9, 2019
+
+ + HLS client
+ + .mp4: support --stream-copy
+ + WASAPI: --list-dev: Mark default device
+ + WASAPI: --list-dev: Print default format for shared mode
+ + ICY: support UTF-8 meta
+ - Recording with --until produced a file with less audio length than expected
+
+
 fmedia v1.4 - Jan 7, 2019
 
  + net.http: config: "proxy" - Connect via HTTP proxy server
