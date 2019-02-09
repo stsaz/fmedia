@@ -180,6 +180,7 @@ static const fmed_mod fmed_core_mod = {
 // CORE
 static int64 core_getval(const char *name);
 static void core_log(uint flags, void *trk, const char *module, const char *fmt, ...);
+static void core_logv(uint flags, void *trk, const char *module, const char *fmt, va_list va);
 static char* core_getpath(const char *name, size_t len);
 static char* core_env_expand(char *dst, size_t cap, const char *src);
 static int core_sig(uint signo);
@@ -193,7 +194,7 @@ static int core_timer(fftmrq_entry *tmr, int64 interval, uint flags);
 static fmed_core _fmed_core = {
 	0, NULL, 0,
 	&core_getval,
-	&core_log,
+	&core_log, &core_logv,
 	&core_getpath, &core_env_expand,
 	&core_sig, &core_cmd,
 	&core_getmod, &core_getmod2, &core_insmod,
@@ -1698,6 +1699,14 @@ static const char *const loglevs[] = {
 
 static void core_log(uint flags, void *trk, const char *module, const char *fmt, ...)
 {
+	va_list va;
+	va_start(va, fmt);
+	core_logv(flags, trk, module, fmt, va);
+	va_end(va);
+}
+
+static void core_logv(uint flags, void *trk, const char *module, const char *fmt, va_list va)
+{
 	char stime[32];
 	ffdtm dt;
 	fftime t;
@@ -1705,6 +1714,9 @@ static void core_log(uint flags, void *trk, const char *module, const char *fmt,
 	fmed_logdata ld;
 	uint lev = flags & _FMED_LOG_LEVMASK;
 	int e;
+
+	if (!(core->loglev >= (flags & _FMED_LOG_LEVMASK)))
+		return;
 
 	if (flags & FMED_LOG_SYS)
 		e = fferr_last();
@@ -1731,7 +1743,7 @@ static void core_log(uint flags, void *trk, const char *module, const char *fmt,
 		fferr_set(e);
 
 	ld.fmt = fmt;
-	va_start(ld.va, fmt);
+	va_copy(ld.va, va);
 	fmed->cmd.log->log(flags, &ld);
 	va_end(ld.va);
 }

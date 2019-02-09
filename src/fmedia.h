@@ -162,6 +162,7 @@ struct fmed_core {
 	@flags: enum FMED_LOG.
 	*/
 	void (*log)(uint flags, void *trk, const char *module, const char *fmt, ...);
+	void (*logv)(uint flags, void *trk, const char *module, const char *fmt, va_list va);
 
 	/** Return NULL on error. */
 	char* (*getpath)(const char *name, size_t len);
