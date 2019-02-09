@@ -132,6 +132,7 @@ NET_O := $(OBJ_DIR)/net.o \
 	$(FF_OBJ_DIR)/ffcrc.o \
 	$(FF_OBJ_DIR)/ffhashtab.o \
 	$(FF_OBJ_DIR)/ffpath.o \
+	$(FF_OBJ_DIR)/ffm3u.o \
 	$(FF_O) \
 	$(FFOS_SKT)
 net.$(SO): $(NET_O)
