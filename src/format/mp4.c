@@ -20,6 +20,7 @@ typedef struct mp4 {
 typedef struct mp4_out {
 	uint state;
 	ffmp4_cook mp;
+	uint stmcopy :1;
 } mp4_out;
 
 
@@ -98,6 +99,7 @@ static void* mp4_in_create(fmed_filt *d)
 	if ((int64)d->input.size != FMED_NULL)
 		m->mp.total_size = d->input.size;
 
+	d->datatype = "mp4";
 	return m;
 }
 
@@ -145,6 +147,8 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 			m->seeking = 1;
 			uint64 seek = ffpcm_samples(d->audio.seek, m->mp.fmt.sample_rate);
 			ffmp4_seek(&m->mp, seek);
+			if (d->stream_copy)
+				d->audio.seek = FMED_NULL;
 		}
 		if (m->state == I_DATA1) {
 			m->state = I_DATA;
@@ -174,9 +178,11 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 			}
 			else if (m->mp.codec == FFMP4_AAC) {
 				filt = "aac.decode";
-				fmed_setval("audio_enc_delay", m->mp.enc_delay);
-				fmed_setval("audio_end_padding", m->mp.end_padding);
-				d->audio.bitrate = (m->mp.aac_brate != 0) ? m->mp.aac_brate : ffmp4_bitrate(&m->mp);
+				if (!d->stream_copy) {
+					fmed_setval("audio_enc_delay", m->mp.enc_delay);
+					fmed_setval("audio_end_padding", m->mp.end_padding);
+					d->audio.bitrate = (m->mp.aac_brate != 0) ? m->mp.aac_brate : ffmp4_bitrate(&m->mp);
+				}
 
 			} else if (m->mp.codec == FFMP4_MPEG1) {
 				filt = "mpeg.decode";
@@ -186,8 +192,14 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 				errlog(core, d->trk, "mp4", "%s: decoding unsupported", ffmp4_codec(m->mp.codec));
 				return FMED_RERR;
 			}
-			if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, (void*)filt))
+
+			if (m->mp.frame_samples != 0)
+				fmed_setval("audio_frame_samples", m->mp.frame_samples);
+
+			if (!d->stream_copy
+				&& 0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, (void*)filt))
 				return FMED_RERR;
+
 			d->data = m->mp.data,  d->datalen = m->mp.datalen;
 			d->out = m->mp.out,  d->outlen = m->mp.outlen;
 			m->state = I_DATA1;
@@ -306,6 +318,10 @@ static int mp4_out_encode(void *ctx, fmed_filt *d)
 			m->state = I_INIT;
 			return FMED_RMORE;
 
+		} else if (ffsz_eq(d->datatype, "mp4")) {
+			m->state = I_INIT;
+			m->stmcopy = 1;
+
 		} else {
 			errlog(core, d->trk, NULL, "unsupported input data format: %s", d->datatype);
 			return FMED_RERR;
@@ -318,7 +334,7 @@ static int mp4_out_encode(void *ctx, fmed_filt *d)
 		d->datalen = 0;
 		ffpcm_fmtcopy(&info.fmt, &d->audio.convfmt);
 
-		if ((int64)d->audio.total != FMED_NULL
+		if (!m->stmcopy && (int64)d->audio.total != FMED_NULL
 			&& !d->duration_inaccurate)
 			info.total_samples = ((d->audio.total - d->audio.pos) * d->audio.convfmt.sample_rate / d->audio.fmt.sample_rate);
 
@@ -339,7 +355,8 @@ static int mp4_out_encode(void *ctx, fmed_filt *d)
 		if (0 != mp4_out_addmeta(m, d))
 			return FMED_RERR;
 
-		d->output.size = ffmp4_wsize(&m->mp);
+		if (!m->stmcopy)
+			d->output.size = ffmp4_wsize(&m->mp);
 
 		m->state = I_MP4;
 		// break

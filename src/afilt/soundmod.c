@@ -364,6 +364,7 @@ static void* autoconv_open(fmed_filt *d)
 			errlog(core, d->trk, "#soundmod.autoconv", "decoder doesn't support --stream-copy", 0);
 			return NULL;
 		}
+		d->audio.convfmt = d->audio.fmt;
 		return FMED_FILT_SKIP;
 	}
 
