@@ -227,6 +227,7 @@ static int wasapi_adev_list(fmed_adev_ent **ents, uint flags)
 		f = FFWAS_DEV_RENDER;
 	else if (flags == FMED_ADEV_CAPTURE)
 		f = FFWAS_DEV_CAPTURE;
+	f |= FFWAS_DEV_GETDEFAULT;
 
 	for (;;) {
 		r = ffwas_devnext(&d, f);
@@ -239,8 +240,12 @@ static int wasapi_adev_list(fmed_adev_ent **ents, uint flags)
 
 		if (NULL == (e = ffarr_pushgrowT(&a, 4, fmed_adev_ent)))
 			goto end;
+		ffmem_tzero(e);
 		if (NULL == (e->name = ffsz_alcopyz(d.name)))
 			goto end;
+
+		ffwas_dev_deffmt(&d, &e->default_format);
+		e->default_device = d.default_device;
 	}
 
 	if (NULL == (e = ffarr_pushT(&a, fmed_adev_ent)))

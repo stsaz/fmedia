@@ -642,6 +642,8 @@ enum FMED_ADEV_F {
 
 typedef struct fmed_adev_ent {
 	char *name;
+	ffpcm default_format;
+	uint default_device :1;
 } fmed_adev_ent;
 
 typedef struct fmed_adev {

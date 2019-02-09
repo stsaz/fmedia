@@ -220,7 +220,14 @@ static int fmed_arg_listdev(void)
 
 	ffstr_catfmt(&buf, "Playback/Loopback:\n");
 	for (i = 0;  i != ndev;  i++) {
-		ffstr_catfmt(&buf, "device #%u: %s\n", i + 1, ents[i].name);
+		ffstr def = {};
+		if (ents[i].default_device)
+			ffstr_setz(&def, " - Default");
+		ffstr_catfmt(&buf, "device #%u: %s%S\n", i + 1, ents[i].name, &def);
+		const ffpcm *df = &ents[i].default_format;
+		if (df->format != 0)
+			ffstr_catfmt(&buf, " Default Format: %u channel, %u Hz\n"
+				, df->channels, df->sample_rate);
 	}
 
 	if (NULL == (mod = core->getmod2(FMED_MOD_INFO_ADEV_IN, NULL, 0))
@@ -233,7 +240,14 @@ static int fmed_arg_listdev(void)
 
 	ffstr_catfmt(&buf, "\nCapture:\n");
 	for (i = 0;  i != ndev;  i++) {
-		ffstr_catfmt(&buf, "device #%u: %s\n", i + 1, ents[i].name);
+		ffstr def = {};
+		if (ents[i].default_device)
+			ffstr_setz(&def, " - Default");
+		ffstr_catfmt(&buf, "device #%u: %s%S\n", i + 1, ents[i].name, &def);
+		const ffpcm *df = &ents[i].default_format;
+		if (df->format != 0)
+			ffstr_catfmt(&buf, " Default Format: %u channel, %u Hz\n"
+				, df->channels, df->sample_rate);
 	}
 
 end:

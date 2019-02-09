@@ -177,6 +177,7 @@ static int pulse_adev_list(fmed_adev_ent **ents, uint flags)
 
 		if (NULL == (e = ffarr_pushgrowT(&a, 4, fmed_adev_ent)))
 			goto end;
+		ffmem_tzero(e);
 		if (NULL == (e->name = ffsz_alcopyz(d.name)))
 			goto end;
 	}
