@@ -446,7 +446,7 @@ static int dsnd_in_read(void *ctx, fmed_filt *d)
 	}
 
 	dbglog(core, d->trk, "dsound", "read %L bytes", d->outlen);
-	ds->total_samps += d->outlen / ds->frsize;
 	d->audio.pos = ds->total_samps;
+	ds->total_samps += d->outlen / ds->frsize;
 	return FMED_ROK;
 }

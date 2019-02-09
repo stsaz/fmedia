@@ -552,7 +552,7 @@ static int coraud_in_read(void *ctx, fmed_filt *d)
 
 	d->out = data.ptr,  d->outlen = data.len;
 	dbglog("read %L bytes", d->outlen);
-	a->total_samps += d->outlen / a->frsize;
 	d->audio.pos = a->total_samps;
+	a->total_samps += d->outlen / a->frsize;
 	return FMED_RDATA;
 }

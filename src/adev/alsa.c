@@ -663,7 +663,7 @@ static int alsa_in_read(void *ctx, fmed_filt *d)
 		d->outni = a->bufs;
 
 	dbglog(core, d->trk, "alsa", "read %L bytes", d->outlen);
-	a->total_samps += d->outlen / ain->snd.frsize;
 	d->audio.pos = a->total_samps;
+	a->total_samps += d->outlen / ain->snd.frsize;
 	return FMED_ROK;
 }

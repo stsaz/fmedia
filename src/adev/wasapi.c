@@ -744,7 +744,7 @@ static int wasapi_in_read(void *ctx, fmed_filt *d)
 		w->latcorr -= n;
 	}
 
-	w->total_samps += d->outlen / w->wa.frsize;
 	d->audio.pos = w->total_samps;
+	w->total_samps += d->outlen / w->wa.frsize;
 	return FMED_ROK;
 }
