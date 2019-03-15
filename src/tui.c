@@ -271,8 +271,9 @@ static void* tui_open(fmed_filt *d)
 		fflk_unlock(&gt->lktrk);
 	}
 
-	if (gt->vol != 100 && !t->conversion)
-		tui_setvol(t, gt->vol);
+	uint vol = (gt->mute) ? 0 : gt->vol;
+	if (vol != 100 && !t->conversion)
+		tui_setvol(t, vol);
 
 	d->meta_changed = 1;
 	return t;
