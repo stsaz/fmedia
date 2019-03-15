@@ -119,6 +119,7 @@ typedef struct core_mod {
 	ffpars_ctx conf_ctx;
 	ffstr conf_data;
 	fflist_item sib;
+	uint have_conf :1; // whether a module has configuration context
 	char name_s[0];
 } core_mod;
 
@@ -630,6 +631,7 @@ static int fmed_conf_fn(const char *filename, uint flags)
 				} else if (r2 > 0) {
 					core_mod *m = (void*)fmed->conf_copy_mod;
 					m->conf_data = ffconf_ctxcopy_acquire(&fmed->conf_copy);
+					m->have_conf = 1;
 					fmed->conf_copy_mod = NULL;
 				}
 				continue;
@@ -1148,7 +1150,7 @@ static int mod_load_delayed(core_mod *mod)
 	if (0 != mod_loadiface(mod, bmod))
 		goto end;
 
-	if (mod->conf_data.len != 0) {
+	if (mod->have_conf) {
 		if (0 != mod_readconf(mod, modname.ptr))
 			goto end;
 	}
