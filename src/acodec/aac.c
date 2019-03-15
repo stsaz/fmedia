@@ -152,6 +152,7 @@ static int aac_decode(void *ctx, fmed_filt *d)
 {
 	aac_in *a = ctx;
 	int r;
+	uint fr_len = 0;
 	enum { R_CACHE, R_CACHE_DATA, R_CACHE_DONE, R_PASS };
 
 	if (d->input_info)
@@ -212,6 +213,7 @@ static int aac_decode(void *ctx, fmed_filt *d)
 			return FMED_RSYSERR;
 		if (++a->frnum != DETECT_FRAMES)
 			continue;
+		fr_len = a->aac.pcmlen;
 		//fall through
 
 	case R_CACHE_DATA:
@@ -227,7 +229,7 @@ static int aac_decode(void *ctx, fmed_filt *d)
 			d->audio.decoder = "HE-AACv2"; break;
 		}
 
-		d->audio.pos = ffaac_cursample(&a->aac);
+		d->audio.pos = ffaac_cursample(&a->aac) + fr_len / ffpcm_size1(&a->aac.fmt) - a->cache.len / ffpcm_size1(&a->aac.fmt);
 		d->out = (void*)a->cache.ptr,  d->outlen = a->cache.len;
 		a->cache.len = 0;
 		a->state = R_CACHE_DONE;
