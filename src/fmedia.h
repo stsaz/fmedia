@@ -504,6 +504,7 @@ struct fmed_trk {
 		uint use_dynanorm :1;
 		uint duration_inaccurate :1;
 		uint e_no_source :1; // error: no media source
+		uint err :1;
 	};
 	};
 

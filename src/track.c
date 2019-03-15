@@ -513,6 +513,7 @@ static void trk_free(fm_trk *t)
 	core->task(&t->tsk_main, FMED_TASK_DEL);
 	core->cmd(FMED_TASK_XDEL, &t->tsk, t->wid);
 	core->cmd(FMED_TASK_XDEL, &t->tsk_stop, t->wid);
+	t->props.err = (t->state == TRK_ST_ERR);
 
 	if (core->props->cmd->print_time) {
 		struct ffps_perf i2 = {};

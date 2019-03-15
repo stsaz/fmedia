@@ -22,6 +22,7 @@ struct gctx {
 	fmed_cmd *cmd;
 	void *rec_trk;
 	const fmed_track *track;
+	uint psexit; //process exit code
 
 	ffdl core_dl;
 	fmed_core* (*core_init)(fmed_cmd **ptr, char **argv, char **env);
@@ -503,8 +504,10 @@ static int fmed_cmdline(int argc, char **argv, uint main_only)
 
 		r = ffpsarg_schemrun(&ps);
 
-		if (r == FFPARS_ELAST)
+		if (r == FFPARS_ELAST) {
+			ret = 0;
 			goto fail;
+		}
 
 		if (ffpars_iserr(r))
 			break;
@@ -569,6 +572,8 @@ static void mon_onsig(fmed_trk *trk, uint sig)
 			g->rec_trk = NULL;
 		if (trk->type == FMED_TRK_TYPE_REC && !g->cmd->gui)
 			core->sig(FMED_STOP);
+		if (trk->err)
+			g->psexit = 1;
 		break;
 
 	case FMED_TRK_ONLAST:
@@ -1022,7 +1027,8 @@ int main(int argc, char **argv, char **env)
 	g->track->fmed_trk_monitor(NULL, &mon_iface);
 
 	core->sig(FMED_START);
-	rc = 0;
+	rc = g->psexit;
+	dbglog(core, NULL, "core", "exit code: %d", rc);
 
 end:
 	if (core != NULL) {
