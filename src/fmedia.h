@@ -451,6 +451,7 @@ struct fmed_trk {
 	uint a_stop_level_time; //msec
 	uint a_stop_level_mintime; //msec
 
+	byte _bar_start;
 	struct {
 		ffstr profile;
 		int quality;
@@ -476,6 +477,8 @@ struct fmed_trk {
 		uint64 size;
 		uint64 seek;
 	} input, output;
+	byte _bar_end;
+
 	fftime mtime;
 	ffarr2 include_files; //ffstr[]
 	ffarr2 exclude_files; //ffstr[]
