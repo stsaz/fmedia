@@ -64,7 +64,7 @@ INPUT:
 
 FILTERS:
 --volume=INT       Set volume (0% .. 125%)
---gain=FLT         Set gain/attenuation in dB
+--gain=FLOAT       Set gain/attenuation in dB
 --dynanorm         Use Dynamic Audio Normalizer filter.
                    Set parameters in section `mod_conf dynanorm.filter` in fmedia.conf.
 
@@ -73,7 +73,7 @@ FILTERS:
                    Useful for checking the results of lossless audio conversion.
 
 ENCODING:
---vorbis.quality=FLT
+--vorbis.quality=FLOAT
                    Vorbis encoding quality: -1.0 .. 10.0
 --opus.bitrate=INT Opus encoding bitrate: 6..510 (VBR)
 --mpeg-quality=INT MPEG encoding quality: 9..0 (VBR) or 64..320 (CBR)

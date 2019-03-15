@@ -8,6 +8,15 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.6 - Mar 15, 2019
+
+ + set process exit code after a track is finished with an error
+ - crash on opening directory from disk (v1.5 bug)
+ - AAC decode: incorrect audio position of the first block (v0.30 bug)
+ - --dynanorm: crash on trying to use empty configuration (v1.1 bug)
+ - TUI: 'mute' setting was reset on track change
+
+
 fmedia v1.5 - Feb 9, 2019
 
  + HLS client

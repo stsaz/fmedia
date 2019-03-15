@@ -91,9 +91,6 @@ typedef struct fm_trk {
 
 static int trk_setout(fm_trk *t);
 static int trk_opened(fm_trk *t);
-static fmed_f* addfilter(fm_trk *t, const char *modname);
-static fmed_f* addfilter1(fm_trk *t, const fmed_modinfo *mod);
-static int filt_call(fm_trk *t, fmed_f *f);
 static int trk_open(fm_trk *t, const char *fn);
 static void trk_open_capt(fm_trk *t);
 static void trk_free(fm_trk *t);
@@ -104,9 +101,13 @@ static fmed_f* trk_modbyext(fm_trk *t, uint flags, const ffstr *ext);
 static void trk_printtime(fm_trk *t);
 static int trk_meta_enum(fm_trk *t, fmed_trk_meta *meta);
 static int trk_meta_copy(fm_trk *t, fm_trk *src);
-static fmed_f* filt_add(fm_trk *t, uint cmd, const char *name);
 static char* chain_print(fm_trk *t, const ffchain_item *mark, char *buf, size_t cap);
 static void allowsleep(uint val);
+
+static fmed_f* addfilter(fm_trk *t, const char *modname);
+static fmed_f* addfilter1(fm_trk *t, const fmed_modinfo *mod);
+static fmed_f* filt_add(fm_trk *t, uint cmd, const char *name);
+static int filt_call(fm_trk *t, fmed_f *f);
 
 static dict_ent* dict_add(fm_trk *t, const char *name, uint *f);
 static void dict_ent_free(dict_ent *e);
@@ -510,6 +511,7 @@ static void trk_free(fm_trk *t)
 {
 	fmed_f *pf;
 
+	dbglog(t, "closing...");
 	core->task(&t->tsk_main, FMED_TASK_DEL);
 	core->cmd(FMED_TASK_XDEL, &t->tsk, t->wid);
 	core->cmd(FMED_TASK_XDEL, &t->tsk_stop, t->wid);
@@ -529,10 +531,10 @@ static void trk_free(fm_trk *t)
 			);
 	}
 
-	dbglog(t, "closing...");
 	FFARR_RWALK(&t->filters, pf) {
 		if (pf->ctx != NULL) {
 			t->cur = &pf->sib;
+			dbglog(t, "closing %s", pf->name);
 			pf->filt->close(pf->ctx);
 		}
 	}
