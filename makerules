@@ -126,7 +126,9 @@ tui.$(SO): $(TUI_O)
 
 
 #
-NET_O := $(OBJ_DIR)/net.o \
+$(OBJ_DIR)/%.o: $(SRCDIR)/net/%.c $(SRCDIR)/fmedia.h $(SRCDIR)/net/net.h
+	$(C) $(CFLAGS)  $< -o$@
+NET_O := $(OBJ_DIR)/net.o $(OBJ_DIR)/hls.o \
 	$(FF_OBJ_DIR)/ffhttp.o $(FF_OBJ_DIR)/ffhttp-client.o \
 	$(FF_OBJ_DIR)/ffproto.o $(FF_OBJ_DIR)/ffurl.o $(FF_OBJ_DIR)/ffparse.o $(FF_OBJ_DIR)/fficy.o \
 	$(FF_OBJ_DIR)/ffcrc.o \
