@@ -932,7 +932,6 @@ static core_mod* mod_createiface(const ffstr *name)
 	core_mod *mod;
 	if (NULL == (mod = ffmem_calloc(1, sizeof(core_mod) + name->len + 1)))
 		return NULL;
-	fflist_ins(&fmed->mods, &mod->sib);
 	ffsz_fcopy(mod->name_s, name->ptr, name->len);
 	mod->name = mod->name_s;
 	return mod;
@@ -966,7 +965,7 @@ end:
 /** Enlist a new module which will be loaded later. */
 static const fmed_modinfo* core_insmod_delayed(const char *sname, ffpars_ctx *ctx)
 {
-	core_mod *mod = NULL;
+	core_mod *mod;
 	core_modinfo *bmod = NULL;
 	ffstr name;
 	ffstr_setz(&name, sname);
@@ -988,14 +987,11 @@ static const fmed_modinfo* core_insmod_delayed(const char *sname, ffpars_ctx *ct
 
 	if (NULL == (mod = mod_createiface(&name)))
 		goto fail;
+	fflist_ins(&fmed->mods, &mod->sib);
 
 	return (void*)mod;
 
 fail:
-	if (mod != NULL) {
-		fflist_rm(&fmed->mods, &mod->sib);
-		mod_freeiface(mod);
-	}
 	if (bmod != NULL) {
 		mod_destroy(bmod);
 		fmed->bmods.len--;
@@ -1041,11 +1037,11 @@ static const fmed_modinfo* core_insmod(const char *sname, ffpars_ctx *ctx)
 		mod->conf_ctx = *ctx;
 	}
 
+	fflist_ins(&fmed->mods, &mod->sib);
 	return (fmed_modinfo*)mod;
 
 fail:
 	if (mod != NULL) {
-		fflist_rm(&fmed->mods, &mod->sib);
 		mod_freeiface(mod);
 	}
 	return NULL;

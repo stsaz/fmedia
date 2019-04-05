@@ -8,6 +8,14 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.7 - Apr 5, 2019
+
+ + GUI: linux: a simple GUI based on GTK+v3
+ * linux: use Pulse Audio output by default
+   ALSA can't be used out-of-the-box on some linux distributions
+    where PA service prevents the device from opening by fmedia
+
+
 fmedia v1.6 - Mar 15, 2019
 
  + set process exit code after a track is finished with an error

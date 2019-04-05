@@ -97,7 +97,7 @@ static const fmed_filter fmed_netin = {
 	&netin_open, &netin_process, &netin_close
 };
 
-static void* netin_create(icy *c);
+static void* netin_create(icy *c, fmed_filt *d);
 static void netin_write(netin *n, const ffstr *data);
 
 
@@ -365,7 +365,7 @@ static int icy_reset(icy *c, fmed_filt *d)
 
 	// "netin" may be initialized if we've reconnected after I/O failure
 	if (c->out_copy && c->netin == NULL)
-		c->netin = netin_create(c);
+		c->netin = netin_create(c, c->d);
 	return FMED_RDATA;
 }
 
@@ -486,7 +486,7 @@ static int icy_setmeta(icy *c, const ffstr *_data)
 	}
 
 	if (c->out_copy && c->netin == NULL)
-		c->netin = netin_create(c);
+		c->netin = netin_create(c, c->d);
 	return 0;
 }
 
@@ -495,7 +495,7 @@ static int icy_setmeta(icy *c, const ffstr *_data)
 
 enum { IN_WAIT = 1, IN_DATANEXT };
 
-static void* netin_create(icy *c)
+static void* netin_create(icy *c, fmed_filt *d)
 {
 	netin *n;
 	void *trk;
@@ -516,10 +516,10 @@ static void* netin_create(icy *c)
 		goto fail;
 
 	trkconf = net->track->conf(trk);
-	trkconf->out_overwrite = c->d->out_overwrite;
+	trkconf->out_overwrite = d->out_overwrite;
 
 	const char *output;
-	output = net->track->getvalstr(c->d->trk, "out_filename");
+	output = net->track->getvalstr(d->trk, "out_filename");
 	n->fn_dyn = (NULL != ffsz_findc(output, '$'));
 	net->track->setvalstr(trk, "output", output);
 
@@ -531,13 +531,13 @@ static void* netin_create(icy *c)
 		trkconf->out_file_del = 1;
 	}
 
-	if (1 == net->track->getval(c->d->trk, "out_stream_copy"))
+	if (1 == net->track->getval(d->trk, "out_stream_copy"))
 		trkconf->stream_copy = 1;
 
 	net->track->setvalstr4(trk, "artist", (void*)&c->artist, FMED_TRK_META | FMED_TRK_VALSTR);
 	net->track->setvalstr4(trk, "title", (void*)&c->title, FMED_TRK_META | FMED_TRK_VALSTR);
 
-	c->d->track->cmd2(trk, FMED_TRACK_META_COPYFROM, c->d->trk);
+	d->track->cmd2(trk, FMED_TRACK_META_COPYFROM, d->trk);
 
 	net->track->cmd(trk, FMED_TRACK_START);
 	return n;

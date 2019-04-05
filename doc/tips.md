@@ -11,7 +11,7 @@ You can edit `fmedia.conf` file and set `portable_conf true` setting, but this c
 
 1. Create file `fmedia-ext.conf` in application directory with these contents:
 
-	core.portable_conf true
+		core.portable_conf true
 
 By using `fmedia-ext.conf` configuration file you won't need to edit `fmedia.conf` after fmedia upgrade.
 
