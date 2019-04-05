@@ -1,0 +1,117 @@
+# fmedia v1.7 GUI
+
+menu mfile {
+	item "E_xit" {
+		action A_QUIT
+	}
+}
+
+menu mlist {
+	item "Select _All" {
+		action A_SELECTALL
+	}
+	item "_Clear" {
+		action A_CLEAR
+	}
+}
+
+menu mplay {
+	item "_Stop" {
+		action A_STOP
+	}
+	item "Stop After Current" {
+		action A_STOP_AFTER
+	}
+	item "_Next" {
+		action A_NEXT
+	}
+	item "P_revious" {
+		action A_PREV
+	}
+	item "-" {
+	}
+	item "Seek _Forward" {
+		action A_FFWD
+	}
+	item "Seek _Back" {
+		action A_RWND
+	}
+	item "Leap Forward" {
+		action A_LEAP_FWD
+	}
+	item "Leap Back" {
+		action A_LEAP_BACK
+	}
+}
+
+menu mhelp {
+	item "_About" {
+		action A_ABOUT
+	}
+}
+
+window wmain {
+	title "fmedia"
+	position 0 0 500 400
+	icon {
+		filename "fmedia.ico"
+	}
+
+	mainmenu mm {
+		item "_File" {
+			submenu mfile
+		}
+		item "_List" {
+			submenu mlist
+		}
+		item "_Playback" {
+			submenu mplay
+		}
+		item "_Help" {
+			submenu mhelp
+		}
+	}
+
+	label lpos {
+	}
+
+	trackbar tpos {
+		range 0
+		onscroll A_SEEK
+	}
+
+	listview vlist {
+		style grid_lines multi_select
+		dblclick A_PLAY
+
+		column "#" {
+			width 35
+		}
+		column Artist {
+		}
+		column Title {
+			width 200
+		}
+		column Duration {
+			width 50
+		}
+		column Info {
+		}
+		column Date {
+		}
+		column Album {
+		}
+		column Filename {
+		}
+	}
+}
+
+window wabout {
+	title "About fmedia"
+
+	label labout {
+	}
+
+	label lurl {
+	}
+}

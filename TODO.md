@@ -15,7 +15,6 @@ This is the list of the things that need to be done.
 * GUI: Ctrl+Tab
 * GUI: remember column width
 * GUI theme: listview selection color
-* GUI for Linux
 * GUI for macOS
 * Linux: Don't allow system to sleep while playing or recording
 

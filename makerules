@@ -15,7 +15,7 @@ BINS := $(BIN) core.$(SO) tui.$(SO) net.$(SO) plist.$(SO) \
 OS_BINS :=
 ifeq ($(OS),linux)
 
-OS_BINS += alsa.$(SO) pulse.$(SO)
+OS_BINS += alsa.$(SO) pulse.$(SO) gui.$(SO)
 
 else ifeq ($(OS),apple)
 OS_BINS += coreaudio.$(SO)
@@ -384,6 +384,7 @@ oss.$(SO): $(OSS_O)
 	$(LD) -shared $(OSS_O) $(LDFLAGS) $(LD_LMATH)  -o$@
 
 
+ifeq ($(OS),win)
 #
 $(OBJ_DIR)/%.o: $(SRCDIR)/gui/%.c $(SRCDIR)/gui/gui.h $(SRCDIR)/fmedia.h $(FF_GUIHDR)
 	$(C) $(CFLAGS)  $< -o$@
@@ -398,9 +399,11 @@ GUI_O := $(OBJ_DIR)/gui.o $(OBJ_DIR)/gui-main.o $(OBJ_DIR)/gui-dlgs.o $(OBJ_DIR)
 	$(FF_OBJ_DIR)/ffpcm.o \
 	$(FF_OBJ_DIR)/ffpic.o \
 	$(FF_GUI_OBJ)
+LIBS_GUIWAPI := -lshell32 -luxtheme -lcomctl32 -lcomdlg32 -lgdi32 -lole32 -luuid
 gui.$(SO): $(GUI_O)
-	$(LD) -shared $(GUI_O) $(LDFLAGS) -lshell32 -luxtheme -lcomctl32 -lcomdlg32 -lgdi32 -lole32 -luuid -o$@
+	$(LD) -shared $(GUI_O) $(LDFLAGS) $(LIBS_GUIWAPI)  -o$@
 
+#
 BINGUI_O := \
 	$(OBJ_DIR)/crash.o \
 	$(OBJ_DIR)/fmedia-gui.o \
@@ -416,6 +419,27 @@ BINGUI_O := \
 fmedia-gui.exe: $(BINGUI_O)
 	$(LD) $(BINGUI_O) $(LDFLAGS) -lcomctl32 -lole32 -luuid -mwindows -o$@
 
+else ifeq ($(OS),linux)
+
+#
+CFLAGS_GTK := -I/usr/include/gtk-3.0 -I/usr/include/pango-1.0 -I/usr/include/glib-2.0 -I/usr/lib64/glib-2.0/include -I/usr/include/fribidi -I/usr/include/cairo -I/usr/include/pixman-1 -I/usr/include/freetype2 -I/usr/include/libpng16 -I/usr/include/uuid -I/usr/include/harfbuzz -I/usr/include/gdk-pixbuf-2.0 -I/usr/include/gio-unix-2.0/ -I/usr/include/libdrm -I/usr/include/valgrind -I/usr/include/atk-1.0 -I/usr/include/at-spi2-atk/2.0 -I/usr/include/at-spi-2.0 -I/usr/include/dbus-1.0 -I/usr/lib64/dbus-1.0/include
+LIBS_GTK := -lgtk-3 -lgdk-3 -lpangocairo-1.0 -lpango-1.0 -lfribidi -latk-1.0 -lcairo-gobject -lcairo -lgdk_pixbuf-2.0 -lgio-2.0 -lgobject-2.0 -lglib-2.0
+$(OBJ_DIR)/%.o: $(SRCDIR)/gui-gtk/%.c $(SRCDIR)/fmedia.h $(FF)/FF/gui-gtk/gtk.h
+	$(C) $(CFLAGS) $(CFLAGS_GTK)  $< -o$@
+
+GUIGTK_O := $(OBJ_DIR)/gui.o \
+	$(OBJ_DIR)/gui-main.o \
+	$(OBJ_DIR)/gui-dlgs.o \
+	$(FF_OBJ_DIR)/ffpath.o \
+	$(FF_OBJ_DIR)/ffparse.o $(FF_OBJ_DIR)/ffconf.o \
+	$(FF_OBJ_DIR)/ffgui-gtk.o \
+	$(FF_OBJ_DIR)/ffgui-gtk-loader.o \
+	$(FFOS_THD) \
+	$(FF_O)
+gui.$(SO): $(GUIGTK_O)
+	$(LD) -shared $(GUIGTK_O) $(LDFLAGS) $(LIBS_GTK) $(LD_LPTHREAD) -o$@
+
+endif
 
 #
 MIXER_O := $(OBJ_DIR)/mixer.o \
@@ -448,6 +472,11 @@ ifeq ($(OS),win)
 		$(PROJDIR)/src/gui/theme.conf \
 		$(INSTDIR)/
 	unix2dos $(INSTDIR)/*.txt $(INSTDIR)/*.conf $(INSTDIR)/*.gui
+
+else ifeq ($(OS),linux)
+	$(CP) $(PROJDIR)/src/gui-gtk/fmedia.gui \
+		$(PROJDIR)/res/fmedia.ico \
+		$(INSTDIR)/
 endif
 
 	chmod 644 $(INSTDIR)/*
