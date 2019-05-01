@@ -1169,10 +1169,16 @@ static int core_timer(fftmrq_entry *tmr, int64 _interval, uint flags)
 		return 0;
 
 	if (interval == 0) {
+		/* We should stop system timer only after some time of inactivity,
+		 otherwise the next task may start the timer again.
+		In this case we'd waste context switches.
+		Anyway, we don't really need to stop it at all.
+
 		if (fftmrq_empty(&w->tmrq)) {
 			fftmrq_stop(&w->tmrq, w->kq);
 			dbglog(core, NULL, "core", "stopped kernel timer", 0);
 		}
+		*/
 		return 0;
 	}
 
