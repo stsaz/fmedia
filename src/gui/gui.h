@@ -212,12 +212,12 @@ typedef struct ggui {
 	byte status_tray;
 	byte autosave_playlists;
 	byte theme_startup;
+	byte list_random;
+	byte sel_after_cur; // automatically select a playlist entry for the active track
 	uint wconv_init :1
 		, wrec_init :1
 		, min_tray :1
 		, list_filter :1
-		, list_random :1
-		, sel_after_cur :1 // automatically select a playlist entry for the active track
 		, sort_reverse :1
 		, devlist_rec :1 // whether 'device list' window is opened for capture devices
 		;

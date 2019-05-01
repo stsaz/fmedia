@@ -76,6 +76,15 @@ void wmain_init(void)
 	gg->wmain.wmain.on_dropfiles = &gui_on_dropfiles;
 	ffui_fdrop_accept(&gg->wmain.wmain, 1);
 
+	if (gg->list_random) {
+		gg->list_random = 0;
+		gui_list_random();
+	}
+	if (gg->sel_after_cur) {
+		gg->sel_after_cur = 0;
+		sel_after_cur();
+	}
+
 	ffui_icon_loadres(&gg->wmain.ico, L"#2", 0, 0);
 	ffui_icon_loadres(&gg->wmain.ico_rec, L"#7", 0, 0);
 }

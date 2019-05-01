@@ -94,6 +94,8 @@ static const ffpars_arg gui_conf_args[] = {
 	{ "autosave_playlists",	FFPARS_TBOOL8, FFPARS_DSTOFF(ggui, autosave_playlists) },
 	{ "global_hotkeys",	FFPARS_TOBJ, FFPARS_DST(&gui_conf_ghk) },
 	{ "theme",	FFPARS_TINT | FFPARS_F8BIT, FFPARS_DSTOFF(ggui, theme_startup) },
+	{ "random",	FFPARS_TBOOL8, FFPARS_DSTOFF(ggui, list_random) },
+	{ "sel_after_cursor",	FFPARS_TBOOL8, FFPARS_DSTOFF(ggui, sel_after_cur) },
 };
 
 //LOG
@@ -698,6 +700,7 @@ char* gui_userpath(const char *fn)
 
 static const char *const usrconf_setts[] = {
 	"gui.gui.theme", "gui.gui.record.output", "gui.gui.convert.output",
+	"gui.gui.random", "gui.gui.sel_after_cursor",
 };
 
 /** Write user configuration value. */
@@ -712,6 +715,12 @@ static void usrconf_write_val(ffconfw *conf, uint i)
 		break;
 	case 2:
 		ffconf_writez(conf, gg->conv_sets.output, FFCONF_TVAL);
+		break;
+	case 3:
+		ffconf_writebool(conf, gg->list_random, FFCONF_TVAL);
+		break;
+	case 4:
+		ffconf_writebool(conf, gg->sel_after_cur, FFCONF_TVAL);
 		break;
 	}
 }
