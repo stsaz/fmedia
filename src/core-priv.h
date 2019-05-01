@@ -1,0 +1,66 @@
+/**
+Copyright (c) 2019 Simon Zolin */
+
+#include <core.h>
+#include <FF/data/conf.h>
+#include <FFOS/process.h>
+
+
+typedef struct fmed_config {
+	byte codepage;
+	byte instance_mode;
+	byte prevent_sleep;
+	byte workers;
+	ffpcm inp_pcm;
+	const fmed_modinfo *output;
+	const fmed_modinfo *input;
+	ffstr3 inmap; //inmap_item[]
+	ffstr3 outmap; //inmap_item[]
+	char *usrconf_modname;
+	uint skip_line :1;
+
+	ffconf_ctxcopy conf_copy;
+	fmed_modinfo *conf_copy_mod; //core_mod
+
+	const fmed_modinfo *inmap_curmod;
+	ffstr3 *inoutmap;
+} fmed_config;
+
+typedef struct inmap_item {
+	const fmed_modinfo *mod;
+	char ext[0];
+} inmap_item;
+
+typedef struct core_mod {
+	//fmed_modinfo:
+	char *name;
+	void *dl; //ffdl
+	const fmed_mod *m;
+	const void *iface;
+
+	ffpars_ctx conf_ctx;
+	ffstr conf_data;
+	fflist_item sib;
+	uint have_conf :1; // whether a module has configuration context
+	char name_s[0];
+} core_mod;
+
+const fmed_modinfo* core_insmod_delayed(const char *sname, ffpars_ctx *ctx);
+const fmed_modinfo* core_getmodinfo(const ffstr *name);
+
+enum CONF_F {
+	CONF_F_USR = 1,
+	CONF_F_OPT = 2,
+};
+
+/**
+flags: enum CONF_F
+*/
+int core_conf_parse(fmed_config *conf, const char *filename, uint flags);
+
+
+#undef syserrlog
+#define dbglog0(...)  fmed_dbglog(core, NULL, "core", __VA_ARGS__)
+#define errlog0(...)  fmed_errlog(core, NULL, "core", __VA_ARGS__)
+#define syswarnlog(trk, ...)  fmed_syswarnlog(core, NULL, "core", __VA_ARGS__)
+#define syserrlog(...)  fmed_syserrlog(core, NULL, "core", __VA_ARGS__)

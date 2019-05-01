@@ -87,7 +87,7 @@ $(BIN): $(BIN_O)
 
 
 #
-CORE_O := $(OBJ_DIR)/core.o \
+CORE_O := $(OBJ_DIR)/core.o $(OBJ_DIR)/core-conf.o \
 	$(OBJ_DIR)/track.o \
 	$(OBJ_DIR)/file.o \
 	$(OBJ_DIR)/soundmod.o \
