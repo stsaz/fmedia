@@ -18,6 +18,7 @@ const fmed_filter aac_adts_input = {
 
 struct aac {
 	ffaac_adts adts;
+	int64 seek_pos;
 };
 
 
@@ -27,6 +28,7 @@ static void* aac_adts_open(fmed_filt *d)
 	if (NULL == (a = ffmem_new(struct aac)))
 		return NULL;
 	ffaac_adts_open(&a->adts);
+	a->seek_pos = -1;
 	return a;
 }
 
@@ -55,6 +57,10 @@ static int aac_adts_process(void *ctx, fmed_filt *d)
 		d->datalen = 0;
 	}
 
+	if ((int64)d->audio.seek != FMED_NULL) {
+		a->seek_pos = d->audio.seek;
+	}
+
 	for (;;) {
 		r = ffaac_adts_read(&a->adts);
 
@@ -81,6 +87,15 @@ static int aac_adts_process(void *ctx, fmed_filt *d)
 			return FMED_RDATA;
 
 		case FFAAC_ADTS_RDATA:
+
+			if (a->seek_pos != -1) {
+				uint64 seek_samps = ffpcm_samples(a->seek_pos, a->adts.info.sample_rate);
+				uint64 rpos = ffaac_adts_pos(&a->adts) + ffaac_adts_frsamples(&a->adts);
+				if (rpos < seek_samps)
+					continue;
+				a->seek_pos = -1;
+			}
+
 			goto data;
 
 		case FFAAC_ADTS_RMORE:
