@@ -555,10 +555,10 @@ static void gui_que_onchange(fmed_que_entry *e, uint flags)
 
 void gui_media_add1(const char *fn)
 {
-	gui_media_add2(fn, ADDF_CHECKTYPE);
+	gui_media_add2(fn, -1, ADDF_CHECKTYPE);
 }
 
-void gui_media_add2(const char *fn, uint flags)
+void gui_media_add2(const char *fn, int pl, uint flags)
 {
 	fmed_que_entry e, *pe;
 	int t = FMED_FT_FILE;
@@ -576,7 +576,7 @@ void gui_media_add2(const char *fn, uint flags)
 
 	ffmem_tzero(&e);
 	ffstr_setz(&e.url, fn);
-	if (NULL == (pe = (void*)gg->qu->cmd2(FMED_QUE_ADD | FMED_QUE_NO_ONCHANGE, &e, 0)))
+	if (NULL == (pe = (void*)gg->qu->fmed_queue_add(FMED_QUE_NO_ONCHANGE, pl, &e)))
 		return;
 	gui_media_added(pe);
 
@@ -598,7 +598,7 @@ void gui_media_showpcm(void)
 			return;
 		fmed_trk *trkconf = gg->track->conf(trk);
 		trkconf->pcm_peaks = 1;
-		gg->track->cmd(trk, FMED_TRACK_START);
+		gg->track->cmd(trk, FMED_TRACK_XSTART);
 	}
 }
 

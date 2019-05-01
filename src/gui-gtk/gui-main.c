@@ -164,7 +164,7 @@ void wmain_ent_add(const ffstr *fn)
 	fmed_que_entry e, *pe;
 	ffmem_tzero(&e);
 	e.url = *fn;
-	if (NULL == (pe = (void*)gg->qu->cmd2(FMED_QUE_ADD/* | FMED_QUE_NO_ONCHANGE*/, &e, 0)))
+	if (NULL == (pe = (void*)gg->qu->fmed_queue_add(0/* | FMED_QUE_NO_ONCHANGE*/, -1, &e)))
 		return;
 	// ent_added(pe);
 

@@ -980,18 +980,14 @@ static void gui_tonxtlist(void)
 		gg->qu->cmd(FMED_QUE_NEW, NULL);
 	}
 
-	gg->qu->cmd(FMED_QUE_SEL, (void*)(size_t)sel + 1);
-
 	while (-1 != (i = ffui_view_selnext(&gg->wmain.vlist, i))) {
 		ent = (fmed_que_entry*)gg->qu->fmed_queue_item(sel, i);
 		e.url = ent->url;
 		e.from = ent->from;
 		e.to = ent->to;
 
-		gg->qu->cmd(FMED_QUE_ADD | FMED_QUE_NO_ONCHANGE, &e);
+		gg->qu->fmed_queue_add(FMED_QUE_NO_ONCHANGE, sel + 1, &e);
 	}
-
-	gg->qu->cmd(FMED_QUE_SEL, (void*)(size_t)sel);
 }
 
 void gui_status(const char *s, size_t len)

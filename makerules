@@ -415,6 +415,7 @@ BINGUI_O := \
 	$(FF_OBJ_DIR)/ffpsarg.o \
 	$(FF_OBJ_DIR)/ffparse.o \
 	$(FF_OBJ_DIR)/ffgui-winapi.o \
+	$(FF_OBJ_DIR)/ffgui-winapi-ev.o \
 	$(RES)
 fmedia-gui.exe: $(BINGUI_O)
 	$(LD) $(BINGUI_O) $(LDFLAGS) -lcomctl32 -lole32 -luuid -mwindows -o$@

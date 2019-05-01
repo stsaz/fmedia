@@ -389,7 +389,7 @@ void gui_media_add1(const char *fn);
 enum {
 	ADDF_CHECKTYPE = 1, // don't add items of unsupported type
 };
-void gui_media_add2(const char *fn, uint flags);
+void gui_media_add2(const char *fn, int pl, uint flags);
 void gui_media_showpcm(void);
 
 void gui_themes_read(void);

@@ -530,7 +530,6 @@ static void gui_convert(void)
 	} else {
 		ffui_tab_setactive(&gg->wmain.tabs, itab);
 	}
-	gg->qu->cmd(FMED_QUE_SEL, (void*)(size_t)itab);
 
 	while (-1 != (i = ffui_view_selnext(&gg->wmain.vlist, i))) {
 		inp = (fmed_que_entry*)gg->qu->fmed_queue_item(curtab, i);
@@ -539,7 +538,7 @@ static void gui_convert(void)
 		e.url = inp->url;
 		e.from = inp->from;
 		e.to = inp->to;
-		if (NULL == (qent = (void*)gg->qu->cmd2(FMED_QUE_ADD | FMED_QUE_NO_ONCHANGE, &e, 0))) {
+		if (NULL == (qent = (void*)gg->qu->fmed_queue_add(FMED_QUE_NO_ONCHANGE, itab, &e))) {
 			continue;
 		}
 
@@ -1100,7 +1099,7 @@ static void cmd_url_add()
 	ffstr s;
 	ffui_textstr(&gg->wuri.turi, &s);
 	if (s.len != 0)
-		gui_media_add2(s.ptr, 0);
+		gui_media_add2(s.ptr, -1, 0);
 	ffstr_free(&s);
 	ffui_show(&gg->wuri.wuri, 0);
 }

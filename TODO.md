@@ -9,6 +9,7 @@ This is the list of the things that need to be done.
 * 24-bit conversion via soxr
 * conversion for >2 channels
 * gapless playback of the next track in queue
+* noise gate filter
 * ICY: detect audio format in case of unknown content type, .e.g. "Content-Type: application/octet-stream"
 * support --meta with --stream-copy (.ogg, .m4a, .mp3)
 * GUI: Open directory from disk
@@ -55,6 +56,7 @@ This is the list of the things that need to be done.
 * "fmedia --record --channels=left" records in mono, but is it really left channel?
 * FreeBSD: segfault on playback after quick input ('N') in TUI?
 * GUI: Invert Sel doesn't work
+* delayed module load doesn't work if its settings are specified in fmedia-user.conf
 
 
 ## Refactoring

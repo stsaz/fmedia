@@ -10,7 +10,7 @@ Its low CPU & memory consumption saves energy when running on a notebook's batte
 Play or convert audio files, record new audio tracks from microphone, save songs from Internet radio, and much more!
 fmedia is free and open-source project, and you can use it as a standalone application or as a library for your own software.
 
-fmedia can decode: .mp3, .ogg (Vorbis, Opus), .opus, .m4a/.mp4 (AAC, ALAC, MPEG), .mka/.mkv (AAC, ALAC, MPEG, Vorbis), .avi (AAC, MPEG), .aac, .mpc, .flac, .ape, .wv, .wav.
+fmedia can read: .mp3, .ogg (Vorbis, Opus), .opus, .m4a/.mp4 (AAC, ALAC, MPEG), .mka/.mkv (AAC, ALAC, MPEG, Vorbis), .avi (AAC, MPEG), .aac, .mpc, .flac, .ape, .wv, .wav.
 
 fmedia can write: .mp3, .ogg, .opus, .m4a (AAC), .flac, .wav, .aac (--stream-copy only).
 
@@ -133,6 +133,7 @@ INSTALL
 	* gcc or clang
 	* libalsa-devel (for ALSA module)
 	* libpulse-devel (for Pulse Audio module)
+	* gtk3-devel (for GUI module)
 
 1. Create a directory for all needed sources:
 

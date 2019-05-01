@@ -8,6 +8,15 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.8 - May 1, 2019
+
+ * .aac read: Don't decode audio while seeking (almost instant seeking)
+ + .aac write with --stream-copy from .aac source
+ + GUI: Windows: "Show Favorites", "Add to Favorites", "Selection Follows Cursor" commands
+ + GUI: Windows: Save/restore "Random" and "Selection Follows Cursor" checked state
+ + GUI: Linux: New commands, save/restore window position
+
+
 fmedia v1.7 - Apr 5, 2019
 
  + GUI: linux: a simple GUI based on GTK+v3

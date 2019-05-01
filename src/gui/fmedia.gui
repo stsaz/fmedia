@@ -65,6 +65,8 @@ menu mlist {
 		action SAVELIST
 		hotkey "Ctrl+S"
 	}
+	item "-" {
+	}
 	item "Select &All" {
 		action SELALL
 		hotkey "Ctrl+A"
@@ -74,6 +76,8 @@ menu mlist {
 	}
 	item "Selection Follows Cursor" {
 		action SEL_AFTER_CUR
+	}
+	item "-" {
 	}
 	item "&Remove" {
 		action REMOVE
@@ -85,6 +89,8 @@ menu mlist {
 	}
 	item "&Clear" {
 		action CLEAR
+	}
+	item "-" {
 	}
 	item "&Filter..." {
 		action FILTER_SHOW
