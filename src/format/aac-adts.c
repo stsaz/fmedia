@@ -16,17 +16,25 @@ const fmed_filter aac_adts_input = {
 	&aac_adts_open, &aac_adts_process, &aac_adts_close
 };
 
+//OUTPUT
+static void* aac_adts_out_open(fmed_filt *d);
+static void aac_adts_out_close(void *ctx);
+static int aac_adts_out_process(void *ctx, fmed_filt *d);
+const fmed_filter aac_adts_output = { &aac_adts_out_open, &aac_adts_out_process, &aac_adts_out_close };
+
+
 struct aac {
 	ffaac_adts adts;
 	int64 seek_pos;
 };
-
 
 static void* aac_adts_open(fmed_filt *d)
 {
 	struct aac *a;
 	if (NULL == (a = ffmem_new(struct aac)))
 		return NULL;
+	if (d->stream_copy)
+		a->adts.options = FFAAC_ADTS_OPT_WHOLEFRAME;
 	ffaac_adts_open(&a->adts);
 	a->seek_pos = -1;
 	return a;
@@ -59,6 +67,8 @@ static int aac_adts_process(void *ctx, fmed_filt *d)
 
 	if ((int64)d->audio.seek != FMED_NULL) {
 		a->seek_pos = d->audio.seek;
+		if (d->stream_copy)
+			d->audio.seek = FMED_NULL;
 	}
 
 	for (;;) {
@@ -87,6 +97,7 @@ static int aac_adts_process(void *ctx, fmed_filt *d)
 			return FMED_RDATA;
 
 		case FFAAC_ADTS_RDATA:
+		case FFAAC_ADTS_RFRAME:
 
 			if (a->seek_pos != -1) {
 				uint64 seek_samps = ffpcm_samples(a->seek_pos, a->adts.info.sample_rate);
@@ -129,4 +140,49 @@ data:
 		, blk.len, ffaac_adts_froffset(&a->adts));
 	d->out = blk.ptr,  d->outlen = blk.len;
 	return FMED_RDATA;
+}
+
+
+struct aac_adts_out {
+	uint state;
+};
+
+static void* aac_adts_out_open(fmed_filt *d)
+{
+	struct aac_adts_out *a;
+	if (NULL == (a = ffmem_new(struct aac_adts_out)))
+		return NULL;
+	return a;
+}
+
+static void aac_adts_out_close(void *ctx)
+{
+	struct aac_adts_out *a = ctx;
+	ffmem_free(a);
+}
+
+static int aac_adts_out_process(void *ctx, fmed_filt *d)
+{
+	struct aac_adts_out *a = ctx;
+
+	switch (a->state) {
+	case 0:
+		if (!ffsz_eq(d->datatype, "aac")) {
+			fmed_errlog(core, d->trk, NULL, "unsupported data type: %s", d->datatype);
+			return FMED_RERR;
+		}
+		// if (d->datalen != 0) {
+		// skip ASC
+		// }
+		a->state = 1;
+		return FMED_RMORE;
+	case 1:
+		break;
+	}
+
+	if (d->datalen == 0 && !(d->flags & FMED_FLAST))
+		return FMED_RMORE;
+	d->out = d->data,  d->outlen = d->datalen;
+	d->datalen = 0;
+	return (d->flags & FMED_FLAST) ? FMED_RDONE : FMED_RDATA;
 }

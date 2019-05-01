@@ -12,7 +12,7 @@ fmedia is free and open-source project, and you can use it as a standalone appli
 
 fmedia can decode: .mp3, .ogg (Vorbis, Opus), .opus, .m4a/.mp4 (AAC, ALAC, MPEG), .mka/.mkv (AAC, ALAC, MPEG, Vorbis), .avi (AAC, MPEG), .aac, .mpc, .flac, .ape, .wv, .wav.
 
-fmedia can encode into: .mp3, .ogg, .opus, .m4a (AAC), .flac, .wav.
+fmedia can write: .mp3, .ogg, .opus, .m4a (AAC), .flac, .wav, .aac (--stream-copy only).
 
 ### Contents:
 
@@ -50,7 +50,7 @@ FEATURES
 	* .ogg/.opus (read/write)
 	* .avi (read)
 	* .mp3 (read/write)
-	* .aac (read)
+	* .aac (read, write: --stream-copy only)
 	* .mpc (read)
 	* .flac (read/write)
 	* .ape (read)
