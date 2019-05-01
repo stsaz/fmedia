@@ -109,7 +109,7 @@ static const fmed_queue fmed_que_mgr = {
 	&que_cmdv, &que_cmd, &que_cmd2, &_que_add, &_que_meta_set, &que_meta_find, &que_meta
 };
 
-static fmed_que_entry* que_add(fmed_que_entry *ent, uint flags);
+static fmed_que_entry* que_add(plist *pl, fmed_que_entry *ent, uint flags);
 static void que_meta_set(fmed_que_entry *ent, const ffstr *name, const ffstr *val, uint flags);
 static void que_play(entry *e);
 static void que_play2(entry *ent, uint flags);
@@ -616,13 +616,15 @@ static const char *const scmds[] = {
 	"id", "item", "item-locked", "item-unlock",
 	"flt-new", "flt-add", "flt-del", "lst-noflt",
 	"sort", "count",
-	"xplay",
+	"xplay", "add2",
 };
 
 static ssize_t que_cmdv(uint cmd, ...)
 {
 	ssize_t r = 0;
 	struct plist *pl;
+	uint cmdflags = cmd & _FMED_QUE_FMASK;
+	cmd &= ~_FMED_QUE_FMASK;
 	va_list va;
 	va_start(va, cmd);
 
@@ -644,6 +646,18 @@ static ssize_t que_cmdv(uint cmd, ...)
 		*/
 		e->plist->parallel = 1;
 		que_xplay(e);
+		goto end;
+	}
+
+	case FMED_QUE_ADD2: {
+		int plist_idx = va_arg(va, int);
+		fmed_que_entry *ent = va_arg(va, fmed_que_entry*);
+
+		plist *pl = qu->curlist;
+		if (plist_idx >= 0)
+			pl = plist_by_idx(plist_idx);
+
+		r = (ssize_t)que_add(pl, ent, cmdflags);
 		goto end;
 	}
 
@@ -764,7 +778,7 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 		break;
 
 	case FMED_QUE_ADD:
-		return (ssize_t)que_add(param, flags);
+		return (ssize_t)que_add(qu->curlist, param, flags);
 
 	case FMED_QUE_EXPAND: {
 		void *r = param;
@@ -969,7 +983,7 @@ static fmed_que_entry* _que_add(fmed_que_entry *ent)
 	return (void*)que_cmd2(FMED_QUE_ADD, ent, 0);
 }
 
-static fmed_que_entry* que_add(fmed_que_entry *ent, uint flags)
+static fmed_que_entry* que_add(plist *pl, fmed_que_entry *ent, uint flags)
 {
 	entry *e = NULL;
 
@@ -987,7 +1001,7 @@ static fmed_que_entry* que_add(fmed_que_entry *ent, uint flags)
 	if (e == NULL)
 		return NULL;
 	ffmem_tzero(e);
-	e->plist = qu->curlist;
+	e->plist = pl;
 	if (ent->prev != NULL) {
 		entry *prev = FF_GETPTR(entry, e, ent->prev);
 		e->plist = prev->plist;

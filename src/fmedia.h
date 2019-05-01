@@ -765,6 +765,10 @@ enum FMED_QUE {
 	'first': the first track to start. */
 	FMED_QUE_XPLAY,
 
+	/** Add an item.
+	fmed_que_entry* add2(int plist, fmed_que_entry *ent) */
+	FMED_QUE_ADD2,
+
 	_FMED_QUE_LAST
 };
 
@@ -832,6 +836,8 @@ Return fmed_que_entry*. */
 
 #define fmed_queue_save(qid, filename) \
 	cmdv(FMED_QUE_SAVE, (size_t)(qid), (void*)(filename))
+
+#define fmed_queue_add(flags, plid, ent)  cmdv(FMED_QUE_ADD2 | (flags), (int)(plid), ent)
 
 
 // GLOBCMD
