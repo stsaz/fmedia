@@ -53,6 +53,8 @@ static void gui_media_addurl(uint id);
 static void gui_showrecdir(void);
 static void gui_filt_show(void);
 static void list_setdata(void);
+static void fav_add(void);
+static void fav_show(void);
 
 enum {
 	GUI_TRKINFO_WNDCAPTION = 1,
@@ -131,6 +133,9 @@ static const struct cmd cmds[] = {
 	{ SHOWINFO,	F0 | CMD_FCORE,	&gui_media_showinfo },
 	{ SHOWPCM,	F0 | CMD_FCORE,	&gui_media_showpcm },
 	{ FILTER_SHOW,	F0,	&gui_filt_show },
+
+	{ FAV_ADD,	F0 | CMD_FCORE,	&fav_add },
+	{ FAV_SHOW,	F0 | CMD_FCORE,	&fav_show },
 
 	{ CHECKUPDATE,	F0 | CMD_FCORE,	&gui_upd_check },
 
@@ -760,6 +765,8 @@ int gui_newtab(uint flags)
 
 	if (flags & GUI_TAB_CONVERT) {
 		ffui_tab_settextz(&it, "Converting...");
+	} else if (flags & GUI_TAB_FAV) {
+		ffui_tab_settextz(&it, "Favorites");
 	} else {
 		int n = ffs_fmt(buf, buf + sizeof(buf), "Playlist %u", ++tabs);
 		ffui_tab_settext(&it, buf, n);
@@ -796,6 +803,12 @@ void gui_que_del(void)
 		gg->itab_convert = -1;
 	else if (gg->itab_convert > sel)
 		gg->itab_convert--;
+
+	if (sel == gg->fav_pl) {
+		fav_save();
+		gg->fav_pl = -1;
+	} else if (gg->fav_pl > sel)
+		gg->fav_pl--;
 
 	ffui_tab_del(&gg->wmain.tabs, sel);
 	ffbool last = (0 == ffui_tab_count(&gg->wmain.tabs));
@@ -867,6 +880,66 @@ static void gui_list_random(void)
 	else
 		ffui_menu_clearstate(&mi, FFUI_MENU_CHECKED);
 	ffui_menu_set_byid(&gg->mlist, RANDOM, &mi);
+}
+
+/* Favorites playlist.
+This is a persistent song list with automatic load and save.
+Playlist contents are stored on disk on list close and on application exit.
+*/
+
+/** Create playlist and load contents. */
+static void fav_prep(uint flags)
+{
+	if (gg->fav_pl != -1)
+		return;
+
+	gg->fav_pl = ffui_tab_count(&gg->wmain.tabs);
+	gui_newtab(GUI_TAB_FAV | flags);
+	gg->qu->cmd(FMED_QUE_NEW, NULL);
+
+	char *fn = ffsz_alfmt("%s%s", core->props->user_path, GUI_FAV_NAME);
+	gui_media_add2(fn, gg->fav_pl, ADDF_CHECKTYPE);
+	ffmem_free(fn);
+}
+
+/** Save playlist to disk. */
+void fav_save(void)
+{
+	char *fn = ffsz_alfmt("%s%s", core->props->user_path, GUI_FAV_NAME);
+	gg->qu->fmed_queue_save(gg->fav_pl, fn);
+	ffmem_free(fn);
+}
+
+/** Show playlist. */
+static void fav_show(void)
+{
+	fav_prep(0);
+	gui_showque(gg->fav_pl);
+}
+
+/** Add selected items to playlist.
+Load playlist from file if it isn't loaded.
+Create playlist if it doesn't exist. */
+static void fav_add(void)
+{
+	int i = -1, sel;
+	fmed_que_entry e = {}, *ent;
+
+	if (0 == ffui_view_selcount(&gg->wmain.vlist))
+		return;
+	if (-1 == (sel = ffui_tab_active(&gg->wmain.tabs)))
+		return;
+
+	fav_prep(GUI_TAB_NOSEL);
+
+	while (-1 != (i = ffui_view_selnext(&gg->wmain.vlist, i))) {
+		ent = (fmed_que_entry*)gg->qu->fmed_queue_item(sel, i);
+		e.url = ent->url;
+		e.from = ent->from;
+		e.to = ent->to;
+
+		gg->qu->fmed_queue_add(FMED_QUE_NO_ONCHANGE, gg->fav_pl, &e);
+	}
 }
 
 static void gui_tonxtlist(void)

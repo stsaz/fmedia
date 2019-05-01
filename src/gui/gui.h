@@ -222,6 +222,7 @@ typedef struct ggui {
 		;
 	uint state;
 	int itab_convert; // index of "conversion" tab;  -1:none
+	int fav_pl; // Favorites playlist index;  -1:none
 } ggui;
 
 const fmed_core *core;
@@ -236,6 +237,7 @@ enum {
 #define GUI_USERCONF  "fmedia.gui.conf"
 #define FMED_USERCONF  "fmedia-user.conf"
 #define GUI_PLIST_NAME  "list%u.m3u8"
+#define GUI_FAV_NAME  "fav.m3u8"
 
 enum ST {
 	ST_PLAYING = 1,
@@ -322,6 +324,10 @@ enum CMDS {
 	FILTER_SHOW,
 	FILTER_APPLY,
 	FILTER_RESET,
+
+	FAV_ADD,
+	FAV_SHOW,
+
 	SETTHEME, // 0xffffff00: mask for menu item index
 
 	HIDE,
@@ -405,6 +411,7 @@ char* gui_usrconf_filename(void);
 char* gui_userpath(const char *fn);
 void gui_upd_check(void);
 void usrconf_write(void);
+void fav_save(void);
 
 enum GUI_FILT {
 	GUI_FILT_URL = 1,
@@ -417,6 +424,7 @@ void gui_filter(const ffstr *text, uint flags);
 enum {
 	GUI_TAB_CONVERT = 1,
 	GUI_TAB_NOSEL = 2,
+	GUI_TAB_FAV = 4,
 };
 int gui_newtab(uint flags);
 

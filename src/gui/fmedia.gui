@@ -91,6 +91,14 @@ menu mlist {
 		action RANDOM
 		hotkey "R"
 	}
+	item "-" {
+	}
+	item "Show Favorites" {
+		action FAV_SHOW
+	}
+	item "Add to Favorites" {
+		action FAV_ADD
+	}
 }
 
 menu mplay {

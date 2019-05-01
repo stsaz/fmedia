@@ -323,6 +323,7 @@ static const char *const scmds[] = {
 	"SAVELIST",
 	"REMOVE",
 	"RANDOM",
+
 	"LIST_RMDEAD",
 	"CLEAR",
 	"SELALL",
@@ -339,6 +340,10 @@ static const char *const scmds[] = {
 	"FILTER_SHOW",
 	"FILTER_APPLY",
 	"FILTER_RESET",
+
+	"FAV_ADD",
+	"FAV_SHOW",
+
 	"SETTHEME",
 
 	"HIDE",
@@ -501,6 +506,8 @@ void gui_corecmd_op(uint cmd, void *udata)
 	case QUIT:
 		if (gg->autosave_playlists)
 			gui_savelists();
+		if (gg->fav_pl != -1)
+			fav_save();
 		core->sig(FMED_STOP);
 		break;
 	}
@@ -800,7 +807,8 @@ static void gui_savelists(void)
 
 	uint n = 1;
 	for (uint i = 0; ; i++) {
-		if (i == (uint)gg->itab_convert)
+		if (i == (uint)gg->itab_convert
+			|| i == (uint)gg->fav_pl)
 			continue;
 
 		buf.len = 0;
@@ -1162,6 +1170,7 @@ static int gui_sig(uint signo)
 		gg->go_pos = (uint)-1;
 		gg->sort_col = -1;
 		gg->itab_convert = -1;
+		gg->fav_pl = -1;
 		fflk_init(&gg->lktrk);
 		fflk_init(&gg->lklog);
 		return 0;
