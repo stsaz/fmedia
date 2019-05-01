@@ -39,6 +39,7 @@ static void gui_media_savelist(void);
 static void gui_media_remove(void);
 static void gui_list_rmdead(void);
 static void gui_list_random(void);
+static void sel_after_cur(void);
 static void gui_tonxtlist(void);
 static void gui_goto_show(void);
 static void gui_go_set(void);
@@ -133,6 +134,7 @@ static const struct cmd cmds[] = {
 	{ SHOWINFO,	F0 | CMD_FCORE,	&gui_media_showinfo },
 	{ SHOWPCM,	F0 | CMD_FCORE,	&gui_media_showpcm },
 	{ FILTER_SHOW,	F0,	&gui_filt_show },
+	{ SEL_AFTER_CUR,	F0,	&sel_after_cur },
 
 	{ FAV_ADD,	F0 | CMD_FCORE,	&fav_add },
 	{ FAV_SHOW,	F0 | CMD_FCORE,	&fav_show },
@@ -882,6 +884,17 @@ static void gui_list_random(void)
 	ffui_menu_set_byid(&gg->mlist, RANDOM, &mi);
 }
 
+static void sel_after_cur(void)
+{
+	gg->sel_after_cur = !gg->sel_after_cur;
+	ffui_menuitem mi = {};
+	if (gg->sel_after_cur)
+		ffui_menu_addstate(&mi, FFUI_MENU_CHECKED);
+	else
+		ffui_menu_clearstate(&mi, FFUI_MENU_CHECKED);
+	ffui_menu_set_byid(&gg->mlist, SEL_AFTER_CUR, &mi);
+}
+
 /* Favorites playlist.
 This is a persistent song list with automatic load and save.
 Playlist contents are stored on disk on list close and on application exit.
@@ -1118,6 +1131,12 @@ void gui_newtrack(gui_trk *g, fmed_filt *d, fmed_que_entry *plid)
 
 	if (-1 == gui_setmeta(g, plid))
 		goto done;
+
+	if (gg->sel_after_cur) {
+		ffui_view_unselall(&gg->wmain.vlist);
+		int idx = gg->qu->cmdv(FMED_QUE_ID, plid);
+		ffui_view_sel(&gg->wmain.vlist, idx);
+	}
 
 done:
 	ffui_trk_setrange(&gg->wmain.tpos, g->total_time_sec);

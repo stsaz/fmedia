@@ -72,6 +72,9 @@ menu mlist {
 	item "In&vert Selection" {
 		action SELINVERT
 	}
+	item "Selection Follows Cursor" {
+		action SEL_AFTER_CUR
+	}
 	item "&Remove" {
 		action REMOVE
 		hotkey "Delete"

@@ -340,6 +340,7 @@ static const char *const scmds[] = {
 	"FILTER_SHOW",
 	"FILTER_APPLY",
 	"FILTER_RESET",
+	"SEL_AFTER_CUR",
 
 	"FAV_ADD",
 	"FAV_SHOW",
