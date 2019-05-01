@@ -1,40 +1,94 @@
-# fmedia v1.7 GUI
+# fmedia v1.8 GUI
 
 menu mfile {
+	item "_Add..." {
+		action A_LIST_ADDFILE
+		hotkey "Insert"
+	}
+	item "Add _URL..." {
+		action A_LIST_ADDURL
+		hotkey "Ctrl+U"
+	}
+	item "-" {
+	}
+	item "Analyze & Show PCM Info" {
+		action A_SHOWPCM
+	}
+	item "_Delete From Disk" {
+		action A_DELFILE
+		hotkey "Shift+Delete"
+	}
+	item "-" {
+	}
+	item "_Minimize to Tray" {
+		action A_HIDE
+		hotkey "Ctrl+M"
+	}
 	item "E_xit" {
 		action A_QUIT
 	}
 }
 
 menu mlist {
+	item "_Save Playlist..." {
+		action A_LIST_SAVE
+		hotkey "Ctrl+S"
+	}
+	item "-" {
+	}
 	item "Select _All" {
-		action A_SELECTALL
+		action A_LIST_SELECTALL
+	}
+	item "-" {
+	}
+	item "_Remove" {
+		action A_LIST_REMOVE
+		hotkey "Delete"
+	}
+	item "Remove _Dead Items" {
+		action A_LIST_RMDEAD
 	}
 	item "_Clear" {
-		action A_CLEAR
+		action A_LIST_CLEAR
+	}
+	item "-" {
+	}
+	item "Random" {
+		action A_LIST_RANDOM
+		hotkey "R"
 	}
 }
 
 menu mplay {
+	item "_Play/Pause" {
+		action A_PLAYPAUSE
+		hotkey "Space"
+	}
 	item "_Stop" {
 		action A_STOP
+		hotkey "S"
 	}
 	item "Stop After Current" {
 		action A_STOP_AFTER
+		hotkey "Shift+S"
 	}
 	item "_Next" {
 		action A_NEXT
+		hotkey "N"
 	}
 	item "P_revious" {
 		action A_PREV
+		hotkey "P"
 	}
 	item "-" {
 	}
 	item "Seek _Forward" {
 		action A_FFWD
+		hotkey "Ctrl+Right"
 	}
 	item "Seek _Back" {
 		action A_RWND
+		hotkey "Ctrl+Left"
 	}
 	item "Leap Forward" {
 		action A_LEAP_FWD
@@ -42,12 +96,36 @@ menu mplay {
 	item "Leap Back" {
 		action A_LEAP_BACK
 	}
+	item "Set Marker" {
+		action A_SETGOPOS
+		hotkey "Shift+G"
+	}
+	item "Jump To Marker" {
+		action A_GOPOS
+		hotkey "G"
+	}
+	item "-" {
+	}
+	item "Volume _Up" {
+		action A_VOLUP
+		hotkey "Ctrl+Up"
+	}
+	item "Volume _Down" {
+		action A_VOLDOWN
+		hotkey "Ctrl+Down"
+	}
+	item "Reset Volume" {
+		action A_VOLRESET
+	}
 }
 
 menu mhelp {
 	item "_About" {
 		action A_ABOUT
 	}
+}
+
+dialog dlg {
 }
 
 window wmain {
@@ -72,7 +150,46 @@ window wmain {
 		}
 	}
 
+	button bpause {
+		style horizontal
+		action A_PLAYPAUSE
+		icon {
+			filename "play.ico"
+		}
+	}
+
+	button bstop {
+		style horizontal
+		action A_STOP
+		icon {
+			filename "stop.ico"
+		}
+	}
+
+	button bprev {
+		style horizontal
+		action A_PREV
+		icon {
+			filename "prev.ico"
+		}
+	}
+
+	button bnext {
+		style horizontal
+		action A_NEXT
+		icon {
+			filename "next.ico"
+		}
+	}
+
 	label lpos {
+		style horizontal
+	}
+
+	trackbar tvol {
+		style horizontal
+		range 125
+		onscroll A_VOL
 	}
 
 	trackbar tpos {
@@ -104,6 +221,11 @@ window wmain {
 		column Filename {
 		}
 	}
+	statusbar stbar {
+	}
+	trayicon tray_icon {
+		lclick A_SHOW
+	}
 }
 
 window wabout {
@@ -113,5 +235,18 @@ window wabout {
 	}
 
 	label lurl {
+	}
+}
+
+window wuri {
+	title "Add URL"
+	position 300 300 400 100
+
+	editbox turi {
+	}
+
+	button bok {
+		text "OK"
+		action A_URL_ADD
 	}
 }

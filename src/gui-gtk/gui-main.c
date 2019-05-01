@@ -6,10 +6,13 @@ Copyright (c) 2019 Simon Zolin */
 
 
 static void wmain_action(ffui_wnd *wnd, int id);
+static void list_save();
+static void hidetotray();
 
 
 void wmain_init()
 {
+	ffui_trk_set(&gg->wmain.tvol, 100);
 	gg->wmain.wmain.on_action = &wmain_action;
 	gg->wmain.wmain.onclose_id = A_ONCLOSE;
 	ffui_view_dragdrop(&gg->wmain.vlist, A_ONDROPFILE);
@@ -21,6 +24,31 @@ static void wmain_action(ffui_wnd *wnd, int id)
 	dbglog("%s cmd:%u", __func__, id);
 
 	switch (id) {
+	case A_LIST_ADDFILE: {
+		char *fn;
+		if (NULL == (fn = ffui_dlg_open(&gg->dlg, &gg->wmain.wmain)))
+			return;
+		ffstr *s = ffmem_new(ffstr);
+		ffstr_alcopyz(s, fn);
+		corecmd_add(A_URL_ADD, s);
+		return;
+	}
+	case A_LIST_ADDURL:
+		ffui_show(&gg->wuri.wuri, 1);
+		return;
+
+	case A_SHOWPCM:
+	case A_DELFILE:
+		break;
+
+	case A_SHOW:
+		ffui_show(&gg->wmain.wmain, 1);
+		ffui_tray_show(&gg->wmain.tray_icon, 0);
+		return;
+	case A_HIDE:
+		hidetotray();
+		return;
+
 	case A_QUIT:
 		ffui_wnd_close(&gg->wmain.wmain);
 		return;
@@ -30,6 +58,8 @@ static void wmain_action(ffui_wnd *wnd, int id)
 		if (gg->focused == -1)
 			return;
 		break;
+
+	case A_PLAYPAUSE:
 	case A_STOP:
 	case A_STOP_AFTER:
 	case A_NEXT:
@@ -45,15 +75,38 @@ static void wmain_action(ffui_wnd *wnd, int id)
 	case A_RWND:
 	case A_LEAP_FWD:
 	case A_LEAP_BACK:
+	case A_SETGOPOS:
+	case A_GOPOS:
 		break;
+	case A_VOLUP:
+		ffui_trk_set(&gg->wmain.tvol, gg->vol + 5);
+		break;
+	case A_VOLDOWN:
+		ffui_trk_set(&gg->wmain.tvol, gg->vol - 5);
+		break;
+	case A_VOLRESET:
+		ffui_trk_set(&gg->wmain.tvol, 100);
+		break;
+	case A_VOL: {
+		int val = ffui_trk_val(&gg->wmain.tvol);
+		corecmd_add(id, (void*)(size_t)val);
+		return;
+	}
 
-	case A_SELECTALL:
+	case A_LIST_SAVE:
+		list_save();
+		return;
+	case A_LIST_SELECTALL:
 		ffui_view_selall(&gg->wmain.vlist);
 		return;
-	case A_CLEAR:
+	case A_LIST_REMOVE:
+	case A_LIST_RMDEAD:
+	case A_LIST_CLEAR:
+	case A_LIST_RANDOM:
 		break;
 
 	case A_ONCLOSE:
+		ctlconf_write();
 		ffui_post_quitloop();
 		return;
 
@@ -216,4 +269,57 @@ void wmain_update(uint playtime, uint time_total)
 		, playtime / 60, playtime % 60
 		, time_total / 60, time_total % 60);
 	ffui_send_lbl_settext(&gg->wmain.lpos, buf);
+}
+
+/** Set status bar text. */
+void wmain_status(const char *fmt, ...)
+{
+	va_list va;
+	va_start(va, fmt);
+	char *s = ffsz_alfmtv(fmt, va);
+	va_end(va);
+	ffui_send_stbar_settextz(&gg->wmain.stbar, s);
+	ffmem_free(s);
+}
+
+/** User chooses file to save the current playlist to. */
+void list_save()
+{
+	char *fn;
+	ffstr name;
+	ffstr_setz(&name, "Playlist.m3u8");
+	if (NULL == (fn = ffui_dlg_save(&gg->dlg, &gg->wmain.wmain, name.ptr, name.len)))
+		return;
+
+	char *list_fn;
+	if (NULL == (list_fn = ffsz_alcopyz(fn)))
+		return;
+	corecmd_add(A_LIST_SAVE, list_fn);
+}
+
+/** Remove items from list. */
+void list_rmitems()
+{
+	int i, n = 0;
+	ffarr4 *sel = (void*)ffui_send_view_getsel(&gg->wmain.vlist);
+	while (-1 != (i = ffui_view_selnext(&gg->wmain.vlist, sel))) {
+		fmed_que_entry *ent = (fmed_que_entry*)gg->qu->fmed_queue_item(-1, i - n);
+		gg->qu->cmd2(FMED_QUE_RM /*| FMED_QUE_NO_ONCHANGE*/, ent, 0);
+		n++;
+	}
+	ffui_view_sel_free(sel);
+	wmain_status("Removed %u items", n);
+}
+
+void hidetotray()
+{
+	ffui_show(&gg->wmain.wmain, 0);
+	if (!ffui_tray_hasicon(&gg->wmain.tray_icon)) {
+		ffui_icon ico;
+		char *fn = core->getpath(FFSTR("fmedia.ico"));
+		ffui_icon_load(&ico, fn);
+		ffmem_free(fn);
+		ffui_tray_seticon(&gg->wmain.tray_icon, &ico);
+	}
+	ffui_tray_show(&gg->wmain.tray_icon, 1);
 }

@@ -424,7 +424,7 @@ else ifeq ($(OS),linux)
 #
 CFLAGS_GTK := -I/usr/include/gtk-3.0 -I/usr/include/pango-1.0 -I/usr/include/glib-2.0 -I/usr/lib64/glib-2.0/include -I/usr/include/fribidi -I/usr/include/cairo -I/usr/include/pixman-1 -I/usr/include/freetype2 -I/usr/include/libpng16 -I/usr/include/uuid -I/usr/include/harfbuzz -I/usr/include/gdk-pixbuf-2.0 -I/usr/include/gio-unix-2.0/ -I/usr/include/libdrm -I/usr/include/valgrind -I/usr/include/atk-1.0 -I/usr/include/at-spi2-atk/2.0 -I/usr/include/at-spi-2.0 -I/usr/include/dbus-1.0 -I/usr/lib64/dbus-1.0/include
 LIBS_GTK := -lgtk-3 -lgdk-3 -lpangocairo-1.0 -lpango-1.0 -lfribidi -latk-1.0 -lcairo-gobject -lcairo -lgdk_pixbuf-2.0 -lgio-2.0 -lgobject-2.0 -lglib-2.0
-$(OBJ_DIR)/%.o: $(SRCDIR)/gui-gtk/%.c $(SRCDIR)/fmedia.h $(FF)/FF/gui-gtk/gtk.h
+$(OBJ_DIR)/%.o: $(SRCDIR)/gui-gtk/%.c $(SRCDIR)/gui-gtk/gui.h $(SRCDIR)/fmedia.h $(FF)/FF/gui-gtk/gtk.h
 	$(C) $(CFLAGS) $(CFLAGS_GTK)  $< -o$@
 
 GUIGTK_O := $(OBJ_DIR)/gui.o \
@@ -434,10 +434,11 @@ GUIGTK_O := $(OBJ_DIR)/gui.o \
 	$(FF_OBJ_DIR)/ffparse.o $(FF_OBJ_DIR)/ffconf.o \
 	$(FF_OBJ_DIR)/ffgui-gtk.o \
 	$(FF_OBJ_DIR)/ffgui-gtk-loader.o \
+	$(FF_OBJ_DIR)/ffsys.o \
 	$(FFOS_THD) \
 	$(FF_O)
 gui.$(SO): $(GUIGTK_O)
-	$(LD) -shared $(GUIGTK_O) $(LDFLAGS) $(LIBS_GTK) $(LD_LPTHREAD) -o$@
+	$(LD) -shared $(GUIGTK_O) $(LDFLAGS) $(LIBS_GTK) $(LD_LPTHREAD) $(LD_LMATH) -o$@
 
 endif
 
@@ -476,6 +477,10 @@ ifeq ($(OS),win)
 else ifeq ($(OS),linux)
 	$(CP) $(PROJDIR)/src/gui-gtk/fmedia.gui \
 		$(PROJDIR)/res/fmedia.ico \
+		$(PROJDIR)/res/play.ico \
+		$(PROJDIR)/res/stop.ico \
+		$(PROJDIR)/res/prev.ico \
+		$(PROJDIR)/res/next.ico \
 		$(INSTDIR)/
 endif
 
