@@ -1308,7 +1308,7 @@ static void que_trk_close(void *ctx)
 {
 	que_trk *t = ctx;
 
-	if ((int64)t->d->audio.total != FMED_NULL)
+	if ((int64)t->d->audio.total != FMED_NULL && t->d->audio.fmt.sample_rate != 0)
 		t->e->e.dur = ffpcm_time(t->d->audio.total, t->d->audio.fmt.sample_rate);
 
 	int stopped = t->track->getval(t->trk, "stopped");
