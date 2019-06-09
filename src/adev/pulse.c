@@ -156,8 +156,11 @@ static int pulse_adev_list(fmed_adev_ent **ents, uint flags)
 	fmed_adev_ent *e;
 	int r, rr = -1;
 
-	if (mod == NULL && 0 != ffpulse_init(FF_BADFD))
+	if ((mod == NULL || !mod->init_ok)
+		&& 0 != (r = ffpulse_init(FF_BADFD))) {
+		errlog(core, NULL, NULL, "ffpulse_init(): %s", ffpulse_errstr(r));
 		return -1;
+	}
 
 	ffpulse_devinit(&d);
 
