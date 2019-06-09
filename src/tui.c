@@ -20,6 +20,7 @@ typedef struct gtui {
 	struct tui *curtrk_rec; //currently recording track
 
 	uint vol;
+	uint progress_dots;
 
 	uint mute :1;
 } gtui;
@@ -168,6 +169,7 @@ static int tui_sig(uint signo)
 		gt = ffmem_tcalloc1(gtui);
 		fflk_init(&gt->lktrk);
 		gt->vol = 100;
+		uint term_wnd_size = 80;
 		if (NULL == (gt->qu = core->getmod("#queue.queue")))
 			return 1;
 		if (NULL == (gt->track = core->getmod("#core.track")))
@@ -182,6 +184,10 @@ static int tui_sig(uint signo)
 		ffstd_attr(ffstdin, attr, 0);
 
 #ifdef FF_WIN
+		CONSOLE_SCREEN_BUFFER_INFO info = {};
+		if (GetConsoleScreenBufferInfo(ffstdout, &info))
+			term_wnd_size = info.dwSize.X;
+
 		if (0 != core->cmd(FMED_WOH_INIT)) {
 			fmed_warnlog(core, NULL, "tui", "can't start stdin reader");
 			return 0;
@@ -206,6 +212,7 @@ static int tui_sig(uint signo)
 		}
 #endif
 
+		gt->progress_dots = ffmax((int)term_wnd_size - (int)FFSLEN("[] 00:00 / 00:00"), 0);
 		break;
 	}
 	return 0;
@@ -437,7 +444,6 @@ static int tui_process(void *ctx, fmed_filt *d)
 	tui *t = ctx;
 	int64 playpos;
 	uint playtime;
-	uint dots = 70;
 
 	if (d->meta_block) {
 		goto pass;
@@ -519,6 +525,7 @@ static int tui_process(void *ctx, fmed_filt *d)
 	}
 
 	t->buf.len = 0;
+	uint dots = gt->progress_dots;
 	ffstr_catfmt(&t->buf, "%*c[%*c%*c] %u:%02u / %u:%02u"
 		, (size_t)t->nback, '\r'
 		, (size_t)(playpos * dots / t->total_samples), '='
