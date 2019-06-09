@@ -15,7 +15,7 @@ Copyright (c) 2015 Simon Zolin */
 #include <FFOS/process.h>
 
 
-#define FMED_CMDHELP_FILE  "help.txt"
+#define FMED_CMDHELP_FILE_FMT  "help%s.txt"
 
 struct gctx {
 	ffsignal sigs_task;
@@ -156,15 +156,44 @@ static const ffpars_arg fmed_cmdline_main_args[] = {
 
 #undef OFF
 
+#ifdef FF_WIN
+	#include <versionhelpers.h>
+#endif
+
+/** Get locale suffix. */
+static const char* loc_sfx()
+{
+	uint ilang = 0;
+	static const char langstr[][4] = {
+		"", "" /*EN*/, "_RU"
+	};
+	uint lang = fflang_info(FFLANG_FLANG);
+	dbglog(core, NULL, "core", "language:%xu", lang);
+	switch (lang) {
+	case FFLANG_ENG:
+		ilang = 1; break;
+	case FFLANG_RUS:
+		ilang = 2; break;
+	}
+
+#ifdef FF_WIN
+	if (ilang > 1 && !IsWindows7OrGreater()) // does printing non-latin characters work on old Windows?
+		ilang = 1;
+#endif
+
+	return langstr[ilang];
+}
+
 static int fmed_arg_usage(void)
 {
 	ffarr buf = {0};
 	ssize_t n;
-	char *fn = NULL;
+	char *fn = NULL, *name = NULL;
 	fffd f = FF_BADFD;
 	int r = FFPARS_ESYS;
 
-	if (NULL == (fn = core->getpath(FFSTR(FMED_CMDHELP_FILE))))
+	name = ffsz_alfmt(FMED_CMDHELP_FILE_FMT, loc_sfx());
+	if (NULL == (fn = core->getpath(name, ffsz_len(name))))
 		goto done;
 
 	if (FF_BADFD == (f = fffile_open(fn, O_RDONLY | O_NOATIME)))
@@ -176,8 +205,9 @@ static int fmed_arg_usage(void)
 	n = fffile_read(f, buf.ptr, buf.cap);
 	if (n <= 0)
 		goto done;
+	buf.len = n;
 
-	fffile_write(ffstdout, buf.ptr, n);
+	ffstd_write(ffstdout, buf.ptr, buf.len);
 	r = FFPARS_ELAST;
 
 done:
@@ -186,6 +216,7 @@ done:
 	ffmem_safefree(fn);
 	FF_SAFECLOSE(f, FF_BADFD, fffile_close);
 	ffarr_free(&buf);
+	ffmem_free(name);
 	return r;
 }
 
