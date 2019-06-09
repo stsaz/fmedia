@@ -120,6 +120,20 @@ menu mplay {
 }
 
 menu mhelp {
+	item "Edit Default Settings" {
+		action A_CONF_EDIT
+	}
+	item "Edit GUI" {
+		action A_FMEDGUI_EDIT
+	}
+	item "-" {
+	}
+	item "Show Readme File" {
+		action A_README_SHOW
+	}
+	item "Show Changelog" {
+		action A_CHANGES_SHOW
+	}
 	item "_About" {
 		action A_ABOUT
 	}

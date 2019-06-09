@@ -121,6 +121,13 @@ static void wmain_action(ffui_wnd *wnd, int id)
 		ffui_show(&gg->wabout, 1);
 		return;
 
+	case A_CONF_EDIT:
+	case A_FMEDGUI_EDIT:
+	case A_README_SHOW:
+	case A_CHANGES_SHOW:
+		gui_showtextfile(id);
+		return;
+
 	default:
 		FF_ASSERT(0);
 		return;

@@ -115,6 +115,10 @@ enum ACTION {
 	A_LIST_RANDOM,
 
 	A_ABOUT,
+	A_CONF_EDIT,
+	A_FMEDGUI_EDIT,
+	A_README_SHOW,
+	A_CHANGES_SHOW,
 
 	A_URL_ADD,
 
@@ -125,6 +129,7 @@ enum ACTION {
 
 void corecmd_add(uint cmd, void *udata);
 void ctlconf_write(void);
+void gui_showtextfile(uint id);
 
 void wmain_init();
 void wmain_newtrack(fmed_que_entry *ent, uint time_total);

@@ -3,6 +3,7 @@ Copyright (c) 2019 Simon Zolin */
 
 #include <gui-gtk/gui.h>
 #include <FFOS/dir.h>
+#include <FFOS/process.h>
 
 
 const fmed_core *core;
@@ -208,6 +209,10 @@ static const char *const action_str[] = {
 	"A_LIST_RANDOM",
 
 	"A_ABOUT",
+	"A_CONF_EDIT",
+	"A_FMEDGUI_EDIT",
+	"A_README_SHOW",
+	"A_CHANGES_SHOW",
 
 	"A_URL_ADD",
 };
@@ -459,6 +464,46 @@ static void corecmd_run(uint cmd, void *udata)
 	default:
 		FF_ASSERT(0);
 	}
+}
+
+/** Execute GUI text editor to open a file. */
+void gui_showtextfile(uint id)
+{
+	const char *name = NULL;
+	char *fn;
+	switch (id) {
+	case A_CONF_EDIT:
+		name = FMED_GLOBCONF; break;
+
+	case A_FMEDGUI_EDIT:
+		name = "fmedia.gui"; break;
+
+	case A_README_SHOW:
+		name = "README.txt"; break;
+
+	case A_CHANGES_SHOW:
+		name = "CHANGES.txt"; break;
+	default:
+		return;
+	}
+
+	if (NULL == (fn = core->getpath(name, ffsz_len(name))))
+		return;
+
+	const char *argv[] = {
+		"xdg-open", fn, NULL
+	};
+	ffps ps = ffps_exec("/usr/bin/xdg-open", argv, (const char**)environ);
+	if (ps == FFPS_INV) {
+		syserrlog("ffps_exec", 0);
+		goto done;
+	}
+
+	dbglog("spawned editor: %u", (int)ffps_id(ps));
+	ffps_close(ps);
+
+done:
+	ffmem_free(fn);
 }
 
 /** Save playlists to disk. */
