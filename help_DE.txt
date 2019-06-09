@@ -1,0 +1,143 @@
+Anwendung:
+fmedia [OPTIONEN] [EINGABE...]
+
+Standardmäßig werden die angegeben Dateien nacheinander abgespielt. 
+Typische Aufnahmekette: WARTESCHLANGE -> EINGABE -> FILTER -> KODIERUNG -> AUSGABE
+
+EINGABE            Datei, Verzeichnis, URL oder ein Platzhalter
+                   @stdin.EXT: Lese von der Standard Eingabe
+
+OPTIONEN:
+
+WARTESCHLANGE:
+--track=N1[,N2...] Wähle eine spezifische Aufnahmenummer in der playlist
+--repeat-all       Wiederhole alles
+--random           Wähle die nächste Aufnahme zufällig
+
+AUDIO GERÄTE:
+--list-dev          Liste alle verfügbaren Audio Geräte auf und beende
+--dev=DEVNO         Benutze Gerät zum abspielen
+--dev-capture=DEVNO Benutze Gerät zum aufnehmen
+--dev-loopback=DEVNO
+                    Benutze Gerät zum abspielen im loopback Modus (Aufnahme erfolgt über playback) (nur WASAPI)
+
+AUDIO FORMAT:
+Standardmäßig werden diese Einstellungen für die Ausgabe genutzt.  Beim Aufnehmen gelten sie ebenfalls für die Eingabe.
+--format=STR       Setzt das Audio Format (int8 | int16 | int24 | int32 | float32)
+--rate=INT         Setzt die Abtastrate (sample rate)
+                   Hinweis: Manche Einstellungen könnten zusammen mit der Anpassung der Abtastrate nicht funktionieren
+--channels=STR     Setzt Kanal Nummer
+                   Konvertierung zu Stereo oder Mono möglich:
+                    --channels=mono: Mische alle Kanäle zusammen
+                    --channels=left: Benutze nur den linken Kanal
+                    --channels=right: Benutze nur den rechten Kanal
+
+EINGABE:
+--record           Audio aufnehmen.  Das Standard Audio Format ist in fmedia.conf::record_format hinterlegt.
+--mix              Spiele alle eingegebenen Dateien gleichzeitig.  Das Audio Format kann in fmedia.conf::mod_conf "mixer.out" angepasst werden.
+                   Hinweis: alle Eingaben müssen die gleiche Anzahl an Kanälen und Abtastrate wie die Ausgabe haben.
+--flist=FILE       Lese alle Dateinamen von FILE
+--include='WILDCARD[;WILDCARD]'
+                   Binde nur die Dateien ein, die dem Platzhalter (WILDCARD) entsprechen. Es wird nicht zwischen Groß- und Kleinschreibung unterschieden (case-insensitive)
+--exclude='WILDCARD[;WILDCARD]'
+                   Schließe die Dateien und Ordner aus, die dem Platzhalter (WILDCARD) entsprechen. Es wird nicht zwischen Groß- und Kleinschreibung unterschieden (case-insensitive)
+--seek=TIME        Suche den angegebenen Zeitpunkt: [[HH:]MM:]SS[:MSC]
+--until=TIME       Stoppe zum angegebenen Zeitpunkt
+                   Besondere Werte:
+                     'playback-end': Beende die Aufnahme sobald das letzte Stück beendet wurde
+--prebuffer=TIME   Start recording by a command from user, saving the previously bufferred seconds of audio
+--start-dblevel=DB Skip initial audio until input signal level goes above DB (-100dB..0dB)
+--stop-dblevel=DB[;TIME][;MINTIME]
+                   Stop processing if input signal level goes below DB for TIME time (default: 5 sec).
+                   If MINTIME is specified, stop only after MINTIME time has passed.
+--fseek=BYTE       Set input file offset
+-i, --info         Don't play but show media information
+--tags             Print all meta tags
+--meta='[clear;]NAME=STR;...'
+                   Set meta data
+                   If "clear;" is specified, skip all meta from input file.
+                   .mp3 supports: album, albumartist, artist, comment, date, genre, picture, publisher, title, tracknumber, tracktotal.
+                   .mp4 supports: album, albumartist, artist, comment, composer, copyright, date, discnumber, genre, lyrics, title, tracknumber.
+                   .flac, .ogg support tags of any name.
+                   Value may be read from file (e.g. album cover picture):
+                     "--meta=picture=@file:FILENAME"
+
+FILTER:
+--volume=INT       Set volume (0% .. 125%)
+--gain=FLOAT       Set gain/attenuation in dB
+--dynanorm         Use Dynamic Audio Normalizer filter.
+                   Set parameters in section `mod_conf dynanorm.filter` in fmedia.conf.
+
+--pcm-peaks        Analyze PCM and print some details
+--pcm-crc          Print CRC of PCM data (must be used with --pcm-peaks)
+                   Useful for checking the results of lossless audio conversion.
+
+ENCODING:
+--vorbis.quality=FLOAT
+                   Vorbis encoding quality: -1.0 .. 10.0
+--opus.bitrate=INT Opus encoding bitrate: 6..510 (VBR)
+--mpeg-quality=INT MPEG encoding quality: 9..0 (VBR) or 64..320 (CBR)
+--aac-quality=INT  AAC encoding quality: 1..5 (VBR) or 8..800 (CBR, kbit/s)
+--aac-profile=STR  Set AAC profile: LC | HE | HEv2
+--flac-compression=INT
+                   FLAC compression level: 0..8
+--stream-copy      Copy audio data without re-encoding.  Supported formats: OGG, MPEG.
+
+OUTPUT:
+-o, --out=[NAME].EXT
+                   Don't play but write output to a file (i.e. convert audio)
+                   If NAME is "@stdout", write to standard output.
+                   Output format is chosen by "EXT" (see fmedia.conf::output_ext).
+                   Supported variables:
+                     $filepath: path to input file
+                     $filename: name (without extension) of the input file
+                     $date: current date
+                     $time: current time
+                     $timems: current time with milliseconds
+                   --out=.ogg is a short for --out='./$filename.ogg'
+                   Filename may be generated automatically using meta info,
+                     e.g.: --out '$tracknumber. $artist - $title.flac'
+-y, --overwrite    Overwrite output file
+--preserve-date    Set output file date/time equal to input file.
+--out-copy[=STR]   Play AND copy data to output file specified by "--out" switch.
+                   Supported by modules: net.icy.
+                   Value:
+                     all: save all tracks (default)
+                     cmd: save each track only by user's command
+
+OTHER OPTIONS:
+--parallel         Process input files in parallel (fmedia.conf::workers).
+                   Must be used with '--out'.
+--background       Create a new process that will run in background
+--globcmd=STR      Send commands to another running fmedia process.
+                   Supported commands:
+                     listen: Start listening for incoming commands
+                     play INPUT... : Add items to queue and start playing the first added
+                     add INPUT... : Add items to queue
+                     clear: Clear the current queue
+                     stop: Stop all active tracks
+                     quit: Close fmedia process
+--globcmd.pipe-name=STR
+                   Set name of the pipe for communication between fmedia instances
+
+--conf=FN          Set configuration file (default: "fmedia.conf" from the program directory)
+--gui              Run in graphical UI mode (Windows,Linux only)
+--notui            Don't use terminal UI
+--print-time       Show the time spent for processing each track
+--debug            Print debug info to stdout
+-h, --help         Print help info and exit
+
+--cue-gaps=INT     Control track pregaps
+                   0: skip pregaps:
+                     track01.index01 .. track02.index00
+                   1: (default), gap is added to the previous track:
+                     track01.index01 .. track02.index01
+                   2: gap is added to the previous track (but track01's pregap is preserved):
+                     track01.index00 .. track02.index01
+                     track02.index01 .. track03.index01
+                   3: gap is added to the beginning of the current track:
+                     track01.index00 .. track02.index00
+
+INSTALL:
+--install          Windows: add fmedia directory into user's environment and create a desktop shortcut
+--uninstall        Undo changes made by '--install'
