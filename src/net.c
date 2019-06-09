@@ -661,7 +661,7 @@ static int httpcli_resp(struct httpclient *c, ffhttp_response *resp)
 			ffstr_setz(&ext, "mp3");
 		else if (ffstr_ieqz(&s, "audio/aac") || ffstr_ieqz(&s, "audio/aacp"))
 			ffstr_setz(&ext, "aac");
-		else if (ffstr_ieqz(&s, "application/ogg"))
+		else if (ffstr_ieqz(&s, "audio/ogg") || ffstr_ieqz(&s, "application/ogg"))
 			ffstr_setz(&ext, "ogg");
 		else {
 			errlog(c->trk, "unsupported Content-Type: %S", &s);
