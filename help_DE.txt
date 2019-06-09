@@ -1,50 +1,50 @@
-Usage:
-fmedia [OPTIONS] [INPUT...]
+Anwendung:
+fmedia [OPTIONEN] [EINGABE...]
 
-The default action is to play input files one by one.
-Typical track chain: QUEUE -> INPUT -> FILTERS -> ENCODING -> OUTPUT
+Standardmäßig werden die angegeben Dateien nacheinander abgespielt. 
+Typische Aufnahmekette: WARTESCHLANGE -> EINGABE -> FILTER -> KODIERUNG -> AUSGABE
 
-INPUT              Input file, directory, URL or a wildcard
-                   @stdin.EXT: read from standard input.
+EINGABE            Datei, Verzeichnis, URL oder ein Platzhalter
+                   @stdin.EXT: Lese von der Standard Eingabe
 
-OPTIONS:
+OPTIONEN:
 
-QUEUE:
---track=N1[,N2...] Select specific track numbers in playlist
---repeat-all       Repeat all
---random           Choose the next track randomly
+WARTESCHLANGE:
+--track=N1[,N2...] Wähle eine spezifische Aufnahmenummer in der playlist
+--repeat-all       Wiederhole alles
+--random           Wähle die nächste Aufnahme zufällig
 
-AUDIO DEVICES:
---list-dev          List available sound devices and exit
---dev=DEVNO         Use playback device
---dev-capture=DEVNO Use capture device
+AUDIO GERÄTE:
+--list-dev          Liste alle verfügbaren Audio Geräte auf und beende
+--dev=DEVNO         Benutze Gerät zum abspielen
+--dev-capture=DEVNO Benutze Gerät zum aufnehmen
 --dev-loopback=DEVNO
-                    Use playback device in a loopback mode (record from playback) (WASAPI only)
+                    Benutze Gerät zum abspielen im loopback Modus (Aufnahme erfolgt über playback) (nur WASAPI)
 
 AUDIO FORMAT:
-By default these settings are used for output.  When recording, they apply for input.
---format=STR       Set audio format (int8 | int16 | int24 | int32 | float32)
---rate=INT         Set sample rate
-                   Note: some settings may not work together with sample rate conversion.
---channels=STR     Set channels number
-                   Can convert stereo to mono:
-                    --channels=mono: mix all channels together
-                    --channels=left: use left channel only
-                    --channels=right: use right channel only
+Standardmäßig werden diese Einstellungen für die Ausgabe genutzt.  Beim Aufnehmen gelten sie ebenfalls für die Eingabe.
+--format=STR       Setzt das Audio Format (int8 | int16 | int24 | int32 | float32)
+--rate=INT         Setzt die Abtastrate (sample rate)
+                   Hinweis: Manche Einstellungen könnten zusammen mit der Anpassung der Abtastrate nicht funktionieren
+--channels=STR     Setzt Kanal Nummer
+                   Konvertierung zu Stereo oder Mono möglich:
+                    --channels=mono: Mische alle Kanäle zusammen
+                    --channels=left: Benutze nur den linken Kanal
+                    --channels=right: Benutze nur den rechten Kanal
 
-INPUT:
---record           Capture audio.  Set default audio format in fmedia.conf::record_format.
---mix              Play input files simultaneously.  Set audio format in fmedia.conf::mod_conf "mixer.out".
-                   Note: all inputs must have channels number and sample rate equal to the output.
---flist=FILE       Read filenames from FILE
+EINGABE:
+--record           Audio aufnehmen.  Das Standard Audio Format ist in fmedia.conf::record_format hinterlegt.
+--mix              Spiele alle eingegebenen Dateien gleichzeitig.  Das Audio Format kann in fmedia.conf::mod_conf "mixer.out" angepasst werden.
+                   Hinweis: alle Eingaben müssen die gleiche Anzahl an Kanälen und Abtastrate wie die Ausgabe haben.
+--flist=FILE       Lese alle Dateinamen von FILE
 --include='WILDCARD[;WILDCARD]'
-                   Only include files matching a wildcard (case-insensitive)
+                   Binde nur die Dateien ein, die dem Platzhalter (WILDCARD) entsprechen. Es wird nicht zwischen Groß- und Kleinschreibung unterschieden (case-insensitive)
 --exclude='WILDCARD[;WILDCARD]'
-                   Exclude files & directories matching a wildcard (case-insensitive)
---seek=TIME        Seek to time: [[HH:]MM:]SS[:MSC]
---until=TIME       Stop at time
-                   Special values:
-                     'playback-end': stop recording when the last playback track is finished
+                   Schließe die Dateien und Ordner aus, die dem Platzhalter (WILDCARD) entsprechen. Es wird nicht zwischen Groß- und Kleinschreibung unterschieden (case-insensitive)
+--seek=TIME        Suche den angegebenen Zeitpunkt: [[HH:]MM:]SS[:MSC]
+--until=TIME       Stoppe zum angegebenen Zeitpunkt
+                   Besondere Werte:
+                     'playback-end': Beende die Aufnahme sobald das letzte Stück beendet wurde
 --prebuffer=TIME   Start recording by a command from user, saving the previously bufferred seconds of audio
 --start-dblevel=DB Skip initial audio until input signal level goes above DB (-100dB..0dB)
 --stop-dblevel=DB[;TIME][;MINTIME]
@@ -62,7 +62,7 @@ INPUT:
                    Value may be read from file (e.g. album cover picture):
                      "--meta=picture=@file:FILENAME"
 
-FILTERS:
+FILTER:
 --volume=INT       Set volume (0% .. 125%)
 --gain=FLOAT       Set gain/attenuation in dB
 --dynanorm         Use Dynamic Audio Normalizer filter.
@@ -141,18 +141,3 @@ OTHER OPTIONS:
 INSTALL:
 --install          Windows: add fmedia directory into user's environment and create a desktop shortcut
 --uninstall        Undo changes made by '--install'
-
-    © 2019 GitHub, Inc.
-    Terms
-    Privacy
-    Security
-    Status
-    Help
-
-    Contact GitHub
-    Pricing
-    API
-    Training
-    Blog
-    About
-
