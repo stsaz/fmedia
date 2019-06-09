@@ -130,11 +130,10 @@ void wmain_init();
 void wmain_newtrack(fmed_que_entry *ent, uint time_total);
 void wmain_fintrack();
 void wmain_update(uint playtime, uint time_total);
-void wmain_ent_add(const ffstr *fn);
 void wmain_ent_added(void *param);
 void wmain_ent_removed(uint idx);
 void wmain_status(const char *fmt, ...);
-void list_rmitems();
+void wmain_list_clear();
 
 void wabout_init();
 void wuri_init();

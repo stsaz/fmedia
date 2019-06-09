@@ -50,6 +50,8 @@ static void file_showpcm(void);
 static void file_del(void);
 static void lists_load(void);
 static void lists_save(void);
+static void list_add(const ffstr *fn);
+static void list_rmitems(void);
 
 FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 {
@@ -414,7 +416,7 @@ static void corecmd_run(uint cmd, void *udata)
 
 	case A_LIST_CLEAR:
 		gg->qu->cmd(FMED_QUE_CLEAR | FMED_QUE_NO_ONCHANGE, NULL);
-		ffui_post_view_clear(&gg->wmain.vlist);
+		wmain_list_clear();
 		break;
 
 	case A_LIST_RANDOM:
@@ -429,7 +431,7 @@ static void corecmd_run(uint cmd, void *udata)
 			if (!ffs_matchz(ln.ptr, ln.len, "file://"))
 				continue;
 			ffstr_shift(&ln, FFSLEN("file://"));
-			wmain_ent_add(&ln);
+			list_add(&ln);
 		}
 		ffstr_free(d);
 		ffmem_free(d);
@@ -438,7 +440,7 @@ static void corecmd_run(uint cmd, void *udata)
 
 	case A_URL_ADD: {
 		ffstr *s = udata;
-		wmain_ent_add(s);
+		list_add(s);
 		ffstr_free(s);
 		ffmem_free(s);
 		break;
@@ -495,12 +497,50 @@ static void lists_load(void)
 		buf.len--;
 		if (!fffile_exists(buf.ptr))
 			break;
-		wmain_ent_add((ffstr*)&buf);
+		list_add((ffstr*)&buf);
 	}
 
 end:
 	ffarr_free(&buf);
 	return;
+}
+
+static void list_add(const ffstr *fn)
+{
+	int t = FMED_FT_FILE;
+	if (!ffs_matchz(fn->ptr, fn->len, "http://")) {
+		char *fnz = ffsz_alcopystr(fn);
+		t = core->cmd(FMED_FILETYPE, fnz);
+		ffmem_free(fnz);
+		if (t == FMED_FT_UKN)
+			return;
+	}
+
+	fmed_que_entry e, *pe;
+	ffmem_tzero(&e);
+	e.url = *fn;
+	if (NULL == (pe = (void*)gg->qu->fmed_queue_add(0/* | FMED_QUE_NO_ONCHANGE*/, -1, &e)))
+		return;
+	// wmain_ent_added(pe);
+
+	if (t == FMED_FT_DIR || t == FMED_FT_PLIST)
+		gg->qu->cmd2(FMED_QUE_EXPAND, pe, 0);
+}
+
+
+/** Remove items from list. */
+static void list_rmitems(void)
+{
+	int i, n = 0;
+	ffarr4 *sel = (void*)ffui_send_view_getsel(&gg->wmain.vlist);
+	while (-1 != (i = ffui_view_selnext(&gg->wmain.vlist, sel))) {
+		fmed_que_entry *ent = (fmed_que_entry*)gg->qu->fmed_queue_item(-1, i - n);
+		gg->qu->cmd2(FMED_QUE_RM | FMED_QUE_NO_ONCHANGE, ent, 0);
+		wmain_ent_removed(i - n);
+		n++;
+	}
+	ffui_view_sel_free(sel);
+	wmain_status("Removed %u items", n);
 }
 
 /** For each selected item in list start a new track to analyze PCM peaks. */
