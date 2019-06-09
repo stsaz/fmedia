@@ -97,6 +97,7 @@ CORE_O := $(OBJ_DIR)/core.o $(OBJ_DIR)/core-conf.o \
 	$(FF_O) \
 	$(FFOS_WREG) \
 	$(FFOS_THD) \
+	$(FF_OBJ_DIR)/fffileread.o \
 	$(FF_OBJ_DIR)/ffsys.o \
 	$(FF_OBJ_DIR)/fftmr.o \
 	$(FF_OBJ_DIR)/ffrbtree.o \
