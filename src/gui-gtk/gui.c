@@ -610,9 +610,10 @@ static void list_add(const ffstr *fn)
 	fmed_que_entry e, *pe;
 	ffmem_tzero(&e);
 	e.url = *fn;
-	if (NULL == (pe = (void*)gg->qu->fmed_queue_add(0/* | FMED_QUE_NO_ONCHANGE*/, -1, &e)))
+	if (NULL == (pe = (void*)gg->qu->fmed_queue_add(FMED_QUE_NO_ONCHANGE, -1, &e)))
 		return;
-	// wmain_ent_added(pe);
+	uint idx = gg->qu->cmdv(FMED_QUE_ID, pe);
+	wmain_ent_added(idx);
 
 	if (t == FMED_FT_DIR || t == FMED_FT_PLIST)
 		gg->qu->cmd2(FMED_QUE_EXPAND, pe, 0);
@@ -671,7 +672,7 @@ static void file_del(void)
 
 		if (0 == fffile_rename(ent->url.ptr, fn)) {
 			gg->qu->cmd(FMED_QUE_RM | FMED_QUE_NO_ONCHANGE, ent);
-			wmain_ent_removed(i);
+			wmain_ent_removed(i - n);
 			n++;
 		} else
 			syserrlog("can't rename file: %s", fn);
@@ -735,7 +736,7 @@ static void gui_que_onchange(fmed_que_entry *ent, uint flags)
 		if (flags & FMED_QUE_ADD_DONE)
 			break;
 		idx = gg->qu->cmdv(FMED_QUE_ID, ent);
-		ffui_thd_post(&wmain_ent_added, (void*)(size_t)idx, FFUI_POST_WAIT);
+		wmain_ent_added(idx);
 		break;
 
 	case FMED_QUE_ONRM:
@@ -773,7 +774,7 @@ static void* gtrk_open(fmed_filt *d)
 
 	t->sample_rate = d->audio.fmt.sample_rate;
 	t->time_total = ffpcm_time(d->audio.total, t->sample_rate) / 1000;
-	wmain_newtrack(ent, t->time_total);
+	wmain_newtrack(ent, t->time_total, d);
 
 	t->trk = d->trk;
 	gg->curtrk = t;

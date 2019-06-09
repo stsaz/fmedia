@@ -126,6 +126,7 @@ enum ACTION {
 	A_ONCLOSE,
 	A_ONDROPFILE,
 	LOADLISTS,
+	LIST_DISPINFO,
 };
 
 void corecmd_add(uint cmd, void *udata);
@@ -133,10 +134,10 @@ void ctlconf_write(void);
 void gui_showtextfile(uint id);
 
 void wmain_init();
-void wmain_newtrack(fmed_que_entry *ent, uint time_total);
+void wmain_newtrack(fmed_que_entry *ent, uint time_total, fmed_filt *d);
 void wmain_fintrack();
 void wmain_update(uint playtime, uint time_total);
-void wmain_ent_added(void *param);
+void wmain_ent_added(uint idx);
 void wmain_ent_removed(uint idx);
 void wmain_status(const char *fmt, ...);
 void wmain_list_clear();

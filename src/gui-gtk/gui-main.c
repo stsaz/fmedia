@@ -8,10 +8,12 @@ Copyright (c) 2019 Simon Zolin */
 static void wmain_action(ffui_wnd *wnd, int id);
 static void list_save();
 static void hidetotray();
+static void list_dispinfo(struct ffui_view_disp *disp);
 
 
 void wmain_init()
 {
+	gg->wmain.vlist.dispinfo_id = LIST_DISPINFO;
 	ffui_trk_set(&gg->wmain.tvol, 100);
 	gg->wmain.wmain.on_action = &wmain_action;
 	gg->wmain.wmain.onclose_id = A_ONCLOSE;
@@ -129,6 +131,10 @@ static void wmain_action(ffui_wnd *wnd, int id)
 		gui_showtextfile(id);
 		return;
 
+	case LIST_DISPINFO:
+		list_dispinfo(&gg->wmain.vlist.disp);
+		return;
+
 	default:
 		FF_ASSERT(0);
 		return;
@@ -158,71 +164,85 @@ static const char* const list_colname[] = {
 	"", //H_FN
 };
 
-void wmain_ent_added(void *param)
+static void list_dispinfo(struct ffui_view_disp *disp)
 {
-	uint idx = (size_t)param;
-	fmed_que_entry *ent = (fmed_que_entry*)gg->qu->fmed_queue_item_locked(-1, idx);
+	fmed_que_entry *ent;
 	char buf[256];
 	ffstr *val = NULL, s;
+	uint sub = disp->sub;
 
-	ffui_viewitem it = {};
-	ffs_fmt(buf, buf + sizeof(buf), "%u%Z", idx + 1);
-	ffui_view_settextz(&it, buf);
-	ffui_view_ins(&gg->wmain.vlist, idx, &it);
+	ent = (fmed_que_entry*)gg->qu->fmed_queue_item_locked(-1, disp->idx);
+	if (ent == NULL)
+		return;
 
-	for (uint i = H_IDX + 1;  i != H_FN + 1;  i++) {
+	switch (sub) {
+	case H_IDX:
+		ffs_fmt(buf, buf + sizeof(buf), "%u%Z", disp->idx + 1);
+		ffstr_setz(&s, buf);
+		val = &s;
+		break;
 
-		val = gg->qu->meta_find(ent, list_colname[i], ffsz_len(list_colname[i]));
+	case H_FN:
+		val = &ent->url;
+		break;
 
-		switch (i) {
-		case H_TIT:
-			if (val == NULL) {
-				//use filename as a title
-				ffpath_split3(ent->url.ptr, ent->url.len, NULL, &s, NULL);
-				val = &s;
-			}
-			break;
-
-		case H_DUR:
-			if (val == NULL && ent->dur != 0) {
-				uint sec = ent->dur / 1000;
-				ffs_fmt(buf, buf + sizeof(buf), "%u:%02u%Z", sec / 60, sec % 60);
-				val = &s;
-				ffstr_setz(val, buf);
-			}
-			break;
-
-		case H_ART:
-		case H_INF:
-		case H_DATE:
-		case H_ALBUM:
-			break;
-
-		case H_FN:
-			val = &ent->url;
-			break;
-		}
-
-		if (val == NULL)
-			continue;
-
-		ffui_view_settextstr(&it, val);
-		ffui_view_set(&gg->wmain.vlist, i, &it);
+	default:
+		val = gg->qu->meta_find(ent, list_colname[sub], ffsz_len(list_colname[sub]));
 	}
+
+	switch (sub) {
+	case H_TIT:
+		if (val == NULL) {
+			//use filename as a title
+			ffpath_split3(ent->url.ptr, ent->url.len, NULL, &s, NULL);
+			val = &s;
+		}
+		break;
+
+	case H_DUR:
+		if (val == NULL && ent->dur != 0) {
+			uint sec = ent->dur / 1000;
+			ffs_fmt(buf, buf + sizeof(buf), "%u:%02u%Z", sec / 60, sec % 60);
+			val = &s;
+			ffstr_setz(val, buf);
+		}
+		break;
+	}
+
+	if (val != NULL)
+		disp->text.len = ffs_append(disp->text.ptr, 0, disp->text.len, val->ptr, val->len);
 
 	gg->qu->cmdv(FMED_QUE_ITEMUNLOCK, ent);
 }
 
-void wmain_ent_removed(uint idx)
+void wmain_ent_added(uint idx)
 {
-	ffui_viewitem it = {};
-	ffui_view_setindex(&it, idx);
-	ffui_send_view_rm(&gg->wmain.vlist, &it);
+	ffui_send_view_setdata(&gg->wmain.vlist, idx, 1);
 }
 
-void wmain_newtrack(fmed_que_entry *ent, uint time_total)
+void wmain_ent_removed(uint idx)
+{
+	ffui_send_view_setdata(&gg->wmain.vlist, idx, -1);
+}
+
+void wmain_newtrack(fmed_que_entry *ent, uint time_total, fmed_filt *d)
 {
 	ffui_post_trk_setrange(&gg->wmain.tpos, time_total);
+	ent->dur = time_total * 1000;
+
+	char buf[1024];
+	size_t n;
+
+	n = ffs_fmt(buf, buf + sizeof(buf), "%u kbps, %s, %u Hz, %s, %s"
+		, (d->audio.bitrate + 500) / 1000
+		, d->audio.decoder
+		, d->audio.fmt.sample_rate
+		, ffpcm_fmtstr(d->audio.fmt.format)
+		, ffpcm_channelstr(d->audio.fmt.channels));
+	gg->qu->meta_set(ent, FFSTR("__info"), buf, n, FMED_QUE_PRIV | FMED_QUE_OVWRITE);
+
+	uint idx = gg->qu->cmdv(FMED_QUE_ID, ent);
+	ffui_send_view_setdata(&gg->wmain.vlist, idx, 0);
 
 	ffstr artist = {}, title = {}, *val;
 	if (NULL != (val = gg->qu->meta_find(ent, FFSTR("artist"))))

@@ -437,6 +437,7 @@ GUIGTK_O := $(OBJ_DIR)/gui.o \
 	$(FF_OBJ_DIR)/ffgui-gtk.o \
 	$(FF_OBJ_DIR)/ffgui-gtk-loader.o \
 	$(FF_OBJ_DIR)/ffsys.o \
+	$(FF_OBJ_DIR)/ffpcm.o \
 	$(FFOS_THD) \
 	$(FF_O)
 gui.$(SO): $(GUIGTK_O)
