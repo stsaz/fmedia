@@ -201,8 +201,14 @@ static int dsnd_devbyidx(struct ffdsnd_devenum **dhead, struct ffdsnd_devenum **
 	if (0 != ffdsnd_devenum(&devs, flags))
 		return 1;
 
-	for (d = devs;  d != NULL;  d = d->next, idev--) {
-		if (idev == 0) {
+	if (idev == 0) {
+		*dev = devs;
+		*dhead = devs;
+		return 0;
+	}
+
+	for (d = devs;  d != NULL;  d = d->next) {
+		if (--idev == 0) {
 			*dev = d;
 			*dhead = devs;
 			return 0;
