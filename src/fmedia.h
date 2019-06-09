@@ -24,9 +24,9 @@ mixer                 mixer
 
 
 #define FMED_VER_MAJOR  1
-#define FMED_VER_MINOR  8
+#define FMED_VER_MINOR  9
 #define FMED_VER_FULL  ((FMED_VER_MAJOR << 8) | FMED_VER_MINOR)
-#define FMED_VER  "1.8"
+#define FMED_VER  "1.9"
 
 #define FMED_VER_GETMAJ(fullver)  ((fullver) >> 8)
 #define FMED_VER_GETMIN(fullver)  ((fullver) & 0xff)
@@ -436,7 +436,7 @@ struct fmed_trk {
 		ffpcmex fmt;
 		ffpcmex convfmt; //format of audio data produced by converter filter
 		uint64 pos; //samples
-		uint64 total; //samples
+		uint64 total; //total track length (samples); -1:unset;  0:streaming
 		uint64 seek; //msec
 		fmed_apos until;
 		fmed_apos abs_seek; //seek position from the beginning of file

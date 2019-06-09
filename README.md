@@ -137,7 +137,7 @@ INSTALL
 
 1. Create a directory for all needed sources:
 
-		mkdir firmdev && cd firmdev
+		mkdir fmedia-src && cd fmedia-src
 
 2. Download all needed source repositories:
 

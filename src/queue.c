@@ -440,10 +440,10 @@ static void que_save(entry *first, const fflist_item *sentl, const char *fn)
 	entry *e;
 	char buf[32];
 
-	if (FF_BADFD == (f = fffile_open(fn, O_CREAT | O_TRUNC | O_WRONLY))) {
+	if (FF_BADFD == (f = fffile_open(fn, FFO_CREATE | FFO_TRUNC | FFO_WRONLY))) {
 		if (0 != ffdir_make_path((void*)fn, 0))
 			goto done;
-		if (FF_BADFD == (f = fffile_open(fn, O_CREAT | O_TRUNC | O_WRONLY))) {
+		if (FF_BADFD == (f = fffile_open(fn, FFO_CREATE | FFO_TRUNC | FFO_WRONLY))) {
 			syserrlog("%s: %s", fffile_open_S, fn);
 			goto done;
 		}

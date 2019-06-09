@@ -18,6 +18,8 @@ This is the list of the things that need to be done.
 * GUI theme: listview selection color
 * GUI for macOS
 * Linux: Don't allow system to sleep while playing or recording
+* decode FLAC inside OGG
+* translate help.txt
 
 
 ## Second priority features
@@ -39,7 +41,7 @@ This is the list of the things that need to be done.
 * ICY: reset time on a new song
 * ICY: Start/stop recording by 'T' command (arbitrary, without meta)
 * ICY: Recording: Add several seconds of audio to the beginning of the new track which is being recorded, to compensate for inaccurate ICY meta change
-* TUI: Windows: determine terminal window width and adjust playbar (CONSOLE_SCREEN_BUFFER_INFO)
+* TUI: Linux: determine terminal window width and adjust playbar
 * find and split tracks from one large file
 * MPEG decode: must report the offset where the invalid data begins
 * Recording: Wait (don't finalize) until the active capture buffer is flushed (Otherwise the last recorded milliseconds are not written to file)
@@ -57,6 +59,8 @@ This is the list of the things that need to be done.
 * FreeBSD: segfault on playback after quick input ('N') in TUI?
 * GUI: Invert Sel doesn't work
 * delayed module load doesn't work if its settings are specified in fmedia-user.conf
+* gui-gtk: too large control buttons
+* Pulse: random hanging (while waiting for Pulse to signal) after track has finished (Stop doesn't work)
 
 
 ## Refactoring

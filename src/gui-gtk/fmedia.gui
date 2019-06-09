@@ -87,17 +87,19 @@ menu mplay {
 	}
 	item "Seek _Forward" {
 		action A_FFWD
-		hotkey "Ctrl+Right"
+		hotkey "Alt+Right"
 	}
 	item "Seek _Back" {
 		action A_RWND
-		hotkey "Ctrl+Left"
+		hotkey "Alt+Left"
 	}
 	item "Leap Forward" {
 		action A_LEAP_FWD
+		hotkey "Ctrl+Right"
 	}
 	item "Leap Back" {
 		action A_LEAP_BACK
+		hotkey "Ctrl+Left"
 	}
 	item "Set Marker" {
 		action A_SETGOPOS

@@ -64,7 +64,6 @@ typedef struct fmed_cmd {
 	byte notui;
 	byte gui;
 	byte print_time;
-	byte debug;
 	byte cue_gaps;
 
 	ffstr outfn;

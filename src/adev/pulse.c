@@ -140,8 +140,9 @@ static int pulse_init(fmed_trk *trk)
 {
 	if (mod->init_ok)
 		return 0;
-	if (0 != ffpulse_init(core->kq)) {
-		syserrlog(core, trk, NULL, "ffpulse_init()");
+	int r;
+	if (0 != (r = ffpulse_init(core->kq))) {
+		errlog(core, trk, NULL, "ffpulse_init(): %s", ffpulse_errstr(r));
 		return -1;
 	}
 	mod->init_ok = 1;

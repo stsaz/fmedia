@@ -8,6 +8,19 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.9 - June 8, 2019
+
+ * GUI-GTK: show meta info in playlist properly
+ + GUI-GTK: "Show File in Explorer"; more commands in Help menu
+
+ + --help: translated some text into Russian
+ * net: support "audio/ogg" Content-Type
+ * TUI: Windows: determine terminal window width and adjust playbar
+ - direct-sound: fix --dev= and --dev-capture= arguments
+ - core: crash after decoder has failed to parse audio info
+ - Pulse: crash on --list-dev
+
+
 fmedia v1.8 - May 1, 2019
 
  * .aac read: Don't decode audio while seeking (almost instant seeking)

@@ -121,7 +121,7 @@ OTHER OPTIONS:
                    Set name of the pipe for communication between fmedia instances
 
 --conf=FN          Set configuration file (default: "fmedia.conf" from the program directory)
---gui              Run in graphical UI mode (Windows only)
+--gui              Run in graphical UI mode (Windows,Linux only)
 --notui            Don't use terminal UI
 --print-time       Show the time spent for processing each track
 --debug            Print debug info to stdout

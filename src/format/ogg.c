@@ -10,6 +10,9 @@ Copyright (c) 2015 Simon Zolin */
 #include <FFOS/random.h>
 
 
+#define errlog0(...)  fmed_errlog(core, NULL, "ogg", __VA_ARGS__)
+
+
 static const fmed_core *core;
 
 typedef struct fmed_ogg {
@@ -156,18 +159,18 @@ static void ogg_close(void *ctx)
 	ffmem_free(o);
 }
 
-static const char *const ogg_mods[][2] = {
-	{ "vorbis.decode", "opus.decode" },
-	{ "vorbis.encode", "opus.encode" },
-};
-
-static const char* ogg_codec_mod(const char *fn, uint is_encoder)
+static const char* ogg_enc_mod(const char *fn)
 {
 	ffstr name, ext;
 	ffpath_split2(fn, ffsz_len(fn), NULL, &name);
 	ffs_rsplit2by(name.ptr, name.len, '.', NULL, &ext);
-	return ogg_mods[is_encoder][ffstr_eqcz(&ext, "opus")];
+	if (ffstr_eqcz(&ext, "opus"))
+		return "opus.encode";
+	return "vorbis.encode";
 }
+
+#define VORBIS_HEAD_STR  "\x01vorbis"
+#define FLAC_HEAD_STR  "\x7f""FLAC"
 
 static int ogg_decode(void *ctx, fmed_filt *d)
 {
@@ -207,9 +210,19 @@ static int ogg_decode(void *ctx, fmed_filt *d)
 		case FFOGG_RHDR:
 		if (!o->hdr) {
 			o->hdr = 1;
-			const char *dec = ogg_codec_mod(d->track->getvalstr(d->trk, "input"), 0);
-			if (ffs_matchz(o->og.out.ptr, o->og.out.len, FFOPUS_HEAD_STR))
+			const char *dec;
+			if (ffs_matchz(o->og.out.ptr, o->og.out.len, VORBIS_HEAD_STR))
+				dec = "vorbis.decode";
+			else if (ffs_matchz(o->og.out.ptr, o->og.out.len, FFOPUS_HEAD_STR))
 				dec = "opus.decode";
+			else if (ffs_matchz(o->og.out.ptr, o->og.out.len, FLAC_HEAD_STR)) {
+				errlog0("FLAC OGG streams aren't supported");
+				return FMED_RERR;
+			} else {
+				errlog0("Unknown codec in OGG packet: %*xb"
+					, (size_t)ffmin(o->og.out.len, 16), o->og.out.ptr);
+				return FMED_RERR;
+			}
 			if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, (void*)dec)) {
 				return FMED_RERR;
 			}
@@ -326,7 +339,7 @@ static int ogg_out_encode(void *ctx, fmed_filt *d)
 			return FMED_RERR;
 		}
 
-		const char *enc = ogg_codec_mod(d->track->getvalstr(d->trk, "output"), 1);
+		const char *enc = ogg_enc_mod(d->track->getvalstr(d->trk, "output"));
 		if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT_PREV, (void*)enc)) {
 			return FMED_RERR;
 		}

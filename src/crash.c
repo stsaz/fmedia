@@ -31,7 +31,7 @@ void _crash_handler(const char *fullname, struct ffsig_info *inf)
 
 	ffs_fmt(p, fn + sizeof(fn), "fmedia-crashdump-%xU.txt%Z"
 		, (int64)t.sec);
-	f = fffile_open(fn, FFO_CREATE | O_TRUNC | O_WRONLY);
+	f = fffile_open(fn, FFO_CREATE | FFO_TRUNC | FFO_WRONLY);
 	if (f == FF_BADFD)
 		f = ffstderr;
 	else {

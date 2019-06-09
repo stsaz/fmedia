@@ -47,6 +47,7 @@ static int fmed_arg_format(ffparser_schem *p, void *obj, ffstr *val);
 static int fmed_arg_out_copy(ffparser_schem *p, void *obj, const ffstr *val);
 static int fmed_arg_input_chk(ffparser_schem *p, void *obj, const ffstr *val);
 static int fmed_arg_out_chk(ffparser_schem *p, void *obj, const ffstr *val);
+static int arg_debug(ffparser_schem *p, void *obj, const int64 *val);
 
 static void open_input(void *udata);
 static void fmed_onsig(void *udata);
@@ -133,7 +134,7 @@ static const ffpars_arg fmed_cmdline_args[] = {
 	{ "notui",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(notui) },
 	{ "gui",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(gui) },
 	{ "print-time",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(print_time) },
-	{ "debug",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(debug) },
+	{ "debug",	FFPARS_TBOOL8 | FFPARS_FALONE,  FFPARS_DST(&arg_debug) },
 	{ "help",	FFPARS_SETVAL('h') | FFPARS_TBOOL | FFPARS_FALONE,  FFPARS_DST(&fmed_arg_usage) },
 	{ "cue-gaps",	FFPARS_TINT8,  OFF(cue_gaps) },
 	{ "parallel",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(parallel) },
@@ -150,7 +151,7 @@ static const ffpars_arg fmed_cmdline_main_args[] = {
 	{ "conf",	FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY | FFPARS_FNOTEMPTY,  OFF(conf_fn) },
 	{ "notui",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(notui) },
 	{ "gui",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(gui) },
-	{ "debug",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(debug) },
+	{ "debug",	FFPARS_TBOOL8 | FFPARS_FALONE,  FFPARS_DST(&arg_debug) },
 	{ "help",	FFPARS_SETVAL('h') | FFPARS_TBOOL | FFPARS_FALONE,  FFPARS_DST(&fmed_arg_usage) },
 };
 
@@ -196,7 +197,7 @@ static int fmed_arg_usage(void)
 	if (NULL == (fn = core->getpath(name, ffsz_len(name))))
 		goto done;
 
-	if (FF_BADFD == (f = fffile_open(fn, O_RDONLY | O_NOATIME)))
+	if (FF_BADFD == (f = fffile_open(fn, FFO_RDONLY | FFO_NOATIME)))
 		goto done;
 
 	if (NULL == ffarr_alloc(&buf, fffile_size(f)))
@@ -262,6 +263,9 @@ static int fmed_arg_listdev(void)
 				, df->channels, df->sample_rate);
 	}
 
+	adev->listfree(ents);
+	ents = NULL;
+
 	if (NULL == (mod = core->getmod2(FMED_MOD_INFO_ADEV_IN, NULL, 0))
 		|| NULL == (adev = mod->m->iface("adev")))
 		goto end;
@@ -284,7 +288,7 @@ static int fmed_arg_listdev(void)
 
 end:
 	if (buf.len != 0)
-		fffile_write(ffstdout, buf.ptr, buf.len);
+		ffstd_write(ffstdout, buf.ptr, buf.len);
 	ffarr_free(&buf);
 	if (ents != NULL)
 		adev->listfree(ents);
@@ -340,7 +344,7 @@ static int arg_flist(ffparser_schem *p, void *obj, const char *fn)
 
 	dbglog(core, NULL, "core", "opening file %s", fn);
 
-	if (FF_BADFD == (f = fffile_open(fn, O_RDONLY | O_NOATIME)))
+	if (FF_BADFD == (f = fffile_open(fn, FFO_RDONLY | FFO_NOATIME)))
 		goto done;
 	if (NULL == ffarr_alloc(&buf, fffile_size(f)))
 		goto done;
@@ -502,6 +506,12 @@ static int fmed_arg_out_chk(ffparser_schem *p, void *obj, const ffstr *val)
 	return 0;
 }
 
+static int arg_debug(ffparser_schem *p, void *obj, const int64 *val)
+{
+	core->loglev = FMED_LOG_DEBUG;
+	return 0;
+}
+
 static int fmed_cmdline(int argc, char **argv, uint main_only)
 {
 	ffparser_schem ps;
@@ -536,7 +546,7 @@ static int fmed_cmdline(int argc, char **argv, uint main_only)
 		r = ffpsarg_schemrun(&ps);
 
 		if (r == FFPARS_ELAST) {
-			ret = 0;
+			ret = -1;
 			goto fail;
 		}
 
@@ -955,7 +965,7 @@ static void crash_handler(struct ffsig_info *inf)
 
 int main(int argc, char **argv, char **env)
 {
-	int rc = 1;
+	int rc = 1, r;
 	fmed_cmd *gcmd;
 
 	ffmem_init();
@@ -987,19 +997,22 @@ int main(int argc, char **argv, char **env)
 		goto end;
 	}
 
-	if (0 != fmed_cmdline(argc, argv, 1))
+	if (0 != (r = fmed_cmdline(argc, argv, 1))) {
+		if (r == -1)
+			rc = 0;
 		goto end;
-
-	if (gcmd->debug)
-		core->loglev = FMED_LOG_DEBUG;
+	}
 
 	if (0 != core->cmd(FMED_CONF, gcmd->conf_fn))
 		goto end;
 
 	ffmem_safefree(gcmd->conf_fn);
 
-	if (0 != fmed_cmdline(argc, argv, 0))
+	if (0 != (r = fmed_cmdline(argc, argv, 0))) {
+		if (r == -1)
+			rc = 0;
 		goto end;
+	}
 
 	if (gcmd->bground) {
 		if (gcmd->bgchild)

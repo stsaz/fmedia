@@ -673,7 +673,7 @@ static void tui_help(uint cmd)
 	if (NULL == (fn = core->getpath(FFSTR("help-tui.txt"))))
 		return;
 
-	f = fffile_open(fn, O_RDONLY | O_NOATIME);
+	f = fffile_open(fn, FFO_RDONLY | FFO_NOATIME);
 	ffmem_free(fn);
 	if (f == FF_BADFD)
 		return;

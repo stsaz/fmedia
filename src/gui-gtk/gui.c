@@ -362,6 +362,7 @@ static void corecmd_run(uint cmd, void *udata)
 
 	case A_STOP:
 		gg->track->cmd(NULL, FMED_TRACK_STOPALL);
+		wmain_status("");
 		break;
 
 	case A_STOP_AFTER:
