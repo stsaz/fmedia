@@ -14,6 +14,9 @@ menu mfile {
 	item "Analyze & Show PCM Info" {
 		action A_SHOWPCM
 	}
+	item "Show Fi_le in Explorer" {
+		action A_SHOWDIR
+	}
 	item "_Delete From Disk" {
 		action A_DELFILE
 		hotkey "Shift+Delete"

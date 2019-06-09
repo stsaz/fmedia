@@ -38,6 +38,7 @@ static void wmain_action(ffui_wnd *wnd, int id)
 		return;
 
 	case A_SHOWPCM:
+	case A_SHOWDIR:
 	case A_DELFILE:
 		break;
 

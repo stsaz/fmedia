@@ -2,6 +2,7 @@
 Copyright (c) 2019 Simon Zolin */
 
 #include <gui-gtk/gui.h>
+#include <FF/path.h>
 #include <FFOS/dir.h>
 #include <FFOS/process.h>
 
@@ -53,6 +54,8 @@ static void lists_load(void);
 static void lists_save(void);
 static void list_add(const ffstr *fn);
 static void list_rmitems(void);
+static void showdir_selected(void);
+static void showdir(const char *fn);
 
 FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 {
@@ -178,6 +181,7 @@ static const char *const action_str[] = {
 	"A_LIST_ADDFILE",
 	"A_LIST_ADDURL",
 	"A_SHOWPCM",
+	"A_SHOWDIR",
 	"A_DELFILE",
 	"A_SHOW",
 	"A_HIDE",
@@ -321,6 +325,10 @@ static void corecmd_run(uint cmd, void *udata)
 
 	case A_SHOWPCM:
 		file_showpcm();
+		break;
+
+	case A_SHOWDIR:
+		showdir_selected();
 		break;
 
 	case A_DELFILE:
@@ -504,6 +512,44 @@ void gui_showtextfile(uint id)
 
 done:
 	ffmem_free(fn);
+}
+
+static void showdir_selected(void)
+{
+	int i;
+	ffarr4 *sel = (void*)ffui_send_view_getsel(&gg->wmain.vlist);
+	while (-1 != (i = ffui_view_selnext(&gg->wmain.vlist, sel))) {
+		fmed_que_entry *ent = (fmed_que_entry*)gg->qu->fmed_queue_item(-1, i);
+		showdir(ent->url.ptr);
+		break;
+	}
+	ffui_view_sel_free(sel);
+}
+
+/** Execute GUI file manager to show the directory with a file. */
+static void showdir(const char *fn)
+{
+	char *dirz;
+	ffstr dir;
+	ffpath_split2(fn, ffsz_len(fn), &dir, NULL);
+
+	if (NULL == (dirz = ffsz_alcopystr(&dir)))
+		return;
+
+	const char *argv[] = {
+		"xdg-open", dirz, NULL
+	};
+	ffps ps = ffps_exec("/usr/bin/xdg-open", argv, (const char**)environ);
+	if (ps == FFPS_INV) {
+		syserrlog("ffps_exec", 0);
+		goto done;
+	}
+
+	dbglog("spawned file manager: %u", (int)ffps_id(ps));
+	ffps_close(ps);
+
+done:
+	ffmem_free(dirz);
 }
 
 /** Save playlists to disk. */
