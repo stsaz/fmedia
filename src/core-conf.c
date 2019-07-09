@@ -49,7 +49,7 @@ static const ffpars_arg conf_args[] = {
 static int confusr_mod(ffparser_schem *ps, void *obj, ffstr *val);
 
 static const ffpars_arg confusr_args[] = {
-	{ "*",	FFPARS_TSTR | FFPARS_FMULTI, FFPARS_DST(&confusr_mod) },
+	{ "*",	FFPARS_TSTR | FFPARS_FMULTI | FFPARS_FLIST, FFPARS_DST(&confusr_mod) },
 };
 
 #define MODS_WIN_ONLY  "wasapi.", "direct-sound."
@@ -293,12 +293,9 @@ static int confusr_mod(ffparser_schem *ps, void *obj, ffstr *val)
 	fmed_config *conf = obj;
 	const core_mod *mod;
 	int r;
-	ffconf *pconf = ps->p;
+	ffconf *pconf = ffpars_schem_backend(ps);
 
-	if (conf->skip_line) {
-		if (pconf->type == FFCONF_TVAL) {
-			conf->skip_line = 0;
-		}
+	if (conf->skip_line == pconf->line) {
 		return 0;
 	}
 
@@ -310,7 +307,7 @@ static int confusr_mod(ffparser_schem *ps, void *obj, ffstr *val)
 
 	else if (conf->usrconf_modname == NULL) {
 		if (ffstr_eqcz(val, "gui") && !core->props->cmd->gui) {
-			conf->skip_line = 1;
+			conf->skip_line = pconf->line;
 			return 0;
 		}
 		if (NULL == (conf->usrconf_modname = ffsz_alcopy(val->ptr, val->len)))

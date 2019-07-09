@@ -17,7 +17,7 @@ typedef struct fmed_config {
 	ffstr3 inmap; //inmap_item[]
 	ffstr3 outmap; //inmap_item[]
 	char *usrconf_modname;
-	uint skip_line :1;
+	uint skip_line;
 
 	ffconf_ctxcopy conf_copy;
 	fmed_modinfo *conf_copy_mod; //core_mod

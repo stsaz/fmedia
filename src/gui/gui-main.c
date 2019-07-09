@@ -19,6 +19,7 @@ enum LIST_HDR {
 	H_DATE,
 	H_ALBUM,
 	H_FN,
+	_H_LAST,
 };
 
 static const char* const list_colname[] = {
@@ -56,6 +57,7 @@ static void gui_filt_show(void);
 static void list_setdata(void);
 static void fav_add(void);
 static void fav_show(void);
+static void list_cols_width_load();
 
 enum {
 	GUI_TRKINFO_WNDCAPTION = 1,
@@ -75,6 +77,8 @@ void wmain_init(void)
 	gg->wmain.vlist.colclick_id = SORT;
 	gg->wmain.wmain.on_dropfiles = &gui_on_dropfiles;
 	ffui_fdrop_accept(&gg->wmain.wmain, 1);
+
+	list_cols_width_load();
 
 	if (gg->list_random) {
 		gg->list_random = 0;
@@ -1176,4 +1180,31 @@ void gui_conv_progress(gui_trk *g)
 	}
 	gg->qu->meta_set(plid, FFSTR("__dur"), val.ptr, val.len, FMED_QUE_PRIV | FMED_QUE_OVWRITE);
 	ffui_view_redraw(&gg->wmain.vlist, idx, idx);
+}
+
+/** Load widths of list's columns. */
+static void list_cols_width_load()
+{
+	ffui_viewcol vc;
+	ffui_viewcol_reset(&vc);
+	for (uint i = 0;  i != _H_LAST;  i++) {
+		FF_ASSERT(i != FFCNT(gg->list_col_width));
+		if (gg->list_col_width[i] == 0)
+			continue;
+
+		ffui_viewcol_setwidth(&vc, gg->list_col_width[i]);
+		ffui_view_setcol(&gg->wmain.vlist, i, &vc);
+	}
+}
+
+/** Write widths of list's columns to config. */
+void wmain_list_cols_width_write(ffconfw *conf)
+{
+	ffui_viewcol vc;
+	for (uint i = 0;  i != _H_LAST;  i++) {
+		ffui_viewcol_reset(&vc);
+		ffui_viewcol_setwidth(&vc, 0);
+		ffui_view_col(&gg->wmain.vlist, i, &vc);
+		ffconf_writeint(conf, ffui_viewcol_width(&vc), 0, FFCONF_TVAL);
+	}
 }

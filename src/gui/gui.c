@@ -84,6 +84,14 @@ static int gui_conf_ghk(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
 	return 0;
 }
 
+static int conf_list_col_width(ffparser_schem *p, void *obj, const int64 *val)
+{
+	if (p->list_idx > FFCNT(gg->list_col_width))
+		return FFPARS_EBIGVAL;
+	gg->list_col_width[p->list_idx] = *val;
+	return 0;
+}
+
 static const ffpars_arg gui_conf_args[] = {
 	{ "record",	FFPARS_TOBJ, FFPARS_DST(&gui_conf_rec) },
 	{ "convert",	FFPARS_TOBJ, FFPARS_DST(&gui_conf_convert) },
@@ -96,6 +104,7 @@ static const ffpars_arg gui_conf_args[] = {
 	{ "theme",	FFPARS_TINT | FFPARS_F8BIT, FFPARS_DSTOFF(ggui, theme_startup) },
 	{ "random",	FFPARS_TBOOL8, FFPARS_DSTOFF(ggui, list_random) },
 	{ "sel_after_cursor",	FFPARS_TBOOL8, FFPARS_DSTOFF(ggui, sel_after_cur) },
+	{ "list_columns_width",	FFPARS_TINT16 | FFPARS_FLIST, FFPARS_DST(&conf_list_col_width) },
 };
 
 //LOG
@@ -700,7 +709,7 @@ char* gui_userpath(const char *fn)
 
 static const char *const usrconf_setts[] = {
 	"gui.gui.theme", "gui.gui.record.output", "gui.gui.convert.output",
-	"gui.gui.random", "gui.gui.sel_after_cursor",
+	"gui.gui.random", "gui.gui.sel_after_cursor", "gui.gui.list_columns_width",
 };
 
 /** Write user configuration value. */
@@ -721,6 +730,9 @@ static void usrconf_write_val(ffconfw *conf, uint i)
 		break;
 	case 4:
 		ffconf_writebool(conf, gg->sel_after_cur, FFCONF_TVAL);
+		break;
+	case 5:
+		wmain_list_cols_width_write(conf);
 		break;
 	}
 }

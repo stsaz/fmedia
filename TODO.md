@@ -14,7 +14,6 @@ This is the list of the things that need to be done.
 * support --meta with --stream-copy (.ogg, .m4a, .mp3)
 * GUI: Open directory from disk
 * GUI: Ctrl+Tab
-* GUI: remember column width
 * GUI theme: listview selection color
 * GUI for macOS
 * Linux: Don't allow system to sleep while playing or recording

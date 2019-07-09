@@ -2,6 +2,7 @@
 Copyright (c) 2016 Simon Zolin */
 
 #include <FF/gui/winapi.h>
+#include <FF/data/conf.h>
 #include <FFOS/thread.h>
 
 
@@ -214,6 +215,7 @@ typedef struct ggui {
 	byte theme_startup;
 	byte list_random;
 	byte sel_after_cur; // automatically select a playlist entry for the active track
+	ushort list_col_width[16];
 	uint wconv_init :1
 		, wrec_init :1
 		, min_tray :1
@@ -414,6 +416,7 @@ char* gui_userpath(const char *fn);
 void gui_upd_check(void);
 void usrconf_write(void);
 void fav_save(void);
+void wmain_list_cols_width_write(ffconfw *conf);
 
 enum GUI_FILT {
 	GUI_FILT_URL = 1,
