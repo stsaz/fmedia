@@ -37,6 +37,15 @@ struct gui_wmain {
 	ffui_trayicon tray_icon;
 };
 
+struct gui_wconvert {
+	ffui_wnd wconvert;
+	ffui_menu mmconv;
+	ffui_label lfn, lsets;
+	ffui_edit eout;
+	ffui_btn boutbrowse;
+	ffui_view vsets;
+};
+
 struct gui_wabout {
 	ffui_wnd wabout;
 	ffui_label labout, lurl;
@@ -54,6 +63,11 @@ struct gui_winfo {
 };
 
 struct gtrk;
+struct conv_sets {
+	uint init :1;
+
+	char *output;
+};
 struct gui_conf {
 	uint seek_step_delta,
 		seek_leap_delta;
@@ -73,8 +87,10 @@ typedef struct ggui {
 	uint go_pos;
 
 	struct gui_conf conf;
+	struct conv_sets conv_sets;
 
 	struct gui_wmain wmain;
+	struct gui_wconvert wconvert;
 	struct gui_wabout wabout;
 	struct gui_wuri wuri;
 	struct gui_winfo winfo;
@@ -82,6 +98,7 @@ typedef struct ggui {
 	ffui_menu mfile;
 	ffui_menu mlist;
 	ffui_menu mplay;
+	ffui_menu mconvert;
 	ffui_menu mhelp;
 } ggui;
 
@@ -126,6 +143,10 @@ enum ACTION {
 	A_LIST_CLEAR,
 	A_LIST_RANDOM,
 
+	A_SHOWCONVERT,
+	A_CONVERT,
+	A_CONVOUTBROWSE,
+
 	A_ABOUT,
 	A_CONF_EDIT,
 	A_USRCONF_EDIT,
@@ -155,6 +176,12 @@ void wmain_ent_removed(uint idx);
 void wmain_status(const char *fmt, ...);
 void wmain_list_clear();
 void wmain_list_cols_width_write(ffconfw *conf);
+
+int conf_convert(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
+void wconvert_init();
+void wconv_destroy();
+void wconv_show();
+void convert();
 
 void wabout_init();
 void wuri_init();

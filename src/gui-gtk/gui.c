@@ -101,7 +101,7 @@ static const ffpars_arg gui_conf_args[] = {
 	{ "list_columns_width",	FFPARS_TINT16 | FFPARS_FLIST, FFPARS_DST(&conf_list_col_width) },
 
 	{ "record",	FFPARS_TOBJ, FFPARS_DST(&conf_ctxany) },
-	{ "convert",	FFPARS_TOBJ, FFPARS_DST(&conf_ctxany) },
+	{ "convert",	FFPARS_TOBJ, FFPARS_DST(&conf_convert) },
 	{ "global_hotkeys",	FFPARS_TOBJ, FFPARS_DST(&conf_ctxany) },
 
 	{ "*",	FFPARS_TSTR | FFPARS_FMULTI, FFPARS_DST(&conf_any) },
@@ -161,6 +161,7 @@ static void gui_destroy(void)
 	if (gg == NULL)
 		return;
 
+	wconv_destroy();
 	ffmem_free0(gg);
 }
 
@@ -178,6 +179,16 @@ static const ffui_ldr_ctl wmain_ctls[] = {
 	FFUI_LDR_CTL(struct gui_wmain, vlist),
 	FFUI_LDR_CTL(struct gui_wmain, stbar),
 	FFUI_LDR_CTL(struct gui_wmain, tray_icon),
+	FFUI_LDR_CTL_END
+};
+static const ffui_ldr_ctl wconvert_ctls[] = {
+	FFUI_LDR_CTL(struct gui_wconvert, wconvert),
+	FFUI_LDR_CTL(struct gui_wconvert, mmconv),
+	FFUI_LDR_CTL(struct gui_wconvert, lfn),
+	FFUI_LDR_CTL(struct gui_wconvert, lsets),
+	FFUI_LDR_CTL(struct gui_wconvert, eout),
+	FFUI_LDR_CTL(struct gui_wconvert, boutbrowse),
+	FFUI_LDR_CTL(struct gui_wconvert, vsets),
 	FFUI_LDR_CTL_END
 };
 static const ffui_ldr_ctl wabout_ctls[] = {
@@ -201,9 +212,11 @@ static const ffui_ldr_ctl top_ctls[] = {
 	FFUI_LDR_CTL(ggui, mfile),
 	FFUI_LDR_CTL(ggui, mlist),
 	FFUI_LDR_CTL(ggui, mplay),
+	FFUI_LDR_CTL(ggui, mconvert),
 	FFUI_LDR_CTL(ggui, mhelp),
 	FFUI_LDR_CTL(ggui, dlg),
 	FFUI_LDR_CTL3(ggui, wmain, wmain_ctls),
+	FFUI_LDR_CTL3(ggui, wconvert, wconvert_ctls),
 	FFUI_LDR_CTL3(ggui, wabout, wabout_ctls),
 	FFUI_LDR_CTL3(ggui, wuri, wuri_ctls),
 	FFUI_LDR_CTL3(ggui, winfo, winfo_ctls),
@@ -251,6 +264,10 @@ static const char *const action_str[] = {
 	"A_LIST_RMDEAD",
 	"A_LIST_CLEAR",
 	"A_LIST_RANDOM",
+
+	"A_SHOWCONVERT",
+	"A_CONVERT",
+	"A_CONVOUTBROWSE",
 
 	"A_ABOUT",
 	"A_CONF_EDIT",
@@ -309,6 +326,7 @@ static FFTHDCALL int gui_worker(void *param)
 	if (0 != load_ui())
 		goto err;
 	wmain_init();
+	wconvert_init();
 	wabout_init();
 	wuri_init();
 	winfo_init();
@@ -504,6 +522,10 @@ static void corecmd_run(uint cmd, void *udata)
 		ffmem_free(s);
 		break;
 	}
+
+	case A_CONVERT:
+		convert();
+		break;
 
 	case A_ONCLOSE:
 		if (gg->conf.autosave_playlists)

@@ -431,6 +431,7 @@ $(OBJ_DIR)/%.o: $(SRCDIR)/gui-gtk/%.c $(SRCDIR)/gui-gtk/gui.h $(SRCDIR)/fmedia.h
 
 GUIGTK_O := $(OBJ_DIR)/gui.o \
 	$(OBJ_DIR)/gui-main.o \
+	$(OBJ_DIR)/gui-conv.o \
 	$(OBJ_DIR)/gui-dlgs.o \
 	$(FF_OBJ_DIR)/ffpath.o \
 	$(FF_OBJ_DIR)/ffparse.o $(FF_OBJ_DIR)/ffconf.o \

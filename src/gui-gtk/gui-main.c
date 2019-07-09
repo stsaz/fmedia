@@ -144,6 +144,10 @@ static void wmain_action(ffui_wnd *wnd, int id)
 		ffui_show(&gg->wabout, 1);
 		return;
 
+	case A_SHOWCONVERT:
+		wconv_show();
+		return;
+
 	case A_CONF_EDIT:
 	case A_USRCONF_EDIT:
 	case A_FMEDGUI_EDIT:
