@@ -673,7 +673,6 @@ typedef struct fmed_que_entry {
 	int from // >0: msec;  <0: CD frames (1/75 sec)
 		, to;
 	int dur; //msec
-	void *prev;
 } fmed_que_entry;
 
 enum FMED_QUE_EVT {
@@ -772,9 +771,17 @@ enum FMED_QUE {
 	fmed_que_entry* add2(int plist, fmed_que_entry *ent) */
 	FMED_QUE_ADD2,
 
+	/** Add an entry after another one.
+	fmed_que_entry* addafter(fmed_que_entry *ent, const fmed_que_entry *after) */
+	FMED_QUE_ADDAFTER,
+
 	/** Associate track properties with a queue entry.
 	void settrackprops(fmed_que_entry *ent, fmed_trk *trk) */
 	FMED_QUE_SETTRACKPROPS,
+
+	/** Copy track properties from another queue entry.
+	void copytrackprops(fmed_que_entry *ent, const fmed_que_entry *src) */
+	FMED_QUE_COPYTRACKPROPS,
 
 	_FMED_QUE_LAST
 };
@@ -783,7 +790,6 @@ enum FMED_QUE_CMDF {
 	_FMED_QUE_FMASK = 0xffff0000,
 	FMED_QUE_NO_ONCHANGE = 0x10000,
 	FMED_QUE_ADD_DONE = 0x20000,
-	FMED_QUE_COPY_PROPS = 0x40000, //copy track properties from fmed_que_entry.prev
 
 	/* More items will follow until FMED_QUE_ADD | FMED_QUE_ADD_DONE is sent with param=NULL. */
 	FMED_QUE_MORE = 0x080000,

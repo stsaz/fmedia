@@ -109,7 +109,7 @@ static const fmed_queue fmed_que_mgr = {
 	&que_cmdv, &que_cmd, &que_cmd2, &_que_add, &_que_meta_set, &que_meta_find, &que_meta
 };
 
-static fmed_que_entry* que_add(plist *pl, fmed_que_entry *ent, uint flags);
+static fmed_que_entry* que_add(plist *pl, fmed_que_entry *ent, entry *prev, uint flags);
 static void que_meta_set(fmed_que_entry *ent, const ffstr *name, const ffstr *val, uint flags);
 static void que_play(entry *e);
 static void que_play2(entry *ent, uint flags);
@@ -618,7 +618,7 @@ static const char *const scmds[] = {
 	"id", "item", "item-locked", "item-unlock",
 	"flt-new", "flt-add", "flt-del", "lst-noflt",
 	"sort", "count",
-	"xplay", "add2", "settrackprops",
+	"xplay", "add2", "add-after", "settrackprops", "copytrackprops",
 };
 
 static ssize_t que_cmdv(uint cmd, ...)
@@ -659,7 +659,15 @@ static ssize_t que_cmdv(uint cmd, ...)
 		if (plist_idx >= 0)
 			pl = plist_by_idx(plist_idx);
 
-		r = (ssize_t)que_add(pl, ent, cmdflags);
+		r = (ssize_t)que_add(pl, ent, NULL, cmdflags);
+		goto end;
+	}
+
+	case FMED_QUE_ADDAFTER: {
+		fmed_que_entry *ent = va_arg(va, void*);
+		fmed_que_entry *qprev = va_arg(va, void*);
+		entry *prev = FF_GETPTR(entry, e, qprev);
+		r = (ssize_t)que_add(prev->plist, ent, prev, cmdflags);
 		goto end;
 	}
 
@@ -705,6 +713,29 @@ static ssize_t que_cmdv(uint cmd, ...)
 			goto end;
 		}
 		qu->track->copy_info(e->trk, trk);
+		goto end;
+	}
+
+	case FMED_QUE_COPYTRACKPROPS: {
+		fmed_que_entry *qent = va_arg(va, void*);
+		fmed_que_entry *qsrc = va_arg(va, void*);
+		entry *e = FF_GETPTR(entry, e, qent);
+		entry *src = FF_GETPTR(entry, e, qsrc);
+
+		if (src->trk != NULL)
+			que_cmdv(FMED_QUE_SETTRACKPROPS, qent, src->trk);
+
+		const ffstr *dict = src->dict.ptr;
+		for (uint i = 0;  i != src->dict.len;  i += 2) {
+			if ((ssize_t)dict[i + 1].len >= 0)
+				que_meta_set(&e->e, &dict[i], &dict[i + 1], FMED_QUE_TRKDICT);
+			else {
+				ffstr s;
+				ffstr_set(&s, dict[i + 1].ptr, sizeof(int64));
+				que_meta_set(&e->e, &dict[i], &s, FMED_QUE_TRKDICT | FMED_QUE_NUM);
+			}
+		}
+
 		goto end;
 	}
 
@@ -792,7 +823,7 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 		break;
 
 	case FMED_QUE_ADD:
-		return (ssize_t)que_add(qu->curlist, param, flags);
+		return (ssize_t)que_add(qu->curlist, param, NULL, flags);
 
 	case FMED_QUE_EXPAND: {
 		void *r = param;
@@ -997,7 +1028,7 @@ static fmed_que_entry* _que_add(fmed_que_entry *ent)
 	return (void*)que_cmd2(FMED_QUE_ADD, ent, 0);
 }
 
-static fmed_que_entry* que_add(plist *pl, fmed_que_entry *ent, uint flags)
+static fmed_que_entry* que_add(plist *pl, fmed_que_entry *ent, entry *prev, uint flags)
 {
 	entry *e = NULL;
 
@@ -1016,10 +1047,6 @@ static fmed_que_entry* que_add(plist *pl, fmed_que_entry *ent, uint flags)
 		return NULL;
 	ffmem_tzero(e);
 	e->plist = pl;
-	if (ent->prev != NULL) {
-		entry *prev = FF_GETPTR(entry, e, ent->prev);
-		e->plist = prev->plist;
-	}
 
 	ffsz_copy(e->url, ent->url.len + 1, ent->url.ptr, ent->url.len);
 	e->e.url.ptr = e->url;
@@ -1028,34 +1055,10 @@ static fmed_que_entry* que_add(plist *pl, fmed_que_entry *ent, uint flags)
 	e->e.from = ent->from;
 	e->e.to = ent->to;
 	e->e.dur = ent->dur;
-	e->e.prev = ent->prev;
-
-	if ((flags & FMED_QUE_COPY_PROPS) && ent->prev != NULL) {
-
-		entry *prev = FF_GETPTR(entry, e, ent->prev);
-		if (prev->trk != NULL) {
-			if (NULL == (e->trk = ffmem_allocT(1, fmed_trk))) {
-				ent_free(e);
-				return NULL;
-			}
-			qu->track->copy_info(e->trk, prev->trk);
-		}
-
-		ffstr *dict = prev->dict.ptr;
-		for (uint i = 0;  i != prev->dict.len;  i += 2) {
-			if ((ssize_t)dict[i + 1].len >= 0)
-				que_meta_set(&e->e, &dict[i], &dict[i + 1], FMED_QUE_TRKDICT);
-			else {
-				ffstr s;
-				ffstr_set(&s, dict[i + 1].ptr, sizeof(int64));
-				que_meta_set(&e->e, &dict[i], &s, FMED_QUE_TRKDICT | FMED_QUE_NUM);
-			}
-		}
-	}
 
 	fflk_lock(&qu->plist_lock);
 
-	ffchain_append(&e->sib, (ent->prev != NULL) ? &FF_GETPTR(entry, e, ent->prev)->sib : e->plist->ents.last);
+	ffchain_append(&e->sib, (prev != NULL) ? &prev->sib : e->plist->ents.last);
 	e->plist->ents.len++;
 	if (NULL == ffarr_growT(&e->plist->indexes, 1, FFARR_GROWQUARTER | 16, entry*)) {
 		ent_rm(e);
@@ -1063,8 +1066,7 @@ static fmed_que_entry* que_add(plist *pl, fmed_que_entry *ent, uint flags)
 		return NULL;
 	}
 	ssize_t i = e->plist->indexes.len;
-	if (ent->prev != NULL) {
-		entry *prev = FF_GETPTR(entry, e, ent->prev);
+	if (prev != NULL) {
 		i = plist_ent_idx(e->plist, prev);
 		FF_ASSERT(i != -1);
 		i++;

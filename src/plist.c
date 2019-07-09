@@ -232,9 +232,9 @@ static int m3u_process(void *ctx, fmed_filt *d)
 		if (m->pls_ent.duration != -1)
 			ent.dur = m->pls_ent.duration * 1000;
 
-		ent.prev = m->qu_cur;
-		cur = (void*)qu->cmd2(FMED_QUE_ADD | FMED_QUE_NO_ONCHANGE | FMED_QUE_COPY_PROPS, &ent, 0);
+		cur = (void*)qu->cmdv(FMED_QUE_ADDAFTER | FMED_QUE_NO_ONCHANGE, &ent, m->qu_cur);
 		ffstr_free(&ent.url);
+		qu->cmdv(FMED_QUE_COPYTRACKPROPS, cur, m->qu_cur);
 
 		if (m->pls_ent.artist.len != 0) {
 			ffstr_setcz(&meta[0], "artist");
@@ -318,9 +318,9 @@ static int pls_process(void *ctx, fmed_filt *d)
 		if (p->pls_ent.duration != -1)
 			ent.dur = p->pls_ent.duration * 1000;
 
-		ent.prev = p->qu_cur;
-		cur = (void*)qu->cmd2(FMED_QUE_ADD | FMED_QUE_NO_ONCHANGE | FMED_QUE_COPY_PROPS, &ent, 0);
+		cur = (void*)qu->cmdv(FMED_QUE_ADDAFTER | FMED_QUE_NO_ONCHANGE, &ent, p->qu_cur);
 		ffstr_free(&ent.url);
+		qu->cmdv(FMED_QUE_COPYTRACKPROPS, cur, p->qu_cur);
 
 		if (p->pls_ent.title.len != 0) {
 			ffstr_setcz(&meta[0], "title");
@@ -564,8 +564,8 @@ add:
 		c->ent.to = -(int)ctrk->to;
 		c->ent.dur = (ctrk->to != 0) ? (ctrk->to - ctrk->from) * 1000 / 75 : 0;
 
-		c->ent.prev = c->qu_cur;
-		cur = (void*)qu->cmd2(FMED_QUE_ADD | FMED_QUE_NO_ONCHANGE | FMED_QUE_COPY_PROPS, &c->ent, 0);
+		cur = (void*)qu->cmdv(FMED_QUE_ADDAFTER | FMED_QUE_NO_ONCHANGE, &c->ent, c->qu_cur);
+		qu->cmdv(FMED_QUE_COPYTRACKPROPS, cur, c->qu_cur);
 
 		// add global meta that isn't set in TRACK context
 		m = (void*)c->gmetas.ptr;
@@ -647,8 +647,9 @@ static void* dir_open(fmed_filt *d)
 	while (NULL != (fn = ffdir_expread(&dr))) {
 		ffmem_tzero(&e);
 		ffstr_setz(&e.url, fn);
-		e.prev = cur;
-		cur = (void*)qu->cmd2(FMED_QUE_ADD | FMED_QUE_COPY_PROPS, &e, 0);
+		void *prev = cur;
+		cur = (void*)qu->cmdv(FMED_QUE_ADDAFTER, &e, prev);
+		qu->cmdv(FMED_QUE_COPYTRACKPROPS, cur, prev);
 	}
 
 	ffdir_expclose(&dr);
@@ -776,8 +777,9 @@ static int dir_open_r(const char *dirname, fmed_filt *d)
 
 			ffmem_tzero(&e);
 			ffstr_setz(&e.url, fn);
-			e.prev = prev_qent;
-			prev_qent = (void*)qu->cmd2(FMED_QUE_ADD | FMED_QUE_COPY_PROPS, &e, 0);
+			void *cur = (void*)qu->cmdv(FMED_QUE_ADDAFTER, &e, prev_qent);
+			qu->cmdv(FMED_QUE_COPYTRACKPROPS, cur, prev_qent);
+			prev_qent = cur;
 		}
 
 		ffdir_expclose(&dr);
