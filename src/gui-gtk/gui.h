@@ -48,6 +48,11 @@ struct gui_wuri {
 	ffui_btn bok;
 };
 
+struct gui_winfo {
+	ffui_wnd winfo;
+	ffui_view vinfo;
+};
+
 struct gtrk;
 struct gui_conf {
 	uint seek_step_delta,
@@ -72,6 +77,7 @@ typedef struct ggui {
 	struct gui_wmain wmain;
 	struct gui_wabout wabout;
 	struct gui_wuri wuri;
+	struct gui_winfo winfo;
 	ffui_dialog dlg;
 	ffui_menu mfile;
 	ffui_menu mlist;
@@ -88,6 +94,7 @@ enum ACTION {
 	A_LIST_ADDFILE,
 	A_LIST_ADDURL,
 	A_SHOWPCM,
+	A_SHOWINFO,
 	A_SHOWDIR,
 	A_DELFILE,
 	A_SHOW,
@@ -151,3 +158,5 @@ void wmain_list_cols_width_write(ffconfw *conf);
 
 void wabout_init();
 void wuri_init();
+void winfo_init();
+void winfo_show(uint idx);

@@ -192,6 +192,11 @@ static const ffui_ldr_ctl wuri_ctls[] = {
 	FFUI_LDR_CTL(struct gui_wuri, bok),
 	FFUI_LDR_CTL_END
 };
+static const ffui_ldr_ctl winfo_ctls[] = {
+	FFUI_LDR_CTL(struct gui_winfo, winfo),
+	FFUI_LDR_CTL(struct gui_winfo, vinfo),
+	FFUI_LDR_CTL_END
+};
 static const ffui_ldr_ctl top_ctls[] = {
 	FFUI_LDR_CTL(ggui, mfile),
 	FFUI_LDR_CTL(ggui, mlist),
@@ -201,6 +206,7 @@ static const ffui_ldr_ctl top_ctls[] = {
 	FFUI_LDR_CTL3(ggui, wmain, wmain_ctls),
 	FFUI_LDR_CTL3(ggui, wabout, wabout_ctls),
 	FFUI_LDR_CTL3(ggui, wuri, wuri_ctls),
+	FFUI_LDR_CTL3(ggui, winfo, winfo_ctls),
 	FFUI_LDR_CTL_END
 };
 
@@ -214,6 +220,7 @@ static const char *const action_str[] = {
 	"A_LIST_ADDFILE",
 	"A_LIST_ADDURL",
 	"A_SHOWPCM",
+	"A_SHOWINFO",
 	"A_SHOWDIR",
 	"A_DELFILE",
 	"A_SHOW",
@@ -304,6 +311,7 @@ static FFTHDCALL int gui_worker(void *param)
 	wmain_init();
 	wabout_init();
 	wuri_init();
+	winfo_init();
 
 	if (gg->conf.list_random)
 		corecmd_run(A_LIST_RANDOM, NULL);

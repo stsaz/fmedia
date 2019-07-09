@@ -47,3 +47,52 @@ void wuri_init()
 	gg->wuri.wuri.hide_on_close = 1;
 	gg->wuri.wuri.on_action = &wuri_action;
 }
+
+
+static void winfo_action(ffui_wnd *wnd, int id)
+{
+}
+
+void winfo_init()
+{
+	gg->winfo.winfo.hide_on_close = 1;
+	gg->winfo.winfo.on_action = &winfo_action;
+}
+
+static void winfo_addpair(const ffstr *name, const ffstr *val)
+{
+	ffui_viewitem it;
+	ffui_view_iteminit(&it);
+	ffui_view_settextstr(&it, name);
+	ffui_view_append(&gg->winfo.vinfo, &it);
+
+	ffui_view_settextstr(&it, val);
+	ffui_view_set(&gg->winfo.vinfo, 1, &it);
+}
+
+/** Show info about a playlist's item. */
+void winfo_show(uint idx)
+{
+	ffstr name, *val;
+	fmed_que_entry *ent = (fmed_que_entry*)gg->qu->fmed_queue_item_locked(-1, idx);
+	if (ent == NULL)
+		return;
+
+	ffui_wnd_settextz(&gg->winfo.winfo, ent->url.ptr);
+	ffui_view_clear(&gg->winfo.vinfo);
+
+	ffstr_setz(&name, "File path");
+	winfo_addpair(&name, &ent->url);
+
+	for (uint i = 0;  NULL != (val = gg->qu->meta(ent, i, &name, 0));  i++) {
+
+		if (val == FMED_QUE_SKIP)
+			continue;
+
+		winfo_addpair(&name, val);
+	}
+
+	gg->qu->cmdv(FMED_QUE_ITEMUNLOCK, ent);
+
+	ffui_show(&gg->winfo.winfo, 1);
+}

@@ -49,6 +49,15 @@ static void wmain_action(ffui_wnd *wnd, int id)
 		ffui_show(&gg->wuri.wuri, 1);
 		return;
 
+	case A_SHOWINFO: {
+		ffarr4 *sel = ffui_view_getsel(&gg->wmain.vlist);
+		int i = ffui_view_selnext(&gg->wmain.vlist, sel);
+		if (i != -1)
+			winfo_show(i);
+		ffui_view_sel_free(sel);
+		return;
+	}
+
 	case A_SHOWPCM:
 	case A_SHOWDIR:
 	case A_DELFILE:
