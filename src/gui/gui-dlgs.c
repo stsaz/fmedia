@@ -23,6 +23,7 @@ enum {
 static void gui_cvt_action(ffui_wnd *wnd, int id);
 static void gui_conv_browse(void);
 static void gui_convert(void);
+static int conv_sets_add(char *val);
 
 static void gui_rec_init(void);
 static void gui_rec_action(ffui_wnd *wnd, int id);
@@ -238,9 +239,15 @@ static const struct cvt_set cvt_sets[] = {
 	{ SETT_OUT_PRESDATE, "Preserve Date", "0 or 1", FFOFF(cvt_sets_t, out_preserve_date) },
 };
 
+static int conf_conv_sets_output(ffparser_schem *ps, void *obj, char *val)
+{
+	conv_sets_add(val);
+	return 0;
+}
+
 // conf -> gui
 static const ffpars_arg cvt_sets_conf[] = {
-	{ "output",	FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY, FFPARS_DSTOFF(cvt_sets_t, output) },
+	{ "output",	FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY | FFPARS_FLIST, FFPARS_DST(&conf_conv_sets_output) },
 
 	{ "vorbis_quality",	FFPARS_TFLOAT, FFPARS_DSTOFF(cvt_sets_t, vorbis_quality_f) },
 	{ "opus_bitrate",	FFPARS_TINT, FFPARS_DSTOFF(cvt_sets_t, opus_bitrate) },
@@ -258,6 +265,8 @@ static const ffpars_arg cvt_sets_conf[] = {
 
 void gui_cvt_sets_init(cvt_sets_t *sets)
 {
+	ffarr2_set(&gg->conv_sets.output, gg->conv_sets._output, 0);
+
 	sets->init = 1;
 	sets->format = sets->conv_pcm_rate = sets->channels = SETT_EMPTY_INT;
 	sets->gain_f = 0.0;
@@ -275,6 +284,34 @@ void gui_cvt_sets_init(cvt_sets_t *sets)
 	sets->stream_copy = 0;
 	sets->overwrite = 0;
 	sets->out_preserve_date = 1;
+}
+
+/** Add new entry to the end of list.
+If entry exists, remove and re-add it. */
+static int conv_sets_add(char *val)
+{
+	ssize_t i = ffszarr_find((void*)gg->conv_sets.output.ptr, gg->conv_sets.output.len, val, ffsz_len(val));
+	if (i == -1
+		&& gg->conv_sets.output.len == FFCNT(gg->conv_sets._output))
+		i = 0;
+
+	if (i != -1) {
+		ffmem_free(gg->conv_sets.output.ptr[i]);
+		ffarr2_rm_shift(&gg->conv_sets.output, i);
+	}
+
+	char **it = ffarr2_push(&gg->conv_sets.output);
+	*it = val;
+	return i;
+}
+
+/** Write all convert.output file names to config. */
+void conv_sets_write(ffconfw *conf)
+{
+	char **it;
+	FFARR2_WALK(&gg->conv_sets.output, it) {
+		ffconf_writez(conf, *it, FFCONF_TVAL);
+	}
 }
 
 int gui_conf_convert(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
@@ -372,10 +409,18 @@ static int sett_fromstr(const struct cvt_set *st, void *p, ffstr *data)
 	return 0;
 }
 
+static void conv_sets_reset(cvt_sets_t *sets)
+{
+	ffmem_safefree0(sets->meta);
+}
+
 void cvt_sets_destroy(cvt_sets_t *sets)
 {
-	ffmem_safefree0(sets->output);
-	ffmem_safefree0(sets->meta);
+	char **it;
+	FFARR2_WALK(&sets->output, it) {
+		ffmem_free0(*it);
+	}
+	conv_sets_reset(sets);
 }
 
 void gui_showconvert(void)
@@ -384,8 +429,13 @@ void gui_showconvert(void)
 		if (!gg->conv_sets.init)
 			gui_cvt_sets_init(&gg->conv_sets);
 
-		if (ffui_textlen(&gg->wconvert.eout) == 0)
-			ffui_settextz(&gg->wconvert.eout, gg->conv_sets.output);
+		// initialize wconvert.eout
+		if (gg->conv_sets.output.len != 0)
+			ffui_settextz(&gg->wconvert.eout, *ffarr2_last(&gg->conv_sets.output));
+		char **iter;
+		FFARR2_RWALK(&gg->conv_sets.output, iter) {
+			ffui_combx_insz(&gg->wconvert.eout, -1, *iter);
+		}
 
 		ffui_view_showgroups(&gg->wconvert.vsets, 1);
 		const char *const *grp;
@@ -509,14 +559,19 @@ static void gui_convert(void)
 	uint k;
 	ffarr ar = {0};
 
-	cvt_sets_destroy(&gg->conv_sets);
+	conv_sets_reset(&gg->conv_sets);
 
 	ffui_textstr(&gg->wconvert.eout, &fn);
-	gg->conv_sets.output = fn.ptr;
 	if (fn.len == 0 || 0 == ffui_view_selcount(&gg->wmain.vlist)) {
 		errlog(core, NULL, "gui", "convert: no files selected");
 		return;
 	}
+
+	// update output file names list
+	i = conv_sets_add(fn.ptr);
+	if (i != -1)
+		ffui_combx_rm(&gg->wconvert.eout, gg->conv_sets.output.len - i - 1);
+	ffui_combx_insz(&gg->wconvert.eout, 0, fn.ptr);
 
 	if (0 != gui_cvt_getsettings(cvt_sets, FFCNT(cvt_sets), &gg->conv_sets, &gg->wconvert.vsets))
 		goto end;

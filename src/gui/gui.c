@@ -723,7 +723,7 @@ static void usrconf_write_val(ffconfw *conf, uint i)
 		ffconf_writez(conf, gg->rec_sets.output, FFCONF_TVAL);
 		break;
 	case 2:
-		ffconf_writez(conf, gg->conv_sets.output, FFCONF_TVAL);
+		conv_sets_write(conf);
 		break;
 	case 3:
 		ffconf_writebool(conf, gg->list_random, FFCONF_TVAL);
@@ -755,13 +755,6 @@ void usrconf_write(void)
 		ffstr s;
 		ffui_textstr(&gg->wrec.eout, &s);
 		gg->rec_sets.output = s.ptr;
-	}
-
-	if (gg->wconv_init) {
-		ffmem_free0(gg->conv_sets.output);
-		ffstr s;
-		ffui_textstr(&gg->wconvert.eout, &s);
-		gg->conv_sets.output = s.ptr;
 	}
 
 	if (NULL == (fn = gui_userpath(FMED_USERCONF)))

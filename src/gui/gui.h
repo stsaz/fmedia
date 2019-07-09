@@ -103,7 +103,11 @@ typedef struct gui_trk gui_trk;
 typedef struct cvt_sets_t {
 	uint init :1;
 
-	char *output;
+	char *_output[7];
+	struct {
+		size_t len;
+		char **ptr;
+	} output;
 
 	union {
 	int vorbis_quality;
@@ -446,6 +450,7 @@ void gui_showconvert(void);
 void gui_setconvpos(uint cmd);
 int gui_conf_convert(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
 void gui_cvt_sets_init(cvt_sets_t *sets);
+void conv_sets_write(ffconfw *conf);
 
 int gui_conf_rec(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
 void wrec_init(void);
