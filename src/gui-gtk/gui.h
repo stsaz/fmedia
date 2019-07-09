@@ -48,6 +48,12 @@ struct gui_wuri {
 };
 
 struct gtrk;
+struct gui_conf {
+	uint seek_step_delta,
+		seek_leap_delta;
+	byte autosave_playlists;
+	byte list_random;
+};
 typedef struct ggui {
 	uint state;
 	uint load_err;
@@ -59,11 +65,7 @@ typedef struct ggui {
 	uint vol; //0..MAXVOL
 	uint go_pos;
 
-	struct {
-		uint seek_step_delta,
-			seek_leap_delta;
-		byte autosave_playlists;
-	} conf;
+	struct gui_conf conf;
 
 	struct gui_wmain wmain;
 	struct gui_wabout wabout;

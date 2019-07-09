@@ -119,10 +119,6 @@ static int conf_modconf(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
 		|| conf->conf_copy_mod != NULL) {
 		// UI module must load immediately
 		// Note: delayed modules loading from "include" config directive isn't supported
-#ifdef FF_LINUX
-		ffpars_ctx_skip(ctx);
-		ctx = NULL;
-#endif
 		m = core->insmod(zname, ctx);
 	} else {
 		m = core_insmod_delayed(zname, ctx);

@@ -71,13 +71,38 @@ static const void* gui_iface(const char *name)
 	return NULL;
 }
 
-static const ffpars_arg gui_conf_args[0] = {
+
+static int conf_ctxany(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
+{
+	ffpars_ctx_skip(ctx);
+	return 0;
+}
+
+static int conf_any(ffparser_schem *p, void *obj, const ffstr *val)
+{
+	return 0;
+}
+
+static const ffpars_arg gui_conf_args[] = {
+	{ "seek_step",	FFPARS_TINT8 | FFPARS_FNOTZERO, FFPARS_DSTOFF(struct gui_conf, seek_step_delta) },
+	{ "seek_leap",	FFPARS_TINT8 | FFPARS_FNOTZERO, FFPARS_DSTOFF(struct gui_conf, seek_leap_delta) },
+	{ "autosave_playlists",	FFPARS_TBOOL8, FFPARS_DSTOFF(struct gui_conf, autosave_playlists) },
+	{ "random",	FFPARS_TBOOL8, FFPARS_DSTOFF(struct gui_conf, list_random) },
+
+	{ "record",	FFPARS_TOBJ, FFPARS_DST(&conf_ctxany) },
+	{ "convert",	FFPARS_TOBJ, FFPARS_DST(&conf_ctxany) },
+	{ "global_hotkeys",	FFPARS_TOBJ, FFPARS_DST(&conf_ctxany) },
+
+	{ "*",	FFPARS_TSTR | FFPARS_FMULTI, FFPARS_DST(&conf_any) },
 };
 
 static int gui_conf(const char *name, ffpars_ctx *ctx)
 {
 	if (ffsz_eq(name, "gui")) {
-		ffpars_setargs(ctx, gg, gui_conf_args, FFCNT(gui_conf_args));
+		gg->conf.seek_step_delta = 5;
+		gg->conf.seek_leap_delta = 60;
+		gg->conf.autosave_playlists = 1;
+		ffpars_setargs(ctx, &gg->conf, gui_conf_args, FFCNT(gui_conf_args));
 		return 0;
 	}
 	return -1;
@@ -90,9 +115,6 @@ static int gui_sig(uint signo)
 		ffmem_init();
 		if (NULL == (gg = ffmem_new(ggui)))
 			return -1;
-		gg->conf.seek_step_delta = 5;
-		gg->conf.seek_leap_delta = 60;
-		gg->conf.autosave_playlists = 1;
 		gg->vol = 100;
 		gg->go_pos = -1;
 		return 0;
@@ -270,6 +292,9 @@ static FFTHDCALL int gui_worker(void *param)
 	wmain_init();
 	wabout_init();
 	wuri_init();
+
+	if (gg->conf.list_random)
+		corecmd_run(A_LIST_RANDOM, NULL);
 
 	if (gg->conf.autosave_playlists)
 		corecmd_add(LOADLISTS, NULL);
