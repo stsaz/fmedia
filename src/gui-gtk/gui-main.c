@@ -136,6 +136,7 @@ static void wmain_action(ffui_wnd *wnd, int id)
 		return;
 
 	case A_CONF_EDIT:
+	case A_USRCONF_EDIT:
 	case A_FMEDGUI_EDIT:
 	case A_README_SHOW:
 	case A_CHANGES_SHOW:

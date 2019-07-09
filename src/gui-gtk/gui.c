@@ -56,6 +56,7 @@ static void list_add(const ffstr *fn);
 static void list_rmitems(void);
 static void showdir_selected(void);
 static void showdir(const char *fn);
+static char* userpath(const char *fn);
 
 FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 {
@@ -246,6 +247,7 @@ static const char *const action_str[] = {
 
 	"A_ABOUT",
 	"A_CONF_EDIT",
+	"A_USRCONF_EDIT",
 	"A_FMEDGUI_EDIT",
 	"A_README_SHOW",
 	"A_CHANGES_SHOW",
@@ -514,10 +516,13 @@ static void corecmd_run(uint cmd, void *udata)
 void gui_showtextfile(uint id)
 {
 	const char *name = NULL;
-	char *fn;
+	char *fn = NULL;
 	switch (id) {
 	case A_CONF_EDIT:
 		name = FMED_GLOBCONF; break;
+
+	case A_USRCONF_EDIT:
+		fn = userpath("fmedia-user.conf"); break;
 
 	case A_FMEDGUI_EDIT:
 		name = "fmedia.gui"; break;
@@ -527,11 +532,12 @@ void gui_showtextfile(uint id)
 
 	case A_CHANGES_SHOW:
 		name = "CHANGES.txt"; break;
+
 	default:
 		return;
 	}
 
-	if (NULL == (fn = core->getpath(name, ffsz_len(name))))
+	if (fn == NULL && NULL == (fn = core->getpath(name, ffsz_len(name))))
 		return;
 
 	const char *argv[] = {

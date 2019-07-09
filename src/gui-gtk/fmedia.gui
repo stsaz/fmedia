@@ -128,6 +128,9 @@ menu mhelp {
 	item "Edit Default Settings" {
 		action A_CONF_EDIT
 	}
+	item "Edit User Settings..." {
+		action A_USRCONF_EDIT
+	}
 	item "Edit GUI" {
 		action A_FMEDGUI_EDIT
 	}
