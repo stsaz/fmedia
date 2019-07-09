@@ -15,6 +15,7 @@ void wmain_init()
 {
 	gg->wmain.vlist.dispinfo_id = LIST_DISPINFO;
 	ffui_trk_set(&gg->wmain.tvol, 100);
+	ffui_dlg_multisel(&gg->dlg, 1);
 	gg->wmain.wmain.on_action = &wmain_action;
 	gg->wmain.wmain.onclose_id = A_ONCLOSE;
 	ffui_view_dragdrop(&gg->wmain.vlist, A_ONDROPFILE);
@@ -30,9 +31,14 @@ static void wmain_action(ffui_wnd *wnd, int id)
 		char *fn;
 		if (NULL == (fn = ffui_dlg_open(&gg->dlg, &gg->wmain.wmain)))
 			return;
-		ffstr *s = ffmem_new(ffstr);
-		ffstr_alcopyz(s, fn);
-		corecmd_add(A_URL_ADD, s);
+		ffstr *s;
+		for (;;) {
+			s = ffmem_new(ffstr);
+			ffstr_alcopyz(s, fn);
+			corecmd_add(A_URL_ADD, s);
+			if (NULL == (fn = ffui_dlg_nextname(&gg->dlg)))
+				break;
+		}
 		return;
 	}
 	case A_LIST_ADDURL:
