@@ -131,6 +131,7 @@ static void* aac_open(fmed_filt *d)
 	d->audio.fmt.ileaved = 1;
 	a->sample_rate = d->audio.fmt.sample_rate;
 	d->datatype = "pcm";
+	d->audio.decoder = "AAC";
 	return a;
 }
 

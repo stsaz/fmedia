@@ -341,7 +341,7 @@ static void tui_info(tui *t, fmed_filt *d)
 	size_t trkid = (qtrk != FMED_PNULL) ? gt->qu->cmdv(FMED_QUE_ID, qtrk) + 1 : 1;
 
 	t->buf.len = 0;
-	ffstr_catfmt(&t->buf, "\n#%L \"%S - %S\" %s %.02F MB, %u:%02u.%03u (%,U samples), %u kbps, %s, %u Hz, %s, %s\n\n"
+	ffstr_catfmt(&t->buf, "\n#%L \"%S - %S\" %s %.02F MB, %u:%02u.%03u (%,U samples), %u kbps, %s, %u Hz, %s, %s"
 		, trkid
 		, &artist, &title
 		, input
@@ -353,6 +353,13 @@ static void tui_info(tui *t, fmed_filt *d)
 		, fmt.sample_rate
 		, ffpcm_fmtstr(fmt.format)
 		, ffpcm_channelstr(fmt.channels));
+
+	if (d->video.width != 0) {
+		ffstr_catfmt(&t->buf, "  Video: %s, %ux%u"
+			, d->video.decoder, (int)d->video.width, (int)d->video.height);
+	}
+
+	ffstr_catfmt(&t->buf, "\n\n");
 
 	if (1 == core->getval("show_tags")) {
 		tui_addtags(t, t->qent, &t->buf);

@@ -445,6 +445,10 @@ struct fmed_trk {
 		uint bitrate; //bit/s
 		const char *decoder;
 	} audio;
+	struct {
+		uint width, height;
+		const char *decoder;
+	} video;
 	uint64 a_prebuffer; //msec
 	float a_start_level; //dB
 	float a_stop_level; //dB

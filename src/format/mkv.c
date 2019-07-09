@@ -102,6 +102,12 @@ static const ushort mkv_codecs[] = {
 static const char* const mkv_codecs_str[] = {
 	"aac.decode", "alac.decode", "mpeg.decode", "vorbis.decode",
 };
+static const ushort mkv_vcodecs[] = {
+	FFMKV_V_AVC, FFMKV_V_HEVC,
+};
+static const char* const mkv_vcodecs_str[] = {
+	"H.264", "H.265",
+};
 
 static int mkv_process(void *ctx, fmed_filt *d)
 {
@@ -192,6 +198,12 @@ again:
 				goto again;
 			} else if (m->mkv.info.format == FFMKV_AUDIO_MPEG)
 				m->mkv.info.asc.len = 0;
+
+			i = ffint_find2(mkv_vcodecs, FFCNT(mkv_vcodecs), m->mkv.info.vcodec);
+			if (i != -1)
+				d->video.decoder = mkv_vcodecs_str[i];
+			d->video.width = m->mkv.info.width;
+			d->video.height = m->mkv.info.height;
 
 			d->out = m->mkv.info.asc.ptr,  d->outlen = m->mkv.info.asc.len;
 			m->state = I_DATA;

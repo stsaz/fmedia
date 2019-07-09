@@ -208,6 +208,10 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 				&& 0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, (void*)filt))
 				return FMED_RERR;
 
+			d->video.decoder = ffmp4_codec(m->mp.video.codec);
+			d->video.width = m->mp.video.width;
+			d->video.height = m->mp.video.height;
+
 			d->data = m->mp.data,  d->datalen = m->mp.datalen;
 			d->out = m->mp.out,  d->outlen = m->mp.outlen;
 			m->state = I_DATA1;
