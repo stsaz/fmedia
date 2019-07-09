@@ -408,6 +408,7 @@ void gui_runcmd(const struct cmd *cmd, void *udata);
 void gui_corecmd_op(uint cmd, void *udata);
 void gui_corecmd_add(const struct cmd *cmd, void *udata);
 void gui_newtrack(gui_trk *g, fmed_filt *d, fmed_que_entry *plid);
+void wmain_update(uint playtime, uint time_total);
 int gui_setmeta(gui_trk *g, fmed_que_entry *qent);
 void gui_conv_progress(gui_trk *g);
 void gui_clear(void);
@@ -421,6 +422,8 @@ void gui_upd_check(void);
 void usrconf_write(void);
 void fav_save(void);
 void wmain_list_cols_width_write(ffconfw *conf);
+void wmain_rec_started();
+void wmain_rec_stopped();
 
 enum GUI_FILT {
 	GUI_FILT_URL = 1,

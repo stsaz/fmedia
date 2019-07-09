@@ -1151,6 +1151,17 @@ done:
 	ffui_trk_setrange(&gg->wmain.tpos, g->total_time_sec);
 }
 
+void wmain_update(uint playtime, uint time_total)
+{
+	ffui_trk_set(&gg->wmain.tpos, playtime);
+
+	char buf[256];
+	size_t n = ffs_fmt(buf, buf + sizeof(buf), "%u:%02u / %u:%02u"
+		, playtime / 60, playtime % 60
+		, time_total / 60, time_total % 60);
+	ffui_settext(&gg->wmain.lpos, buf, n);
+}
+
 /** Show progress of conversion track. */
 void gui_conv_progress(gui_trk *g)
 {
@@ -1207,4 +1218,20 @@ void wmain_list_cols_width_write(ffconfw *conf)
 		ffui_view_col(&gg->wmain.vlist, i, &vc);
 		ffconf_writeint(conf, ffui_viewcol_width(&vc), 0, FFCONF_TVAL);
 	}
+}
+
+void wmain_rec_started()
+{
+	ffui_stbar_settextz(&gg->wmain.stbar, 0, "Recording...");
+	if (gg->status_tray && !ffui_tray_visible(&gg->wmain.tray_icon)) {
+		ffui_tray_seticon(&gg->wmain.tray_icon, &gg->wmain.ico_rec);
+		ffui_tray_show(&gg->wmain.tray_icon, 1);
+	}
+}
+
+void wmain_rec_stopped()
+{
+	ffui_stbar_settextz(&gg->wmain.stbar, 0, "");
+	if (gg->status_tray && !gg->min_tray)
+		ffui_tray_show(&gg->wmain.tray_icon, 0);
 }

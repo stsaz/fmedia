@@ -614,20 +614,14 @@ void gui_media_showpcm(void)
 
 static void* rec_open(fmed_filt *d)
 {
-	ffui_stbar_settextz(&gg->wmain.stbar, 0, "Recording...");
-	if (gg->status_tray && !ffui_tray_visible(&gg->wmain.tray_icon)) {
-		ffui_tray_seticon(&gg->wmain.tray_icon, &gg->wmain.ico_rec);
-		ffui_tray_show(&gg->wmain.tray_icon, 1);
-	}
+	wmain_rec_started();
 	return FMED_FILT_DUMMY;
 }
 
 static void rec_close(void *ctx)
 {
 	if (gg->rec_trk != NULL) {
-		ffui_stbar_settextz(&gg->wmain.stbar, 0, "");
-		if (gg->status_tray && !gg->min_tray)
-			ffui_tray_show(&gg->wmain.tray_icon, 0);
+		wmain_rec_stopped();
 		gg->rec_trk = NULL;
 	}
 }
@@ -1300,8 +1294,6 @@ static void gtrk_close(void *ctx)
 static int gtrk_process(void *ctx, fmed_filt *d)
 {
 	gui_trk *g = ctx;
-	char buf[255];
-	size_t n;
 	int64 playpos;
 	uint playtime, first = 0;
 
@@ -1354,12 +1346,7 @@ static int gtrk_process(void *ctx, fmed_filt *d)
 		goto done;
 	g->lastpos = playtime;
 
-	ffui_trk_set(&gg->wmain.tpos, playtime);
-
-	n = ffs_fmt(buf, buf + sizeof(buf), "%u:%02u / %u:%02u"
-		, playtime / 60, playtime % 60
-		, g->total_time_sec / 60, g->total_time_sec % 60);
-	ffui_settext(&gg->wmain.lpos, buf, n);
+	wmain_update(playtime, g->total_time_sec);
 
 done:
 	d->out = d->data;
