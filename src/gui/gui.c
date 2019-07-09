@@ -815,6 +815,7 @@ static void gui_savelists(void)
 		goto end;
 
 	uint n = 1;
+	uint total = (uint)ffui_tab_count(&gg->wmain.tabs);
 	for (uint i = 0; ; i++) {
 		if (i == (uint)gg->itab_convert
 			|| i == (uint)gg->fav_pl)
@@ -823,7 +824,7 @@ static void gui_savelists(void)
 		buf.len = 0;
 		ffstr_catfmt(&buf, "%s" GUI_PLIST_NAME "%Z", fn, n++);
 
-		if (i == (uint)ffui_tab_count(&gg->wmain.tabs)) {
+		if (i == total) {
 			if (fffile_exists(buf.ptr))
 				fffile_rm(buf.ptr);
 			break;

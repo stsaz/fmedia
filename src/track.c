@@ -201,8 +201,10 @@ static int trk_open(fm_trk *t, const char *fn)
 		else
 			addfilter(t, "#file.in");
 
-		if (NULL == trk_modbyext(t, FMED_MOD_INEXT, &ext))
+		if (NULL == trk_modbyext(t, FMED_MOD_INEXT, &ext)) {
+			errlog(t, "can't open file: \"%s\"", fn);
 			return 1;
+		}
 	}
 
 	return 0;
@@ -577,10 +579,6 @@ static int filt_call(fm_trk *t, fmed_f *f)
 	int r;
 	fftime t1, t2;
 
-#ifdef _DEBUG
-	dbglog(t, "%s calling %s, input: %L"
-		, (f->newdata) ? ">>" : "<<", f->name, f->d.datalen);
-#endif
 	if (core->loglev == FMED_LOG_DEBUG) {
 		ffclk_get(&t1);
 	}
@@ -588,6 +586,11 @@ static int filt_call(fm_trk *t, fmed_f *f)
 	ffint_bitmask(&t->props.flags, FMED_FFWD, f->newdata);
 	f->newdata = 0;
 	ffint_bitmask(&t->props.flags, FMED_FLAST, (t->cur->prev == ffchain_sentl(&t->filt_chain)));
+
+#ifdef _DEBUG
+	dbglog(t, "%s calling %s, input: %L  flags:%xu"
+		, (t->props.flags & FMED_FFWD) ? ">>" : "<<", f->name, f->d.datalen, t->props.flags);
+#endif
 
 	t->props.data = f->d.data,  t->props.datalen = f->d.datalen;
 

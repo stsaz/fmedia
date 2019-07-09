@@ -141,7 +141,7 @@ static int pulse_init(fmed_trk *trk)
 	if (mod->init_ok)
 		return 0;
 	int r;
-	if (0 != (r = ffpulse_init(core->kq))) {
+	if (0 != (r = ffpulse_init(core->kq, "fmedia"))) {
 		errlog(core, trk, NULL, "ffpulse_init(): %s", ffpulse_errstr(r));
 		return -1;
 	}
@@ -158,7 +158,7 @@ static int pulse_adev_list(fmed_adev_ent **ents, uint flags)
 	int r, rr = -1;
 
 	if ((mod == NULL || !mod->init_ok)
-		&& 0 != (r = ffpulse_init(FF_BADFD))) {
+		&& 0 != (r = ffpulse_init(FF_BADFD, ""))) {
 		errlog(core, NULL, NULL, "ffpulse_init(): %s", ffpulse_errstr(r));
 		return -1;
 	}
@@ -397,7 +397,8 @@ static int pulse_write(void *ctx, fmed_filt *d)
 			goto err;
 
 		} else if (r == 0) {
-			ffpulse_async(&mod->out, 1);
+			if (0 != ffpulse_async(&mod->out, FFPULSE_READY | FFPULSE_CHECK))
+				continue;
 			return FMED_RASYNC;
 		}
 
@@ -409,7 +410,7 @@ static int pulse_write(void *ctx, fmed_filt *d)
 
 	a->dataoff = 0;
 
-	if ((d->flags & FMED_FLAST) && d->datalen == 0) {
+	if (d->flags & FMED_FLAST) {
 
 		r = ffpulse_drain(&mod->out);
 		if (r == 1)

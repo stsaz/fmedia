@@ -706,10 +706,12 @@ static const void* core_getmod2(uint flags, const char *name, ssize_t name_len)
 
 	case FMED_MOD_INEXT:
 		mod = core_modbyext(&fmed->conf.inmap, &s);
+		flags |= FMED_MOD_NOLOG;
 		break;
 
 	case FMED_MOD_OUTEXT:
 		mod = core_modbyext(&fmed->conf.outmap, &s);
+		flags |= FMED_MOD_NOLOG;
 		break;
 
 	case FMED_MOD_INFO:

@@ -707,6 +707,8 @@ static void gui_trk_setinfo2(fmed_que_entry *ent, uint flags)
 
 void gui_media_added(fmed_que_entry *ent)
 {
+	if (!gg->qu->cmdv(FMED_QUE_ISCURLIST, ent))
+		return;
 	uint idx = gg->qu->cmdv(FMED_QUE_ID, ent);
 	list_update(idx, 1);
 }

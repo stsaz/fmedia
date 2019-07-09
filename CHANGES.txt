@@ -8,6 +8,23 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.10 - Jul 8, 2019
+
+ + GUI: restore list's column width on startup
+ + GUI: Windows: convert.output is a dropdown list; restore on startup
+ + GUI: Linux: "Convert" command (no custom settings)
+ + GUI: Linux: "Show Media Info" command
+ + GUI: Linux: support several settings from fmedia.conf (seek_step, seek_leap, autosave_playlists)
+ * GUI: Linux: multi-select "Open File" dialog
+ - GUI: Linux: drag-n-drop didn't work if a filename contained special characters
+ + TUI: print information about video codec and resolution: .mp4 (H.264), .mkv (H.264, H.265)
+
+ + --help: Added German translation
+ * queue: shrink memory usage of playback items by 70%
+ - Pulse, DirectSound: some audio data could be lost after playback is paused
+ - Pulse: playback could hang after track has finished
+
+
 fmedia v1.9 - June 8, 2019
 
  * GUI-GTK: show meta info in playlist properly

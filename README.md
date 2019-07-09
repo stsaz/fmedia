@@ -126,6 +126,9 @@ INSTALL
 
 		ln -s /usr/local/fmedia-1/fmedia /usr/local/bin/fmedia
 
+3. Run `fmedia --gui` to open graphical interface;  or execute commands via `fmedia` from console.
+
+
 ### BUILD ON LINUX
 
 0. Requirements:
@@ -221,7 +224,7 @@ Core configuration settings start with "core.", e.g. set codepage for non-Unicod
 ---------------
 EXTRACT TRACKS FROM flac.cue
 ---------------
-When you're extracting a track from the album in FLAC using CUE sheet, track is first decoded to PCM and then re-encoded with FLAC.  This behaviour won't result in any audio quality loss since FLAC is a lossless codec.
+While extracting a track from the album in FLAC using CUE sheet, the audio is first decoded to PCM and then re-encoded with FLAC.  This behaviour won't result in any audio quality loss since FLAC is a lossless codec.
 
 
 ---------------

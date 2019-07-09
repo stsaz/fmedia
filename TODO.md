@@ -59,7 +59,6 @@ This is the list of the things that need to be done.
 * GUI: Invert Sel doesn't work
 * delayed module load doesn't work if its settings are specified in fmedia-user.conf
 * gui-gtk: too large control buttons
-* Pulse: random hanging (while waiting for Pulse to signal) after track has finished (Stop doesn't work)
 
 
 ## Refactoring
