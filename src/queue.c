@@ -31,7 +31,7 @@ typedef struct entry {
 	fflist_item sib;
 
 	plist *plist;
-	fmed_trk trk;
+	fmed_trk *trk;
 	ffarr2 meta; //ffstr[]
 	ffarr2 tmeta; //ffstr[]. transient meta
 	ffarr2 dict; //ffstr[]
@@ -242,6 +242,7 @@ static void ent_free(entry *e)
 	FFARR2_FREE_ALL(&e->dict, ffstr_free, ffstr);
 	FFARR2_FREE_ALL(&e->tmeta, ffstr_free, ffstr);
 
+	ffmem_free(e->trk);
 	ffmem_free(e);
 }
 
@@ -395,7 +396,8 @@ static void que_play2(entry *ent, uint flags)
 	}
 
 	fmed_trk *t = qu->track->conf(trk);
-	qu->track->copy_info(t, &ent->trk);
+	if (ent->trk != NULL)
+		qu->track->copy_info(t, ent->trk);
 
 	if (qu->mixing)
 		t->type = FMED_TRK_TYPE_MIXIN;
@@ -698,7 +700,11 @@ static ssize_t que_cmdv(uint cmd, ...)
 		fmed_que_entry *qent = va_arg(va, void*);
 		fmed_trk *trk = va_arg(va, void*);
 		entry *e = FF_GETPTR(entry, e, qent);
-		qu->track->copy_info(&e->trk, trk);
+		if (e->trk == NULL && NULL == (e->trk = ffmem_allocT(1, fmed_trk))) {
+			r = -1;
+			goto end;
+		}
+		qu->track->copy_info(e->trk, trk);
 		goto end;
 	}
 
@@ -1025,8 +1031,15 @@ static fmed_que_entry* que_add(plist *pl, fmed_que_entry *ent, uint flags)
 	e->e.prev = ent->prev;
 
 	if ((flags & FMED_QUE_COPY_PROPS) && ent->prev != NULL) {
+
 		entry *prev = FF_GETPTR(entry, e, ent->prev);
-		qu->track->copy_info(&e->trk, &prev->trk);
+		if (prev->trk != NULL) {
+			if (NULL == (e->trk = ffmem_allocT(1, fmed_trk))) {
+				ent_free(e);
+				return NULL;
+			}
+			qu->track->copy_info(e->trk, prev->trk);
+		}
 
 		ffstr *dict = prev->dict.ptr;
 		for (uint i = 0;  i != prev->dict.len;  i += 2) {
@@ -1038,9 +1051,7 @@ static fmed_que_entry* que_add(plist *pl, fmed_que_entry *ent, uint flags)
 				que_meta_set(&e->e, &dict[i], &s, FMED_QUE_TRKDICT | FMED_QUE_NUM);
 			}
 		}
-
-	} else
-		qu->track->copy_info(&e->trk, NULL);
+	}
 
 	fflk_lock(&qu->plist_lock);
 
