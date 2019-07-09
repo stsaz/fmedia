@@ -386,7 +386,7 @@ static int pulse_write(void *ctx, fmed_filt *d)
 		d->track->cmd(d->trk, FMED_TRACK_PAUSE);
 		ffpulse_stop(&mod->out);
 		ffpulse_async(&mod->out, 0);
-		return FMED_RMORE;
+		return FMED_RASYNC;
 	}
 
 	while (d->datalen != 0) {

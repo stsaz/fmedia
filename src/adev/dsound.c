@@ -316,7 +316,7 @@ static int dsnd_write(void *ctx, fmed_filt *d)
 		d->snd_output_pause = 0;
 		d->track->cmd(d->trk, FMED_TRACK_PAUSE);
 		ffdsnd_pause(&ds->snd);
-		return FMED_RMORE;
+		return FMED_RASYNC;
 	}
 
 	if (d->datalen != 0) {
