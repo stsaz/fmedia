@@ -19,6 +19,7 @@ enum {
 };
 
 #define CTL_CONF_FN  "fmedia.gui.conf"
+#define FMED_USERCONF  "fmedia-user.conf"
 #define AUTOPLIST_FN  "list%u.m3u8"
 
 struct gui_wmain {
@@ -53,6 +54,7 @@ struct gui_conf {
 		seek_leap_delta;
 	byte autosave_playlists;
 	byte list_random;
+	ushort list_col_width[16];
 };
 typedef struct ggui {
 	uint state;
@@ -133,6 +135,7 @@ enum ACTION {
 
 void corecmd_add(uint cmd, void *udata);
 void ctlconf_write(void);
+void usrconf_write(void);
 void gui_showtextfile(uint id);
 
 void wmain_init();
@@ -143,6 +146,7 @@ void wmain_ent_added(uint idx);
 void wmain_ent_removed(uint idx);
 void wmain_status(const char *fmt, ...);
 void wmain_list_clear();
+void wmain_list_cols_width_write(ffconfw *conf);
 
 void wabout_init();
 void wuri_init();

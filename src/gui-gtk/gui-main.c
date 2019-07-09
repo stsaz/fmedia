@@ -9,12 +9,16 @@ static void wmain_action(ffui_wnd *wnd, int id);
 static void list_save();
 static void hidetotray();
 static void list_dispinfo(struct ffui_view_disp *disp);
+static void list_cols_width_load();
 
 
 void wmain_init()
 {
 	gg->wmain.vlist.dispinfo_id = LIST_DISPINFO;
 	ffui_trk_set(&gg->wmain.tvol, 100);
+
+	list_cols_width_load();
+
 	ffui_dlg_multisel(&gg->dlg, 1);
 	gg->wmain.wmain.on_action = &wmain_action;
 	gg->wmain.wmain.onclose_id = A_ONCLOSE;
@@ -116,6 +120,7 @@ static void wmain_action(ffui_wnd *wnd, int id)
 
 	case A_ONCLOSE:
 		ctlconf_write();
+		usrconf_write();
 		ffui_post_quitloop();
 		return;
 
@@ -157,6 +162,7 @@ enum LIST_HDR {
 	H_DATE,
 	H_ALBUM,
 	H_FN,
+	_H_LAST,
 };
 
 static const char* const list_colname[] = {
@@ -325,4 +331,31 @@ void hidetotray()
 		ffui_tray_seticon(&gg->wmain.tray_icon, &ico);
 	}
 	ffui_tray_show(&gg->wmain.tray_icon, 1);
+}
+
+/** Load widths of list's columns. */
+static void list_cols_width_load()
+{
+	ffui_viewcol vc = {};
+	ffui_viewcol_reset(&vc);
+	for (uint i = 0;  i != _H_LAST;  i++) {
+		FF_ASSERT(i != FFCNT(gg->conf.list_col_width));
+		if (gg->conf.list_col_width[i] == 0)
+			continue;
+
+		ffui_viewcol_setwidth(&vc, gg->conf.list_col_width[i]);
+		ffui_view_setcol(&gg->wmain.vlist, i, &vc);
+	}
+}
+
+/** Write widths of list's columns to config. */
+void wmain_list_cols_width_write(ffconfw *conf)
+{
+	ffui_viewcol vc = {};
+	for (uint i = 0;  i != _H_LAST;  i++) {
+		ffui_viewcol_reset(&vc);
+		ffui_viewcol_setwidth(&vc, 0);
+		ffui_view_col(&gg->wmain.vlist, i, &vc);
+		ffconf_writeint(conf, ffui_viewcol_width(&vc), 0, FFCONF_TVAL);
+	}
 }

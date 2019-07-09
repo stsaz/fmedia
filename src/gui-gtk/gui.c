@@ -83,11 +83,21 @@ static int conf_any(ffparser_schem *p, void *obj, const ffstr *val)
 	return 0;
 }
 
+static int conf_list_col_width(ffparser_schem *p, void *obj, const int64 *val)
+{
+	struct gui_conf *c = obj;
+	if (p->list_idx > FFCNT(c->list_col_width))
+		return FFPARS_EBIGVAL;
+	c->list_col_width[p->list_idx] = *val;
+	return 0;
+}
+
 static const ffpars_arg gui_conf_args[] = {
 	{ "seek_step",	FFPARS_TINT8 | FFPARS_FNOTZERO, FFPARS_DSTOFF(struct gui_conf, seek_step_delta) },
 	{ "seek_leap",	FFPARS_TINT8 | FFPARS_FNOTZERO, FFPARS_DSTOFF(struct gui_conf, seek_leap_delta) },
 	{ "autosave_playlists",	FFPARS_TBOOL8, FFPARS_DSTOFF(struct gui_conf, autosave_playlists) },
 	{ "random",	FFPARS_TBOOL8, FFPARS_DSTOFF(struct gui_conf, list_random) },
+	{ "list_columns_width",	FFPARS_TINT16 | FFPARS_FLIST, FFPARS_DST(&conf_list_col_width) },
 
 	{ "record",	FFPARS_TOBJ, FFPARS_DST(&conf_ctxany) },
 	{ "convert",	FFPARS_TOBJ, FFPARS_DST(&conf_ctxany) },
@@ -738,6 +748,95 @@ void ctlconf_write(void)
 done:
 	ffmem_free(fn);
 	ffui_ldrw_fin(&ldr);
+}
+
+
+static char* userpath(const char *fn)
+{
+	return ffsz_alfmt("%s%s", core->props->user_path, fn);
+}
+
+static const char *const usrconf_setts[] = {
+	"gui.gui.random", "gui.gui.list_columns_width",
+};
+
+/** Write user configuration value. */
+static void usrconf_write_val(ffconfw *conf, uint i)
+{
+	switch (i) {
+	case 0:
+		ffconf_writebool(conf, core->props->list_random, FFCONF_TVAL);
+		break;
+	case 1:
+		wmain_list_cols_width_write(conf);
+		break;
+	}
+}
+
+/** Write the current GUI settings to a user configuration file.
+All unsupported keys or comments are left as is.
+Empty lines are removed. */
+void usrconf_write(void)
+{
+	char *fn;
+	ffarr buf = {};
+	fffd f = FF_BADFD;
+	ffconfw conf;
+	ffconf_winit(&conf, NULL, 0);
+	byte flags[FFCNT(usrconf_setts)] = {};
+
+	if (NULL == (fn = userpath(FMED_USERCONF)))
+		return;
+
+	if (FF_BADFD == (f = fffile_open(fn, FFO_CREATE | FFO_RDWR)))
+		goto end;
+	uint64 fsz = fffile_size(f);
+	if ((int)fsz < 0
+		|| NULL == ffarr_alloc(&buf, fsz))
+		goto end;
+	ssize_t r = fffile_read(f, buf.ptr, buf.cap);
+	if (r < 0)
+		goto end;
+	ffstr in;
+	ffstr_set(&in, buf.ptr, r);
+
+	while (in.len != 0) {
+		ffstr ln;
+		ffstr_nextval3(&in, &ln, '\n' | FFS_NV_CR);
+		ffbool found = 0;
+		for (uint i = 0;  i != FFCNT(usrconf_setts);  i++) {
+			if (ffstr_matchz(&ln, usrconf_setts[i])) {
+				found = 1;
+				flags[i] = 1;
+				ffconf_writez(&conf, usrconf_setts[i], FFCONF_TKEY | FFCONF_ASIS);
+				usrconf_write_val(&conf, i);
+				break;
+			}
+		}
+		if (!found && ln.len != 0)
+			ffconf_writeln(&conf, &ln, 0);
+	}
+
+	for (uint i = 0;  i != FFCNT(usrconf_setts);  i++) {
+		if (flags[i])
+			continue;
+		ffconf_writez(&conf, usrconf_setts[i], FFCONF_TKEY | FFCONF_ASIS);
+		usrconf_write_val(&conf, i);
+	}
+
+	ffconf_writefin(&conf);
+
+	ffstr out;
+	ffconf_output(&conf, &out);
+	fffile_seek(f, 0, SEEK_SET);
+	fffile_write(f, out.ptr, out.len);
+	fffile_trunc(f, out.len);
+
+end:
+	ffarr_free(&buf);
+	ffmem_free(fn);
+	ffconf_wdestroy(&conf);
+	fffile_safeclose(f);
 }
 
 
