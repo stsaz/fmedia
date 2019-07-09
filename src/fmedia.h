@@ -674,7 +674,6 @@ typedef struct fmed_que_entry {
 		, to;
 	int dur; //msec
 	void *prev;
-	fmed_trk *trk;
 } fmed_que_entry;
 
 enum FMED_QUE_EVT {
@@ -772,6 +771,10 @@ enum FMED_QUE {
 	/** Add an item.
 	fmed_que_entry* add2(int plist, fmed_que_entry *ent) */
 	FMED_QUE_ADD2,
+
+	/** Associate track properties with a queue entry.
+	void settrackprops(fmed_que_entry *ent, fmed_trk *trk) */
+	FMED_QUE_SETTRACKPROPS,
 
 	_FMED_QUE_LAST
 };

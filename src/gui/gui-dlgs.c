@@ -152,10 +152,8 @@ enum {
 	SETT_OUT_OVWR,
 };
 
-static void cvt_prop_set(fmed_que_entry *qent, uint name, int64 val)
+static void cvt_prop_set(fmed_trk *t, uint name, int64 val)
 {
-	fmed_trk *t = qent->trk;
-
 	switch (name) {
 
 	case SETT_FMT:
@@ -610,6 +608,8 @@ static void gui_convert(void)
 
 		gg->qu->meta_set(qent, FFSTR("output"), fn.ptr, fn.len, FMED_QUE_TRKDICT);
 
+		fmed_trk trkprops;
+		gg->track->copy_info(&trkprops, NULL);
 		for (k = 0;  k != FFCNT(cvt_sets);  k++) {
 
 			void *p = (char*)&gg->conv_sets + (cvt_sets[k].flags & 0xffff);
@@ -630,8 +630,9 @@ static void gui_convert(void)
 			if (*pint == SETT_EMPTY_INT)
 				continue;
 
-			cvt_prop_set(qent, cvt_sets[k].settname, *pint);
+			cvt_prop_set(&trkprops, cvt_sets[k].settname, *pint);
 		}
+		gg->qu->cmdv(FMED_QUE_SETTRACKPROPS, qent, &trkprops);
 	}
 
 	gui_showque(itab);

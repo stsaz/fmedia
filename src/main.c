@@ -668,7 +668,7 @@ static void* open_input_wcard(const fmed_queue *qu, char *src, const fmed_track 
 		ffmem_tzero(&e);
 		ffstr_setz(&e.url, fn);
 		qe = qu->add(&e);
-		track->copy_info(qe->trk, trkinfo);
+		qu->cmdv(FMED_QUE_SETTRACKPROPS, qe, &trkinfo);
 		qu_setprops(g->cmd, qu, qe);
 		if (first == NULL)
 			first = qe;
@@ -805,7 +805,7 @@ static void open_input(void *udata)
 		if (first == NULL)
 			first = qe;
 
-		track->copy_info(qe->trk, &trkinfo);
+		qu->cmdv(FMED_QUE_SETTRACKPROPS, qe, &trkinfo);
 		qu_setprops(fmed, qu, qe);
 	}
 	FFARR_FREE_ALL_PTR(&fmed->in_files, ffmem_free, char*);

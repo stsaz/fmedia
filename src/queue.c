@@ -616,7 +616,7 @@ static const char *const scmds[] = {
 	"id", "item", "item-locked", "item-unlock",
 	"flt-new", "flt-add", "flt-del", "lst-noflt",
 	"sort", "count",
-	"xplay", "add2",
+	"xplay", "add2", "settrackprops",
 };
 
 static ssize_t que_cmdv(uint cmd, ...)
@@ -691,6 +691,14 @@ static ssize_t que_cmdv(uint cmd, ...)
 	case FMED_QUE_ITEMUNLOCK: {
 		// struct entry *e = va_arg(va, void*);
 		fflk_unlock(&qu->plist_lock);
+		goto end;
+	}
+
+	case FMED_QUE_SETTRACKPROPS: {
+		fmed_que_entry *qent = va_arg(va, void*);
+		fmed_trk *trk = va_arg(va, void*);
+		entry *e = FF_GETPTR(entry, e, qent);
+		qu->track->copy_info(&e->trk, trk);
 		goto end;
 	}
 
@@ -1033,7 +1041,6 @@ static fmed_que_entry* que_add(plist *pl, fmed_que_entry *ent, uint flags)
 
 	} else
 		qu->track->copy_info(&e->trk, NULL);
-	e->e.trk = &e->trk;
 
 	fflk_lock(&qu->plist_lock);
 
