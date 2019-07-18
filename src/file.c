@@ -239,6 +239,7 @@ static void file_onread(void *p)
 	fmed_file *f = p;
 	if (!f->want_read)
 		return;
+	f->want_read = 0;
 	f->handler(f->trk);
 }
 
