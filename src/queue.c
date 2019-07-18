@@ -350,10 +350,11 @@ static void que_xplay(entry *e)
 {
 	for (;;) {
 		e->plist->xcursor = e;
+		ffbool last = (e->sib.next == fflist_sentl(&e->plist->ents));
 		que_play2(e, 1);
 		if (0 == core->cmd(FMED_WORKER_AVAIL))
 			break;
-		if (e->sib.next == fflist_sentl(&e->plist->ents))
+		if (last)
 			break;
 		e = FF_GETPTR(entry, sib, e->sib.next);
 	}
