@@ -43,6 +43,7 @@ static const fmed_filter gui_track_iface = {
 };
 static void gtrk_seek(uint cmd, uint val);
 static void gtrk_vol(uint pos);
+static double gtrk_vol2(gtrk *t, uint pos);
 
 static FFTHDCALL int gui_worker(void *param);
 static void gui_que_onchange(fmed_que_entry *e, uint flags);
@@ -931,7 +932,7 @@ static void* gtrk_open(fmed_filt *d)
 	}
 
 	if (gg->vol != 100)
-		gtrk_vol(gg->vol);
+		gtrk_vol2(t, gg->vol);
 
 	t->sample_rate = d->audio.fmt.sample_rate;
 	t->time_total = ffpcm_time(d->audio.total, t->sample_rate) / 1000;
@@ -1019,11 +1020,17 @@ static void gtrk_vol(uint pos)
 	if (gg->curtrk == NULL)
 		return;
 
+	double db = gtrk_vol2(gg->curtrk, pos);
+	wmain_status("Volume: %.02FdB", db);
+}
+
+static double gtrk_vol2(gtrk *t, uint pos)
+{
 	double db;
 	if (pos <= 100)
 		db = ffpcm_vol2db(pos, 48);
 	else
 		db = ffpcm_vol2db_inc(pos - 100, 25, 6);
-	gg->curtrk->d->audio.gain = db * 100;
-	wmain_status("Volume: %.02FdB", db);
+	t->d->audio.gain = db * 100;
+	return db;
 }
