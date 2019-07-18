@@ -570,6 +570,7 @@ static void gui_convert(void)
 	if (i != -1)
 		ffui_combx_rm(&gg->wconvert.eout, gg->conv_sets.output.len - i - 1);
 	ffui_combx_insz(&gg->wconvert.eout, 0, fn.ptr);
+	ffui_combx_set(&gg->wconvert.eout, 0);
 
 	if (0 != gui_cvt_getsettings(cvt_sets, FFCNT(cvt_sets), &gg->conv_sets, &gg->wconvert.vsets))
 		goto end;
