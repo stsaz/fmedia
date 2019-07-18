@@ -8,6 +8,16 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.10.1 - Jul 18, 2019
+
+ - GUI: windows: convert: empty text in 'output' combobox (v1.10 bug)
+ - GUI: windows: convert: couldn't add files for conversion (v1.10 bug)
+ - GUI: linux: auto-apply volume for the next track
+ - queue: crash on parallel conversion (v1.3 bug)
+ - file: random crash (v1.9 bug)
+ - "--channels=left" didn't work (v0.34 bug)
+
+
 fmedia v1.10 - Jul 8, 2019
 
  + GUI: restore list's column width on startup
