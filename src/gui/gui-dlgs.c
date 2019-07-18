@@ -551,7 +551,7 @@ end:
 /** Create new tracks for selected files.  Pass conversion settings to each track.  Start the first added track. */
 static void gui_convert(void)
 {
-	int i = -1;
+	int i;
 	fmed_que_entry e, *qent, *inp;
 	ffstr fn, name;
 	uint k;
@@ -584,6 +584,7 @@ static void gui_convert(void)
 		ffui_tab_setactive(&gg->wmain.tabs, itab);
 	}
 
+	i = -1;
 	while (-1 != (i = ffui_view_selnext(&gg->wmain.vlist, i))) {
 		inp = (fmed_que_entry*)gg->qu->fmed_queue_item(curtab, i);
 
