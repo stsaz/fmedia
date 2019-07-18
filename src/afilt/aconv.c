@@ -303,6 +303,11 @@ static int autoconv_process(void *ctx, fmed_filt *d)
 	struct fmed_aconv conf = {};
 	conf.in = *in;
 	conf.out = *out;
+
+	if ((c->outpcm.channels & FFPCM_CHMASK) == conf.out.channels
+		&& (c->outpcm.channels & ~FFPCM_CHMASK) != 0)
+		conf.out.channels = c->outpcm.channels;
+
 	conv->cmd(fi, 0, &conf);
 
 	d->out = d->data,  d->outlen = d->datalen;
