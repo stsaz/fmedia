@@ -77,6 +77,7 @@ typedef struct fm_trk {
 	fflist_item sib;
 	fmed_trk props;
 	ffchain filt_chain;
+	ffchain_item chain_parent;
 	struct {FFARR(fmed_f)} filters;
 	fflist_cursor cur;
 	ffrbtree dict;
@@ -595,7 +596,8 @@ static int filt_islast(fm_trk *t, fflist_item *item)
 #ifdef _DEBUG
 // enum FMED_R
 static const char *const fmed_retstr[] = {
-	"err", "ok", "data", "done", "last-out",
+	"err",
+	"ok", "data", "done", "last-out", "next-done",
 	"more", "back",
 	"async", "fin", "syserr",
 };
@@ -731,6 +733,24 @@ static void trk_process(void *udata)
 			r = FFLIST_CUR_NEXT | FFLIST_CUR_BOUNCE | FFLIST_CUR_RM | FFLIST_CUR_RMPREV;
 			break;
 
+		case FMED_RNEXTDONE: {
+			FF_ASSERT(t->chain_parent.next == NULL); //only one NEXTDONE is supported per chain
+			FF_ASSERT(t->cur->next != ffchain_sentl(&t->filt_chain));
+
+			ffchain_item *nxt = t->cur->next;
+			ffchain_split(t->cur, ffchain_sentl(&t->filt_chain));
+			t->chain_parent.next = ffchain_first(&t->filt_chain);
+			t->chain_parent.prev = t->cur;
+			t->filt_chain.next = nxt;
+			t->cur = nxt;
+
+			nf = FF_GETPTR(fmed_f, sib, t->cur);
+			nf->d.data = t->props.out,  nf->d.datalen = t->props.outlen;
+			t->props.outlen = 0;
+			nf->newdata = 1;
+			continue;
+		}
+
 		case FMED_RFIN:
 			goto fin;
 
@@ -745,6 +765,12 @@ shift:
 
 		switch (r) {
 		case FFLIST_CUR_NONEXT:
+			if (t->chain_parent.next != NULL) {
+				t->filt_chain = t->chain_parent;
+				t->chain_parent.next = t->chain_parent.prev = NULL;
+				t->cur = ffchain_last(&t->filt_chain);
+				break;
+			}
 			goto fin; //done
 
 		case FFLIST_CUR_NOPREV:
@@ -1017,6 +1043,15 @@ static char* chain_print(fm_trk *t, const ffchain_item *mark, char *buf, size_t 
 	char *p = buf, *end = buf + cap - 1;
 	ffchain_item *it;
 	fmed_f *f;
+
+	if (t->chain_parent.next != NULL) {
+		FFCHAIN_WALK(&t->chain_parent, it) {
+			if (it == ffchain_sentl(&t->filt_chain))
+				break;
+			f = FF_GETPTR(fmed_f, sib, it);
+			p += ffs_fmt(p, end, (it == mark) ? "*%s -> " : "%s -> ", f->name);
+		}
+	}
 
 	FFCHAIN_WALK(&t->filt_chain, it) {
 		f = FF_GETPTR(fmed_f, sib, it);

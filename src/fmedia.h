@@ -540,6 +540,17 @@ enum FMED_R {
 	, FMED_RDONE
 	, FMED_RLASTOUT //output data is completed, remove this & all previous modules from the chain
 
+	/** Output for the next filters is completed:
+	. pass output data to the next filter
+	. close all next filters (via FMED_FLAST)
+	. return to this filter
+
+	1. [... -> current -- next...]
+	2. [               -> (close) next...]
+	3. [... -- current <- ]
+	*/
+	, FMED_RNEXTDONE
+
 	, FMED_RMORE //more input data is needed
 	, FMED_RBACK //same as FMED_RMORE, but pass the current output data to the previous filter
 
