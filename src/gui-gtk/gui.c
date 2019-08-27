@@ -937,6 +937,7 @@ static void* gtrk_open(fmed_filt *d)
 	t->sample_rate = d->audio.fmt.sample_rate;
 	t->time_total = ffpcm_time(d->audio.total, t->sample_rate) / 1000;
 	wmain_newtrack(ent, t->time_total, d);
+	d->meta_changed = 0;
 
 	t->trk = d->trk;
 	gg->curtrk = t;
@@ -955,6 +956,11 @@ static int gtrk_process(void *ctx, fmed_filt *d)
 		d->snd_output_clear = 1;
 		t->time_seek = -1;
 		return FMED_RMORE;
+	}
+
+	if (d->meta_changed) {
+		d->meta_changed = 0;
+		wmain_newtrack(t->qent, t->time_total, d);
 	}
 
 	uint playtime = (uint)(ffpcm_time(d->audio.pos, t->sample_rate) / 1000);
