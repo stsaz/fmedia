@@ -562,7 +562,8 @@ static void gui_convert(void)
 	ffui_textstr(&gg->wconvert.eout, &fn);
 	if (fn.len == 0 || 0 == ffui_view_selcount(&gg->wmain.vlist)) {
 		errlog(core, NULL, "gui", "convert: no files selected");
-		return;
+		ffstr_free(&fn);
+		goto end;
 	}
 
 	// update output file names list

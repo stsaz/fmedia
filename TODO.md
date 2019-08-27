@@ -7,7 +7,6 @@ This is the list of the things that need to be done.
 * .ts
 * .mkv, .avi seeking
 * 24-bit conversion via soxr
-* conversion for >2 channels
 * gapless playback of the next track in queue
 * noise gate filter
 * ICY: detect audio format in case of unknown content type, .e.g. "Content-Type: application/octet-stream"

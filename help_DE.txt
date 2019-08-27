@@ -1,7 +1,7 @@
 Anwendung:
 fmedia [OPTIONEN] [EINGABE...]
 
-Standardmäßig werden die angegeben Dateien nacheinander abgespielt. 
+Standardmäßig werden die angegeben Dateien nacheinander abgespielt.
 Typische Aufnahmekette: WARTESCHLANGE -> EINGABE -> FILTER -> KODIERUNG -> AUSGABE
 
 EINGABE            Datei, Verzeichnis, URL oder ein Platzhalter (WILDCARD)
@@ -141,5 +141,5 @@ ANDERE OPTIONEN:
                      track01.index00 .. track02.index00
 
 INSTALLIEREN:
---install          Windows: Fügt das Verzeichnis "fmedia" zur Benutzungsumgebung hinzu und erzeugt ein Shortcut auf dem Desktop 
+--install          Windows: Fügt das Verzeichnis "fmedia" zur Benutzungsumgebung hinzu und erzeugt ein Shortcut auf dem Desktop
 --uninstall        Deinstalliere alle Änderungen, die durch '--install' erzeugt wurden

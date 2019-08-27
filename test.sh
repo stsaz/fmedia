@@ -158,8 +158,14 @@ fi
 if test "$1" = "filters" ; then
 	OPTS="-y"
 	$BIN rec.wav -o vol.wav --volume=50 $OPTS
+	$BIN vol.wav --pcm-peaks
 	$BIN rec.wav -o gain.wav --gain=-6.0 $OPTS
+	$BIN gain.wav --pcm-peaks
 	$BIN rec.wav -o dynanorm.wav --dynanorm $OPTS
+	$BIN dynanorm.wav --pcm-peaks
+	$BIN rec.wav -o 'split-$counter.wav' --split=0.100 $OPTS
+	$BIN rec.wav -o 'split-$counter.mp3' --split=0.100 $OPTS
+	$BIN split-* --pcm-peaks
 fi
 
 if test "$1" = "all" ; then

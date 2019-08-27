@@ -770,7 +770,8 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 	cmd &= ~_FMED_QUE_FMASK;
 
 	FF_ASSERT(_FMED_QUE_LAST == FFCNT(scmds));
-	dbglog(core, NULL, "que", "received command:%s, param:%p", scmds[cmd], param);
+	if (cmd != FMED_QUE_ITEM)
+		dbglog0("received command:%s, param:%p", scmds[cmd], param);
 
 	switch ((enum FMED_QUE)cmd) {
 	case FMED_QUE_PLAY_EXCL:

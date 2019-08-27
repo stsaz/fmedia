@@ -237,9 +237,12 @@ static int wavout_process(void *ctx, fmed_filt *d)
 
 	switch (w->state) {
 	case 0:
-		d->audio.convfmt.ileaved = 1;
 		w->state = 1;
-		return FMED_RMORE;
+		if (!d->audio.convfmt.ileaved) {
+			d->audio.convfmt.ileaved = 1;
+			return FMED_RMORE;
+		}
+		// fallthrough
 
 	case 1: {
 		ffpcm fmt;

@@ -444,4 +444,4 @@ You may distribute, redistribute, modify the whole code or the parts of it, just
 ---------------
 HOMEPAGE
 ---------------
-http://fmedia.firmdev.com/
+https://stsaz.github.io/fmedia/

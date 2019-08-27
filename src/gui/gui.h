@@ -474,3 +474,6 @@ void wuri_init(void);
 void wfilter_init(void);
 
 void wabout_init(void);
+
+
+#define dbglog0(...)  fmed_dbglog(core, NULL, "gui", __VA_ARGS__)
