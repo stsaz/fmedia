@@ -17,7 +17,6 @@ This is the list of the things that need to be done.
 * GUI theme: listview selection color
 * GUI for macOS
 * Linux: Don't allow system to sleep while playing or recording
-* decode FLAC inside OGG
 * translate help.txt
 
 

@@ -11,6 +11,7 @@ const fmed_queue *qu;
 
 extern const fmed_filter fmed_flac_output;
 extern const fmed_filter fmed_flac_input;
+extern const fmed_filter fmed_flacogg_input;
 extern int flac_out_config(ffpars_ctx *conf);
 
 struct flac_dec {
@@ -79,6 +80,8 @@ static const void* flac_iface(const char *name)
 		return &fmed_flac_output;
 	else if (ffsz_eq(name, "in"))
 		return &fmed_flac_input;
+	else if (ffsz_eq(name, "ogg-in"))
+		return &fmed_flacogg_input;
 	return NULL;
 }
 

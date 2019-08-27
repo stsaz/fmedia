@@ -216,8 +216,7 @@ static int ogg_decode(void *ctx, fmed_filt *d)
 			else if (ffs_matchz(o->og.out.ptr, o->og.out.len, FFOPUS_HEAD_STR))
 				dec = "opus.decode";
 			else if (ffs_matchz(o->og.out.ptr, o->og.out.len, FLAC_HEAD_STR)) {
-				errlog0("FLAC OGG streams aren't supported");
-				return FMED_RERR;
+				dec = "flac.ogg-in";
 			} else {
 				errlog0("Unknown codec in OGG packet: %*xb"
 					, (size_t)ffmin(o->og.out.len, 16), o->og.out.ptr);
