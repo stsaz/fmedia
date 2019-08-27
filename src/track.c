@@ -269,6 +269,11 @@ static int trk_setout(fm_trk *t)
 	if (t->props.use_dynanorm)
 		addfilter(t, "dynanorm.filter");
 
+	if ((int64)t->props.audio.split != FMED_NULL) {
+		addfilter(t, "#soundmod.split");
+		return 0;
+	}
+
 	addfilter(t, "#soundmod.autoconv");
 
 	if (t->props.type == FMED_TRK_TYPE_MIXIN) {
@@ -437,6 +442,7 @@ static void trk_copy_info(fmed_trk *dst, const fmed_trk *src)
 		dst->audio.total = FMED_NULL;
 		dst->audio.seek = FMED_NULL;
 		dst->audio.until = FMED_NULL;
+		dst->audio.split = FMED_NULL;
 		memset(&dst->_bar_start, 0xff, FFOFF(fmed_trk, _bar_end) - FFOFF(fmed_trk, _bar_start));
 		dst->audio.decoder = "";
 		ffstr_null(&dst->aac.profile);

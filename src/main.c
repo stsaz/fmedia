@@ -41,6 +41,7 @@ static int arg_finclude(ffparser_schem *p, void *obj, const ffstr *val);
 static int arg_astoplev(ffparser_schem *p, void *obj, const ffstr *val);
 static int fmed_arg_seek(ffparser_schem *p, void *obj, const ffstr *val);
 static int fmed_arg_until(ffparser_schem *p, void *obj, const ffstr *val);
+static int fmed_arg_split(ffparser_schem *p, void *obj, const ffstr *val);
 static int fmed_arg_install(ffparser_schem *p, void *obj, const ffstr *val);
 static int fmed_arg_channels(ffparser_schem *p, void *obj, ffstr *val);
 static int fmed_arg_format(ffparser_schem *p, void *obj, ffstr *val);
@@ -104,6 +105,7 @@ static const ffpars_arg fmed_cmdline_args[] = {
 	//FILTERS
 	{ "volume",	FFPARS_TINT8,  OFF(volume) },
 	{ "gain",	FFPARS_TFLOAT | FFPARS_FSIGN,  OFF(gain) },
+	{ "split",	FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_split) },
 	{ "dynanorm",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(dynanorm) },
 	{ "pcm-peaks",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(pcm_peaks) },
 	{ "pcm-crc",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(pcm_crc) },
@@ -471,6 +473,19 @@ static int fmed_arg_until(ffparser_schem *p, void *obj, const ffstr *val)
 	return fmed_arg_seek(p, obj, val);
 }
 
+static int fmed_arg_split(ffparser_schem *p, void *obj, const ffstr *val)
+{
+	fmed_cmd *cmd = obj;
+	ffdtm dt;
+	fftime t;
+	if (val->len != fftime_fromstr(&dt, val->ptr, val->len, FFTIME_HMS_MSEC_VAR))
+		return FFPARS_EBADVAL;
+
+	fftime_join(&t, &dt, FFTIME_TZNODATE);
+	cmd->split_time = fftime_ms(&t);
+	return 0;
+}
+
 static int fmed_arg_install(ffparser_schem *p, void *obj, const ffstr *val)
 {
 #ifdef FF_WIN
@@ -725,6 +740,8 @@ static void trk_prep(fmed_cmd *fmed, fmed_trk *trk)
 		trk->audio.seek = fmed->seek_time;
 	if (fmed->until_time != 0)
 		trk->audio.until = fmed->until_time;
+	if (fmed->split_time != 0)
+		trk->audio.split = fmed->split_time;
 	if (fmed->prebuffer != 0)
 		trk->a_prebuffer = fmed->prebuffer;
 

@@ -105,12 +105,14 @@ struct submod {
 
 extern const struct fmed_filter2 fmed_sndmod_conv;
 extern const fmed_filter fmed_sndmod_autoconv;
+extern const fmed_filter fmed_sndmod_split;
 
 static const struct submod submods[] = {
 	{ "conv", (fmed_filter*)&fmed_sndmod_conv },
 	{ "autoconv", &fmed_sndmod_autoconv },
 	{ "gain", &fmed_sndmod_gain },
 	{ "until", &fmed_sndmod_until },
+	{ "split", &fmed_sndmod_split },
 	{ "peaks", &fmed_sndmod_peaks },
 	{ "rtpeak", &fmed_sndmod_rtpeak },
 	{ "silgen", &sndmod_silgen },

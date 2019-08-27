@@ -439,6 +439,7 @@ struct fmed_trk {
 		uint64 total; //total track length (samples); -1:unset;  0:streaming
 		uint64 seek; //msec
 		fmed_apos until;
+		uint64 split;
 		fmed_apos abs_seek; //seek position from the beginning of file
 		uint gain; //dB * 100
 		float maxpeak; //dB

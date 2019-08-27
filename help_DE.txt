@@ -65,6 +65,7 @@ EINGABE:
 FILTER:
 --volume=INT       Setzt Lautstärke (0% .. 125%)
 --gain=FLOAT       Setzt Verstärkung (gain) bzw. Abschwächung in dB
+--split=TIME       Split audio by equal time intervals
 --dynanorm         Benutze den Filter Dynamic Audio Normalizer.
                    Parameter hierfür können in Abschnitt `mod_conf dynanorm.filter` in der Datei fmedia.conf gesetzt werden.
 
