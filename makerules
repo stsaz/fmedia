@@ -326,6 +326,8 @@ alac.$(SO): $(ALAC_O)
 
 #
 PLIST_O := $(OBJ_DIR)/plist.o \
+	$(OBJ_DIR)/cue.o \
+	$(OBJ_DIR)/dir.o \
 	$(FF_O) \
 	$(FFOS_WREG) \
 	$(FF_OBJ_DIR)/ffpath.o \
