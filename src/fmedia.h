@@ -529,7 +529,15 @@ struct fmed_trk {
 enum FMED_R {
 	FMED_ROK //output data is ready.  The module will be called again if there's unprocessed input data.
 	, FMED_RDATA //output data is ready, the module will be called again
-	, FMED_RDONE //output data is completed, remove this module from the chain
+
+	/** Output data is completed, remove this module from the chain.
+
+	1. [... -> current -- next...]
+	2. [...            -> next...]
+	3. current.close()
+	4. [... <- next... ]
+	*/
+	, FMED_RDONE
 	, FMED_RLASTOUT //output data is completed, remove this & all previous modules from the chain
 
 	, FMED_RMORE //more input data is needed

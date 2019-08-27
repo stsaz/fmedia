@@ -47,6 +47,11 @@ typedef struct fmed_f {
 	const fmed_filter *filt;
 	fftime clk;
 	unsigned opened :1
+
+		/** This filter won't return any more data, it won't be called again.
+		However, it is still in chain while the next filters use its data. */
+		, done :1
+
 		, newdata :1
 		, want_input :1;
 } fmed_f;
@@ -108,6 +113,7 @@ static fmed_f* addfilter(fm_trk *t, const char *modname);
 static fmed_f* addfilter1(fm_trk *t, const fmed_modinfo *mod);
 static fmed_f* filt_add(fm_trk *t, uint cmd, const char *name);
 static int filt_call(fm_trk *t, fmed_f *f);
+static void filt_close(fm_trk *t, fmed_f *f);
 
 static dict_ent* dict_add(fm_trk *t, const char *name, uint *f);
 static void dict_ent_free(dict_ent *e);
@@ -565,6 +571,27 @@ static void trk_free(fm_trk *t)
 		core->sig(FMED_STOP);
 }
 
+/** Return TRUE if:
+ . if it's the first filter
+ . if all previous filters are marked as "done" */
+static int filt_isfirst(fm_trk *t, fflist_item *item)
+{
+	for (fflist_item *it = item->prev;  ;  it = it->prev) {
+		if (it == ffchain_sentl(&t->filt_chain))
+			return 1;
+
+		fmed_f *f = FF_GETPTR(fmed_f, sib, it);
+		if (!f->done)
+			return 0;
+	}
+	return 0;
+}
+
+static int filt_islast(fm_trk *t, fflist_item *item)
+{
+	return (item->next == ffchain_sentl(&t->filt_chain));
+}
+
 #ifdef _DEBUG
 // enum FMED_R
 static const char *const fmed_retstr[] = {
@@ -585,7 +612,9 @@ static int filt_call(fm_trk *t, fmed_f *f)
 
 	ffint_bitmask(&t->props.flags, FMED_FFWD, f->newdata);
 	f->newdata = 0;
-	ffint_bitmask(&t->props.flags, FMED_FLAST, (t->cur->prev == ffchain_sentl(&t->filt_chain)));
+
+	ffbool first = filt_isfirst(t, t->cur);
+	ffint_bitmask(&t->props.flags, FMED_FLAST, first);
 
 #ifdef _DEBUG
 	dbglog(t, "%s calling %s, input: %L  flags:%xu"
@@ -677,21 +706,29 @@ static void trk_process(void *udata)
 
 		case FMED_ROK:
 			f->want_input = 1;
-			r = FFLIST_CUR_NEXT;
+			r = FFLIST_CUR_NEXT | FFLIST_CUR_BOUNCE;
+			if (f->d.datalen != 0)
+				r |= FFLIST_CUR_SAMEIFBOUNCE;
 			break;
 
 		case FMED_RDATA:
-			r = FFLIST_CUR_NEXT | FFLIST_CUR_SAMEIFBOUNCE;
+			r = FFLIST_CUR_NEXT | FFLIST_CUR_BOUNCE | FFLIST_CUR_SAMEIFBOUNCE;
 			break;
 
 		case FMED_RDONE:
-			f->d.datalen = 0;
-			r = FFLIST_CUR_NEXT | FFLIST_CUR_RM;
+			if (filt_islast(t, t->cur)) {
+				filt_close(t, f);
+				r = FFLIST_CUR_NEXT | FFLIST_CUR_BOUNCE | FFLIST_CUR_RM;
+			} else {
+				// close filter after the next filters are done with its data
+				f->done = 1;
+				r = FFLIST_CUR_NEXT;
+			}
 			break;
 
 		case FMED_RLASTOUT:
 			f->d.datalen = 0;
-			r = FFLIST_CUR_NEXT | FFLIST_CUR_RM | FFLIST_CUR_RMPREV;
+			r = FFLIST_CUR_NEXT | FFLIST_CUR_BOUNCE | FFLIST_CUR_RM | FFLIST_CUR_RMPREV;
 			break;
 
 		case FMED_RFIN:
@@ -703,11 +740,8 @@ static void trk_process(void *udata)
 			goto fin;
 		}
 
-		if (f->d.datalen != 0)
-			r |= FFLIST_CUR_SAMEIFBOUNCE;
-
 shift:
-		r = fflist_curshift(&t->cur, r | FFLIST_CUR_BOUNCE, ffchain_sentl(&t->filt_chain));
+		r = fflist_curshift(&t->cur, r, ffchain_sentl(&t->filt_chain));
 
 		switch (r) {
 		case FFLIST_CUR_NONEXT:
@@ -726,7 +760,7 @@ shift:
 			break;
 
 		case FFLIST_CUR_SAME:
-			if (f->sib.next == ffchain_sentl(&t->filt_chain)
+			if (filt_islast(t, &f->sib)
 				&& (e == FMED_RDATA || e == FMED_ROK)) {
 				errlog(t, "module %s, the last in chain, outputs more data", f->name);
 				t->state = TRK_ST_ERR;
@@ -736,12 +770,24 @@ shift:
 
 		case FFLIST_CUR_PREV:
 			nf = FF_GETPTR(fmed_f, sib, t->cur);
+
+			if (nf->done) {
+				t->props.outlen = 0;
+				filt_close(t, nf);
+				if (filt_isfirst(t, t->cur)) {
+					r = FFLIST_CUR_NEXT | FFLIST_CUR_RM;
+					goto shift;
+				}
+				r = FFLIST_CUR_PREV | FFLIST_CUR_RM | FFLIST_CUR_BOUNCE;
+				goto shift;
+			}
+
 			if (e == FMED_RBACK) {
 				nf->d.data = t->props.out,  nf->d.datalen = t->props.outlen;
 				nf->newdata = 1;
 			}
 			t->props.outlen = 0;
-			if (nf->want_input && nf->d.datalen == 0 && &nf->sib != ffchain_first(&t->filt_chain)) {
+			if (nf->want_input && nf->d.datalen == 0 && !filt_isfirst(t, t->cur)) {
 				nf->want_input = 0;
 				r = FFLIST_CUR_PREV;
 				f = nf;
@@ -941,6 +987,27 @@ static fmed_f* filt_add(fm_trk *t, uint cmd, const char *name)
 	dbglog(t, "added %s to chain [%s]"
 		, f->name, chain_print(t, &f->sib, buf, sizeof(buf)));
 	return f;
+}
+
+/** Close filter context. */
+static void filt_close(fm_trk *t, fmed_f *f)
+{
+	char buf[255];
+	dbglog(t, "closing %s in chain [%s]"
+		, f->name, chain_print(t, &f->sib, buf, sizeof(buf)));
+
+	if (f->ctx != NULL) {
+		f->filt->close(f->ctx);
+		f->ctx = NULL;
+	}
+
+	uint n = 0;
+	FFARR_RWALKT(&t->filters, f, fmed_f) {
+		if (f->ctx != NULL)
+			break;
+		n++;
+	}
+	t->filters.len -= n;
 }
 
 /** Print names of all filters in chain. */
