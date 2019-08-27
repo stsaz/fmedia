@@ -685,7 +685,7 @@ static void* open_input_wcard(const fmed_queue *qu, char *src, const fmed_track 
 		ffmem_tzero(&e);
 		ffstr_setz(&e.url, fn);
 		qe = qu->add(&e);
-		qu->cmdv(FMED_QUE_SETTRACKPROPS, qe, &trkinfo);
+		qu->cmdv(FMED_QUE_SETTRACKPROPS, qe, trkinfo);
 		qu_setprops(g->cmd, qu, qe);
 		if (first == NULL)
 			first = qe;
