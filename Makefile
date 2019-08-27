@@ -24,6 +24,9 @@ CFLAGS += -DFF_WIN=0x0501
 else
 BIN := fmedia
 INSTDIR := fmedia-1
+ifeq ($(OS),linux)
+CFLAGS += -DFF_GLIBCVER=228
+endif
 endif
 
 
