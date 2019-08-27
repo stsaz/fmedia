@@ -29,6 +29,8 @@ const fmed_filter fmed_file_output = {
 };
 
 struct file_out_conf_t {
+	uint counter;
+
 	size_t bsize;
 	size_t prealloc;
 	uint file_del :1;
@@ -75,6 +77,7 @@ int fileout_config(ffpars_ctx *ctx)
 }
 
 enum VARS {
+	VAR_COUNTER,
 	VAR_DATE,
 	VAR_FNAME,
 	VAR_FPATH,
@@ -84,6 +87,7 @@ enum VARS {
 };
 
 static const char* const vars[] = {
+	"counter",
 	"date",
 	"filename",
 	"filepath",
@@ -185,6 +189,11 @@ static FFINL char* fileout_getname(fmed_fileout *f, fmed_filt *d)
 					continue;
 				ffstr_setz(&val, tstr);
 				goto data;
+
+			case VAR_COUNTER:
+				if (0 == ffstr_catfmt(&buf, "%u", ++out_conf.counter))
+					goto syserr;
+				break;
 			}
 
 			continue;

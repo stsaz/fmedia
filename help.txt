@@ -95,6 +95,7 @@ OUTPUT:
                      $date: current date
                      $time: current time
                      $timems: current time with milliseconds
+                     $counter: sequentially incrementing counter (starts from 1)
                    --out=.ogg is a short for --out='./$filename.ogg'
                    Filename may be generated automatically using meta info,
                      e.g.: --out '$tracknumber. $artist - $title.flac'
