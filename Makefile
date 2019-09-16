@@ -48,6 +48,11 @@ CFLAGS_APP := \
 	-Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -Wno-implicit-fallthrough \
 	-I$(SRCDIR) -I$(FF) -I$(FFOS) -I$(FF3PT)
 CFLAGS := $(CFLAGS_STD) $(CFLAGS_DEBUG) $(CFLAGS_OPT) $(CFLAGS_OS) $(CFLAGS_CPU) $(CFLAGS_APP)
+# alternative optimization flags: no LTO
+ifneq ($(OPT),0)
+	CFLAGS_OPT := -O3
+endif
+CFLAGS_ALTOPT := $(CFLAGS_STD) $(CFLAGS_DEBUG) $(CFLAGS_OPT) $(CFLAGS_OS) $(CFLAGS_CPU) $(CFLAGS_APP)
 LDFLAGS += -L$(FF3PTLIB)
 
 include $(PROJDIR)/makerules

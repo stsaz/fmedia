@@ -55,6 +55,10 @@ $(OBJ_DIR)/%.o: $(SRCDIR)/adev/%.c $(SRCDIR)/fmedia.h $(FF_HDR) $(FF_AUDIO_HDR) 
 $(OBJ_DIR)/%.o: $(SRCDIR)/acodec/%.c $(SRCDIR)/fmedia.h $(FF_HDR) $(FF_AUDIO_HDR)
 	$(C)  $(CFLAGS) $<  -o$@
 
+# Note: with -flto it uses pow@GLIBC_2.29 even with -DFF_GLIBCVER=228
+$(OBJ_DIR)/soundmod.o: $(SRCDIR)/afilt/soundmod.c $(SRCDIR)/fmedia.h $(FF_HDR) $(FF_AUDIO_HDR)
+	$(C)  $(CFLAGS_ALTOPT) $<  -o$@
+
 $(OBJ_DIR)/%.o: $(SRCDIR)/afilt/%.c $(SRCDIR)/fmedia.h $(FF_HDR) $(FF_AUDIO_HDR)
 	$(C)  $(CFLAGS) $<  -o$@
 
