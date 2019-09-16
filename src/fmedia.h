@@ -650,6 +650,7 @@ typedef struct fmed_logdata {
 	const ffstr *ctx;
 	const char *fmt;
 	va_list va;
+	void *trk;
 } fmed_logdata;
 
 typedef struct fmed_log {

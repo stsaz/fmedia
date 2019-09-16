@@ -1239,7 +1239,7 @@ static void core_logv(uint flags, void *trk, const char *module, const char *fmt
 	ffdtm dt;
 	fftime t;
 	size_t r;
-	fmed_logdata ld;
+	fmed_logdata ld = {};
 	uint lev = flags & _FMED_LOG_LEVMASK;
 	int e;
 
@@ -1263,6 +1263,7 @@ static void core_logv(uint flags, void *trk, const char *module, const char *fmt
 	ld.module = module;
 	if (trk != NULL) {
 		_fmed_track.loginfo(trk, &ld.ctx, &module);
+		ld.trk = trk;
 		if (ld.module == NULL)
 			ld.module = module;
 	}

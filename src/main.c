@@ -590,6 +590,7 @@ fail:
 }
 
 
+// TIME :TID [LEVEL] MOD: *ID: {"IN_FILENAME": } TEXT
 static void std_log(uint flags, fmed_logdata *ld)
 {
 	char buf[4096];
@@ -607,6 +608,12 @@ static void std_log(uint flags, fmed_logdata *ld)
 
 		if (ld->ctx != NULL)
 			s += ffs_fmt(s, end, "%S:\t", ld->ctx);
+	}
+
+	if ((flags & _FMED_LOG_LEVMASK) <= FMED_LOG_USER && ld->trk != NULL) {
+		const char *infn = g->track->getvalstr(ld->trk, "input");
+		if (infn != FMED_PNULL)
+			s += ffs_fmt(s, end, "\"%s\": ", infn);
 	}
 
 	s += ffs_fmtv(s, end, ld->fmt, ld->va);

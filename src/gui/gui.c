@@ -1359,6 +1359,7 @@ done:
 }
 
 
+// TIME :TID [LEVEL] MOD: *ID: {"IN_FILENAME": } TEXT
 static void gui_log(uint flags, fmed_logdata *ld)
 {
 	char buf[4096];
@@ -1374,6 +1375,13 @@ static void gui_log(uint flags, fmed_logdata *ld)
 	}
 	if (ld->ctx != NULL)
 		s += ffs_fmt(s, end, "%S:\t", ld->ctx);
+
+	if ((flags & _FMED_LOG_LEVMASK) <= FMED_LOG_USER && ld->trk != NULL) {
+		const char *infn = gg->track->getvalstr(ld->trk, "input");
+		if (infn != FMED_PNULL)
+			s += ffs_fmt(s, end, "\"%s\": ", infn);
+	}
+
 	s += ffs_fmtv(s, end, ld->fmt, ld->va);
 	if (flags & FMED_LOG_SYS)
 		s += ffs_fmt(s, end, ": %E", fferr_last());
