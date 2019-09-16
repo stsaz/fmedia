@@ -807,7 +807,8 @@ void gui_showque(uint i)
 	gg->qu->cmd(FMED_QUE_SEL, (void*)(size_t)i);
 	uint n = gg->qu->cmdv(FMED_QUE_COUNT);
 	ffui_view_setcount(&gg->wmain.vlist, n);
-	ffui_view_redraw(&gg->wmain.vlist, 0, 100);
+	int top = ffui_view_topindex(&gg->wmain.vlist);
+	ffui_view_redraw(&gg->wmain.vlist, top, top+100);
 }
 
 void gui_que_del(void)
