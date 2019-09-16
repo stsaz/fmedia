@@ -518,7 +518,7 @@ static void gui_media_showdir(void)
 {
 	const fmed_que_entry *ent;
 	int focused;
-	if (-1 == (focused = ffui_view_focused(&gg->wmain.vlist)))
+	if (-1 == (focused = ffui_view_selnext(&gg->wmain.vlist, -1)))
 		return;
 	if (NULL == (ent = (fmed_que_entry*)gg->qu->fmed_queue_item(-1, focused)))
 		return;
