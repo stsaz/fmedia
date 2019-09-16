@@ -446,6 +446,7 @@ GUIGTK_O := $(OBJ_DIR)/gui.o \
 	$(OBJ_DIR)/gui-main.o \
 	$(OBJ_DIR)/gui-conv.o \
 	$(OBJ_DIR)/gui-dlgs.o \
+	$(FF_OBJ_DIR)/fftime.o \
 	$(FF_OBJ_DIR)/ffpath.o \
 	$(FF_OBJ_DIR)/ffparse.o $(FF_OBJ_DIR)/ffconf.o \
 	$(FF_OBJ_DIR)/ffgui-gtk.o \

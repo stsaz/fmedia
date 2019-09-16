@@ -1052,13 +1052,25 @@ static void gui_info_action(ffui_wnd *wnd, int id)
 	}
 }
 
+static void winfo_addpair(const ffstr *name, const ffstr *val)
+{
+	ffui_viewitem it;
+	ffui_view_iteminit(&it);
+	ffui_view_settextstr(&it, name);
+	ffui_view_setgroupid(&it, 0);
+	ffui_view_append(&gg->winfo.vinfo, &it);
+
+	ffui_view_settextstr(&it, val);
+	ffui_view_set(&gg->winfo.vinfo, 1, &it);
+}
+
 void gui_media_showinfo(void)
 {
 	fmed_que_entry *e;
-	ffui_viewitem it;
 	ffui_viewgrp vg;
 	int i, grp = 0;
-	ffstr name, *val;
+	ffstr name, empty = {}, *val;
+	ffarr data = {};
 
 	ffui_show(&gg->winfo.winfo, 1);
 
@@ -1080,18 +1092,41 @@ void gui_media_showinfo(void)
 	ffui_viewgrp_settextz(&vg, "Metadata");
 	ffui_view_insgrp(&gg->winfo.vinfo, -1, grp, &vg);
 
+	ffstr_setz(&name, "File path");
+	winfo_addpair(&name, &e->url);
+
+	fffileinfo fi = {};
+	ffbool have_fi = (0 == fffile_infofn(e->url.ptr, &fi));
+	ffarr_alloc(&data, 255);
+
+	ffstr_setz(&name, "File size");
+	data.len = 0;
+	if (have_fi)
+		ffstr_catfmt(&data, "%U KB", fffile_infosize(&fi) / 1024);
+	winfo_addpair(&name, (ffstr*)&data);
+
+	ffstr_setz(&name, "File date");
+	data.len = 0;
+	if (have_fi) {
+		ffdtm dt;
+		fftime t = fffile_infomtime(&fi);
+		fftime_split(&dt, &t, FFTIME_TZLOCAL);
+		data.len = fftime_tostr(&dt, data.ptr, data.cap, FFTIME_DATE_WDMY | FFTIME_HMS);
+	}
+	winfo_addpair(&name, (ffstr*)&data);
+
+	ffstr_setz(&name, "Info");
+	if (NULL == (val = gg->qu->meta_find(e, FFSTR("__info"))))
+		val = &empty;
+	winfo_addpair(&name, val);
+
 	for (i = 0;  NULL != (val = gg->qu->meta(e, i, &name, 0));  i++) {
 		if (val == FMED_QUE_SKIP)
 			continue;
-		ffui_view_iteminit(&it);
-		ffui_view_settextstr(&it, &name);
-		ffui_view_setgroupid(&it, grp);
-		ffui_view_append(&gg->winfo.vinfo, &it);
-
-		ffui_view_settextstr(&it, val);
-		ffui_view_set(&gg->winfo.vinfo, 1, &it);
+		winfo_addpair(&name, val);
 	}
 	ffui_redraw(&gg->winfo.vinfo, 1);
+	ffarr_free(&data);
 }
 
 
