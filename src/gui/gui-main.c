@@ -828,16 +828,17 @@ void gui_que_del(void)
 	} else if (gg->fav_pl > sel)
 		gg->fav_pl--;
 
-	ffui_tab_del(&gg->wmain.tabs, sel);
-	ffbool last = (0 == ffui_tab_count(&gg->wmain.tabs));
-	sel = ffmax(sel - 1, 0);
-	ffui_tab_setactive(&gg->wmain.tabs, sel);
+	ffbool last = (1 == ffui_tab_count(&gg->wmain.tabs));
 
-	gg->qu->cmd(FMED_QUE_DEL, NULL);
-	if (!last)
-		gui_showque(sel);
-	else
+	if (!last) {
+		uint newsel = (sel == 0) ? sel + 1 : sel - 1;
+		ffui_tab_setactive(&gg->wmain.tabs, newsel);
+		gui_showque(newsel);
+	} else
 		gui_que_new();
+
+	ffui_tab_del(&gg->wmain.tabs, sel);
+	gg->qu->cmdv(FMED_QUE_DEL, sel);
 }
 
 void gui_que_sel(void)
