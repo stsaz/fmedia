@@ -76,7 +76,7 @@ static const uint cue_opts[] = {
 static void* cue_open(fmed_filt *d)
 {
 	cue *c;
-	uint64 val;
+	uint val;
 	if (NULL == (c = ffmem_tcalloc1(cue)))
 		return NULL;
 
@@ -86,10 +86,12 @@ static void* cue_open(fmed_filt *d)
 	}
 
 	uint gaps = FFCUE_GAPPREV;
-	if (FMED_NULL != (int)(val = core->getval("cue_gaps"))) {
-		if (val > FFCNT(cue_opts))
+	if (-1 != (int)(val = d->cue.gaps)) {
+		if (val > FFCNT(cue_opts)) {
 			errlog(core, d->trk, "cue", "cue_gaps value must be within 0..3 range");
-		else
+			cue_close(c);
+			return NULL;
+		} else
 			gaps = cue_opts[val];
 	}
 

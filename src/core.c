@@ -1212,10 +1212,6 @@ static int64 core_getval(const char *name)
 		return fmed->cmd.gui;
 	else if (!ffsz_cmp(name, "next_if_error"))
 		return fmed->cmd.notui;
-	else if (!ffsz_cmp(name, "show_tags"))
-		return fmed->cmd.tags;
-	else if (!ffsz_cmp(name, "cue_gaps") && fmed->cmd.cue_gaps != 255)
-		return fmed->cmd.cue_gaps;
 	else if (!ffsz_cmp(name, "instance_mode"))
 		return fmed->conf.instance_mode;
 	return FMED_NULL;

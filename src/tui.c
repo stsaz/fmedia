@@ -361,7 +361,7 @@ static void tui_info(tui *t, fmed_filt *d)
 
 	ffstr_catfmt(&t->buf, "\n\n");
 
-	if (1 == core->getval("show_tags")) {
+	if (d->show_tags) {
 		tui_addtags(t, t->qent, &t->buf);
 	}
 

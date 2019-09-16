@@ -477,6 +477,9 @@ struct fmed_trk {
 		signed char compression;
 		signed char md5;
 	} flac;
+	struct {
+		signed char gaps;
+	} cue;
 
 	struct {
 		uint64 size;
@@ -510,6 +513,8 @@ struct fmed_trk {
 		uint duration_inaccurate :1;
 		uint e_no_source :1; // error: no media source
 		uint err :1;
+		uint show_tags :1;
+		uint print_time :1;
 	};
 	};
 

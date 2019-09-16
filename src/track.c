@@ -532,7 +532,7 @@ static void trk_free(fm_trk *t)
 	core->cmd(FMED_TASK_XDEL, &t->tsk_stop, t->wid);
 	t->props.err = (t->state == TRK_ST_ERR);
 
-	if (core->props->cmd->print_time) {
+	if (t->props.print_time) {
 		struct ffps_perf i2 = {};
 		ffps_perf(&i2, FFPS_PERF_REALTIME | FFPS_PERF_CPUTIME | FFPS_PERF_RUSAGE);
 		ffps_perf_diff(&t->psperf, &i2);
@@ -1114,7 +1114,7 @@ static ssize_t trk_cmd(void *trk, uint cmd, ...)
 			break;
 		}
 
-		if (core->props->cmd->print_time)
+		if (t->props.print_time)
 			ffps_perf(&t->psperf, FFPS_PERF_REALTIME | FFPS_PERF_CPUTIME | FFPS_PERF_RUSAGE);
 
 		t->wflags = (cmd == FMED_TRACK_XSTART) ? FMED_WORKER_FPARALLEL : 0;

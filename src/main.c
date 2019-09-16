@@ -739,6 +739,7 @@ static void qu_setprops(fmed_cmd *fmed, const fmed_queue *qu, fmed_que_entry *qe
 static void trk_prep(fmed_cmd *fmed, fmed_trk *trk)
 {
 	trk->input_info = fmed->info;
+	trk->show_tags = fmed->tags;
 	trk->include_files = fmed->include_files;
 	trk->exclude_files = fmed->exclude_files;
 	if (fmed->fseek != 0)
@@ -794,9 +795,13 @@ static void trk_prep(fmed_cmd *fmed, fmed_trk *trk)
 		trk->mpeg.quality = fmed->mpeg_qual;
 	if (fmed->flac_complevel != 0xff)
 		trk->flac.compression = fmed->flac_complevel;
+	if (fmed->cue_gaps != 0xff)
+		trk->cue.gaps = fmed->cue_gaps;
 
 	if (fmed->stream_copy && !fmed->out_copy)
 		trk->stream_copy = 1;
+
+	trk->print_time = fmed->print_time;
 }
 
 static void open_input(void *udata)
