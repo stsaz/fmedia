@@ -686,6 +686,16 @@ static ssize_t que_cmdv(uint cmd, ...)
 		goto end;
 	}
 
+	case FMED_QUE_DEL:
+		pl = plist_by_idx(va_arg(va, int));
+		fflist_rm(&qu->plists, &pl->sib);
+		FFLIST_ENUMSAFE(&pl->ents, ent_rm, entry, sib);
+		if (fflist_empty(&pl->ents))
+			plist_free(pl);
+		else
+			pl->rm = 1;
+		break;
+
 	case FMED_QUE_SORT: {
 		int plist_idx = va_arg(va, int);
 		const char *by = va_arg(va, char*);
@@ -918,16 +928,6 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 		fflist_ins(&qu->plists, &pl->sib);
 		break;
 	}
-
-	case FMED_QUE_DEL:
-		fflist_rm(&qu->plists, &qu->curlist->sib);
-		FFLIST_ENUMSAFE(&qu->curlist->ents, ent_rm, entry, sib);
-		if (fflist_empty(&qu->curlist->ents))
-			plist_free(qu->curlist);
-		else
-			qu->curlist->rm = 1;
-		qu->curlist = NULL;
-		break;
 
 	case FMED_QUE_SEL:
 		{

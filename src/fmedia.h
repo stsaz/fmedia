@@ -743,7 +743,10 @@ enum FMED_QUE {
 	void new(uint flags) */
 	FMED_QUE_NEW,
 
-	FMED_QUE_DEL, // @param: uint
+	/** Delete a list.
+	void del(uint index) */
+	FMED_QUE_DEL,
+
 	FMED_QUE_SEL, // @param: uint
 
 	/** List playlist entries.
