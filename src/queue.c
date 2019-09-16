@@ -1345,7 +1345,7 @@ static void que_trk_close(void *ctx)
 	int err = t->track->getval(t->trk, "error");
 	t->e->trk_stopped = (stopped != FMED_NULL);
 	t->e->trk_err = (err != FMED_NULL)
-		&& !(t->d->e_no_source && qu->next_if_err);
+		&& !qu->next_if_err;
 	t->e->trk_mixed = (FMED_NULL != t->track->getval(t->trk, "mix_tracks"));
 
 	struct quetask *qt = ffmem_new(struct quetask);
