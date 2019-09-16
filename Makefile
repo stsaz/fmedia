@@ -19,34 +19,35 @@ include $(FFOS)/makeconf
 ifeq ($(OS),win)
 BIN := fmedia.exe
 INSTDIR := fmedia
-CFLAGS += -DFF_WIN=0x0501
+CFLAGS_OS += -DFF_WIN=0x0501
 
 else
 BIN := fmedia
 INSTDIR := fmedia-1
 ifeq ($(OS),linux)
-CFLAGS += -DFF_GLIBCVER=228
+CFLAGS_OS += -DFF_GLIBCVER=228
 endif
 endif
 
 
 FF_OBJ_DIR := ./ff-obj
-FFOS_CFLAGS := $(CFLAGS) -pthread
-FF_CFLAGS := $(CFLAGS)
+FFOS_CFLAGS := $(CFLAGS_STD) $(CFLAGS_DEBUG) $(CFLAGS_OPT) $(CFLAGS_OS) $(CFLAGS_CPU) -pthread
+FF_CFLAGS := $(CFLAGS_STD) $(CFLAGS_DEBUG) $(CFLAGS_OPT) $(CFLAGS_OS) $(CFLAGS_CPU)
 FF3PTLIB := $(FF3PT)-bin/$(OS)-$(ARCH)
-FF3PT_CFLAGS := $(CFLAGS)
+FF3PT_CFLAGS := $(CFLAGS_STD) $(CFLAGS_DEBUG) $(CFLAGS_OPT) $(CFLAGS_OS) $(CFLAGS_CPU)
 
 
 # CPU-specific options
 ifeq ($(CPU),i686)
-CFLAGS += -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast
+CFLAGS_CPU += -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast
 endif
 
 
-CFLAGS += \
+CFLAGS_APP := \
 	-DFFS_FMT_NO_e \
 	-Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -Wno-implicit-fallthrough \
 	-I$(SRCDIR) -I$(FF) -I$(FFOS) -I$(FF3PT)
+CFLAGS := $(CFLAGS_STD) $(CFLAGS_DEBUG) $(CFLAGS_OPT) $(CFLAGS_OS) $(CFLAGS_CPU) $(CFLAGS_APP)
 LDFLAGS += -L$(FF3PTLIB)
 
 include $(PROJDIR)/makerules
