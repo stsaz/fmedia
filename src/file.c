@@ -92,6 +92,7 @@ const fmed_mod* fmed_getmod_file(const fmed_core *_core)
 
 extern const fmed_filter fmed_file_output;
 extern int fileout_config(ffpars_ctx *ctx);
+extern int stdout_config(ffpars_ctx *ctx);
 extern const fmed_filter file_stdin;
 extern const fmed_filter file_stdout;
 
@@ -114,6 +115,8 @@ static int file_conf(const char *name, ffpars_ctx *ctx)
 		return file_in_conf(ctx);
 	else if (!ffsz_cmp(name, "out"))
 		return fileout_config(ctx);
+	else if (ffsz_eq(name, "stdout"))
+		return stdout_config(ctx);
 	return -1;
 }
 

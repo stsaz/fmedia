@@ -88,6 +88,22 @@ static int file_stdin_read(void *ctx, fmed_filt *d)
 }
 
 
+struct stdout_conf {
+	size_t bufsize;
+};
+static struct stdout_conf out_conf;
+
+static const ffpars_arg stdout_conf_args[] = {
+	{ "buffer_size",  FFPARS_TSIZE | FFPARS_FNOTZERO,  FFPARS_DSTOFF(struct stdout_conf, bufsize) }
+};
+
+int stdout_config(ffpars_ctx *ctx)
+{
+	out_conf.bufsize = 64 * 1024;
+	ffpars_setargs(ctx, &out_conf, stdout_conf_args, FFCNT(stdout_conf_args));
+	return 0;
+}
+
 typedef struct stdout_ctx {
 	fffd fd;
 	ffarr buf;
@@ -106,7 +122,7 @@ static void* file_stdout_open(fmed_filt *d)
 		return NULL;
 	f->fd = ffstdout;
 
-	if (NULL == ffarr_alloc(&f->buf, 64 * 1024)) {
+	if (NULL == ffarr_alloc(&f->buf, out_conf.bufsize)) {
 		syserrlog(d->trk, "%s", ffmem_alloc_S);
 		goto done;
 	}
