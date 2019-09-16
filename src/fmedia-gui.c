@@ -1,8 +1,7 @@
 /** Run fmedia with GUI.
 Copyright (c) 2015 Simon Zolin */
 
-#include <core-cmd.h>
-
+#include <fmedia.h>
 #include <FF/path.h>
 #include <FF/data/conf.h>
 #include <FF/data/psarg.h>
@@ -14,11 +13,10 @@ Copyright (c) 2015 Simon Zolin */
 
 struct gctx {
 	ffdl core_dl;
-	fmed_core* (*core_init)(fmed_cmd **ptr, char **argv, char **env);
+	fmed_core* (*core_init)(char **argv, char **env);
 	void (*core_free)(void);
 };
 static struct gctx *g;
-static fmed_cmd *gcmd;
 static fmed_core *core;
 
 
@@ -185,16 +183,18 @@ int __stdcall WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	if (0 != loadcore(NULL))
 		goto end;
 
-	if (NULL == (core = g->core_init(&gcmd, argv, NULL)))
+	if (NULL == (core = g->core_init(argv, NULL)))
 		goto end;
 
-	gcmd->log = &fgui_logger;
-	gcmd->gui = 1;
+	core->cmd(FMED_SETLOG, &fgui_logger);
+	core->props->gui = 1;
 	if (0 != core->cmd(FMED_CONF, NULL))
 		goto end;
 
-	if (NULL == (gcmd->log = core->getmod("gui.log")))
+	const fmed_log *glog;
+	if (NULL == (glog = core->getmod("gui.log")))
 		goto end;
+	core->cmd(FMED_SETLOG, glog);
 
 	int im = core->getval("instance_mode");
 	const fmed_globcmd_iface *globcmd = NULL;

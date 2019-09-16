@@ -40,10 +40,10 @@ typedef struct fmedia {
 	ffenv env;
 	ffstr root;
 	fmed_config conf;
-	fmed_cmd cmd;
 	fmed_props props;
 
 	const fmed_queue *qu;
+	const fmed_log *log;
 
 #ifdef FF_WIN
 	ffwoh *woh;
@@ -84,7 +84,7 @@ enum {
 };
 
 
-FF_EXP fmed_core* core_init(fmed_cmd **ptr, char **argv, char **env);
+FF_EXP fmed_core* core_init(char **argv, char **env);
 FF_EXP void core_free(void);
 
 extern int tracks_init(void);
@@ -199,35 +199,6 @@ static void core_posted(void *udata)
 }
 
 
-static int cmd_init(fmed_cmd *cmd)
-{
-	cmd->vorbis_qual = -255;
-	cmd->aac_qual = (uint)-1;
-	cmd->mpeg_qual = 0xffff;
-	cmd->flac_complevel = 0xff;
-
-	cmd->lbdev_name = (uint)-1;
-	cmd->volume = 100;
-	cmd->cue_gaps = 255;
-	return 0;
-}
-
-static void cmd_destroy(fmed_cmd *cmd)
-{
-	FFARR_FREE_ALL_PTR(&cmd->in_files, ffmem_free, char*);
-	ffstr_free(&cmd->outfn);
-
-	ffstr_free(&cmd->meta);
-	ffmem_safefree(cmd->aac_profile);
-	ffmem_safefree(cmd->trackno);
-	ffmem_safefree(cmd->conf_fn);
-
-	ffmem_safefree(cmd->globcmd_pipename);
-	ffstr_free(&cmd->globcmd);
-	ffarr2_free(&cmd->include_files);
-	ffarr2_free(&cmd->exclude_files);
-}
-
 static int conf_init(fmed_config *conf)
 {
 	conf->codepage = FFU_WIN1252;
@@ -241,14 +212,14 @@ static void conf_destroy(fmed_config *conf)
 }
 
 
-fmed_core* core_init(fmed_cmd **ptr, char **argv, char **env)
+fmed_core* core_init(char **argv, char **env)
 {
 	ffmem_init();
 	fflk_setup();
 	fmed = ffmem_tcalloc1(fmedia);
 	if (fmed == NULL)
 		return NULL;
-	fmed->cmd.log = &log_dummy;
+	fmed->log = &log_dummy;
 	if (0 != ffenv_init(&fmed->env, env))
 		goto err;
 
@@ -262,8 +233,7 @@ fmed_core* core_init(fmed_cmd **ptr, char **argv, char **env)
 
 	ffkqu_settm(&fmed->kqutime, (uint)-1);
 
-	if (0 != cmd_init(&fmed->cmd)
-		|| 0 != conf_init(&fmed->conf)) {
+	if (0 != conf_init(&fmed->conf)) {
 		goto err;
 	}
 
@@ -289,10 +259,8 @@ fmed_core* core_init(fmed_cmd **ptr, char **argv, char **env)
 	}
 #endif
 
-	*ptr = &fmed->cmd;
 	core->loglev = FMED_LOG_INFO;
 	fmed->props.version_str = FMED_VER;
-	fmed->props.cmd = &fmed->cmd;
 	core->props = &fmed->props;
 	return core;
 
@@ -324,7 +292,6 @@ void core_free(void)
 	}
 	ffarr_free(&fmed->bmods);
 
-	cmd_destroy(&fmed->cmd);
 	conf_destroy(&fmed->conf);
 	ffmem_free(fmed->props.user_path);
 	ffstr_free(&fmed->root);
@@ -1120,6 +1087,12 @@ static ssize_t core_cmd(uint signo, ...)
 		break;
 	}
 #endif
+
+	case FMED_SETLOG: {
+		void *logger = va_arg(va, void*);
+		fmed->log = logger;
+		break;
+	}
 	}
 
 	va_end(va);
@@ -1204,14 +1177,8 @@ static int core_timer(fftmrq_entry *tmr, int64 _interval, uint flags)
 
 static int64 core_getval(const char *name)
 {
-	if (!ffsz_cmp(name, "repeat_all"))
-		return fmed->cmd.repeat_all;
-	else if (!ffsz_cmp(name, "codepage"))
+	if (!ffsz_cmp(name, "codepage"))
 		return fmed->conf.codepage;
-	else if (!ffsz_cmp(name, "gui"))
-		return fmed->cmd.gui;
-	else if (!ffsz_cmp(name, "next_if_error"))
-		return fmed->cmd.notui;
 	else if (!ffsz_cmp(name, "instance_mode"))
 		return fmed->conf.instance_mode;
 	return FMED_NULL;
@@ -1269,7 +1236,7 @@ static void core_logv(uint flags, void *trk, const char *module, const char *fmt
 
 	ld.fmt = fmt;
 	va_copy(ld.va, va);
-	fmed->cmd.log->log(flags, &ld);
+	fmed->log->log(flags, &ld);
 	va_end(ld.va);
 }
 

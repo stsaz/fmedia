@@ -1,7 +1,8 @@
 /** fmedia terminal startup.
 Copyright (c) 2015 Simon Zolin */
 
-#include <core-cmd.h>
+#include <fmedia.h>
+#include <cmd.h>
 
 #include <FF/audio/pcm.h>
 #include <FF/data/psarg.h>
@@ -22,10 +23,11 @@ struct gctx {
 	fmed_cmd *cmd;
 	void *rec_trk;
 	const fmed_track *track;
+	const fmed_queue *qu;
 	uint psexit; //process exit code
 
 	ffdl core_dl;
-	fmed_core* (*core_init)(fmed_cmd **ptr, char **argv, char **env);
+	fmed_core* (*core_init)(char **argv, char **env);
 	void (*core_free)(void);
 };
 static struct gctx *g;
@@ -808,13 +810,10 @@ static void open_input(void *udata)
 {
 	char **pfn;
 	const fmed_track *track = g->track;
-	const fmed_queue *qu;
+	const fmed_queue *qu = g->qu;
 	fmed_que_entry e, *qe;
 	void *first = NULL;
 	fmed_cmd *fmed = udata;
-
-	if (NULL == (qu = core->getmod("#queue.queue")))
-		goto end;
 
 	fmed_trk trkinfo;
 	track->copy_info(&trkinfo, NULL);
@@ -1015,11 +1014,13 @@ int main(int argc, char **argv, char **env)
 	if (0 != loadcore(argv[0]))
 		goto end;
 
-	if (NULL == (core = g->core_init(&g->cmd, argv, env)))
+	if (NULL == (core = g->core_init(argv, env)))
 		goto end;
 	fffile_fmt(ffstderr, NULL, "fmedia v%s (" OS_STR "-" CPU_STR ")\n"
 		, core->props->version_str);
-	g->cmd->log = &std_logger;
+	core->cmd(FMED_SETLOG, &std_logger);
+	g->cmd = ffmem_new(fmed_cmd);
+	cmd_init(g->cmd);
 	gcmd = g->cmd;
 
 	if (argc == 1) {
@@ -1033,6 +1034,8 @@ int main(int argc, char **argv, char **env)
 			rc = 0;
 		goto end;
 	}
+	core->props->gui = gcmd->gui;
+	core->props->tui = !gcmd->notui;
 
 	if (0 != core->cmd(FMED_CONF, gcmd->conf_fn))
 		goto end;
@@ -1065,7 +1068,12 @@ int main(int argc, char **argv, char **env)
 
 	if (NULL == (g->track = core->getmod("#core.track")))
 		goto end;
-	core->props->list_random = g->cmd->list_random;
+	if (NULL == (g->qu = core->getmod("#queue.queue")))
+		goto end;
+	g->qu->cmdv(FMED_QUE_SET_RANDOM, (uint)g->cmd->list_random);
+	g->qu->cmdv(FMED_QUE_SET_REPEATALL, (uint)g->cmd->repeat_all);
+	g->qu->cmdv(FMED_QUE_SET_NEXTIFERROR, (uint)g->cmd->notui);
+	g->qu->cmdv(FMED_QUE_SET_QUITIFDONE, (uint)!g->cmd->gui);
 
 	const fmed_globcmd_iface *globcmd = NULL;
 	ffbool gcmd_listen = 0;
@@ -1111,6 +1119,8 @@ end:
 		g->core_free();
 	}
 	FF_SAFECLOSE(g->core_dl, NULL, ffdl_close);
+	cmd_destroy(g->cmd);
+	ffmem_free(g->cmd);
 	ffmem_free(g);
 	return rc;
 }

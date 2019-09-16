@@ -892,7 +892,7 @@ static void gui_list_rmdead(void)
 static void gui_list_random(void)
 {
 	gg->list_random = !gg->list_random;
-	core->props->list_random = gg->list_random;
+	gg->qu->cmdv(FMED_QUE_SET_RANDOM, (uint)gg->list_random);
 	ffui_menuitem mi = {};
 	if (gg->list_random)
 		ffui_menu_addstate(&mi, FFUI_MENU_CHECKED);

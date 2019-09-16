@@ -46,7 +46,10 @@ FF_O := $(FFOS_OBJ) \
 	$(FF_OBJ_DIR)/ffdbg.o \
 	$(FF_OBJ_DIR)/ffutf8.o
 
-$(OBJ_DIR)/%.o: $(SRCDIR)/%.c $(SRCDIR)/fmedia.h $(SRCDIR)/core-cmd.h $(SRCDIR)/core.h $(FF_HDR) $(FF_AUDIO_HDR)
+$(OBJ_DIR)/%.o: $(SRCDIR)/%.c $(SRCDIR)/fmedia.h $(SRCDIR)/core.h $(FF_HDR) $(FF_AUDIO_HDR)
+	$(C)  $(CFLAGS) $<  -o$@
+
+$(OBJ_DIR)/main.o: $(SRCDIR)/main.c $(SRCDIR)/fmedia.h $(SRCDIR)/cmd.h $(SRCDIR)/core.h $(FF_HDR) $(FF_AUDIO_HDR)
 	$(C)  $(CFLAGS) $<  -o$@
 
 $(OBJ_DIR)/%.o: $(SRCDIR)/adev/%.c $(SRCDIR)/fmedia.h $(FF_HDR) $(FF_AUDIO_HDR) $(FF_ADEV_HDR)

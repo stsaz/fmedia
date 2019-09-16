@@ -246,9 +246,9 @@ static int trk_setout(fm_trk *t)
 	} else if (t->props.type != FMED_TRK_TYPE_MIXIN) {
 		if (t->props.type != FMED_TRK_TYPE_REC)
 			addfilter(t, "#soundmod.until");
-		if (core->props->cmd->gui)
+		if (core->props->gui)
 			addfilter(t, "gui.gui");
-		else if (!core->props->cmd->notui)
+		else if (core->props->tui)
 			addfilter(t, "tui.tui");
 	}
 

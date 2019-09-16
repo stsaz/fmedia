@@ -72,9 +72,9 @@ static const char *const mods_skip[] = {
 /** Return 1 if the module is allowed to load. */
 static int allowed_mod(const ffstr *name)
 {
-	if (ffstr_matchz(name, "gui.") && !core->props->cmd->gui)
+	if (ffstr_matchz(name, "gui.") && !core->props->gui)
 		return 0;
-	if (ffstr_matchz(name, "tui.") && (core->props->cmd->notui || core->props->cmd->gui))
+	if (ffstr_matchz(name, "tui.") && (!core->props->tui || core->props->gui))
 		return 0;
 
 	const char *const *s;
@@ -302,7 +302,7 @@ static int confusr_mod(ffparser_schem *ps, void *obj, ffstr *val)
 		ffpars_setctx(ps, conf, conf_args, FFCNT(conf_args));
 
 	else if (conf->usrconf_modname == NULL) {
-		if (ffstr_eqcz(val, "gui") && !core->props->cmd->gui) {
+		if (ffstr_eqcz(val, "gui") && !core->props->gui) {
 			conf->skip_line = pconf->line;
 			return 0;
 		}

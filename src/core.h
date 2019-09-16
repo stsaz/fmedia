@@ -2,7 +2,6 @@
 Copyright (c) 2015 Simon Zolin */
 
 #include <fmedia.h>
-#include <core-cmd.h>
 
 
 extern fmed_core *core;

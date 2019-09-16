@@ -109,6 +109,11 @@ enum FMED_SIG {
 	Worker is considered to be busy only if it has a command with FMED_WORKER_FPARALLEL.
 	Return 0: workers are busy;  1: at least 1 worker is free. */
 	FMED_WORKER_AVAIL,
+
+	/** Set logger.
+	void setlog(const fmed_log *log)
+	*/
+	FMED_SETLOG,
 };
 
 enum FMED_WORKER_F {
@@ -211,8 +216,9 @@ struct fmed_props {
 	uint stdin_busy :1;
 	uint parallel :1;
 	uint prevent_sleep :1;
+	uint gui :1; // GUI is enabled
+	uint tui :1; // TUI is enabled
 	char *version_str; // "X.XX[.XX]"
-	uint list_random;
 
 	/** Path to user configuration directory (with the trailing slash).
 	Portable mode: "{FMEDIA_DIR}/"
@@ -224,7 +230,6 @@ struct fmed_props {
 	uint playback_dev_index;
 	const fmed_modinfo *record_module;
 	ffpcm record_format;
-	struct fmed_cmd *cmd;
 };
 
 struct fmed_mod {
@@ -811,6 +816,22 @@ enum FMED_QUE {
 	/** Copy track properties from another queue entry.
 	void copytrackprops(fmed_que_entry *ent, const fmed_que_entry *src) */
 	FMED_QUE_COPYTRACKPROPS,
+
+	/** Play tracks randomly.  Thread-safe.
+	uint random = VAL */
+	FMED_QUE_SET_RANDOM,
+
+	/**
+	uint next_if_error = VAL */
+	FMED_QUE_SET_NEXTIFERROR,
+
+	/**
+	uint repeat_all = VAL */
+	FMED_QUE_SET_REPEATALL,
+
+	/**
+	uint quit_if_done = VAL */
+	FMED_QUE_SET_QUITIFDONE,
 
 	_FMED_QUE_LAST
 };

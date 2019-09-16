@@ -498,7 +498,8 @@ static void corecmd_run(uint cmd, void *udata)
 		break;
 
 	case A_LIST_RANDOM:
-		core->props->list_random = !core->props->list_random;
+		gg->conf.list_random = !gg->conf.list_random;
+		gg->qu->cmdv(FMED_QUE_SET_RANDOM, (uint)gg->conf.list_random);
 		break;
 
 	case A_ONDROPFILE: {
@@ -802,7 +803,7 @@ static void usrconf_write_val(ffconfw *conf, uint i)
 {
 	switch (i) {
 	case 0:
-		ffconf_writebool(conf, core->props->list_random, FFCONF_TVAL);
+		ffconf_writebool(conf, gg->conf.list_random, FFCONF_TVAL);
 		break;
 	case 1:
 		wmain_list_cols_width_write(conf);

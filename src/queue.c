@@ -78,10 +78,13 @@ typedef struct que {
 	fflock plist_lock;
 
 	struct que_conf conf;
+	uint list_random;
 	uint quit_if_done :1
 		, next_if_err :1
 		, fmeta_lowprio :1 //meta from file has lower priority
 		, rnd_ready :1
+		, repeat_all :1
+		, random :1
 		, mixing :1;
 } que;
 
@@ -185,11 +188,7 @@ static int que_sig(uint signo)
 		que_cmd2(FMED_QUE_NEW, NULL, 0);
 		que_cmd2(FMED_QUE_SEL, (void*)0, 0);
 		qu->track = core->getmod("#core.track");
-		if (1 != core->getval("gui"))
-			qu->quit_if_done = 1;
 		qu->next_if_err = qu->conf.next_if_err;
-		if (1 == core->getval("next_if_error"))
-			qu->next_if_err = 1;
 		break;
 	}
 	return 0;
@@ -501,7 +500,7 @@ static entry* que_getnext(entry *from)
 	plist *pl = (from == NULL) ? qu->curlist : from->plist;
 	fflist *ents = &pl->ents;
 
-	if (pl->allow_random && core->props->list_random && pl->indexes.len != 0) {
+	if (pl->allow_random && qu->random && pl->indexes.len != 0) {
 		if (!qu->rnd_ready) {
 			qu->rnd_ready = 1;
 			fftime t;
@@ -516,7 +515,7 @@ static entry* que_getnext(entry *from)
 
 	it = (from == NULL) ? ents->first : from->sib.next;
 	if (it == fflist_sentl(ents)) {
-		if (1 == core->getval("repeat_all"))
+		if (qu->repeat_all)
 			it = ents->first;
 
 		if (it == fflist_sentl(ents)) {
@@ -628,6 +627,7 @@ static const char *const scmds[] = {
 	"flt-new", "flt-add", "flt-del", "lst-noflt",
 	"sort", "count",
 	"xplay", "add2", "add-after", "settrackprops", "copytrackprops",
+	"", "", "", "",
 };
 
 static ssize_t que_cmdv(uint cmd, ...)
@@ -755,6 +755,27 @@ static ssize_t que_cmdv(uint cmd, ...)
 			}
 		}
 
+		goto end;
+	}
+
+	case FMED_QUE_SET_RANDOM: {
+		uint val = va_arg(va, uint);
+		qu->random = val;
+		goto end;
+	}
+	case FMED_QUE_SET_NEXTIFERROR: {
+		uint val = va_arg(va, uint);
+		qu->next_if_err = val;
+		goto end;
+	}
+	case FMED_QUE_SET_REPEATALL: {
+		uint val = va_arg(va, uint);
+		qu->repeat_all = val;
+		goto end;
+	}
+	case FMED_QUE_SET_QUITIFDONE: {
+		uint val = va_arg(va, uint);
+		qu->quit_if_done = val;
 		goto end;
 	}
 
