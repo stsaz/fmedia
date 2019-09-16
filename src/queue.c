@@ -436,7 +436,7 @@ static void que_play2(entry *ent, uint flags)
 /** Save playlist file. */
 static void que_save(entry *first, const fflist_item *sentl, const char *fn)
 {
-	fffd f;
+	fffd f = FF_BADFD;
 	ffm3u_cook m3 = {0};
 	int rc = -1;
 	entry *e;

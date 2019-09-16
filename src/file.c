@@ -151,7 +151,7 @@ static void file_log(void *p, uint level, const ffstr *msg)
 	fmed_file *f = p;
 	switch (level) {
 	case 0:
-		syserrlog(f->trk, "%s: %S", f->fn, msg);
+		syserrlog(f->trk, "%S", msg);
 		break;
 	case 1:
 		dbglog(f->trk, "%S", msg);
@@ -177,6 +177,7 @@ static void* file_open(fmed_filt *d)
 	if (f == NULL)
 		return NULL;
 	f->fn = d->track->getvalstr(d->trk, "input");
+	f->trk = d->trk;
 
 	fffileread_conf conf = {};
 	conf.udata = f;
@@ -209,7 +210,6 @@ static void* file_open(fmed_filt *d)
 	}
 
 	f->handler = d->handler;
-	f->trk = d->trk;
 	return f;
 
 done:

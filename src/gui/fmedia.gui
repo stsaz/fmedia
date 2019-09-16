@@ -717,7 +717,7 @@ window wabout {
 	}
 
 	label lurl {
-		position 130 100 190 25
+		position 130 100 215 25
 		style visible
 		font {
 			name Arial

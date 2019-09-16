@@ -1,6 +1,5 @@
 # Troubleshooting
 
-* Linux: "Device or resource busy" error
 * Windows: Recording or Playback doesn't work
 
 

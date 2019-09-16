@@ -139,8 +139,10 @@ static int sndmod_gain_process(void *ctx, fmed_filt *d)
 {
 	ffpcmex *pcm = ctx;
 	int db = d->audio.gain;
-	if (db != FMED_NULL)
-		ffpcm_gain(pcm, ffpcm_db2gain((double)db / 100), d->data, (void*)d->data, d->datalen / ffpcm_size1(pcm));
+	if (db != FMED_NULL) {
+		double gain = ffpcm_db2gain((double)db / 100);
+		ffpcm_gain(pcm, gain, d->data, (void*)d->data, d->datalen / ffpcm_size1(pcm));
+	}
 
 	d->out = d->data;
 	d->outlen = d->datalen;

@@ -8,6 +8,22 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.12 - Sep 15, 2019
+
+ + GUI: "Show Media Info": add file size, file date, audio info
+ - GUI: redraw items after tab switch for a large playlist
+ - GUI: "Show File in Explorer" didn't work if the entry was selected by "Selection Follows Cursor"
+ - GUI: crash on closing playlist (v1.2 bug)
+ * ID3v1 read: skip spaces at the end of tag fields
+ - --dynanorm: crash or error on stop command during playback
+ - core: fix crash or mono->stereo channel conversion (v1.11 bug)
+ * queue: play next track after read/decode error
+ + file.stdout: add "buffer_size" config setting
+ - file input: random seek error (v1.9 bug)
+ - Linux: core.so: don't use glibc 2.29
+ * log: print input file name for error/info messages
+
+
 fmedia v1.11 - Aug 27, 2019
 
  + support multi-channel (5.1, 7.1) conversion

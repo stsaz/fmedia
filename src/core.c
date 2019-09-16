@@ -151,7 +151,7 @@ static fmed_core _fmed_core = {
 	&core_task,
 	.timer = &core_timer,
 };
-fmed_core *core = &_fmed_core;
+fmed_core *core;
 
 //LOG
 static void log_dummy_func(uint flags, fmed_logdata *ld)
@@ -214,6 +214,7 @@ static void conf_destroy(fmed_config *conf)
 
 fmed_core* core_init(char **argv, char **env)
 {
+	core = &_fmed_core;
 	ffmem_init();
 	fflk_setup();
 	fmed = ffmem_tcalloc1(fmedia);
@@ -719,6 +720,9 @@ static const void* core_getmod2(uint flags, const char *name, ssize_t name_len)
 	case FMED_MOD_INFO_ADEV_OUT:
 		mod = fmed->conf.output;
 		break;
+
+	default:
+		goto err;
 	}
 
 	if (mod == NULL)

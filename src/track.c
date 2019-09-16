@@ -612,7 +612,7 @@ static const char *const fmed_retstr[] = {
 static int filt_call(fm_trk *t, fmed_f *f)
 {
 	int r;
-	fftime t1, t2;
+	fftime t1 = {}, t2;
 
 	if (core->loglev == FMED_LOG_DEBUG) {
 		ffclk_get(&t1);
