@@ -190,6 +190,11 @@ static int danorm_f_process(void *ctx, fmed_filt *d)
 		break;
 	}
 
+	if (d->flags & FMED_FSTOP) {
+		d->outlen = 0;
+		return FMED_RDONE;
+	}
+
 	if (d->flags & FMED_FFWD)
 		c->off = 0;
 
