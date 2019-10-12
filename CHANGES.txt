@@ -8,6 +8,11 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.12.1 - Oct 12, 2019
+
+ + help.txt: French translation
+
+
 fmedia v1.12 - Sep 15, 2019
 
  + GUI: "Show Media Info": add file size, file date, audio info

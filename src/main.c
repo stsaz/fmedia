@@ -170,7 +170,7 @@ static const char* loc_sfx()
 {
 	uint ilang = 0;
 	static const char langstr[][4] = {
-		"", "" /*EN*/, "_RU", "_DE",
+		"", "" /*EN*/, "_RU", "_DE", "_FR",
 	};
 	uint lang = fflang_info(FFLANG_FLANG);
 	dbglog(core, NULL, "core", "language:%xu", lang);
@@ -181,6 +181,8 @@ static const char* loc_sfx()
 		ilang = 2; break;
 	case FFLANG_GER:
 		ilang = 3; break;
+	case FFLANG_FRA:
+		ilang = 4; break;
 	}
 
 #ifdef FF_WIN
