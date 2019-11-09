@@ -367,6 +367,10 @@ Show PCM information
 
 	fmedia input.ogg --pcm-peaks
 
+Create a playlist file from directory:
+
+	fmedia ./Music -o music.m3u8
+
 
 ---------------
 FOR DEVELOPERS

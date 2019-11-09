@@ -639,8 +639,12 @@ static void mon_onsig(fmed_trk *trk, uint sig)
 	case FMED_TRK_ONCLOSE:
 		if (trk == g->rec_trk)
 			g->rec_trk = NULL;
-		if (trk->type == FMED_TRK_TYPE_REC && !g->cmd->gui)
+
+		if ((trk->type == FMED_TRK_TYPE_REC
+			|| trk->type == FMED_TRK_TYPE_PLIST)
+				&& !g->cmd->gui)
 			core->sig(FMED_STOP);
+
 		if (trk->err)
 			g->psexit = 1;
 		break;
@@ -841,6 +845,21 @@ static void open_input(void *udata)
 		qu_setprops(fmed, qu, qe);
 	}
 	FFARR_FREE_ALL_PTR(&fmed->in_files, ffmem_free, char*);
+
+	ffstr ext;
+	ffpath_split3(fmed->outfn.ptr, fmed->outfn.len, NULL, NULL, &ext);
+	if (ffstr_eqz(&ext, "m3u8") || ffstr_eqz(&ext, "m3u")) {
+		void *trk;
+		if (NULL == (trk = track->create(FMED_TRK_TYPE_PLIST, NULL)))
+			goto end;
+
+		fmed_trk *ti = track->conf(trk);
+		track->copy_info(ti, &trkinfo);
+
+		track->setvalstr(trk, "output", fmed->outfn.ptr);
+		track->cmd(trk, FMED_TRACK_START);
+		goto end;
+	}
 
 	if (first != NULL) {
 		if (fmed->mix)

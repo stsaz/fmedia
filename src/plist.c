@@ -49,6 +49,14 @@ static const fmed_filter fmed_m3u_input = {
 	&m3u_open, &m3u_process, &m3u_close
 };
 
+//M3U OUTPUT
+static void* m3u_wopen(fmed_filt *d);
+static void m3u_wclose(void *ctx);
+static int m3u_wprocess(void *ctx, fmed_filt *d);
+static const fmed_filter m3u_output = {
+	&m3u_wopen, &m3u_wprocess, &m3u_wclose
+};
+
 //PLS INPUT
 static void* pls_open(fmed_filt *d);
 static void pls_close(void *ctx);
@@ -74,6 +82,8 @@ static const void* plist_iface(const char *name)
 {
 	if (!ffsz_cmp(name, "m3u"))
 		return &fmed_m3u_input;
+	else if (ffsz_eq(name, "m3u-out"))
+		return &m3u_output;
 	else if (!ffsz_cmp(name, "pls"))
 		return &fmed_pls_input;
 	else if (!ffsz_cmp(name, "cue"))
@@ -217,6 +227,81 @@ static int m3u_process(void *ctx, fmed_filt *d)
 	}
 
 	}
+}
+
+
+struct m3uw {
+	ffm3u_cook m3;
+	fmed_que_entry *cur;
+	const fmed_track *track;
+	void *trk;
+};
+
+static void* m3u_wopen(fmed_filt *d)
+{
+	struct m3uw *m = ffmem_new(struct m3uw);
+	m->trk = d->trk;
+	m->track = d->track;
+	return m;
+}
+
+static void m3u_wclose(void *ctx)
+{
+	struct m3uw *m = ctx;
+	ffm3u_fin(&m->m3);
+	ffmem_free(m);
+}
+
+static void m3u_expand_done(void *ctx)
+{
+	struct m3uw *m = ctx;
+	m->track->cmd(m->trk, FMED_TRACK_WAKE);
+	/* Note: refcount for m->cur is increased in FMED_QUE_EXPAND2 handler
+	 to prevent it from being removed from the list.
+	We should decrease it after FMED_QUE_LIST. */
+}
+
+static int m3u_wprocess(void *ctx, fmed_filt *d)
+{
+	struct m3uw *m = ctx;
+	char buf[32];
+	fmed_que_entry *e = m->cur;
+	int r = 0;
+	ffstr ss = {}, *s;
+
+	while (0 != qu->cmdv(FMED_QUE_LIST, &e)) {
+
+		uint t = core->cmd(FMED_FILETYPE, e->url.ptr);
+		if (t == FMED_FT_DIR || t == FMED_FT_PLIST) {
+			m->cur = e;
+			qu->cmdv(FMED_QUE_EXPAND2, e, &m3u_expand_done, m);
+			return FMED_RASYNC;
+		}
+
+		int dur = (e->dur != 0) ? e->dur / 1000 : -1;
+		uint n = ffs_fromint(dur, buf, sizeof(buf), FFINT_SIGNED);
+		r |= ffm3u_add(&m->m3, FFM3U_DUR, buf, n);
+
+		if (NULL == (s = qu->meta_find(e, FFSTR("artist"))))
+			s = &ss;
+		r |= ffm3u_add(&m->m3, FFM3U_ARTIST, s->ptr, s->len);
+
+		if (NULL == (s = qu->meta_find(e, FFSTR("title"))))
+			s = &ss;
+		r |= ffm3u_add(&m->m3, FFM3U_TITLE, s->ptr, s->len);
+
+		r |= ffm3u_add(&m->m3, FFM3U_URL, e->url.ptr, e->url.len);
+
+		if (r != 0) {
+			fmed_errlog(core, NULL, "m3u", "saving playlist to file: %d", r);
+			return FMED_RERR;
+		}
+	}
+
+	ffstr out;
+	ffm3u_out(&m->m3, &out);
+	d->out = out.ptr;  d->outlen = out.len;
+	return FMED_RLASTOUT;
 }
 
 
