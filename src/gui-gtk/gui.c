@@ -512,14 +512,12 @@ static void corecmd_run(uint cmd, void *udata)
 
 	case A_ONDROPFILE: {
 		ffstr *d = udata;
-		ffstr s = *d, ln;
-		while (s.len != 0) {
-			ffstr_nextval3(&s, &ln, '\n');
-			if (!ffs_matchz(ln.ptr, ln.len, "file://"))
-				continue;
-			ffstr_shift(&ln, FFSLEN("file://"));
-			list_add(&ln);
+		ffstr s = *d;
+		ffarr fn = {};
+		while (0 == ffui_fdrop_next(&fn, &s)) {
+			list_add((ffstr*)&fn, -1);
 		}
+		ffarr_free(&fn);
 		ffstr_free(d);
 		ffmem_free(d);
 		break;
