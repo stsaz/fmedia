@@ -95,6 +95,7 @@ typedef struct fm_trk {
 } fm_trk;
 
 
+static int trk_setout_file(fm_trk *t);
 static int trk_setout(fm_trk *t);
 static int trk_opened(fm_trk *t);
 static int trk_open(fm_trk *t, const char *fn);
@@ -234,12 +235,16 @@ static void trk_open_capt(fm_trk *t)
 
 static int trk_setout(fm_trk *t)
 {
-	ffstr name, ext;
 	const char *s;
 	ffbool stream_copy = t->props.stream_copy;
 
 	switch (t->props.type) {
 	case FMED_TRK_TYPE_EXPAND:
+		return 0;
+
+	case FMED_TRK_TYPE_PLIST:
+		if (0 != trk_setout_file(t))
+			return 1;
 		return 0;
 	}
 
@@ -288,19 +293,8 @@ static int trk_setout(fm_trk *t)
 		addfilter(t, "#soundmod.peaks");
 
 	} else if (FMED_PNULL != (s = trk_getvalstr(t, "output"))) {
-		uint have_path = (NULL != ffpath_split2(s, ffsz_len(s), NULL, &name));
-		ffs_rsplit2by(name.ptr, name.len, '.', &name, &ext);
-
-		if (NULL == trk_modbyext(t, FMED_MOD_OUTEXT, &ext))
+		if (0 != trk_setout_file(t))
 			return -1;
-
-		if (!have_path && ffstr_eqcz(&name, "@stdout")) {
-			addfilter(t, "#file.stdout");
-			t->props.out_seekable = 0;
-		} else {
-			addfilter(t, "#file.out");
-			t->props.out_seekable = 1;
-		}
 
 	} else if (core->props->playback_module != NULL) {
 		addfilter1(t, core->props->playback_module);
@@ -415,6 +409,9 @@ static void* trk_create(uint cmd, const char *fn)
 		addfilter(t, "mixer.out");
 		break;
 
+	case FMED_TRK_TYPE_PLIST:
+		break;
+
 	default:
 		if (cmd >= _FMED_TRK_TYPE_END) {
 			errlog(t, "unknown track type:%u", cmd);
@@ -429,6 +426,25 @@ static void* trk_create(uint cmd, const char *fn)
 err:
 	trk_free(t);
 	return NULL;
+}
+
+/** Set output module and file. */
+static int trk_setout_file(fm_trk *t)
+{
+	const char *ofn = trk_getvalstr(t, "output");
+	ffstr name, ext;
+	ffbool have_path = (NULL != ffpath_split3(ofn, ffsz_len(ofn), NULL, &name, &ext));
+	if (NULL == trk_modbyext(t, FMED_MOD_OUTEXT, &ext))
+		return 1;
+
+	if (!have_path && ffstr_eqcz(&name, "@stdout")) {
+		addfilter(t, "#file.stdout");
+		t->props.out_seekable = 0;
+	} else {
+		addfilter(t, "#file.out");
+		t->props.out_seekable = 1;
+	}
+	return 0;
 }
 
 static fmed_trk* trk_conf(void *trk)

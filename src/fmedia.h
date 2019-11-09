@@ -320,6 +320,7 @@ enum FMED_TRK_TYPE {
 	FMED_TRK_TYPE_MIXOUT,
 	FMED_TRK_TYPE_NETIN,
 	FMED_TRK_TYPE_EXPAND, // get file meta info
+	FMED_TRK_TYPE_PLIST, // write playlist file from queue
 	_FMED_TRK_TYPE_END,
 
 	//obsolete:
