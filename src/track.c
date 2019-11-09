@@ -238,6 +238,11 @@ static int trk_setout(fm_trk *t)
 	const char *s;
 	ffbool stream_copy = t->props.stream_copy;
 
+	switch (t->props.type) {
+	case FMED_TRK_TYPE_EXPAND:
+		return 0;
+	}
+
 	if (t->props.type == FMED_TRK_TYPE_NETIN) {
 
 	} else if (t->props.type == FMED_TRK_TYPE_NONE) {
@@ -394,22 +399,20 @@ static void* trk_create(uint cmd, const char *fn)
 	switch (cmd) {
 
 	case FMED_TRK_TYPE_PLAYBACK:
+	case FMED_TRK_TYPE_EXPAND:
 		if (0 != trk_open(t, fn)) {
 			trk_free(t);
 			return FMED_TRK_EFMT;
 		}
-		t->props.type = FMED_TRK_TYPE_PLAYBACK;
 		break;
 
 	case FMED_TRK_TYPE_REC:
 		trk_open_capt(t);
-		t->props.type = FMED_TRK_TYPE_REC;
 		break;
 
 	case FMED_TRK_TYPE_MIXOUT:
 		addfilter(t, "#queue.track");
 		addfilter(t, "mixer.out");
-		t->props.type = FMED_TRK_TYPE_MIXOUT;
 		break;
 
 	default:
@@ -417,9 +420,9 @@ static void* trk_create(uint cmd, const char *fn)
 			errlog(t, "unknown track type:%u", cmd);
 			goto err;
 		}
-		t->props.type = cmd;
 		break;
 	}
+	t->props.type = cmd;
 
 	return t;
 

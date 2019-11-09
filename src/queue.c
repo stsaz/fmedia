@@ -896,7 +896,7 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 	case FMED_QUE_EXPAND: {
 		void *r = param;
 		e = FF_GETPTR(entry, e, r);
-		void *trk = qu->track->create(FMED_TRK_TYPE_PLAYBACK, e->e.url.ptr);
+		void *trk = qu->track->create(FMED_TRK_TYPE_EXPAND, e->e.url.ptr);
 		fmed_trk *t = qu->track->conf(trk);
 		t->input_info = 1;
 		e->expand = 1;
