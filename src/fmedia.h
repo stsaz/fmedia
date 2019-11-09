@@ -839,6 +839,10 @@ enum FMED_QUE {
 	uint quit_if_done = VAL */
 	FMED_QUE_SET_QUITIFDONE,
 
+	/** Expand source and notify user on completion.
+	void expand2(fmed_que_entry *e, void (*ondone)(void*), void *udata) */
+	FMED_QUE_EXPAND2,
+
 	_FMED_QUE_LAST
 };
 

@@ -41,7 +41,7 @@ typedef struct entry {
 	uint rm :1
 		, stop_after :1
 		, no_tmeta :1
-		, expand :1
+		, expand :1 // don't auto-start the next track
 		, trk_stopped :1
 		, trk_err :1
 		, trk_mixed :1
@@ -655,6 +655,7 @@ static const char *const scmds[] = {
 	"sort", "count",
 	"xplay", "add2", "add-after", "settrackprops", "copytrackprops",
 	"", "", "", "",
+	"expand2",
 };
 
 static ssize_t que_cmdv(uint cmd, ...)
@@ -803,6 +804,24 @@ static ssize_t que_cmdv(uint cmd, ...)
 	case FMED_QUE_SET_QUITIFDONE: {
 		uint val = va_arg(va, uint);
 		qu->quit_if_done = val;
+		goto end;
+	}
+
+	case FMED_QUE_EXPAND2: {
+		void *_e = va_arg(va, void*);
+		void *ondone = va_arg(va, void*);
+		void *ctx = va_arg(va, void*);
+		entry *e = FF_GETPTR(entry, e, _e);
+		void *trk = qu->track->create(FMED_TRK_TYPE_EXPAND, e->e.url.ptr);
+		fmed_trk *t = qu->track->conf(trk);
+		t->input_info = 1;
+		e->expand = 1;
+		qu->track->setval(trk, "queue_item", (int64)e);
+		qu->track->setval(trk, "queue-ondone", (int64)(size_t)ondone);
+		qu->track->setval(trk, "queue-ondone-ctx", (int64)(size_t)ctx);
+		ent_ref(e);
+		ent_ref(e); // for user to be able to get the next element in the list
+		qu->track->cmd(trk, FMED_TRACK_START);
 		goto end;
 	}
 
@@ -1401,6 +1420,15 @@ static void que_trk_close(void *ctx)
 	qt->cmd = CMD_TRKFIN;
 	qt->param = (size_t)t->e;
 	que_task_add(qt);
+
+	int64 v = t->track->getval(t->trk, "queue-ondone");
+	if (v != FMED_NULL) {
+		void (*ondone)(void*) = (void*)(size_t)v;
+		v = t->track->getval(t->trk, "queue-ondone-ctx");
+		FF_ASSERT(v != FMED_NULL);
+		void *ctx = (void*)(size_t)v;
+		ondone(ctx);
+	}
 
 	ffmem_free(t);
 }
