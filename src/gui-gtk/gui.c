@@ -265,6 +265,7 @@ static const char *const action_str[] = {
 	"A_LIST_RMDEAD",
 	"A_LIST_CLEAR",
 	"A_LIST_RANDOM",
+	"A_LIST_SORTRANDOM",
 
 	"A_SHOWCONVERT",
 	"A_CONVERT",
@@ -501,6 +502,13 @@ static void corecmd_run(uint cmd, void *udata)
 		gg->conf.list_random = !gg->conf.list_random;
 		gg->qu->cmdv(FMED_QUE_SET_RANDOM, (uint)gg->conf.list_random);
 		break;
+
+	case A_LIST_SORTRANDOM: {
+		gg->qu->cmdv(FMED_QUE_SORT, (int)-1, "__random", 0);
+		uint n = gg->qu->cmdv(FMED_QUE_COUNT);
+		wmain_list_update(0, n);
+		break;
+	}
 
 	case A_ONDROPFILE: {
 		ffstr *d = udata;

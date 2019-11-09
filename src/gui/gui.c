@@ -334,6 +334,7 @@ static const char *const scmds[] = {
 	"SAVELIST",
 	"REMOVE",
 	"RANDOM",
+	"A_LIST_SORTRANDOM",
 
 	"LIST_RMDEAD",
 	"CLEAR",
@@ -522,6 +523,13 @@ void gui_corecmd_op(uint cmd, void *udata)
 			fav_save();
 		core->sig(FMED_STOP);
 		break;
+
+	case A_LIST_SORTRANDOM: {
+		gg->qu->cmdv(FMED_QUE_SORT, (int)-1, "__random", 0);
+		uint n = gg->qu->cmdv(FMED_QUE_COUNT);
+		list_update(0, n);
+		break;
+	}
 	}
 }
 

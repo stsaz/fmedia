@@ -137,6 +137,7 @@ static const struct cmd cmds[] = {
 	{ SAVELIST,	F0,	&gui_media_savelist },
 	{ REMOVE,	F0 | CMD_FCORE,	&gui_media_remove },
 	{ RANDOM,	F0 | CMD_FCORE,	&gui_list_random },
+	{ A_LIST_SORTRANDOM,	F0 | CMD_FCORE,	&gui_corecmd_op },
 	{ LIST_RMDEAD,	F0 | CMD_FCORE,	&gui_list_rmdead },
 	{ CLEAR,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op },
 	{ TO_NXTLIST,	F0 | CMD_FCORE,	&gui_tonxtlist },
@@ -568,7 +569,7 @@ done:
 }
 
 /** Update number of total list items and set to redraw the next items. */
-static void list_update(uint idx, int delta)
+void list_update(uint idx, int delta)
 {
 	uint n = ffui_view_nitems(&gg->wmain.vlist);
 	ffui_view_setcount(&gg->wmain.vlist, n + delta);

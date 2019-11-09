@@ -125,6 +125,7 @@ static void wmain_action(ffui_wnd *wnd, int id)
 	case A_LIST_RMDEAD:
 	case A_LIST_CLEAR:
 	case A_LIST_RANDOM:
+	case A_LIST_SORTRANDOM:
 		break;
 
 	case A_ONCLOSE:
@@ -239,6 +240,11 @@ static void list_dispinfo(struct ffui_view_disp *disp)
 		disp->text.len = ffs_append(disp->text.ptr, 0, disp->text.len, val->ptr, val->len);
 
 	gg->qu->cmdv(FMED_QUE_ITEMUNLOCK, ent);
+}
+
+void wmain_list_update(uint idx, int delta)
+{
+	ffui_send_view_setdata(&gg->wmain.vlist, idx, delta);
 }
 
 void wmain_ent_added(uint idx)

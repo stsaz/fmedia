@@ -142,6 +142,7 @@ enum ACTION {
 	A_LIST_RMDEAD,
 	A_LIST_CLEAR,
 	A_LIST_RANDOM,
+	A_LIST_SORTRANDOM,
 
 	A_SHOWCONVERT,
 	A_CONVERT,
@@ -176,6 +177,7 @@ void wmain_ent_removed(uint idx);
 void wmain_status(const char *fmt, ...);
 void wmain_list_clear();
 void wmain_list_cols_width_write(ffconfw *conf);
+void wmain_list_update(uint idx, int delta);
 
 int conf_convert(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
 void wconvert_init();

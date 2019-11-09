@@ -120,6 +120,7 @@ static void que_save(entry *first, const fflist_item *sentl, const char *fn);
 static void ent_rm(entry *e);
 static void ent_free(entry *e);
 static void que_taskfunc(void *udata);
+static void rnd_init();
 enum CMD {
 	CMD_TRKFIN = 0x010000,
 };
@@ -501,13 +502,7 @@ static entry* que_getnext(entry *from)
 	fflist *ents = &pl->ents;
 
 	if (pl->allow_random && qu->random && pl->indexes.len != 0) {
-		if (!qu->rnd_ready) {
-			qu->rnd_ready = 1;
-			fftime t;
-			fftime_now(&t);
-			ffrnd_seed(t.sec);
-		}
-
+		rnd_init();
 		uint i = ffrnd_get() % pl->indexes.len;
 		entry *e = ((entry**)pl->indexes.ptr) [i];
 		return e;
@@ -599,18 +594,50 @@ static int plist_entcmp(const void *a, const void *b, void *udata)
 	return r;
 }
 
+/** Initialize random number generator */
+static void rnd_init()
+{
+	if (qu->rnd_ready)
+		return;
+	qu->rnd_ready = 1;
+	fftime t;
+	fftime_now(&t);
+	ffrnd_seed(t.sec);
+}
+
+/** Sort indexes randomly */
+static void sort_random(plist *pl)
+{
+	rnd_init();
+	entry **arr = (void*)pl->indexes.ptr;
+	for (size_t i = 0;  i != pl->indexes.len;  i++) {
+		size_t to = ffrnd_get() % pl->indexes.len;
+		_ffarr_swap(&arr[i], &arr[to], 1, sizeof(entry*));
+	}
+}
+
 /** Sort playlist entries. */
 static void plist_sort(struct plist *pl, const char *by, uint flags)
 {
-	struct plist_sortdata ps = {};
-	if (ffsz_eq(by, "__url"))
-		ps.url = 1;
-	else if (ffsz_eq(by, "__dur"))
-		ps.dur = 1;
-	else
-		ffstr_setz(&ps.meta, by);
-	ps.reverse = !!(flags & 1);
-	ffsort(pl->indexes.ptr, pl->indexes.len, sizeof(void*), &plist_entcmp, &ps);
+	if (ffsz_eq(by, "__random")) {
+		sort_random(pl);
+	} else {
+		struct plist_sortdata ps = {};
+		if (ffsz_eq(by, "__url"))
+			ps.url = 1;
+		else if (ffsz_eq(by, "__dur"))
+			ps.dur = 1;
+		else
+			ffstr_setz(&ps.meta, by);
+		ps.reverse = !!(flags & 1);
+		ffsort(pl->indexes.ptr, pl->indexes.len, sizeof(void*), &plist_entcmp, &ps);
+	}
+
+	fflist_init(&pl->ents);
+	entry **arr = (void*)pl->indexes.ptr;
+	for (size_t i = 0;  i != pl->indexes.len;  i++) {
+		fflist_ins(&pl->ents, &arr[i]->sib);
+	}
 }
 
 static void que_cmd(uint cmd, void *param)

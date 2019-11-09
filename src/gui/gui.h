@@ -315,6 +315,7 @@ enum CMDS {
 	SAVELIST,
 	REMOVE,
 	RANDOM,
+	A_LIST_SORTRANDOM,
 	LIST_RMDEAD,
 	CLEAR,
 	SELALL,
@@ -424,6 +425,7 @@ void fav_save(void);
 void wmain_list_cols_width_write(ffconfw *conf);
 void wmain_rec_started();
 void wmain_rec_stopped();
+void list_update(uint idx, int delta);
 
 enum GUI_FILT {
 	GUI_FILT_URL = 1,

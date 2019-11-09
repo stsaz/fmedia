@@ -789,7 +789,9 @@ enum FMED_QUE {
 
 	/**
 	void sort(int plist, const char *by, uint reverse)
-	'by': meta name or "__dur" (duration) or "__url" */
+	plist: list index or -1g
+	by: meta name or "__dur" (duration) or "__url" or "__random"
+	reverse: reverse order (0/1) */
 	FMED_QUE_SORT,
 
 	/**
