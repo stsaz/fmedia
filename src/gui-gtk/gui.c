@@ -53,7 +53,7 @@ static void file_showpcm(void);
 static void file_del(void);
 static void lists_load(void);
 static void lists_save(void);
-static void list_add(const ffstr *fn);
+static void list_add(const ffstr *fn, int plid);
 static void list_rmitems(void);
 static void showdir_selected(void);
 static void showdir(const char *fn);
@@ -177,6 +177,7 @@ static const ffui_ldr_ctl wmain_ctls[] = {
 	FFUI_LDR_CTL(struct gui_wmain, lpos),
 	FFUI_LDR_CTL(struct gui_wmain, tvol),
 	FFUI_LDR_CTL(struct gui_wmain, tpos),
+	FFUI_LDR_CTL(struct gui_wmain, tabs),
 	FFUI_LDR_CTL(struct gui_wmain, vlist),
 	FFUI_LDR_CTL(struct gui_wmain, stbar),
 	FFUI_LDR_CTL(struct gui_wmain, tray_icon),
@@ -259,6 +260,9 @@ static const char *const action_str[] = {
 	"A_VOLDOWN",
 	"A_VOLRESET",
 
+	"A_LIST_NEW",
+	"A_LIST_DEL",
+	"A_LIST_SEL",
 	"A_LIST_SAVE",
 	"A_LIST_SELECTALL",
 	"A_LIST_REMOVE",
@@ -479,6 +483,22 @@ static void corecmd_run(uint cmd, void *udata)
 		gtrk_vol(gg->vol);
 		break;
 
+	case A_LIST_NEW:
+		gg->qu->cmdv(FMED_QUE_NEW, (uint)0);
+		gg->qu->cmdv(FMED_QUE_SEL, (uint)(size_t)udata);
+		break;
+	case A_LIST_DEL: {
+		gg->qu->cmdv(FMED_QUE_DEL, (uint)(size_t)udata);
+		uint n = gg->qu->cmdv(FMED_QUE_COUNT);
+		wmain_list_update(0, n);
+		break;
+	}
+	case A_LIST_SEL: {
+		gg->qu->cmdv(FMED_QUE_SEL, (uint)(size_t)udata);
+		uint n = gg->qu->cmdv(FMED_QUE_COUNT);
+		wmain_list_update(0, n);
+		break;
+	}
 	case A_LIST_SAVE: {
 		char *list_fn = udata;
 		gg->qu->fmed_queue_save(-1, list_fn);
@@ -525,7 +545,7 @@ static void corecmd_run(uint cmd, void *udata)
 
 	case A_URL_ADD: {
 		ffstr *s = udata;
-		list_add(s);
+		list_add(s, -1);
 		ffstr_free(s);
 		ffmem_free(s);
 		break;
@@ -645,8 +665,11 @@ static void lists_save(void)
 	for (uint i = 0; ; i++) {
 		buf.len = 0;
 		ffstr_catfmt(&buf, "%s" AUTOPLIST_FN "%Z", fn, n++);
-		gg->qu->fmed_queue_save(i, buf.ptr);
-		break;
+		int r = gg->qu->fmed_queue_save(i, buf.ptr);
+		if (r != 0) {
+			fffile_rm(buf.ptr);
+			break;
+		}
 	}
 
 end:
@@ -668,15 +691,20 @@ static void lists_load(void)
 		buf.len--;
 		if (!fffile_exists(buf.ptr))
 			break;
-		list_add((ffstr*)&buf);
+		if (i != 1) {
+			gg->qu->cmdv(FMED_QUE_NEW, 0);
+			wmain_tab_new();
+			list_add((ffstr*)&buf, i - 1);
+		} else {
+			list_add((ffstr*)&buf, -1);
+		}
 	}
 
 end:
 	ffarr_free(&buf);
-	return;
 }
 
-static void list_add(const ffstr *fn)
+static void list_add(const ffstr *fn, int plid)
 {
 	int t = FMED_FT_FILE;
 	if (!ffs_matchz(fn->ptr, fn->len, "http://")) {
@@ -690,10 +718,12 @@ static void list_add(const ffstr *fn)
 	fmed_que_entry e, *pe;
 	ffmem_tzero(&e);
 	e.url = *fn;
-	if (NULL == (pe = (void*)gg->qu->fmed_queue_add(FMED_QUE_NO_ONCHANGE, -1, &e)))
+	if (NULL == (pe = (void*)gg->qu->fmed_queue_add(FMED_QUE_NO_ONCHANGE, plid, &e)))
 		return;
-	uint idx = gg->qu->cmdv(FMED_QUE_ID, pe);
-	wmain_ent_added(idx);
+	if (plid == -1) {
+		uint idx = gg->qu->cmdv(FMED_QUE_ID, pe);
+		wmain_ent_added(idx);
+	}
 
 	if (t == FMED_FT_DIR || t == FMED_FT_PLIST)
 		gg->qu->cmd2(FMED_QUE_EXPAND, pe, 0);

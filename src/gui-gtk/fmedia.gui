@@ -37,6 +37,14 @@ menu mfile {
 }
 
 menu mlist {
+	item "_New Tab" {
+		action A_LIST_NEW
+		hotkey "Ctrl+N"
+	}
+	item "Close Tab" {
+		action A_LIST_DEL
+		hotkey "Ctrl+W"
+	}
 	item "_Save Playlist..." {
 		action A_LIST_SAVE
 		hotkey "Ctrl+S"
@@ -234,6 +242,10 @@ window wmain {
 	trackbar tpos {
 		range 0
 		onscroll A_SEEK
+	}
+
+	tab tabs {
+		onchange A_LIST_SEL
 	}
 
 	listview vlist {

@@ -32,6 +32,7 @@ struct gui_wmain {
 	ffui_label lpos;
 	ffui_trkbar tvol;
 	ffui_trkbar tpos;
+	ffui_tab tabs;
 	ffui_view vlist;
 	ffui_ctl stbar;
 	ffui_trayicon tray_icon;
@@ -85,6 +86,7 @@ typedef struct ggui {
 	int focused;
 	uint vol; //0..MAXVOL
 	uint go_pos;
+	uint tabs_counter;
 
 	struct gui_conf conf;
 	struct conv_sets conv_sets;
@@ -136,6 +138,9 @@ enum ACTION {
 	A_VOLDOWN,
 	A_VOLRESET,
 
+	A_LIST_NEW,
+	A_LIST_DEL,
+	A_LIST_SEL,
 	A_LIST_SAVE,
 	A_LIST_SELECTALL,
 	A_LIST_REMOVE,
@@ -175,6 +180,7 @@ void wmain_update(uint playtime, uint time_total);
 void wmain_ent_added(uint idx);
 void wmain_ent_removed(uint idx);
 void wmain_status(const char *fmt, ...);
+void wmain_tab_new();
 void wmain_list_clear();
 void wmain_list_cols_width_write(ffconfw *conf);
 void wmain_list_update(uint idx, int delta);

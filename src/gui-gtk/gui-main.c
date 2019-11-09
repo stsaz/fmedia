@@ -1,4 +1,4 @@
-/**
+/** Main window.
 Copyright (c) 2019 Simon Zolin */
 
 #include <gui-gtk/gui.h>
@@ -6,6 +6,10 @@ Copyright (c) 2019 Simon Zolin */
 
 
 static void wmain_action(ffui_wnd *wnd, int id);
+static uint tab_new(uint flags);
+static void list_new();
+static void list_chooseaddfiles();
+static void list_del();
 static void list_save();
 static void hidetotray();
 static void list_dispinfo(struct ffui_view_disp *disp);
@@ -23,6 +27,7 @@ void wmain_init()
 	gg->wmain.wmain.on_action = &wmain_action;
 	gg->wmain.wmain.onclose_id = A_ONCLOSE;
 	ffui_view_dragdrop(&gg->wmain.vlist, A_ONDROPFILE);
+	tab_new(0);
 	ffui_show(&gg->wmain, 1);
 }
 
@@ -31,20 +36,19 @@ static void wmain_action(ffui_wnd *wnd, int id)
 	dbglog("%s cmd:%u", __func__, id);
 
 	switch (id) {
-	case A_LIST_ADDFILE: {
-		char *fn;
-		if (NULL == (fn = ffui_dlg_open(&gg->dlg, &gg->wmain.wmain)))
-			return;
-		ffstr *s;
-		for (;;) {
-			s = ffmem_new(ffstr);
-			ffstr_alcopyz(s, fn);
-			corecmd_add(A_URL_ADD, s);
-			if (NULL == (fn = ffui_dlg_nextname(&gg->dlg)))
-				break;
-		}
+	case A_LIST_NEW:
+		list_new();
 		return;
-	}
+	case A_LIST_DEL:
+		list_del();
+		return;
+	case A_LIST_SEL:
+		ffui_view_clear(&gg->wmain.vlist);
+		corecmd_add(A_LIST_SEL, (void*)(size_t)gg->wmain.tabs.changed_index);
+		return;
+	case A_LIST_ADDFILE:
+		list_chooseaddfiles();
+		return;
 	case A_LIST_ADDURL:
 		ffui_show(&gg->wuri.wuri, 1);
 		return;
@@ -323,6 +327,67 @@ void wmain_status(const char *fmt, ...)
 void wmain_list_clear()
 {
 	ffui_post_view_clear(&gg->wmain.vlist);
+}
+
+/** Create a new tab. */
+uint tab_new(uint flags)
+{
+	char buf[32];
+	ffs_fmt(buf, buf + sizeof(buf), "Playlist %u%Z", ++gg->tabs_counter);
+	ffui_tab_append(&gg->wmain.tabs, buf);
+	return ffui_tab_count(&gg->wmain.tabs);
+}
+
+/** Create a new tab. */
+void wmain_tab_new()
+{
+	char buf[32];
+	ffs_fmt(buf, buf + sizeof(buf), "Playlist %u%Z", ++gg->tabs_counter);
+	ffui_send_tab_ins(&gg->wmain.tabs, buf);
+}
+
+/** Create a new tab and playlist. */
+void list_new()
+{
+	uint n = tab_new(0);
+	n--;
+	ffui_tab_setactive(&gg->wmain.tabs, n);
+	ffui_view_clear(&gg->wmain.vlist);
+	corecmd_add(A_LIST_NEW, (void*)(size_t)n);
+}
+
+/** Remove the current tab and activate its neighbour or create a new tab. */
+void list_del()
+{
+	int i = ffui_tab_active(&gg->wmain.tabs);
+	ffbool last = (1 == ffui_tab_count(&gg->wmain.tabs));
+	if (last) {
+		wmain_action(&gg->wmain.wmain, A_LIST_NEW);
+	} else {
+		uint newsel = (i == 0) ? i + 1 : i - 1;
+		ffui_tab_setactive(&gg->wmain.tabs, newsel);
+		ffui_view_clear(&gg->wmain.vlist);
+		corecmd_add(A_LIST_SEL, (void*)(size_t)newsel);
+	}
+	ffui_tab_del(&gg->wmain.tabs, i);
+	corecmd_add(A_LIST_DEL, (void*)(size_t)i);
+}
+
+/** Add the files chosen by user */
+void list_chooseaddfiles()
+{
+	char *fn;
+	if (NULL == (fn = ffui_dlg_open(&gg->dlg, &gg->wmain.wmain)))
+		return;
+
+	ffstr *s;
+	for (;;) {
+		s = ffmem_new(ffstr);
+		ffstr_alcopyz(s, fn);
+		corecmd_add(A_URL_ADD, s);
+		if (NULL == (fn = ffui_dlg_nextname(&gg->dlg)))
+			break;
+	}
 }
 
 /** User chooses file to save the current playlist to. */

@@ -729,7 +729,9 @@ enum FMED_QUE {
 	FMED_QUE_NEXT2,
 	FMED_QUE_PREV2,
 
-	/** Save playlist to file. */
+	/** Save playlist to file.
+	int save(ssize_t plid, const char *filename)
+	Return -1:plid doesn't exist */
 	FMED_QUE_SAVE,
 
 	FMED_QUE_CLEAR,

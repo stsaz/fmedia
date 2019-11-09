@@ -948,7 +948,7 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 		else
 			pl = plist_by_idx((size_t)param);
 		if (pl == NULL)
-			break;
+			return -1;
 		ents = &pl->ents;
 		que_save(FF_GETPTR(entry, sib, ents->first), fflist_sentl(ents), (void*)param2);
 		break;
