@@ -1016,7 +1016,8 @@ static ssize_t core_cmd(uint signo, ...)
 		FF_WRITEONCE(fmed->stopped, 1);
 		struct worker *w;
 		FFARR_WALKT(&fmed->workers, w, struct worker) {
-			ffkqu_post(&w->kqpost, &w->evposted);
+			if (w->init)
+				ffkqu_post(&w->kqpost, &w->evposted);
 		}
 		break;
 	}

@@ -24,9 +24,9 @@ mixer                 mixer
 
 
 #define FMED_VER_MAJOR  1
-#define FMED_VER_MINOR  12
+#define FMED_VER_MINOR  13
 #define FMED_VER_FULL  ((FMED_VER_MAJOR << 8) | FMED_VER_MINOR)
-#define FMED_VER  "1.12"
+#define FMED_VER  "1.13"
 
 #define FMED_VER_GETMAJ(fullver)  ((fullver) >> 8)
 #define FMED_VER_GETMIN(fullver)  ((fullver) & 0xff)
@@ -765,6 +765,7 @@ enum FMED_QUE {
 	FMED_QUE_SEL, // @param: uint
 
 	/** List playlist entries.
+	pent: user sets to NULL on first call.
 	int list(fmed_que_entry **pent)
 	Return 0 if no more entries. */
 	FMED_QUE_LIST,

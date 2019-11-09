@@ -8,6 +8,14 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.13 - Nov 9, 2019
+
+ + Create a playlist file (.m3u8) from directory
+ + GUI: "Sort: Random"
+ + GUI-GTK: support multiple tabs
+ - GUI-GTK: drag'n'drop didn't work in Ubuntu
+
+
 fmedia v1.12.1 - Oct 12, 2019
 
  + help.txt: French translation
