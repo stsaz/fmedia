@@ -8,6 +8,31 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia (Android) v0.2 - Jan 7, 2020
+
+ + GUI: save/restore the current path in explorer
+ + GUI: "Add URL" dialog
+ + GUI: Filter tracks in playlist
+ + GUI: Settings dialog
+ + GUI: main menu with commands like "Delete File", "Clear List" and others
+ * GUI: reorder UI controls
+
+
+fmedia v1.14 - Jan 5, 2020
+
+ + .caf reader (AAC, ALAC) (no seeking)
+ + @stdin: support seeking forward, which is required by several file formats
+ - GUI: Windows: "Sort: Random" didn't work
+
+
+fmedia (Android) v0.1 - Dec 25, 2019
+
+ The first release for Android.  Install from .apk.
+ + Plays local files or directories
+ + Very simple UI
+ + Control buttons on notification bar
+
+
 fmedia v1.13 - Nov 9, 2019
 
  + Create a playlist file (.m3u8) from directory

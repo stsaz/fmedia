@@ -10,7 +10,7 @@ Its low CPU & memory consumption saves energy when running on a notebook's batte
 Play or convert audio files, record new audio tracks from microphone, save songs from Internet radio, and much more!
 fmedia is free and open-source project, and you can use it as a standalone application or as a library for your own software.
 
-fmedia can read: .mp3, .ogg (Vorbis, Opus), .opus, .m4a/.mp4 (AAC, ALAC, MPEG), .mka/.mkv (AAC, ALAC, MPEG, Vorbis), .avi (AAC, MPEG), .aac, .mpc, .flac, .ape, .wv, .wav.
+fmedia can read: .mp3, .ogg (Vorbis, Opus), .opus, .m4a/.mp4 (AAC, ALAC, MPEG), .mka/.mkv (AAC, ALAC, MPEG, Vorbis), .caf (AAC, ALAC), .avi (AAC, MPEG), .aac, .mpc, .flac, .ape, .wv, .wav.
 
 fmedia can write: .mp3, .ogg, .opus, .m4a (AAC), .flac, .wav, .aac (--stream-copy only).
 
@@ -47,6 +47,7 @@ FEATURES
 * Containers:
 	* .mp4/.m4a (read/write)
 	* .mkv/.mka (read)
+	* .caf (read)
 	* .ogg/.opus (read/write)
 	* .avi (read)
 	* .mp3 (read/write)
@@ -236,17 +237,16 @@ By default fmedia runs with a terminal UI, which shows information about the cur
 ---------------
 GRAPHICAL UI
 ---------------
-On Windows you can run fmedia in GUI mode:
+To run fmedia in GUI mode (Windows and Linux) you may execute the console binary like this:
+
+	fmedia --gui
+
+Or use this special executable file (Windows only):
 
 	fmedia-gui.exe
 
 You should use this binary file for opening files via Explorer's "Open With..." feature.
-
 Note: command-line options are not supported.
-
-Or you may execute the console binary like this:
-
-	fmedia --gui
 
 fmedia GUI is provided by a separate module - gui.dll.  It is written in such a way that it won't become unresponsive even if the main thread (the one that processes audio) is waiting for I/O operations.  The module doesn't perform any sound processing, it just issues commands to fmedia core and receives the feedback.
 
