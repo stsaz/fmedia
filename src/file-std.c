@@ -33,6 +33,7 @@ const fmed_filter file_stdout = {
 
 typedef struct stdin_ctx {
 	fffd fd;
+	uint64 total;
 	ffarr buf;
 } stdin_ctx;
 
@@ -66,24 +67,49 @@ static int file_stdin_read(void *ctx, fmed_filt *d)
 {
 	stdin_ctx *f = ctx;
 	ssize_t r;
+	uint64 seek = 0;
+	ffstr buf;
 
 	if ((int64)d->input.seek != FMED_NULL) {
-		errlog(d->trk, "can't seek on stdin.  offset:%U", d->input.seek);
-		return FMED_RERR;
+		uint64 off = f->total - f->buf.len;
+		if (d->input.seek < off) {
+			errlog(d->trk, "can't seek backward on stdin.  offset:%U", d->input.seek);
+			return FMED_RERR;
+		}
+		seek = d->input.seek;
+		d->input.seek = FMED_NULL;
+		if (f->total > seek) {
+			ffstr_set(&buf, f->buf.ptr, f->buf.len);
+			ffstr_shift(&buf, seek - off);
+			goto data;
+		}
 	}
 
-	r = ffstd_fread(f->fd, f->buf.ptr, f->buf.cap);
-	if (r == 0) {
-		d->outlen = 0;
-		return FMED_RDONE;
-	} else if (r < 0) {
-		syserrlog(d->trk, "%s", fffile_read_S);
-		return FMED_RERR;
+	for (;;) {
+		r = ffstd_fread(f->fd, f->buf.ptr, f->buf.cap);
+		if (r == 0) {
+			d->outlen = 0;
+			return FMED_RDONE;
+		} else if (r < 0) {
+			syserrlog(d->trk, "%s", fffile_read_S);
+			return FMED_RERR;
+		}
+		dbglog(d->trk, "read %L bytes from stdin"
+			, r);
+		f->total += r;
+		f->buf.len = r;
+		ffstr_set(&buf, f->buf.ptr, f->buf.len);
+		if (seek == 0)
+			break;
+		else if (f->total > seek) {
+			uint64 off = f->total - f->buf.len;
+			ffstr_shift(&buf, seek - off);
+			break;
+		}
 	}
 
-	dbglog(d->trk, "read %L bytes from stdin"
-		, r);
-	d->out = f->buf.ptr, d->outlen = r;
+data:
+	d->out = buf.ptr, d->outlen = buf.len;
 	return FMED_RDATA;
 }
 
