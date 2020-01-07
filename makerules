@@ -1,6 +1,6 @@
 
 OBJ_DIR := .
-BIN_CONTAINERS := avi.$(SO) mkv.$(SO) mp4.$(SO) ogg.$(SO)
+BIN_CONTAINERS := avi.$(SO) mkv.$(SO) mp4.$(SO) ogg.$(SO) caf.$(SO)
 BIN_ACODECS := wav.$(SO) \
 	aac.$(SO) alac.$(SO) ape.$(SO) flac.$(SO) mpeg.$(SO) mpc.$(SO) opus.$(SO) vorbis.$(SO) wavpack.$(SO)
 BIN_AFILTERS := dynanorm.$(SO) \
@@ -217,6 +217,17 @@ OGG_O := $(OBJ_DIR)/ogg.o \
 	$(FF_OBJ_DIR)/ffogg-fmt.o
 ogg.$(SO): $(OGG_O)
 	$(LD) -shared $(OGG_O) $(LDFLAGS)  -o$@
+
+
+#
+CF_O := $(OBJ_DIR)/caf.o \
+	$(FF_O) \
+	$(FF_OBJ_DIR)/ffpcm.o \
+	$(FF_OBJ_DIR)/ffid3.o \
+	$(FF_OBJ_DIR)/ffmp4-fmt.o \
+	$(FF_OBJ_DIR)/ffcaf.o
+caf.$(SO): $(CF_O)
+	$(LD) -shared $(CF_O) $(LDFLAGS)  -o$@
 
 
 #
