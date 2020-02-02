@@ -24,9 +24,9 @@ mixer                 mixer
 
 
 #define FMED_VER_MAJOR  1
-#define FMED_VER_MINOR  14
+#define FMED_VER_MINOR  15
 #define FMED_VER_FULL  ((FMED_VER_MAJOR << 8) | FMED_VER_MINOR)
-#define FMED_VER  "1.14"
+#define FMED_VER  "1.15"
 
 #define FMED_VER_GETMAJ(fullver)  ((fullver) >> 8)
 #define FMED_VER_GETMIN(fullver)  ((fullver) & 0xff)
@@ -35,7 +35,7 @@ mixer                 mixer
 It must be updated when incompatible changes are made to this file,
  then all modules must be rebuilt.
 The core will refuse to load modules built for any other core version. */
-#define FMED_VER_CORE  ((FMED_VER_MAJOR << 8) | 12)
+#define FMED_VER_CORE  ((FMED_VER_MAJOR << 8) | 15)
 
 #define FMED_HOMEPAGE  "https://stsaz.github.io/fmedia/"
 
@@ -457,7 +457,7 @@ struct fmed_trk {
 		uint width, height;
 		const char *decoder;
 	} video;
-	uint64 a_prebuffer; //msec
+	uint a_prebuffer; //msec
 	float a_start_level; //dB
 	float a_stop_level; //dB
 	uint a_stop_level_time; //msec

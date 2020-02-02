@@ -8,6 +8,29 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.15 - Feb 2, 2020
+
+ + Linux: support JACK capture
+ + Linux: disable system sleep timer while playing
+ * Linux: automatically use ALSA output when Pulse isn't installed
+   e.g. "libpulse.so.0" is not found
+
+ * --listdev is more reliable
+   Show capture devices list even if playback devices list couldn't be shown
+
+ - .m4a write: .m4a(AAC) files created by fmedia couldn't be opened
+     by other players, e.g. VLC (v1.10 bug)
+   fmedia can read those files with no problems.
+
+ *! config: don't override "output" if it's already initialized
+    e.g. for this configuration:
+
+    output "pulse.out"
+    output "alsa.out"
+
+    Pulse (the first one) will be used.
+
+
 fmedia (Android) v0.2 - Jan 7, 2020
 
  + GUI: save/restore the current path in explorer

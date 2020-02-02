@@ -45,11 +45,6 @@ INPUT:
 --until=TIME       Stop at time
                    Special values:
                      'playback-end': stop recording when the last playback track is finished
---prebuffer=TIME   Start recording by a command from user, saving the previously bufferred seconds of audio
---start-dblevel=DB Skip initial audio until input signal level goes above DB (-100dB..0dB)
---stop-dblevel=DB[;TIME][;MINTIME]
-                   Stop processing if input signal level goes below DB for TIME time (default: 5 sec).
-                   If MINTIME is specified, stop only after MINTIME time has passed.
 --fseek=BYTE       Set input file offset
 -i, --info         Don't play but show media information
 --tags             Print all meta tags
@@ -65,6 +60,11 @@ INPUT:
 FILTERS:
 --volume=INT       Set volume (0% .. 125%)
 --gain=FLOAT       Set gain/attenuation in dB
+--prebuffer=TIME   Start writing the recorded audio to a file by user's command, saving some previously recorded data (before the command is issued)
+--start-dblevel=DB Skip initial audio until input signal level goes above DB (-100dB..0dB)
+--stop-dblevel=DB[;TIME][;MINTIME]
+                   Stop processing if input signal level goes below DB for TIME time (default: 5 sec).
+                   If MINTIME is specified, stop only after MINTIME time has passed.
 --split=TIME       Split audio by equal time intervals
 --dynanorm         Use Dynamic Audio Normalizer filter.
                    Set parameters in section `mod_conf dynanorm.filter` in fmedia.conf.

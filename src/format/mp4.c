@@ -7,6 +7,9 @@ Copyright (c) 2016 Simon Zolin */
 #include <FF/mtags/mmtag.h>
 
 
+#define dbglog1(trk, ...)  fmed_dbglog(core, trk, NULL, __VA_ARGS__)
+
+
 static const fmed_core *core;
 static const fmed_queue *qu;
 
@@ -175,6 +178,11 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 			return FMED_RMORE;
 
 		case FFMP4_RHDR: {
+			dbglog1(d->trk, "codec:%s  magic:%*xb  total_samples:%u  format:%u/%u"
+				, ffmp4_codec(m->mp.codec)
+				, m->mp.outlen, m->mp.out
+				, ffmp4_totalsamples(&m->mp)
+				, m->mp.fmt.sample_rate, m->mp.fmt.channels);
 			ffpcm_fmtcopy(&d->audio.fmt, &m->mp.fmt);
 
 			d->audio.total = ffmp4_totalsamples(&m->mp);

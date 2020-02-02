@@ -23,7 +23,6 @@ This is the list of the things that need to be done.
 
 * .mkv, .avi: support MPEG delay
 * join several files into one
-* shuffle playlist
 * fatal decoding errors should have filename in their log messages
 * PulseAudio input
 * ALSA: Add fallback path (using fmedia timer) in case "snd_async_add_pcm_handler(): (-38) Function not implemented"

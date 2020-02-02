@@ -563,6 +563,12 @@ endif
 	chmod 644 $(INSTDIR)/mod/*
 
 
+copy-bins:
+	$(CP) \
+		*.$(SO) \
+		$(INSTDIR)/mod
+
+
 installd: all
 	$(MAKE) -f $(firstword $(MAKEFILE_LIST)) install-only
 install: all
