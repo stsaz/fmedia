@@ -240,66 +240,50 @@ static int fmed_arg_infile(ffparser_schem *p, void *obj, const ffstr *val)
 	return 0;
 }
 
-static int fmed_arg_listdev(void)
+static void listdev(ffarr *buf, uint flags, uint flags2)
 {
 	fmed_adev_ent *ents = NULL;
 	const fmed_modinfo *mod;
 	const fmed_adev *adev = NULL;
-	uint i, ndev;
-	ffarr buf = {0};
 
-	if (NULL == ffarr_alloc(&buf, 1024))
-		goto end;
-
-	if (NULL == (mod = core->getmod2(FMED_MOD_INFO_ADEV_OUT, NULL, 0))
+	if (NULL == (mod = core->getmod2(flags2, NULL, 0))
 		|| NULL == (adev = mod->m->iface("adev")))
 		goto end;
 
-	ndev = adev->list(&ents, FMED_ADEV_PLAYBACK);
+	uint ndev = adev->list(&ents, flags);
 	if ((int)ndev < 0)
 		goto end;
 
-	ffstr_catfmt(&buf, "Playback/Loopback:\n");
-	for (i = 0;  i != ndev;  i++) {
+	const char *title = (flags == FMED_ADEV_PLAYBACK) ? "Playback/Loopback" : "Capture";
+	ffstr_catfmt(buf, "%s:\n", title);
+	for (uint i = 0;  i != ndev;  i++) {
 		ffstr def = {};
 		if (ents[i].default_device)
 			ffstr_setz(&def, " - Default");
-		ffstr_catfmt(&buf, "device #%u: %s%S\n", i + 1, ents[i].name, &def);
+		ffstr_catfmt(buf, "device #%u: %s%S\n", i + 1, ents[i].name, &def);
+
 		const ffpcm *df = &ents[i].default_format;
 		if (df->format != 0)
-			ffstr_catfmt(&buf, " Default Format: %u channel, %u Hz\n"
-				, df->channels, df->sample_rate);
-	}
-
-	adev->listfree(ents);
-	ents = NULL;
-
-	if (NULL == (mod = core->getmod2(FMED_MOD_INFO_ADEV_IN, NULL, 0))
-		|| NULL == (adev = mod->m->iface("adev")))
-		goto end;
-
-	ndev = adev->list(&ents, FMED_ADEV_CAPTURE);
-	if ((int)ndev < 0)
-		goto end;
-
-	ffstr_catfmt(&buf, "\nCapture:\n");
-	for (i = 0;  i != ndev;  i++) {
-		ffstr def = {};
-		if (ents[i].default_device)
-			ffstr_setz(&def, " - Default");
-		ffstr_catfmt(&buf, "device #%u: %s%S\n", i + 1, ents[i].name, &def);
-		const ffpcm *df = &ents[i].default_format;
-		if (df->format != 0)
-			ffstr_catfmt(&buf, " Default Format: %u channel, %u Hz\n"
+			ffstr_catfmt(buf, " Default Format: %u channel, %u Hz\n"
 				, df->channels, df->sample_rate);
 	}
 
 end:
+	if (ents != NULL)
+		adev->listfree(ents);
+}
+
+static int fmed_arg_listdev(void)
+{
+	ffarr buf;
+	ffarr_alloc(&buf, 1024);
+
+	listdev(&buf, FMED_ADEV_PLAYBACK, FMED_MOD_INFO_ADEV_OUT);
+	listdev(&buf, FMED_ADEV_CAPTURE, FMED_MOD_INFO_ADEV_IN);
+
 	if (buf.len != 0)
 		ffstd_write(ffstdout, buf.ptr, buf.len);
 	ffarr_free(&buf);
-	if (ents != NULL)
-		adev->listfree(ents);
 	return FFPARS_ELAST;
 }
 
