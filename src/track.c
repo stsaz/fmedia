@@ -173,6 +173,12 @@ static fmed_f* addfilter(fm_trk *t, const char *modname)
 	return filt_add(t, FMED_TRACK_FILT_ADDLAST, modname);
 }
 
+/** Don't print error message on failure. */
+static fmed_f* filt_add_optional(fm_trk *t, const char *modname)
+{
+	return filt_add(t, FMED_TRACK_FILT_ADDLAST | 0x80000000, modname);
+}
+
 static fmed_f* trk_modbyext(fm_trk *t, uint flags, const ffstr *ext)
 {
 	const fmed_modinfo *mi = core->getmod2(flags, ext->ptr, ext->len);
@@ -946,16 +952,20 @@ static int trk_meta_copy(fm_trk *t, fm_trk *src)
 /** Add filter to chain. */
 static fmed_f* filt_add(fm_trk *t, uint cmd, const char *name)
 {
+	uint optional = cmd & 0x80000000;
+	cmd &= ~0x80000000;
 	fmed_f *f;
 	if (ffarr_isfull(&t->filters)) {
-		errlog(t, "can't add more filters", 0);
+		if (!optional)
+			errlog(t, "can't add more filters", 0);
 		return NULL;
 	}
 
 	f = ffarr_endT(&t->filters, fmed_f);
 	ffmem_tzero(f);
-	if (NULL == (f->filt = core->getmod2(FMED_MOD_IFACE, name, -1))) {
-		errlog(t, "no such interface %s", name);
+	if (NULL == (f->filt = core->getmod2(FMED_MOD_IFACE | FMED_MOD_NOLOG, name, -1))) {
+		if (!optional)
+			errlog(t, "no such interface %s", name);
 		return NULL;
 	}
 
