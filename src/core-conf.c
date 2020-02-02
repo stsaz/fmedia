@@ -34,6 +34,7 @@ static const ffpars_arg conf_args[] = {
 	{ "mod",	FFPARS_TSTR | FFPARS_FNOTEMPTY | FFPARS_FSTRZ | FFPARS_FCOPY | FFPARS_FMULTI, FFPARS_DST(&conf_mod) },
 	{ "mod_conf",	FFPARS_TOBJ | FFPARS_FOBJ1 | FFPARS_FNOTEMPTY | FFPARS_FMULTI, FFPARS_DST(&conf_modconf) },
 	{ "output",	FFPARS_TSTR | FFPARS_FNOTEMPTY | FFPARS_FMULTI, FFPARS_DST(&conf_output) },
+	{ "output_optional",	FFPARS_TSTR | FFPARS_FNOTEMPTY | FFPARS_FMULTI, FFPARS_DST(&conf_output) },
 	{ "input",	FFPARS_TSTR | FFPARS_FNOTEMPTY | FFPARS_FMULTI, FFPARS_DST(&conf_input) },
 	{ "record_format",	FFPARS_TOBJ, FFPARS_DST(&conf_recfmt) },
 	{ "input_ext",	FFPARS_TOBJ, FFPARS_DST(&conf_ext) },
@@ -141,11 +142,16 @@ static int conf_output(ffparser_schem *p, void *obj, ffstr *val)
 {
 	fmed_config *conf = obj;
 
-	if (!allowed_mod(val))
+	if (!allowed_mod(val) || conf->output != NULL)
 		return 0;
 
-	if (NULL == (conf->output = core->getmod2(FMED_MOD_INFO, val->ptr, val->len)))
+	const void *out;
+	if (NULL == (out = core->getmod2(FMED_MOD_INFO, val->ptr, val->len))) {
+		if (ffsz_eq(ffpars_argname(p), "output_optional"))
+			return 0;
 		return FFPARS_EBADVAL;
+	}
+	conf->output = out;
 	return 0;
 }
 
