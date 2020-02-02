@@ -54,7 +54,7 @@ static const ffpars_arg confusr_args[] = {
 };
 
 #define MODS_WIN_ONLY  "wasapi.", "direct-sound.", "#winsleep."
-#define MODS_LINUX_ONLY  "alsa.", "pulse.", "dbus."
+#define MODS_LINUX_ONLY  "alsa.", "pulse.", "jack.", "dbus."
 #define MODS_BSD_ONLY  "oss."
 #define MODS_MAC_ONLY  "coreaudio."
 

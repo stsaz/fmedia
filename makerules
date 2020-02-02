@@ -15,7 +15,7 @@ BINS := $(BIN) core.$(SO) tui.$(SO) net.$(SO) plist.$(SO) \
 OS_BINS :=
 ifeq ($(OS),linux)
 
-OS_BINS += alsa.$(SO) pulse.$(SO) gui.$(SO) dbus.$(SO)
+OS_BINS += alsa.$(SO) pulse.$(SO) jack.$(SO) gui.$(SO) dbus.$(SO)
 
 else ifeq ($(OS),apple)
 OS_BINS += coreaudio.$(SO)
@@ -398,6 +398,15 @@ PULSE_O := $(OBJ_DIR)/pulse.o $(FF_O) \
 	$(FF_OBJ_DIR)/ffpulse.o
 pulse.$(SO): $(PULSE_O)
 	$(LD) -shared $(PULSE_O) $(LDFLAGS) -lpulse -o$@
+
+
+#
+JACK_O := $(OBJ_DIR)/jack.o $(FF_O) \
+	$(FF_OBJ_DIR)/ffring.o \
+	$(FF_OBJ_DIR)/ffpcm.o \
+	$(FF_OBJ_DIR)/ffjack.o
+jack.$(SO): $(JACK_O)
+	$(LD) -shared $(JACK_O) $(LDFLAGS) -ljack -o$@
 
 
 #

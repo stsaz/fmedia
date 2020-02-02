@@ -9,6 +9,7 @@ This is the list of the things that need to be done.
 * 24-bit conversion via soxr
 * gapless playback of the next track in queue
 * noise gate filter
+* JACK playback
 * ICY: detect audio format in case of unknown content type, .e.g. "Content-Type: application/octet-stream"
 * support --meta with --stream-copy (.ogg, .m4a, .mp3)
 * GUI: Open directory from disk

@@ -42,6 +42,7 @@ FEATURES
 * WASAPI Capture
 * Windows Direct Sound Capture
 * ALSA Capture
+* JACK Capture
 
 ### FILTERS
 * Containers:
@@ -137,6 +138,7 @@ INSTALL
 	* gcc or clang
 	* libalsa-devel (for ALSA module)
 	* libpulse-devel (for Pulse Audio module)
+	* jack-audio-connection-kit-devel (for JACK module)
 	* gtk3-devel (for GUI module)
 	* dbus-devel (for DBUS module)
 
