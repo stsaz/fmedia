@@ -138,6 +138,7 @@ INSTALL
 	* libalsa-devel (for ALSA module)
 	* libpulse-devel (for Pulse Audio module)
 	* gtk3-devel (for GUI module)
+	* dbus-devel (for DBUS module)
 
 1. Create a directory for all needed sources:
 

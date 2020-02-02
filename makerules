@@ -15,7 +15,7 @@ BINS := $(BIN) core.$(SO) tui.$(SO) net.$(SO) plist.$(SO) \
 OS_BINS :=
 ifeq ($(OS),linux)
 
-OS_BINS += alsa.$(SO) pulse.$(SO) gui.$(SO)
+OS_BINS += alsa.$(SO) pulse.$(SO) gui.$(SO) dbus.$(SO)
 
 else ifeq ($(OS),apple)
 OS_BINS += coreaudio.$(SO)
@@ -105,8 +105,13 @@ CORE_O := $(OBJ_DIR)/core.o $(OBJ_DIR)/core-conf.o \
 	$(OBJ_DIR)/start-stop-level.o \
 	$(OBJ_DIR)/aconv.o \
 	$(OBJ_DIR)/queue.o \
-	$(OBJ_DIR)/globcmd.o \
-	$(FF_O) \
+	$(OBJ_DIR)/globcmd.o
+
+ifeq ($(OS),win)
+	CORE_O += $(OBJ_DIR)/sys-sleep-win.o
+endif
+
+CORE_O += $(FF_O) \
 	$(FFOS_WREG) \
 	$(FFOS_THD) \
 	$(FF_OBJ_DIR)/fffileread.o \
@@ -482,6 +487,15 @@ MIXER_O := $(OBJ_DIR)/mixer.o \
 	$(FF_OBJ_DIR)/ffpcm.o
 mixer.$(SO): $(MIXER_O)
 	$(LD) -shared $(MIXER_O) $(LDFLAGS) -o$@
+
+
+#
+DBUS_O := $(OBJ_DIR)/sys-sleep-dbus.o \
+	$(FF_O) \
+	$(FF_OBJ_DIR)/fflin-dbus.o \
+	$(FF_OBJ_DIR)/ffpcm.o
+dbus.$(SO): $(DBUS_O)
+	$(LD) -shared $(DBUS_O) $(LDFLAGS) -ldbus-1 -o$@
 
 
 clean:

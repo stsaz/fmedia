@@ -53,8 +53,8 @@ static const ffpars_arg confusr_args[] = {
 	{ "*",	FFPARS_TSTR | FFPARS_FMULTI | FFPARS_FLIST, FFPARS_DST(&confusr_mod) },
 };
 
-#define MODS_WIN_ONLY  "wasapi.", "direct-sound."
-#define MODS_LINUX_ONLY  "alsa.", "pulse."
+#define MODS_WIN_ONLY  "wasapi.", "direct-sound.", "#winsleep."
+#define MODS_LINUX_ONLY  "alsa.", "pulse.", "dbus."
 #define MODS_BSD_ONLY  "oss."
 #define MODS_MAC_ONLY  "coreaudio."
 

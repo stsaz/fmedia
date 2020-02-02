@@ -95,6 +95,9 @@ extern const fmed_mod* fmed_getmod_file(const fmed_core *_core);
 extern const fmed_mod* fmed_getmod_sndmod(const fmed_core *_core);
 extern const fmed_mod* fmed_getmod_queue(const fmed_core *_core);
 extern const fmed_mod* fmed_getmod_globcmd(const fmed_core *_core);
+#ifdef FF_WIN
+extern const fmed_mod* fmed_getmod_winsleep(const fmed_core *_core);
+#endif
 
 static int core_open(void);
 static int core_sigmods(uint signo);
@@ -355,6 +358,10 @@ static int mod_load(core_modinfo *minfo)
 			getmod = &fmed_getmod_sndmod;
 		else if (ffstr_eqcz(&s, "#queue"))
 			getmod = &fmed_getmod_queue;
+#ifdef FF_WIN
+		else if (ffstr_eqcz(&s, "#winsleep"))
+			getmod = &fmed_getmod_winsleep;
+#endif
 		else if (ffstr_eqcz(&s, "#globcmd")) {
 			getmod = &fmed_getmod_globcmd;
 		} else {
