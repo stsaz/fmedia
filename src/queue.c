@@ -9,9 +9,11 @@ Copyright (c) 2015 Simon Zolin */
 
 
 #undef syserrlog
-#define dbglog0(...)  fmed_dbglog(core, NULL, "que", __VA_ARGS__)
-#define syserrlog(...)  fmed_syserrlog(core, NULL, "que", __VA_ARGS__)
+#define infolog(...)  fmed_infolog(core, NULL, "queue", __VA_ARGS__)
+#define dbglog0(...)  fmed_dbglog(core, NULL, "queue", __VA_ARGS__)
+#define syserrlog(...)  fmed_syserrlog(core, NULL, "queue", __VA_ARGS__)
 
+#define MAX_N_ERRORS  15  // max. number of consecutive errors
 
 /*
 Metadata priority:
@@ -56,6 +58,7 @@ struct plist {
 	ffarr indexes; //entry*[]  Get an entry by its number;  find a number by an entry pointer.
 	entry *cur, *xcursor;
 	struct plist *filtered_plist; //list with the filtered tracks
+	uint nerrors; // number of consecutive errors
 	uint rm :1;
 	uint allow_random :1;
 	uint filtered :1;
@@ -1333,6 +1336,8 @@ static ffstr* que_meta(fmed_que_entry *ent, size_t n, ffstr *name, uint flags)
 }
 
 
+/** Called after a track has been finished.
+Thread: main */
 static void que_ontrkfin(entry *e)
 {
 	if (qu->mixing) {
@@ -1342,8 +1347,29 @@ static void que_ontrkfin(entry *e)
 		e->stop_after = 0;
 	else if (e->expand || e->trk_stopped)
 	{}
-	else if (!e->trk_err)
+	else if (!e->trk_err || qu->next_if_err) {
+		if (qu->random || qu->repeat_all) {
+			/* Don't start the next track when there are too many consecutive errors.
+			When in Random or Repeat-all mode we may waste CPU resources
+			 without making any progress, e.g.:
+			. input: storage isn't online, files been moved, etc.
+			. filters: format or codec isn't supported, decoding error, etc.
+			. output: audio system is failing */
+
+			if (!e->trk_err && e->plist->nerrors != 0)
+				e->plist->nerrors = 0;
+			else if (e->trk_err) {
+				if (++e->plist->nerrors == MAX_N_ERRORS) {
+					infolog("Stopping playback: too many consecutive errors");
+					e->plist->nerrors = 0;
+					goto end;
+				}
+			}
+		}
 		que_cmd(FMED_QUE_NEXT2, &e->e);
+	}
+
+end:
 	ent_unref(e);
 }
 
@@ -1411,8 +1437,7 @@ static void que_trk_close(void *ctx)
 	int stopped = t->track->getval(t->trk, "stopped");
 	int err = t->track->getval(t->trk, "error");
 	t->e->trk_stopped = (stopped != FMED_NULL);
-	t->e->trk_err = (err != FMED_NULL)
-		&& !qu->next_if_err;
+	t->e->trk_err = (err != FMED_NULL);
 	t->e->trk_mixed = (FMED_NULL != t->track->getval(t->trk, "mix_tracks"));
 
 	struct quetask *qt = ffmem_new(struct quetask);
