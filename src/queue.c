@@ -63,6 +63,7 @@ struct plist {
 	uint allow_random :1;
 	uint filtered :1;
 	uint parallel :1; // every item in this queue will start via FMED_TRACK_XSTART
+	uint expand_all :1; // read meta data of all items
 };
 
 static void plist_free(plist *pl);
@@ -126,6 +127,7 @@ static void que_taskfunc(void *udata);
 static void rnd_init();
 enum CMD {
 	CMD_TRKFIN = 0x010000,
+	CMD_TRKFIN_EXPAND,
 };
 struct quetask {
 	uint cmd; //enum FMED_QUE or enum CMD
@@ -528,6 +530,34 @@ static entry* que_getnext(entry *from)
 	return FF_GETPTR(entry, sib, it);
 }
 
+/** Expand the next (or the first) item in list.
+e: the last expanded item
+ NULL: expand the first item */
+static void pl_expand_next(plist *pl, entry *e)
+{
+	void *trk = NULL;
+
+	if (e == NULL) {
+		e = pl_first(pl);
+		if (e == NULL)
+			return;
+		pl->expand_all = 1;
+		dbglog0("expanding plist %p", pl);
+		trk = (void*)que_cmdv(FMED_QUE_EXPAND, e);
+	}
+
+	while (trk == NULL || trk == FMED_TRK_EFMT) {
+		e = pl_next(e);
+		if (e == NULL) {
+			pl->expand_all = 0;
+			dbglog0("done expanding plist %p", pl);
+			break;
+		}
+
+		trk = (void*)que_cmdv(FMED_QUE_EXPAND, e);
+	}
+}
+
 static void que_mix(void)
 {
 	fflist *ents = &qu->curlist->ents;
@@ -658,7 +688,7 @@ static const char *const scmds[] = {
 	"sort", "count",
 	"xplay", "add2", "add-after", "settrackprops", "copytrackprops",
 	"", "", "", "",
-	"expand2",
+	"expand2", "expand-all"
 };
 
 static ssize_t que_cmdv(uint cmd, ...)
@@ -827,6 +857,10 @@ static ssize_t que_cmdv(uint cmd, ...)
 		qu->track->cmd(trk, FMED_TRACK_START);
 		goto end;
 	}
+
+	case FMED_QUE_EXPAND_ALL:
+		pl_expand_next(qu->curlist, NULL);
+		goto end;
 
 	default:
 		break;
@@ -1345,7 +1379,7 @@ static void que_ontrkfin(entry *e)
 			core->sig(FMED_STOP);
 	} else if (e->stop_after)
 		e->stop_after = 0;
-	else if (e->expand || e->trk_stopped)
+	else if (e->trk_stopped)
 	{}
 	else if (!e->trk_err || qu->next_if_err) {
 		if (qu->random || qu->repeat_all) {
@@ -1381,6 +1415,14 @@ static void que_taskfunc(void *udata)
 	case CMD_TRKFIN:
 		que_ontrkfin((void*)qt->param);
 		break;
+
+	case CMD_TRKFIN_EXPAND: {
+		entry *e = (void*)qt->param;
+		pl_expand_next(e->plist, e);
+		ent_unref(e);
+		break;
+	}
+
 	default:
 		que_cmd(qt->cmd, (void*)qt->param);
 	}
@@ -1430,6 +1472,7 @@ static void* que_trk_open(fmed_filt *d)
 static void que_trk_close(void *ctx)
 {
 	que_trk *t = ctx;
+	entry *e = t->e;
 
 	if ((int64)t->d->audio.total != FMED_NULL && t->d->audio.fmt.sample_rate != 0)
 		t->e->e.dur = ffpcm_time(t->d->audio.total, t->d->audio.fmt.sample_rate);
@@ -1437,14 +1480,22 @@ static void que_trk_close(void *ctx)
 	int stopped = t->track->getval(t->trk, "stopped");
 	int err = t->track->getval(t->trk, "error");
 	t->e->trk_stopped = (stopped != FMED_NULL);
+	if (t->d->type == FMED_TRK_TYPE_EXPAND && !e->plist->expand_all)
+		e->trk_stopped = 1;
 	t->e->trk_err = (err != FMED_NULL);
 	t->e->trk_mixed = (FMED_NULL != t->track->getval(t->trk, "mix_tracks"));
 
 	struct quetask *qt = ffmem_new(struct quetask);
-	FF_ASSERT(qt != NULL);
-	qt->cmd = CMD_TRKFIN;
-	qt->param = (size_t)t->e;
-	que_task_add(qt);
+	if (qt != NULL) {
+		qt->cmd = CMD_TRKFIN;
+		if (t->d->type == FMED_TRK_TYPE_EXPAND && e->plist->expand_all)
+			qt->cmd = CMD_TRKFIN_EXPAND;
+		qt->param = (size_t)t->e;
+		que_task_add(qt);
+	}
+
+	if (t->d->type == FMED_TRK_TYPE_EXPAND && qu->onchange != NULL)
+		qu->onchange(&e->e, FMED_QUE_ONUPDATE);
 
 	int64 v = t->track->getval(t->trk, "queue-ondone");
 	if (v != FMED_NULL) {

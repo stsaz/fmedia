@@ -712,6 +712,9 @@ enum FMED_QUE_EVT {
 	FMED_QUE_ONADD,
 	FMED_QUE_ONRM,
 	FMED_QUE_ONCLEAR,
+
+	/** Notification after completion of the track which was started by FMED_QUE_EXPAND* command.  */
+	FMED_QUE_ONUPDATE,
 };
 
 /** @flags: enum FMED_QUE_EVT. */
@@ -843,6 +846,9 @@ enum FMED_QUE {
 	/** Expand source and notify user on completion.
 	void expand2(fmed_que_entry *e, void (*ondone)(void*), void *udata) */
 	FMED_QUE_EXPAND2,
+
+	/** Expand all items in the current playlist */
+	FMED_QUE_EXPAND_ALL,
 
 	_FMED_QUE_LAST
 };
