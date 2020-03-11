@@ -263,6 +263,7 @@ static const char *const action_str[] = {
 	"A_LIST_NEW",
 	"A_LIST_DEL",
 	"A_LIST_SEL",
+	"A_LIST_READMETA",
 	"A_LIST_SAVE",
 	"A_LIST_SELECTALL",
 	"A_LIST_REMOVE",
@@ -529,6 +530,10 @@ static void corecmd_run(uint cmd, void *udata)
 		wmain_list_update(0, n);
 		break;
 	}
+
+	case A_LIST_READMETA:
+		gg->qu->cmdv(FMED_QUE_EXPAND_ALL);
+		break;
 
 	case A_ONDROPFILE: {
 		ffstr *d = udata;
@@ -925,6 +930,7 @@ static void gui_que_onchange(fmed_que_entry *ent, uint flags)
 			break;
 		//fallthrough
 	case FMED_QUE_ONRM:
+	case FMED_QUE_ONUPDATE:
 		if (!gg->qu->cmdv(FMED_QUE_ISCURLIST, ent))
 			return;
 		break;
@@ -941,6 +947,11 @@ static void gui_que_onchange(fmed_que_entry *ent, uint flags)
 	case FMED_QUE_ONRM:
 		idx = gg->qu->cmdv(FMED_QUE_ID, ent);
 		wmain_ent_removed(idx);
+		break;
+
+	case FMED_QUE_ONUPDATE:
+		idx = gg->qu->cmdv(FMED_QUE_ID, ent);
+		wmain_list_update(idx, 0);
 		break;
 
 	case FMED_QUE_ONCLEAR:

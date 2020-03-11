@@ -125,6 +125,7 @@ static void wmain_action(ffui_wnd *wnd, int id)
 	case A_LIST_SELECTALL:
 		ffui_view_selall(&gg->wmain.vlist);
 		return;
+	case A_LIST_READMETA:
 	case A_LIST_REMOVE:
 	case A_LIST_RMDEAD:
 	case A_LIST_CLEAR:

@@ -49,6 +49,9 @@ menu mlist {
 		action A_LIST_SAVE
 		hotkey "Ctrl+S"
 	}
+	item "Read _Meta Tags" {
+		action A_LIST_READMETA
+	}
 	item "-" {
 	}
 	item "Select _All" {

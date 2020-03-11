@@ -338,6 +338,7 @@ static const char *const scmds[] = {
 
 	"LIST_RMDEAD",
 	"CLEAR",
+	"A_LIST_READMETA",
 	"SELALL",
 	"SELINVERT",
 	"SORT",
@@ -530,6 +531,10 @@ void gui_corecmd_op(uint cmd, void *udata)
 		list_update(0, n);
 		break;
 	}
+
+	case A_LIST_READMETA:
+		gg->qu->cmdv(FMED_QUE_EXPAND_ALL);
+		break;
 	}
 }
 
@@ -543,6 +548,7 @@ static void gui_que_onchange(fmed_que_entry *e, uint flags)
 			break;
 		//fallthrough
 	case FMED_QUE_ONRM:
+	case FMED_QUE_ONUPDATE:
 		if (!gg->qu->cmdv(FMED_QUE_ISCURLIST, e))
 			return;
 	}
@@ -561,6 +567,11 @@ static void gui_que_onchange(fmed_que_entry *e, uint flags)
 	case FMED_QUE_ONRM:
 		idx = gg->qu->cmdv(FMED_QUE_ID, e);
 		gui_media_removed(idx);
+		break;
+
+	case FMED_QUE_ONUPDATE:
+		idx = gg->qu->cmdv(FMED_QUE_ID, e);
+		list_update(idx, 0);
 		break;
 
 	case FMED_QUE_ONCLEAR:
