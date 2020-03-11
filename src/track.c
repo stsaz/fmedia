@@ -351,8 +351,11 @@ static void* trk_create(uint cmd, const char *fn)
 
 	switch (cmd) {
 
-	case FMED_TRK_TYPE_PLAYBACK:
 	case FMED_TRK_TYPE_EXPAND:
+		t->props.input_info = 1;
+		// fallthrough
+
+	case FMED_TRK_TYPE_PLAYBACK:
 		if (0 != trk_open(t, fn)) {
 			trk_free(t);
 			return FMED_TRK_EFMT;

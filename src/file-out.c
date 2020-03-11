@@ -3,6 +3,7 @@ Copyright (c) 2019 Simon Zolin */
 
 #include <fmedia.h>
 
+#include <FF/sys/filewrite.h>
 #include <FF/time.h>
 #include <FF/path.h>
 #include <FFOS/file.h>
@@ -45,26 +46,15 @@ static const ffpars_arg file_out_conf_args[] = {
 
 
 typedef struct fmed_fileout {
+	fffilewrite *fw;
 	fmed_trk *d;
 	ffstr fname;
-	fffd fd;
-	ffarr buf;
-	uint64 fsize
-		, preallocated;
-	uint64 prealloc_by;
+	uint64 wr;
 	fftime modtime;
 	uint ok :1;
-
-	struct {
-		uint nmwrite;
-		uint nfwrite;
-		uint nprealloc;
-	} stat;
 } fmed_fileout;
 
-static int fileout_writedata(fmed_fileout *f, const char *data, size_t len, fmed_filt *d);
 static char* fileout_getname(fmed_fileout *f, fmed_filt *d);
-
 
 int fileout_config(ffpars_ctx *ctx)
 {
@@ -244,55 +234,46 @@ done:
 	return NULL;
 }
 
+static void fileout_log(void *p, uint level, ffstr msg)
+{
+	fmed_fileout *f = p;
+	switch (level) {
+	case 0:
+		syserrlog(f->d->trk, "%S", &msg);
+		break;
+	case 1:
+		dbglog(f->d->trk, "%S", &msg);
+		break;
+	}
+}
+
 static void* fileout_open(fmed_filt *d)
 {
 	const char *filename;
 	fmed_fileout *f = ffmem_tcalloc1(fmed_fileout);
 	if (f == NULL)
 		return NULL;
-	f->fd = FF_BADFD;
 
 	if (NULL == (filename = fileout_getname(f, d)))
 		goto done;
 
-	uint flags = (d->out_overwrite) ? O_CREAT : FFO_CREATENEW;
-	flags |= O_WRONLY;
-	f->fd = fffile_open(filename, flags);
-	if (f->fd == FF_BADFD) {
-
-		if (fferr_nofile(fferr_last())) {
-			if (0 != ffdir_make_path((void*)filename, 0)) {
-				syserrlog(d->trk, "%s: for filename %s", ffdir_make_S, filename);
-				goto done;
-			}
-
-			f->fd = fffile_open(filename, flags);
-		}
-
-		if (f->fd == FF_BADFD) {
-			syserrlog(d->trk, "%s: %s", fffile_open_S, filename);
-			goto done;
-		}
-	}
-
-	size_t bfsz = out_conf.bsize;
+	fffilewrite_conf conf;
+	fffilewrite_setconf(&conf);
+	conf.udata = f;
+	conf.log = &fileout_log;
+	conf.bufsize = out_conf.bsize;
 	int64 n;
 	if (FMED_NULL != (n = fmed_popval("out_bufsize")))
-		bfsz = n; //Note: a large value can slow down the thread because we write to a file synchronously
-	if (NULL == ffarr_alloc(&f->buf, bfsz)) {
-		syserrlog(d->trk, "%s", ffmem_alloc_S);
+		conf.bufsize = n;
+	conf.bufsize = out_conf.bsize;
+	conf.prealloc = ((int64)d->output.size != FMED_NULL) ? d->output.size : out_conf.prealloc;
+	conf.prealloc_grow = out_conf.prealloc_grow;
+	conf.del_on_err = out_conf.file_del;
+	conf.overwrite = d->out_overwrite;
+	if (NULL == (f->fw = fffilewrite_create(filename, &conf)))
 		goto done;
-	}
-
-	if ((int64)d->output.size != FMED_NULL) {
-		if (0 == fffile_trunc(f->fd, d->output.size)) {
-			f->preallocated = d->output.size;
-			f->stat.nprealloc++;
-		}
-	}
 
 	f->modtime = d->mtime;
-	f->prealloc_by = out_conf.prealloc;
 	f->d = d;
 	return f;
 
@@ -305,130 +286,66 @@ static void fileout_close(void *ctx)
 {
 	fmed_fileout *f = ctx;
 
-	if (f->fd != FF_BADFD) {
+	if (f->fw != NULL) {
+		fffilewrite_stat st;
+		fffilewrite_getstat(f->fw, &st);
+		fffilewrite_free(f->fw);
 
-		fffile_trunc(f->fd, f->fsize);
-
-		if ((!f->ok && out_conf.file_del) || f->d->out_file_del) {
-
-			if (0 != fffile_close(f->fd))
-				syserrlog(NULL, "%s", fffile_close_S);
-
-			if (0 == fffile_rm(f->fname.ptr))
-				dbglog(NULL, "removed file %S", &f->fname);
-
-		} else {
+		if (f->ok) {
+			if (f->d->out_file_del) {
+				if (0 == fffile_rm(f->fname.ptr))
+					dbglog(NULL, "removed file %S", &f->fname);
+			}
 
 			if (fftime_sec(&f->modtime) != 0)
-				fffile_settime(f->fd, &f->modtime);
-
-			if (0 != fffile_close(f->fd))
-				syserrlog(NULL, "%s", fffile_close_S);
+				fffile_settimefn(f->fname.ptr, &f->modtime);
 
 			core->log(FMED_LOG_USER, NULL, "file", "saved file %S, %U kbytes"
-				, &f->fname, f->fsize / 1024);
+				, &f->fname, f->wr / 1024);
+			dbglog(NULL, "%S: mem write#:%u  file write#:%u  prealloc#:%u"
+				, &f->fname, st.nmwrite, st.nfwrite, st.nprealloc);
 		}
 	}
 
 	ffstr_free(&f->fname);
-	ffarr_free(&f->buf);
-	dbglog(NULL, "mem write#:%u  file write#:%u  prealloc#:%u"
-		, f->stat.nmwrite, f->stat.nfwrite, f->stat.nprealloc);
 	ffmem_free(f);
-}
-
-static int fileout_writedata(fmed_fileout *f, const char *data, size_t len, fmed_filt *d)
-{
-	size_t r;
-	if (f->prealloc_by != 0 && f->fsize + len > f->preallocated) {
-		uint64 n = ff_align_ceil(f->fsize + len, f->prealloc_by);
-		if (0 == fffile_trunc(f->fd, n)) {
-
-			if (out_conf.prealloc_grow)
-				f->prealloc_by += f->prealloc_by;
-
-			f->preallocated = n;
-			f->stat.nprealloc++;
-		}
-	}
-
-	r = fffile_write(f->fd, data, len);
-	if (r != len) {
-		syserrlog(d->trk, "%s: %s", fffile_write_S, f->fname.ptr);
-		return -1;
-	}
-	f->stat.nfwrite++;
-
-	dbglog(d->trk, "written %L bytes at offset %U (%L pending)", r, f->fsize, d->datalen);
-	f->fsize += r;
-	return r;
 }
 
 static int fileout_write(void *ctx, fmed_filt *d)
 {
 	fmed_fileout *f = ctx;
-	ssize_t r;
-	ffstr dst;
-	int64 seek;
 
+	int64 seek = -1;
 	if ((int64)d->output.seek != FMED_NULL) {
 		seek = d->output.seek;
 		d->output.seek = FMED_NULL;
 
-		if (f->buf.len != 0) {
-			if (-1 == fileout_writedata(f, f->buf.ptr, f->buf.len, d))
-				return FMED_RERR;
-			f->buf.len = 0;
-		}
-
 		dbglog(d->trk, "seeking to %xU...", seek);
-
-		if (0 > fffile_seek(f->fd, seek, SEEK_SET)) {
-			syserrlog(d->trk, "%s: %s", fffile_seek_S, f->fname.ptr);
-			return FMED_RERR;
-		}
-
-		if (d->datalen != (size_t)fffile_write(f->fd, d->data, d->datalen)) {
-			syserrlog(d->trk, "%s: %s", fffile_write_S, f->fname.ptr);
-			return FMED_RERR;
-		}
-		f->stat.nfwrite++;
-
-		dbglog(d->trk, "written %L bytes at offset %U", d->datalen, seek);
-
-		if (f->fsize < d->datalen)
-			f->fsize = d->datalen;
-
-		if (0 > fffile_seek(f->fd, f->fsize, SEEK_SET)) {
-			syserrlog(d->trk, "%s: %s", fffile_seek_S, f->fname.ptr);
-			return FMED_RERR;
-		}
-
-		d->datalen = 0;
 	}
 
-	for (;;) {
+	uint flags = 0;
+	if (d->flags & FMED_FLAST)
+		flags = FFFILEWRITE_FFLUSH;
 
-		r = ffbuf_add(&f->buf, d->data, d->datalen, &dst);
-		d->data += r;
-		d->datalen -= r;
-		if (dst.len == 0) {
-			f->stat.nmwrite++;
-			if (!(d->flags & FMED_FLAST) || f->buf.len == 0)
-				break;
-			ffstr_set(&dst, f->buf.ptr, f->buf.len);
+	ffstr in;
+	ffstr_set(&in, d->data, d->datalen);
+	d->datalen = 0;
+	int r = fffilewrite_write(f->fw, in, seek, flags);
+	switch (r) {
+	case FFFILEWRITE_RWRITTEN:
+		d->outlen = 0;
+		f->wr += in.len;
+		if (d->flags & FMED_FLAST) {
+			f->ok = 1;
+			return FMED_RDONE;
 		}
+		return FMED_ROK;
 
-		if (-1 == fileout_writedata(f, dst.ptr, dst.len, d))
-			return FMED_RERR;
-		if (d->datalen == 0)
-			break;
+	case FFFILEWRITE_RERR:
+		return FMED_RERR;
+
+	case FFFILEWRITE_RASYNC:
+		return FMED_RASYNC;
 	}
-
-	if (d->flags & FMED_FLAST) {
-		f->ok = 1;
-		return FMED_RDONE;
-	}
-
-	return FMED_ROK;
+	return FMED_RERR;
 }

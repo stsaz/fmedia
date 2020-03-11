@@ -239,6 +239,7 @@ window wmain {
 	trackbar tvol {
 		style horizontal
 		range 125
+		value 100
 		onscroll A_VOL
 	}
 

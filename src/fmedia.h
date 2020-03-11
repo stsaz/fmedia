@@ -24,9 +24,9 @@ mixer                 mixer
 
 
 #define FMED_VER_MAJOR  1
-#define FMED_VER_MINOR  15
+#define FMED_VER_MINOR  16
 #define FMED_VER_FULL  ((FMED_VER_MAJOR << 8) | FMED_VER_MINOR)
-#define FMED_VER  "1.15"
+#define FMED_VER  "1.16"
 
 #define FMED_VER_GETMAJ(fullver)  ((fullver) >> 8)
 #define FMED_VER_GETMIN(fullver)  ((fullver) & 0xff)
@@ -753,7 +753,12 @@ enum FMED_QUE {
 	FMED_QUE_RMDEAD,
 	FMED_QUE_METASET, // @param2: ffstr name_val_pair[2]
 	FMED_QUE_SETONCHANGE, // @param: fmed_que_onchange_t
-	FMED_QUE_EXPAND, // @param: fmed_que_entry*
+
+	/** Expand (read meta data).
+	void* expand(fmed_que_entry*)
+	Return track object. */
+	FMED_QUE_EXPAND,
+
 	FMED_QUE_HAVEUSERMETA, // @param: fmed_que_entry*
 
 	/** Create new list.
@@ -844,7 +849,8 @@ enum FMED_QUE {
 	FMED_QUE_SET_QUITIFDONE,
 
 	/** Expand source and notify user on completion.
-	void expand2(fmed_que_entry *e, void (*ondone)(void*), void *udata) */
+	void* expand2(fmed_que_entry *e, void (*ondone)(void*), void *udata)
+	Return track object. */
 	FMED_QUE_EXPAND2,
 
 	/** Expand all items in the current playlist */

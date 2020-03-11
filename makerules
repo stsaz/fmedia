@@ -115,6 +115,7 @@ CORE_O += $(FF_O) \
 	$(FFOS_WREG) \
 	$(FFOS_THD) \
 	$(FF_OBJ_DIR)/fffileread.o \
+	$(FF_OBJ_DIR)/fffilewrite.o \
 	$(FF_OBJ_DIR)/ffsys.o \
 	$(FF_OBJ_DIR)/fftmr.o \
 	$(FF_OBJ_DIR)/ffrbtree.o \
@@ -150,6 +151,7 @@ $(OBJ_DIR)/%.o: $(SRCDIR)/net/%.c $(SRCDIR)/fmedia.h $(SRCDIR)/net/net.h
 NET_O := $(OBJ_DIR)/net.o $(OBJ_DIR)/hls.o \
 	$(FF_OBJ_DIR)/ffhttp.o $(FF_OBJ_DIR)/ffhttp-client.o \
 	$(FF_OBJ_DIR)/ffproto.o $(FF_OBJ_DIR)/ffurl.o $(FF_OBJ_DIR)/ffparse.o $(FF_OBJ_DIR)/fficy.o \
+	$(FF_OBJ_DIR)/ffsys.o \
 	$(FF_OBJ_DIR)/ffcrc.o \
 	$(FF_OBJ_DIR)/ffhashtab.o \
 	$(FF_OBJ_DIR)/ffpath.o \

@@ -193,6 +193,10 @@ again:
 
 			d->audio.bitrate = ffmpg_bitrate(&m->mpg.rdr);
 			d->audio.total = ffmpg_length(&m->mpg.rdr);
+
+			if (d->input_info)
+				return FMED_RDONE;
+
 			if (m->mpg.rdr.duration_inaccurate) {
 				dbglog(core, d->trk, NULL, "duration may be inaccurate");
 			}

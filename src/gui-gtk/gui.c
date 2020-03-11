@@ -799,7 +799,7 @@ static void file_del(void)
 }
 
 static const char *const ctl_setts[] = {
-	"wmain.position",
+	"wmain.position", "wmain.tvol.value",
 };
 
 /** Write graphical controls' settings to a file. */

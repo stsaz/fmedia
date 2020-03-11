@@ -8,6 +8,15 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.16 - Mar 8, 2020
+
+ + GUI: new command: List -> Read Meta Tags
+ + GUI (Windows): "file_delete_method" configuration setting
+ + queue: stop playback after many consecutive errors
+ * cue: support INDEX value with 'minutes' value 100 and higher
+ - GUI (Windows): invalid filename was added to playlist after recording (v1.11 bug)
+
+
 fmedia v1.15 - Feb 2, 2020
 
  + Linux: support JACK capture

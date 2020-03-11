@@ -35,7 +35,7 @@ typedef struct entry {
 	plist *plist;
 	fmed_trk *trk;
 	ffarr2 meta; //ffstr[]
-	ffarr2 tmeta; //ffstr[]. transient meta
+	ffarr2 tmeta; //ffstr[]. transient meta - reset before every start of this item.
 	ffarr2 dict; //ffstr[]
 
 	size_t list_pos; //position number within playlist.  May be invalid.
@@ -43,7 +43,6 @@ typedef struct entry {
 	uint rm :1
 		, stop_after :1
 		, no_tmeta :1
-		, expand :1 // don't auto-start the next track
 		, trk_stopped :1
 		, trk_err :1
 		, trk_mixed :1
@@ -121,6 +120,7 @@ static void que_meta_set(fmed_que_entry *ent, const ffstr *name, const ffstr *va
 static void que_play(entry *e);
 static void que_play2(entry *ent, uint flags);
 static void que_save(entry *first, const fflist_item *sentl, const char *fn);
+static void ent_start_prepare(entry *e, void *trk);
 static void ent_rm(entry *e);
 static void ent_free(entry *e);
 static void que_taskfunc(void *udata);
@@ -249,6 +249,14 @@ static void ent_free(entry *e)
 
 	ffmem_free(e->trk);
 	ffmem_free(e);
+}
+
+/** Prepare the item before starting a track. */
+static void ent_start_prepare(entry *e, void *trk)
+{
+	FFARR2_FREE_ALL(&e->tmeta, ffstr_free, ffstr);
+	qu->track->setval(trk, "queue_item", (int64)e);
+	ent_ref(e);
 }
 
 static void plist_free(plist *pl)
@@ -429,10 +437,7 @@ static void que_play2(entry *ent, uint flags)
 		return;
 	}
 
-	FFARR2_FREE_ALL(&ent->tmeta, ffstr_free, ffstr);
-
-	qu->track->setval(trk, "queue_item", (int64)e);
-	ent_ref(ent);
+	ent_start_prepare(ent, trk);
 	if (flags & 1)
 		qu->track->cmd(trk, FMED_TRACK_XSTART);
 	else
@@ -500,11 +505,32 @@ done:
 	ffm3u_fin(&m3);
 }
 
+/** Get the first playlist item. */
+static entry* pl_first(plist *pl)
+{
+	if (pl->ents.first == fflist_sentl(&pl->ents))
+		return NULL;
+	return FF_GETPTR(entry, sib, pl->ents.first);
+}
+
+/** Get the next item.
+from: previous item
+Return NULL if there's no next item */
+static entry* pl_next(entry *from)
+{
+	ffchain_item *it = from->sib.next;
+	if (it == fflist_sentl(&from->plist->ents))
+		return NULL;
+	return FF_GETPTR(entry, sib, it);
+}
+
+/** Get the next (or the first) item; apply "random" and "repeat" settings.
+from: previous item
+ NULL: get the first item
+Return NULL if there's no next item */
 static entry* que_getnext(entry *from)
 {
-	ffchain_item *it;
 	plist *pl = (from == NULL) ? qu->curlist : from->plist;
-	fflist *ents = &pl->ents;
 
 	if (pl->allow_random && qu->random && pl->indexes.len != 0) {
 		rnd_init();
@@ -513,21 +539,20 @@ static entry* que_getnext(entry *from)
 		return e;
 	}
 
-	it = (from == NULL) ? ents->first : from->sib.next;
-	if (it == fflist_sentl(ents)) {
-		if (qu->repeat_all)
-			it = ents->first;
-
-		if (it == fflist_sentl(ents)) {
-			dbglog(core, NULL, "que", "no next file in playlist");
-			qu->track->cmd(NULL, FMED_TRACK_LAST);
-			return NULL;
+	if (from == NULL) {
+		from = pl_first(pl);
+	} else {
+		from = pl_next(from);
+		if (from == NULL && qu->repeat_all) {
+			dbglog0("repeat_all: starting from the beginning");
+			from = pl_first(pl);
 		}
-
-		dbglog(core, NULL, "que", "repeat_all: starting from the beginning");
 	}
-
-	return FF_GETPTR(entry, sib, it);
+	if (from == NULL) {
+		dbglog0("no next file in playlist");
+		qu->track->cmd(NULL, FMED_TRACK_LAST);
+	}
+	return from;
 }
 
 /** Expand the next (or the first) item in list.
@@ -846,14 +871,14 @@ static ssize_t que_cmdv(uint cmd, ...)
 		void *ctx = va_arg(va, void*);
 		entry *e = FF_GETPTR(entry, e, _e);
 		void *trk = qu->track->create(FMED_TRK_TYPE_EXPAND, e->e.url.ptr);
-		fmed_trk *t = qu->track->conf(trk);
-		t->input_info = 1;
-		e->expand = 1;
-		qu->track->setval(trk, "queue_item", (int64)e);
+		if (trk == NULL || trk == FMED_TRK_EFMT) {
+			r = (size_t)trk;
+			goto end;
+		}
 		qu->track->setval(trk, "queue-ondone", (int64)(size_t)ondone);
 		qu->track->setval(trk, "queue-ondone-ctx", (int64)(size_t)ctx);
-		ent_ref(e);
 		ent_ref(e); // for user to be able to get the next element in the list
+		ent_start_prepare(e, trk);
 		qu->track->cmd(trk, FMED_TRACK_START);
 		goto end;
 	}
@@ -953,13 +978,11 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 		void *r = param;
 		e = FF_GETPTR(entry, e, r);
 		void *trk = qu->track->create(FMED_TRK_TYPE_EXPAND, e->e.url.ptr);
-		fmed_trk *t = qu->track->conf(trk);
-		t->input_info = 1;
-		e->expand = 1;
-		qu->track->setval(trk, "queue_item", (int64)e);
-		ent_ref(e);
+		if (trk == NULL || trk == FMED_TRK_EFMT)
+			return (size_t)trk;
+		ent_start_prepare(e, trk);
 		qu->track->cmd(trk, FMED_TRACK_START);
-		return (size_t)r;
+		return (size_t)trk;
 	}
 
 	case FMED_QUE_RM:

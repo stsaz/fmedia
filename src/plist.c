@@ -274,7 +274,9 @@ static int m3u_wprocess(void *ctx, fmed_filt *d)
 		uint t = core->cmd(FMED_FILETYPE, e->url.ptr);
 		if (t == FMED_FT_DIR || t == FMED_FT_PLIST) {
 			m->cur = e;
-			qu->cmdv(FMED_QUE_EXPAND2, e, &m3u_expand_done, m);
+			void *trk = (void*)qu->cmdv(FMED_QUE_EXPAND2, e, &m3u_expand_done, m);
+			if (trk == NULL || trk == FMED_TRK_EFMT)
+				continue;
 			return FMED_RASYNC;
 		}
 

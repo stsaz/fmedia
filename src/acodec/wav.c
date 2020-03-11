@@ -287,7 +287,7 @@ static int wavout_process(void *ctx, fmed_filt *d)
 		continue;
 
 	case FFWAV_RERR:
-		errlog(core, d->trk, "wav", "ffwav_write(): %s", ffwav_errstr(&w->wav));
+		errlog(core, d->trk, "wav", "ffwav_write(): %s", ffwav_werrstr(&w->wav));
 		return FMED_RERR;
 	}
 	}

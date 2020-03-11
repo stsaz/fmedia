@@ -18,8 +18,8 @@ static void list_cols_width_load();
 
 void wmain_init()
 {
+	gg->vol = ffui_trk_val(&gg->wmain.tvol);
 	gg->wmain.vlist.dispinfo_id = LIST_DISPINFO;
-	ffui_trk_set(&gg->wmain.tvol, 100);
 
 	list_cols_width_load();
 
