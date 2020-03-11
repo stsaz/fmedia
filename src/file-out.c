@@ -230,10 +230,8 @@ data:
 	ffstr_acqstr3(&f->fname, &buf);
 	f->fname.len--;
 
-/* Currently no one needs the expanded file name.  But "split" needs the original file name.
 	if (!ffstr_eq2(&f->fname, &fn))
-		d->track->setvalstr(d->trk, "output", f->fname.ptr);
-*/
+		d->track->setvalstr(d->trk, "output_expanded", f->fname.ptr);
 
 	return f->fname.ptr;
 

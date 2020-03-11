@@ -669,7 +669,7 @@ void gui_rec(uint cmd)
 	void *t;
 
 	if (gg->rec_trk != NULL) {
-		const char *fn = gg->track->getvalstr(gg->rec_trk, "output");
+		const char *fn = gg->track->getvalstr(gg->rec_trk, "output_expanded");
 		if (fn != FMED_PNULL)
 			gui_media_add1(fn);
 		gg->track->cmd(gg->rec_trk, FMED_TRACK_STOP);
