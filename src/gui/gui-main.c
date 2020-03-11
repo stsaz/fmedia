@@ -577,18 +577,13 @@ void list_update(uint idx, int delta)
 	ffui_view_redraw(&gg->wmain.vlist, idx, idx + 100);
 }
 
-struct ent_idx {
-	uint idx;
-	fmed_que_entry *ent;
-};
-
 static void gui_media_fileop(uint cmd)
 {
-	int i = -1;
+	int i = -1, first_idx = -1;
 	fmed_que_entry *ent;
-	struct ent_idx *ei;
+	fmed_que_entry **pei;
 	ffarr buf = {0}; //char*[]
-	ffarr ents = {0}; //ent_idx[]
+	ffarr ents = {0}; //fmed_que_entry*[]
 	char st[255];
 	size_t n;
 	char **pitem;
@@ -596,21 +591,24 @@ static void gui_media_fileop(uint cmd)
 	while (-1 != (i = ffui_view_selnext(&gg->wmain.vlist, i))) {
 		ent = (fmed_que_entry*)gg->qu->fmed_queue_item(-1, i);
 
-		if (NULL == (pitem = ffarr_pushgrowT(&buf, 16, char*)))
-			goto done;
-		*pitem = ent->url.ptr;
-
 		switch (cmd) {
-		case DELFILE:
-			if (NULL == (ei = ffarr_pushgrowT(&ents, 16, struct ent_idx)))
+		case COPYFILE:
+			if (NULL == (pitem = ffarr_pushgrowT(&buf, 16, char*)))
 				goto done;
-			ei->ent = ent;
-			ei->idx = i;
+			*pitem = ent->url.ptr;
+			break;
+
+		case DELFILE:
+			if (NULL == (pei = ffarr_pushgrowT(&ents, 16, fmed_que_entry*)))
+				goto done;
+			*pei = ent;
+			if (first_idx == -1)
+				first_idx = i;
 			break;
 		}
 	}
 
-	if (buf.len == 0)
+	if (buf.len == 0 && ents.len == 0)
 		goto done;
 
 	switch (cmd) {
@@ -622,14 +620,10 @@ static void gui_media_fileop(uint cmd)
 		break;
 
 	case DELFILE:
-		if (0 == ffui_fop_del((const char *const *)buf.ptr, buf.len, FFUI_FOP_ALLOWUNDO)) {
-			FFARR_WALKT(&ents, ei, struct ent_idx) {
-				gg->qu->cmd(FMED_QUE_RM | FMED_QUE_NO_ONCHANGE, ei->ent);
-			}
+		if (0 == gui_files_del(&ents)) {
 			ffui_view_unselall(&gg->wmain.vlist);
-			ei = (void*)ents.ptr;
-			list_update(ei->idx, -(int)buf.len);
-			n = ffs_fmt(st, st + sizeof(st), "Deleted %L files", buf.len);
+			list_update(first_idx, -(int)ents.len);
+			n = ffs_fmt(st, st + sizeof(st), "Deleted %L files", ents.len);
 			gui_status(st, n);
 		}
 		break;

@@ -220,6 +220,7 @@ typedef struct ggui {
 	byte list_random;
 	byte sel_after_cur; // automatically select a playlist entry for the active track
 	ushort list_col_width[16];
+	uint fdel_method; // enum FDEL_METHOD
 	uint wconv_init :1
 		, wrec_init :1
 		, min_tray :1
@@ -234,6 +235,11 @@ typedef struct ggui {
 
 const fmed_core *core;
 ggui *gg;
+
+enum FDEL_METHOD {
+	FDEL_DEFAULT,
+	FDEL_RENAME,
+};
 
 enum {
 	DLG_FILT_INPUT,
@@ -399,6 +405,10 @@ enum {
 };
 void gui_media_add2(const char *fn, int pl, uint flags);
 void gui_media_showpcm(void);
+/** Perform 'delete' operation on the specified items.
+ents: fmed_que_entry*[]
+Return 0 if all files were deleted. */
+int gui_files_del(const ffarr *ents);
 
 void gui_themes_read(void);
 void gui_themes_add(uint def);

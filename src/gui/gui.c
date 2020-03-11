@@ -92,6 +92,17 @@ static int conf_list_col_width(ffparser_schem *p, void *obj, const int64 *val)
 	return 0;
 }
 
+static int conf_file_delete_method(ffparser_schem *p, void *obj, const ffstr *val)
+{
+	if (ffstr_eqz(val, "default"))
+		gg->fdel_method = FDEL_DEFAULT;
+	else if (ffstr_eqz(val, "rename"))
+		gg->fdel_method = FDEL_RENAME;
+	else
+		return FFPARS_EBADVAL;
+	return 0;
+}
+
 static const ffpars_arg gui_conf_args[] = {
 	{ "record",	FFPARS_TOBJ, FFPARS_DST(&gui_conf_rec) },
 	{ "convert",	FFPARS_TOBJ, FFPARS_DST(&gui_conf_convert) },
@@ -105,6 +116,7 @@ static const ffpars_arg gui_conf_args[] = {
 	{ "random",	FFPARS_TBOOL8, FFPARS_DSTOFF(ggui, list_random) },
 	{ "sel_after_cursor",	FFPARS_TBOOL8, FFPARS_DSTOFF(ggui, sel_after_cur) },
 	{ "list_columns_width",	FFPARS_TINT16 | FFPARS_FLIST, FFPARS_DST(&conf_list_col_width) },
+	{ "file_delete_method",	FFPARS_TSTR, FFPARS_DST(&conf_file_delete_method) },
 };
 
 //LOG
@@ -881,6 +893,59 @@ end:
 }
 
 static const struct cmd cmd_loadlists = { 0, F0 | CMD_FCORE, &gui_loadlists };
+
+int gui_files_del(const ffarr *ents)
+{
+	ffarr names = {};
+	fmed_que_entry **pent;
+	int r = -1;
+	switch (gg->fdel_method) {
+
+	case FDEL_DEFAULT:
+		FFARR_WALKT(ents, pent, fmed_que_entry*) {
+			char **pname;
+			if (NULL == (pname = ffarr_pushgrowT(&names, 16, char*)))
+				goto done;
+			*pname = (*pent)->url.ptr;
+		}
+
+		if (0 != ffui_fop_del((const char *const *)names.ptr, names.len, FFUI_FOP_ALLOWUNDO))
+			goto done;
+
+		FFARR_WALKT(ents, pent, fmed_que_entry*) {
+			gg->qu->cmd(FMED_QUE_RM | FMED_QUE_NO_ONCHANGE, *pent);
+		}
+		r = 0;
+		break;
+
+	case FDEL_RENAME:
+		r = 0;
+		FFARR_WALKT(ents, pent, fmed_que_entry*) {
+			fmed_que_entry *ent = *pent;
+			const char *fn = ent->url.ptr;
+			char *newfn = ffsz_alfmt("%S.deleted", &ent->url);
+			if (newfn == NULL)
+				break;
+
+			if (0 == fffile_rename(fn, newfn)) {
+				gg->qu->cmd(FMED_QUE_RM | FMED_QUE_NO_ONCHANGE, ent);
+			} else {
+				syserrlog(core, NULL, "gui", "file rename: %S", &ent->url);
+				r = -1;
+			}
+
+			ffmem_free(newfn);
+		}
+		break;
+
+	default:
+		return -1;
+	}
+
+done:
+	ffarr_free(&names);
+	return r;
+}
 
 /** Load GUI:
 . Read fmedia.gui - create controls
