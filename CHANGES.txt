@@ -8,6 +8,14 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia (Android) v0.3 - Mar 15, 2020
+
+ + Record audio button
+ + setting: Show 'Record' Button
+ + setting: Directory for Recordings
+ + save/restore playlist scroll position
+
+
 fmedia v1.16 - Mar 8, 2020
 
  + GUI: new command: List -> Read Meta Tags
