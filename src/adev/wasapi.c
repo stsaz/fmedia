@@ -614,10 +614,12 @@ static void* wasapi_in_open(fmed_filt *d)
 	ffpcm_fmtcopy(&fmt, &d->audio.fmt);
 	in_fmt = fmt;
 
+	uint buf_time = (d->a_in_buf_time != 0) ? d->a_in_buf_time : wasapi_in_conf.buflen;
+
 again:
 	dbglog(core, d->trk, NULL, "opening device #%u, fmt:%s/%u/%u, excl:%u"
 		, dev.idx, ffpcm_fmtstr(fmt.format), fmt.sample_rate, fmt.channels, excl);
-	r = ffwas_open(&w->wa, dev.id, &fmt, wasapi_in_conf.buflen, flags);
+	r = ffwas_open(&w->wa, dev.id, &fmt, buf_time, flags);
 
 	if (r != 0) {
 

@@ -57,6 +57,7 @@ static int arg_debug(ffparser_schem *p, void *obj, const int64 *val);
 
 static void open_input(void *udata);
 static void fmed_onsig(void *udata);
+static int rec_track_start(fmed_cmd *cmd, fmed_trk *trkinfo);
 static void rec_lpback_new_track(fmed_cmd *cmd);
 
 // TRACK MONITOR
@@ -93,6 +94,7 @@ static const ffpars_arg fmed_cmdline_args[] = {
 
 	//INPUT
 	{ "record",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(rec) },
+	{ "capture-buffer",	FFPARS_TINT16,  OFF(capture_buf_len) },
 	{ "mix",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(mix) },
 	{ "flist",	FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY | FFPARS_FNOTEMPTY | FFPARS_FMULTI, FFPARS_DST(&arg_flist) },
 	{ "include",	FFPARS_TSTR | FFPARS_FCOPY | FFPARS_FNOTEMPTY, FFPARS_DST(&arg_finclude) },
@@ -859,28 +861,8 @@ static void open_input(void *udata)
 	}
 
 	if (fmed->rec) {
-		void *trk;
-		if (NULL == (trk = track->create(FMED_TRACK_REC, NULL)))
+		if (0 != rec_track_start(udata, &trkinfo))
 			goto end;
-		fmed_trk *ti = track->conf(trk);
-		ffpcmex fmt = ti->audio.fmt;
-		track->copy_info(ti, &trkinfo);
-		ti->audio.fmt = fmt;
-
-		if (fmed->lbdev_name != (uint)-1) {
-			track->setval(trk, "loopback_device", fmed->lbdev_name);
-			rec_lpback_new_track(fmed);
-		} else if (fmed->captdev_name != 0)
-			track->setval(trk, "capture_device", fmed->captdev_name);
-
-		if (fmed->outfn.len != 0)
-			track->setvalstr(trk, "output", fmed->outfn.ptr);
-
-		if (fmed->rec)
-			track->setval(trk, "low_latency", 1);
-
-		g->rec_trk = trk;
-		track->cmd(trk, FMED_TRACK_START);
 	}
 
 	if (first == NULL && !fmed->rec && !fmed->gui)
@@ -890,6 +872,36 @@ static void open_input(void *udata)
 
 end:
 	return;
+}
+
+/** Start a track for recording audio. */
+static int rec_track_start(fmed_cmd *cmd, fmed_trk *trkinfo)
+{
+	const fmed_track *track = g->track;
+	void *trk;
+	if (NULL == (trk = track->create(FMED_TRACK_REC, NULL)))
+		return -1;
+
+	fmed_trk *ti = track->conf(trk);
+	ffpcmex fmt = ti->audio.fmt;
+	track->copy_info(ti, trkinfo);
+	ti->audio.fmt = fmt;
+
+	if (cmd->lbdev_name != (uint)-1) {
+		track->setval(trk, "loopback_device", cmd->lbdev_name);
+		rec_lpback_new_track(cmd);
+	} else if (cmd->captdev_name != 0)
+		track->setval(trk, "capture_device", cmd->captdev_name);
+
+	if (cmd->outfn.len != 0)
+		track->setvalstr(trk, "output", cmd->outfn.ptr);
+
+	track->setval(trk, "low_latency", 1);
+	ti->a_in_buf_time = cmd->capture_buf_len;
+
+	g->rec_trk = trk;
+	track->cmd(trk, FMED_TRACK_START);
+	return 0;
 }
 
 /** Create a track to support recording from WASAPI in loopback mode.

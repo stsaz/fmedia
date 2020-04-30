@@ -24,6 +24,7 @@ typedef struct fmed_cmd {
 	};
 
 	byte rec;
+	ushort capture_buf_len; //msec
 	byte mix;
 	byte tags;
 	byte info;

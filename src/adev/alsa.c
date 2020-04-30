@@ -556,11 +556,13 @@ static void* alsa_in_open(fmed_filt *d)
 	in_fmt = fmt;
 	dev_id = FFALSA_DEVID_HW(dev.id); //try "hw" first
 
+	uint buf_time = (d->a_in_buf_time != 0) ? d->a_in_buf_time : alsa_in_conf.buflen;
+
 	for (;;) {
 
 		dbglog(core, d->trk, NULL, "opening device \"%s\", %s/%u/%u/%s"
 			, dev_id, ffpcm_fmtstr(fmt.format), fmt.sample_rate, fmt.channels, (fmt.ileaved) ? "i" : "ni");
-		r = ffalsa_capt_open(&ain->snd, dev_id, &fmt, alsa_in_conf.buflen);
+		r = ffalsa_capt_open(&ain->snd, dev_id, &fmt, buf_time);
 
 		if (r == -FFALSA_EFMT && try_open) {
 

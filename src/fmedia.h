@@ -462,6 +462,7 @@ struct fmed_trk {
 	float a_stop_level; //dB
 	uint a_stop_level_time; //msec
 	uint a_stop_level_mintime; //msec
+	ushort a_in_buf_time; // buffer size for audio input (msec)  0:default
 
 	byte _bar_start;
 	struct {
