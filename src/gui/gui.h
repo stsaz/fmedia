@@ -4,6 +4,7 @@ Copyright (c) 2016 Simon Zolin */
 #include <FF/gui/winapi.h>
 #include <FF/data/conf.h>
 #include <FFOS/thread.h>
+#include <FFOS/semaphore.h>
 
 
 typedef struct gui_wmain {
@@ -175,6 +176,7 @@ typedef struct ggui {
 	gui_trk *curtrk; //currently playing track
 	const fmed_queue *qu;
 	const fmed_track *track;
+	ffsem sem;
 	uint load_err;
 	int vol;
 	int sort_col;
@@ -232,7 +234,6 @@ typedef struct ggui {
 		, sort_reverse :1
 		, devlist_rec :1 // whether 'device list' window is opened for capture devices
 		;
-	uint state;
 	int itab_convert; // index of "conversion" tab;  -1:none
 	int fav_pl; // Favorites playlist index;  -1:none
 } ggui;

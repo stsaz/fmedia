@@ -61,6 +61,8 @@ $(OBJ_DIR)/%.o: $(SRCDIR)/acodec/%.c $(SRCDIR)/fmedia.h $(FF_HDR) $(FF_AUDIO_HDR
 # Note: with -flto it uses pow@GLIBC_2.29 even with -DFF_GLIBCVER=228
 $(OBJ_DIR)/soundmod.o: $(SRCDIR)/afilt/soundmod.c $(SRCDIR)/fmedia.h $(FF_HDR) $(FF_AUDIO_HDR)
 	$(C)  $(CFLAGS_ALTOPT) $<  -o$@
+$(OBJ_DIR)/start-stop-level.o: $(SRCDIR)/afilt/start-stop-level.c $(SRCDIR)/fmedia.h $(FF_HDR) $(FF_AUDIO_HDR)
+	$(C)  $(CFLAGS_ALTOPT) $<  -o$@
 
 $(OBJ_DIR)/%.o: $(SRCDIR)/afilt/%.c $(SRCDIR)/fmedia.h $(FF_HDR) $(FF_AUDIO_HDR)
 	$(C)  $(CFLAGS) $<  -o$@
@@ -515,7 +517,7 @@ dbus.$(SO): $(DBUS_O)
 
 
 clean:
-	rm -vf $(BINS) *.debug *.o $(RES)
+	rm -vf $(BINS) *.debug *.o $(FF_OBJ_DIR)/crc.o $(RES)
 
 distclean: clean ffclean
 	rm -vfr $(INSTDIR) ./$(PROJ)-*.zip ./$(PROJ)-*.tar.xz

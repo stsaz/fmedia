@@ -337,6 +337,7 @@ static int wasapi_create(wasapi_out *w, fmed_filt *d)
 		if (mod->usedby != NULL) {
 			wasapi_out *w = mod->usedby;
 			mod->usedby = NULL;
+			core->timer(&mod->tmr, 0, 0);
 			w->stop = 1;
 			wasapi_onplay(w);
 		}

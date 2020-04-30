@@ -534,6 +534,7 @@ static void trk_free(fm_trk *t)
 			pf->filt->close(pf->ctx);
 		}
 	}
+	t->cur = NULL;
 
 	if (core->loglev == FMED_LOG_DEBUG)
 		trk_printtime(t);
@@ -787,7 +788,7 @@ shift:
 				t->props.outlen = 0;
 				filt_close(t, nf);
 				if (filt_isfirst(t, t->cur)) {
-					r = FFLIST_CUR_NEXT | FFLIST_CUR_RM;
+					r = FFLIST_CUR_NEXT | FFLIST_CUR_RM | FFLIST_CUR_BOUNCE;
 					goto shift;
 				}
 				r = FFLIST_CUR_PREV | FFLIST_CUR_RM | FFLIST_CUR_BOUNCE;

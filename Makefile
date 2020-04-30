@@ -31,6 +31,8 @@ endif
 
 
 FF_OBJ_DIR := ./ff-obj
+# CFLAGS_STD += -fsanitize=address
+# LDFLAGS += -fsanitize=address -ldl
 FFOS_CFLAGS := $(CFLAGS_STD) $(CFLAGS_DEBUG) $(CFLAGS_OPT) $(CFLAGS_OS) $(CFLAGS_CPU) -pthread
 FF_CFLAGS := $(CFLAGS_STD) $(CFLAGS_DEBUG) $(CFLAGS_OPT) $(CFLAGS_OS) $(CFLAGS_CPU)
 FF3PTLIB := $(FF3PT)-bin/$(OS)-$(ARCH)
@@ -61,3 +63,7 @@ package:
 	rm -f $(PROJ)-$(VER)-$(OS)-$(ARCH_OS).$(PACK_EXT)
 	$(PACK) $(PROJ)-$(VER)-$(OS)-$(ARCH_OS).$(PACK_EXT) $(INSTDIR)
 	$(PACK) $(PROJ)-$(VER)-$(OS)-$(ARCH_OS)-debug.$(PACK_EXT) ./*.debug
+
+post-build:
+	# ensure we use no GLIBC_2.29 functions
+	! objdump -T *.so fmedia | grep GLIBC_2.29

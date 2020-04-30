@@ -4,6 +4,7 @@ Copyright (c) 2019 Simon Zolin */
 #include <fmedia.h>
 #include <FF/gui-gtk/gtk.h>
 #include <FFOS/thread.h>
+#include <FFOS/semaphore.h>
 
 
 #undef dbglog
@@ -81,7 +82,7 @@ struct gui_conf {
 	uint list_scroll_pos;
 };
 typedef struct ggui {
-	uint state;
+	ffsem sem;
 	uint load_err;
 	const fmed_queue *qu;
 	const fmed_track *track;

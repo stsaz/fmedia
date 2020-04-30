@@ -284,6 +284,7 @@ static void* mpeg_copy_open(fmed_filt *d)
 static void mpeg_copy_close(void *ctx)
 {
 	mpeg_copy *m = ctx;
+	ffmpg_copy_close(&m->mpgcpy);
 	ffmem_free(m);
 }
 

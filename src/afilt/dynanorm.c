@@ -72,6 +72,8 @@ static int danorm_sig(uint signo)
 	case FMED_SIG_INIT:
 		ffmem_init();
 		return 0;
+	case FMED_STOP:
+		ffmem_free(sconf);
 	}
 	return 0;
 }

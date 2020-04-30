@@ -798,9 +798,11 @@ static ssize_t que_cmdv(uint cmd, ...)
 		pl = plist_by_idx(va_arg(va, int));
 		fflist_rm(&qu->plists, &pl->sib);
 		FFLIST_ENUMSAFE(&pl->ents, ent_rm, entry, sib);
-		if (fflist_empty(&pl->ents))
+		if (fflist_empty(&pl->ents)) {
 			plist_free(pl);
-		else
+			if (qu->curlist == pl)
+				qu->curlist = NULL;
+		} else
 			pl->rm = 1;
 		break;
 
@@ -1136,6 +1138,8 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 
 	case FMED_QUE_ID:
 		e = param;
+		if (e == NULL)
+			return -1;
 		pl = e->plist;
 		if (pl->filtered_plist != NULL)
 			pl = pl->filtered_plist;
@@ -1194,7 +1198,7 @@ static fmed_que_entry* que_add(plist *pl, fmed_que_entry *ent, entry *prev, uint
 	if (flags & FMED_QUE_ADD_DONE) {
 		if (ent == NULL) {
 			if (!(flags & FMED_QUE_NO_ONCHANGE) && qu->onchange != NULL)
-				qu->onchange(&e->e, FMED_QUE_ONADD | FMED_QUE_ADD_DONE);
+				qu->onchange(NULL, FMED_QUE_ONADD | FMED_QUE_ADD_DONE);
 			return NULL;
 		}
 		e = FF_GETPTR(entry, e, ent);
@@ -1226,10 +1230,11 @@ static fmed_que_entry* que_add(plist *pl, fmed_que_entry *ent, entry *prev, uint
 	}
 	ssize_t i = e->plist->indexes.len;
 	if (prev != NULL) {
-		i = plist_ent_idx(e->plist, prev);
-		FF_ASSERT(i != -1);
-		i++;
-		_ffarr_shiftr(&e->plist->indexes, i, 1, sizeof(entry*));
+		ssize_t i2 = plist_ent_idx(e->plist, prev);
+		if (i2 != -1) {
+			i = i2 + 1;
+			_ffarr_shiftr(&e->plist->indexes, i, 1, sizeof(entry*));
+		}
 	}
 	e->list_pos = i;
 	((entry**)e->plist->indexes.ptr) [i] = e;
@@ -1339,7 +1344,7 @@ static void que_meta_set(fmed_que_entry *ent, const ffstr *name, const ffstr *va
 	}
 
 	fflk_lock(&qu->plist_lock);
-	if (NULL == ffarr2_grow(a, 2, sizeof(ffstr))) {
+	if (NULL == ffarr2_growT(a, 2, ffstr)) {
 		fflk_unlock(&qu->plist_lock);
 		goto err;
 	}

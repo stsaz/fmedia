@@ -8,6 +8,14 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.17 - Apr 30, 2020
+
+ + GUI: remember the current active track and playlist scroll position
+ + GUI (Linux): mark the currently playing track
+ + --capture-buffer argument - Length (in msec) of the capture buffer (WASAPI, ALSA)
+ - Linux: core.so: don't use glibc 2.29
+
+
 fmedia (Android) v0.3 - Mar 15, 2020
 
  + Record audio button

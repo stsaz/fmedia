@@ -197,7 +197,7 @@ static int dir_open_r(const char *dirname, fmed_filt *d)
 
 			ffmem_tzero(&e);
 			ffstr_setz(&e.url, fn);
-			void *cur = (void*)qu->cmdv(FMED_QUE_ADDAFTER, &e, prev_qent);
+			void *cur = (void*)qu->cmdv(FMED_QUE_ADDAFTER | FMED_QUE_MORE, &e, prev_qent);
 			qu->cmdv(FMED_QUE_COPYTRACKPROPS, cur, prev_qent);
 			prev_qent = cur;
 		}
@@ -215,6 +215,7 @@ next:
 	}
 
 end:
+	qu->cmd2(FMED_QUE_ADD | FMED_QUE_ADD_DONE, NULL, 0);
 	ffdir_expclose(&dr);
 	FFCHAIN_FOR(&mblocks, it) {
 		mblk = FF_GETPTR(ffmblk, sib, it);

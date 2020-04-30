@@ -144,12 +144,18 @@ static int gui_sig(uint signo)
 		}
 
 		fflk_setup();
+		if (FFSEM_INV == (gg->sem = ffsem_open(NULL, 0, 0)))
+			return 1;
 
 		if (FFTHD_INV == (gg->th = ffthd_create(&gui_worker, gg, 0))) {
-			return 1;
+			gg->load_err = 1;
+			goto end;
 		}
 
-		ffatom_waitchange(&gg->state, 0); //give the GUI thread some time to create controls
+		ffsem_wait(gg->sem, -1); //give the GUI thread some time to create controls
+end:
+		ffsem_close(gg->sem);
+		gg->sem = FFSEM_INV;
 		return gg->load_err;
 
 	case FMED_STOP:
@@ -165,6 +171,7 @@ static void gui_destroy(void)
 		return;
 
 	wconv_destroy();
+	ffsem_close(gg->sem);
 	ffmem_free0(gg);
 }
 
@@ -346,7 +353,7 @@ static FFTHDCALL int gui_worker(void *param)
 	if (gg->conf.autosave_playlists)
 		corecmd_add(LOADLISTS, NULL);
 
-	FF_WRITEONCE(gg->state, 1);
+	ffsem_post(gg->sem);
 	dbglog("entering UI loop");
 	ffui_run();
 	dbglog("exited UI loop");
@@ -355,10 +362,11 @@ static FFTHDCALL int gui_worker(void *param)
 	goto done;
 
 err:
-	FF_WRITEONCE(gg->state, 1);
 	gg->load_err = 1;
 done:
 	ffui_uninit();
+	if (gg->load_err)
+		ffsem_post(gg->sem);
 	return 0;
 }
 

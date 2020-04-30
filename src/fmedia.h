@@ -24,9 +24,9 @@ mixer                 mixer
 
 
 #define FMED_VER_MAJOR  1
-#define FMED_VER_MINOR  16
+#define FMED_VER_MINOR  17
 #define FMED_VER_FULL  ((FMED_VER_MAJOR << 8) | FMED_VER_MINOR)
-#define FMED_VER  "1.16"
+#define FMED_VER  "1.17"
 
 #define FMED_VER_GETMAJ(fullver)  ((fullver) >> 8)
 #define FMED_VER_GETMIN(fullver)  ((fullver) & 0xff)
@@ -783,7 +783,9 @@ enum FMED_QUE {
 	bool iscurlist(fmed_que_entry *ent) */
 	FMED_QUE_ISCURLIST,
 
-	/** size_t get_id(fmed_que_entry *ent) */
+	/** Get item index.
+	size_t get_id(fmed_que_entry *ent)
+	Return -1 on error. */
 	FMED_QUE_ID,
 	/** fmed_que_entry* item(size_t plid, size_t id) */
 	FMED_QUE_ITEM,

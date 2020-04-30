@@ -1041,7 +1041,7 @@ static FFTHDCALL int gui_worker(void *param)
 
 	gg->vol = gui_getvol() * 100;
 
-	FF_WRITEONCE(gg->state, 1);
+	ffsem_post(gg->sem);
 
 	if (gg->autosave_playlists)
 		gui_corecmd_add(&cmd_loadlists, NULL);
@@ -1051,11 +1051,12 @@ static FFTHDCALL int gui_worker(void *param)
 
 	gui_ghk_reg();
 
+	dbglog0("entering UI loop");
 	ffui_run();
+	dbglog0("leaving UI loop");
 	goto done;
 
 err:
-	FF_WRITEONCE(gg->state, 1);
 	gg->load_err = 1;
 	ffmem_safefree(fn);
 	ffmem_safefree(fnconf);
@@ -1063,6 +1064,9 @@ done:
 	ffui_dlg_destroy(&gg->dlg);
 	ffui_wnd_destroy(&gg->wmain.wmain);
 	ffui_uninit();
+	if (gg->load_err)
+		ffsem_post(gg->sem);
+	dbglog0("exitting UI worker thread");
 	return 0;
 }
 
@@ -1322,12 +1326,18 @@ static int gui_sig(uint signo)
 		}
 
 		fflk_setup();
+		if (FFSEM_INV == (gg->sem = ffsem_open(NULL, 0, 0)))
+			return 1;
 
 		if (NULL == (gg->th = ffthd_create(&gui_worker, gg, 0))) {
-			return 1;
+			gg->load_err = 1;
+			goto end;
 		}
 
-		ffatom_waitchange(&gg->state, 0); //give the GUI thread some time to create controls
+		ffsem_wait(gg->sem, -1); //give the GUI thread some time to create controls
+end:
+		ffsem_close(gg->sem);
+		gg->sem = FFSEM_INV;
 		return gg->load_err;
 
 	case FMED_STOP:
@@ -1345,7 +1355,8 @@ static int gui_sig(uint signo)
 static void gui_stop(void)
 {
 	ffui_wnd_close(&gg->wmain.wmain);
-	ffthd_join(gg->th, -1, NULL);
+	if (0 != ffthd_join(gg->th, 3000, NULL))
+		syserrlog0("ffthd_join");
 	ffarr_free(&gg->ghks);
 	FFARR_FREE_ALL_PTR(&gg->filenames, ffmem_free, char*);
 	ffui_icon_destroy(&gg->wmain.ico);
@@ -1360,6 +1371,7 @@ static void gui_destroy(void)
 	gui_themes_destroy();
 	cvt_sets_destroy(&gg->conv_sets);
 	rec_sets_destroy(&gg->rec_sets);
+	ffsem_close(gg->sem);
 	ffmem_free0(gg);
 }
 
