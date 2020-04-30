@@ -558,8 +558,7 @@ void gui_corecmd_op(uint cmd, void *udata)
 
 	case A_LIST_SORTRANDOM: {
 		gg->qu->cmdv(FMED_QUE_SORT, (int)-1, "__random", 0);
-		uint n = gg->qu->cmdv(FMED_QUE_COUNT);
-		list_update(0, n);
+		list_update(0, 0);
 		break;
 	}
 
@@ -608,7 +607,7 @@ static void gui_que_onchange(fmed_que_entry *e, uint flags)
 
 	case FMED_QUE_ONRM:
 		idx = gg->qu->cmdv(FMED_QUE_ID, e);
-		gui_media_removed(idx);
+		list_update(idx, -1);
 		break;
 
 	case FMED_QUE_ONUPDATE:

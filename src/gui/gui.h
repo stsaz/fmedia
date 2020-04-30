@@ -438,7 +438,6 @@ void gui_conv_progress(gui_trk *g);
 void gui_clear(void);
 void gui_status(const char *s, size_t len);
 void gui_media_added(fmed_que_entry *ent);
-void gui_media_removed(uint i);
 void gui_rec(uint cmd);
 char* gui_usrconf_filename(void);
 char* gui_userpath(const char *fn);

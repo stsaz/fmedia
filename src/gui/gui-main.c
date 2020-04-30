@@ -576,8 +576,15 @@ done:
 void list_update(uint idx, int delta)
 {
 	uint n = gg->qu->cmdv(FMED_QUE_COUNT);
-	ffui_view_setcount(&gg->wmain.vlist, n + delta);
-	ffui_view_redraw(&gg->wmain.vlist, idx, idx + 100);
+	ffui_view_setcount(&gg->wmain.vlist, n);
+	if (idx != 0 && delta == 0)
+		ffui_view_redraw(&gg->wmain.vlist, idx, idx);
+	else if (delta > 0)
+		ffui_view_redraw(&gg->wmain.vlist, idx, idx + 100);
+	else if (delta < 0)
+		ffui_view_redraw(&gg->wmain.vlist, idx, idx + 100);
+	else
+		ffui_ctl_invalidate(&gg->wmain.vlist);
 }
 
 static void gui_media_fileop(uint cmd)
@@ -747,11 +754,6 @@ static void gui_media_addurl(uint id)
 	ffui_show(&gg->wuri.wuri, 1);
 }
 
-void gui_media_removed(uint i)
-{
-	list_update(i, -1);
-}
-
 int gui_newtab(uint flags)
 {
 	char buf[32];
@@ -801,8 +803,7 @@ void gui_showque(uint i)
 		gg->list_scroll_pos = 0;
 	}
 
-	int top = ffui_view_topindex(&gg->wmain.vlist);
-	ffui_view_redraw(&gg->wmain.vlist, top, top+100);
+	ffui_ctl_invalidate(&gg->wmain.vlist);
 }
 
 void gui_que_del(void)
@@ -881,9 +882,7 @@ static void gui_media_remove(void)
 
 static void gui_list_rmdead(void)
 {
-	ffui_redraw(&gg->wmain.vlist, 0);
 	gg->qu->cmd(FMED_QUE_RMDEAD, NULL);
-	ffui_redraw(&gg->wmain.vlist, 1);
 }
 
 /** Set core module's property and check/uncheck menu item. */
@@ -1047,10 +1046,15 @@ void gui_filter(const ffstr *text, uint flags)
 	if (!gg->list_filter && text->len < 2)
 		return; //too small filter text
 
-	gg->qu->cmdv(FMED_QUE_NEW_FILTERED);
+	if (text->len == 0) {
+		gg->list_filter = 0;
+		gg->qu->cmdv(FMED_QUE_DEL_FILTERED);
+		gui_status(NULL, 0);
+		list_update(0, 0);
+		return;
+	}
 
-	ffui_redraw(&gg->wmain.vlist, 0);
-	ffui_view_clear(&gg->wmain.vlist);
+	gg->qu->cmdv(FMED_QUE_NEW_FILTERED);
 
 	for (;;) {
 
@@ -1058,10 +1062,7 @@ void gui_filter(const ffstr *text, uint flags)
 			break;
 		inc = 0;
 
-		if (text->len == 0)
-			inc = 1;
-
-		else if ((flags & GUI_FILT_URL) && -1 != ffstr_ifind(&e->url, text->ptr, text->len))
+		if ((flags & GUI_FILT_URL) && -1 != ffstr_ifind(&e->url, text->ptr, text->len))
 			inc = 1;
 
 		else if (flags & GUI_FILT_META) {
@@ -1078,24 +1079,19 @@ void gui_filter(const ffstr *text, uint flags)
 
 		if (inc) {
 			gg->qu->cmdv(FMED_QUE_ADD_FILTERED, e);
-			gui_media_added(e);
 			nfilt++;
 		}
 
 		nall++;
 	}
 
-	ffui_redraw(&gg->wmain.vlist, 1);
+	list_update(0, 0);
+	ffui_ctl_invalidate(&gg->wmain.vlist);
 
-	gg->list_filter = (text->len != 0);
-	if (text->len != 0) {
-		char buf[128];
-		size_t n = ffs_fmt(buf, buf + sizeof(buf), "Filter: %u (%u)", nfilt, nall);
-		gui_status(buf, n);
-	} else {
-		gg->qu->cmdv(FMED_QUE_DEL_FILTERED);
-		gui_status(NULL, 0);
-	}
+	gg->list_filter = 1;
+	char buf[128];
+	size_t n = ffs_fmt(buf, buf + sizeof(buf), "Filter: %u (%u)", nfilt, nall);
+	gui_status(buf, n);
 }
 
 

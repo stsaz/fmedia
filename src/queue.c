@@ -769,7 +769,9 @@ static ssize_t que_cmdv(uint cmd, ...)
 
 	case FMED_QUE_COUNT: {
 		pl = qu->curlist;
-		r = pl->ents.len;
+		if (pl->filtered_plist != NULL)
+			pl = pl->filtered_plist;
+		r = pl->indexes.len;
 		goto end;
 	}
 
