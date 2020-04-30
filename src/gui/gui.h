@@ -472,6 +472,7 @@ int gui_conf_convert(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
 void gui_cvt_sets_init(cvt_sets_t *sets);
 void conv_sets_write(ffconfw *conf);
 
+void rec_setdev(int idev);
 int gui_conf_rec(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
 void wrec_init(void);
 void gui_rec_show(void);
@@ -493,4 +494,29 @@ void wfilter_init(void);
 void wabout_init(void);
 
 
+enum CVTF {
+	CVTF_EMPTY = 0x010000, //allow empty value
+	CVTF_FLT = 0x020000,
+	CVTF_STR = 0x040000,
+	CVTF_MSEC = 0x080000,
+	CVTF_FLT10 = 0x100000,
+	CVTF_FLT100 = 0x200000,
+	CVTF_NEWGRP = 0x400000,
+};
+
+#define SETT_EMPTY_INT  ((int)0x80000000)
+
+struct cvt_set {
+	uint settname;
+	const char *name;
+	const char *desc;
+	uint flags; //enum CVTF
+};
+
+int sett_tostr(const void *sets, const struct cvt_set *sett, ffarr *dst);
+int gui_cvt_getsettings(const struct cvt_set *psets, uint nsets, void *sets, ffui_view *vlist);
+
+
 #define dbglog0(...)  fmed_dbglog(core, NULL, "gui", __VA_ARGS__)
+#define errlog0(...)  fmed_errlog(core, NULL, "gui", __VA_ARGS__)
+#define syserrlog0(...)  fmed_syserrlog(core, NULL, "gui", __VA_ARGS__)

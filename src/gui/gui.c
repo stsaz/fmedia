@@ -19,11 +19,6 @@ track: ... -> gui-trk -> ...
 #include <FF/sys/wreg.h>
 
 
-#define dbglog0(...)  fmed_dbglog(core, NULL, "gui", __VA_ARGS__)
-#define errlog0(...)  fmed_errlog(core, NULL, "gui", __VA_ARGS__)
-#define syserrlog0(...)  fmed_syserrlog(core, NULL, "gui", __VA_ARGS__)
-
-
 const fmed_core *core;
 ggui *gg;
 static const fmed_net_http *net;

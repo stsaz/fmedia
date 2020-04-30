@@ -433,7 +433,12 @@ ifeq ($(OS),win)
 $(OBJ_DIR)/%.o: $(SRCDIR)/gui/%.c $(SRCDIR)/gui/gui.h $(SRCDIR)/fmedia.h $(FF_GUIHDR)
 	$(C) $(CFLAGS)  $< -o$@
 
-GUI_O := $(OBJ_DIR)/gui.o $(OBJ_DIR)/gui-main.o $(OBJ_DIR)/gui-dlgs.o $(OBJ_DIR)/gui-theme.o \
+GUI_O := $(OBJ_DIR)/gui.o \
+	$(OBJ_DIR)/gui-main.o \
+	$(OBJ_DIR)/gui-dlgs.o \
+	$(OBJ_DIR)/gui-convert.o \
+	$(OBJ_DIR)/gui-rec.o \
+	$(OBJ_DIR)/gui-theme.o \
 	$(FF_O) \
 	$(FFOS_WREG) \
 	$(FF_OBJ_DIR)/ffsys.o \
