@@ -1,4 +1,4 @@
-# fmedia v1.1 GUI
+# fmedia v1.17 GUI
 
 menu mfile {
 	item "&Open..." {
@@ -16,24 +16,24 @@ menu mfile {
 	item "-" {
 	}
 	item "Show Media Info" {
-		action SHOWINFO
+		action A_FILE_SHOWINFO
 		hotkey "I"
 	}
 	item "Analyze && Show PCM Info" {
-		action SHOWPCM
+		action A_FILE_SHOWPCM
 	}
 	item "C&opy to Clipboard" {
-		action COPYFILE
+		action A_FILE_COPYFILE
 		hotkey "Ctrl+C"
 	}
 	item "Copy File&name to Clipboard" {
-		action COPYFN
+		action A_FILE_COPYFN
 	}
 	item "Show Fi&le in Explorer" {
-		action SHOWDIR
+		action A_FILE_SHOWDIR
 	}
 	item "&Delete From Disk" {
-		action DELFILE
+		action A_FILE_DELFILE
 		hotkey "Shift+Delete"
 	}
 	item "-" {
@@ -54,15 +54,15 @@ menu mfile {
 
 menu mlist {
 	item "&New Tab" {
-		action QUE_NEW
+		action A_LIST_NEW
 		hotkey "Ctrl+N"
 	}
 	item "Close Tab" {
-		action QUE_DEL
+		action A_LIST_CLOSE
 		hotkey "Ctrl+W"
 	}
 	item "&Save Playlist..." {
-		action SAVELIST
+		action A_LIST_SAVELIST
 		hotkey "Ctrl+S"
 	}
 	item "Read &Meta Tags" {
@@ -71,27 +71,27 @@ menu mlist {
 	item "-" {
 	}
 	item "Select &All" {
-		action SELALL
+		action A_LIST_SELALL
 		hotkey "Ctrl+A"
 	}
 	item "In&vert Selection" {
-		action SELINVERT
+		action A_LIST_SELINVERT
 	}
 	item "Selection Follows Cursor" {
-		action SEL_AFTER_CUR
+		action A_LIST_SEL_AFTER_CUR
 	}
 	item "-" {
 	}
 	item "&Remove" {
-		action REMOVE
+		action A_LIST_REMOVE
 		hotkey "Delete"
 	}
 	item "Remove &Dead Items" {
-		action LIST_RMDEAD
+		action A_LIST_RMDEAD
 		hotkey "Alt+Delete"
 	}
 	item "&Clear" {
-		action CLEAR
+		action A_LIST_CLEAR
 	}
 	item "-" {
 	}
@@ -100,7 +100,7 @@ menu mlist {
 		hotkey "Ctrl+F"
 	}
 	item "Random" {
-		action RANDOM
+		action A_LIST_RANDOM
 		hotkey "R"
 	}
 	item "Sort: Random" {
@@ -118,41 +118,41 @@ menu mlist {
 
 menu mplay {
 	item "&Play/Pause" {
-		action PAUSE
+		action A_PLAY_PAUSE
 		hotkey "Space"
 	}
 	item "&Stop" {
-		action STOP
+		action A_PLAY_STOP
 		hotkey "S"
 	}
 	item "Stop After Current" {
-		action STOP_AFTER
+		action A_PLAY_STOP_AFTER
 		hotkey "Shift+S"
 	}
 	item "&Next" {
-		action NEXT
+		action A_PLAY_NEXT
 		hotkey "N"
 	}
 	item "P&revious" {
-		action PREV
+		action A_PLAY_PREV
 		hotkey "P"
 	}
 	item "-" {
 	}
 	item "Seek &Forward" {
-		action FFWD
+		action A_PLAY_FFWD
 		hotkey "Right"
 	}
 	item "Seek &Back" {
-		action RWND
+		action A_PLAY_RWND
 		hotkey "Left"
 	}
 	item "Leap Forward" {
-		action LEAP_FWD
+		action A_PLAY_LEAP_FWD
 		hotkey "Ctrl+Right"
 	}
 	item "Leap Back" {
-		action LEAP_BACK
+		action A_PLAY_LEAP_BACK
 		hotkey "Ctrl+Left"
 	}
 	item "Go To..." {
@@ -160,25 +160,25 @@ menu mplay {
 		hotkey "Ctrl+G"
 	}
 	item "Set Marker" {
-		action SETGOPOS
+		action A_PLAY_SETGOPOS
 		hotkey "Shift+G"
 	}
 	item "Jump To Marker" {
-		action GOPOS
+		action A_PLAY_GOPOS
 		hotkey "G"
 	}
 	item "-" {
 	}
 	item "Volume &Up" {
-		action VOLUP
+		action A_PLAY_VOLUP
 		hotkey "Up"
 	}
 	item "Volume &Down" {
-		action VOLDOWN
+		action A_PLAY_VOLDOWN
 		hotkey "Down"
 	}
 	item "Reset Volume" {
-		action VOLRESET
+		action A_PLAY_VOLRESET
 	}
 	item "-" {
 	}
@@ -257,25 +257,25 @@ menu mlist_popup {
 		action PLAY
 	}
 	item "&Remove" {
-		action REMOVE
+		action A_LIST_REMOVE
 	}
 	item "Show Media Info" {
-		action SHOWINFO
+		action A_FILE_SHOWINFO
 	}
 	item "To Next Playlist" {
 		action TO_NXTLIST
 	}
 	item "C&opy to Clipboard" {
-		action COPYFILE
+		action A_FILE_COPYFILE
 	}
 	item "Copy File&name to Clipboard" {
-		action COPYFN
+		action A_FILE_COPYFN
 	}
 	item "Show Fi&le in Explorer" {
-		action SHOWDIR
+		action A_FILE_SHOWDIR
 	}
 	item "&Delete From Disk" {
-		action DELFILE
+		action A_FILE_DELFILE
 	}
 }
 
@@ -334,7 +334,7 @@ window wmain {
 		position 5 5 30 30
 		style visible
 		tooltip "Play/Pause"
-		action PAUSE
+		action A_PLAY_PAUSE
 		icon {
 			resource 3
 			size 30 30
@@ -345,7 +345,7 @@ window wmain {
 		position 40 5 30 30
 		style visible
 		tooltip "Stop"
-		action STOP
+		action A_PLAY_STOP
 		icon {
 			resource 4
 			size 30 30
@@ -356,7 +356,7 @@ window wmain {
 		position 75 5 30 30
 		style visible
 		tooltip "Previous"
-		action PREV
+		action A_PLAY_PREV
 		icon {
 			resource 5
 			size 30 30
@@ -367,7 +367,7 @@ window wmain {
 		position 110 5 30 30
 		style visible
 		tooltip "Next"
-		action NEXT
+		action A_PLAY_NEXT
 		icon {
 			resource 6
 			size 30 30
@@ -390,22 +390,22 @@ window wmain {
 		range 0
 		page_size 15
 		onscrolling SEEKING
-		onscroll SEEK
+		onscroll A_PLAY_SEEK
 	}
 
 	trackbar tvol {
-		position 300 10 60 20
+		position 300 10 100 20
 		style no_ticks both visible
 		range 125
 		value 100
 		page_size 5
-		onscrolling VOL
+		onscrolling A_PLAY_VOL
 	}
 
 	tab tabs {
 		position 0 65 300 20
 		style visible
-		onchange QUE_SEL
+		onchange A_LIST_SEL
 	}
 
 	listview vlist {
@@ -693,7 +693,7 @@ window wgoto {
 		position 10 40 50 25
 		style visible
 		text "Go!"
-		action GOTO
+		action A_PLAY_GOTO
 	}
 }
 

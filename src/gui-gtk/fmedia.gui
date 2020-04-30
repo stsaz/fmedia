@@ -12,17 +12,17 @@ menu mfile {
 	item "-" {
 	}
 	item "Analyze & Show PCM Info" {
-		action A_SHOWPCM
+		action A_FILE_SHOWPCM
 	}
 	item "Show Media Info" {
-		action A_SHOWINFO
+		action A_FILE_SHOWINFO
 		hotkey "I"
 	}
 	item "Show Fi_le in Explorer" {
-		action A_SHOWDIR
+		action A_FILE_SHOWDIR
 	}
 	item "_Delete From Disk" {
-		action A_DELFILE
+		action A_FILE_DELFILE
 		hotkey "Shift+Delete"
 	}
 	item "-" {

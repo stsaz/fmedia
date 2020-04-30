@@ -35,7 +35,6 @@ static const char* const list_colname[] = {
 
 static void gui_action(ffui_wnd *wnd, int id);
 static void gui_media_opendlg(uint id);
-static void gui_media_open(uint id);
 static void gui_media_savelist(void);
 static void gui_media_remove(void);
 static void gui_list_rmdead(void);
@@ -75,7 +74,7 @@ void wmain_init(void)
 	gg->wmain.wmain.onminimize_id = (gg->minimize_to_tray) ? HIDE : 0;
 	gui_newtab(0);
 	ffui_tray_settooltipz(&gg->wmain.tray_icon, "fmedia");
-	gg->wmain.vlist.colclick_id = SORT;
+	gg->wmain.vlist.colclick_id = A_LIST_SORT;
 	gg->wmain.wmain.on_dropfiles = &gui_on_dropfiles;
 	ffui_fdrop_accept(&gg->wmain.wmain, 1);
 
@@ -97,25 +96,45 @@ void wmain_init(void)
 
 static const struct cmd cmds[] = {
 	{ PLAY,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op },
-	{ PAUSE,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op },
-	{ STOP,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op },
-	{ STOP_AFTER,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op },
-	{ NEXT,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op },
-	{ PREV,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op },
+	{ A_PLAY_PAUSE,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op },
+	{ A_PLAY_STOP,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op },
+	{ A_PLAY_STOP_AFTER,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op },
+	{ A_PLAY_NEXT,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op },
+	{ A_PLAY_PREV,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op },
 
-	{ SEEK,	F1,	&gui_seek },
-	{ FFWD,	F1,	&gui_seek },
-	{ RWND,	F1,	&gui_seek },
-	{ LEAP_FWD,	F1,	&gui_seek },
-	{ LEAP_BACK,	F1,	&gui_seek },
+	{ A_PLAY_SEEK,	F1,	&gui_seek },
+	{ A_PLAY_FFWD,	F1,	&gui_seek },
+	{ A_PLAY_RWND,	F1,	&gui_seek },
+	{ A_PLAY_LEAP_FWD,	F1,	&gui_seek },
+	{ A_PLAY_LEAP_BACK,	F1,	&gui_seek },
+	{ A_PLAY_GOPOS,	F1,	&gui_seek },
+	{ A_PLAY_SETGOPOS,	F0,	&gui_go_set },
+
+	{ A_PLAY_VOL,	F1,	&gui_vol },
+	{ A_PLAY_VOLUP,	F1,	&gui_vol },
+	{ A_PLAY_VOLDOWN,	F1,	&gui_vol },
+	{ A_PLAY_VOLRESET,	F1,	&gui_vol },
+
 	{ GOTO_SHOW,	F0,	&gui_goto_show },
-	{ GOPOS,	F1,	&gui_seek },
-	{ SETGOPOS,	F0,	&gui_go_set },
 
-	{ VOL,	F1,	&gui_vol },
-	{ VOLUP,	F1,	&gui_vol },
-	{ VOLDOWN,	F1,	&gui_vol },
-	{ VOLRESET,	F1,	&gui_vol },
+	{ A_FILE_SHOWINFO,	F0 | CMD_FCORE,	&gui_media_showinfo },
+	{ A_FILE_SHOWPCM,	F0 | CMD_FCORE,	&gui_media_showpcm },
+	{ A_FILE_COPYFILE,	F1 | CMD_FCORE,	&gui_media_fileop },
+	{ A_FILE_COPYFN,	F0 | CMD_FCORE,	&gui_media_copyfn },
+	{ A_FILE_SHOWDIR,	F0 | CMD_FCORE,	&gui_media_showdir },
+	{ A_FILE_DELFILE,	F1 | CMD_FCORE,	&gui_media_fileop },
+
+	{ A_LIST_NEW,	F0 | CMD_FCORE,	&gui_que_new },
+	{ A_LIST_CLOSE,	F0 | CMD_FCORE,	&gui_que_del },
+	{ A_LIST_SEL,	F0 | CMD_FCORE,	&gui_que_sel },
+	{ A_LIST_SAVELIST,	F0,	&gui_media_savelist },
+	{ A_LIST_REMOVE,	F0 | CMD_FCORE,	&gui_media_remove },
+	{ A_LIST_RANDOM,	F0 | CMD_FCORE,	&gui_list_random },
+	{ A_LIST_SORTRANDOM,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op },
+	{ A_LIST_RMDEAD,	F0 | CMD_FCORE,	&gui_list_rmdead },
+	{ A_LIST_CLEAR,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op },
+	{ A_LIST_READMETA,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op },
+	{ A_LIST_SEL_AFTER_CUR,	F0,	&sel_after_cur },
 
 	{ REC,	F1 | CMD_FCORE,	&gui_rec },
 	{ REC_SETS,	F0,	&gui_rec_show },
@@ -132,25 +151,8 @@ static const struct cmd cmds[] = {
 	{ OPEN,	F1,	&gui_media_opendlg },
 	{ ADD,	F1,	&gui_media_opendlg },
 	{ ADDURL,	F1,	&gui_media_addurl },
-	{ QUE_NEW,	F0 | CMD_FCORE,	&gui_que_new },
-	{ QUE_DEL,	F0 | CMD_FCORE,	&gui_que_del },
-	{ QUE_SEL,	F0 | CMD_FCORE,	&gui_que_sel },
-	{ SAVELIST,	F0,	&gui_media_savelist },
-	{ REMOVE,	F0 | CMD_FCORE,	&gui_media_remove },
-	{ RANDOM,	F0 | CMD_FCORE,	&gui_list_random },
-	{ A_LIST_SORTRANDOM,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op },
-	{ LIST_RMDEAD,	F0 | CMD_FCORE,	&gui_list_rmdead },
-	{ CLEAR,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op },
-	{ A_LIST_READMETA,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op },
 	{ TO_NXTLIST,	F0 | CMD_FCORE,	&gui_tonxtlist },
-	{ SHOWDIR,	F0 | CMD_FCORE,	&gui_media_showdir },
-	{ COPYFN,	F0 | CMD_FCORE,	&gui_media_copyfn },
-	{ COPYFILE,	F1 | CMD_FCORE,	&gui_media_fileop },
-	{ DELFILE,	F1 | CMD_FCORE,	&gui_media_fileop },
-	{ SHOWINFO,	F0 | CMD_FCORE,	&gui_media_showinfo },
-	{ SHOWPCM,	F0 | CMD_FCORE,	&gui_media_showpcm },
 	{ FILTER_SHOW,	F0,	&gui_filt_show },
-	{ SEL_AFTER_CUR,	F0,	&sel_after_cur },
 
 	{ FAV_ADD,	F0 | CMD_FCORE,	&fav_add },
 	{ FAV_SHOW,	F0 | CMD_FCORE,	&fav_show },
@@ -170,9 +172,9 @@ static const struct cmd cmds[] = {
 static const struct cmd cmd_open = { OPEN,	F1 | CMD_FCORE,	&gui_media_open };
 const struct cmd cmd_add = { ADD,	F1 | CMD_FCORE,	&gui_media_open };
 static const struct cmd cmd_quit = { QUIT,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op };
-static const struct cmd cmd_savelist = { SAVELIST,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op };
-static const struct cmd cmd_seek = { SEEK, F1 | CMD_FCORE | CMD_FUDATA, &gui_corecmd_op };
-static const struct cmd cmd_vol = { VOL, F1 | CMD_FCORE | CMD_FUDATA, &gui_corecmd_op };
+static const struct cmd cmd_savelist = { A_LIST_SAVELIST,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op };
+static const struct cmd cmd_seek = { A_PLAY_SEEK, F1 | CMD_FCORE | CMD_FUDATA, &gui_corecmd_op };
+static const struct cmd cmd_vol = { A_PLAY_VOL, F1 | CMD_FCORE | CMD_FUDATA, &gui_corecmd_op };
 
 const struct cmd* getcmd(uint cmd, const struct cmd *cmds, uint n)
 {
@@ -293,15 +295,15 @@ static void gui_action(ffui_wnd *wnd, int id)
 		break;
 
 
-	case SELALL:
+	case A_LIST_SELALL:
 		ffui_view_sel(&gg->wmain.vlist, -1);
 		break;
 
-	case SELINVERT:
+	case A_LIST_SELINVERT:
 		ffui_view_sel_invert(&gg->wmain.vlist);
 		break;
 
-	case SORT: {
+	case A_LIST_SORT: {
 		if (list_colname[gg->wmain.vlist.col] == NULL)
 			break;
 		ffui_viewcol vc = {};
@@ -440,23 +442,23 @@ void gui_seek(uint cmd)
 
 	switch (cmd) {
 	default:
-	case GOTO:
+	case A_PLAY_GOTO:
 		pos = ffui_trk_val(&gg->wmain.tpos);
 		break;
 
-	case FFWD:
+	case A_PLAY_FFWD:
 		delta = gg->seek_step_delta;
 		goto use_delta;
 
-	case RWND:
+	case A_PLAY_RWND:
 		delta = -(int)gg->seek_step_delta;
 		goto use_delta;
 
-	case LEAP_FWD:
+	case A_PLAY_LEAP_FWD:
 		delta = gg->seek_leap_delta;
 		goto use_delta;
 
-	case LEAP_BACK:
+	case A_PLAY_LEAP_BACK:
 		delta = -(int)gg->seek_leap_delta;
 		goto use_delta;
 
@@ -466,7 +468,7 @@ use_delta:
 		ffui_trk_set(&gg->wmain.tpos, pos);
 		break;
 
-	case GOPOS:
+	case A_PLAY_GOPOS:
 		if (gg->go_pos == (uint)-1)
 			return;
 		pos = gg->go_pos;
@@ -496,15 +498,15 @@ static void gui_vol(uint id)
 	size_t n;
 
 	switch (id) {
-	case VOLUP:
+	case A_PLAY_VOLUP:
 		ffui_trk_move(&gg->wmain.tvol, FFUI_TRK_PGUP);
 		break;
 
-	case VOLDOWN:
+	case A_PLAY_VOLDOWN:
 		ffui_trk_move(&gg->wmain.tvol, FFUI_TRK_PGDN);
 		break;
 
-	case VOLRESET:
+	case A_PLAY_VOLRESET:
 		ffui_trk_set(&gg->wmain.tvol, 100);
 		break;
 	}
@@ -593,13 +595,13 @@ static void gui_media_fileop(uint cmd)
 		ent = (fmed_que_entry*)gg->qu->fmed_queue_item(-1, i);
 
 		switch (cmd) {
-		case COPYFILE:
+		case A_FILE_COPYFILE:
 			if (NULL == (pitem = ffarr_pushgrowT(&buf, 16, char*)))
 				goto done;
 			*pitem = ent->url.ptr;
 			break;
 
-		case DELFILE:
+		case A_FILE_DELFILE:
 			if (NULL == (pei = ffarr_pushgrowT(&ents, 16, fmed_que_entry*)))
 				goto done;
 			*pei = ent;
@@ -613,14 +615,14 @@ static void gui_media_fileop(uint cmd)
 		goto done;
 
 	switch (cmd) {
-	case COPYFILE:
+	case A_FILE_COPYFILE:
 		if (0 == ffui_clipbd_setfile((const char *const *)buf.ptr, buf.len)) {
 			n = ffs_fmt(st, st + sizeof(st), "Copied %L files to clipboard", buf.len);
 			gui_status(st, n);
 		}
 		break;
 
-	case DELFILE:
+	case A_FILE_DELFILE:
 		if (0 == gui_files_del(&ents)) {
 			ffui_view_unselall(&gg->wmain.vlist);
 			list_update(first_idx, -(int)ents.len);
@@ -735,27 +737,6 @@ static void gui_media_opendlg(uint id)
 	return;
 
 err:
-	FFARR_FREE_ALL_PTR(&gg->filenames, ffmem_free, char*);
-}
-
-static void gui_media_open(uint id)
-{
-	const char **pfn;
-
-	ffui_redraw(&gg->wmain.vlist, 0);
-
-	if (id == OPEN)
-		gui_corecmd_op(CLEAR, NULL);
-
-	FFARR_WALKT(&gg->filenames, pfn, const char*) {
-		gui_media_add1(*pfn);
-	}
-
-	ffui_redraw(&gg->wmain.vlist, 1);
-
-	if (id == OPEN)
-		gui_corecmd_op(NEXT, NULL);
-
 	FFARR_FREE_ALL_PTR(&gg->filenames, ffmem_free, char*);
 }
 
@@ -915,7 +896,7 @@ static void gui_list_random(void)
 		ffui_menu_addstate(&mi, FFUI_MENU_CHECKED);
 	else
 		ffui_menu_clearstate(&mi, FFUI_MENU_CHECKED);
-	ffui_menu_set_byid(&gg->mlist, RANDOM, &mi);
+	ffui_menu_set_byid(&gg->mlist, A_LIST_RANDOM, &mi);
 }
 
 static void sel_after_cur(void)
@@ -926,7 +907,7 @@ static void sel_after_cur(void)
 		ffui_menu_addstate(&mi, FFUI_MENU_CHECKED);
 	else
 		ffui_menu_clearstate(&mi, FFUI_MENU_CHECKED);
-	ffui_menu_set_byid(&gg->mlist, SEL_AFTER_CUR, &mi);
+	ffui_menu_set_byid(&gg->mlist, A_LIST_SEL_AFTER_CUR, &mi);
 }
 
 /* Favorites playlist.

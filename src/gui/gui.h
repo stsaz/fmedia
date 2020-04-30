@@ -278,27 +278,52 @@ struct gui_trk {
 
 enum CMDS {
 	PLAY = 1,
-	PAUSE,
-	STOP,
-	STOP_AFTER,
-	NEXT,
-	PREV,
+	A_PLAY_PAUSE,
+	A_PLAY_STOP,
+	A_PLAY_STOP_AFTER,
+	A_PLAY_NEXT,
+	A_PLAY_PREV,
 
-	SEEK,
+	A_PLAY_SEEK,
+	A_PLAY_FFWD,
+	A_PLAY_RWND,
+	A_PLAY_LEAP_FWD,
+	A_PLAY_LEAP_BACK,
+	A_PLAY_GOTO,
+	A_PLAY_GOPOS,
+	A_PLAY_SETGOPOS,
+
+	A_PLAY_VOL,
+	A_PLAY_VOLUP,
+	A_PLAY_VOLDOWN,
+	A_PLAY_VOLRESET,
+
 	SEEKING,
-	FFWD,
-	RWND,
-	LEAP_FWD,
-	LEAP_BACK,
 	GOTO_SHOW,
-	GOTO,
-	GOPOS,
-	SETGOPOS,
 
-	VOL,
-	VOLUP,
-	VOLDOWN,
-	VOLRESET,
+// file operations:
+	A_FILE_SHOWINFO,
+	A_FILE_SHOWPCM,
+	A_FILE_COPYFILE,
+	A_FILE_COPYFN,
+	A_FILE_SHOWDIR,
+	A_FILE_DELFILE,
+
+// playlist operations:
+	A_LIST_NEW,
+	A_LIST_CLOSE,
+	A_LIST_SEL,
+	A_LIST_SAVELIST,
+	A_LIST_REMOVE,
+	A_LIST_RANDOM,
+	A_LIST_SORTRANDOM,
+	A_LIST_RMDEAD,
+	A_LIST_CLEAR,
+	A_LIST_READMETA,
+	A_LIST_SELALL,
+	A_LIST_SELINVERT,
+	A_LIST_SEL_AFTER_CUR,
+	A_LIST_SORT,
 
 	REC,
 	REC_SETS,
@@ -319,31 +344,11 @@ enum CMDS {
 	OPEN,
 	ADD,
 	ADDURL,
-	QUE_NEW,
-	QUE_DEL,
-	QUE_SEL,
-	SAVELIST,
-	REMOVE,
-	RANDOM,
-	A_LIST_SORTRANDOM,
-	LIST_RMDEAD,
-	CLEAR,
-	A_LIST_READMETA,
-	SELALL,
-	SELINVERT,
-	SORT,
 	TO_NXTLIST,
-	SHOWDIR,
-	COPYFN,
-	COPYFILE,
-	DELFILE,
-	SHOWINFO,
-	SHOWPCM,
 	INFOEDIT,
 	FILTER_SHOW,
 	FILTER_APPLY,
 	FILTER_RESET,
-	SEL_AFTER_CUR,
 
 	FAV_ADD,
 	FAV_SHOW,
@@ -403,9 +408,11 @@ const struct cmd* getcmd(uint cmd, const struct cmd *cmds, uint n);
 
 
 void* gui_getctl(void *udata, const ffstr *name);
+void gui_media_open(uint id);
 void gui_media_add1(const char *fn);
 enum {
 	ADDF_CHECKTYPE = 1, // don't add items of unsupported type
+	ADDF_NOUPDATE = 2,
 };
 void gui_media_add2(const char *fn, int pl, uint flags);
 void gui_media_showpcm(void);

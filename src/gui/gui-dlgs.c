@@ -236,7 +236,7 @@ void wgoto_init()
 static void gui_wgoto_action(ffui_wnd *wnd, int id)
 {
 	switch (id) {
-	case GOTO: {
+	case A_PLAY_GOTO: {
 		ffstr s;
 		ffdtm dt;
 		fftime t;
@@ -247,7 +247,7 @@ static void gui_wgoto_action(ffui_wnd *wnd, int id)
 
 		fftime_join(&t, &dt, FFTIME_TZNODATE);
 		ffui_trk_set(&gg->wmain.tpos, fftime_sec(&t));
-		gui_seek(GOTO);
+		gui_seek(A_PLAY_GOTO);
 		ffui_show(&gg->wgoto.wgoto, 0);
 		break;
 	}

@@ -236,10 +236,10 @@ static void* gui_getctl(void *udata, const ffstr *name)
 static const char *const action_str[] = {
 	"A_LIST_ADDFILE",
 	"A_LIST_ADDURL",
-	"A_SHOWPCM",
-	"A_SHOWINFO",
-	"A_SHOWDIR",
-	"A_DELFILE",
+	"A_FILE_SHOWPCM",
+	"A_FILE_SHOWINFO",
+	"A_FILE_SHOWDIR",
+	"A_FILE_DELFILE",
 	"A_SHOW",
 	"A_HIDE",
 	"A_QUIT",
@@ -395,15 +395,15 @@ static void corecmd_run(uint cmd, void *udata)
 
 	switch ((enum ACTION)cmd) {
 
-	case A_SHOWPCM:
+	case A_FILE_SHOWPCM:
 		file_showpcm();
 		break;
 
-	case A_SHOWDIR:
+	case A_FILE_SHOWDIR:
 		showdir_selected();
 		break;
 
-	case A_DELFILE:
+	case A_FILE_DELFILE:
 		file_del();
 		break;
 

@@ -296,27 +296,50 @@ void* gui_getctl(void *udata, const ffstr *name)
 
 static const char *const scmds[] = {
 	"PLAY",
-	"PAUSE",
-	"STOP",
-	"STOP_AFTER",
-	"NEXT",
-	"PREV",
+	"A_PLAY_PAUSE",
+	"A_PLAY_STOP",
+	"A_PLAY_STOP_AFTER",
+	"A_PLAY_NEXT",
+	"A_PLAY_PREV",
 
-	"SEEK",
+	"A_PLAY_SEEK",
+	"A_PLAY_FFWD",
+	"A_PLAY_RWND",
+	"A_PLAY_LEAP_FWD",
+	"A_PLAY_LEAP_BACK",
+	"A_PLAY_GOTO",
+	"A_PLAY_GOPOS",
+	"A_PLAY_SETGOPOS",
+
+	"A_PLAY_VOL",
+	"A_PLAY_VOLUP",
+	"A_PLAY_VOLDOWN",
+	"A_PLAY_VOLRESET",
+
 	"SEEKING",
-	"FFWD",
-	"RWND",
-	"LEAP_FWD",
-	"LEAP_BACK",
 	"GOTO_SHOW",
-	"GOTO",
-	"GOPOS",
-	"SETGOPOS",
 
-	"VOL",
-	"VOLUP",
-	"VOLDOWN",
-	"VOLRESET",
+	"A_FILE_SHOWINFO",
+	"A_FILE_SHOWPCM",
+	"A_FILE_COPYFILE",
+	"A_FILE_COPYFN",
+	"A_FILE_SHOWDIR",
+	"A_FILE_DELFILE",
+
+	"A_LIST_NEW",
+	"A_LIST_CLOSE",
+	"A_LIST_SEL",
+	"A_LIST_SAVELIST",
+	"A_LIST_REMOVE",
+	"A_LIST_RANDOM",
+	"A_LIST_SORTRANDOM",
+	"A_LIST_RMDEAD",
+	"A_LIST_CLEAR",
+	"A_LIST_READMETA",
+	"A_LIST_SELALL",
+	"A_LIST_SELINVERT",
+	"A_LIST_SEL_AFTER_CUR",
+	"A_LIST_SORT",
 
 	"REC",
 	"REC_SETS",
@@ -337,32 +360,12 @@ static const char *const scmds[] = {
 	"OPEN",
 	"ADD",
 	"ADDURL",
-	"QUE_NEW",
-	"QUE_DEL",
-	"QUE_SEL",
-	"SAVELIST",
-	"REMOVE",
-	"RANDOM",
-	"A_LIST_SORTRANDOM",
 
-	"LIST_RMDEAD",
-	"CLEAR",
-	"A_LIST_READMETA",
-	"SELALL",
-	"SELINVERT",
-	"SORT",
 	"TO_NXTLIST",
-	"SHOWDIR",
-	"COPYFN",
-	"COPYFILE",
-	"DELFILE",
-	"SHOWINFO",
-	"SHOWPCM",
 	"INFOEDIT",
 	"FILTER_SHOW",
 	"FILTER_APPLY",
 	"FILTER_RESET",
-	"SEL_AFTER_CUR",
 
 	"FAV_ADD",
 	"FAV_SHOW",
@@ -438,6 +441,25 @@ void gui_corecmd_add(const struct cmd *cmd, void *udata)
 	core->task(&c->tsk, FMED_TASK_POST);
 }
 
+void gui_media_open(uint id)
+{
+	const char **pfn;
+
+	if (id == OPEN)
+		gui_corecmd_op(A_LIST_CLEAR, NULL);
+
+	FFARR_WALKT(&gg->filenames, pfn, const char*) {
+		gui_media_add2(*pfn, -1, ADDF_CHECKTYPE | ADDF_NOUPDATE);
+	}
+
+	list_update(0, 0);
+
+	if (id == OPEN)
+		gui_corecmd_op(A_PLAY_NEXT, NULL);
+
+	FFARR_FREE_ALL_PTR(&gg->filenames, ffmem_free, char*);
+}
+
 void gui_corecmd_op(uint cmd, void *udata)
 {
 	switch (cmd) {
@@ -457,7 +479,7 @@ void gui_corecmd_op(uint cmd, void *udata)
 		break;
 	}
 
-	case PAUSE:
+	case A_PLAY_PAUSE:
 		if (gg->curtrk == NULL) {
 			gg->qu->cmd(FMED_QUE_PLAY, NULL);
 			break;
@@ -476,30 +498,30 @@ void gui_corecmd_op(uint cmd, void *udata)
 		gg->curtrk->state = ST_PAUSED;
 		break;
 
-	case STOP:
+	case A_PLAY_STOP:
 		gg->track->cmd(NULL, FMED_TRACK_STOPALL);
 		if (gg->curtrk != NULL && gg->curtrk->state == ST_PAUSED)
-			gg->wmain.wmain.on_action(&gg->wmain.wmain, PAUSE);
+			gg->wmain.wmain.on_action(&gg->wmain.wmain, A_PLAY_PAUSE);
 		break;
 
-	case STOP_AFTER:
+	case A_PLAY_STOP_AFTER:
 		gg->qu->cmd(FMED_QUE_STOP_AFTER, NULL);
 		break;
 
-	case NEXT:
+	case A_PLAY_NEXT:
 		if (gg->curtrk != NULL)
 			gg->track->cmd(gg->curtrk->trk, FMED_TRACK_STOP);
 		gg->qu->cmd(FMED_QUE_NEXT2, (gg->curtrk != NULL) ? gg->curtrk->qent : NULL);
 		break;
 
-	case PREV:
+	case A_PLAY_PREV:
 		if (gg->curtrk != NULL)
 			gg->track->cmd(gg->curtrk->trk, FMED_TRACK_STOP);
 		gg->qu->cmd(FMED_QUE_PREV2, (gg->curtrk != NULL) ? gg->curtrk->qent : NULL);
 		break;
 
 
-	case SEEK:
+	case A_PLAY_SEEK:
 		if (gg->curtrk == NULL)
 			break;
 		gg->curtrk->d->audio.seek = (size_t)udata * 1000;
@@ -507,19 +529,19 @@ void gui_corecmd_op(uint cmd, void *udata)
 		gg->curtrk->goback = 1;
 		break;
 
-	case VOL:
+	case A_PLAY_VOL:
 		if (gg->curtrk == NULL)
 			break;
 		gg->curtrk->d->audio.gain = gg->vol;
 		break;
 
 
-	case CLEAR:
+	case A_LIST_CLEAR:
 		gg->qu->cmd(FMED_QUE_CLEAR | FMED_QUE_NO_ONCHANGE, NULL);
 		ffui_view_clear(&gg->wmain.vlist);
 		break;
 
-	case SAVELIST: {
+	case A_LIST_SAVELIST: {
 		char *list_fn = udata;
 		gg->qu->fmed_queue_save(-1, list_fn);
 		ffmem_free(list_fn);
@@ -626,7 +648,9 @@ void gui_media_add2(const char *fn, int pl, uint flags)
 	ffstr_setz(&e.url, fn);
 	if (NULL == (pe = (void*)gg->qu->fmed_queue_add(FMED_QUE_NO_ONCHANGE, pl, &e)))
 		return;
-	gui_media_added(pe);
+
+	if (!(flags & ADDF_NOUPDATE))
+		gui_media_added(pe);
 
 	if (t == FMED_FT_DIR || t == FMED_FT_PLIST)
 		gg->qu->cmd2(FMED_QUE_EXPAND, pe, 0);
@@ -1373,7 +1397,7 @@ static void* gtrk_open(fmed_filt *d)
 		gg->curtrk = g;
 		fflk_unlock(&gg->lktrk);
 
-		gui_corecmd_op(VOL, NULL);
+		gui_corecmd_op(A_PLAY_VOL, NULL);
 	}
 
 	g->state = ST_PLAYING;
