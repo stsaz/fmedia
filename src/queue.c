@@ -713,7 +713,8 @@ static const char *const scmds[] = {
 	"sort", "count",
 	"xplay", "add2", "add-after", "settrackprops", "copytrackprops",
 	"", "", "", "",
-	"expand2", "expand-all"
+	"expand2", "expand-all",
+	"curid", "setcurid",
 };
 
 static ssize_t que_cmdv(uint cmd, ...)
@@ -769,6 +770,27 @@ static ssize_t que_cmdv(uint cmd, ...)
 	case FMED_QUE_COUNT: {
 		pl = qu->curlist;
 		r = pl->ents.len;
+		goto end;
+	}
+
+	case FMED_QUE_CURID: {
+		int plid = va_arg(va, int);
+		pl = (plid != -1) ? plist_by_idx(plid) : qu->curlist;
+		if (pl == NULL)
+			goto end;
+		r = que_cmdv(FMED_QUE_ID, pl->cur);
+		if (r == -1)
+			r = 0;
+		goto end;
+	}
+
+	case FMED_QUE_SETCURID: {
+		int plid = va_arg(va, int);
+		size_t eid = va_arg(va, size_t);
+		pl = (plid != -1) ? plist_by_idx(plid) : qu->curlist;
+		if (pl == NULL)
+			goto end;
+		pl->cur = (void*)que_cmdv(FMED_QUE_ITEM, (size_t)plid, (size_t)eid);
 		goto end;
 	}
 

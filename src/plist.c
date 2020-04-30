@@ -149,6 +149,7 @@ static void* m3u_open(fmed_filt *d)
 		return NULL;
 	ffm3u_init(&m->m3u);
 	m->qu_cur = (void*)fmed_getval("queue_item");
+	qu->cmdv(FMED_QUE_RM, m->qu_cur);
 	return m;
 }
 
@@ -181,7 +182,6 @@ static int m3u_process(void *ctx, fmed_filt *d)
 		}
 
 		qu->cmd(FMED_QUE_ADD | FMED_QUE_ADD_DONE, NULL);
-		qu->cmd(FMED_QUE_RM, (void*)fmed_getval("queue_item"));
 		return FMED_RFIN;
 	}
 
@@ -314,6 +314,7 @@ static void* pls_open(fmed_filt *d)
 		return NULL;
 	ffpls_init(&p->pls);
 	p->qu_cur = (void*)fmed_getval("queue_item");
+	qu->cmdv(FMED_QUE_RM, p->qu_cur);
 	return p;
 }
 
@@ -376,7 +377,6 @@ static int pls_process(void *ctx, fmed_filt *d)
 	}
 
 	if (r == FFPLS_FIN) {
-		qu->cmd(FMED_QUE_RM, (void*)fmed_getval("queue_item"));
 		return FMED_RFIN;
 
 	} else if (r == FFPARS_MORE) {

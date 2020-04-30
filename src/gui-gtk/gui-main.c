@@ -31,18 +31,28 @@ void wmain_init()
 	ffui_show(&gg->wmain, 1);
 }
 
+/** Called before leaving the current playlist. */
+static void list_onleave()
+{
+	if (0 != ffui_tab_active(&gg->wmain.tabs))
+		return;
+	gg->conf.list_scroll_pos = ffui_view_scroll_vert(&gg->wmain.vlist);
+}
+
 static void wmain_action(ffui_wnd *wnd, int id)
 {
 	dbglog("%s cmd:%u", __func__, id);
 
 	switch (id) {
 	case A_LIST_NEW:
+		list_onleave();
 		list_new();
 		return;
 	case A_LIST_DEL:
 		list_del();
 		return;
 	case A_LIST_SEL:
+		list_onleave();
 		ffui_view_clear(&gg->wmain.vlist);
 		corecmd_add(A_LIST_SEL, (void*)(size_t)gg->wmain.tabs.changed_index);
 		return;
@@ -252,6 +262,21 @@ static void list_dispinfo(struct ffui_view_disp *disp)
 void wmain_list_update(uint idx, int delta)
 {
 	ffui_send_view_setdata(&gg->wmain.vlist, idx, delta);
+}
+
+static void list_setdata_scroll(void *param)
+{
+	ffui_view_setdata(&gg->wmain.vlist, 0, (size_t)param);
+	if (ffui_tab_active(&gg->wmain.tabs) == 0 && gg->conf.list_scroll_pos != 0) {
+		// ffui_view_scroll_setvert() doesn't work here
+		ffui_post_view_scroll_set(&gg->wmain.vlist, gg->conf.list_scroll_pos);
+		gg->conf.list_scroll_pos = 0;
+	}
+}
+
+void wmain_list_set(uint idx, int delta)
+{
+	ffui_thd_post(&list_setdata_scroll, (void*)(size_t)delta, 0);
 }
 
 void wmain_ent_added(uint idx)

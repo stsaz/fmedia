@@ -77,6 +77,8 @@ struct gui_conf {
 	byte autosave_playlists;
 	byte list_random;
 	ushort list_col_width[16];
+	uint list_actv_trk_idx;
+	uint list_scroll_pos;
 };
 typedef struct ggui {
 	uint state;
@@ -187,6 +189,7 @@ void wmain_tab_new();
 void wmain_list_clear();
 void wmain_list_cols_width_write(ffconfw *conf);
 void wmain_list_update(uint idx, int delta);
+void wmain_list_set(uint idx, int delta);
 
 int conf_convert(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
 void wconvert_init();

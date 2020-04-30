@@ -100,6 +100,8 @@ static const ffpars_arg gui_conf_args[] = {
 	{ "autosave_playlists",	FFPARS_TBOOL8, FFPARS_DSTOFF(struct gui_conf, autosave_playlists) },
 	{ "random",	FFPARS_TBOOL8, FFPARS_DSTOFF(struct gui_conf, list_random) },
 	{ "list_columns_width",	FFPARS_TINT16 | FFPARS_FLIST, FFPARS_DST(&conf_list_col_width) },
+	{ "list_track",	FFPARS_TINT, FFPARS_DSTOFF(struct gui_conf, list_actv_trk_idx) },
+	{ "list_scroll",	FFPARS_TINT, FFPARS_DSTOFF(struct gui_conf, list_scroll_pos) },
 
 	{ "record",	FFPARS_TOBJ, FFPARS_DST(&conf_ctxany) },
 	{ "convert",	FFPARS_TOBJ, FFPARS_DST(&conf_convert) },
@@ -488,16 +490,13 @@ static void corecmd_run(uint cmd, void *udata)
 		gg->qu->cmdv(FMED_QUE_NEW, (uint)0);
 		gg->qu->cmdv(FMED_QUE_SEL, (uint)(size_t)udata);
 		break;
-	case A_LIST_DEL: {
+	case A_LIST_DEL:
 		gg->qu->cmdv(FMED_QUE_DEL, (uint)(size_t)udata);
-		uint n = gg->qu->cmdv(FMED_QUE_COUNT);
-		wmain_list_update(0, n);
 		break;
-	}
 	case A_LIST_SEL: {
 		gg->qu->cmdv(FMED_QUE_SEL, (uint)(size_t)udata);
 		uint n = gg->qu->cmdv(FMED_QUE_COUNT);
-		wmain_list_update(0, n);
+		wmain_list_set(0, n);
 		break;
 	}
 	case A_LIST_SAVE: {
@@ -836,18 +835,28 @@ static char* userpath(const char *fn)
 }
 
 static const char *const usrconf_setts[] = {
-	"gui.gui.random", "gui.gui.list_columns_width",
+	"gui.gui.random", "gui.gui.list_columns_width", "gui.gui.list_track",
+	"gui.gui.list_scroll",
 };
 
 /** Write user configuration value. */
 static void usrconf_write_val(ffconfw *conf, uint i)
 {
+	int n;
 	switch (i) {
 	case 0:
 		ffconf_writebool(conf, gg->conf.list_random, FFCONF_TVAL);
 		break;
 	case 1:
 		wmain_list_cols_width_write(conf);
+		break;
+	case 2:
+		n = gg->qu->cmdv(FMED_QUE_CURID, (int)0);
+		ffconf_writeint(conf, n, 0, FFCONF_TVAL);
+		break;
+	case 3:
+		n = ffui_view_scroll_vert(&gg->wmain.vlist);
+		ffconf_writeint(conf, n, 0, FFCONF_TVAL);
 		break;
 	}
 }
@@ -938,8 +947,18 @@ static void gui_que_onchange(fmed_que_entry *ent, uint flags)
 
 	switch (flags & ~_FMED_QUE_FMASK) {
 	case FMED_QUE_ONADD:
-		if (flags & FMED_QUE_ADD_DONE)
+		if (flags & FMED_QUE_MORE)
 			break;
+		else if (flags & FMED_QUE_ADD_DONE) {
+			if (gg->conf.list_actv_trk_idx != 0) {
+				gg->qu->cmdv(FMED_QUE_SETCURID, 0, gg->conf.list_actv_trk_idx);
+				gg->conf.list_actv_trk_idx = 0;
+			}
+
+			uint n = gg->qu->cmdv(FMED_QUE_COUNT);
+			wmain_list_set(0, n);
+			return;
+		}
 		idx = gg->qu->cmdv(FMED_QUE_ID, ent);
 		wmain_ent_added(idx);
 		break;

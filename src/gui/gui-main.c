@@ -58,6 +58,7 @@ static void list_setdata(void);
 static void fav_add(void);
 static void fav_show(void);
 static void list_cols_width_load();
+static void list_onleave(int active_tab);
 
 enum {
 	GUI_TRKINFO_WNDCAPTION = 1,
@@ -572,7 +573,7 @@ done:
 /** Update number of total list items and set to redraw the next items. */
 void list_update(uint idx, int delta)
 {
-	uint n = ffui_view_nitems(&gg->wmain.vlist);
+	uint n = gg->qu->cmdv(FMED_QUE_COUNT);
 	ffui_view_setcount(&gg->wmain.vlist, n + delta);
 	ffui_view_redraw(&gg->wmain.vlist, idx, idx + 100);
 }
@@ -792,10 +793,20 @@ int gui_newtab(uint flags)
 
 void gui_que_new(void)
 {
+	list_onleave(gg->wmain.actv_tab);
 	int itab = gui_newtab(0);
+	gg->wmain.actv_tab = itab;
 	gg->qu->cmd(FMED_QUE_NEW, NULL);
 	ffui_view_clear(&gg->wmain.vlist);
 	gg->qu->cmd(FMED_QUE_SEL, (void*)(size_t)itab);
+}
+
+/** Called before leaving the current playlist. */
+static void list_onleave(int active_tab)
+{
+	if (active_tab != 0)
+		return;
+	gg->list_scroll_pos = ffui_view_topindex(&gg->wmain.vlist);
 }
 
 void gui_showque(uint i)
@@ -803,12 +814,19 @@ void gui_showque(uint i)
 	gg->qu->cmd(FMED_QUE_SEL, (void*)(size_t)i);
 	uint n = gg->qu->cmdv(FMED_QUE_COUNT);
 	ffui_view_setcount(&gg->wmain.vlist, n);
+
+	if (ffui_tab_active(&gg->wmain.tabs) == 0 && gg->list_scroll_pos != 0) {
+		ffui_view_makevisible(&gg->wmain.vlist, gg->list_scroll_pos);
+		gg->list_scroll_pos = 0;
+	}
+
 	int top = ffui_view_topindex(&gg->wmain.vlist);
 	ffui_view_redraw(&gg->wmain.vlist, top, top+100);
 }
 
 void gui_que_del(void)
 {
+	list_onleave(gg->wmain.actv_tab);
 	int sel = ffui_tab_active(&gg->wmain.tabs);
 	if (sel == -1)
 		return;
@@ -829,6 +847,7 @@ void gui_que_del(void)
 	if (!last) {
 		uint newsel = (sel == 0) ? sel + 1 : sel - 1;
 		ffui_tab_setactive(&gg->wmain.tabs, newsel);
+		gg->wmain.actv_tab = newsel;
 		gui_showque(newsel);
 	} else
 		gui_que_new();
@@ -839,7 +858,9 @@ void gui_que_del(void)
 
 void gui_que_sel(void)
 {
+	list_onleave(gg->wmain.actv_tab);
 	int sel = ffui_tab_active(&gg->wmain.tabs);
+	gg->wmain.actv_tab = sel;
 	gui_showque(sel);
 }
 

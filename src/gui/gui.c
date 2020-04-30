@@ -117,6 +117,8 @@ static const ffpars_arg gui_conf_args[] = {
 	{ "sel_after_cursor",	FFPARS_TBOOL8, FFPARS_DSTOFF(ggui, sel_after_cur) },
 	{ "list_columns_width",	FFPARS_TINT16 | FFPARS_FLIST, FFPARS_DST(&conf_list_col_width) },
 	{ "file_delete_method",	FFPARS_TSTR, FFPARS_DST(&conf_file_delete_method) },
+	{ "list_track",	FFPARS_TINT, FFPARS_DSTOFF(ggui, list_actv_trk_idx) },
+	{ "list_scroll",	FFPARS_TINT, FFPARS_DSTOFF(ggui, list_scroll_pos) },
 };
 
 //LOG
@@ -568,9 +570,20 @@ static void gui_que_onchange(fmed_que_entry *e, uint flags)
 	switch (flags & ~_FMED_QUE_FMASK) {
 	case FMED_QUE_ONADD:
 		if (flags & FMED_QUE_MORE)
-			ffui_redraw(&gg->wmain.vlist, 0);
+			break;
 		else if (flags & FMED_QUE_ADD_DONE) {
-			ffui_redraw(&gg->wmain.vlist, 1);
+			uint n = gg->qu->cmdv(FMED_QUE_COUNT);
+			ffui_view_setcount(&gg->wmain.vlist, n);
+
+			if (gg->list_actv_trk_idx != 0) {
+				gg->qu->cmdv(FMED_QUE_SETCURID, 0, gg->list_actv_trk_idx);
+				gg->list_actv_trk_idx = 0;
+			}
+
+			if (gg->list_scroll_pos != 0) {
+				ffui_view_makevisible(&gg->wmain.vlist, gg->list_scroll_pos);
+				gg->list_scroll_pos = 0;
+			}
 			break;
 		}
 		gui_media_added(e);
@@ -735,11 +748,13 @@ char* gui_userpath(const char *fn)
 static const char *const usrconf_setts[] = {
 	"gui.gui.theme", "gui.gui.record.output", "gui.gui.convert.output",
 	"gui.gui.random", "gui.gui.sel_after_cursor", "gui.gui.list_columns_width",
+	"gui.gui.list_track", "gui.gui.list_scroll",
 };
 
 /** Write user configuration value. */
 static void usrconf_write_val(ffconfw *conf, uint i)
 {
+	int n;
 	switch (i) {
 	case 0:
 		ffconf_writeint(conf, gg->theme_index, 0, FFCONF_TVAL);
@@ -758,6 +773,14 @@ static void usrconf_write_val(ffconfw *conf, uint i)
 		break;
 	case 5:
 		wmain_list_cols_width_write(conf);
+		break;
+	case 6:
+		n = gg->qu->cmdv(FMED_QUE_CURID, (int)0);
+		ffconf_writeint(conf, n, 0, FFCONF_TVAL);
+		break;
+	case 7:
+		n = ffui_view_topindex(&gg->wmain.vlist);
+		ffconf_writeint(conf, n, 0, FFCONF_TVAL);
 		break;
 	}
 }

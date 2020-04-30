@@ -856,6 +856,15 @@ enum FMED_QUE {
 	/** Expand all items in the current playlist */
 	FMED_QUE_EXPAND_ALL,
 
+	/** Get the current item index.
+	Return 0 on error.
+	size_t curid(int plist) */
+	FMED_QUE_CURID,
+
+	/** Set the current item index.
+	void set_curid(int plist, size_t id) */
+	FMED_QUE_SETCURID,
+
 	_FMED_QUE_LAST
 };
 

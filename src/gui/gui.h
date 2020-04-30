@@ -26,6 +26,8 @@ typedef struct gui_wmain {
 	ffui_trayicon tray_icon;
 	ffui_icon ico;
 	ffui_icon ico_rec;
+
+	int actv_tab;
 } gui_wmain;
 
 typedef struct gui_wconvert {
@@ -220,6 +222,8 @@ typedef struct ggui {
 	byte list_random;
 	byte sel_after_cur; // automatically select a playlist entry for the active track
 	ushort list_col_width[16];
+	uint list_actv_trk_idx;
+	uint list_scroll_pos;
 	uint fdel_method; // enum FDEL_METHOD
 	uint wconv_init :1
 		, wrec_init :1
