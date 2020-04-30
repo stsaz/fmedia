@@ -36,6 +36,8 @@ struct gui_wmain {
 	ffui_view vlist;
 	ffui_ctl stbar;
 	ffui_trayicon tray_icon;
+
+	fmed_que_entry *active_qent;
 };
 
 struct gui_wconvert {

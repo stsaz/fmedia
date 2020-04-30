@@ -209,7 +209,9 @@ static void list_dispinfo(struct ffui_view_disp *disp)
 
 	switch (sub) {
 	case H_IDX:
-		ffs_fmt(buf, buf + sizeof(buf), "%u%Z", disp->idx + 1);
+		ffs_fmt(buf, buf + sizeof(buf), "%s%u%Z"
+			, (ent == gg->wmain.active_qent) ? "> " : ""
+			, disp->idx + 1);
 		ffstr_setz(&s, buf);
 		val = &s;
 		break;
@@ -278,8 +280,15 @@ void wmain_newtrack(fmed_que_entry *ent, uint time_total, fmed_filt *d)
 		, ffpcm_channelstr(d->audio.fmt.channels));
 	gg->qu->meta_set(ent, FFSTR("__info"), buf, n, FMED_QUE_PRIV | FMED_QUE_OVWRITE);
 
-	uint idx = gg->qu->cmdv(FMED_QUE_ID, ent);
-	ffui_send_view_setdata(&gg->wmain.vlist, idx, 0);
+	void *active_qent = gg->wmain.active_qent;
+	gg->wmain.active_qent = ent;
+	int idx = gg->qu->cmdv(FMED_QUE_ID, active_qent);
+	if (idx != -1)
+		ffui_send_view_setdata(&gg->wmain.vlist, idx, 0);
+
+	idx = gg->qu->cmdv(FMED_QUE_ID, ent);
+	if (idx != -1)
+		ffui_send_view_setdata(&gg->wmain.vlist, idx, 0);
 
 	ffstr artist = {}, title = {}, *val;
 	if (NULL != (val = gg->qu->meta_find(ent, FFSTR("artist"))))
@@ -298,6 +307,12 @@ void wmain_newtrack(fmed_que_entry *ent, uint time_total, fmed_filt *d)
 
 void wmain_fintrack()
 {
+	if (gg->wmain.active_qent != NULL) {
+		int idx = gg->qu->cmdv(FMED_QUE_ID, gg->wmain.active_qent);
+		gg->wmain.active_qent = NULL;
+		if (idx >= 0)
+			ffui_send_view_setdata(&gg->wmain.vlist, idx, 0);
+	}
 	ffui_send_wnd_settext(&gg->wmain.wmain, "fmedia");
 	ffui_send_lbl_settext(&gg->wmain.lpos, "");
 	ffui_post_trk_setrange(&gg->wmain.tpos, 0);
