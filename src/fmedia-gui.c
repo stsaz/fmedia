@@ -158,12 +158,13 @@ end:
 }
 
 #ifndef _DEBUG
-extern void _crash_handler(const char *fullname, struct ffsig_info *inf);
+extern void _crash_handler(const char *fullname, const char *version, struct ffsig_info *inf);
 
 /** Called by FFOS on program crash. */
 static void crash_handler(struct ffsig_info *inf)
 {
-	_crash_handler("fmedia", inf);
+	const char *ver = (core != NULL) ? core->props->version_str : "";
+	_crash_handler("fmedia", ver, inf);
 }
 #endif
 
@@ -175,7 +176,7 @@ int __stdcall WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 		return 1;
 
 #ifndef _DEBUG
-	static const uint sigs_fault[] = { FFSIG_SEGV, FFSIG_ILL, FFSIG_FPE };
+	static const uint sigs_fault[] = { FFSIG_SEGV, FFSIG_ILL, FFSIG_FPE, FFSIG_ABORT };
 	ffsig_subscribe(&crash_handler, sigs_fault, FFCNT(sigs_fault));
 	// ffsig_raise(FFSIG_SEGV);
 #endif
