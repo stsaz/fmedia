@@ -1,0 +1,146 @@
+Uso:
+fmedia [OPCIONES] [ENTRADA...]
+
+La acción por defecto es reproducir los archivos de entrada uno a uno.
+Cadena típica de un tema: COLA -> ENTRADA -> FILTROS -> CODIFICACIÓN -> SALIDA
+
+ENTRADA              Archivo de entrada, carpeta, URL o comodín
+                   @stdin.EXT: lee desde standard input.
+
+OPCIONES:
+
+QUEUE:
+--track=N1[,N2...] Selecciona un número de tema específico en la lista de reprducción
+--repeat-all       Repite todo
+--random           Selecciona el próximo tema al azar
+
+DISPOSITIVOS DE AUDIO:
+--list-dev          Lista los dispositivos disponibles
+--dev=DEVNO         Usa el dispositivo reproducción
+--dev-capture=DEVNO Usa el dispositivo de captura
+--dev-loopback=DEVNO
+                    Usa el dispositivo de reproducción en modo loopback (graba lo que reproduce) (solo WASAPI)
+
+AUDIO FORMAT:
+Por defecto todas las configuraciones se usan para la salida.  Cuando se graba aplica para la entrada.
+--format=STR       Indica el formato de audio (int8 | int16 | int24 | int32 | float32)
+--rate=INT         Indica la velocidad de sampleo
+                   Nota: algunas configuraciones pueden no funcionar con conversión de frecuencia de muestreo.
+--channels=STR     Define el número de canales
+                   Puede convertir estéreo a mono:
+                    --channels=mono: mezcla los canales
+                    --channels=left: usa solamente el canal izquierdo
+                    --channels=right: usa solamente el canal derecho
+
+ENTRADA:
+--record           Captura audio.  Defina el formato de audio por defecto en fmedia.conf::record_format.
+--capture-buffer   Tamaño (en milisegundos) del buffer de captura (Vea también fmedia.conf::*.in.buffer_length)
+--mix              Reproduce archivos de entrada simultáneamente. Defina el formato de audio en fmedia.conf::mod_conf "mixer.out".
+                   Nota: todas las entradas deben tener igual cantidad de canales y la misma velocidad de sampleo.
+--flist=ARCHIVO    Lee nombres de archivo desde ARCHIVO
+--include='WILDCARD[;WILDCARD]'
+                   Solamente incluye archivos que cumplan con la condición (case-insensitive)
+--exclude='WILDCARD[;WILDCARD]'
+                   Excluye archivos y carpetas que cumplan con la condición (case-insensitive)
+--seek=TIME        Seek to time: [[HH:]MM:]SS[:MSC]
+--until=TIME       Stop at time
+                   Valores especiales:
+                     'playback-end': detiene la grabación cuando el último tema reproducido termina
+--fseek=BYTE       Set input file offset
+-i, --info         Muestra información sin reproducir
+--tags             Imprime todos los meta tags
+--meta='[clear;]NAME=STR;...'
+                   Set meta data
+                   If "clear;" is specified, skip all meta from input file.
+                   .mp3 supports: album, albumartist, artist, comment, date, genre, picture, publisher, title, tracknumber, tracktotal.
+                   .mp4 supports: album, albumartist, artist, comment, composer, copyright, date, discnumber, genre, lyrics, title, tracknumber.
+                   .flac, .ogg support tags of any name.
+                   Value may be read from file (e.g. album cover picture):
+                     "--meta=picture=@file:FILENAME"
+
+FILTROSS:
+--volume=INT       Define el volumen (0% .. 125%)
+--gain=FLOAT       Definee la ganancia/atenuación en dB
+--prebuffer=TIME   Start writing the recorded audio to a file by user's command, saving some previously recorded data (before the command is issued)
+--start-dblevel=DB Skip initial audio until input signal level goes above DB (-100dB..0dB)
+--stop-dblevel=DB[;TIME][;MINTIME]
+                   Stop processing if input signal level goes below DB for TIME time (default: 5 sec).
+                   If MINTIME is specified, stop only after MINTIME time has passed.
+--split=TIME       Split audio by equal time intervals
+--dynanorm         Use Dynamic Audio Normalizer filter.
+                   Set parameters in section `mod_conf dynanorm.filter` in fmedia.conf.
+
+--pcm-peaks        Analiza PCM y muestra algunos detalles
+--pcm-crc          Muestra CRC de datos PCM (se debe usar con --pcm-peaks)
+                   Útil para chequer los resultados de la conversión sin pérdida.
+
+CODIFICACIÓN:
+--vorbis.quality=FLOAT
+                   Calidad de codificación Vorbis: -1.0 .. 10.0
+--opus.bitrate=INT Calidad de codificación Opus: 6..510 (VBR)
+--mpeg-quality=INT Calidad de codificación MPEG: 9..0 (VBR) or 64..320 (CBR)
+--aac-quality=INT  Calidad de codificación AAC: 1..5 (VBR) or 8..800 (CBR, kbit/s)
+--aac-profile=STR  Define el perfil AAC: LC | HE | HEv2
+--flac-compression=INT
+                   Nivel de compresión FLAC: 0..8
+--stream-copy      Copia datos de audio sin recodificar. Formatos soportados: OGG, MPEG.
+
+SALIDA:
+-o, --out=[NAME].EXT
+                   Escribe en un archivo sin reproducir (es decir, convierte audio)
+                   Si NAME es "@stdout", escribe a standard output.
+                   El formato de salida se elige con "EXT" (ver fmedia.conf::output_ext).
+                   Variables soportadas:
+                     $filepath: path to input file
+                     $filename: nombre (sin extensión) del archivo de entrada
+                     $date: fecha actual
+                     $time: hora actual
+                     $timems: hora actual con milisegundos
+                     $counter: contador secuencial incremental (comienza en 1)
+                   --out=.ogg es un abreviatura para --out='./$filename.ogg'
+                   El nombre de archivo puede ser generado automáticamente usando meta info,
+                     e.g.: --out '$tracknumber. $artist - $title.flac'
+-y, --overwrite    Sobreescribe el archivo de salida
+--preserve-date    Define la fecha y hora del archivo de salida igual al archivo de entrada.
+--out-copy[=STR]   Reproduce Y copia datos a un archivo especificado por "--out".
+                   Supported by modules: net.icy.
+                   Value:
+                     all: save all tracks (default)
+                     cmd: save each track only by user's command
+
+OTRAS OPCIONES:
+--parallel         Procesa los archivos de entrada en paralelo (fmedia.conf::workers).
+                   Se debe usar con '--out'.
+--background       Crea un nuevo proceso que se ejecutará en segundo plano
+--globcmd=STR      Emvía comandos a otro proceso fmedia ejecutándose.
+                   Comandos soportados:
+                     listen: Start listening for incoming commands
+                     play INPUT... : Add items to queue and start playing the first added
+                     add INPUT... : Add items to queue
+                     clear: Clear the current queue
+                     stop: Stop all active tracks
+                     quit: Cerrar procesos fmedia
+--globcmd.pipe-name=STR
+                   Set name of the pipe for communication between fmedia instances
+
+--conf=FN          Define el archivo de configuración (por defecto: "fmedia.conf" desde la carpeta del programa)
+--gui              Se ejecuta en modo gráfico (Windows,Linux only)
+--notui            No usa terminal gráfica
+--print-time       Muestra el tiempo que demora procesar cada tema
+--debug            Muestra información de debug en stdout
+-h, --help         Muestra la ayuda
+
+--cue-gaps=INT     Control track pregaps
+                   0: skip pregaps:
+                     track01.index01 .. track02.index00
+                   1: (default), gap is added to the previous track:
+                     track01.index01 .. track02.index01
+                   2: gap is added to the previous track (but track01's pregap is preserved):
+                     track01.index00 .. track02.index01
+                     track02.index01 .. track03.index01
+                   3: gap is added to the beginning of the current track:
+                     track01.index00 .. track02.index00
+
+INSTALL:
+--install          Windows: agrega la carpeta fmedia en el entorno del usuario y crea un acceso directo en el escritorio
+--uninstall        Deshacer cambios hechos por '--install'
