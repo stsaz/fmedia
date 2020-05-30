@@ -5,13 +5,13 @@ Copyright (c) 2016 Simon Zolin */
 
 #include <FF/data/conf.h>
 #include <FF/data/utf8.h>
-#include <FF/crc.h>
 #include <FF/path.h>
 #include <FF/time.h>
 #include <FF/sys/filemap.h>
 #include <FFOS/error.h>
 #include <FFOS/process.h>
 #include <FFOS/timer.h>
+#include <ffbase/murmurhash3.h>
 
 
 #undef dbglog
@@ -202,7 +202,7 @@ static int trk_open(fm_trk *t, const char *fn)
 		return 0;
 	}
 
-	if (ffs_match(fn, ffsz_len(fn), "http://", 7)) {
+	if (ffsz_matchz(fn, "http://")) {
 		addfilter(t, "net.http");
 	} else {
 		uint have_path = (NULL != ffpath_split2(fn, ffsz_len(fn), NULL, &name));
@@ -827,7 +827,7 @@ fin:
 static dict_ent* dict_findstr(fm_trk *t, const ffstr *name)
 {
 	dict_ent *ent;
-	uint crc = ffcrc32_get(name->ptr, name->len);
+	uint crc = murmurhash3(name->ptr, name->len, 0x12345678);
 	ffrbt_node *nod;
 
 	nod = ffrbt_find(&t->dict, crc, NULL);
@@ -851,7 +851,7 @@ static dict_ent* dict_find(fm_trk *t, const char *name)
 static dict_ent* dict_add(fm_trk *t, const char *name, uint *f)
 {
 	dict_ent *ent;
-	uint crc = ffcrc32_getz(name, 0);
+	uint crc = murmurhash3(name, ffsz_len(name), 0x12345678);
 	ffrbt_node *nod, *parent;
 	ffrbtree *tree = (*f & FMED_TRK_META) ? &t->meta : &t->dict;
 
@@ -869,7 +869,7 @@ static dict_ent* dict_add(fm_trk *t, const char *name, uint *f)
 	} else {
 		ent = ffmem_tcalloc1(dict_ent);
 		if (ent == NULL) {
-			errlog(t, "setval: %e", FFERR_BUFALOC);
+			syserrlog(core, t, "track", "mem alloc", 0);
 			t->state = TRK_ST_ERR;
 			return NULL;
 		}
@@ -894,7 +894,7 @@ static void trk_meta_set(void *trk, const ffstr *name, const ffstr *val, uint fl
 static dict_ent* meta_find(fm_trk *t, const ffstr *name)
 {
 	dict_ent *ent;
-	uint crc = ffcrc32_get(name->ptr, name->len);
+	uint crc = murmurhash3(name->ptr, name->len, 0x12345678);
 	ffrbt_node *nod;
 
 	nod = ffrbt_find(&t->meta, crc, NULL);

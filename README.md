@@ -148,6 +148,8 @@ INSTALL
 
 2. Download all needed source repositories:
 
+		git clone https://github.com/stsaz/ffbase
+		cd ffbase ; git checkout origin/beta ; cd ..
 		git clone https://github.com/stsaz/ffos
 		git clone https://github.com/stsaz/ff
 		git clone https://github.com/stsaz/ff-3pt
@@ -412,7 +414,7 @@ If you'd like to use low level interfaces, take a look at the source code of FF 
 
 You are welcome to participate in fmedia's development.  Send suggestions, improvements, bug reports, patches - anything that can help the project!
 
-Understanding the top-level source code hierarchy can help you to get involved into fmedia quicker.  The source code consists of the 3 levels of these 4 separate repositories:
+Understanding the top-level source code hierarchy can help you to get involved into fmedia quicker.  The source code consists of these separate repositories:
 
 	---------------
 	    fmedia
@@ -421,9 +423,12 @@ Understanding the top-level source code hierarchy can help you to get involved i
 	---------------
 	 FFOS | FF-3pt
 	---------------
+	    ffbase
+	---------------
 
 Each of them plays its own part:
 
+* ffbase provides base containers and algorithms
 * FFOS provides cross-platform abilities.  Code based on FFOS can run on Windows, Linux and FreeBSD.
 * FF-3pt provides simple access to 3rd party libraries such as libFLAC.
 * FF contains all low/mid level interfaces that can be reused between different applications.

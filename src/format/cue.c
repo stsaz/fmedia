@@ -176,10 +176,10 @@ static int cue_process(void *ctx, fmed_filt *d)
 		else {
 			c->utf8 = 0;
 			size_t len = v->len;
-			size_t n = ffutf8_encode(NULL, 0, v->ptr, &len, codepage);
+			size_t n = ffutf8_encodedata(NULL, 0, v->ptr, &len, codepage);
 			if (NULL == ffarr_realloc(&val, n))
 				goto err;
-			val.len = ffutf8_encode(val.ptr, val.cap, v->ptr, &len, codepage);
+			val.len = ffutf8_encodedata(val.ptr, val.cap, v->ptr, &len, codepage);
 		}
 
 		switch (r) {

@@ -281,7 +281,7 @@ static int m3u_wprocess(void *ctx, fmed_filt *d)
 		}
 
 		int dur = (e->dur != 0) ? e->dur / 1000 : -1;
-		uint n = ffs_fromint(dur, buf, sizeof(buf), FFINT_SIGNED);
+		uint n = ffs_fromint(dur, buf, sizeof(buf), FFS_INTSIGN);
 		r |= ffm3u_add(&m->m3, FFM3U_DUR, buf, n);
 
 		if (NULL == (s = qu->meta_find(e, FFSTR("artist"))))

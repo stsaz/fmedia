@@ -107,10 +107,7 @@ typedef struct cvt_sets_t {
 	uint init :1;
 
 	char *_output[7];
-	struct {
-		size_t len;
-		char **ptr;
-	} output;
+	ffslice output; // char*[]
 
 	union {
 	int vorbis_quality;

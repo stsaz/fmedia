@@ -219,7 +219,7 @@ static const ffpars_arg cvt_sets_conf[] = {
 
 void gui_cvt_sets_init(cvt_sets_t *sets)
 {
-	ffarr2_set(&gg->conv_sets.output, gg->conv_sets._output, 0);
+	ffslice_set(&gg->conv_sets.output, gg->conv_sets._output, 0);
 
 	sets->init = 1;
 	sets->format = sets->conv_pcm_rate = sets->channels = SETT_EMPTY_INT;
@@ -250,11 +250,12 @@ static int conv_sets_add(char *val)
 		i = 0;
 
 	if (i != -1) {
-		ffmem_free(gg->conv_sets.output.ptr[i]);
-		ffarr2_rm_shift(&gg->conv_sets.output, i);
+		char *old = *ffslice_itemT(&gg->conv_sets.output, i, char*);
+		ffmem_free(old);
+		ffslice_rmT(&gg->conv_sets.output, i, 1, char*);
 	}
 
-	char **it = ffarr2_pushT(&gg->conv_sets.output, FF_COUNT(gg->conv_sets._output), char*);
+	char **it = ffslice_pushT(&gg->conv_sets.output, FF_COUNT(gg->conv_sets._output), char*);
 	*it = val;
 	return i;
 }
@@ -263,7 +264,7 @@ static int conv_sets_add(char *val)
 void conv_sets_write(ffconfw *conf)
 {
 	char **it;
-	FFARR2_WALK_T(&gg->conv_sets.output, it, char*) {
+	FFSLICE_WALK_T(&gg->conv_sets.output, it, char*) {
 		ffconf_writez(conf, *it, FFCONF_TVAL);
 	}
 }
@@ -371,7 +372,7 @@ static void conv_sets_reset(cvt_sets_t *sets)
 void cvt_sets_destroy(cvt_sets_t *sets)
 {
 	char **it;
-	FFARR2_WALK_T(&sets->output, it, char*) {
+	FFSLICE_WALK_T(&sets->output, it, char*) {
 		ffmem_free0(*it);
 	}
 	conv_sets_reset(sets);
@@ -385,9 +386,9 @@ void gui_showconvert(void)
 
 		// initialize wconvert.eout
 		if (gg->conv_sets.output.len != 0)
-			ffui_settextz(&gg->wconvert.eout, *ffarr2_lastT(&gg->conv_sets.output, char*));
+			ffui_settextz(&gg->wconvert.eout, *ffslice_lastT(&gg->conv_sets.output, char*));
 		char **iter;
-		FFARR2_RWALK_T(&gg->conv_sets.output, iter, char*) {
+		FFSLICE_RWALK_T(&gg->conv_sets.output, iter, char*) {
 			ffui_combx_insz(&gg->wconvert.eout, -1, *iter);
 		}
 

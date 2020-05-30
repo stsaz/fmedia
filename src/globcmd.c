@@ -253,7 +253,7 @@ static void globcmd_onaccept(fffd peer)
 	ffconf_parseinit(&c.conf);
 
 	if (NULL == ffarr_alloc(&buf, GCMD_PIPE_IN_BUFSIZE)) {
-		syserrlog(core, NULL, "globcmd", "single instance mode: %e", FFERR_BUFALOC);
+		syserrlog(core, NULL, "globcmd", "mem alloc", 0);
 		goto done;
 	}
 

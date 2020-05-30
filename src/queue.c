@@ -243,9 +243,12 @@ static void ent_unref(entry *e)
 
 static void ent_free(entry *e)
 {
-	FFARR2_FREE_ALL(&e->meta, ffstr_free, ffstr);
-	FFARR2_FREE_ALL(&e->dict, ffstr_free, ffstr);
-	FFARR2_FREE_ALL(&e->tmeta, ffstr_free, ffstr);
+	FFSLICE_FOREACH_T(&e->meta, ffstr_free, ffstr);
+	ffslice_free(&e->meta);
+	FFSLICE_FOREACH_T(&e->dict, ffstr_free, ffstr);
+	ffslice_free(&e->dict);
+	FFSLICE_FOREACH_T(&e->tmeta, ffstr_free, ffstr);
+	ffslice_free(&e->tmeta);
 
 	ffmem_free(e->trk);
 	ffmem_free(e);
@@ -254,7 +257,8 @@ static void ent_free(entry *e)
 /** Prepare the item before starting a track. */
 static void ent_start_prepare(entry *e, void *trk)
 {
-	FFARR2_FREE_ALL(&e->tmeta, ffstr_free, ffstr);
+	FFSLICE_FOREACH_T(&e->tmeta, ffstr_free, ffstr);
+	ffslice_free(&e->tmeta);
 	qu->track->setval(trk, "queue_item", (int64)e);
 	ent_ref(e);
 }
@@ -472,7 +476,7 @@ static void que_save(entry *first, const fflist_item *sentl, const char *fn)
 		ss.len = 0;
 
 		int dur = (e->e.dur != 0) ? e->e.dur / 1000 : -1;
-		uint n = ffs_fromint(dur, buf, sizeof(buf), FFINT_SIGNED);
+		uint n = ffs_fromint(dur, buf, sizeof(buf), FFS_INTSIGN);
 		r |= ffm3u_add(&m3, FFM3U_DUR, buf, n);
 
 		if (NULL == (s = que_meta_find(&e->e, FFSTR("artist"))))
@@ -508,9 +512,9 @@ done:
 /** Get the first playlist item. */
 static entry* pl_first(plist *pl)
 {
-	if (pl->ents.first == fflist_sentl(&pl->ents))
+	if (fflist_first(&pl->ents) == fflist_sentl(&pl->ents))
 		return NULL;
-	return FF_GETPTR(entry, sib, pl->ents.first);
+	return FF_GETPTR(entry, sib, fflist_first(&pl->ents));
 }
 
 /** Get the next item.
@@ -1055,7 +1059,7 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 		if (pl == NULL)
 			return -1;
 		ents = &pl->ents;
-		que_save(FF_GETPTR(entry, sib, ents->first), fflist_sentl(ents), (void*)param2);
+		que_save(FF_GETPTR(entry, sib, fflist_first(ents)), fflist_sentl(ents), (void*)param2);
 		break;
 
 	case FMED_QUE_CLEAR:
@@ -1117,7 +1121,7 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 		fmed_que_entry **ent = param;
 		ffchain_item *it;
 		if (*ent == NULL) {
-			it = ents->first;
+			it = fflist_first(ents);
 		} else {
 			e = FF_GETPTR(entry, e, *ent);
 			it = e->sib.next;
@@ -1223,7 +1227,7 @@ static fmed_que_entry* que_add(plist *pl, fmed_que_entry *ent, entry *prev, uint
 
 	fflk_lock(&qu->plist_lock);
 
-	ffchain_append(&e->sib, (prev != NULL) ? &prev->sib : e->plist->ents.last);
+	ffchain_append(&e->sib, (prev != NULL) ? &prev->sib : fflist_last(&e->plist->ents));
 	e->plist->ents.len++;
 	if (NULL == ffarr_growT(&e->plist->indexes, 1, FFARR_GROWQUARTER | 16, entry*)) {
 		ent_rm(e);
@@ -1346,7 +1350,7 @@ static void que_meta_set(fmed_que_entry *ent, const ffstr *name, const ffstr *va
 	}
 
 	fflk_lock(&qu->plist_lock);
-	if (NULL == ffarr2_growT(a, 2, ffstr)) {
+	if (NULL == ffslice_growT(a, 2, ffstr)) {
 		fflk_unlock(&qu->plist_lock);
 		goto err;
 	}

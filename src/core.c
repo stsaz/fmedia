@@ -3,7 +3,6 @@ Copyright (c) 2015 Simon Zolin */
 
 #include <core-priv.h>
 
-#include <FF/crc.h>
 #include <FF/path.h>
 #include <FF/data/utf8.h>
 #include <FF/time.h>

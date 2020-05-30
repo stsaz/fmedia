@@ -5,7 +5,6 @@ Copyright (c) 2015 Simon Zolin */
 
 #include <FF/audio/pcm.h>
 #include <FF/array.h>
-#include <FF/crc.h>
 #include <FF/ring.h>
 
 

@@ -8,6 +8,7 @@ VER :=
 OS :=
 OPT := LTO3
 
+FFBASE := $(ROOT)/ffbase
 FFOS := $(ROOT)/ffos
 FF := $(ROOT)/ff
 FF3PT := $(ROOT)/ff-3pt
@@ -33,6 +34,10 @@ endif
 FF_OBJ_DIR := ./ff-obj
 # CFLAGS_STD += -fsanitize=address
 # LDFLAGS += -fsanitize=address -ldl
+ifeq ($(OPT),0)
+	CFLAGS_OPT += -DFF_DEBUG
+endif
+CFLAGS_STD += -DFFBASE_HAVE_FFERR_STR
 FFOS_CFLAGS := $(CFLAGS_STD) $(CFLAGS_DEBUG) $(CFLAGS_OPT) $(CFLAGS_OS) $(CFLAGS_CPU) -pthread
 FF_CFLAGS := $(CFLAGS_STD) $(CFLAGS_DEBUG) $(CFLAGS_OPT) $(CFLAGS_OS) $(CFLAGS_CPU)
 FF3PTLIB := $(FF3PT)-bin/$(OS)-$(ARCH)
@@ -46,9 +51,8 @@ endif
 
 
 CFLAGS_APP := \
-	-DFFS_FMT_NO_e \
 	-Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -Wno-implicit-fallthrough \
-	-I$(SRCDIR) -I$(FF) -I$(FFOS) -I$(FF3PT)
+	-I$(SRCDIR) -I$(FFBASE) -I$(FF) -I$(FFOS) -I$(FF3PT)
 CFLAGS := $(CFLAGS_STD) $(CFLAGS_DEBUG) $(CFLAGS_OPT) $(CFLAGS_OS) $(CFLAGS_CPU) $(CFLAGS_APP)
 # alternative optimization flags: no LTO
 ifneq ($(OPT),0)

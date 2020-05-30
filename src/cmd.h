@@ -101,6 +101,6 @@ static inline void cmd_destroy(fmed_cmd *cmd)
 
 	ffmem_safefree(cmd->globcmd_pipename);
 	ffstr_free(&cmd->globcmd);
-	ffarr2_free(&cmd->include_files);
-	ffarr2_free(&cmd->exclude_files);
+	ffslice_free(&cmd->include_files);
+	ffslice_free(&cmd->exclude_files);
 }

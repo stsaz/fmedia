@@ -42,8 +42,6 @@ include $(FF3PT)/makerules
 FF_O := $(FFOS_OBJ) \
 	$(FF_OBJ_DIR)/ffarray.o \
 	$(FF_OBJ_DIR)/ffstring.o \
-	$(FF_OBJ_DIR)/ffnumber.o \
-	$(FF_OBJ_DIR)/ffdbg.o \
 	$(FF_OBJ_DIR)/ffutf8.o
 
 $(OBJ_DIR)/%.o: $(SRCDIR)/%.c $(SRCDIR)/fmedia.h $(SRCDIR)/core.h $(FF_HDR) $(FF_AUDIO_HDR)
@@ -71,7 +69,7 @@ $(OBJ_DIR)/%.o: $(SRCDIR)/format/%.c $(SRCDIR)/fmedia.h $(FF_HDR) $(FF_AUDIO_HDR
 	$(C)  $(CFLAGS) $<  -o$@
 
 $(RES): $(PROJDIR)/res/fmedia.rc $(wildcard $(PROJDIR)/res/*.ico)
-	$(WINDRES) -I$(SRCDIR) -I$(FF) -I$(FFOS) $(PROJDIR)/res/fmedia.rc $@
+	$(WINDRES) -I$(SRCDIR) -I$(FFBASE) -I$(FF) -I$(FFOS) $(PROJDIR)/res/fmedia.rc $@
 
 
 BIN_O := \
