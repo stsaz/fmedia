@@ -33,7 +33,7 @@ struct pulse_out {
 	uint stop :1;
 };
 
-enum { I_OPEN, I_DATA };
+enum { I_TRYOPEN, I_OPEN, I_DATA };
 
 static struct pulse_out_conf_t {
 	uint idev;
@@ -320,9 +320,27 @@ static int pulse_create(pulse_out *a, fmed_filt *d)
 	mod->out.autostart = 1;
 	if (pulse_out_conf.nfy_rate != 0)
 		mod->out.nfy_interval = ffpcm_bytes2time(&fmt, pulse_out_conf.buflen) / pulse_out_conf.nfy_rate;
+
+	ffpcm in_fmt = fmt;
+	dbglog(core, d->trk, NULL, "opening device #%s, fmt:%s/%u/%u"
+		, a->dev.id, ffpcm_fmtstr(fmt.format), fmt.sample_rate, fmt.channels);
 	r = ffpulse_open(&mod->out, a->dev.id, &fmt, pulse_out_conf.buflen);
 
-	if (r != 0) {
+	if (r == FFPULSE_EFMT && a->state == I_TRYOPEN
+		&& ffmem_cmp(&fmt, &in_fmt, sizeof(fmt))) {
+
+		if (fmt.format != in_fmt.format)
+			d->audio.convfmt.format = fmt.format;
+
+		if (fmt.sample_rate != in_fmt.sample_rate)
+			d->audio.convfmt.sample_rate = fmt.sample_rate;
+
+		if (fmt.channels != in_fmt.channels)
+			d->audio.convfmt.channels = fmt.channels;
+		a->state = I_OPEN;
+		return FMED_RMORE;
+
+	} else if (r != 0) {
 		errlog(core, d->trk, "pulse", "ffpulse_open(): (%d) %s", r, ffpulse_errstr(r));
 		goto done;
 	}
@@ -356,12 +374,14 @@ static int pulse_write(void *ctx, fmed_filt *d)
 	int r;
 
 	switch (a->state) {
-	case I_OPEN:
+	case I_TRYOPEN:
 		d->audio.convfmt.ileaved = 1;
+		// fallthrough
+	case I_OPEN:
 		if (0 != (r = pulse_create(a, d)))
 			return r;
 		a->state = I_DATA;
-		return FMED_RMORE;
+		break;
 
 	case I_DATA:
 		break;
