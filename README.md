@@ -446,14 +446,6 @@ It will print a lot of information about what fmedia is doing.  This info or a s
 
 
 ---------------
-LICENSE
----------------
-The code provided here is free for use in open-source and proprietary projects.
-
-You may distribute, redistribute, modify the whole code or the parts of it, just keep the original copyright statement inside the files.
-
-
----------------
 HOMEPAGE
 ---------------
 https://stsaz.github.io/fmedia/

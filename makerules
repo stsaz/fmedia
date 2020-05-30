@@ -528,6 +528,7 @@ install-only:
 	mkdir -vp $(INSTDIR)
 	$(CP) $(BIN) \
 		$(PROJDIR)/fmedia.conf $(PROJDIR)/help*.txt $(PROJDIR)/CHANGES.txt \
+		$(PROJDIR)/LICENSE \
 		$(INSTDIR)/
 	$(CP) $(PROJDIR)/README.md $(INSTDIR)/README.txt
 
@@ -536,7 +537,7 @@ ifeq ($(OS),win)
 		$(PROJDIR)/src/gui/fmedia.gui \
 		$(PROJDIR)/src/gui/theme.conf \
 		$(INSTDIR)/
-	unix2dos $(INSTDIR)/*.txt $(INSTDIR)/*.conf $(INSTDIR)/*.gui
+	unix2dos $(INSTDIR)/*.txt $(INSTDIR)/*.conf $(INSTDIR)/*.gui $(INSTDIR)/LICENSE
 
 else ifeq ($(OS),linux)
 	$(CP) $(PROJDIR)/src/gui-gtk/fmedia.gui \
