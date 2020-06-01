@@ -1,0 +1,45 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	android:layout_width="match_parent"
+	android:layout_height="match_parent"
+	android:orientation="vertical">
+
+	<Switch
+		android:id="@+id/brandom"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_margin="10dp"
+		android:text="Random"
+		android:textSize="20sp" />
+
+	<Switch
+		android:id="@+id/bshowfilter"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_margin="10dp"
+		android:text="Show 'Filter' Edit Box"
+		android:textSize="20sp" />
+
+	<Switch
+		android:id="@+id/bshowrec"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_margin="10dp"
+		android:text="Show 'Record' Button"
+		android:textSize="20sp" />
+
+	<TextView
+		android:id="@+id/trecdir_text"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:text="Directory for recordings"
+		android:textSize="20sp" />
+
+	<EditText
+		android:id="@+id/trecdir"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:focusedByDefault="false"
+		android:inputType="text"
+		android:textSize="20sp" />
+
+</LinearLayout>

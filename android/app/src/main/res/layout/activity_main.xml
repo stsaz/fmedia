@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:app="http://schemas.android.com/apk/res-auto"
+	xmlns:tools="http://schemas.android.com/tools"
+	android:layout_width="match_parent"
+	android:layout_height="match_parent"
+	tools:context=".MainActivity">
+
+	<com.google.android.material.appbar.AppBarLayout
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:theme="@style/AppTheme.AppBarOverlay">
+
+		<androidx.appcompat.widget.Toolbar
+			android:id="@+id/toolbar"
+			android:layout_width="match_parent"
+			android:layout_height="?attr/actionBarSize"
+			android:background="?attr/colorPrimary"
+			app:popupTheme="@style/AppTheme.PopupOverlay" />
+
+	</com.google.android.material.appbar.AppBarLayout>
+
+	<androidx.constraintlayout.widget.ConstraintLayout
+		android:layout_width="match_parent"
+		android:layout_height="match_parent"
+		app:layout_behavior="@string/appbar_scrolling_view_behavior"
+		tools:context=".MainActivity"
+		tools:showIn="@layout/activity_main">
+
+		<androidx.constraintlayout.widget.ConstraintLayout
+			android:id="@+id/constraintLayout"
+			android:layout_width="match_parent"
+			android:layout_height="match_parent"
+			app:layout_constraintBottom_toBottomOf="parent"
+			app:layout_constraintEnd_toEndOf="parent"
+			app:layout_constraintStart_toStartOf="parent"
+			app:layout_constraintTop_toTopOf="parent">
+
+			<TextView
+				android:id="@+id/lname"
+				android:layout_width="match_parent"
+				android:layout_height="50dp"
+				android:textColor="@color/colorList"
+				android:textSize="20sp"
+				android:textStyle="bold"
+				app:layout_constraintStart_toStartOf="parent"
+				app:layout_constraintTop_toTopOf="parent" />
+
+			<ListView
+				android:id="@+id/list"
+				android:layout_width="match_parent"
+				android:layout_height="match_parent"
+				android:layout_marginTop="50dp"
+				android:layout_marginBottom="200dp"
+				android:choiceMode="multipleChoice"
+				android:longClickable="true"
+				app:layout_constraintStart_toStartOf="parent"
+				app:layout_constraintTop_toBottomOf="@+id/lname" />
+
+			<EditText
+				android:id="@+id/tfilter"
+				android:layout_width="match_parent"
+				android:layout_height="50dp"
+				android:autofillHints="Filter"
+				android:focusedByDefault="false"
+				android:hint="Filter"
+				android:inputType="text"
+				android:textColor="@color/colorList"
+				android:textSize="20sp"
+				android:visibility="invisible"
+				app:layout_constraintStart_toStartOf="parent"
+				app:layout_constraintTop_toBottomOf="@+id/list" />
+
+			<ToggleButton
+				android:id="@+id/bexplorer"
+				android:layout_width="79dp"
+				android:layout_height="44dp"
+				android:textOff="Explorer"
+				android:textOn="Explorer"
+				android:textSize="10sp"
+				app:layout_constraintStart_toStartOf="parent"
+				app:layout_constraintTop_toBottomOf="@+id/tfilter" />
+
+			<ToggleButton
+				android:id="@+id/bplaylist"
+				android:layout_width="79dp"
+				android:layout_height="44dp"
+				android:checked="true"
+				android:textOff="Playlist"
+				android:textOn="Playlist"
+				android:textSize="10sp"
+				app:layout_constraintStart_toEndOf="@+id/bexplorer"
+				app:layout_constraintTop_toBottomOf="@+id/tfilter" />
+
+			<SeekBar
+				android:id="@+id/seekbar"
+				android:layout_width="match_parent"
+				android:layout_height="36dp"
+				android:backgroundTint="#2196F3"
+				android:foregroundTint="#2196F3"
+				android:max="100"
+				android:progressBackgroundTint="#2196F3"
+				android:progressTint="#2196F3"
+				android:thumbTint="#2196F3"
+				app:layout_constraintStart_toStartOf="parent"
+				app:layout_constraintTop_toBottomOf="@+id/bexplorer" />
+
+			<ImageButton
+				android:id="@+id/brec"
+				android:layout_width="64dp"
+				android:layout_height="64dp"
+				android:src="@drawable/ic_rec"
+				app:layout_constraintStart_toStartOf="parent"
+				app:layout_constraintTop_toBottomOf="@+id/seekbar" />
+
+
+			<ImageButton
+				android:id="@+id/bplay"
+				android:layout_width="64dp"
+				android:layout_height="64dp"
+				android:src="@drawable/ic_play"
+				app:layout_constraintStart_toEndOf="@+id/brec"
+				app:layout_constraintTop_toBottomOf="@+id/seekbar" />
+
+			<ImageButton
+				android:id="@+id/bprev"
+				android:layout_width="64dp"
+				android:layout_height="64dp"
+				android:src="@drawable/ic_prev"
+				app:layout_constraintStart_toEndOf="@+id/bplay"
+				app:layout_constraintTop_toBottomOf="@+id/seekbar" />
+
+			<ImageButton
+				android:id="@+id/bnext"
+				android:layout_width="64dp"
+				android:layout_height="64dp"
+				android:src="@drawable/ic_next"
+				app:layout_constraintStart_toEndOf="@+id/bprev"
+				app:layout_constraintTop_toBottomOf="@+id/seekbar" />
+
+			<TextView
+				android:id="@+id/lpos"
+				android:layout_width="match_parent"
+				android:layout_height="64dp"
+				android:layout_marginLeft="264dp"
+				android:textColor="@color/colorList"
+				android:textSize="20sp"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintStart_toEndOf="@+id/bnext"
+				app:layout_constraintTop_toBottomOf="@+id/seekbar" />
+
+		</androidx.constraintlayout.widget.ConstraintLayout>
+	</androidx.constraintlayout.widget.ConstraintLayout>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
