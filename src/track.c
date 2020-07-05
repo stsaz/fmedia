@@ -30,6 +30,7 @@ struct tracks {
 	const struct fmed_trk_mon *mon;
 	const fmed_queue *qu;
 	uint stop_sig :1;
+	uint last :1;
 };
 
 static struct tracks *g;
@@ -549,8 +550,11 @@ static void trk_free(fm_trk *t)
 		core->cmd(FMED_WORKER_RELEASE, t->wid, t->wflags);
 	}
 
-	if (g->mon != NULL)
+	if (g->mon != NULL) {
 		g->mon->onsig(&t->props, FMED_TRK_ONCLOSE);
+		if (g->last && g->trks.len == 0)
+			g->mon->onsig(&t->props, FMED_TRK_ONLAST);
+	}
 
 	dbglog(t, "closed");
 	ffmem_free(t);
@@ -1117,6 +1121,9 @@ static ssize_t trk_cmd(void *trk, uint cmd, ...)
 		break;
 
 	case FMED_TRACK_LAST:
+		g->last = 1;
+		if (g->trks.len != 0)
+			break;
 		if (g->mon != NULL)
 			g->mon->onsig(&t->props, FMED_TRK_ONLAST);
 		break;

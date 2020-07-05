@@ -149,7 +149,6 @@ INSTALL
 2. Download all needed source repositories:
 
 		git clone https://github.com/stsaz/ffbase
-		cd ffbase ; git checkout origin/beta ; cd ..
 		git clone https://github.com/stsaz/ffos
 		git clone https://github.com/stsaz/ff
 		git clone https://github.com/stsaz/ff-3pt

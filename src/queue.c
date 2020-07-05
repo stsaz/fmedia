@@ -1019,8 +1019,20 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 		e = param;
 		dbglog(core, NULL, "que", "removed item %S", &e->e.url);
 
-		if (!(flags & FMED_QUE_NO_ONCHANGE) && qu->onchange != NULL)
+		if (!(flags & FMED_QUE_NO_ONCHANGE) && qu->onchange != NULL) {
+			e->e.list_index = que_cmdv(FMED_QUE_ID, &e->e);
+
+			// remove item from index, but don't free the object yet
+			e->refcount++;
+			fflk_lock(&qu->plist_lock);
+			ent_rm(e);
+			fflk_unlock(&qu->plist_lock);
+			e->refcount--;
+
+			dbglog0("calling onchange(FMED_QUE_ONRM): index:%u"
+				, e->e.list_index);
 			qu->onchange(&e->e, FMED_QUE_ONRM);
+		}
 
 		fflk_lock(&qu->plist_lock);
 		ent_rm(e);
@@ -1203,8 +1215,10 @@ static fmed_que_entry* que_add(plist *pl, fmed_que_entry *ent, entry *prev, uint
 
 	if (flags & FMED_QUE_ADD_DONE) {
 		if (ent == NULL) {
-			if (!(flags & FMED_QUE_NO_ONCHANGE) && qu->onchange != NULL)
+			if (!(flags & FMED_QUE_NO_ONCHANGE) && qu->onchange != NULL) {
+				dbglog0("calling onchange(FMED_QUE_ONADD | FMED_QUE_ADD_DONE)", 0);
 				qu->onchange(NULL, FMED_QUE_ONADD | FMED_QUE_ADD_DONE);
+			}
 			return NULL;
 		}
 		e = FF_GETPTR(entry, e, ent);

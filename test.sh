@@ -15,12 +15,13 @@ fi
 
 if test "$1" = "radio" ; then
 	URL="http://"
-	$BIN $URL -o '$artist-$title.mp3' --out-copy --stream-copy -y --meta='artist=A' --until=1
+	$BIN $URL -o '$artist-$title.mp3' --out-copy --stream-copy -y --meta=artist=A --until=1
 fi
 
 if test "$1" = "record" ; then
 	# record -> .*
-	OPTS="-y --until=1 --rate=44100 --format=int16 --meta='artist=A;title=T'"
+	OPTS="-y --until=2 --rate=44100 --format=int16"
+	# TODO --meta=artist=A;title=T
 	$BIN --record -o rec.wav $OPTS
 	$BIN --record -o rec.flac $OPTS
 	$BIN --record -o rec.mp3 $OPTS
@@ -29,6 +30,11 @@ if test "$1" = "record" ; then
 	$BIN --record -o rec.opus $OPTS
 	$BIN rec.* --pcm-peaks
 	$BIN rec.* --pcm-peaks --seek=0.500
+fi
+
+if test "$1" = "info" ; then
+	OPTS="--info --tags"
+	$BIN rec.* $OPTS
 fi
 
 if test "$1" = "play" ; then
@@ -49,6 +55,16 @@ if test "$1" = "play" ; then
 	$BIN rec.m4a $OPTS
 	# TODO $BIN rec.ogg $OPTS
 	# TODO $BIN rec.opus $OPTS
+
+	# play with seek & until
+	OPTS="--seek=0.500 --until=2"
+	# TODO OPTS="--seek=0.500 --until=1"
+	$BIN rec.wav $OPTS
+	$BIN rec.flac $OPTS
+	$BIN rec.mp3 $OPTS
+	$BIN rec.m4a $OPTS
+	$BIN rec.ogg $OPTS
+	$BIN rec.opus $OPTS
 fi
 
 if test "$1" = "convert" ; then
@@ -122,14 +138,38 @@ if test "$1" = "convert" ; then
 	$BIN rec.wav -o enc48mono-32.ogg $OPTS
 	$BIN rec.wav -o enc48mono-32.opus $OPTS
 	$BIN enc48mono-32.* --pcm-peaks
-
-	# parallel conversion
-	OPTS="-y --parallel"
-	$BIN rec.wav enc48.flac enc48mono.mp3 -o 'parallel-$filename.m4a' $OPTS
-	$BIN parallel-*.m4a --pcm-peaks
 fi
 
-if test "$1" = "convert-sc" ; then
+if test "$1" = "convert_meta" ; then
+	# convert with meta
+	OPTS="-y --meta=artist=A2;title=T2"
+	$BIN rec.wav -o enc-meta.wav $OPTS
+	$BIN rec.wav -o enc-meta.flac $OPTS
+	$BIN rec.wav -o enc-meta.mp3 $OPTS
+	$BIN rec.wav -o enc-meta.m4a $OPTS
+	$BIN rec.wav -o enc-meta.ogg $OPTS
+	$BIN rec.wav -o enc-meta.opus $OPTS
+	$BIN enc-meta.* --pcm-peaks --tags
+
+	# convert from different format to the same format with meta
+	OPTS="-y --meta=artist=A2;title=T2"
+	$BIN rec.wav -o enc-meta-fmt.wav $OPTS
+	$BIN rec.flac -o enc-meta-fmt.flac $OPTS
+	$BIN rec.mp3 -o enc-meta-fmt.mp3 $OPTS
+	$BIN rec.m4a -o enc-meta-fmt.m4a $OPTS
+	$BIN rec.ogg -o enc-meta-fmt.ogg $OPTS
+	$BIN rec.opus -o enc-meta-fmt.opus $OPTS
+	$BIN enc-meta-fmt.* --pcm-peaks --tags
+fi
+
+if test "$1" = "convert_parallel" ; then
+	# parallel conversion
+	OPTS="-y --parallel"
+	$BIN rec.* -o 'parallel-$counter.m4a' $OPTS
+	$BIN parallel-*.m4a --pcm-peaks --parallel
+fi
+
+if test "$1" = "convert_streamcopy" ; then
 	# convert with stream-copy
 	OPTS="-y --stream-copy"
 	$BIN rec.mp3 -o copy.mp3 $OPTS
@@ -149,30 +189,43 @@ if test "$1" = "convert-sc" ; then
 	# convert with stream-copy and new meta
 	OPTS="-y --stream-copy --meta=artist=A2;title=T2"
 	$BIN rec.mp3 -o copymeta.mp3 $OPTS
-	$BIN rec.ogg -o copymeta.ogg $OPTS
-	$BIN rec.opus -o copymeta.opus $OPTS
+	$BIN rec.ogg -o copymeta.ogg $OPTS # TODO meta not applied
+	$BIN rec.opus -o copymeta.opus $OPTS # TODO meta not applied
 	$BIN rec.m4a -o copymeta.m4a $OPTS
 	$BIN copymeta.* --pcm-peaks
 fi
 
 if test "$1" = "filters" ; then
+	sh $0 filters_gain
+	sh $0 filters_dynanorm
 	OPTS="-y"
-	$BIN rec.wav -o vol.wav --volume=50 $OPTS
-	$BIN vol.wav --pcm-peaks
-	$BIN rec.wav -o gain.wav --gain=-6.0 $OPTS
-	$BIN gain.wav --pcm-peaks
-	$BIN rec.wav -o dynanorm.wav --dynanorm $OPTS
-	$BIN dynanorm.wav --pcm-peaks
 	$BIN rec.wav -o 'split-$counter.wav' --split=0.100 $OPTS
 	$BIN rec.wav -o 'split-$counter.mp3' --split=0.100 $OPTS
 	$BIN split-* --pcm-peaks
 fi
 
+if test "$1" = "filters_gain" ; then
+	OPTS="-y"
+	$BIN rec.wav -o vol.wav --volume=50 $OPTS
+	$BIN vol.wav --pcm-peaks
+	$BIN rec.wav -o gain.wav --gain=-6.0 $OPTS
+	$BIN gain.wav --pcm-peaks
+fi
+
+if test "$1" = "filters_dynanorm" ; then
+	OPTS="-y"
+	$BIN rec.wav -o dynanorm.wav --dynanorm $OPTS
+	$BIN dynanorm.wav --pcm-peaks
+fi
+
 if test "$1" = "all" ; then
 	$BIN --list-dev
 	sh $0 record
+	sh $0 info
 	sh $0 play
 	sh $0 convert
-	sh $0 convert-sc
+	sh $0 convert_meta
+	sh $0 convert_streamcopy
+	sh $0 convert_parallel
 	sh $0 filters
 fi

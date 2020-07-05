@@ -972,7 +972,7 @@ static void gui_que_onchange(fmed_que_entry *ent, uint flags)
 		break;
 
 	case FMED_QUE_ONRM:
-		idx = gg->qu->cmdv(FMED_QUE_ID, ent);
+		idx = ent->list_index;
 		wmain_ent_removed(idx);
 		break;
 

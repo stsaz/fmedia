@@ -606,7 +606,7 @@ static void gui_que_onchange(fmed_que_entry *e, uint flags)
 		break;
 
 	case FMED_QUE_ONRM:
-		idx = gg->qu->cmdv(FMED_QUE_ID, e);
+		idx = e->list_index;
 		list_update(idx, -1);
 		break;
 

@@ -41,6 +41,7 @@ const fmed_filter fmed_mpeg_output = {
 
 typedef struct mpeg_out {
 	uint state;
+	uint nframe;
 	ffmpgw mpgw;
 } mpeg_out;
 
@@ -475,11 +476,19 @@ static int mpeg_out_process(void *ctx, fmed_filt *d)
 		switch (r) {
 
 		case FFMPG_RID32:
+			dbglog(core, d->trk, NULL, "ID3v2: %L bytes"
+				, s.len);
+			goto data;
+
 		case FFMPG_RID31:
+			dbglog(core, d->trk, NULL, "ID3v1: %L bytes"
+				, s.len);
 			goto data;
 
 		case FFMPG_RDATA:
 			d->datalen = 0;
+			dbglog(core, d->trk, NULL, "frame #%u: %L bytes"
+				, m->nframe++, s.len);
 			goto data;
 
 		case FFMPG_RMORE:
@@ -506,7 +515,5 @@ static int mpeg_out_process(void *ctx, fmed_filt *d)
 
 data:
 	d->out = s.ptr,  d->outlen = s.len;
-	dbglog(core, d->trk, "mpeg", "output: %L bytes"
-		, s.len);
 	return FMED_RDATA;
 }

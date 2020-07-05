@@ -61,5 +61,4 @@ This is the list of the things that need to be done.
 ## Refactoring
 
 * "mpeg.copy" can be replaced by "mpeg.in" -> "mpeg.out" chain?
-* file: AIO write
 * move GUI icons from *.exe to gui.dll

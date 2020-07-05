@@ -8,6 +8,19 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.18 - Jul 4, 2020
+
+ + Pulse: support 8-bit playback
+ + help.txt: Spanish translation
+ * core: skip unknown modules in fmedia-user.conf
+ * file.in, file.out: can use thread pool for asynchronous I/O
+ - --split: .mp3 output: corrupted first frame
+ - .raw: reading didn't work
+ - ID3v2 read: fix parsing frame data with 'unsync' flag
+ - .flac read: couldn't skip corrupted meta block
+ * use BSD 2-Clause License
+
+
 fmedia v1.17 - Apr 30, 2020
 
  + GUI: remember the current active track and playlist scroll position

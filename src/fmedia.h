@@ -24,9 +24,9 @@ mixer                 mixer
 
 
 #define FMED_VER_MAJOR  1
-#define FMED_VER_MINOR  17
+#define FMED_VER_MINOR  18
 #define FMED_VER_FULL  ((FMED_VER_MAJOR << 8) | FMED_VER_MINOR)
-#define FMED_VER  "1.17"
+#define FMED_VER  "1.18"
 
 #define FMED_VER_GETMAJ(fullver)  ((fullver) >> 8)
 #define FMED_VER_GETMIN(fullver)  ((fullver) & 0xff)
@@ -706,7 +706,10 @@ typedef struct fmed_que_entry {
 	ffstr url;
 	int from // >0: msec;  <0: CD frames (1/75 sec)
 		, to;
+	union {
 	int dur; //msec
+	uint list_index;
+	};
 } fmed_que_entry;
 
 enum FMED_QUE_EVT {

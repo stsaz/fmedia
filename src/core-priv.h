@@ -38,6 +38,7 @@ typedef struct core_mod {
 	const fmed_mod *m;
 	const void *iface;
 
+	fflock lock;
 	ffpars_ctx conf_ctx;
 	ffstr conf_data;
 	fflist_item sib;
@@ -60,6 +61,7 @@ int core_conf_parse(fmed_config *conf, const char *filename, uint flags);
 
 
 #undef syserrlog
+#define infolog0(...)  fmed_infolog(core, NULL, "core", __VA_ARGS__)
 #define dbglog0(...)  fmed_dbglog(core, NULL, "core", __VA_ARGS__)
 #define errlog0(...)  fmed_errlog(core, NULL, "core", __VA_ARGS__)
 #define syswarnlog(trk, ...)  fmed_syswarnlog(core, NULL, "core", __VA_ARGS__)

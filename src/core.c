@@ -72,6 +72,7 @@ typedef struct core_modinfo {
 	const fmed_mod *m;
 	void *iface; //dummy
 
+	fflock lock;
 	uint opened :1;
 } core_modinfo;
 
@@ -345,6 +346,7 @@ static int mod_load(core_modinfo *minfo)
 	ffdl dl = NULL;
 	ffstr s;
 	ffarr a = {0};
+	ffbool locked = 0;
 
 	ffstr_setz(&s, minfo->name);
 
@@ -387,6 +389,16 @@ static int mod_load(core_modinfo *minfo)
 		}
 	}
 
+	fflk_lock(&minfo->lock);
+	locked = 1;
+	if (minfo->m != NULL) {
+		// another thread has just opened this module
+		ffdl_close(dl);
+		dl = NULL;
+		rc = 0;
+		goto fail;
+	}
+
 	m = getmod(core);
 	if (m == NULL)
 		goto fail;
@@ -411,6 +423,8 @@ static int mod_load(core_modinfo *minfo)
 	rc = 0;
 
 fail:
+	if (locked)
+		fflk_unlock(&minfo->lock);
 	if (rc != 0) {
 		FF_SAFECLOSE(dl, NULL, ffdl_close);
 	}
@@ -435,7 +449,8 @@ static void mod_freeiface(core_mod *m)
 	ffmem_free(m);
 }
 
-/** Load module interface. */
+/** Load module interface
+Note: not thread-safe */
 static int mod_loadiface(core_mod *mod, const core_modinfo *bmod)
 {
 	ffstr soname, modname;
@@ -630,6 +645,7 @@ fail:
 /** Actually load a module. */
 static int mod_load_delayed(core_mod *mod)
 {
+	ffbool locked = 0;
 	ffstr soname, modname;
 	ffs_split2by(mod->name, ffsz_len(mod->name), '.', &soname, &modname);
 
@@ -642,9 +658,12 @@ static int mod_load_delayed(core_mod *mod)
 	if (0 != mod_loadiface(mod, bmod))
 		goto end;
 
+	fflk_lock(&mod->lock);
+	locked = 1;
 	if (mod->have_conf) {
 		if (0 != mod_readconf(mod, modname.ptr))
 			goto end;
+		mod->have_conf = 0;
 	}
 
 	if (!bmod->opened) {
@@ -654,11 +673,14 @@ static int mod_load_delayed(core_mod *mod)
 		bmod->opened = 1;
 	}
 
+	fflk_unlock(&mod->lock);
 	return 0;
 
 fail:
 	errlog0("can't load module %s", mod->name);
 end:
+	if (locked)
+		fflk_unlock(&mod->lock);
 	mod->dl = NULL;
 	mod->m = NULL;
 	mod->iface = NULL;

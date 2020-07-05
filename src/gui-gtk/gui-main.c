@@ -276,7 +276,7 @@ static void list_setdata_scroll(void *param)
 
 void wmain_list_set(uint idx, int delta)
 {
-	ffui_thd_post(&list_setdata_scroll, (void*)(size_t)delta, 0);
+	ffui_thd_post(&list_setdata_scroll, (void*)(size_t)delta, FFUI_POST_WAIT);
 }
 
 void wmain_ent_added(uint idx)
