@@ -465,6 +465,7 @@ static int mpeg_out_process(void *ctx, fmed_filt *d)
 	}
 
 	if (d->mpg_lametag) {
+		d->mpg_lametag = 0;
 		m->mpgw.lametag = 1;
 		m->mpgw.fin = 1;
 	}
