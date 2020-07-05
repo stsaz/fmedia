@@ -6,6 +6,7 @@ Copyright (c) 2015 Simon Zolin */
 #include <FF/sys/fileread.h>
 #include <FF/array.h>
 #include <FF/time.h>
+#include <FFOS/asyncio.h>
 
 
 #undef dbglog
@@ -21,10 +22,14 @@ struct file_in_conf_t {
 	size_t bsize;
 	size_t align;
 	byte directio;
+	byte use_thread_pool;
 };
 
 typedef struct filemod {
 	struct file_in_conf_t in_conf;
+	fflock lk;
+	ffthpool *thpool;
+	const fmed_track *track;
 } filemod;
 
 static filemod *mod;
@@ -41,8 +46,7 @@ typedef struct fmed_file {
 	fmed_handler handler;
 	void *trk;
 
-	unsigned done :1
-		, want_read :1;
+	unsigned done :1;
 } fmed_file;
 
 enum {
@@ -70,6 +74,7 @@ static const fmed_filter fmed_file_input = {
 };
 
 static const ffpars_arg file_in_conf_args[] = {
+	{ "use_thread_pool",	FFPARS_TBOOL8,  FFPARS_DSTOFF(struct file_in_conf_t, use_thread_pool) },
 	{ "buffer_size",  FFPARS_TSIZE | FFPARS_FNOTZERO,  FFPARS_DSTOFF(struct file_in_conf_t, bsize) }
 	, { "buffers",  FFPARS_TINT | FFPARS_F8BIT,  FFPARS_DSTOFF(struct file_in_conf_t, nbufs) }
 	, { "align",  FFPARS_TSIZE | FFPARS_FNOTZERO,  FFPARS_DSTOFF(struct file_in_conf_t, align) }
@@ -124,6 +129,13 @@ static int file_sig(uint signo)
 {
 	switch (signo) {
 	case FMED_OPEN:
+		mod->track = core->getmod("#core.track");
+		break;
+
+	case FMED_STOP:
+		if (0 != ffthpool_free(mod->thpool))
+			syserrlog(NULL, "ffthpool_free", 0);
+		mod->thpool = NULL;
 		break;
 	}
 	return 0;
@@ -135,26 +147,44 @@ static void file_destroy(void)
 	ffmem_free0(mod);
 }
 
+/** Create thread pool. */
+ffthpool* thpool_create()
+{
+	if (mod->thpool != NULL)
+		return mod->thpool;
+
+	fflk_lock(&mod->lk);
+	if (mod->thpool == NULL) {
+		ffthpoolconf ioconf = {};
+		ioconf.maxthreads = 2;
+		ioconf.maxqueue = 64;
+		if (NULL == (mod->thpool = ffthpool_create(&ioconf)))
+			syserrlog(NULL, "ffthpool_create", 0);
+	}
+	fflk_unlock(&mod->lk);
+	return mod->thpool;
+}
+
 
 static int file_in_conf(ffpars_ctx *ctx)
 {
 	mod->in_conf.align = 4096;
 	mod->in_conf.bsize = 64 * 1024;
 	mod->in_conf.nbufs = 3;
-	mod->in_conf.directio = 1;
+	mod->in_conf.directio = 0;
 	ffpars_setargs(ctx, &mod->in_conf, file_in_conf_args, FFCNT(file_in_conf_args));
 	return 0;
 }
 
-static void file_log(void *p, uint level, const ffstr *msg)
+static void file_log(void *p, uint level, ffstr msg)
 {
 	fmed_file *f = p;
 	switch (level) {
-	case 0:
-		syserrlog(f->trk, "%S", msg);
+	case FFFILEREAD_LOG_ERR:
+		errlog(f->trk, "%S", &msg);
 		break;
-	case 1:
-		dbglog(f->trk, "%S", msg);
+	case FFFILEREAD_LOG_DBG:
+		dbglog(f->trk, "%S", &msg);
 		break;
 	}
 }
@@ -162,10 +192,7 @@ static void file_log(void *p, uint level, const ffstr *msg)
 static void file_onread(void *p)
 {
 	fmed_file *f = p;
-	if (!f->want_read)
-		return;
-	f->want_read = 0;
-	f->handler(f->trk);
+	mod->track->cmd(f->trk, FMED_TRACK_WAKE);
 }
 
 static void* file_open(fmed_filt *d)
@@ -181,14 +208,17 @@ static void* file_open(fmed_filt *d)
 
 	fffileread_conf conf = {};
 	conf.udata = f;
-	conf.log = &file_log;
 	conf.onread = &file_onread;
+	conf.log = &file_log;
+	conf.log_debug = (core->loglev == FMED_LOG_DEBUG);
+	if (mod->in_conf.use_thread_pool && !mod->in_conf.directio)
+		conf.thpool = thpool_create();
+	conf.directio = mod->in_conf.directio;
 	conf.kq = (fffd)d->track->cmd(d->trk, FMED_TRACK_KQ);
 	conf.oflags = FFO_RDONLY | FFO_NOATIME | FFO_NONBLOCK | FFO_NODOSNAME;
 	conf.bufsize = mod->in_conf.bsize;
 	conf.nbufs = mod->in_conf.nbufs;
 	conf.bufalign = mod->in_conf.align;
-	conf.directio = mod->in_conf.directio;
 	f->fr = fffileread_create(f->fn, &conf);
 	if (f->fr == NULL) {
 		d->e_no_source = (fferr_last() == ENOENT);
@@ -226,7 +256,7 @@ static void file_close(void *ctx)
 		fffileread_stat(f->fr, &stat);
 		dbglog(f->trk, "cache-hit#:%u  read#:%u  async#:%u  seek#:%u"
 			, stat.ncached, stat.nread, stat.nasync, f->nseek);
-		fffileread_unref(f->fr);
+		fffileread_free(f->fr);
 	}
 
 	ffmem_free(f);
@@ -247,32 +277,32 @@ static int file_getdata(void *ctx, fmed_filt *d)
 		f->nseek++;
 	}
 
-	int r = fffileread_getdata(f->fr, &b, f->seek, FFFILEREAD_FREADAHEAD);
-	switch ((enum FFFILEREAD_R)r) {
+	for (;;) {
 
-	case FFFILEREAD_RASYNC:
-		f->want_read = 1;
-		return FMED_RASYNC; //wait until the buffer is full
+		int r = fffileread_getdata(f->fr, &b, f->seek, FFFILEREAD_FREADAHEAD);
+		switch ((enum FFFILEREAD_R)r) {
 
-	case FFFILEREAD_RERR:
-		return FMED_RERR;
+		case FFFILEREAD_RASYNC:
+			return FMED_RASYNC; //wait until the buffer is full
 
-	case FFFILEREAD_REOF:
-		if (f->done || seek_req) {
-			/* We finished reading in the previous iteration.
-			After that, noone's asked to seek back. */
-			d->outlen = 0;
-			return FMED_RDONE;
+		case FFFILEREAD_RERR:
+			return FMED_RERR;
+
+		case FFFILEREAD_REOF:
+			if (f->done || seek_req) {
+				/* We finished reading in the previous iteration.
+				After that, noone's asked to seek back. */
+				d->outlen = 0;
+				return FMED_RDONE;
+			}
+			f->done = 1;
+			d->out = NULL,  d->outlen = 0;
+			return FMED_ROK;
+
+		case FFFILEREAD_RREAD:
+			d->out = b.ptr,  d->outlen = b.len;
+			f->seek += b.len;
+			return FMED_ROK;
 		}
-		f->done = 1;
-		ffstr_null(&b);
-		break;
-
-	case FFFILEREAD_RREAD:
-		break;
 	}
-
-	d->out = b.ptr,  d->outlen = b.len;
-	f->seek += b.len;
-	return FMED_ROK;
 }

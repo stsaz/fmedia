@@ -19,6 +19,8 @@ extern const fmed_core *core;
 #define errlog(trk, ...)  fmed_errlog(core, trk, "file", __VA_ARGS__)
 #define syserrlog(trk, ...)  fmed_syserrlog(core, trk, "file", __VA_ARGS__)
 
+extern ffthpool* thpool_create();
+
 
 //OUTPUT
 static void* fileout_open(fmed_filt *d);
@@ -36,10 +38,12 @@ struct file_out_conf_t {
 	size_t prealloc;
 	uint file_del :1;
 	uint prealloc_grow :1;
+	byte use_thread_pool;
 };
 static struct file_out_conf_t out_conf;
 
 static const ffpars_arg file_out_conf_args[] = {
+	{ "use_thread_pool",	FFPARS_TBOOL8,  FFPARS_DSTOFF(struct file_out_conf_t, use_thread_pool) },
 	{ "buffer_size",  FFPARS_TSIZE | FFPARS_FNOTZERO,  FFPARS_DSTOFF(struct file_out_conf_t, bsize) }
 	, { "preallocate",  FFPARS_TSIZE | FFPARS_FNOTZERO,  FFPARS_DSTOFF(struct file_out_conf_t, prealloc) }
 };
@@ -48,6 +52,7 @@ static const ffpars_arg file_out_conf_args[] = {
 typedef struct fmed_fileout {
 	fffilewrite *fw;
 	fmed_trk *d;
+	void *trk;
 	ffstr fname;
 	uint64 wr;
 	fftime modtime;
@@ -238,13 +243,19 @@ static void fileout_log(void *p, uint level, ffstr msg)
 {
 	fmed_fileout *f = p;
 	switch (level) {
-	case 0:
-		syserrlog(f->d->trk, "%S", &msg);
+	case FFFILEWRITE_LOG_ERR:
+		errlog(f->trk, "%S", &msg);
 		break;
-	case 1:
-		dbglog(f->d->trk, "%S", &msg);
+	case FFFILEWRITE_LOG_DBG:
+		dbglog(f->trk, "%S", &msg);
 		break;
 	}
+}
+
+static void fo_onwrite(void *udata)
+{
+	fmed_fileout *f = udata;
+	f->d->track->cmd(f->trk, FMED_TRACK_WAKE);
 }
 
 static void* fileout_open(fmed_filt *d)
@@ -260,7 +271,11 @@ static void* fileout_open(fmed_filt *d)
 	fffilewrite_conf conf;
 	fffilewrite_setconf(&conf);
 	conf.udata = f;
+	conf.onwrite = &fo_onwrite;
 	conf.log = &fileout_log;
+	conf.log_debug = (core->loglev == FMED_LOG_DEBUG);
+	if (out_conf.use_thread_pool)
+		conf.thpool = thpool_create();
 	conf.bufsize = out_conf.bsize;
 	int64 n;
 	if (FMED_NULL != (n = fmed_popval("out_bufsize")))
@@ -275,6 +290,7 @@ static void* fileout_open(fmed_filt *d)
 
 	f->modtime = d->mtime;
 	f->d = d;
+	f->trk = d->trk;
 	return f;
 
 done:
@@ -329,23 +345,36 @@ static int fileout_write(void *ctx, fmed_filt *d)
 
 	ffstr in;
 	ffstr_set(&in, d->data, d->datalen);
-	d->datalen = 0;
-	int r = fffilewrite_write(f->fw, in, seek, flags);
-	switch (r) {
-	case FFFILEWRITE_RWRITTEN:
-		d->outlen = 0;
-		f->wr += in.len;
-		if (d->flags & FMED_FLAST) {
-			f->ok = 1;
-			return FMED_RDONE;
+	for (;;) {
+		ssize_t r = fffilewrite_write(f->fw, in, seek, flags);
+		switch (r) {
+		default:
+			if (r == 0 && (d->flags & FMED_FLAST)) {
+				f->ok = 1;
+				d->outlen = 0;
+				return FMED_RDONE;
+			}
+
+			d->data += r;
+			d->datalen -= r;
+			ffstr_shift(&in, r);
+			f->wr += r;
+
+			if (in.len == 0 && !(d->flags & FMED_FLAST)) {
+				d->outlen = 0;
+				return FMED_ROK;
+			}
+
+			seek = -1;
+			continue;
+
+		case FFFILEWRITE_RERR:
+			return FMED_RERR;
+
+		case FFFILEWRITE_RASYNC:
+			return FMED_RASYNC;
 		}
-		return FMED_ROK;
-
-	case FFFILEWRITE_RERR:
-		return FMED_RERR;
-
-	case FFFILEWRITE_RASYNC:
-		return FMED_RASYNC;
 	}
+
 	return FMED_RERR;
 }

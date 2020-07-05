@@ -116,6 +116,7 @@ CORE_O += $(FF_O) \
 	$(FFOS_THD) \
 	$(FF_OBJ_DIR)/fffileread.o \
 	$(FF_OBJ_DIR)/fffilewrite.o \
+	$(FF_OBJ_DIR)/ffthpool.o \
 	$(FF_OBJ_DIR)/ffsys.o \
 	$(FF_OBJ_DIR)/fftmr.o \
 	$(FF_OBJ_DIR)/ffrbtree.o \
