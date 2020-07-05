@@ -315,6 +315,7 @@ static void* raw_open(fmed_filt *d)
 	d->audio.fmt.format = FFPCM_16LE;
 	d->audio.fmt.channels = 2;
 	d->audio.fmt.sample_rate = 44100;
+	d->audio.fmt.ileaved = 1;
 	return r;
 }
 
