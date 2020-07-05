@@ -294,7 +294,6 @@ static int confusr_mod(ffparser_schem *ps, void *obj, ffstr *val)
 {
 	fmed_config *conf = obj;
 	const core_mod *mod;
-	int r;
 	ffconf *pconf = ffpars_schem_backend(ps);
 
 	if (conf->skip_line == pconf->line) {
@@ -308,25 +307,28 @@ static int confusr_mod(ffparser_schem *ps, void *obj, ffstr *val)
 		ffpars_setctx(ps, conf, conf_args, FFCNT(conf_args));
 
 	else if (conf->usrconf_modname == NULL) {
-		if (ffstr_eqcz(val, "gui") && !core->props->gui) {
-			conf->skip_line = pconf->line;
-			return 0;
-		}
 		if (NULL == (conf->usrconf_modname = ffsz_alcopy(val->ptr, val->len)))
 			return FFPARS_ESYS;
 
 	} else {
-		r = 0;
 		ffstr3 s = {0};
 		if (0 == ffstr_catfmt(&s, "%s.%S", conf->usrconf_modname, val))
 			return FFPARS_ESYS;
+
+		if (!allowed_mod((ffstr*)&s)) {
+			conf->skip_line = pconf->line;
+			goto end;
+		}
+
 		if (NULL == (mod = core->getmod2(FMED_MOD_INFO, s.ptr, s.len))) {
-			r = FFPARS_EBADVAL;
+			infolog0("user config: unknown module: %S", &s);
+			conf->skip_line = pconf->line;
 			goto end;
 		}
 
 		if (mod->conf_ctx.args == NULL) {
-			r = FFPARS_EBADVAL;
+			infolog0("user config: module doesn't support configuration: %S", &s);
+			conf->skip_line = pconf->line;
 			goto end;
 		}
 		ffpars_setctx(ps, mod->conf_ctx.obj, mod->conf_ctx.args, mod->conf_ctx.nargs);
@@ -334,8 +336,7 @@ static int confusr_mod(ffparser_schem *ps, void *obj, ffstr *val)
 end:
 		ffmem_free0(conf->usrconf_modname);
 		ffarr_free(&s);
-		if (r != 0)
-			return r;
+		return 0;
 	}
 
 	return 0;
