@@ -416,10 +416,13 @@ pulse.$(SO): $(PULSE_O)
 
 
 #
+$(FF_OBJ_DIR)/ffaudio-jack.o: $(FFAUDIO)/ffaudio/jack.c
+	$(C) $(FFAUDIO_CFLAGS) $< -o $@
+
 JACK_O := $(OBJ_DIR)/jack.o $(FF_O) \
 	$(FF_OBJ_DIR)/ffring.o \
 	$(FF_OBJ_DIR)/ffpcm.o \
-	$(FF_OBJ_DIR)/ffjack.o
+	$(FF_OBJ_DIR)/ffaudio-jack.o
 jack.$(SO): $(JACK_O)
 	$(LD) -shared $(JACK_O) $(LDFLAGS) -ljack -o$@
 
