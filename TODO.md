@@ -10,21 +10,37 @@ This is the list of the things that need to be done.
 * gapless playback of the next track in queue
 * noise gate filter
 * JACK playback
-* ICY: detect audio format in case of unknown content type, .e.g. "Content-Type: application/octet-stream"
+* ICY: detect audio format in case of unknown content type
+
+		"unsupported Content-Type: application/octet-stream"
+
+* ICY: detect real bitrate from data (not HTTP header)
 * support --meta with --stream-copy (.ogg, .m4a, .mp3)
 * GUI: Open directory from disk
 * GUI: Ctrl+Tab
-* GUI theme: listview selection color
+* GUI theme: listview entry selection color (#13)
 * GUI for macOS
-* translate help.txt
+* GUI: repeat track/all (#45)
+* GUI: remove meta associated with the track after file is renamed
+* GUI: read tags on load
+* GUI: remember conversion settings
+* show tray icon when recording from console (#39)
+* translate help.txt (#15)
+* Set to Play Next
+* dynamic track volume
+* build for ARM (#3)
+* docker build (#42)
+* open http://....m3u (application/x-mpegURL)
+* wasapi: process AUDCLNT_E_DEVICE_INVALIDATED
+* Modify audio tags in-place
 
+		>fmedia --tags --meta='artist=NewArtist' ./file.mp3
 
 ## Second priority features
 
 * .mkv, .avi: support MPEG delay
 * join several files into one
 * fatal decoding errors should have filename in their log messages
-* PulseAudio input
 * ALSA: Add fallback path (using fmedia timer) in case "snd_async_add_pcm_handler(): (-38) Function not implemented"
 
 
@@ -52,10 +68,136 @@ This is the list of the things that need to be done.
 * "Stop" command can't immediately break the track loop if it's hanging?
 * .wv: ID3v1 tags have higher priority than APE tags
 * "fmedia --record --channels=left" records in mono, but is it really left channel?
-* FreeBSD: segfault on playback after quick input ('N') in TUI?
 * GUI: Invert Sel doesn't work
 * delayed module load doesn't work if its settings are specified in fmedia-user.conf
 * gui-gtk: too large control buttons
+* --rate= --record doesn't apply to input format, but to conversion
+* gui convert: file format write module returned error, but there's "done" status for the entry (should be "error")
+* wasapi: doesn't play 8bit file?
+* crash in
+
+		addfilter1(t, core->props->record_module);
+
+	record_module = NULL
+	because there's no input module specified in config
+
+		# input "wasapi.in"
+		# input "direct-sound.in"
+
+* fmedia --mix 1.wav thr-30.wav 2.wav --record --out=./m.wav --debug
+* Must read meta (mp3.in) before file.out
+
+		>fmedia "06 - Name.mp3" --stream-copy -o $artist.mp3 --seek=4:0
+		saved file .mp3
+
+* the audio is corrupt if saved as "mono"
+
+		--out=Stream.mp3 --mpeg-quality=64 --rate=44100 --channels=mono
+
+		>fmedia --record --channels=mono -o 1.wav -y
+		>fmedia ./1.wav -o 1.mp3 -y --channels=mono
+
+* AAC unsync on reconnect
+
+		"http://...": I/O timeout
+		resolving host ...
+		connecting to ...
+		aac.decode: *1:    "http://...": ffaac_decode(): (400a) AAC_DEC_UNSUPPORTED_GAIN_CONTROL_DATA: Gain control data found but not supported. Most probably the bitstream is corrupt, or has a wrong format.
+		aac: *1:   "http://...": ffaac_adts_read(): lost synchronization.  Offset: ...
+
+* FLAC unsync
+
+		ffflac_decode(): frame #2013: pos:8245248  size:13145, samples:4096
+		ffflac_decode(): frame #2014: pos:8249344  size:6878, samples:4096
+		flac: *1:        ffflac_decode(): at offset 0x1830000: FLAC__STREAM_DECODER_READ_FRAME
+		ffflac_decode(): frame #112: pos:129024  size:6348, samples:1152
+		flac: *1:        ffflac_decode(): at offset 0x1830000: FLAC__STREAM_DECODER_ERROR_STATUS_LOST_SYNC
+		ffflac_decode(): frame #2016: pos:8257536  size:13024, samples:4096
+
+	We should:
+	1. Test that frame numbers are incrementing by 1.
+	2. Provide larger buffer in case decode fails
+	3. Skip the frame and continue.
+
+* mp3 unsync
+
+		./fmedia 1.mp3 -o 1.wav --until=5
+		./fmedia 1.wav --pcm-peaks
+			0:04.998 (220,453 samples)
+
+* mp3 stream-copy produces inaccurate results (02.469 instead of 02.500)
+  "--meta" affects audio length!
+
+		>fmedia classic.mp3  --stream-copy --seek=2.500 -y -o classic-copy.mp3
+
+		" - " classic.mp3 0.11 MB, 0:05.000 (220,500 samples), 191 kbps, MPEG, 44100 Hz, int16, stereo
+
+		[========================================================..............] 0:04 / 0:0510:49:28.875 info mpeg.copy: *1:
+		MPEG: frames:95
+
+		saved file classic-copy.mp3, 58 kbytes
+
+		>fmedia classic-copy.mp3 --pcm-peaks
+
+		"Antonio Vivaldi - Sinfonia in C major - Allegro molto" classic-copy.mp3 0.06 MB, 0:02.469 (108,911 samples), 189 kbps,
+		MPEG, 44100 Hz, float32, stereo
+
+		[=========================================================.............] 0:02 / 0:02
+
+		PCM peaks (108,911 total samples):
+		Channel #1: highest peak:-7.76dB, avg peak:-22.63dB.  Clipped: 0 (0.0000%).  CRC:00000000
+		Channel #2: highest peak:-4.52dB, avg peak:-20.49dB.  Clipped: 0 (0.0000%).  CRC:00000000
+
+		>fmedia classic.mp3  --stream-copy --seek=2.500 -y --meta=artist=A;title=T -o classic-copy.mp3
+
+		"A - T" classic.mp3 0.11 MB, 0:05.000 (220,500 samples), 190 kbps, MPEG, 44100 Hz, int16, stereo
+
+		[========================================================..............] 0:04 / 0:05
+		saved file classic-copy.mp3, 59 kbytes
+
+		>fmedia classic-copy.mp3 --pcm-peaks
+
+		"A - T" classic-copy.mp3 0.06 MB, 0:02.480 (109,368 samples), 192 kbps, MPEG, 44100 Hz, float32, stereo
+
+		[========================================================..............] 0:02 / 0:02
+
+		PCM peaks (111,744 total samples):
+		Channel #1: highest peak:-7.76dB, avg peak:-22.70dB.  Clipped: 0 (0.0000%).  CRC:00000000
+		Channel #2: highest peak:-4.52dB, avg peak:-20.59dB.  Clipped: 0 (0.0000%).  CRC:00000000
+
+		>./fmedia 1.mp3 --stream-copy -o 2.mp3 --until=2
+			0:01.999 (88,175 samples)
+
+* net.icy: can't stop while "precaching data..."
+* can't stop running convert with ctrl+C in sync file IO mode
+
+		>fmedia rock.flac -o 1.ogg
+
+* fmedia a.wav --mono=0
+	doesn't work in wasapi shared mode because it requires 2 channel input, therefore, conversion is 2ch -> 2ch, i.e. the same sound.
+
+* when seeking, wasapi module returns RMORE after snd_output_clear flag is tested and cleared
+	the sound will stop until the next block is found(!) by demuxer, decoded and only then pass to wasapi again
+	a better approach will be to do this stuff while playing the old buffers (those that are already in wasapi buffers)
+	furthermore, if the control is within file module (aio reading) while we issue the SEEK command from tui, the first time we pass new valid data to wasapi, it will just skip it, returning RMORE on snd_output_clear flag!
+
+* GUI: stop keyboard arrows acting on a focused track bar
+
+* gui: starting fmedia with input file adds this file into beginning of the list (before auto-saved list1.m3u)
+	that's bcs qu->cmd(FMED_QUE_PLAY, first) is issued from fmedia-gui.c before saved playlist is added and expanded from gui module
+
+* gui: Record command and Select Device (Capture) command must respect user's config setting (similar to core->props->playback_dev_index)
+
+* hanging
+	. add file to list
+	. set Random or Repeat All feature
+	. delete file from disk
+	. start the file
+
+	It will run and fail with "file doesn' exist" error.
+	But 'queue' will add the same file again via core.task().
+	'Stop' pressed by user sends STOP_ALL, but it does nothing useful
+	 because the start of the next track is already scheduled by 'queue'.
 
 
 ## Refactoring

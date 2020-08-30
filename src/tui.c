@@ -736,24 +736,29 @@ static void tui_corecmd_add(const struct key *k, void *udata)
 
 static void tui_cmdread(void *param)
 {
-	ffstd_ev ev;
-	int r;
-
-	ffmem_tzero(&ev);
+	ffstd_ev ev = {};
+	ffstr data = {};
 
 	for (;;) {
-		r = ffstd_event(ffstdin, &ev);
-		if (r == 0)
-			break;
-		else if (r < 0)
-			break;
+		if (data.len == 0) {
+			int r = ffstd_keyread(ffstdin, &ev, &data);
+			if (r == 0)
+				break;
+			else if (r < 0)
+				break;
+		}
 
-		uint key = ffstd_key(ev.data, &ev.datalen);
+		ffstr keydata = data;
+		uint key = ffstd_keyparse(&data);
+		if (key == (uint)-1) {
+			data.len = 0;
+			continue;
+		}
 
 		const struct key *k = key2cmd(key);
 		if (k == NULL) {
 			dbglog(core, NULL, "tui", "unknown key seq %*xb"
-				, (size_t)ev.datalen, ev.data);
+				, (size_t)keydata.len, keydata.ptr);
 			continue;
 		}
 		dbglog(core, NULL, "tui", "received command %u", k->cmd & CMD_MASK);

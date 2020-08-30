@@ -155,9 +155,9 @@ static int flac_in_read(void *ctx, fmed_filt *d)
 			break;
 
 		case FFFLAC_RHDRFIN:
-			dbglog(d->trk, "blocksize:%u..%u  framesize:%u..%u  MD5:%16xb  seek-table:%u  meta-length:%u"
+			dbglog(d->trk, "blocksize:%u..%u  framesize:%u..%u  MD5:%16xb  seek-table:%u  meta-length:%u  total-samples:%,U"
 				, (int)f->fl.info.minblock, (int)f->fl.info.maxblock, (int)f->fl.info.minframe, (int)f->fl.info.maxframe
-				, f->fl.info.md5, (int)f->fl.sktab.len, (int)f->fl.framesoff);
+				, f->fl.info.md5, (int)f->fl.sktab.len, (int)f->fl.framesoff, f->fl.info.total_samples);
 			d->audio.bitrate = ffflac_bitrate(&f->fl);
 
 			if (d->input_info)

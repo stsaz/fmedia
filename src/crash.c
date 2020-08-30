@@ -56,7 +56,7 @@ void _crash_handler(const char *fullname, const char *version, struct ffsig_info
 	int n = ffthd_backtrace(&bt);
 	for (int i = 0;  i < n;  i++) {
 		size_t offset = (char*)ffthd_backtrace_frame(&bt, i) - (char*)ffthd_backtrace_modbase(&bt, i);
-		ffstr_addfmt(&s, sizeof(buf), "#%u: 0x%p +%L %s [0x%p]\n"
+		ffstr_addfmt(&s, sizeof(buf), "#%u: 0x%p +%xL %s [0x%p]\n"
 			, i, ffthd_backtrace_frame(&bt, i), offset
 			, ffthd_backtrace_modname(&bt, i), ffthd_backtrace_modbase(&bt, i));
 		fffile_write(f, s.ptr, s.len);

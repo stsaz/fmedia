@@ -113,7 +113,6 @@ endif
 
 CORE_O += $(FF_O) \
 	$(FFOS_WREG) \
-	$(FFOS_THD) \
 	$(FF_OBJ_DIR)/fffileread.o \
 	$(FF_OBJ_DIR)/fffilewrite.o \
 	$(FF_OBJ_DIR)/ffthpool.o \
@@ -139,7 +138,6 @@ core.$(SO): $(CORE_O)
 #
 TUI_O := \
 	$(OBJ_DIR)/tui.o \
-	$(FFOS_THD) \
 	$(FF_O) \
 	$(FF_OBJ_DIR)/ffpcm.o
 tui.$(SO): $(TUI_O)
@@ -516,7 +514,6 @@ GUIGTK_O := $(OBJ_DIR)/gui.o \
 	$(FF_OBJ_DIR)/ffproto.o \
 	$(FF_OBJ_DIR)/ffsys.o \
 	$(FF_OBJ_DIR)/ffpcm.o \
-	$(FFOS_THD) \
 	$(FF_O)
 gui.$(SO): $(GUIGTK_O)
 	$(LD) -shared $(GUIGTK_O) $(LDFLAGS) $(LIBS_GTK) $(LD_LPTHREAD) $(LD_LMATH) -o$@

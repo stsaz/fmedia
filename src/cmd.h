@@ -91,6 +91,9 @@ static inline int cmd_init(fmed_cmd *cmd)
 
 static inline void cmd_destroy(fmed_cmd *cmd)
 {
+	if (cmd == NULL)
+		return;
+
 	FFARR_FREE_ALL_PTR(&cmd->in_files, ffmem_free, char*);
 	ffstr_free(&cmd->outfn);
 

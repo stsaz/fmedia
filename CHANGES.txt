@@ -8,6 +8,15 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.19 - Aug 22, 2020
+
+ + Pulse: support recording
+ + OSS: support recording
+ * --capture-buffer argument: all audio modules now support it
+ - "-o .ogg" command line didn't work (v1.13 bug)
+ - .m4a write: couldn't create file from source file with an invalid frame
+
+
 fmedia v1.18 - Jul 4, 2020
 
  + Pulse: support 8-bit playback

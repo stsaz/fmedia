@@ -141,6 +141,7 @@ static ssize_t core_cmd(uint cmd, ...);
 static const void* core_getmod(const char *name);
 static const void* core_getmod2(uint flags, const char *name, ssize_t name_len);
 static const fmed_modinfo* core_insmod(const char *name, ffpars_ctx *ctx);
+static int xtask(int signo, fftask *task, uint wid);
 static void core_task(fftask *task, uint cmd);
 static int core_timer(fftmrq_entry *tmr, int64 interval, uint flags);
 
@@ -250,18 +251,6 @@ fmed_core* core_init(char **argv, char **env)
 		goto err;
 	if (NULL == ffstr_copy(&fmed->root, path.ptr, path.len + FFSLEN("/")))
 		goto err;
-
-#ifdef FF_WIN
-	{
-	ffarr path = {0};
-	if (0 == ffstr_catfmt(&path, "%Smod%Z", &fmed->root)) {
-		ffarr_free(&path);
-		goto err;
-	}
-	ffdl_init(path.ptr);
-	ffarr_free(&path);
-	}
-#endif
 
 	core->loglev = FMED_LOG_INFO;
 	fmed->props.version_str = FMED_VER;
@@ -767,14 +756,11 @@ err:
 
 static int core_open(void)
 {
-#if defined FF_WIN && FF_WIN < 0x0600
-	ffkqu_init();
-#endif
 	uint n = fmed->conf.workers;
 	if (n == 0) {
 		ffsysconf sc;
 		ffsc_init(&sc);
-		n = ffsc_get(&sc, _SC_NPROCESSORS_ONLN);
+		n = ffsc_get(&sc, FFSYSCONF_NPROCESSORS_ONLN);
 	}
 	if (NULL == ffarr_alloczT(&fmed->workers, n, struct worker))
 		return 1;
@@ -800,7 +786,8 @@ static int wrk_init(struct worker *w, uint thread)
 		syserrlog("%s", ffkqu_create_S);
 		return 1;
 	}
-	ffkqu_post_attach(&w->kqpost, w->kq);
+	if (0 != ffkqu_post_attach(&w->kqpost, w->kq))
+		syserrlog("%s", "ffkqu_post_attach");
 
 	ffkev_init(&w->evposted);
 	w->evposted.oneshot = 0;
@@ -1058,22 +1045,7 @@ static ssize_t core_cmd(uint signo, ...)
 	case FMED_TASK_XDEL: {
 		fftask *task = va_arg(va, fftask*);
 		uint wid = va_arg(va, uint);
-		struct worker *w = (void*)fmed->workers.ptr;
-		FF_ASSERT(wid < fmed->workers.len);
-		if (wid >= fmed->workers.len) {
-			r = -1;
-			break;
-		}
-		w = &w[wid];
-
-		dbglog(core, NULL, "core", "task:%p, cmd:%u, active:%u, handler:%p, param:%p"
-			, task, signo, fftask_active(&w->taskmgr, task), task->handler, task->param);
-
-		if (signo == FMED_TASK_XPOST) {
-			if (1 == fftask_post(&w->taskmgr, task))
-				ffkqu_post(&w->kqpost, &w->evposted);
-		} else
-			fftask_del(&w->taskmgr, task);
+		r = xtask(signo, task, wid);
 		break;
 	}
 
@@ -1148,7 +1120,8 @@ static void core_task(fftask *task, uint cmd)
 	switch (cmd) {
 	case FMED_TASK_POST:
 		if (1 == fftask_post(&w->taskmgr, task))
-			ffkqu_post(&w->kqpost, &w->evposted);
+			if (0 != ffkqu_post(&w->kqpost, &w->evposted))
+				syserrlog("%s", "ffkqu_post");
 		break;
 	case FMED_TASK_DEL:
 		fftask_del(&w->taskmgr, task);
@@ -1156,6 +1129,28 @@ static void core_task(fftask *task, uint cmd)
 	default:
 		FF_ASSERT(0);
 	}
+}
+
+static int xtask(int signo, fftask *task, uint wid)
+{
+	struct worker *w = (void*)fmed->workers.ptr;
+	FF_ASSERT(wid < fmed->workers.len);
+	if (wid >= fmed->workers.len) {
+		return -1;
+	}
+	w = &w[wid];
+
+	dbglog(core, NULL, "core", "task:%p, cmd:%u, active:%u, handler:%p, param:%p"
+		, task, signo, fftask_active(&w->taskmgr, task), task->handler, task->param);
+
+	if (signo == FMED_TASK_XPOST) {
+		if (1 == fftask_post(&w->taskmgr, task))
+			if (0 != ffkqu_post(&w->kqpost, &w->evposted))
+				syserrlog("%s", "ffkqu_post");
+	} else {
+		fftask_del(&w->taskmgr, task);
+	}
+	return 0;
 }
 
 static int core_timer(fftmrq_entry *tmr, int64 _interval, uint flags)

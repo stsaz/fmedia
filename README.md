@@ -35,42 +35,46 @@ fmedia can write: .mp3, .ogg, .opus, .m4a (AAC), .flac, .wav, .aac (--stream-cop
 FEATURES
 ---------------
 
-### INPUT
-* File
-* ICY
-* HLS
-* WASAPI Capture
-* Windows Direct Sound Capture
-* ALSA Capture
-* JACK Capture
+* Audio I/O:
+	* ALSA (capture/playback)
+	* CoreAudio (capture/playback)
+	* DirectSound (capture/playback)
+	* JACK (capture)
+	* OSS (capture/playback)
+	* PulseAudio (capture/playback)
+	* WASAPI (capture/playback)
 
-### FILTERS
+* I/O:
+	* File (read/write)
+	* ICY-stream (read)
+	* HLS (read)
+
 * Containers:
-	* .mp4/.m4a (read/write)
-	* .mkv/.mka (read)
-	* .caf (read)
-	* .ogg/.opus (read/write)
-	* .avi (read)
-	* .mp3 (read/write)
 	* .aac (read, write: --stream-copy only)
-	* .mpc (read)
-	* .flac (read/write)
 	* .ape (read)
-	* .wv (read)
+	* .avi (read)
+	* .caf (read)
+	* .flac (read/write)
+	* .mkv/.mka (read)
+	* .mp3 (read/write)
+	* .mp4/.m4a (read/write)
+	* .mpc (read)
+	* .ogg/.opus (read/write)
 	* .wav (read/write)
+	* .wv (read)
 
 * Lossy codecs:
-	* MPEG (decode/encode)
-	* Vorbis (decode/encode)
-	* Opus (decode/encode)
 	* AAC (decode/encode)
+	* MPEG (decode/encode)
 	* Musepack (decode)
+	* Opus (decode/encode)
+	* Vorbis (decode/encode)
 
 * Lossless codecs:
-	* FLAC (decode/encode)
 	* ALAC (decode)
-	* WavPack (decode)
 	* APE (decode)
+	* FLAC (decode/encode)
+	* WavPack (decode)
 
 * Playlists:
 	* .m3u/.m3u8, .pls (read)
@@ -79,19 +83,11 @@ FEATURES
 
 * Other:
 	* PCM converter
-	* PCM peaks
+	* PCM peaks analyzer
 	* Mixer
 	* Dynamic Audio Normalizer
 	* Terminal UI
-	* Graphical UI
-
-### OUTPUT
-* File
-* Windows Direct Sound Playback
-* WASAPI Playback
-* ALSA Playback
-* Pulse Audio Playback
-* OSS Playback
+	* Graphical UI (Windows, Linux/GTK)
 
 fmedia uses modified versions of these 3rd party libraries: libALAC, libfdk-aac, libFLAC, libMAC, libmp3lame, libmpg123, libmpc, libogg, libopus, libsoxr, libvorbisenc, libvorbis, libwavpack, libDynamicAudioNormalizer.  See `ff-3pt/README.txt` for details.
 
@@ -154,6 +150,9 @@ INSTALL
 		git clone https://github.com/stsaz/ff
 		git clone https://github.com/stsaz/ff-3pt
 		git clone https://github.com/stsaz/fmedia
+
+Note: builds from the latest `master` branch are not supported and *may not work*!
+To build a working package you should checkout a specific git tag for fmedia (e.g. `v1.19`) and then checkout the corresponding git tags for ff* repos with the same release date (e.g. `v20.08`).
 
 3. Build ff-3pt package (3rd-party libraries) or download pre-built binaries.  See `ff-3pt/README.txt` for details.
 

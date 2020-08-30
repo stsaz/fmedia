@@ -21,7 +21,7 @@ include $(FFOS)/makeconf
 ifeq ($(OS),win)
 BIN := fmedia.exe
 INSTDIR := fmedia
-CFLAGS_OS += -DFF_WIN=0x0501
+CFLAGS_OS += -DFF_WIN_APIVER=0x0501
 
 else
 BIN := fmedia
@@ -61,7 +61,10 @@ ifneq ($(OPT),0)
 	CFLAGS_OPT := -O3
 endif
 CFLAGS_ALTOPT := $(CFLAGS_STD) $(CFLAGS_DEBUG) $(CFLAGS_OPT) $(CFLAGS_OS) $(CFLAGS_CPU) $(CFLAGS_APP)
-LDFLAGS += -L$(FF3PTLIB)
+LDFLAGS += -L$(FF3PTLIB) $(LD_LPTHREAD)
+ifeq ($(OS),bsd)
+	LDFLAGS += -lexecinfo
+endif
 
 include $(PROJDIR)/makerules
 

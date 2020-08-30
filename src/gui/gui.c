@@ -1227,7 +1227,7 @@ static int gui_install(uint sig)
 	if (NULL == ffpath_split2(pfn, ffsz_len(pfn), &path, NULL))
 		return FFPARS_ELAST;
 
-	if (FFWREG_BADKEY == (k = ffwreg_open(HKEY_CURRENT_USER, "Environment", O_RDWR)))
+	if (FFWREG_BADKEY == (k = ffwinreg_open(HKEY_CURRENT_USER, "Environment", FFWINREG_READWRITE)))
 		goto end;
 
 	r = ffwreg_readbuf(k, "PATH", &buf);
