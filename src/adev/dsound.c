@@ -2,29 +2,11 @@
 Copyright (c) 2015 Simon Zolin */
 
 #include <fmedia.h>
-
-#include <FF/adev/dsound.h>
-#include <FF/array.h>
-#include <FFOS/mem.h>
+#include <adev/audio.h>
 
 
 static const fmed_core *core;
 static const fmed_track *track;
-
-typedef struct dsnd_out {
-	ffdsnd_buf snd;
-	void *trk;
-	unsigned async :1
-		, ileaved :1;
-} dsnd_out;
-
-typedef struct dsnd_in {
-	ffdsnd_capt snd;
-	void *trk;
-	uint frsize;
-	uint64 total_samps;
-	unsigned async :1;
-} dsnd_in;
 
 static struct dsnd_out_conf_t {
 	uint idev;
@@ -61,8 +43,6 @@ static const ffpars_arg dsnd_out_conf_args[] = {
 	, { "buffer_length",  FFPARS_TINT | FFPARS_FNOTZERO,  FFPARS_DSTOFF(struct dsnd_out_conf_t, buflen) }
 };
 
-static void dsnd_onplay(void *udata);
-
 //INPUT
 static void* dsnd_in_open(fmed_filt *d);
 static int dsnd_in_read(void *ctx, fmed_filt *d);
@@ -72,8 +52,6 @@ static const fmed_filter fmed_dsnd_in = {
 	&dsnd_in_open, &dsnd_in_read, &dsnd_in_close
 };
 
-static void dsnd_in_onplay(void *udata);
-
 static const ffpars_arg dsnd_in_conf_args[] = {
 	{ "device_index",  FFPARS_TINT,  FFPARS_DSTOFF(struct dsnd_in_conf_t, idev) }
 	, { "buffer_length",  FFPARS_TINT | FFPARS_FNOTZERO,  FFPARS_DSTOFF(struct dsnd_in_conf_t, buflen) }
@@ -81,10 +59,9 @@ static const ffpars_arg dsnd_in_conf_args[] = {
 
 //ADEV
 static int dsnd_adev_list(fmed_adev_ent **ents, uint flags);
-static void dsnd_adev_listfree(fmed_adev_ent *ents);
 static const fmed_adev fmed_dsnd_adev = {
 	.list = &dsnd_adev_list,
-	.listfree = &dsnd_adev_listfree,
+	.listfree = &audio_dev_listfree,
 };
 
 
@@ -123,110 +100,37 @@ static int dsnd_sig(uint signo)
 		ffmem_init();
 		return 0;
 
-	case FMED_OPEN:
-		if (0 != ffdsnd_init())
+	case FMED_OPEN: {
+		ffaudio_init_conf conf = {};
+		if (0 != ffdsound.init(&conf))
 			return -1;
 		track = core->getmod("#core.track");
 		core->props->playback_dev_index = dsnd_out_conf.idev;
 		return 0;
+	}
 	}
 	return 0;
 }
 
 static void dsnd_destroy(void)
 {
-	ffdsnd_uninit();
+	ffdsound.uninit();
 }
 
 
 static int dsnd_adev_list(fmed_adev_ent **ents, uint flags)
 {
-	ffarr a = {0};
-	uint f = 0;
-	fmed_adev_ent *e;
-	int r, rr = -1;
-	struct ffdsnd_devenum *d, *dhead = NULL;
-
-	if (flags == FMED_ADEV_PLAYBACK)
-		f = FFDSND_DEV_RENDER;
-	else if (flags == FMED_ADEV_CAPTURE)
-		f = FFDSND_DEV_CAPTURE;
-
-	if (0 != (r = ffdsnd_devenum(&dhead, f))) {
-		errlog(core, NULL, "dsound", "ffdsnd_devenum(): (%xu) %s", r, ffdsnd_errstr(r));
-		goto end;
-	}
-
-	for (d = dhead;  d != NULL;  d = d->next) {
-
-		if (NULL == (e = ffarr_pushgrowT(&a, 4, fmed_adev_ent)))
-			goto end;
-		ffmem_tzero(e);
-		if (NULL == (e->name = ffsz_alcopyz(d->name)))
-			goto end;
-	}
-
-	if (NULL == (e = ffarr_pushT(&a, fmed_adev_ent)))
-		goto end;
-	e->name = NULL;
-	*ents = (void*)a.ptr;
-	rr = a.len - 1;
-
-end:
-	ffdsnd_devenumfree(dhead);
-	if (rr < 0) {
-		FFARR_WALKT(&a, e, fmed_adev_ent) {
-			ffmem_safefree(e->name);
-		}
-		ffarr_free(&a);
-	}
-	return rr;
-}
-
-static void dsnd_adev_listfree(fmed_adev_ent *ents)
-{
-	fmed_adev_ent *e;
-	for (e = ents;  e->name != NULL;  e++) {
-		ffmem_free(e->name);
-	}
-	ffmem_free(ents);
+	int r;
+	if (0 > (r = audio_dev_list(core, &ffdsound, ents, flags, "dsound")))
+		return -1;
+	return r;
 }
 
 
-/** Get device by index. */
-static int dsnd_devbyidx(struct ffdsnd_devenum **dhead, struct ffdsnd_devenum **dev, uint idev, uint flags)
-{
-	struct ffdsnd_devenum *devs, *d;
-
-	if (0 != ffdsnd_devenum(&devs, flags))
-		return 1;
-
-	if (idev == 0) {
-		*dev = devs;
-		*dhead = devs;
-		return 0;
-	}
-
-	for (d = devs;  d != NULL;  d = d->next) {
-		if (--idev == 0) {
-			*dev = d;
-			*dhead = devs;
-			return 0;
-		}
-	}
-
-	ffdsnd_devenumfree(devs);
-	return 1;
-}
-
-static void dsnd_onplay(void *udata)
-{
-	dsnd_out *ds = udata;
-	if (!ds->async)
-		return; //the function may be called when we aren't expecting it
-	ds->async = 0;
-	track->cmd(ds->trk, FMED_TRACK_WAKE);
-}
+typedef struct dsnd_out {
+	audio_out out;
+	fftmrq_entry tmr;
+} dsnd_out;
 
 static int dsnd_out_config(ffpars_ctx *ctx)
 {
@@ -238,124 +142,101 @@ static int dsnd_out_config(ffpars_ctx *ctx)
 
 static void* dsnd_open(fmed_filt *d)
 {
-	if (!ffsz_eq(d->datatype, "pcm")) {
-		errlog(core, d->trk, "dsound", "unsupported input data type: %s", d->datatype);
-		return NULL;
-	}
-
 	dsnd_out *ds;
-	ffpcm fmt;
-	int e, idx;
-	struct ffdsnd_devenum *dhead, *dev;
-
-	ds = ffmem_tcalloc1(dsnd_out);
-	if (ds == NULL)
+	if (NULL == (ds = ffmem_new(dsnd_out)))
 		return NULL;
-	ds->trk = d->trk;
-
-	if (FMED_NULL == (idx = (int)d->track->getval(d->trk, "playdev_name")))
-		idx = core->props->playback_dev_index;
-	if (0 != dsnd_devbyidx(&dhead, &dev, idx, FFDSND_DEV_RENDER)) {
-		errlog(core, d->trk, "dsound", "no audio device by index #%u", idx);
-		goto done;
-	}
-
-	ds->snd.handler = &dsnd_onplay;
-	ds->snd.udata = ds;
-	ffpcm_fmtcopy(&fmt, &d->audio.convfmt);
-	e = ffdsnd_open(&ds->snd, dev->id, &fmt, dsnd_out_conf.buflen);
-
-	ffdsnd_devenumfree(dhead);
-
-	if (e != 0) {
-		errlog(core, d->trk, "dsound", "ffdsnd_open(): (%xu) %s", e, ffdsnd_errstr(e));
-		goto done;
-	}
-
-	dbglog(core, d->trk, "dsound", "opened buffer %u bytes", ds->snd.bufsize);
+	audio_out *a = &ds->out;
+	a->core = core;
+	a->audio = &ffdsound;
+	a->track = track;
+	a->trk = d->trk;
 	return ds;
-
-done:
-	dsnd_close(ds);
-	return NULL;
 }
 
 static void dsnd_close(void *ctx)
 {
 	dsnd_out *ds = ctx;
-	ffdsnd_close(&ds->snd);
+	ffdsound.dev_free(ds->out.dev);
+	ffdsound.free(ds->out.stream);
+	core->timer(&ds->tmr, 0, 0);
 	ffmem_free(ds);
+}
+
+enum { I_TRYOPEN, I_OPEN, I_DATA };
+
+static int dsnd_create(dsnd_out *ds, fmed_filt *d)
+{
+	audio_out *a = &ds->out;
+	ffpcm fmt;
+	int r;
+
+	if (FMED_NULL == (int)(a->dev_idx = (int)d->track->getval(d->trk, "playdev_name")))
+		a->dev_idx = dsnd_out_conf.idev;
+
+	ffpcm_fmtcopy(&fmt, &d->audio.convfmt);
+	a->buffer_length_msec = dsnd_out_conf.buflen;
+
+	a->try_open = (a->state == I_TRYOPEN);
+	r = audio_out_open(a, d, &fmt);
+	if (r == FMED_RMORE) {
+		a->state = I_OPEN;
+		return FMED_RMORE;
+	} else if (r != FMED_ROK)
+		return r;
+
+	ffdsound.dev_free(a->dev);
+	a->dev = NULL;
+
+	dbglog(core, d->trk, "dsound", "%s buffer %ums, %uHz"
+		, "opened", a->buffer_length_msec
+		, fmt.sample_rate);
+
+	ds->tmr.handler = audio_out_onplay;
+	ds->tmr.param = a;
+	if (0 != core->timer(&ds->tmr, a->buffer_length_msec / 3, 0))
+		return FMED_RERR;
+
+	return 0;
 }
 
 static int dsnd_write(void *ctx, fmed_filt *d)
 {
 	dsnd_out *ds = ctx;
+	audio_out *a = &ds->out;
 	int r;
+
+	switch (a->state) {
+	case I_TRYOPEN:
+		d->audio.convfmt.ileaved = 1;
+		// fallthrough
+	case I_OPEN:
+		if (0 != (r = dsnd_create(ds, d)))
+			return r;
+		a->state = I_DATA;
+		break;
+
+	case I_DATA:
+		break;
+	}
 
 	if (d->flags & FMED_FSTOP) {
 		d->outlen = 0;
 		return FMED_RDONE;
 	}
 
-	if (!ds->ileaved) {
-		if (!d->audio.convfmt.ileaved) {
-			d->audio.convfmt.ileaved = 1;
-			return FMED_RMORE;
-		}
-		ds->ileaved = 1;
+	r = audio_out_write(a, d);
+	if (r == FMED_RERR) {
+		core->timer(&ds->tmr, 0, 0);
+		return FMED_RERR;
 	}
-
-	if (d->snd_output_clear) {
-		d->snd_output_clear = 0;
-		ffdsnd_pause(&ds->snd);
-		ffdsnd_clear(&ds->snd);
-		return FMED_RMORE;
-	}
-
-	if (d->snd_output_pause) {
-		d->snd_output_pause = 0;
-		d->track->cmd(d->trk, FMED_TRACK_PAUSE);
-		ffdsnd_pause(&ds->snd);
-		return FMED_RASYNC;
-	}
-
-	if (d->datalen != 0) {
-		r = ffdsnd_write(&ds->snd, d->data, d->datalen);
-		if (r < 0) {
-			errlog(core, d->trk, "dsound", "ffdsnd_write(): (%xu) %s", r, ffdsnd_errstr(r));
-			return r;
-		}
-
-		dbglog(core, d->trk, "dsound", "written %u bytes (%u%% filled)"
-			, r, ffdsnd_filled(&ds->snd) * 100 / ds->snd.bufsize);
-
-		d->data += r;
-		d->datalen -= r;
-	}
-
-	if ((d->flags & FMED_FLAST) && d->datalen == 0) {
-
-		r = ffdsnd_stoplazy(&ds->snd);
-		if (r == 1)
-			return FMED_RDONE;
-		else if (r < 0) {
-			errlog(core, d->trk,  "dsound", "ffdsnd_stoplazy(): (%xu) %s", r, ffdsnd_errstr(r));
-			return FMED_RERR;
-		}
-
-		ds->async = 1;
-		return FMED_RASYNC; //wait until all filled bytes are played
-	}
-
-	if (d->datalen != 0) {
-		ffdsnd_start(&ds->snd);
-		ds->async = 1;
-		return FMED_RASYNC; //sound buffer is full
-	}
-
-	return FMED_ROK; //more data may be written into the sound buffer
+	return r;
 }
 
+
+typedef struct dsnd_in {
+	audio_in in;
+	fftmrq_entry tmr;
+} dsnd_in;
 
 static int dsnd_in_config(ffpars_ctx *ctx)
 {
@@ -367,46 +248,31 @@ static int dsnd_in_config(ffpars_ctx *ctx)
 
 static void* dsnd_in_open(fmed_filt *d)
 {
-	dsnd_in *ds;
-	ffpcm fmt;
-	int r, idx;
-	struct ffdsnd_devenum *dhead, *dev;
+	dsnd_in *ds = ffmem_new(dsnd_in);
+	audio_in *a = &ds->in;
+	a->core = core;
+	a->audio = &ffdsound;
+	a->track = track;
+	a->trk = d->trk;
 
-	ds = ffmem_tcalloc1(dsnd_in);
-	if (ds == NULL)
-		return NULL;
-	ds->trk = d->trk;
-
-	if (FMED_NULL == (idx = (int)d->track->getval(d->trk, "capture_device")))
-		idx = dsnd_in_conf.idev;
-	if (0 != dsnd_devbyidx(&dhead, &dev, idx, FFDSND_DEV_CAPTURE)) {
-		errlog(core, d->trk, "dsound", "no audio device by index #%u", idx);
-		goto fail;
+	int idx;
+	if (FMED_NULL != (idx = (int)d->track->getval(d->trk, "capture_device"))) {
+		// use device specified by user
+		a->dev_idx = idx;
+	} else {
+		a->dev_idx = dsnd_in_conf.idev;
 	}
 
-	ds->snd.handler = &dsnd_in_onplay;
-	ds->snd.udata = ds;
-	ffpcm_fmtcopy(&fmt, &d->audio.fmt);
-	r = ffdsnd_capt_open(&ds->snd, dev->id, &fmt, dsnd_in_conf.buflen);
+	a->buffer_length_msec = dsnd_in_conf.buflen;
 
-	ffdsnd_devenumfree(dhead);
-
-	if (r != 0) {
-		errlog(core, d->trk, "dsound", "ffdsnd_capt_open(): %d", r);
+	if (0 != audio_in_open(a, d))
 		goto fail;
-	}
 
-	r = ffdsnd_capt_start(&ds->snd);
-	if (r != 0) {
-		errlog(core, d->trk, "dsound", "ffdsnd_capt_start(): %d", r);
+	ds->tmr.handler = audio_oncapt;
+	ds->tmr.param = a;
+	if (0 != core->timer(&ds->tmr, a->buffer_length_msec / 3, 0))
 		goto fail;
-	}
 
-	dbglog(core, d->trk, "dsound", "opened capture buffer %u bytes", ds->snd.bufsize);
-
-	ds->frsize = ffpcm_size1(&fmt);
-	d->audio.fmt.ileaved = 1;
-	d->datatype = "pcm";
 	return ds;
 
 fail:
@@ -417,42 +283,12 @@ fail:
 static void dsnd_in_close(void *ctx)
 {
 	dsnd_in *ds = ctx;
-	ffdsnd_capt_close(&ds->snd);
-	ffmem_free(ds);
-}
-
-static void dsnd_in_onplay(void *udata)
-{
-	dsnd_in *ds = udata;
-	if (!ds->async)
-		return;
-	ds->async = 0;
-	track->cmd(ds->trk, FMED_TRACK_WAKE);
+	core->timer(&ds->tmr, 0, 0);
+	audio_in_close(&ds->in);
 }
 
 static int dsnd_in_read(void *ctx, fmed_filt *d)
 {
-	dsnd_in *ds = ctx;
-	int r;
-
-	if (d->flags & FMED_FSTOP) {
-		ffdsnd_capt_stop(&ds->snd);
-		d->outlen = 0;
-		return FMED_RDONE;
-	}
-
-	r = ffdsnd_capt_read(&ds->snd, (void**)&d->out, &d->outlen);
-	if (r < 0) {
-		errlog(core, d->trk, "dsound", "ffdsnd_capt_read(): (%xu) %s", r, ffdsnd_errstr(r));
-		return FMED_RERR;
-	}
-	if (r == 0) {
-		ds->async = 1;
-		return FMED_RASYNC;
-	}
-
-	dbglog(core, d->trk, "dsound", "read %L bytes", d->outlen);
-	d->audio.pos = ds->total_samps;
-	ds->total_samps += d->outlen / ds->frsize;
-	return FMED_ROK;
+	dsnd_in *a = ctx;
+	return audio_in_read(&a->in, d);
 }

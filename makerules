@@ -368,9 +368,12 @@ plist.$(SO): $(PLIST_O)
 
 
 #
+$(FF_OBJ_DIR)/ffaudio-dsound.o: $(FFAUDIO)/ffaudio/dsound.c
+	$(C) $(FFAUDIO_CFLAGS) $< -o $@
+
 DSOUND_O := $(OBJ_DIR)/dsound.o $(FF_O) \
 	$(FF_OBJ_DIR)/ffwohandler.o \
-	$(FF_OBJ_DIR)/ffdsound.o \
+	$(FF_OBJ_DIR)/ffaudio-dsound.o \
 	$(FF_OBJ_DIR)/ffpcm.o \
 	$(FF_OBJ_DIR)/ffwav.o
 direct-sound.$(SO): $(DSOUND_O)
