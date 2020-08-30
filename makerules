@@ -428,10 +428,13 @@ jack.$(SO): $(JACK_O)
 
 
 #
+$(FF_OBJ_DIR)/ffaudio-coreaudio.o: $(FFAUDIO)/ffaudio/coreaudio.c
+	$(C) $(FFAUDIO_CFLAGS) $< -o $@
+
 COREAUDIO_O := $(OBJ_DIR)/coreaudio.o $(FF_O) \
 	$(FF_OBJ_DIR)/ffring.o \
 	$(FF_OBJ_DIR)/ffpcm.o \
-	$(FF_OBJ_DIR)/ffcoreaudio.o
+	$(FF_OBJ_DIR)/ffaudio-coreaudio.o
 coreaudio.$(SO): $(COREAUDIO_O)
 	$(LD) -shared $(COREAUDIO_O) $(LDFLAGS) -framework CoreFoundation -framework CoreAudio -o$@
 

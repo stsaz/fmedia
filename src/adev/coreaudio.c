@@ -1,9 +1,8 @@
-/** CoreAudio output.
+/** CoreAudio input/output.
 Copyright (c) 2018 Simon Zolin */
 
 #include <fmedia.h>
-
-#include <FF/adev/coreaudio.h>
+#include <adev/audio.h>
 
 
 #undef errlog
@@ -37,8 +36,6 @@ static const fmed_filter fmed_coraud_out = {
 	&coraud_open, &coraud_write, &coraud_close
 };
 
-static void coraud_ontmr(void *param);
-
 struct coraud_out_conf_t {
 	uint idev;
 	uint buflen;
@@ -70,15 +67,12 @@ static const ffpars_arg coraud_in_conf_args[] = {
 	{ "buffer_length",	FFPARS_TINT | FFPARS_FNOTZERO,  FFPARS_DSTOFF(struct coraud_in_conf_t, buflen) },
 };
 
-static void coraud_in_ontmr(void *param);
-
 
 //ADEV
 static int coraud_adev_list(fmed_adev_ent **ents, uint flags);
-static void coraud_adev_listfree(fmed_adev_ent *ents);
 static const fmed_adev fmed_coraud_adev = {
 	.list = &coraud_adev_list,
-	.listfree = &coraud_adev_listfree,
+	.listfree = &audio_dev_listfree,
 };
 
 
@@ -129,62 +123,32 @@ static void coraud_destroy(void)
 {
 }
 
+static int mod_init(fmed_trk *trk)
+{
+	static int init_ok;
+	if (init_ok)
+		return 0;
+
+	ffaudio_init_conf conf = {};
+	conf.app_name = "fmedia";
+	if (0 != ffcoreaudio.init(&conf)) {
+		errlog("init: %s", conf.error);
+		return -1;
+	}
+
+	init_ok = 1;
+	return 0;
+}
 
 static int coraud_adev_list(fmed_adev_ent **ents, uint flags)
 {
-	ffarr o = {0};
-	ffcoraud_dev d;
-	uint f = 0;
-	fmed_adev_ent *e;
-	int r, rr = -1;
+	if (0 != mod_init(NULL))
+		return -1;
 
-	ffcoraud_devinit(&d);
-
-	if (flags == FMED_ADEV_PLAYBACK)
-		f = FFCORAUD_DEV_PLAYBACK;
-	else if (flags == FMED_ADEV_CAPTURE)
-		f = FFCORAUD_DEV_CAPTURE;
-
-	for (;;) {
-		r = ffcoraud_devnext(&d, f);
-		if (r == 1)
-			break;
-		else if (r < 0) {
-			errlog("ffcoraud_devnext(): (%d) %s", r, ffcoraud_errstr(r));
-			goto end;
-		}
-
-		if (NULL == (e = ffarr_pushgrowT(&o, 4, fmed_adev_ent)))
-			goto end;
-		ffmem_tzero(e);
-		if (NULL == (e->name = ffsz_alfmt("%s [%d]", d.name, ffcoraud_dev_id(&d))))
-			goto end;
-	}
-
-	if (NULL == (e = ffarr_pushT(&o, fmed_adev_ent)))
-		goto end;
-	e->name = NULL;
-	*ents = (void*)o.ptr;
-	rr = o.len - 1;
-
-end:
-	ffcoraud_devdestroy(&d);
-	if (rr < 0) {
-		FFARR_WALKT(&o, e, fmed_adev_ent) {
-			ffmem_safefree(e->name);
-		}
-		ffarr_free(&o);
-	}
-	return rr;
-}
-
-static void coraud_adev_listfree(fmed_adev_ent *ents)
-{
-	fmed_adev_ent *e;
-	for (e = ents;  e->name != NULL;  e++) {
-		ffmem_free(e->name);
-	}
-	ffmem_free(ents);
+	int r;
+	if (0 > (r = audio_dev_list(core, &ffcoreaudio, ents, flags, "coreaud")))
+		return -1;
+	return r;
 }
 
 
@@ -197,218 +161,103 @@ static int coraud_out_config(ffpars_ctx *ctx)
 
 struct coraud_out {
 	uint state;
-	ffcoraud_buf out;
+	audio_out out;
 	fftmrq_entry tmr;
-	void *trk;
-	uint async :1;
-	uint opened :1;
 };
 
 static void* coraud_open(fmed_filt *d)
 {
-	if (!ffsz_eq(d->datatype, "pcm")) {
-		errlog("unsupported input data type: %s", d->datatype);
+	if (0 != mod_init(d->trk))
 		return NULL;
-	}
 
-	struct coraud_out *a;
-	if (NULL == (a = ffmem_new(struct coraud_out)))
+	struct coraud_out *c;
+	if (NULL == (c = ffmem_new(struct coraud_out)))
 		return NULL;
-	a->trk = d->trk;
-	return a;
+	c->out.trk = d->trk;
+	c->out.core = core;
+	c->out.audio = &ffcoreaudio;
+	c->out.track = d->track;
+	c->out.trk = d->trk;
+	return c;
 }
 
 static void coraud_close(void *ctx)
 {
-	struct coraud_out *a = ctx;
-	if (a->opened) {
-		core->timer(&a->tmr, 0, 0);
-		ffcoraud_close(&a->out);
-	}
-	ffmem_free(a);
+	struct coraud_out *c = ctx;
+	core->timer(&c->tmr, 0, 0);
+	ffcoreaudio.free(c->out.stream);
+	ffcoreaudio.dev_free(c->out.dev);
+	ffmem_free(c);
 }
 
-/** Get device ID by index. */
-static int coraud_finddev(uint idx, uint flags)
+enum { I_TRYOPEN, I_OPEN, I_DATA };
+
+static int coraud_create(struct coraud_out *c, fmed_filt *d)
 {
-	int r, id = -1;
-	ffcoraud_dev d;
+	audio_out *a = &c->out;
+	ffpcm fmt;
+	int r;
 
-	ffcoraud_devinit(&d);
-
-	for (uint i = 1;  ;  i++) {
-		r = ffcoraud_devnext(&d, flags);
-		if (r == 1)
-			break;
-		else if (r < 0) {
-			errlog("ffcoraud_devnext(): (%d) %s", r, ffcoraud_errstr(r));
-			goto end;
-		}
-		if (i == idx) {
-			id = ffcoraud_dev_id(&d);
-			goto end;
-		}
-	}
-
-end:
-	ffcoraud_devdestroy(&d);
-	return id;
-}
-
-static int coraud_create(struct coraud_out *a, fmed_filt *d)
-{
-	int r, dev_idx, dev_id = -1;
-	ffpcm fmt, in_fmt;
-
-	if (FMED_NULL != (int)(dev_idx = (int)d->track->getval(d->trk, "playdev_name"))) {
-		dev_id = coraud_finddev(dev_idx, FFCORAUD_DEV_PLAYBACK);
-		if (dev_id == -1) {
-			errlog("no audio device by index #%u", dev_idx);
-			return FMED_RERR;
-		}
-	}
+	if (FMED_NULL == (int)(a->dev_idx = (int)d->track->getval(d->trk, "playdev_name")))
+		a->dev_idx = coraud_out_conf.idev;
 
 	ffpcm_fmtcopy(&fmt, &d->audio.convfmt);
+	a->buffer_length_msec = coraud_out_conf.buflen;
 
-	dbglog("opening device \"%d\", %s/%u/%u"
-		, dev_id, ffpcm_fmtstr(fmt.format), fmt.sample_rate, fmt.channels);
+	a->try_open = (a->state == I_TRYOPEN);
+	r = audio_out_open(a, d, &fmt);
+	if (r == FMED_RMORE) {
+		a->state = I_OPEN;
+		return FMED_RMORE;
+	} else if (r != FMED_ROK)
+		return r;
 
-	in_fmt = fmt;
-	r = ffcoraud_open(&a->out, dev_id, &fmt, 0, FFCORAUD_DEV_PLAYBACK);
+	ffcoreaudio.dev_free(a->dev);
+	a->dev = NULL;
 
-	if (r == FFCORAUD_EFMT && a->state == 0) {
-		if (!!ffmemcmp(&fmt, &in_fmt, sizeof(ffpcm))) {
+	dbglog("%s buffer %ums, %uHz"
+		, "opened", a->buffer_length_msec
+		, fmt.sample_rate);
 
-			if (fmt.format != in_fmt.format)
-				d->audio.convfmt.format = fmt.format;
-
-			if (fmt.sample_rate != in_fmt.sample_rate)
-				d->audio.convfmt.sample_rate = fmt.sample_rate;
-
-			if (fmt.channels != in_fmt.channels)
-				d->audio.convfmt.channels = fmt.channels;
-
-			return FMED_RMORE;
-		}
-	}
-
-	if (r != 0) {
-		errlog("ffcoraud_open(): (%d) %s", r, ffcoraud_errstr(r));
-		return FMED_RERR;
-	}
-
-	a->opened = 1;
-
-	uint nfy_int_ms = ffpcm_bytes2time(&fmt, ffcoraud_bufsize(&a->out) / 4);
-	a->tmr.handler = &coraud_ontmr;
-	a->tmr.param = a;
-	if (0 != core->timer(&a->tmr, nfy_int_ms, 0))
+	c->tmr.handler = audio_out_onplay;
+	c->tmr.param = a;
+	if (0 != core->timer(&c->tmr, a->buffer_length_msec / 3, 0))
 		return FMED_RERR;
 
-	dbglog("opened buffer %ums, %uHz"
-		, ffcoraud_bufsize(&a->out), fmt.sample_rate);
-	a->out.autostart = 1;
-	d->datatype = "pcm";
 	return 0;
-}
-
-static void coraud_ontmr(void *param)
-{
-	struct coraud_out *a = param;
-	if (!a->async)
-		return;
-	a->async = 0;
-	track->cmd(a->trk, FMED_TRACK_WAKE);
 }
 
 static int coraud_write(void *ctx, fmed_filt *d)
 {
+	struct coraud_out *c = ctx;
 	int r;
-	struct coraud_out *a = ctx;
+
+	switch (c->state) {
+	case I_TRYOPEN:
+		d->audio.convfmt.ileaved = 1;
+		// fallthrough
+
+	case I_OPEN:
+		if (0 != (r = coraud_create(c, d)))
+			return r;
+		c->state = I_DATA;
+		break;
+
+	case I_DATA:
+		break;
+	}
 
 	if (d->flags & FMED_FSTOP) {
 		d->outlen = 0;
 		return FMED_RDONE;
 	}
 
-	switch (a->state) {
-	case 0:
-		r = coraud_create(a, d);
-		if (r == FMED_RMORE && !d->audio.fmt.ileaved) {
-			d->audio.convfmt.ileaved = 1;
-			a->state = 1;
-			return FMED_RMORE;
-		}
-		if (r != 0)
-			return r;
-		if (!d->audio.fmt.ileaved) {
-			d->audio.convfmt.ileaved = 1;
-			a->state = 1;
-			return FMED_RMORE;
-		}
-		a->state = 2;
-		break;
-
-	case 1:
-		if (!d->audio.fmt.ileaved)
-			return FMED_RERR;
-		r = coraud_create(a, d);
-		if (r != 0)
-			return r;
-		a->state = 2;
-		break;
-
-	case 2:
-		break;
+	r = audio_out_write(&c->out, d);
+	if (r == FMED_RERR) {
+		core->timer(&c->tmr, 0, 0);
+		return FMED_RERR;
 	}
-
-	if (d->snd_output_clear) {
-		d->snd_output_clear = 0;
-		ffcoraud_stop(&a->out);
-		ffcoraud_clear(&a->out);
-		return FMED_RMORE;
-	}
-
-	if (d->snd_output_pause) {
-		d->snd_output_pause = 0;
-		d->track->cmd(d->trk, FMED_TRACK_PAUSE);
-		ffcoraud_stop(&a->out);
-		return FMED_RASYNC;
-	}
-
-	while (d->datalen != 0) {
-
-		r = ffcoraud_write(&a->out, d->data, d->datalen);
-		if (r < 0) {
-			errlog("ffcoraud_write(): (%d) %s", r, ffcoraud_errstr(r));
-			return FMED_RERR;
-
-		} else if (r == 0) {
-			a->async = 1;
-			return FMED_RASYNC;
-		}
-
-		d->data += r;
-		d->datalen -= r;
-		dbglog("written %u bytes (%u%% filled)"
-			, r, ffcoraud_filled(&a->out) * 100 / ffcoraud_bufsize(&a->out));
-	}
-
-	if (d->flags & FMED_FLAST) {
-
-		r = ffcoraud_stoplazy(&a->out);
-		if (r == 1)
-			return FMED_RDONE;
-		else if (r < 0) {
-			errlog("ffcoraud_stoplazy(): (%d) %s", r, ffcoraud_errstr(r));
-			return FMED_RERR;
-		}
-
-		a->async = 1;
-		return FMED_RASYNC; //wait until all filled bytes are played
-	}
-
-	return 0;
+	return r;
 }
 
 
@@ -421,138 +270,57 @@ static int coraud_in_config(ffpars_ctx *ctx)
 }
 
 struct coraud_in {
-	void *trk;
-	ffcoraud_buf snd;
+	audio_in in;
 	fftmrq_entry tmr;
-	uint64 total_samps;
-	uint frsize;
-	uint async :1;
 };
 
 static void* coraud_in_open(fmed_filt *d)
 {
-	struct coraud_in *a;
-	ffpcm fmt, in_fmt;
-	int r;
-	int dev_idx, dev_id = -1;
-
-	if (NULL == (a = ffmem_new(struct coraud_in)))
+	if (0 != mod_init(d->trk))
 		return NULL;
 
-	if (FMED_NULL != (int)(dev_idx = (int)d->track->getval(d->trk, "capture_device"))) {
-		dev_id = coraud_finddev(dev_idx, FFCORAUD_DEV_CAPTURE);
-		if (dev_id == -1) {
-			errlog("no audio device for capture by index #%u", dev_idx);
-			goto fail;
-		}
-	}
-
-	ffpcm_fmtcopy(&fmt, &d->audio.fmt);
-	in_fmt = fmt;
-
-	for (uint i = 0; ; i++) {
-
-		dbglog("opening device \"%d\", %s/%u/%u"
-			, dev_id, ffpcm_fmtstr(fmt.format), fmt.sample_rate, fmt.channels);
-		r = ffcoraud_open(&a->snd, dev_id, &fmt, coraud_in_conf.buflen, FFCORAUD_DEV_CAPTURE);
-
-		if (r == FFCORAUD_EFMT && i == 0
-			&& !!ffmemcmp(&fmt, &in_fmt, sizeof(fmt))) {
-
-			if (fmt.format != in_fmt.format) {
-				if (d->audio.convfmt.format == 0)
-					d->audio.convfmt.format = in_fmt.format;
-				d->audio.fmt.format = fmt.format;
-			}
-
-			if (fmt.sample_rate != in_fmt.sample_rate) {
-				if (d->audio.convfmt.sample_rate == 0)
-					d->audio.convfmt.sample_rate = in_fmt.sample_rate;
-				d->audio.fmt.sample_rate = fmt.sample_rate;
-			}
-
-			if (fmt.channels != in_fmt.channels) {
-				if (d->audio.convfmt.channels == 0)
-					d->audio.convfmt.channels = in_fmt.channels;
-				d->audio.fmt.channels = fmt.channels;
-			}
-
-			continue;
-		}
-		break;
-	}
-
-	if (r != 0) {
-		errlog("ffcoraud_open(): \"%d\": (%d) %s"
-			, dev_id, r, ffcoraud_errstr(r));
-		goto fail;
-	}
-
-	if (0 != (r = ffcoraud_start(&a->snd))) {
-		errlog("ffcoraud_start(): \"%d\": (%d) %s"
-			, dev_id, r, ffcoraud_errstr(r));
-		goto fail;
-	}
-
-	uint nfy_int_ms = ffpcm_bytes2time(&fmt, ffcoraud_bufsize(&a->snd) / 4);
-	a->tmr.handler = &coraud_in_ontmr;
-	a->tmr.param = a;
-	if (0 != core->timer(&a->tmr, nfy_int_ms, 0))
-		goto fail;
-
-	dbglog("opened capture buffer %ums"
-		, ffpcm_bytes2time(&fmt, ffcoraud_bufsize(&a->snd)));
-	a->frsize = ffpcm_size1(&fmt);
-	d->audio.fmt.ileaved = 1;
-	d->datatype = "pcm";
+	struct coraud_in *c = ffmem_new(struct coraud_in);
+	audio_in *a = &c->in;
+	a->core = core;
+	a->audio = &ffcoreaudio;
+	a->track = d->track;
 	a->trk = d->trk;
-	return a;
+
+	int idx;
+	if (FMED_NULL != (idx = (int)d->track->getval(d->trk, "capture_device"))) {
+		// use device specified by user
+		a->dev_idx = idx;
+	} else {
+		a->dev_idx = coraud_in_conf.idev;
+	}
+
+	a->buffer_length_msec = coraud_in_conf.buflen;
+
+	if (0 != audio_in_open(a, d))
+		goto fail;
+
+	c->tmr.handler = audio_oncapt;
+	c->tmr.param = a;
+	if (0 != core->timer(&c->tmr, a->buffer_length_msec / 3, 0))
+		goto fail;
+
+	return c;
 
 fail:
-	coraud_in_close(a);
+	coraud_in_close(c);
 	return NULL;
 }
 
 static void coraud_in_close(void *ctx)
 {
-	struct coraud_in *a = ctx;
-	ffcoraud_close(&a->snd);
-	ffmem_free(a);
-}
-
-static void coraud_in_ontmr(void *param)
-{
-	struct coraud_in *a = param;
-	if (!a->async)
-		return;
-	a->async = 0;
-	track->cmd(a->trk, FMED_TRACK_WAKE);
+	struct coraud_in *c = ctx;
+	core->timer(&c->tmr, 0, 0);
+	audio_in_close(&c->in);
+	ffmem_free(c);
 }
 
 static int coraud_in_read(void *ctx, fmed_filt *d)
 {
-	struct coraud_in *a = ctx;
-	int r;
-	ffstr data;
-
-	if (d->flags & FMED_FSTOP) {
-		ffcoraud_stop(&a->snd);
-		d->outlen = 0;
-		return FMED_RDONE;
-	}
-
-	r = ffcoraud_read(&a->snd, &data);
-	if (r < 0) {
-		errlog("ffcoraud_read(): (%d) %s", r, ffcoraud_errstr(r));
-		return FMED_RERR;
-	} else if (r == 0) {
-		a->async = 1;
-		return FMED_RASYNC;
-	}
-
-	d->out = data.ptr,  d->outlen = data.len;
-	dbglog("read %L bytes", d->outlen);
-	d->audio.pos = a->total_samps;
-	a->total_samps += d->outlen / a->frsize;
-	return FMED_RDATA;
+	struct coraud_in *c = ctx;
+	return audio_in_read(&c->in, d);
 }
