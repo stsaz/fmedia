@@ -98,6 +98,7 @@ static void* wav_open(fmed_filt *d)
 		return NULL;
 	}
 	ffwav_init(&w->wav);
+	d->duration_accurate = 1;
 	return w;
 }
 

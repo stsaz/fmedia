@@ -523,6 +523,7 @@ struct fmed_trk {
 		uint err :1;
 		uint show_tags :1;
 		uint print_time :1;
+		uint duration_accurate :1;
 	};
 	};
 

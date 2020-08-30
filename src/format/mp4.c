@@ -355,7 +355,7 @@ static int mp4_out_encode(void *ctx, fmed_filt *d)
 		ffpcm_fmtcopy(&info.fmt, &d->audio.convfmt);
 
 		if (!m->stmcopy && (int64)d->audio.total != FMED_NULL
-			&& !d->duration_inaccurate)
+			&& d->duration_accurate)
 			info.total_samples = ((d->audio.total - d->audio.pos) * d->audio.convfmt.sample_rate / d->audio.fmt.sample_rate);
 
 		if (FMED_NULL == (r = (int)fmed_getval("audio_frame_samples")))
