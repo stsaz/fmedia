@@ -2,56 +2,25 @@
 Copyright (c) 2015 Simon Zolin */
 
 #include <fmedia.h>
-
-#include <FF/adev/wasapi.h>
-#include <FF/array.h>
-#include <FFOS/mem.h>
-#include <FFOS/queue.h>
-#include <FFOS/timer.h>
+#include <adev/audio.h>
 
 
 static const fmed_core *core;
 
-typedef struct wasapi_out wasapi_out;
-
 typedef struct wasapi_mod {
-	ffwasapi out;
-	fftask excl_tsk; //registered in WOH
+	ffaudio_buf *out;
 	fftmrq_entry tmr;
 	ffpcm fmt;
-	wasapi_out *usedby;
+	audio_out *usedby;
 	const fmed_track *track;
-	uint devidx;
-	uint out_valid :1;
+	uint dev_idx;
 	uint init_ok :1;
-	uint excl_init :1;
+	uint excl :1;
 } wasapi_mod;
 
 static wasapi_mod *mod;
 
-struct wasapi_out {
-	uint state;
-
-	ffwas_dev dev;
-	uint devidx;
-
-	void *trk;
-	unsigned stop :1;
-	uint async :1;
-};
-
-enum { WAS_TRYOPEN, WAS_OPEN, WAS_DATA };
-
-typedef struct wasapi_in {
-	ffwasapi wa;
-	fftask excl_tsk; //registered in WOH
-	fftmrq_entry tmr;
-	uint latcorr;
-	void *trk;
-	uint64 total_samps;
-	unsigned async :1;
-	unsigned lpback :1;
-} wasapi_in;
+enum { I_TRYOPEN, I_OPEN, I_DATA };
 
 enum EXCL {
 	EXCL_DISABLED
@@ -93,9 +62,6 @@ static const fmed_filter fmed_wasapi_out = {
 	&wasapi_open, &wasapi_write, &wasapi_close
 };
 
-static void wasapi_ontmr(void *param);
-static void wasapi_onplay(void *udata);
-
 static const ffpars_arg wasapi_out_conf_args[] = {
 	{ "device_index",  FFPARS_TINT,  FFPARS_DSTOFF(struct wasapi_out_conf_t, idev) }
 	, { "buffer_length",  FFPARS_TINT | FFPARS_FNOTZERO,  FFPARS_DSTOFF(struct wasapi_out_conf_t, buflen) }
@@ -111,9 +77,6 @@ static const fmed_filter fmed_wasapi_in = {
 	&wasapi_in_open, &wasapi_in_read, &wasapi_in_close
 };
 
-static void wasapi_ontmr_capt(void *param);
-static void wasapi_oncapt(void *udata);
-
 static const ffpars_arg wasapi_in_conf_args[] = {
 	{ "device_index",  FFPARS_TINT,  FFPARS_DSTOFF(struct wasapi_in_conf_t, idev) }
 	, { "buffer_length",  FFPARS_TINT | FFPARS_FNOTZERO,  FFPARS_DSTOFF(struct wasapi_in_conf_t, buflen) }
@@ -123,10 +86,9 @@ static const ffpars_arg wasapi_in_conf_args[] = {
 
 //ADEV
 static int wasapi_adev_list(fmed_adev_ent **ents, uint flags);
-static void wasapi_adev_listfree(fmed_adev_ent *ents);
 static const fmed_adev fmed_wasapi_adev = {
 	.list = &wasapi_adev_list,
-	.listfree = &wasapi_adev_listfree,
+	.listfree = audio_dev_listfree,
 };
 
 
@@ -175,37 +137,34 @@ static int wasapi_sig(uint signo)
 	return 0;
 }
 
-static void wasapi_closedev(void)
+static void wasapi_stream_close(void)
 {
-	if (mod->excl_tsk.handler != NULL) {
-		mod->excl_tsk.handler = NULL;
-		core->cmd(FMED_WOH_DEL, mod->out.evt);
-	}
-	ffwas_close(&mod->out);
-	ffmem_tzero(&mod->out);
-	mod->out_valid = 0;
+	ffwasapi.free(mod->out);
+	mod->out = NULL;
 }
 
 static void wasapi_destroy(void)
 {
-	if (mod != NULL) {
-		if (mod->out_valid)
-			wasapi_closedev();
-		ffmem_free(mod);
-		mod = NULL;
-	}
+	if (mod == NULL)
+		return;
 
-	ffwas_uninit();
+	ffwasapi.free(mod->out);
+	ffwasapi.uninit();
+	ffmem_free(mod);
+	mod = NULL;
 }
 
 static int wasapi_init(fmed_trk *trk)
 {
 	if (mod->init_ok)
 		return 0;
-	if (0 != ffwas_init()) {
-		syserrlog(core, trk, NULL, "ffwas_init()");
+
+	ffaudio_init_conf conf = {};
+	if (0 != ffwasapi.init(&conf)) {
+		errlog(core, trk, "wasapi", "init: %s", conf.error);
 		return -1;
 	}
+
 	mod->init_ok = 1;
 	return 0;
 }
@@ -213,79 +172,13 @@ static int wasapi_init(fmed_trk *trk)
 
 static int wasapi_adev_list(fmed_adev_ent **ents, uint flags)
 {
-	ffarr a = {0};
-	ffwas_dev d;
-	uint f = 0;
-	fmed_adev_ent *e;
-	int r, rr = -1;
+	if (0 != wasapi_init(NULL))
+		return -1;
 
-	if (mod == NULL || !mod->init_ok)
-		CoInitializeEx(NULL, 0);
-	ffwas_devinit(&d);
-
-	if (flags == FMED_ADEV_PLAYBACK)
-		f = FFWAS_DEV_RENDER;
-	else if (flags == FMED_ADEV_CAPTURE)
-		f = FFWAS_DEV_CAPTURE;
-	f |= FFWAS_DEV_GETDEFAULT;
-
-	for (;;) {
-		r = ffwas_devnext(&d, f);
-		if (r == 1)
-			break;
-		else if (r < 0) {
-			errlog(core, NULL, "wasapi", "ffwas_devnext(): (%xu) %s", r, ffwas_errstr(r));
-			goto end;
-		}
-
-		if (NULL == (e = ffarr_pushgrowT(&a, 4, fmed_adev_ent)))
-			goto end;
-		ffmem_tzero(e);
-		if (NULL == (e->name = ffsz_alcopyz(d.name)))
-			goto end;
-
-		ffwas_dev_deffmt(&d, &e->default_format);
-		e->default_device = d.default_device;
-	}
-
-	if (NULL == (e = ffarr_pushT(&a, fmed_adev_ent)))
-		goto end;
-	e->name = NULL;
-	*ents = (void*)a.ptr;
-	rr = a.len - 1;
-
-end:
-	ffwas_devdestroy(&d);
-	if (rr < 0) {
-		FFARR_WALKT(&a, e, fmed_adev_ent) {
-			ffmem_safefree(e->name);
-		}
-		ffarr_free(&a);
-	}
-	return rr;
-}
-
-static void wasapi_adev_listfree(fmed_adev_ent *ents)
-{
-	fmed_adev_ent *e;
-	for (e = ents;  e->name != NULL;  e++) {
-		ffmem_free(e->name);
-	}
-	ffmem_free(ents);
-}
-
-
-static int wasapi_devbyidx(ffwas_dev *d, uint idev, uint flags)
-{
-	ffwas_devinit(d);
-	for (;  idev != 0;  idev--) {
-		int r = ffwas_devnext(d, flags);
-		if (r != 0) {
-			ffwas_devdestroy(d);
-			return r;
-		}
-	}
-	return 0;
+	int r;
+	if (0 > (r = audio_dev_list(core, &ffwasapi, ents, flags, "wasapi")))
+		return -1;
+	return r;
 }
 
 static int wasapi_out_config(ffpars_ctx *ctx)
@@ -307,255 +200,162 @@ static void* wasapi_open(fmed_filt *d)
 	if (0 != wasapi_init(d->trk))
 		return NULL;
 
-	wasapi_out *w;
-	w = ffmem_tcalloc1(wasapi_out);
+	audio_out *w;
+	w = ffmem_new(audio_out);
 	if (w == NULL)
 		return NULL;
+	w->core = core;
+	w->audio = &ffwasapi;
+	w->track = mod->track;
 	w->trk = d->trk;
 	return w;
 }
 
-static int wasapi_create(wasapi_out *w, fmed_filt *d)
+static int wasapi_create(audio_out *w, fmed_filt *d)
 {
-	ffpcm fmt, in_fmt;
-	int r, reused = 0, excl = 0;
-	int64 lowlat;
+	ffpcm fmt;
+	int r, reused = 0;
 
-	if (w->state == WAS_TRYOPEN
-		&& FMED_NULL == (int)(w->devidx = (int)d->track->getval(d->trk, "playdev_name")))
-		w->devidx = core->props->playback_dev_index;
+	if (FMED_NULL == (int)(w->dev_idx = (int)d->track->getval(d->trk, "playdev_name")))
+		w->dev_idx = wasapi_out_conf.idev;
 
 	ffpcm_fmtcopy(&fmt, &d->audio.convfmt);
+	w->buffer_length_msec = wasapi_out_conf.buflen;
 
+	int excl = 0;
+	int64 lowlat;
 	if (wasapi_out_conf.exclusive == EXCL_ALLOWED && FMED_NULL != (lowlat = d->track->getval(d->trk, "low_latency")))
 		excl = !!lowlat;
 	else if (wasapi_out_conf.exclusive == EXCL_ALWAYS)
 		excl = 1;
 
-	if (mod->out_valid) {
+	if (mod->out != NULL) {
 
-		if (mod->usedby != NULL) {
-			wasapi_out *w = mod->usedby;
+		audio_out *cur = mod->usedby;
+		if (cur != NULL) {
 			mod->usedby = NULL;
 			core->timer(&mod->tmr, 0, 0);
-			w->stop = 1;
-			wasapi_onplay(w);
+			audio_out_onplay(cur);
 		}
 
 		if (fmt.channels == mod->fmt.channels
 			&& fmt.format == mod->fmt.format
 			&& (!excl || fmt.sample_rate == mod->fmt.sample_rate)
-			&& mod->devidx == w->devidx && mod->out.excl == excl) {
+			&& mod->dev_idx == w->dev_idx && mod->excl == excl) {
 
 			if (!excl && fmt.sample_rate != mod->fmt.sample_rate) {
-				fmt.sample_rate = mod->fmt.sample_rate;
 				d->audio.convfmt.sample_rate = mod->fmt.sample_rate;
 			}
 
-			ffwas_stop(&mod->out);
-			ffwas_clear(&mod->out);
+			ffwasapi.stop(mod->out);
+			ffwasapi.clear(mod->out);
+			w->stream = mod->out;
+
+			ffwasapi.dev_free(w->dev);
+			w->dev = NULL;
+
 			reused = 1;
 			goto fin;
 		}
 
-		wasapi_closedev();
+		wasapi_stream_close();
 	}
 
-	if (w->state == WAS_TRYOPEN
-		&& 0 != wasapi_devbyidx(&w->dev, w->devidx, FFWAS_DEV_RENDER)) {
-		errlog(core, d->trk, "wasapi", "no audio device by index #%u", w->devidx);
-		goto done;
-	}
+	if (excl)
+		w->aflags = FFAUDIO_O_EXCLUSIVE;
+	w->try_open = (w->state == I_TRYOPEN);
+	r = audio_out_open(w, d, &fmt);
+	if (r == FMED_RMORE) {
+		w->state = I_OPEN;
+		return FMED_RMORE;
+	} else if (r != FMED_ROK)
+		return r;
 
-	if (excl) {
-		if (!mod->excl_init) {
-			if (0 != core->cmd(FMED_WOH_INIT))
-				goto done;
-			fflk_setup();
-			mod->excl_init = 1;
-		}
-		ffwas_excl(&mod->out, &wasapi_onplay, w);
-	}
-	in_fmt = fmt;
-	dbglog(core, d->trk, NULL, "opening device #%u, fmt:%s/%u/%u, excl:%u"
-		, w->dev.idx, ffpcm_fmtstr(fmt.format), fmt.sample_rate, fmt.channels, excl);
-	uint flags = (excl) ? FFWAS_EXCL : 0;
-	flags |= FFWAS_AUTOSTART;
-	r = ffwas_open(&mod->out, w->dev.id, &fmt, wasapi_out_conf.buflen, FFWAS_DEV_RENDER | flags);
+	ffwasapi.dev_free(w->dev);
+	w->dev = NULL;
 
-	if (r != 0) {
-
-		if (r == AUDCLNT_E_UNSUPPORTED_FORMAT && w->state == WAS_TRYOPEN
-			&& memcmp(&fmt, &in_fmt, sizeof(fmt))) {
-
-			if (fmt.format != in_fmt.format)
-				d->audio.convfmt.format = fmt.format;
-
-			if (fmt.sample_rate != in_fmt.sample_rate)
-				d->audio.convfmt.sample_rate = fmt.sample_rate;
-
-			if (fmt.channels != in_fmt.channels)
-				d->audio.convfmt.channels = fmt.channels;
-			w->state = WAS_OPEN;
-			return FMED_RMORE;
-		}
-
-		errlog(core, d->trk, "wasapi", "opening device #%u: %s: (%xu) %s, format:%s/%u/%u, excl:%u"
-			, w->dev.idx
-			, mod->out.errfunc, r, ffwas_errstr(r)
-			, ffpcm_fmtstr(in_fmt.format), in_fmt.sample_rate, in_fmt.channels
-			, excl);
-		goto done;
-	}
-
-	ffwas_devdestroy(&w->dev);
-	mod->out_valid = 1;
+	mod->out = w->stream;
+	mod->excl = excl;
 	mod->fmt = fmt;
-	mod->devidx = w->devidx;
-	if (excl) {
-		mod->excl_tsk.handler = &_ffwas_onplay_excl;
-		mod->excl_tsk.param = &mod->out;
-		core->cmd(FMED_WOH_ADD, mod->out.evt, &mod->excl_tsk);
-	}
+	mod->dev_idx = w->dev_idx;
 
 fin:
-	if (!excl) {
-		uint nfy_int_ms = ffpcm_time(ffwas_buf_samples(&mod->out) / 4, fmt.sample_rate);
-		mod->tmr.handler = &wasapi_ontmr;
-		mod->tmr.param = w;
-		if (0 != core->timer(&mod->tmr, nfy_int_ms, 0))
-			goto done;
-	} else
-		ffwas_excl(&mod->out, &wasapi_onplay, w);
-
 	mod->usedby = w;
 	dbglog(core, d->trk, "wasapi", "%s buffer %ums, %uHz, excl:%u"
-		, reused ? "reused" : "opened", ffpcm_bytes2time(&fmt, ffwas_bufsize(&mod->out))
-		, fmt.sample_rate, mod->out.excl);
-	return 0;
+		, reused ? "reused" : "opened", w->buffer_length_msec
+		, mod->fmt.sample_rate, excl);
 
-done:
-	return FMED_RERR;
+	mod->tmr.handler = audio_out_onplay;
+	mod->tmr.param = w;
+	if (0 != core->timer(&mod->tmr, w->buffer_length_msec / 3, 0))
+		return FMED_RERR;
+
+	return 0;
 }
 
 static void wasapi_close(void *ctx)
 {
-	wasapi_out *w = ctx;
+	audio_out *w = ctx;
 	if (mod->usedby == w) {
-		void *trk = w->trk;
-		if (FMED_NULL != mod->track->getval(trk, "stopped")) {
-			wasapi_closedev();
+		if (FMED_NULL != mod->track->getval(w->trk, "stopped")) {
+			wasapi_stream_close();
+
 		} else {
-			ffwas_stop(&mod->out);
-			ffwas_clear(&mod->out);
+			if (0 != ffwasapi.stop(mod->out))
+				errlog(core, w->trk, "wasapi", "stop: %s", ffwasapi.error(mod->out));
+			ffwasapi.clear(mod->out);
 		}
+
 		core->timer(&mod->tmr, 0, 0);
 		mod->usedby = NULL;
 	}
-	ffwas_devdestroy(&w->dev);
+
+	ffwasapi.dev_free(w->dev);
 	ffmem_free(w);
-}
-
-static void wasapi_ontmr(void *param)
-{
-	wasapi_out *w = param;
-	if (!w->async)
-		return;
-	w->async = 0;
-	mod->track->cmd(w->trk, FMED_TRACK_WAKE);
-}
-
-static void wasapi_onplay(void *udata)
-{
-	wasapi_out *w = udata;
-	if (!w->async)
-		return;
-	w->async = 0;
-	mod->track->cmd(w->trk, FMED_TRACK_WAKE);
 }
 
 static int wasapi_write(void *ctx, fmed_filt *d)
 {
-	wasapi_out *w = ctx;
+	audio_out *w = ctx;
 	int r;
 
 	switch (w->state) {
-	case WAS_TRYOPEN:
+	case I_TRYOPEN:
 		d->audio.convfmt.ileaved = 1;
-		// break
+		// fallthrough
 
-	case WAS_OPEN:
+	case I_OPEN:
 		if (0 != (r = wasapi_create(w, d)))
 			return r;
-		w->state = WAS_DATA;
+		w->state = I_DATA;
 		break;
 
-	case WAS_DATA:
+	case I_DATA:
 		break;
 	}
 
-	if (w->stop || (d->flags & FMED_FSTOP)) {
+	if (mod->usedby != w || (d->flags & FMED_FSTOP)) {
 		d->outlen = 0;
 		return FMED_RDONE;
 	}
 
-	if (d->snd_output_clear) {
-		d->snd_output_clear = 0;
-		ffwas_stop(&mod->out);
-		ffwas_clear(&mod->out);
-		return FMED_RMORE;
+	r = audio_out_write(w, d);
+	if (r == FMED_RERR) {
+		ffwasapi.free(mod->out);
+		mod->out = NULL;
+		core->timer(&mod->tmr, 0, 0);
+		mod->usedby = NULL;
+		return FMED_RERR;
 	}
-
-	if (d->snd_output_pause) {
-		d->snd_output_pause = 0;
-		d->track->cmd(d->trk, FMED_TRACK_PAUSE);
-		ffwas_stop(&mod->out);
-		return FMED_RASYNC;
-	}
-
-	while (d->datalen != 0) {
-
-		r = ffwas_write(&mod->out, d->data, d->datalen);
-		if (r < 0) {
-			errlog(core, d->trk, "wasapi", "ffwas_write(): (%xu) %s", r, ffwas_errstr(r));
-			goto err;
-
-		} else if (r == 0) {
-			w->async = 1;
-			ffwas_async(&mod->out, 1);
-			return FMED_RASYNC;
-		}
-
-		d->data += r;
-		d->datalen -= r;
-		dbglog(core, d->trk, "wasapi", "written %u bytes (%u%% filled)"
-			, r, ffwas_filled(&mod->out) * 100 / ffwas_bufsize(&mod->out));
-	}
-
-	if ((d->flags & FMED_FLAST) && d->datalen == 0) {
-
-		r = ffwas_stoplazy(&mod->out);
-		if (r == 1)
-			return FMED_RDONE;
-		else if (r < 0) {
-			errlog(core, d->trk,  "wasapi", "ffwas_stoplazy(): (%xu) %s", r, ffwas_errstr(r));
-			goto err;
-		}
-
-		w->async = 1;
-		ffwas_async(&mod->out, 1);
-		return FMED_RASYNC; //wait until all filled bytes are played
-	}
-
-	return FMED_ROK;
-
-err:
-	wasapi_closedev();
-	core->timer(&mod->tmr, 0, 0);
-	mod->usedby = NULL;
-	return FMED_RERR;
+	return r;
 }
 
+
+typedef struct was_in {
+	audio_in in;
+	fftmrq_entry tmr;
+	uint latcorr;
+} was_in;
 
 static int wasapi_in_config(ffpars_ctx *ctx)
 {
@@ -569,193 +369,66 @@ static int wasapi_in_config(ffpars_ctx *ctx)
 
 static void* wasapi_in_open(fmed_filt *d)
 {
-	wasapi_in *w;
-	ffpcm fmt, in_fmt;
-	int r, idx, lowlat;
-	ffwas_dev dev = {0};
-	uint flags;
-	ffbool try_open = 1, lpback = 0, excl = 0;
-
 	if (0 != wasapi_init(d->trk))
 		return NULL;
 
-	w = ffmem_tcalloc1(wasapi_in);
-	if (w == NULL)
-		return NULL;
-	w->trk = d->trk;
+	was_in *wi = ffmem_new(was_in);
+	audio_in *a = &wi->in;
+	a->core = core;
+	a->audio = &ffwasapi;
+	a->track = mod->track;
+	a->trk = d->trk;
 
-	if (FMED_NULL != (idx = (int)d->track->getval(d->trk, "loopback_device")))
-		lpback = 1;
-	else if (FMED_NULL == (idx = (int)d->track->getval(d->trk, "capture_device")))
-		idx = wasapi_in_conf.idev;
-
-	r = (lpback) ? FFWAS_DEV_RENDER : FFWAS_DEV_CAPTURE;
-	if (0 != wasapi_devbyidx(&dev, idx, r)) {
-		errlog(core, d->trk, "wasapi", "no audio device by index #%u", idx);
-		goto fail;
+	int idx;
+	if (FMED_NULL != (idx = (int)d->track->getval(d->trk, "loopback_device"))) {
+		// use loopback device specified by user
+		a->loopback = 1;
+		a->dev_idx = idx;
+	} else if (FMED_NULL != (idx = (int)d->track->getval(d->trk, "capture_device"))) {
+		// use device specified by user
+		a->dev_idx = idx;
+	} else {
+		a->dev_idx = wasapi_in_conf.idev;
 	}
 
-	flags = (lpback) ? FFWAS_DEV_RENDER | FFWAS_LOOPBACK : FFWAS_DEV_CAPTURE;
+	a->buffer_length_msec = wasapi_in_conf.buflen;
 
-	if (wasapi_in_conf.exclusive == EXCL_ALLOWED && FMED_NULL != (lowlat = (int)fmed_getval("low_latency")))
-		excl = !!lowlat;
+	if (0 != audio_in_open(a, d))
+		goto fail;
+
+	int excl = 0;
+	int lowlat;
+	if (wasapi_in_conf.exclusive == EXCL_ALLOWED
+		&& FMED_NULL != (lowlat = (int)fmed_getval("low_latency")))
+		excl = lowlat;
 	else if (wasapi_in_conf.exclusive == EXCL_ALWAYS)
 		excl = 1;
-	flags |= (excl) ? FFWAS_EXCL : 0;
+	if (excl)
+		a->aflags = FFAUDIO_O_EXCLUSIVE;
 
-	if (excl) {
-		if (!mod->excl_init) {
-			if (0 != core->cmd(FMED_WOH_INIT))
-				goto fail;
-			fflk_setup();
-			mod->excl_init = 1;
-		}
-		ffwas_excl(&w->wa, &wasapi_oncapt, w);
-	}
-	ffpcm_fmtcopy(&fmt, &d->audio.fmt);
-	in_fmt = fmt;
-
-	uint buf_time = (d->a_in_buf_time != 0) ? d->a_in_buf_time : wasapi_in_conf.buflen;
-
-again:
-	dbglog(core, d->trk, NULL, "opening device #%u, fmt:%s/%u/%u, excl:%u"
-		, dev.idx, ffpcm_fmtstr(fmt.format), fmt.sample_rate, fmt.channels, excl);
-	r = ffwas_open(&w->wa, dev.id, &fmt, buf_time, flags);
-
-	if (r != 0) {
-
-		if (r == AUDCLNT_E_UNSUPPORTED_FORMAT && try_open
-			&& memcmp(&fmt.format, &in_fmt, sizeof(fmt))) {
-
-			if (fmt.format != in_fmt.format) {
-				if (d->audio.convfmt.format == 0)
-					d->audio.convfmt.format = in_fmt.format;
-				d->audio.fmt.format = fmt.format;
-			}
-
-			if (fmt.sample_rate != in_fmt.sample_rate) {
-				if (d->audio.convfmt.sample_rate == 0)
-					d->audio.convfmt.sample_rate = in_fmt.sample_rate;
-				d->audio.fmt.sample_rate = fmt.sample_rate;
-			}
-
-			if (fmt.channels != in_fmt.channels) {
-				if (d->audio.convfmt.channels == 0)
-					d->audio.convfmt.channels = in_fmt.channels;
-				d->audio.fmt.channels = fmt.channels;
-			}
-
-			try_open = 0;
-			goto again;
-		}
-
-		errlog(core, d->trk, "wasapi", "opening device #%u: %s: (%xu) %s, format:%s/%u/%u, excl:%u"
-			, dev.idx
-			, w->wa.errfunc, r, ffwas_errstr(r)
-			, ffpcm_fmtstr(in_fmt.format), in_fmt.sample_rate, in_fmt.channels
-			, excl);
+	wi->tmr.handler = audio_oncapt;
+	wi->tmr.param = a;
+	if (0 != core->timer(&wi->tmr, a->buffer_length_msec / 3, 0))
 		goto fail;
-	}
 
-	if (!excl) {
-		uint nfy_int_ms = ffpcm_time(ffwas_buf_samples(&w->wa) / 4, fmt.sample_rate);
-		w->tmr.handler = &wasapi_ontmr_capt;
-		w->tmr.param = w;
-		if (0 != core->timer(&w->tmr, nfy_int_ms, 0))
-			goto fail;
-	}
-	if (excl) {
-		w->excl_tsk.handler = &_ffwas_onplay_excl;
-		w->excl_tsk.param = &w->wa;
-		core->cmd(FMED_WOH_ADD, w->wa.evt, &w->excl_tsk);
-	}
-
-	r = ffwas_start(&w->wa);
-	if (r != 0) {
-		errlog(core, d->trk, "wasapi", "ffwas_start(): (%xu) %s", r, ffwas_errstr(r));
-		goto fail;
-	}
-
-	dbglog(core, d->trk, "wasapi", "opened capture buffer %ums"
-		, ffpcm_bytes2time(&fmt, ffwas_bufsize(&w->wa)));
-
-	if (wasapi_in_conf.latency_autocorrect)
-		w->latcorr = ffpcm_samples(wasapi_out_conf.buflen, fmt.sample_rate) * ffpcm_size1(&fmt)
-			+ w->wa.bufsize;
-
-	ffwas_devdestroy(&dev);
-	d->audio.fmt.ileaved = 1;
-	w->lpback = lpback;
-	d->datatype = "pcm";
-	return w;
+	return wi;
 
 fail:
-	ffwas_devdestroy(&dev);
-	wasapi_in_close(w);
+	wasapi_in_close(wi);
 	return NULL;
 }
 
 static void wasapi_in_close(void *ctx)
 {
-	wasapi_in *w = ctx;
-	core->timer(&w->tmr, 0, 0);
-	if (w->excl_tsk.handler != NULL)
-		core->cmd(FMED_WOH_DEL, w->wa.evt);
-	ffwas_capt_close(&w->wa);
-	ffmem_free(w);
-}
-
-static void wasapi_ontmr_capt(void *param)
-{
-	wasapi_in *w = param;
-	if (!w->async)
-		return;
-	w->async = 0;
-	mod->track->cmd(w->trk, FMED_TRACK_WAKE);
-}
-
-static void wasapi_oncapt(void *udata)
-{
-	wasapi_in *w = udata;
-
-	if (!w->async)
-		return;
-	w->async = 0;
-	mod->track->cmd(w->trk, FMED_TRACK_WAKE);
+	was_in *wi = ctx;
+	audio_in *a = &wi->in;
+	core->timer(&wi->tmr, 0, 0);
+	audio_in_close(a);
+	ffmem_free(wi);
 }
 
 static int wasapi_in_read(void *ctx, fmed_filt *d)
 {
-	wasapi_in *w = ctx;
-	int r;
-
-	if (d->flags & FMED_FSTOP) {
-		ffwas_stop(&w->wa);
-		d->outlen = 0;
-		return FMED_RDONE;
-	}
-
-	r = ffwas_capt_read(&w->wa, (void**)&d->out, &d->outlen);
-	if (r < 0) {
-		errlog(core, d->trk, "wasapi", "ffwas_capt_read(): (%xu) %s", r, ffwas_errstr(r));
-		return FMED_RERR;
-	}
-	if (r == 0) {
-		w->async = 1;
-		ffwas_async(&w->wa, 1);
-		return FMED_RASYNC;
-	}
-
-	dbglog(core, d->trk, "wasapi", "read %L bytes", d->outlen);
-
-	if (w->latcorr != 0) {
-		uint n = (uint)ffmin(w->latcorr, d->outlen);
-		d->out += n;
-		d->outlen -= n;
-		w->latcorr -= n;
-	}
-
-	d->audio.pos = w->total_samps;
-	w->total_samps += d->outlen / w->wa.frsize;
-	return FMED_ROK;
+	was_in *wi = ctx;
+	return audio_in_read(&wi->in, d);
 }

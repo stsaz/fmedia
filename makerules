@@ -378,11 +378,14 @@ direct-sound.$(SO): $(DSOUND_O)
 
 
 #
+$(FF_OBJ_DIR)/ffaudio-wasapi.o: $(FFAUDIO)/ffaudio/wasapi.c
+	$(C) $(FFAUDIO_CFLAGS) $< -o $@
+
 WASAPI_O := $(OBJ_DIR)/wasapi.o $(FF_O) \
 	$(FF_OBJ_DIR)/ffwohandler.o \
 	$(FF_OBJ_DIR)/ffpcm.o \
 	$(FF_OBJ_DIR)/ffwav.o \
-	$(FF_OBJ_DIR)/ffwasapi.o
+	$(FF_OBJ_DIR)/ffaudio-wasapi.o
 wasapi.$(SO): $(WASAPI_O)
 	$(LD) -shared $(WASAPI_O) $(LDFLAGS) -lole32 -o$@
 
