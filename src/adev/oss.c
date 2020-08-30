@@ -1,37 +1,22 @@
-/** OSS output.
+/** OSS input/output.
 Copyright (c) 2017 Simon Zolin */
 
 #include <fmedia.h>
-
-#include <FF/adev/oss.h>
+#include <adev/audio.h>
 
 
 static const fmed_core *core;
 
-typedef struct oss_out oss_out;
-
 typedef struct oss_mod {
-	ffoss_buf out;
+	fftmrq_entry tmr;
+	ffaudio_buf *out;
 	ffpcm fmt;
-	oss_out *usedby;
+	audio_out *usedby;
 	const fmed_track *track;
-	uint devidx;
-	uint out_valid :1;
-	uint init_ok :1;
+	uint dev_idx;
 } oss_mod;
 
 static oss_mod *mod;
-
-struct oss_out {
-	uint state;
-	size_t dataoff;
-
-	ffoss_dev dev;
-	uint devidx;
-
-	void *trk;
-	uint stop :1;
-};
 
 enum { I_TRYOPEN, I_OPEN, I_DATA };
 
@@ -53,8 +38,7 @@ static const fmed_mod fmed_oss_mod = {
 	.conf = &oss_conf,
 };
 
-static int oss_init(fmed_trk *trk);
-static int oss_create(oss_out *o, fmed_filt *d);
+static int oss_create(audio_out *a, fmed_filt *d);
 
 //OUTPUT
 static void* oss_open(fmed_filt *d);
@@ -70,14 +54,19 @@ static const ffpars_arg oss_out_conf_args[] = {
 	{ "buffer_length",	FFPARS_TINT,  FFPARS_DSTOFF(struct oss_out_conf_t, buflen) },
 };
 
-static void oss_onplay(void *udata);
+//INPUT
+static void* oss_in_open(fmed_filt *d);
+static void oss_in_close(void *ctx);
+static int oss_in_read(void *ctx, fmed_filt *d);
+static const fmed_filter fmed_oss_in = {
+	&oss_in_open, &oss_in_read, &oss_in_close
+};
 
 //ADEV
 static int oss_adev_list(fmed_adev_ent **ents, uint flags);
-static void oss_adev_listfree(fmed_adev_ent *ents);
 static const fmed_adev fmed_oss_adev = {
 	.list = &oss_adev_list,
-	.listfree = &oss_adev_listfree,
+	.listfree = &audio_dev_listfree,
 };
 
 
@@ -92,6 +81,8 @@ static const void* oss_iface(const char *name)
 {
 	if (!ffsz_cmp(name, "out")) {
 		return &fmed_oss_out;
+	} else if (!ffsz_cmp(name, "in")) {
+		return &fmed_oss_in;
 	} else if (!ffsz_cmp(name, "adev")) {
 		return &fmed_oss_adev;
 	}
@@ -124,88 +115,30 @@ static int oss_sig(uint signo)
 
 static void oss_destroy(void)
 {
-	if (mod != NULL) {
-		if (mod->out_valid)
-			ffoss_close(&mod->out);
-		ffmem_free(mod);
-		mod = NULL;
-	}
+	if (mod == NULL)
+		return;
 
-	ffoss_uninit();
+	ffoss.free(mod->out);
+	ffoss.uninit();
+	ffmem_free(mod);
+	mod = NULL;
 }
 
-static int oss_init(fmed_trk *trk)
+static int mod_init(fmed_trk *trk)
 {
-	if (mod->init_ok)
-		return 0;
-	if (0 != ffoss_init()) {
-		syserrlog(core, trk, NULL, "ffoss_init()");
-		return -1;
-	}
-	mod->init_ok = 1;
 	return 0;
 }
 
 static int oss_adev_list(fmed_adev_ent **ents, uint flags)
 {
-	ffarr o = {0};
-	ffoss_dev d;
-	uint f = 0;
-	fmed_adev_ent *e;
-	int r, rr = -1;
-
-	if (mod == NULL && 0 != ffoss_init())
+	if (0 != mod_init(NULL))
 		return -1;
 
-	ffoss_devinit(&d);
-
-	if (flags == FMED_ADEV_PLAYBACK)
-		f = FFOSS_DEV_PLAYBACK;
-	else if (flags == FMED_ADEV_CAPTURE)
-		f = FFOSS_DEV_CAPTURE;
-
-	for (;;) {
-		r = ffoss_devnext(&d, f);
-		if (r == 1)
-			break;
-		else if (r < 0) {
-			errlog(core, NULL, "oss", "ffoss_devnext(): (%d) %s", r, ffoss_errstr(r));
-			goto end;
-		}
-
-		if (NULL == (e = ffarr_pushgrowT(&o, 4, fmed_adev_ent)))
-			goto end;
-		ffmem_tzero(e);
-		if (NULL == (e->name = ffsz_alcopyz(d.name)))
-			goto end;
-	}
-
-	if (NULL == (e = ffarr_pushT(&o, fmed_adev_ent)))
-		goto end;
-	e->name = NULL;
-	*ents = (void*)o.ptr;
-	rr = o.len - 1;
-
-end:
-	ffoss_devdestroy(&d);
-	if (rr < 0) {
-		FFARR_WALKT(&o, e, fmed_adev_ent) {
-			ffmem_safefree(e->name);
-		}
-		ffarr_free(&o);
-	}
-	return rr;
+	int r;
+	if (0 > (r = audio_dev_list(core, &ffoss, ents, flags, "oss")))
+		return -1;
+	return r;
 }
-
-static void oss_adev_listfree(fmed_adev_ent *ents)
-{
-	fmed_adev_ent *e;
-	for (e = ents;  e->name != NULL;  e++) {
-		ffmem_free(e->name);
-	}
-	ffmem_free(ents);
-}
-
 
 static int oss_out_config(ffpars_ctx *ctx)
 {
@@ -217,213 +150,201 @@ static int oss_out_config(ffpars_ctx *ctx)
 
 static void* oss_open(fmed_filt *d)
 {
-	oss_out *o;
+	audio_out *a;
 
-	if (0 != oss_init(d->trk))
+	if (0 != mod_init(d->trk))
 		return NULL;
 
-	if (NULL == (o = ffmem_new(oss_out)))
+	if (NULL == (a = ffmem_new(audio_out)))
 		return NULL;
-	o->trk = d->trk;
-	return o;
+	a->core = core;
+	a->audio = &ffoss;
+	a->track = mod->track;
+	a->trk = d->trk;
+	return a;
 }
 
 static void oss_close(void *ctx)
 {
-	oss_out *o = ctx;
-	int r;
+	audio_out *a = ctx;
 
-	if (mod->usedby == o) {
-		void *trk = o->trk;
-
-		if (FMED_NULL != mod->track->getval(trk, "stopped")) {
-			ffoss_close(&mod->out);
-			ffmem_tzero(&mod->out);
-			mod->out_valid = 0;
+	if (mod->usedby == a) {
+		if (FMED_NULL != mod->track->getval(a->trk, "stopped")) {
+			ffoss.free(mod->out);
+			mod->out = NULL;
 
 		} else {
-			if (0 != (r = ffoss_stop(&mod->out)))
-				errlog(core, trk,  "oss", "ffoss_stop(): (%d) %s", r, ffoss_errstr(r));
-			ffoss_clear(&mod->out);
+			if (0 != ffoss.stop(mod->out))
+				errlog(core, a->trk, "oss", "stop: %s", ffoss.error(mod->out));
+			ffoss.clear(mod->out);
 		}
 
+		core->timer(&mod->tmr, 0, 0);
 		mod->usedby = NULL;
 	}
 
-	ffoss_devdestroy(&o->dev);
-	ffmem_free(o);
+	ffoss.dev_free(a->dev);
+	ffmem_free(a);
 }
 
-static int oss_devbyidx(ffoss_dev *d, uint idev, uint flags)
+static int oss_create(audio_out *a, fmed_filt *d)
 {
-	ffoss_devinit(d);
-	for (;  idev != 0;  idev--) {
-		int r = ffoss_devnext(d, flags);
-		if (r != 0) {
-			ffoss_devdestroy(d);
-			return r;
-		}
-	}
-	return 0;
-}
-
-static int oss_create(oss_out *o, fmed_filt *d)
-{
-	ffpcm fmt, in_fmt;
+	ffpcm fmt;
 	int r, reused = 0;
 
-	if (FMED_NULL == (int)(o->devidx = (int)d->track->getval(d->trk, "playdev_name")))
-		o->devidx = oss_out_conf.idev;
+	if (FMED_NULL == (int)(a->dev_idx = (int)d->track->getval(d->trk, "playdev_name")))
+		a->dev_idx = oss_out_conf.idev;
 
 	ffpcm_fmtcopy(&fmt, &d->audio.convfmt);
+	a->buffer_length_msec = oss_out_conf.buflen;
 
-	if (mod->out_valid) {
+	if (mod->out != NULL) {
 
-		if (mod->usedby != NULL) {
-			oss_out *o = mod->usedby;
+		audio_out *cur = mod->usedby;
+		if (cur != NULL) {
 			mod->usedby = NULL;
-			o->stop = 1;
-			oss_onplay(o);
+			core->timer(&mod->tmr, 0, 0);
+			audio_out_onplay(cur);
 		}
 
 		if (fmt.channels == mod->fmt.channels
 			&& fmt.format == mod->fmt.format
 			&& fmt.sample_rate == mod->fmt.sample_rate
-			&& mod->devidx == o->devidx) {
+			&& a->dev_idx == mod->dev_idx) {
 
-			ffoss_stop(&mod->out);
-			ffoss_clear(&mod->out);
+			ffoss.stop(mod->out);
+			ffoss.clear(mod->out);
+			a->stream = mod->out;
+
+			ffoss.dev_free(a->dev);
+			a->dev = NULL;
+
 			reused = 1;
 			goto fin;
 		}
 
-		ffoss_close(&mod->out);
-		ffmem_tzero(&mod->out);
-		mod->out_valid = 0;
+		ffoss.free(mod->out);
+		mod->out = NULL;
 	}
 
-	if (0 != oss_devbyidx(&o->dev, o->devidx, FFOSS_DEV_PLAYBACK)) {
-		errlog(core, d->trk, "oss", "no audio device by index #%u", o->devidx);
-		goto done;
-	}
+	a->try_open = (a->state == I_TRYOPEN);
+	r = audio_out_open(a, d, &fmt);
+	if (r == FMED_RMORE) {
+		a->state = I_OPEN;
+		return FMED_RMORE;
+	} else if (r != FMED_ROK)
+		return r;
 
-	in_fmt = fmt;
-	r = ffoss_open(&mod->out, o->dev.id, &fmt, oss_out_conf.buflen, FFOSS_DEV_PLAYBACK);
+	ffoss.dev_free(a->dev);
+	a->dev = NULL;
 
-	if (r == -FFOSS_EFMT && o->state == I_TRYOPEN) {
-
-		if (!!ffmemcmp(&fmt, &in_fmt, sizeof(ffpcmex))) {
-
-			if (fmt.format != in_fmt.format)
-				d->audio.convfmt.format = fmt.format;
-
-			if (fmt.sample_rate != in_fmt.sample_rate)
-				d->audio.convfmt.sample_rate = fmt.sample_rate;
-
-			if (fmt.channels != in_fmt.channels)
-				d->audio.convfmt.channels = fmt.channels;
-
-			o->state = I_OPEN;
-			return FMED_RMORE;
-		}
-	}
-
-	if (r != 0) {
-		errlog(core, d->trk, "oss", "ffoss_open(): (%d) %s", r, ffoss_errstr(r));
-		goto done;
-	}
-
-	ffoss_devdestroy(&o->dev);
-	mod->out_valid = 1;
+	mod->out = a->stream;
 	mod->fmt = fmt;
-	mod->devidx = o->devidx;
+	mod->dev_idx = a->dev_idx;
 
 fin:
-	mod->usedby = o;
 	dbglog(core, d->trk, "oss", "%s buffer %ums, %uHz"
-		, reused ? "reused" : "opened", ffpcm_bytes2time(&fmt, ffoss_bufsize(&mod->out))
+		, reused ? "reused" : "opened", a->buffer_length_msec
 		, fmt.sample_rate);
+
+	mod->usedby = a;
+
+	mod->tmr.handler = audio_out_onplay;
+	mod->tmr.param = a;
+	if (0 != core->timer(&mod->tmr, a->buffer_length_msec / 3, 0))
+		return FMED_RERR;
+
 	return 0;
-
-done:
-	return FMED_RERR;
-}
-
-static void oss_onplay(void *udata)
-{
-	oss_out *o = udata;
-	mod->track->cmd(o->trk, FMED_TRACK_WAKE);
 }
 
 static int oss_write(void *ctx, fmed_filt *d)
 {
-	oss_out *o = ctx;
+	audio_out *a = ctx;
 	int r;
 
-	switch (o->state) {
+	switch (a->state) {
 	case I_TRYOPEN:
-	case I_OPEN:
 		d->audio.convfmt.ileaved = 1;
-		if (0 != (r = oss_create(o, d)))
+		// fallthrough
+	case I_OPEN:
+		if (0 != (r = oss_create(a, d)))
 			return r;
-		o->state = I_DATA;
+		a->state = I_DATA;
 		return FMED_RMORE;
 
 	case I_DATA:
 		break;
 	}
 
-	if (o->stop || (d->flags & FMED_FSTOP)) {
+	if (mod->usedby != a || (d->flags & FMED_FSTOP)) {
 		d->outlen = 0;
 		return FMED_RDONE;
 	}
 
-	if (d->snd_output_clear) {
-		d->snd_output_clear = 0;
-		ffoss_stop(&mod->out);
-		ffoss_clear(&mod->out);
-		o->dataoff = 0;
-		return FMED_RMORE;
+	r = audio_out_write(a, d);
+	if (r == FMED_RERR) {
+		ffoss.free(mod->out);
+		mod->out = NULL;
+		core->timer(&mod->tmr, 0, 0);
+		mod->usedby = NULL;
+		return FMED_RERR;
+	}
+	return r;
+}
+
+
+typedef struct oss_in {
+	audio_in in;
+	fftmrq_entry tmr;
+} oss_in;
+
+static void* oss_in_open(fmed_filt *d)
+{
+	if (0 != mod_init(d->trk))
+		return NULL;
+
+	oss_in *pi = ffmem_new(oss_in);
+	audio_in *a = &pi->in;
+	a->core = core;
+	a->audio = &ffoss;
+	a->track = mod->track;
+	a->trk = d->trk;
+
+	int idx;
+	if (FMED_NULL != (idx = (int)d->track->getval(d->trk, "capture_device"))) {
+		// use device specified by user
+		a->dev_idx = idx;
+	} else {
+		a->dev_idx = 0;
 	}
 
-	while (d->datalen != 0) {
+	a->buffer_length_msec = 0;
 
-		r = ffoss_write(&mod->out, d->data, d->datalen, o->dataoff);
-		if (r < 0) {
-			errlog(core, d->trk, "oss", "ffoss_write(): (%d) %s", r, ffoss_errstr(r));
-			goto err;
+	if (0 != audio_in_open(a, d))
+		goto fail;
 
-		} else if (r == 0) {
-			return FMED_RASYNC;
-		}
+	pi->tmr.handler = audio_oncapt;
+	pi->tmr.param = a;
+	if (0 != core->timer(&pi->tmr, a->buffer_length_msec / 3, 0))
+		goto fail;
 
-		o->dataoff += r;
-		d->datalen -= r;
-		dbglog(core, d->trk, "oss", "written %u bytes (%u%% filled)"
-			, r, ffoss_filled(&mod->out) * 100 / ffoss_bufsize(&mod->out));
-	}
+	return pi;
 
-	o->dataoff = 0;
+fail:
+	oss_in_close(pi);
+	return NULL;
+}
 
-	if ((d->flags & FMED_FLAST) && d->datalen == 0) {
+static void oss_in_close(void *ctx)
+{
+	oss_in *pi = ctx;
+	core->timer(&pi->tmr, 0, 0);
+	audio_in_close(&pi->in);
+	ffmem_free(pi);
+}
 
-		r = ffoss_drain(&mod->out);
-		if (r == 1)
-			return FMED_RDONE;
-		else if (r < 0) {
-			errlog(core, d->trk,  "oss", "ffoss_drain(): (%d) %s", r, ffoss_errstr(r));
-			goto err;
-		}
-
-		return FMED_RASYNC; //wait until all filled bytes are played
-	}
-
-	return FMED_ROK;
-
-err:
-	ffoss_close(&mod->out);
-	ffmem_tzero(&mod->out);
-	mod->out_valid = 0;
-	mod->usedby = NULL;
-	return FMED_RERR;
+static int oss_in_read(void *ctx, fmed_filt *d)
+{
+	oss_in *pi = ctx;
+	return audio_in_read(&pi->in, d);
 }

@@ -437,9 +437,12 @@ coreaudio.$(SO): $(COREAUDIO_O)
 
 
 #
+$(FF_OBJ_DIR)/ffaudio-oss.o: $(FFAUDIO)/ffaudio/oss.c
+	$(C) $(FFAUDIO_CFLAGS) $< -o $@
+
 OSS_O := $(OBJ_DIR)/oss.o $(FF_O) \
 	$(FF_OBJ_DIR)/ffpcm.o \
-	$(FF_OBJ_DIR)/ffoss.o
+	$(FF_OBJ_DIR)/ffaudio-oss.o
 oss.$(SO): $(OSS_O)
 	$(LD) -shared $(OSS_O) $(LDFLAGS) $(LD_LMATH)  -o$@
 
