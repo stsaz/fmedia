@@ -391,9 +391,12 @@ wasapi.$(SO): $(WASAPI_O)
 
 
 #
+$(FF_OBJ_DIR)/ffaudio-alsa.o: $(FFAUDIO)/ffaudio/alsa.c
+	$(C) $(FFAUDIO_CFLAGS) $< -o $@
+
 ALSA_O := $(OBJ_DIR)/alsa.o $(FF_O) \
 	$(FF_OBJ_DIR)/ffpcm.o \
-	$(FF_OBJ_DIR)/ffalsa.o
+	$(FF_OBJ_DIR)/ffaudio-alsa.o
 alsa.$(SO): $(ALSA_O)
 	$(LD) -shared $(ALSA_O) $(LDFLAGS) -lasound -o$@
 

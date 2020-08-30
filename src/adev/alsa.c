@@ -2,39 +2,22 @@
 Copyright (c) 2015 Simon Zolin */
 
 #include <fmedia.h>
-
-#include <FF/adev/alsa.h>
+#include <adev/audio.h>
 
 
 static const fmed_core *core;
 
-typedef struct alsa_out alsa_out;
-
 typedef struct alsa_mod {
-	ffalsa_buf out;
-	ffpcmex fmt;
-	alsa_out *usedby;
+	ffaudio_buf *out;
+	fftmrq_entry tmr;
+	ffpcm fmt;
+	audio_out *usedby;
 	const fmed_track *track;
-	uint devidx;
-	uint out_valid :1;
+	uint dev_idx;
 	uint init_ok :1;
 } alsa_mod;
 
 static alsa_mod *mod;
-
-struct alsa_out {
-	uint state;
-	size_t dataoff;
-
-	ffalsa_dev dev;
-	uint devidx;
-
-	struct {
-		fftask_handler handler;
-		void *param;
-	} task;
-	uint stop :1;
-};
 
 enum { I_TRYOPEN, I_OPEN, I_DATA };
 
@@ -55,7 +38,7 @@ static const fmed_mod fmed_alsa_mod = {
 };
 
 static int alsa_init(fmed_trk *trk);
-static int alsa_create(alsa_out *a, fmed_filt *d);
+static int alsa_create(audio_out *a, fmed_filt *d);
 
 //OUTPUT
 static void* alsa_open(fmed_filt *d);
@@ -72,32 +55,14 @@ static const ffpars_arg alsa_out_conf_args[] = {
 	{ "notify_rate",	FFPARS_TINT,  FFPARS_DSTOFF(struct alsa_out_conf_t, nfy_rate) },
 };
 
-static void alsa_onplay(void *udata);
-
 //INPUT
 static void* alsa_in_open(fmed_filt *d);
-static int alsa_in_read(void *ctx, fmed_filt *d);
 static void alsa_in_close(void *ctx);
+static int alsa_in_read(void *ctx, fmed_filt *d);
 static int alsa_in_config(ffpars_ctx *ctx);
 static const fmed_filter fmed_alsa_in = {
 	&alsa_in_open, &alsa_in_read, &alsa_in_close
 };
-
-typedef struct alsa_mod_in {
-	ffalsa_buf snd;
-} alsa_mod_in;
-
-static alsa_mod_in *ain;
-
-typedef struct alsa_in {
-	void *bufs[8];
-	struct {
-		fftask_handler handler;
-		void *param;
-	} cb;
-	uint64 total_samps;
-	uint ileaved :1;
-} alsa_in;
 
 static struct alsa_in_conf_t {
 	uint idev;
@@ -109,14 +74,11 @@ static const ffpars_arg alsa_in_conf_args[] = {
 	{ "buffer_length",	FFPARS_TINT | FFPARS_FNOTZERO,  FFPARS_DSTOFF(struct alsa_in_conf_t, buflen) },
 };
 
-static void alsa_in_oncapt(void *udata);
-
 //ADEV
 static int alsa_adev_list(fmed_adev_ent **ents, uint flags);
-static void alsa_adev_listfree(fmed_adev_ent *ents);
 static const fmed_adev fmed_alsa_adev = {
 	.list = &alsa_adev_list,
-	.listfree = &alsa_adev_listfree,
+	.listfree = audio_dev_listfree,
 };
 
 
@@ -159,11 +121,6 @@ static int alsa_sig(uint signo)
 		if (NULL == (mod = ffmem_tcalloc1(alsa_mod)))
 			return -1;
 
-		if (NULL == (ain = ffmem_tcalloc1(alsa_mod_in))) {
-			ffmem_free0(mod);
-			return -1;
-		}
-
 		mod->track = core->getmod("#core.track");
 		return 0;
 	}
@@ -173,23 +130,23 @@ static int alsa_sig(uint signo)
 static void alsa_destroy(void)
 {
 	if (mod != NULL) {
-		if (mod->out_valid)
-			ffalsa_close(&mod->out);
+		if (mod->out != NULL)
+			ffalsa.free(mod->out);
 		ffmem_free(mod);
 		mod = NULL;
 	}
 
-	ffmem_safefree0(ain);
-
-	ffalsa_uninit(core->kq);
+	ffalsa.uninit(core->kq);
 }
 
 static int alsa_init(fmed_trk *trk)
 {
 	if (mod->init_ok)
 		return 0;
-	if (0 != ffalsa_init(core->kq)) {
-		syserrlog(core, trk, NULL, "ffalsa_init()");
+
+	ffaudio_init_conf conf = {};
+	if (0 != ffalsa.init(&conf)) {
+		errlog(core, trk, "alsa", "init: %s", conf.error);
 		return -1;
 	}
 	mod->init_ok = 1;
@@ -199,59 +156,10 @@ static int alsa_init(fmed_trk *trk)
 
 static int alsa_adev_list(fmed_adev_ent **ents, uint flags)
 {
-	ffarr a = {0};
-	ffalsa_dev d;
-	uint f = 0;
-	fmed_adev_ent *e;
-	int r, rr = -1;
-
-	ffalsa_devinit(&d);
-
-	if (flags == FMED_ADEV_PLAYBACK)
-		f = FFALSA_DEV_PLAYBACK;
-	else if (flags == FMED_ADEV_CAPTURE)
-		f = FFALSA_DEV_CAPTURE;
-
-	for (;;) {
-		r = ffalsa_devnext(&d, f);
-		if (r == 1)
-			break;
-		else if (r < 0) {
-			errlog(core, NULL, "alsa", "ffalsa_devnext(): (%d) %s", r, ffalsa_errstr(r));
-			goto end;
-		}
-
-		if (NULL == (e = ffarr_pushgrowT(&a, 4, fmed_adev_ent)))
-			goto end;
-		ffmem_tzero(e);
-		if (NULL == (e->name = ffsz_alcopyz(d.name)))
-			goto end;
-	}
-
-	if (NULL == (e = ffarr_pushT(&a, fmed_adev_ent)))
-		goto end;
-	e->name = NULL;
-	*ents = (void*)a.ptr;
-	rr = a.len - 1;
-
-end:
-	ffalsa_devdestroy(&d);
-	if (rr < 0) {
-		FFARR_WALKT(&a, e, fmed_adev_ent) {
-			ffmem_safefree(e->name);
-		}
-		ffarr_free(&a);
-	}
-	return rr;
-}
-
-static void alsa_adev_listfree(fmed_adev_ent *ents)
-{
-	fmed_adev_ent *e;
-	for (e = ents;  e->name != NULL;  e++) {
-		ffmem_free(e->name);
-	}
-	ffmem_free(ents);
+	int r;
+	if (0 > (r = audio_dev_list(core, &ffalsa, ents, flags, "alsa")))
+		return -1;
+	return r;
 }
 
 
@@ -274,248 +182,151 @@ static void* alsa_open(fmed_filt *d)
 	if (0 != alsa_init(d->trk))
 		return NULL;
 
-	alsa_out *a;
-	if (NULL == (a = ffmem_tcalloc1(alsa_out)))
+	audio_out *a;
+	if (NULL == (a = ffmem_new(audio_out)))
 		return NULL;
-	a->task.handler = d->handler;
-	a->task.param = d->trk;
+	a->core = core;
+	a->track = mod->track;
+	a->audio = &ffalsa;
+	a->trk = d->trk;
 	return a;
 }
 
 static void alsa_close(void *ctx)
 {
-	alsa_out *a = ctx;
-	int r;
-
+	audio_out *a = ctx;
 	if (mod->usedby == a) {
-		void *trk = a->task.param;
-
-		if (FMED_NULL != mod->track->getval(trk, "stopped")) {
-			ffalsa_close(&mod->out);
-			ffmem_tzero(&mod->out);
-			mod->out_valid = 0;
+		if (FMED_NULL != mod->track->getval(a->trk, "stopped")) {
+			ffalsa.free(mod->out);
+			mod->out = NULL;
 
 		} else {
-			if (0 != (r = ffalsa_stop(&mod->out)))
-				errlog(core, trk,  "alsa", "ffalsa_stop(): (%d) %s", r, ffalsa_errstr(r));
-			ffalsa_clear(&mod->out);
-			ffalsa_async(&mod->out, 0);
+			if (0 != ffalsa.stop(mod->out))
+				errlog(core, a->trk,  "alsa", "stop(): %s", ffalsa.error(mod->out));
+			ffalsa.clear(mod->out);
 		}
 
+		core->timer(&mod->tmr, 0, 0);
 		mod->usedby = NULL;
 	}
 
-	ffalsa_devdestroy(&a->dev);
+	ffalsa.dev_free(a->dev);
 	ffmem_free(a);
 }
 
-static int alsa_devbyidx(ffalsa_dev *d, uint idev, uint flags)
+static int alsa_create(audio_out *a, fmed_filt *d)
 {
-	ffalsa_devinit(d);
-	for (;  idev != 0;  idev--) {
-		int r = ffalsa_devnext(d, flags);
-		if (r != 0) {
-			ffalsa_devdestroy(d);
-			return r;
-		}
-	}
-	return 0;
-}
-
-static int alsa_create(alsa_out *a, fmed_filt *d)
-{
-	ffpcmex fmt, in_fmt;
+	ffpcm fmt;
 	int r, reused = 0;
-	const char *dev_id;
 
-	if (FMED_NULL == (int)(a->devidx = (int)d->track->getval(d->trk, "playdev_name")))
-		a->devidx = alsa_out_conf.idev;
-	a->devidx = ffmax(a->devidx, 1);
+	if (FMED_NULL == (int)(a->dev_idx = (int)d->track->getval(d->trk, "playdev_name")))
+		a->dev_idx = alsa_out_conf.idev;
 
-	fmt = d->audio.convfmt;
+	ffpcm_fmtcopy(&fmt, &d->audio.convfmt);
+	a->buffer_length_msec = alsa_out_conf.buflen;
+	a->aflags = FFAUDIO_O_HWDEV; // try "hw" device first, then fall back to "plughw"
 
-	if (mod->out_valid) {
+	if (mod->out != NULL) {
 
-		if (mod->usedby != NULL) {
-			alsa_out *a = mod->usedby;
+		audio_out *cur = mod->usedby;
+		if (cur != NULL) {
 			mod->usedby = NULL;
-			a->stop = 1;
-			alsa_onplay(a);
+			core->timer(&mod->tmr, 0, 0);
+			audio_out_onplay(cur);
 		}
 
-		if (!ffmemcmp(&fmt, &mod->fmt, sizeof(ffpcmex))
-			&& mod->devidx == a->devidx) {
+		if (fmt.channels == mod->fmt.channels
+			&& fmt.format == mod->fmt.format
+			&& fmt.sample_rate == mod->fmt.sample_rate
+			&& mod->dev_idx == a->dev_idx) {
 
-			ffalsa_stop(&mod->out);
-			ffalsa_clear(&mod->out);
-			ffalsa_async(&mod->out, 0);
+			ffalsa.stop(mod->out);
+			ffalsa.clear(mod->out);
+			a->stream = mod->out;
+
+			ffalsa.dev_free(a->dev);
+			a->dev = NULL;
+
 			reused = 1;
 			goto fin;
 		}
 
-		ffalsa_close(&mod->out);
-		ffmem_tzero(&mod->out);
-		mod->out_valid = 0;
+		ffalsa.free(mod->out);
+		mod->out = NULL;
 	}
 
-	if (a->state == I_TRYOPEN
-		&& 0 != alsa_devbyidx(&a->dev, a->devidx, FFALSA_DEV_PLAYBACK)) {
-		errlog(core, d->trk, "alsa", "no audio device by index #%u", a->devidx);
-		goto done;
-	}
+	a->try_open = (a->state == I_TRYOPEN);
+	r = audio_out_open(a, d, &fmt);
+	if (r == FMED_RMORE) {
+		a->state = I_OPEN;
+		return FMED_RMORE;
+	} else if (r != FMED_ROK)
+		return r;
 
-	mod->out.handler = &alsa_onplay;
-	mod->out.autostart = 1;
-	if (alsa_out_conf.nfy_rate != 0)
-		mod->out.nfy_interval = ffpcm_samples(alsa_out_conf.buflen / alsa_out_conf.nfy_rate, fmt.sample_rate);
-	in_fmt = fmt;
-	dev_id = FFALSA_DEVID_HW(a->dev.id); //try "hw" first
+	ffalsa.dev_free(a->dev);
+	a->dev = NULL;
 
-	for (;;) {
-
-		dbglog(core, d->trk, NULL, "opening device \"%s\", %s/%u/%u/%s"
-			, dev_id, ffpcm_fmtstr(fmt.format), fmt.sample_rate, fmt.channels, (fmt.ileaved) ? "i" : "ni");
-
-		r = ffalsa_open(&mod->out, dev_id, &fmt, alsa_out_conf.buflen);
-
-		if (r == -FFALSA_EFMT && a->state == I_TRYOPEN) {
-
-			if (!!ffmemcmp(&fmt, &in_fmt, sizeof(ffpcmex))) {
-
-				if (fmt.format != in_fmt.format)
-					d->audio.convfmt.format = fmt.format;
-
-				if (fmt.sample_rate != in_fmt.sample_rate)
-					d->audio.convfmt.sample_rate = fmt.sample_rate;
-
-				if (fmt.channels != in_fmt.channels)
-					d->audio.convfmt.channels = fmt.channels;
-
-				if (fmt.ileaved != in_fmt.ileaved)
-					d->audio.convfmt.ileaved = fmt.ileaved;
-
-				a->state = I_OPEN;
-				return FMED_RMORE;
-			}
-
-			dev_id = a->dev.id; //try "plughw"
-			a->state = I_OPEN;
-			continue;
-
-		} else if (r != 0) {
-			errlog(core, d->trk, "alsa", "ffalsa_open(): %s(): \"%s\": (%d) %s"
-				, (mod->out.errfunc != NULL) ? mod->out.errfunc : "", dev_id, r, ffalsa_errstr(r));
-			goto done;
-		}
-		break;
-	}
-
-	ffalsa_devdestroy(&a->dev);
-	mod->out_valid = 1;
+	mod->out = a->stream;
 	mod->fmt = fmt;
-	mod->devidx = a->devidx;
+	mod->dev_idx = a->dev_idx;
 
 fin:
-	mod->out.udata = a;
 	mod->usedby = a;
 	dbglog(core, d->trk, "alsa", "%s buffer %ums, %uHz"
-		, reused ? "reused" : "opened", ffpcm_bytes2time(&fmt, ffalsa_bufsize(&mod->out))
-		, fmt.sample_rate);
-	d->datatype = "pcm";
+		, reused ? "reused" : "opened", a->buffer_length_msec
+		, mod->fmt.sample_rate);
+
+	// if (alsa_out_conf.nfy_rate != 0)
+	// 	mod->out.nfy_interval = ffpcm_samples(alsa_out_conf.buflen / alsa_out_conf.nfy_rate, fmt.sample_rate);
+	mod->tmr.handler = audio_out_onplay;
+	mod->tmr.param = a;
+	if (0 != core->timer(&mod->tmr, a->buffer_length_msec / 3, 0))
+		return FMED_RERR;
+
 	return 0;
 
-done:
-	return FMED_RERR;
-}
-
-static void alsa_onplay(void *udata)
-{
-	alsa_out *a = udata;
-	a->task.handler(a->task.param);
 }
 
 static int alsa_write(void *ctx, fmed_filt *d)
 {
-	alsa_out *a = ctx;
+	audio_out *a = ctx;
 	int r;
 
 	switch (a->state) {
 	case I_TRYOPEN:
+		d->audio.convfmt.ileaved = 1;
+		// fallthrough
 	case I_OPEN:
 		if (0 != (r = alsa_create(a, d)))
 			return r;
 		a->state = I_DATA;
-		return FMED_RMORE;
+		break;
 
 	case I_DATA:
 		break;
 	}
 
-	if (a->stop || (d->flags & FMED_FSTOP)) {
+	if (mod->usedby != a || (d->flags & FMED_FSTOP)) {
 		d->outlen = 0;
 		return FMED_RDONE;
 	}
 
-	if (d->snd_output_clear) {
-		d->snd_output_clear = 0;
-		ffalsa_stop(&mod->out);
-		ffalsa_clear(&mod->out);
-		ffalsa_async(&mod->out, 0);
-		a->dataoff = 0;
-		return FMED_RMORE;
+	r = audio_out_write(a, d);
+	if (r == FMED_RERR) {
+		ffalsa.free(mod->out);
+		mod->out = NULL;
+		core->timer(&mod->tmr, 0, 0);
+		mod->usedby = NULL;
+		return FMED_RERR;
 	}
-
-	if (d->snd_output_pause) {
-		d->snd_output_pause = 0;
-		d->track->cmd(d->trk, FMED_TRACK_PAUSE);
-		ffalsa_stop(&mod->out);
-		return FMED_RASYNC;
-	}
-
-	while (d->datalen != 0) {
-
-		r = ffalsa_write(&mod->out, d->data, d->datalen, a->dataoff);
-		if (r < 0) {
-			errlog(core, d->trk, "alsa", "ffalsa_write(): (%d) %s", r, ffalsa_errstr(r));
-			goto err;
-
-		} else if (r == 0) {
-			ffalsa_async(&mod->out, 1);
-			return FMED_RASYNC;
-		}
-
-		a->dataoff += r;
-		d->datalen -= r;
-		dbglog(core, d->trk, "alsa", "written %u bytes (%u%% filled)"
-			, r, ffalsa_filled(&mod->out) * 100 / ffalsa_bufsize(&mod->out));
-	}
-
-	a->dataoff = 0;
-
-	if ((d->flags & FMED_FLAST) && d->datalen == 0) {
-
-		r = ffalsa_stoplazy(&mod->out);
-		if (r == 1)
-			return FMED_RDONE;
-		else if (r < 0) {
-			errlog(core, d->trk,  "alsa", "ffalsa_stoplazy(): (%d) %s", r, ffalsa_errstr(r));
-			goto err;
-		}
-
-		ffalsa_async(&mod->out, 1);
-		return FMED_RASYNC; //wait until all filled bytes are played
-	}
-
-	return FMED_ROK;
-
-err:
-	ffalsa_close(&mod->out);
-	ffmem_tzero(&mod->out);
-	mod->out_valid = 0;
-	mod->usedby = NULL;
-	return FMED_RERR;
+	return r;
 }
 
+
+typedef struct alsa_in {
+	audio_in in;
+	fftmrq_entry tmr;
+} alsa_in;
 
 static int alsa_in_config(ffpars_ctx *ctx)
 {
@@ -527,145 +338,51 @@ static int alsa_in_config(ffpars_ctx *ctx)
 
 static void* alsa_in_open(fmed_filt *d)
 {
-	alsa_in *a;
-	ffpcmex fmt, in_fmt;
-	int r, idx;
-	ffalsa_dev dev = {0};
-	ffbool try_open = 1;
-	const char *dev_id;
-
 	if (0 != alsa_init(d->trk))
 		return NULL;
 
-	if (NULL == (a = ffmem_tcalloc1(alsa_in)))
-		return NULL;
-	a->cb.handler = d->handler;
-	a->cb.param = d->trk;
+	alsa_in *al = ffmem_new(alsa_in);
+	audio_in *a = &al->in;
+	a->core = core;
+	a->audio = &ffalsa;
+	a->track = mod->track;
+	a->trk = d->trk;
 
-	if (FMED_NULL == (idx = (int)d->track->getval(d->trk, "capture_device")))
-		idx = alsa_in_conf.idev;
-	idx = ffmax(idx, 1);
-	if (0 != alsa_devbyidx(&dev, idx, FFALSA_DEV_CAPTURE)) {
-		errlog(core, d->trk, "alsa", "no audio device by index #%u", idx);
+	int idx;
+	if (FMED_NULL != (idx = (int)d->track->getval(d->trk, "capture_device"))) {
+		// use device specified by user
+		a->dev_idx = idx;
+	} else {
+		a->dev_idx = 0;
+	}
+
+	a->buffer_length_msec = alsa_in_conf.buflen;
+
+	if (0 != audio_in_open(a, d))
 		goto fail;
-	}
 
-	ain->snd.handler = &alsa_in_oncapt;
-	ain->snd.udata = a;
-	fmt = d->audio.fmt;
-	in_fmt = fmt;
-	dev_id = FFALSA_DEVID_HW(dev.id); //try "hw" first
-
-	uint buf_time = (d->a_in_buf_time != 0) ? d->a_in_buf_time : alsa_in_conf.buflen;
-
-	for (;;) {
-
-		dbglog(core, d->trk, NULL, "opening device \"%s\", %s/%u/%u/%s"
-			, dev_id, ffpcm_fmtstr(fmt.format), fmt.sample_rate, fmt.channels, (fmt.ileaved) ? "i" : "ni");
-		r = ffalsa_capt_open(&ain->snd, dev_id, &fmt, buf_time);
-
-		if (r == -FFALSA_EFMT && try_open) {
-
-			try_open = 0;
-
-			if (!!ffmemcmp(&fmt, &in_fmt, sizeof(ffpcmex))) {
-
-				if (fmt.format != in_fmt.format) {
-					if (d->audio.convfmt.format == 0)
-						d->audio.convfmt.format = in_fmt.format;
-					d->audio.fmt.format = fmt.format;
-				}
-
-				if (fmt.sample_rate != in_fmt.sample_rate) {
-					if (d->audio.convfmt.sample_rate == 0)
-						d->audio.convfmt.sample_rate = in_fmt.sample_rate;
-					d->audio.fmt.sample_rate = fmt.sample_rate;
-				}
-
-				if (fmt.channels != in_fmt.channels) {
-					if (d->audio.convfmt.channels == 0)
-						d->audio.convfmt.channels = in_fmt.channels;
-					d->audio.fmt.channels = fmt.channels;
-				}
-
-				if (fmt.ileaved != in_fmt.ileaved) {
-					if (d->audio.convfmt.ileaved == 0)
-						d->audio.convfmt.ileaved = in_fmt.ileaved;
-					d->audio.fmt.ileaved = fmt.ileaved;
-				}
-
-				continue;
-			}
-
-			dev_id = dev.id; //try "plughw"
-			continue;
-
-		} else if (r != 0) {
-			errlog(core, d->trk, "alsa", "ffalsa_open(): %s(): \"%s\": (%d) %s"
-				, (mod->out.errfunc != NULL) ? mod->out.errfunc : "", dev_id, r, ffalsa_errstr(r));
-			goto fail;
-		}
-
-		break;
-	}
-
-	if (0 != (r = ffalsa_start(&ain->snd))) {
-		errlog(core, d->trk, "alsa", "ffalsa_start(): (%xu) %s", r, ffalsa_errstr(r));
+	al->tmr.handler = audio_oncapt;
+	al->tmr.param = a;
+	if (0 != core->timer(&al->tmr, a->buffer_length_msec / 3, 0))
 		goto fail;
-	}
 
-	ffalsa_devdestroy(&dev);
-	dbglog(core, d->trk, "alsa", "opened capture buffer %ums"
-		, ffpcm_bytes2time(&fmt, ffalsa_bufsize(&ain->snd)));
-	a->ileaved = fmt.ileaved;
-	d->datatype = "pcm";
-	return a;
+	return al;
 
 fail:
-	ffalsa_devdestroy(&dev);
-	alsa_in_close(a);
+	alsa_in_close(al);
 	return NULL;
 }
 
 static void alsa_in_close(void *ctx)
 {
-	alsa_in *a = ctx;
-	ffalsa_capt_close(&ain->snd);
-	ffmem_free(a);
-}
-
-static void alsa_in_oncapt(void *udata)
-{
-	alsa_in *a = udata;
-	a->cb.handler(a->cb.param);
+	alsa_in *al = ctx;
+	core->timer(&al->tmr, 0, 0);
+	audio_in_close(&al->in);
+	ffmem_free(al);
 }
 
 static int alsa_in_read(void *ctx, fmed_filt *d)
 {
-	alsa_in *a = ctx;
-	int r;
-
-	if (d->flags & FMED_FSTOP) {
-		ffalsa_stop(&ain->snd);
-		d->outlen = 0;
-		return FMED_RDONE;
-	}
-
-	r = ffalsa_capt_read(&ain->snd, a->bufs, &d->outlen);
-	if (r < 0) {
-		errlog(core, d->trk, "alsa", "ffalsa_capt_read(): (%xu) %s", r, ffalsa_errstr(r));
-		return FMED_RERR;
-	} else if (r == 0) {
-		ffalsa_async(&ain->snd, 1);
-		return FMED_RASYNC;
-	}
-	if (a->ileaved)
-		d->out = a->bufs[0];
-	else
-		d->outni = a->bufs;
-
-	dbglog(core, d->trk, "alsa", "read %L bytes", d->outlen);
-	d->audio.pos = a->total_samps;
-	a->total_samps += d->outlen / ain->snd.frsize;
-	return FMED_ROK;
+	alsa_in *al = ctx;
+	return audio_in_read(&al->in, d);
 }
