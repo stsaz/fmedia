@@ -396,7 +396,8 @@ static int trk_setout_file(fm_trk *t)
 {
 	const char *ofn = trk_getvalstr(t, "output");
 	ffstr name, ext;
-	ffbool have_path = (NULL != ffpath_split3(ofn, ffsz_len(ofn), NULL, &name, &ext));
+	ffbool have_path = (NULL != ffpath_split2(ofn, ffsz_len(ofn), NULL, &name));
+	ffstr_rsplitby(&name, '.', &name, &ext);
 	if (NULL == trk_modbyext(t, FMED_MOD_OUTEXT, &ext))
 		return 1;
 
