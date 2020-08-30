@@ -396,9 +396,12 @@ alsa.$(SO): $(ALSA_O)
 
 
 #
+$(FF_OBJ_DIR)/ffaudio-pulse.o: $(FFAUDIO)/ffaudio/pulse.c
+	$(C) $(FFAUDIO_CFLAGS) $< -o $@
+
 PULSE_O := $(OBJ_DIR)/pulse.o $(FF_O) \
 	$(FF_OBJ_DIR)/ffpcm.o \
-	$(FF_OBJ_DIR)/ffpulse.o
+	$(FF_OBJ_DIR)/ffaudio-pulse.o
 pulse.$(SO): $(PULSE_O)
 	$(LD) -shared $(PULSE_O) $(LDFLAGS) -lpulse -o$@
 
