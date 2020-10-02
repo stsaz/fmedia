@@ -1,0 +1,146 @@
+Manual penggunaan:
+fmedia [OPSI] [INPUT ...]
+
+Secara default akan memutar file input satu per satu.
+Urutan track secara umum: QUEUE -> INPUT -> FILTER -> ENCODING -> OUTPUT
+
+INPUT Input file, direktori/folder, URL atau wildcard
+                   @ stdin.EXT: membaca dari input standar pada terminal.
+
+PILIHAN:
+
+QUEUE / Antrian:
+--track = N1 [, N2 ...] Pilih urutan nomor track tertentu dalam playlist
+--repeat-all            Akan mengulang semua
+--random                Akan memilih track berikutnya secara acak
+
+PERANGKAT AUDIO:
+--list-dev              Daftar perangkat suara yang tersedia dan keluar
+--dev = DEVNO           Penggunaan perangkat pemutaran (lihat berdasarkan nomor perangkat)
+--dev-capture = DEVNO   Penggunaan perangkat penangkap (lihat berdasarkan nomor perangkat)
+--dev-loopback = DEVNO
+                        Penggunaan perangkat pemutaran dalam mode loopback (merekam dari pemutaran) (hanya WASAPI)
+
+FORMAT AUDIO:
+Secara default pengaturan ini digunakan untuk output. Saat merekam, akan menset berdasarkan input.
+--format = STR          Pengaturan tipe format audio (int8 | int16 | int24 | int32 | float32)
+--rate = INT            Pengaturan sample rate
+                        Catatan: beberapa opsi setingan mungkin tidak berfungsi secara bersamaan dengan konversi sample rate.
+--channels = STR        Pengaturan setingan nomor saluran/channel
+                        Dapat mengubah stereo ke mono:
+                         --channels = mono: menggabungkan semua saluran/channel menjadi satu
+                         --channels = left: menggunakan saluran/channel kiri saja
+                         --channels = right: gunakan saluran/channel kanan saja
+
+INPUT:
+--record                Untuk merekam audio. Untuk pengaturan format audio default dapat diatur pada file fmedia.conf :: record_format.
+--capture-buffer        "Length" (dalam msec) dari capture buffer (Lihat juga file fmedia.conf :: *. in.buffer_length)
+--mix                   Putar file input secara bersamaan. Untuk pengaturan format audio pada file fmedia.conf :: mod_conf "mixer.out".
+                        Catatan: semua masukan harus memiliki nomor saluran/channel dan sample rate yang sama dengan keluaran/output.
+--flist = FILE          Membaca nama file dari parameter <FILE>
+--include = 'WILDCARD [; WILDCARD]'
+                        Akan menyertakan file yang cocok dengan karakter wildcard (tidak berpengaruh huruf besar/kecil - case insensitive)
+--exclude = 'WILDCARD [; WILDCARD]'
+                        Akan mengecualikan file & direktori yang cocok dengan wildcard (tidak berpengaruh huruf besar/kecil - case insensitive)
+--seek = TIME           Pengaturan untuk melaju pada setingan TIME: [[HH:] MM:] SS [: MSC]
+--until = TIME          Pengaturan untuk stop/berhenti tepat pada setingan TIME
+                        Parameter khusus:
+                         'playback-end': pengaturan untuk stop perekaman saat trek pemutaran terakhir selesai
+--fseek = BYTE          Pengaturan offset file masukan
+-i, --info              Tidak memutar file tapi menampilkan informasi media file tersebut
+--tags                  Menampilkan semua tag meta
+--meta = '[clear;]NAMA = STR; ...'
+                        Menset meta data
+                        Jika "clear;" digunakan, akan melewatkan semua meta dari file masukan.
+                        mendukung format .mp3: album, albumartist, artis, komentar, tanggal, genre, gambar, penerbit, judul, nomor trek, jumlah trek.
+                        mendukung format .mp4 : album, albumartist, artis, komentar, komposer, hak cipta, tanggal, discnumber, genre, lirik, judul, tracknumber.
+                       .flac, .ogg mendukung tag dengan nama apa pun.
+                       Dapat dibaca dari file (misalnya gambar sampul album):
+                       "--meta = gambar = @ file: FILENAME"
+
+FILTER:
+--volume = INT         Pengaturan volume (0% .. 125%)
+--gain = FLOAT         Pengaturan penguatan / redaman dalam dB
+--prebuffer = TIME     Memulai menyimpan audio yang direkam ke file dengan perintah pengguna, menyimpan beberapa data yang direkam sebelumnya (sebelum perintah dijalankan)
+--start-dblevel = DB   Melewati audio awal sampai level sinyal input melebihi DB (-100dB..0dB)
+--stop-dblevel = DB [; TIME] [; MINTIME]
+                       Menghentikan proses jika level sinyal input turun di bawah DB untuk waktu TIME (default: 5 detik).
+                       Jika MINTIME ditentukan, akan berhenti hanya setelah waktu MINTIME telah berlalu.
+--split = TIME         Membagi audio dengan interval waktu yang sama
+--dynanorm             Penggunaan filter Dynamic Audio Normalizer.
+                       Pengaturan parameter di bagian `mod_conf dynanorm.filter` di file fmedia.conf.
+
+--pcm-peaks            Menganalisis PCM dan menampilkan beberapa detail
+--pcm-crc              Menampilkan CRC data PCM (harus digunakan dengan --pcm-peaks)
+                       Berguna untuk memeriksa hasil konversi audio lossless.
+
+ENCODING:
+--vorbis.quality = FLOAT
+                       Kualitas encoding format Vorbis: -1.0 .. 10.0
+--opus.bitrate = INT   Opus encoding bitrate: 6..510 (VBR)
+--mpeg-quality = INT   kualitas encoding format MPEG: 9..0 (VBR) atau 64..320 (CBR)
+--aac-quality = INT    kualitas encoding format AAC: 1..5 (VBR) atau 8..800 (CBR, kbit / s)
+--aac-profile = STR    Pengaturan profil AAC: LC | DIA | HEv2
+--flac-compression = INT
+                       Pengaturan tingkat kompresi FLAC: 0..8
+--stream-copy          Menyalin data audio tanpa pengkodean ulang. Format yang didukung: OGG, MPEG.
+
+OUTPUT:
+-o, --out = [NAME] .EXT
+                   Tidak memutar tetapi akan menyimpan OUTPUT menjadi file (sebagai konversi audio)
+                   Jika NAME adalah "@stdout", akan menyimpan ke OUTPUT standar.
+                   Format OUTPUT dipilih oleh "EXT" (lihat di file fmedia.conf :: output_ext).
+                   Variabel yang dapat digunakan:
+                     $ filepath: hirarki direktori ke file input
+                     $ filename: nama (tanpa ekstensi) dari file input
+                     $ date: tanggal sekarang
+                     $ waktu: waktu saat ini
+                     $ timems: waktu saat ini dengan milidetik
+                     $ counter: penambahan secara berurutan
+                   --out = .ogg merupakan format ringkas dari perintah --out = '. / $ filename.ogg'
+                   Nama file dapat dibuat secara otomatis menggunakan info meta,
+                     contoh: --out '$ tracknumber. $ artist - $ title.flac '
+-y, --overwrite      Menimpa file keluaran
+--preserve-date      Pengaturan tanggal / waktu file output sama dengan file input.
+--out-copy [= STR]   Memutar dan Menyalin data ke file keluaran yang ditentukan oleh tombol "--out".
+                     Didukung oleh modules: net.icy.
+                     Parameter:
+                       all: simpan semua trek (default)
+                       cmd: simpan setiap lagu berdasarkan perintah pengguna
+
+OPSI LAIN:
+--parallel           Proses file input secara paralel (lihat pada file bagian, fmedia.conf::workers).
+                     Harus digunakan dengan parameter '--out'.
+--background         Membuat proses baru yang akan berjalan pada background proses
+--globcmd = STR      Mengirim perintah ke proses fmedia lain yang sedang berjalan.
+                     Perintah yang didukung:
+                       listen: memulai mendengarkan perintah yang masuk
+                       play INPUT ...: Menambahkan item ke antrean dan mulai putar yang pertama ditambahkan
+                       add INPUT ...: Menambahkan item ke antrian
+                       clear: Menghapus antrian saat ini
+                       stop: Menghentikan semua trek aktif
+                       quit: Menutup proses fmedia
+--globcmd.pipe-name = STR
+                       Pengaturan nama jalur/pipa/saluran untuk komunikasi antara proses fmedia yang sedang bekerja
+
+--conf = FN            Pengaturan file konfigurasi (default: "fmedia.conf" dari direktori program)
+--gui                  Menjalankan dalam mode UI grafis (khusus Windows, Linux)
+--notui                Tidak menggunakan UI terminal
+--print-time           Menampilkan waktu yang dihabiskan untuk memproses setiap track
+--debug                Menampilkan info debug ke stdout
+-h, --help             Menampilkan informasi bantuan dan keluar
+
+--cue-gaps = INT       Mengontrol track pregaps
+                       0: lewati pregaps:
+                         track01.index01 .. track02.index00
+                       1: (default), celah ditambahkan ke trek sebelumnya:
+                         track01.index01 .. track02.index01
+                       2: celah ditambahkan ke trek sebelumnya (tapi celah awal trek01 tetap digunakan):
+                         track01.index00 .. track02.index01
+                         track02.index01 .. track03.index01
+                       3: celah ditambahkan ke awal trek saat ini:
+                         track01.index00 .. track02.index00
+
+INSTALL:
+- install              Untuk sistem operasi Windows: Menambahkan direktori fmedia pada perangkat pengguna dan membuat shortcut di desktop
+--uninstall            Menghapus perubahan yang dibuat dari parameter '--install'
