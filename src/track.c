@@ -1120,11 +1120,33 @@ static ssize_t trk_cmd(void *trk, uint cmd, ...)
 		break;
 
 	case FMED_TRACK_PAUSE:
+		if (trk == (void*)-1) {
+			FF_ASSERT(core_ismainthr());
+			FFLIST_WALKSAFE(&g->trks, t, sib, next) {
+				t->state = TRK_ST_PAUSED;
+			}
+			break;
+		}
+
 		t->state = TRK_ST_PAUSED;
 		break;
+
 	case FMED_TRACK_UNPAUSE:
-		t->state = TRK_ST_ACTIVE;
-		trk_process(t);
+		if (trk == (void*)-1) {
+			FF_ASSERT(core_ismainthr());
+			FFLIST_WALKSAFE(&g->trks, t, sib, next) {
+				if (t->state == TRK_ST_PAUSED) {
+					t->state = TRK_ST_ACTIVE;
+					trk_process(t);
+				}
+			}
+			break;
+		}
+
+		if (t->state == TRK_ST_PAUSED) {
+			t->state = TRK_ST_ACTIVE;
+			trk_process(t);
+		}
 		break;
 
 	case FMED_TRACK_LAST:

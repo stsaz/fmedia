@@ -118,7 +118,10 @@ AUTRES OPTIONS :
                      play INPUT... : Ajoute des éléments à la queue et commence à jouer le premier élément ajouté.
                      add INPUT... : Ajoute des éléments à la queue.
                      clear: Vide la queue courante.
+                     next: Play next track in the current queue
                      stop: Arrête toutes les pistes actives
+                     pause: Pause all active tracks
+                     unpause: Unpause all paused tracks
                      quit: Termine tous les processus fmedia
 --globcmd.pipe-name=STR
                    Détermine le nom du pipe pour la communication entre instances de fmedia

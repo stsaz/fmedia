@@ -118,7 +118,10 @@ OPSI LAIN:
                        play INPUT ...: Menambahkan item ke antrean dan mulai putar yang pertama ditambahkan
                        add INPUT ...: Menambahkan item ke antrian
                        clear: Menghapus antrian saat ini
+                       next: Play next track in the current queue
                        stop: Menghentikan semua trek aktif
+                       pause: Pause all active tracks
+                       unpause: Unpause all paused tracks
                        quit: Menutup proses fmedia
 --globcmd.pipe-name = STR
                        Pengaturan nama jalur/pipa/saluran untuk komunikasi antara proses fmedia yang sedang bekerja

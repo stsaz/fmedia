@@ -283,20 +283,26 @@ done:
 	dbglog(core, NULL, "globcmd", "done with client");
 }
 
-enum CMDS {
+enum CMD {
 	CMD_ADD,
 	CMD_CLEAR,
+	CMD_NEXT,
+	CMD_PAUSE,
 	CMD_PLAY,
 	CMD_QUIT,
 	CMD_STOP,
+	CMD_UNPAUSE,
 };
 
-static const char* const cmds_str[] = {
+static const char* const cmds_sorted_str[] = {
 	"add", // "add INPUT..."
 	"clear",
+	"next",
+	"pause",
 	"play", // "play INPUT..."
 	"quit",
 	"stop",
+	"unpause",
 };
 
 /** Parse commands.  Format:
@@ -323,7 +329,7 @@ static int globcmd_parse(cmd_parser *c, const ffstr *in)
 		switch (c->conf.type) {
 
 		case FFCONF_TKEY:
-			r = ffszarr_findsorted(cmds_str, FFCNT(cmds_str), val.ptr, val.len);
+			r = ffszarr_findsorted(cmds_sorted_str, FFCNT(cmds_sorted_str), val.ptr, val.len);
 			if (r < 0) {
 				warnlog(core, NULL, "globcmd", "unsupported command: %S", &val);
 				return -1;
@@ -331,12 +337,26 @@ static int globcmd_parse(cmd_parser *c, const ffstr *in)
 			dbglog(core, NULL, "globcmd", "received pipe command: %S", &val);
 			c->cmd = r;
 
-			switch (c->cmd) {
+			switch ((enum CMD)c->cmd) {
 			case CMD_CLEAR:
 				c->qu->cmd(FMED_QUE_CLEAR, NULL);
 				break;
 
+			case CMD_NEXT:
+				g->track->cmd((void*)-1, FMED_TRACK_STOPALL);
+				c->qu->cmd(FMED_QUE_NEXT2, NULL);
+				break;
+
 			case CMD_ADD:
+			case CMD_PLAY:
+				break;
+
+			case CMD_PAUSE:
+				g->track->cmd((void*)-1, FMED_TRACK_PAUSE);
+				break;
+
+			case CMD_UNPAUSE:
+				g->track->cmd((void*)-1, FMED_TRACK_UNPAUSE);
 				break;
 
 			case CMD_STOP:

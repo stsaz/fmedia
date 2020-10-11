@@ -259,6 +259,10 @@ enum {
 enum FMED_TRACK_CMD {
 	FMED_TRACK_START,
 	FMED_TRACK_STOP,
+
+	/** Pause/unpause tracks
+	void (un)pause(void *trk)
+	trk: -1: (un)pause all */
 	FMED_TRACK_PAUSE,
 	FMED_TRACK_UNPAUSE,
 

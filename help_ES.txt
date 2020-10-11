@@ -120,7 +120,10 @@ OTRAS OPCIONES:
                      play INPUT... : Add items to queue and start playing the first added
                      add INPUT... : Add items to queue
                      clear: Clear the current queue
+                     next: Play next track in the current queue
                      stop: Stop all active tracks
+                     pause: Pause all active tracks
+                     unpause: Unpause all paused tracks
                      quit: Cerrar procesos fmedia
 --globcmd.pipe-name=STR
                    Set name of the pipe for communication between fmedia instances

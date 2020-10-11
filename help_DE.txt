@@ -119,7 +119,10 @@ ANDERE OPTIONEN:
                      play INPUT... : Füge Einträge zur Warteschlange hinzu und spiele das erste hinzugefügte ab
                      add INPUT... : Füge Einträge zur Warteschlange hinzu
                      clear: Leere die aktuelle Wartschlange
+                     next: Play next track in the current queue
                      stop: Stoppe alle aktiven Stücke
+                     pause: Pause all active tracks
+                     unpause: Unpause all paused tracks
                      quit: Beende den fmedia Prozess
 --globcmd.pipe-name=STR
                    Setzt den Namen der Pipe für die Kommunikation zwischen fmedia Instanzen
