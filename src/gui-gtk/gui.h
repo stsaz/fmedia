@@ -66,6 +66,11 @@ struct gui_winfo {
 	ffui_view vinfo;
 };
 
+struct gui_wplayprops {
+	ffui_wnd wplayprops;
+	ffui_view vconfig;
+};
+
 struct gtrk;
 struct conv_sets {
 	uint init :1;
@@ -101,6 +106,7 @@ typedef struct ggui {
 	struct gui_wabout wabout;
 	struct gui_wuri wuri;
 	struct gui_winfo winfo;
+	struct gui_wplayprops wplayprops;
 	ffui_dialog dlg;
 	ffui_menu mfile;
 	ffui_menu mlist;
@@ -142,6 +148,7 @@ enum ACTION {
 	A_VOLUP,
 	A_VOLDOWN,
 	A_VOLRESET,
+	A_SHOW_PROPS,
 
 	A_LIST_NEW,
 	A_LIST_DEL,
@@ -202,3 +209,4 @@ void wabout_init();
 void wuri_init();
 void winfo_init();
 void winfo_show(uint idx);
+void wplayprops_init();

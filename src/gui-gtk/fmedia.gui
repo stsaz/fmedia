@@ -140,6 +140,11 @@ menu mplay {
 	item "Reset Volume" {
 		action A_VOLRESET
 	}
+	item "-" {
+	}
+	item "Properties..." {
+		action A_SHOW_PROPS
+	}
 }
 
 menu mconvert {
@@ -335,6 +340,23 @@ window winfo {
 
 	listview vinfo {
 		column Name {
+		}
+		column Value {
+			width 200
+		}
+	}
+}
+
+window wplayprops {
+	title "Playback Properties"
+	position 300 100 300 500
+
+	# editbox tfilter {
+	# }
+
+	listview vconfig {
+		column Name {
+			width 200
 		}
 		column Value {
 			width 200

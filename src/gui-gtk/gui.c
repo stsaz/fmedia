@@ -219,6 +219,11 @@ static const ffui_ldr_ctl winfo_ctls[] = {
 	FFUI_LDR_CTL(struct gui_winfo, vinfo),
 	FFUI_LDR_CTL_END
 };
+static const ffui_ldr_ctl wplayprops_ctls[] = {
+	FFUI_LDR_CTL(struct gui_wplayprops, wplayprops),
+	FFUI_LDR_CTL(struct gui_wplayprops, vconfig),
+	FFUI_LDR_CTL_END
+};
 static const ffui_ldr_ctl top_ctls[] = {
 	FFUI_LDR_CTL(ggui, mfile),
 	FFUI_LDR_CTL(ggui, mlist),
@@ -231,6 +236,7 @@ static const ffui_ldr_ctl top_ctls[] = {
 	FFUI_LDR_CTL3(ggui, wabout, wabout_ctls),
 	FFUI_LDR_CTL3(ggui, wuri, wuri_ctls),
 	FFUI_LDR_CTL3(ggui, winfo, winfo_ctls),
+	FFUI_LDR_CTL3(ggui, wplayprops, wplayprops_ctls),
 	FFUI_LDR_CTL_END
 };
 
@@ -268,6 +274,7 @@ static const char *const action_str[] = {
 	"A_VOLUP",
 	"A_VOLDOWN",
 	"A_VOLRESET",
+	"A_SHOW_PROPS",
 
 	"A_LIST_NEW",
 	"A_LIST_DEL",
@@ -346,6 +353,7 @@ static FFTHDCALL int gui_worker(void *param)
 	wabout_init();
 	wuri_init();
 	winfo_init();
+	wplayprops_init();
 
 	if (gg->conf.list_random)
 		corecmd_run(A_LIST_RANDOM, NULL);
