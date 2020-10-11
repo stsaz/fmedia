@@ -99,6 +99,8 @@ static const ffpars_arg gui_conf_args[] = {
 	{ "seek_leap",	FFPARS_TINT8 | FFPARS_FNOTZERO, FFPARS_DSTOFF(struct gui_conf, seek_leap_delta) },
 	{ "autosave_playlists",	FFPARS_TBOOL8, FFPARS_DSTOFF(struct gui_conf, autosave_playlists) },
 	{ "random",	FFPARS_TBOOL8, FFPARS_DSTOFF(struct gui_conf, list_random) },
+	{ "list_repeat",	FFPARS_TINT8, FFPARS_DSTOFF(struct gui_conf, list_repeat) },
+	{ "auto_attenuate_ceiling",	FFPARS_TFLOAT | FFPARS_FSIGN, FFPARS_DSTOFF(struct gui_conf, auto_attenuate_ceiling) },
 	{ "list_columns_width",	FFPARS_TINT16 | FFPARS_FLIST, FFPARS_DST(&conf_list_col_width) },
 	{ "list_track",	FFPARS_TINT, FFPARS_DSTOFF(struct gui_conf, list_actv_trk_idx) },
 	{ "list_scroll",	FFPARS_TINT, FFPARS_DSTOFF(struct gui_conf, list_scroll_pos) },
@@ -264,6 +266,7 @@ static const char *const action_str[] = {
 	"A_STOP_AFTER",
 	"A_NEXT",
 	"A_PREV",
+	"A_PLAY_REPEAT",
 	"A_FFWD",
 	"A_RWND",
 	"A_LEAP_FWD",
@@ -360,6 +363,9 @@ static FFTHDCALL int gui_worker(void *param)
 
 	if (gg->conf.autosave_playlists)
 		corecmd_add(LOADLISTS, NULL);
+
+	if (gg->conf.list_repeat != 0)
+		corecmd_add(A_PLAY_REPEAT, NULL);
 
 	ffsem_post(gg->sem);
 	dbglog("entering UI loop");
@@ -476,6 +482,20 @@ static void corecmd_run(uint cmd, void *udata)
 		break;
 	}
 
+	case A_PLAY_REPEAT: {
+		gg->conf.list_repeat = ffint_cycleinc(gg->conf.list_repeat, 3);
+		uint rpt = FMED_QUE_REPEAT_NONE;
+		switch (gg->conf.list_repeat) {
+		case 1:
+			rpt = FMED_QUE_REPEAT_TRACK; break;
+		case 2:
+			rpt = FMED_QUE_REPEAT_ALL; break;
+		}
+		gg->qu->cmdv(FMED_QUE_SET_REPEATALL, rpt);
+		wmain_status("Repeat: %s", repeat_str[gg->conf.list_repeat]);
+		break;
+	}
+
 	case A_SEEK:
 	case A_FFWD:
 	case A_RWND:
@@ -547,6 +567,7 @@ static void corecmd_run(uint cmd, void *udata)
 	case A_LIST_RANDOM:
 		gg->conf.list_random = !gg->conf.list_random;
 		gg->qu->cmdv(FMED_QUE_SET_RANDOM, (uint)gg->conf.list_random);
+		wmain_status("Random: %d", gg->conf.list_random);
 		break;
 
 	case A_LIST_SORTRANDOM: {
@@ -861,8 +882,12 @@ static char* userpath(const char *fn)
 }
 
 static const char *const usrconf_setts[] = {
-	"gui.gui.random", "gui.gui.list_columns_width", "gui.gui.list_track",
+	"gui.gui.random",
+	"gui.gui.list_columns_width",
+	"gui.gui.list_track",
 	"gui.gui.list_scroll",
+	"gui.gui.list_repeat",
+	"gui.gui.auto_attenuate_ceiling",
 };
 
 /** Write user configuration value. */
@@ -883,6 +908,12 @@ static void usrconf_write_val(ffconfw *conf, uint i)
 	case 3:
 		n = ffui_view_scroll_vert(&gg->wmain.vlist);
 		ffconf_writeint(conf, n, 0, FFCONF_TVAL);
+		break;
+	case 4:
+		ffconf_writeint(conf, gg->conf.list_repeat, 0, FFCONF_TVAL);
+		break;
+	case 5:
+		ffconf_writefloat(conf, gg->conf.auto_attenuate_ceiling, 2, FFCONF_TVAL);
 		break;
 	}
 }
@@ -1031,6 +1062,10 @@ static void* gtrk_open(fmed_filt *d)
 	t->time_total = ffpcm_time(d->audio.total, t->sample_rate) / 1000;
 	wmain_newtrack(ent, t->time_total, d);
 	d->meta_changed = 0;
+
+	if (gg->conf.auto_attenuate_ceiling < 0) {
+		d->audio.auto_attenuate_ceiling = gg->conf.auto_attenuate_ceiling;
+	}
 
 	t->trk = d->trk;
 	gg->curtrk = t;

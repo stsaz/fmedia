@@ -103,6 +103,7 @@ static void wmain_action(ffui_wnd *wnd, int id)
 	case A_STOP_AFTER:
 	case A_NEXT:
 	case A_PREV:
+	case A_PLAY_REPEAT:
 		break;
 
 	case A_SEEK: {

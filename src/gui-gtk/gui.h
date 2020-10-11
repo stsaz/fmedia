@@ -78,10 +78,12 @@ struct conv_sets {
 	char *output;
 };
 struct gui_conf {
+	float auto_attenuate_ceiling;
 	uint seek_step_delta,
 		seek_leap_delta;
 	byte autosave_playlists;
 	byte list_random;
+	byte list_repeat;
 	ushort list_col_width[16];
 	uint list_actv_trk_idx;
 	uint list_scroll_pos;
@@ -138,6 +140,7 @@ enum ACTION {
 	A_STOP_AFTER,
 	A_NEXT,
 	A_PREV,
+	A_PLAY_REPEAT,
 	A_FFWD,
 	A_RWND,
 	A_LEAP_FWD,
@@ -210,3 +213,5 @@ void wuri_init();
 void winfo_init();
 void winfo_show(uint idx);
 void wplayprops_init();
+
+const char* const repeat_str[3];

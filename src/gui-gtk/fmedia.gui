@@ -73,7 +73,6 @@ menu mlist {
 	}
 	item "Random" {
 		action A_LIST_RANDOM
-		hotkey "R"
 	}
 	item "Sort: Random" {
 		action A_LIST_SORTRANDOM
@@ -100,6 +99,9 @@ menu mplay {
 	item "P_revious" {
 		action A_PREV
 		hotkey "P"
+	}
+	item "Repeat: None/Track/All" {
+		action A_PLAY_REPEAT
 	}
 	item "-" {
 	}

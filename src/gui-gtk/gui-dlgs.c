@@ -142,7 +142,7 @@ struct conf_ent {
 	uint id;
 };
 
-static const char* const repeat_str[] = { "None", "Track", "Playlist" };
+const char* const repeat_str[3] = { "None", "Track", "Playlist" };
 
 static struct conf_ent conf[] = {
 	{ "List:", 0 },
@@ -176,9 +176,8 @@ static void wplayprops_fill()
 			break;
 
 		case CONF_AUTO_ATTENUATE:
-			val = ffsz_allocfmt("%d.%02u"
-				, (int)gg->conf.auto_attenuate_ceiling / 100
-				, (int)gg->conf.auto_attenuate_ceiling % 100);
+			val = ffsz_allocfmt("%.02F"
+				, (double)gg->conf.auto_attenuate_ceiling);
 			cval = val;
 			break;
 		}
