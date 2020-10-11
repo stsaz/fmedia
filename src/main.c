@@ -16,13 +16,15 @@ Copyright (c) 2015 Simon Zolin */
 #include <FFOS/process.h>
 
 
+#define dbglog0(...)  fmed_dbglog(core, NULL, "main", __VA_ARGS__)
+
+
 #if !defined _DEBUG
 #define FMED_CRASH_HANDLER
 #endif
 #define FMED_CMDHELP_FILE_FMT  "help%s.txt"
 
 struct gctx {
-	ffsignal sigs_task;
 	fmed_cmd *cmd;
 	void *rec_trk;
 	const fmed_track *track;
@@ -56,7 +58,6 @@ static int fmed_arg_out_chk(ffparser_schem *p, void *obj, const ffstr *val);
 static int arg_debug(ffparser_schem *p, void *obj, const int64 *val);
 
 static void open_input(void *udata);
-static void fmed_onsig(void *udata);
 static int rec_track_start(fmed_cmd *cmd, fmed_trk *trkinfo);
 static void rec_lpback_new_track(fmed_cmd *cmd);
 
@@ -654,18 +655,22 @@ static void mon_onsig(fmed_trk *trk, uint sig)
 }
 
 
-static const int sigs[] = { SIGINT };
-static const int sigs_block[] = { SIGINT, SIGIO };
+static const ffuint signals[] = { SIGINT };
+static const int sigs_block[] = { SIGIO };
 
-static void fmed_onsig(void *udata)
+static void crash_handler(struct ffsig_info *inf);
+
+static void signal_handler(struct ffsig_info *info)
 {
-	int sig;
-	ffsignal *sg = udata;
-
-	if (-1 == (sig = ffsig_read(sg, NULL)))
-		return;
-
-	g->track->cmd((void*)-1, FMED_TRACK_STOPALL_EXIT);
+	if (core != NULL)
+		dbglog0("received signal:%d", info->sig);
+	switch (info->sig) {
+	case FFSIG_INT:
+		g->track->cmd((void*)-1, FMED_TRACK_STOPALL_EXIT);
+		break;
+	default:
+		crash_handler(info);
+	}
 }
 
 static void qu_setprops(fmed_cmd *fmed, const fmed_queue *qu, fmed_que_entry *qe);
@@ -1005,16 +1010,16 @@ end:
 	#endif
 #endif
 
-#ifdef FMED_CRASH_HANDLER
 extern void _crash_handler(const char *fullname, const char *version, struct ffsig_info *inf);
 
 /** Called by FFOS on program crash. */
 static void crash_handler(struct ffsig_info *inf)
 {
+#ifdef FMED_CRASH_HANDLER
 	const char *ver = (core != NULL) ? core->props->version_str : "";
 	_crash_handler("fmedia (" OS_STR "-" CPU_STR ")", ver, inf);
-}
 #endif
+}
 
 int main(int argc, char **argv, char **env)
 {
@@ -1024,15 +1029,12 @@ int main(int argc, char **argv, char **env)
 	ffmem_init();
 	if (NULL == (g = ffmem_new(struct gctx)))
 		return 1;
-	ffsig_init(&g->sigs_task);
 
 #ifdef FMED_CRASH_HANDLER
 	static const uint sigs_fault[] = { FFSIG_SEGV, FFSIG_ILL, FFSIG_FPE, FFSIG_ABORT };
-	ffsig_subscribe(&crash_handler, sigs_fault, FFCNT(sigs_fault));
+	ffsig_subscribe(signal_handler, sigs_fault, FF_COUNT(sigs_fault));
 	// ffsig_raise(FFSIG_SEGV);
 #endif
-
-	ffsig_mask(SIG_BLOCK, sigs_block, FFCNT(sigs_block));
 
 	if (0 != loadcore(argv[0]))
 		goto end;
@@ -1122,11 +1124,11 @@ int main(int argc, char **argv, char **env)
 		ffmem_safefree0(g->cmd->globcmd_pipename);
 	}
 
-	g->sigs_task.udata = &g->sigs_task;
-	if (0 != ffsig_ctl(&g->sigs_task, core->kq, sigs, FFCNT(sigs), &fmed_onsig)) {
-		syserrlog(core, NULL, "core", "%s", "ffsig_ctl()");
+	if (0 != ffsig_subscribe(signal_handler, signals, FF_COUNT(signals))) {
+		syserrlog(core, NULL, "core", "%s", "ffsig_subscribe()");
 		goto end;
 	}
+	ffsig_mask(SIG_BLOCK, sigs_block, FF_COUNT(sigs_block));
 
 	fftask_set(&gcmd->tsk_start, &open_input, g->cmd);
 	core->task(&gcmd->tsk_start, FMED_TASK_POST);
@@ -1139,7 +1141,6 @@ int main(int argc, char **argv, char **env)
 
 end:
 	if (core != NULL) {
-		ffsig_ctl(&g->sigs_task, core->kq, sigs, FFCNT(sigs), NULL);
 		g->core_free();
 	}
 	FF_SAFECLOSE(g->core_dl, NULL, ffdl_close);
