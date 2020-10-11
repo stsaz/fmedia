@@ -422,6 +422,16 @@ static void corecmd_run(uint cmd, void *udata)
 		break;
 
 	case A_PLAYPAUSE:
+		/*
+		'udata' is 'curtrk' at the time of event
+		* udata != curtrk: do nothing
+		* udata == curtrk:
+			* curtrk != NULL: play/pause
+			* curtrk == NULL: start playing the last track
+		*/
+		if (udata != gg->curtrk)
+			break;
+
 		if (gg->curtrk == NULL) {
 			gg->qu->cmd(FMED_QUE_PLAY, NULL);
 			break;

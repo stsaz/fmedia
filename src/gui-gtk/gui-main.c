@@ -96,6 +96,9 @@ static void wmain_action(ffui_wnd *wnd, int id)
 		break;
 
 	case A_PLAYPAUSE:
+		corecmd_add(A_PLAYPAUSE, gg->curtrk);
+		return;
+
 	case A_STOP:
 	case A_STOP_AFTER:
 	case A_NEXT:
