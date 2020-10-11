@@ -101,6 +101,12 @@ typedef struct gui_wfilter {
 	ffui_paned pntext;
 } gui_wfilter;
 
+typedef struct gui_wplayprops {
+	ffui_wnd wplayprops;
+	ffui_view vconfig;
+	ffui_paned pn;
+} gui_wplayprops;
+
 typedef struct gui_trk gui_trk;
 
 typedef struct cvt_sets_t {
@@ -210,6 +216,7 @@ typedef struct ggui {
 	gui_wlog wlog;
 	gui_wuri wuri;
 	gui_wfilter wfilter;
+	gui_wplayprops wplayprops;
 
 	ffthd th;
 	cvt_sets_t conv_sets;
@@ -302,6 +309,7 @@ enum CMDS {
 	A_PLAY_VOLUP,
 	A_PLAY_VOLDOWN,
 	A_PLAY_VOLRESET,
+	A_SHOW_PROPS,
 
 	SEEKING,
 	GOTO_SHOW,
@@ -504,6 +512,7 @@ void wuri_init(void);
 void wfilter_init(void);
 
 void wabout_init(void);
+void wplayprops_init();
 
 
 enum CVTF {

@@ -242,6 +242,13 @@ static const ffui_ldr_ctl wfilter_ctls[] = {
 	{NULL, 0, NULL}
 };
 
+static const ffui_ldr_ctl wplayprops_ctls[] = {
+	FFUI_LDR_CTL(gui_wplayprops, wplayprops),
+	FFUI_LDR_CTL(gui_wplayprops, vconfig),
+	FFUI_LDR_CTL(gui_wplayprops, pn),
+	FFUI_LDR_CTL_END
+};
+
 static const ffui_ldr_ctl wmain_ctls[] = {
 	add(gui_wmain, wmain),
 	add(gui_wmain, bpause),
@@ -283,6 +290,7 @@ static const ffui_ldr_ctl top_ctls[] = {
 	FFUI_LDR_CTL3(ggui, wlog, wlog_ctls),
 	FFUI_LDR_CTL3(ggui, wuri, wuri_ctls),
 	FFUI_LDR_CTL3(ggui, wfilter, wfilter_ctls),
+	FFUI_LDR_CTL3(ggui, wplayprops, wplayprops_ctls),
 	FFUI_LDR_CTL3(ggui, wabout, wabout_ctls),
 	{NULL, 0, NULL}
 };
@@ -318,6 +326,7 @@ static const char *const scmds[] = {
 	"A_PLAY_VOLUP",
 	"A_PLAY_VOLDOWN",
 	"A_PLAY_VOLRESET",
+	"A_SHOW_PROPS",
 
 	"SEEKING",
 	"GOTO_SHOW",
@@ -1078,6 +1087,7 @@ static FFTHDCALL int gui_worker(void *param)
 	wuri_init();
 	wfilter_init();
 	wgoto_init();
+	wplayprops_init();
 
 	ffui_dlg_multisel(&gg->dlg);
 

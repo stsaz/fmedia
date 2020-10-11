@@ -187,6 +187,9 @@ menu mplay {
 	item "Select Audio Device..." {
 		action DEVLIST_SHOW
 	}
+	item "Properties..." {
+		action A_SHOW_PROPS
+	}
 }
 
 menu mrec {
@@ -833,6 +836,30 @@ window wfilter {
 		}
 		child breset {
 			move x
+		}
+	}
+}
+
+window wplayprops {
+	title "Playback Properties"
+	position 300 100 300 500
+
+	# editbox tfilter {
+	# }
+
+	listview vconfig {
+		position 0 0 90 90
+		style visible
+		column Name {
+			width 200
+		}
+		column Value {
+			width 200
+		}
+	}
+	paned pn {
+		child vconfig {
+			resize cx cy
 		}
 	}
 }

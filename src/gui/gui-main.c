@@ -325,6 +325,10 @@ static void gui_action(ffui_wnd *wnd, int id)
 		break;
 	}
 
+	case A_SHOW_PROPS:
+		ffui_show(&gg->wplayprops.wplayprops, 1);
+		break;
+
 	case HIDE:
 		if (!ffui_tray_visible(&gg->wmain.tray_icon)) {
 			ffui_tray_seticon(&gg->wmain.tray_icon, &gg->wmain.ico);
