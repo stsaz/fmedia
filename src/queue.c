@@ -82,11 +82,11 @@ typedef struct que {
 
 	struct que_conf conf;
 	uint list_random;
+	uint repeat;
 	uint quit_if_done :1
 		, next_if_err :1
 		, fmeta_lowprio :1 //meta from file has lower priority
 		, rnd_ready :1
-		, repeat_all :1
 		, random :1
 		, mixing :1;
 } que;
@@ -545,10 +545,12 @@ static entry* que_getnext(entry *from)
 
 	if (from == NULL) {
 		from = pl_first(pl);
+	} else if (qu->repeat == FMED_QUE_REPEAT_TRACK) {
+		dbglog0("repeat: same track");
 	} else {
 		from = pl_next(from);
-		if (from == NULL && qu->repeat_all) {
-			dbglog0("repeat_all: starting from the beginning");
+		if (from == NULL && qu->repeat == FMED_QUE_REPEAT_ALL) {
+			dbglog0("repeat: starting from the beginning");
 			from = pl_first(pl);
 		}
 	}
@@ -886,7 +888,7 @@ static ssize_t que_cmdv(uint cmd, ...)
 	}
 	case FMED_QUE_SET_REPEATALL: {
 		uint val = va_arg(va, uint);
-		qu->repeat_all = val;
+		qu->repeat = val;
 		goto end;
 	}
 	case FMED_QUE_SET_QUITIFDONE: {
@@ -1452,7 +1454,7 @@ static void que_ontrkfin(entry *e)
 	else if (e->trk_stopped)
 	{}
 	else if (!e->trk_err || qu->next_if_err) {
-		if (qu->random || qu->repeat_all) {
+		if (qu->random || qu->repeat == FMED_QUE_REPEAT_ALL) {
 			/* Don't start the next track when there are too many consecutive errors.
 			When in Random or Repeat-all mode we may waste CPU resources
 			 without making any progress, e.g.:

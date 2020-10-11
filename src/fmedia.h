@@ -851,7 +851,7 @@ enum FMED_QUE {
 	FMED_QUE_SET_NEXTIFERROR,
 
 	/**
-	uint repeat_all = VAL */
+	uint repeat = enum FMED_QUE_REPEAT */
 	FMED_QUE_SET_REPEATALL,
 
 	/**
@@ -876,6 +876,12 @@ enum FMED_QUE {
 	FMED_QUE_SETCURID,
 
 	_FMED_QUE_LAST
+};
+
+enum FMED_QUE_REPEAT {
+	FMED_QUE_REPEAT_NONE,
+	FMED_QUE_REPEAT_ALL,
+	FMED_QUE_REPEAT_TRACK,
 };
 
 enum FMED_QUE_CMDF {
