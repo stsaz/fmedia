@@ -294,9 +294,13 @@ static int pulse_write(void *ctx, fmed_filt *d)
 		break;
 	}
 
-	if (mod->usedby != a || (d->flags & FMED_FSTOP)) {
+	if (d->flags & FMED_FSTOP) {
 		d->outlen = 0;
 		return FMED_RDONE;
+	}
+	if (mod->usedby != a) {
+		errlog(d->trk, "another track has taken the audio playback device", 0);
+		return FMED_RERR;
 	}
 
 	r = audio_out_write(a, d);
