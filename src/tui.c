@@ -590,6 +590,19 @@ static void tui_op(uint cmd)
 
 	case CMD_PLAY:
 		if (gt->curtrk == NULL) {
+
+			if (gt->curtrk_rec != NULL) {
+				if (gt->curtrk_rec->paused) {
+					gt->curtrk_rec->paused = 0;
+					gt->track->cmd(gt->curtrk_rec->trk, FMED_TRACK_UNPAUSE);
+					break;
+				}
+				gt->track->cmd(gt->curtrk_rec->trk, FMED_TRACK_PAUSE);
+				fmed_infolog(core, gt->curtrk_rec->trk, "tui", "Recording is paused");
+				gt->curtrk_rec->paused = 1;
+				break;
+			}
+
 			gt->qu->cmd(FMED_QUE_PLAY, NULL);
 			break;
 		}
