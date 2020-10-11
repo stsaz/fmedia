@@ -17,6 +17,7 @@ Copyright (c) 2015 Simon Zolin */
 
 
 #define dbglog0(...)  fmed_dbglog(core, NULL, "main", __VA_ARGS__)
+#define errlog0(...)  fmed_errlog(core, NULL, "main", __VA_ARGS__)
 
 
 #if !defined _DEBUG
@@ -56,6 +57,16 @@ static int fmed_arg_out_copy(ffparser_schem *p, void *obj, const ffstr *val);
 static int fmed_arg_input_chk(ffparser_schem *p, void *obj, const ffstr *val);
 static int fmed_arg_out_chk(ffparser_schem *p, void *obj, const ffstr *val);
 static int arg_debug(ffparser_schem *p, void *obj, const int64 *val);
+static int arg_auto_attenuate(ffparser_schem *p, void *obj, const double *val)
+{
+	fmed_cmd *cmd = obj;
+	if (*val > 0) {
+		errlog0("must be <0", 0);
+		return FFPARS_EBADVAL;
+	}
+	cmd->auto_attenuate = *val;
+	return 0;
+}
 
 static void open_input(void *udata);
 static int rec_track_start(fmed_cmd *cmd, fmed_trk *trkinfo);
@@ -113,6 +124,7 @@ static const ffpars_arg fmed_cmdline_args[] = {
 	//FILTERS
 	{ "volume",	FFPARS_TINT8,  OFF(volume) },
 	{ "gain",	FFPARS_TFLOAT | FFPARS_FSIGN,  OFF(gain) },
+	{ "auto-attenuate",	FFPARS_TFLOAT | FFPARS_FSIGN,  FFPARS_DST(&arg_auto_attenuate) },
 	{ "split",	FFPARS_TSTR | FFPARS_FNOTEMPTY,  FFPARS_DST(&fmed_arg_split) },
 	{ "dynanorm",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(dynanorm) },
 	{ "pcm-peaks",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(pcm_peaks) },
@@ -786,6 +798,7 @@ static void trk_prep(fmed_cmd *fmed, fmed_trk *trk)
 
 	if (fmed->gain != 0)
 		trk->audio.gain = fmed->gain * 100;
+	trk->audio.auto_attenuate_ceiling = fmed->auto_attenuate;
 
 	if (fmed->aac_qual != (uint)-1)
 		trk->aac.quality = fmed->aac_qual;

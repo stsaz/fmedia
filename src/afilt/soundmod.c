@@ -84,6 +84,7 @@ extern const fmed_filter fmed_sndmod_split;
 extern const fmed_filter fmed_sndmod_peaks;
 extern const fmed_filter sndmod_startlev;
 extern const fmed_filter sndmod_stoplev;
+extern const fmed_filter fmed_auto_attenuator;
 
 static const struct submod submods[] = {
 	{ "conv", (fmed_filter*)&fmed_sndmod_conv },
@@ -97,6 +98,7 @@ static const struct submod submods[] = {
 	{ "startlevel", &sndmod_startlev },
 	{ "stoplevel", &sndmod_stoplev },
 	{ "membuf", &sndmod_membuf },
+	{ "auto-attenuator", &fmed_auto_attenuator },
 };
 
 static const void* sndmod_iface(const char *name)

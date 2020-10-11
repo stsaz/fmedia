@@ -279,7 +279,12 @@ static int trk_setout(fm_trk *t)
 	}
 
 	if (t->props.type != FMED_TRK_TYPE_MIXOUT && !stream_copy) {
-		addfilter(t, "#soundmod.gain");
+		ffbool playback = (t->props.type == FMED_TRK_TYPE_PLAYBACK
+			&& FMED_PNULL == (s = trk_getvalstr(t, "output"))
+			&& core->props->playback_module != NULL);
+
+		if (!playback && t->props.audio.auto_attenuate_ceiling != 0.0)
+			addfilter(t, "#soundmod.gain");
 	}
 
 	if (t->props.use_dynanorm)
@@ -303,6 +308,7 @@ static int trk_setout(fm_trk *t)
 			return -1;
 
 	} else if (core->props->playback_module != NULL) {
+		addfilter(t, "#soundmod.auto-attenuator");
 		addfilter1(t, core->props->playback_module);
 	}
 

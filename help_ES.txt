@@ -61,6 +61,8 @@ ENTRADA:
 FILTROSS:
 --volume=INT       Define el volumen (0% .. 125%)
 --gain=FLOAT       Definee la ganancia/atenuación en dB
+--auto-attenuate=FLOAT
+                   Set ceiling audio level in dB (always negative value) for loud tracks
 --prebuffer=TIME   Start writing the recorded audio to a file by user's command, saving some previously recorded data (before the command is issued)
 --start-dblevel=DB Skip initial audio until input signal level goes above DB (-100dB..0dB)
 --stop-dblevel=DB[;TIME][;MINTIME]

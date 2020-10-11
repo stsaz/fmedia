@@ -103,6 +103,7 @@ CORE_O := $(OBJ_DIR)/core.o $(OBJ_DIR)/core-conf.o \
 	$(OBJ_DIR)/peaks.o \
 	$(OBJ_DIR)/split.o \
 	$(OBJ_DIR)/start-stop-level.o \
+	$(OBJ_DIR)/auto-attenuator.o \
 	$(OBJ_DIR)/aconv.o \
 	$(OBJ_DIR)/queue.o \
 	$(OBJ_DIR)/globcmd.o

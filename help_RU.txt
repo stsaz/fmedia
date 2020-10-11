@@ -65,6 +65,8 @@ fmedia [ПАРАМЕТРЫ] [ВХОД...]
 ФИЛЬТРЫ:
 --volume=INT       Set volume (0% .. 125%)
 --gain=FLOAT       Set gain/attenuation in dB
+--auto-attenuate=FLOAT
+                   Set ceiling audio level in dB (always negative value) for loud tracks
 --split=TIME       Split audio by equal time intervals
 --dynanorm         Use Dynamic Audio Normalizer filter.
                    Set parameters in section `mod_conf dynanorm.filter` in fmedia.conf.

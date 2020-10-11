@@ -42,6 +42,7 @@ typedef struct fmed_cmd {
 	ffarr2 exclude_files; //ffstr[]
 
 	float gain;
+	float auto_attenuate;
 	byte volume;
 	byte pcm_peaks;
 	byte pcm_crc;

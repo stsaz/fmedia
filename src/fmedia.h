@@ -448,7 +448,10 @@ struct fmed_trk {
 		fmed_apos until;
 		uint64 split;
 		fmed_apos abs_seek; //seek position from the beginning of file
-		uint gain; //dB * 100
+		/** Audio gain/attenuation (dynamic) */
+		int gain; //dB * 100
+		/** Signal ceiling (dB) for auto-attenuator (static) */
+		float auto_attenuate_ceiling;
 		float maxpeak; //dB
 		uint bitrate; //bit/s
 		const char *decoder;

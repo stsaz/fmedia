@@ -3,6 +3,7 @@
 * Queue
 	* Items positioning
 	* UI interaction
+* Filter: Auto Attenuator
 
 
 ## Queue
@@ -59,3 +60,27 @@ UI gets item ID by its index and locks the item until it has read the informatio
 
 * main thread may change item's meta info when the item is active.  This means that meta_set() must use per-item lock.
 
+
+## Filter: Auto Attenuator
+
+Automatically reduce the volume of loud tracks so there will be less volume difference between the loud and quiet tracks.
+
+Config:
+
+	ceiling_db = -6dB
+
+Chain:
+
+	1.1 ... -> Converter --(int16)-> AA --(float)-> AudioOutput
+	1.2 ... -> Converter <-(convert:float/i)-- AA
+	2.  ... -> Converter --(float)-> AA --(float)-> ...
+
+Algorithm:
+
+	track_gain := 1.0
+	track_ceiling := conf.ceiling
+	...
+	if sample > track_ceiling
+		track_gain = 1.0 - (sample - conf.ceiling)
+		track_ceiling = sample
+	sample = sample * track_gain
