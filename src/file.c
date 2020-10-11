@@ -277,32 +277,30 @@ static int file_getdata(void *ctx, fmed_filt *d)
 		f->nseek++;
 	}
 
-	for (;;) {
+	int r = fffileread_getdata(f->fr, &b, f->seek, FFFILEREAD_FREADAHEAD);
+	switch ((enum FFFILEREAD_R)r) {
 
-		int r = fffileread_getdata(f->fr, &b, f->seek, FFFILEREAD_FREADAHEAD);
-		switch ((enum FFFILEREAD_R)r) {
+	case FFFILEREAD_RASYNC:
+		return FMED_RASYNC; //wait until the buffer is full
 
-		case FFFILEREAD_RASYNC:
-			return FMED_RASYNC; //wait until the buffer is full
+	case FFFILEREAD_RERR:
+		return FMED_RERR;
 
-		case FFFILEREAD_RERR:
-			return FMED_RERR;
-
-		case FFFILEREAD_REOF:
-			if (f->done || seek_req) {
-				/* We finished reading in the previous iteration.
-				After that, noone's asked to seek back. */
-				d->outlen = 0;
-				return FMED_RDONE;
-			}
-			f->done = 1;
-			d->out = NULL,  d->outlen = 0;
-			return FMED_ROK;
-
-		case FFFILEREAD_RREAD:
-			d->out = b.ptr,  d->outlen = b.len;
-			f->seek += b.len;
-			return FMED_ROK;
+	case FFFILEREAD_REOF:
+		if (f->done || seek_req) {
+			/* We finished reading in the previous iteration.
+			After that, noone's asked to seek back. */
+			d->outlen = 0;
+			return FMED_RDONE;
 		}
+		f->done = 1;
+		d->out = NULL,  d->outlen = 0;
+		return FMED_ROK;
+
+	case FFFILEREAD_RREAD:
+		d->out = b.ptr,  d->outlen = b.len;
+		f->seek += b.len;
+		return FMED_ROK;
 	}
+	return FMED_RERR;
 }

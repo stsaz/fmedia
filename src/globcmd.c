@@ -194,7 +194,7 @@ static void globcmd_free(void)
 
 static int globcmd_listen(void)
 {
-	if (FF_BADFD == (g->kev.fd = ffpipe_create_named(g->pipename_full.ptr, SOCK_NONBLOCK))) {
+	if (FF_BADFD == (g->kev.fd = ffpipe_create_named(g->pipename_full.ptr, FFPIPE_NONBLOCK))) {
 		syserrlog(core, NULL, "globcmd", "pipe create: %s", g->pipename_full.ptr);
 		goto end;
 	}

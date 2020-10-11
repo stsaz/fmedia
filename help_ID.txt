@@ -61,6 +61,8 @@ INPUT:
 FILTER:
 --volume = INT         Pengaturan volume (0% .. 125%)
 --gain = FLOAT         Pengaturan penguatan / redaman dalam dB
+--auto-attenuate=FLOAT
+                   Set ceiling audio level in dB (always negative value) for loud tracks
 --prebuffer = TIME     Memulai menyimpan audio yang direkam ke file dengan perintah pengguna, menyimpan beberapa data yang direkam sebelumnya (sebelum perintah dijalankan)
 --start-dblevel = DB   Melewati audio awal sampai level sinyal input melebihi DB (-100dB..0dB)
 --stop-dblevel = DB [; TIME] [; MINTIME]

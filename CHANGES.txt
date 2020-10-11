@@ -8,6 +8,16 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.20 - Oct 9, 2020
+
+ + --auto-attenuate: Automatically reduce the volume of loud tracks
+ + new --globcmd commands: next, pause, unpause
+ + tui: ability to pause/unpause recording with 'Space' key
+ + GUI: "Repeat: None/Track/All"
+ + help.txt: Indonesian translation
+ - GUI-GTK: fix incorrect behaviour on Play/Pause event
+
+
 fmedia v1.19 - Aug 22, 2020
 
  + Pulse: support recording

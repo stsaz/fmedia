@@ -4,6 +4,11 @@ Copyright (c) 2017 Simon Zolin */
 #include <fmedia.h>
 #include <adev/audio.h>
 
+#undef errlog
+#undef dbglog
+#define errlog(trk, ...)  fmed_errlog(core, trk, "pulse", __VA_ARGS__)
+#define dbglog(trk, ...)  fmed_dbglog(core, trk, "pulse", __VA_ARGS__)
+
 
 static const fmed_core *core;
 
@@ -137,7 +142,7 @@ static int mod_init(fmed_trk *trk)
 	ffaudio_init_conf conf = {};
 	conf.app_name = "fmedia";
 	if (0 != ffpulse.init(&conf)) {
-		errlog(core, trk, "pulse", "init: %s", conf.error);
+		errlog(trk, "init: %s", conf.error);
 		return -1;
 	}
 
@@ -193,7 +198,7 @@ static void pulse_close(void *ctx)
 
 		} else {
 			if (0 != ffpulse.stop(mod->out))
-				errlog(core, a->trk, "pulse", "stop: %s", ffpulse.error(mod->out));
+				errlog(a->trk, "stop: %s", ffpulse.error(mod->out));
 			ffpulse.clear(mod->out);
 		}
 
@@ -261,7 +266,7 @@ static int pulse_create(audio_out *a, fmed_filt *d)
 	mod->dev_idx = a->dev_idx;
 
 fin:
-	dbglog(core, d->trk, "pulse", "%s buffer %ums, %uHz"
+	dbglog(d->trk, "%s buffer %ums, %uHz"
 		, reused ? "reused" : "opened", a->buffer_length_msec
 		, fmt.sample_rate);
 

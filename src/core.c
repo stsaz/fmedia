@@ -992,13 +992,34 @@ static int core_filetype(const char *fn)
 	return FMED_FT_UKN;
 }
 
+static const char* const sig_str[] = {
+	"FMED_SIG_INIT",
+	"FMED_CONF",
+	"FMED_OPEN",
+	"FMED_START",
+	"FMED_STOP",
+	"FMED_SIG_INSTALL",
+	"FMED_SIG_UNINSTALL",
+	"FMED_FILETYPE",
+	"FMED_WOH_INIT",
+	"FMED_WOH_ADD",
+	"FMED_WOH_DEL",
+	"FMED_TASK_XPOST",
+	"FMED_TASK_XDEL",
+	"FMED_WORKER_ASSIGN",
+	"FMED_WORKER_RELEASE",
+	"FMED_WORKER_AVAIL",
+	"FMED_SETLOG",
+};
+
 static ssize_t core_cmd(uint signo, ...)
 {
 	ssize_t r = 0;
 	va_list va;
 	va_start(va, signo);
 
-	dbglog(core, NULL, "core", "received signal: %u", signo);
+	dbglog(core, NULL, "core", "received signal: %s"
+		, sig_str[signo]);
 
 	switch (signo) {
 
@@ -1031,8 +1052,10 @@ static ssize_t core_cmd(uint signo, ...)
 		FF_WRITEONCE(fmed->stopped, 1);
 		struct worker *w;
 		FFARR_WALKT(&fmed->workers, w, struct worker) {
-			if (w->init)
-				ffkqu_post(&w->kqpost, &w->evposted);
+			if (w->init) {
+				if (0 != ffkqu_post(&w->kqpost, &w->evposted))
+					syserrlog("%s", "ffkqu_post");
+			}
 		}
 		break;
 	}
@@ -1117,6 +1140,10 @@ static void core_task(fftask *task, uint cmd)
 	dbglog(core, NULL, "core", "task:%p, cmd:%u, active:%u, handler:%p, param:%p"
 		, task, cmd, fftask_active(&w->taskmgr, task), task->handler, task->param);
 
+	if (w->kq == FFKQ_NULL) {
+		return;
+	}
+
 	switch (cmd) {
 	case FMED_TASK_POST:
 		if (1 == fftask_post(&w->taskmgr, task))
@@ -1143,7 +1170,9 @@ static int xtask(int signo, fftask *task, uint wid)
 	dbglog(core, NULL, "core", "task:%p, cmd:%u, active:%u, handler:%p, param:%p"
 		, task, signo, fftask_active(&w->taskmgr, task), task->handler, task->param);
 
-	if (signo == FMED_TASK_XPOST) {
+	if (w->kq == FFKQ_NULL) {
+
+	} else if (signo == FMED_TASK_XPOST) {
 		if (1 == fftask_post(&w->taskmgr, task))
 			if (0 != ffkqu_post(&w->kqpost, &w->evposted))
 				syserrlog("%s", "ffkqu_post");

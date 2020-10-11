@@ -20,16 +20,13 @@ This is the list of the things that need to be done.
 * GUI: Ctrl+Tab
 * GUI theme: listview entry selection color (#13)
 * GUI for macOS
-* GUI: repeat track/all (#45)
 * GUI: remove meta associated with the track after file is renamed
 * GUI: read tags on load
 * GUI: remember conversion settings
 * show tray icon when recording from console (#39)
 * translate help.txt (#15)
 * Set to Play Next
-* dynamic track volume
 * build for ARM (#3)
-* docker build (#42)
 * open http://....m3u (application/x-mpegURL)
 * wasapi: process AUDCLNT_E_DEVICE_INVALIDATED
 * Modify audio tags in-place
@@ -42,6 +39,7 @@ This is the list of the things that need to be done.
 * join several files into one
 * fatal decoding errors should have filename in their log messages
 * ALSA: Add fallback path (using fmedia timer) in case "snd_async_add_pcm_handler(): (-38) Function not implemented"
+* docker build (#42)
 
 
 ## Doubtful features or "need more info"

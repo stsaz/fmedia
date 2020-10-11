@@ -413,7 +413,8 @@ void corecmd_add(uint cmd, void *udata)
 
 static void corecmd_run(uint cmd, void *udata)
 {
-	dbglog("%s cmd:%u  udata:%p", __func__, cmd, udata);
+	dbglog("%s cmd:%d %s  udata:%p"
+		, __func__, cmd, (cmd-1 < FF_COUNT(action_str)) ? action_str[cmd-1] : "", udata);
 
 	switch ((enum ACTION)cmd) {
 

@@ -591,15 +591,20 @@ static int filt_islast(fm_trk *t, fflist_item *item)
 	return (item->next == ffchain_sentl(&t->filt_chain));
 }
 
-#ifdef _DEBUG
 // enum FMED_R
 static const char *const fmed_retstr[] = {
-	"err",
-	"ok", "data", "done", "last-out", "next-done",
-	"more", "back",
-	"async", "fin", "syserr",
+	"FMED_RERR",
+	"FMED_ROK",
+	"FMED_RDATA",
+	"FMED_RDONE",
+	"FMED_RLASTOUT",
+	"FMED_RNEXTDONE",
+	"FMED_RMORE",
+	"FMED_RBACK",
+	"FMED_RASYNC",
+	"FMED_RFIN",
+	"FMED_RSYSERR",
 };
-#endif
 
 static int filt_call(fm_trk *t, fmed_f *f)
 {
@@ -616,10 +621,8 @@ static int filt_call(fm_trk *t, fmed_f *f)
 	ffbool first = filt_isfirst(t, t->cur);
 	ffint_bitmask(&t->props.flags, FMED_FLAST, first);
 
-#ifdef _DEBUG
-	dbglog(t, "%s calling %s, input: %L  flags:%xu"
+	dbglog(t, "%s calling %s, input:%L  flags:%xu"
 		, (t->props.flags & FMED_FFWD) ? ">>" : "<<", f->name, f->d.datalen, t->props.flags);
-#endif
 
 	t->props.data = f->d.data,  t->props.datalen = f->d.datalen;
 
@@ -651,10 +654,8 @@ static int filt_call(fm_trk *t, fmed_f *f)
 		fftime_add(&f->clk, &t2);
 	}
 
-#ifdef _DEBUG
-	dbglog(t, "   %s returned: %s, output: %L"
+	dbglog(t, "   %s returned: %s, output:%L"
 		, f->name, ((uint)(r + 1) < FFCNT(fmed_retstr)) ? fmed_retstr[r + 1] : "", t->props.outlen);
-#endif
 	return r;
 }
 
@@ -1064,6 +1065,32 @@ static char* chain_print(fm_trk *t, const ffchain_item *mark, char *buf, size_t 
 	return buf;
 }
 
+static const char* const cmd_str[] = {
+	"FMED_TRACK_START",
+	"FMED_TRACK_STOP",
+	"FMED_TRACK_PAUSE",
+	"FMED_TRACK_UNPAUSE",
+	"FMED_TRACK_STOPALL",
+	"FMED_TRACK_STOPALL_EXIT",
+	"FMED_TRACK_LAST",
+	"FMED_TRACK_ADDFILT",
+	"FMED_TRACK_ADDFILT_PREV",
+	"FMED_TRACK_ADDFILT_BEGIN",
+	"FMED_TRACK_FILT_ADD",
+	"FMED_TRACK_FILT_ADDPREV",
+	"FMED_TRACK_FILT_ADDFIRST",
+	"FMED_TRACK_FILT_ADDLAST",
+	"FMED_TRACK_META_HAVEUSER",
+	"FMED_TRACK_META_ENUM",
+	"FMED_TRACK_META_COPYFROM",
+	"FMED_TRACK_FILT_GETPREV",
+	"FMED_TRACK_FILT_INSTANCE",
+	"FMED_TRACK_WAKE",
+	"FMED_TRACK_MONITOR",
+	"FMED_TRACK_KQ",
+	"FMED_TRACK_XSTART",
+};
+
 static ssize_t trk_cmd(void *trk, uint cmd, ...)
 {
 	fm_trk *t = trk;
@@ -1072,7 +1099,8 @@ static ssize_t trk_cmd(void *trk, uint cmd, ...)
 	va_list va;
 	va_start(va, cmd);
 
-	dbglog(NULL, "received command:%u, trk:%p", cmd, trk);
+	dbglog(NULL, "received command:%s, trk:%p"
+		, (cmd < FF_COUNT(cmd_str)) ? cmd_str[cmd] : "", trk);
 
 	switch (cmd) {
 	case FMED_TRACK_STOPALL_EXIT:

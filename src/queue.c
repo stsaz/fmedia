@@ -26,30 +26,9 @@ Metadata priority:
 
 static const fmed_core *core;
 
+struct entry;
+typedef struct entry entry;
 typedef struct plist plist;
-
-typedef struct entry {
-	fmed_que_entry e;
-	fflist_item sib;
-
-	plist *plist;
-	fmed_trk *trk;
-	ffarr2 meta; //ffstr[]
-	ffarr2 tmeta; //ffstr[]. transient meta - reset before every start of this item.
-	ffarr2 dict; //ffstr[]
-
-	size_t list_pos; //position number within playlist.  May be invalid.
-	uint refcount;
-	uint rm :1
-		, stop_after :1
-		, no_tmeta :1
-		, trk_stopped :1
-		, trk_err :1
-		, trk_mixed :1
-		;
-
-	char url[0];
-} entry;
 
 struct plist {
 	fflist_item sib;
@@ -123,21 +102,13 @@ static void que_save(entry *first, const fflist_item *sentl, const char *fn);
 static void ent_start_prepare(entry *e, void *trk);
 static void ent_rm(entry *e);
 static void ent_free(entry *e);
-static void que_taskfunc(void *udata);
 static void rnd_init();
-enum CMD {
-	CMD_TRKFIN = 0x010000,
-	CMD_TRKFIN_EXPAND,
-};
-struct quetask {
-	uint cmd; //enum FMED_QUE or enum CMD
-	size_t param;
-	fftask tsk;
-	ffchain_item sib;
-};
-static void que_task_add(struct quetask *qt);
-static void que_mix(void);
+static void plist_remove_entry(entry *e, ffbool from_index, ffbool remove);
 static entry* que_getnext(entry *from);
+static void pl_expand_next(plist *pl, entry *e);
+
+#include <queue-entry.h>
+#include <queue-track.h>
 
 //QUEUE-TRACK
 static void* que_trk_open(fmed_filt *d);
@@ -200,60 +171,6 @@ static int que_sig(uint signo)
 	return 0;
 }
 
-static void ent_rm(entry *e)
-{
-	if (!e->rm) {
-		ssize_t i = plist_ent_idx(e->plist, e);
-		if (i >= 0)
-			_ffarr_rmshift_i(&e->plist->indexes, i, 1, sizeof(entry*));
-
-		if (e->plist->filtered_plist != NULL) {
-			i = plist_ent_idx(e->plist->filtered_plist, e);
-			if (i >= 0)
-				_ffarr_rmshift_i(&e->plist->filtered_plist->indexes, i, 1, sizeof(entry*));
-		}
-	}
-
-	if (e->refcount != 0) {
-		e->rm = 1;
-		return;
-	}
-
-	if (e->plist->cur == e)
-		e->plist->cur = NULL;
-	if (e->plist->xcursor == e)
-		e->plist->xcursor = NULL;
-	fflist_rm(&e->plist->ents, &e->sib);
-	if (e->plist->ents.len == 0 && e->plist->rm)
-		plist_free(e->plist);
-	ent_free(e);
-}
-
-static void ent_ref(entry *e)
-{
-	e->refcount++;
-}
-
-static void ent_unref(entry *e)
-{
-	FF_ASSERT(e->refcount != 0);
-	if (--e->refcount == 0 && e->rm)
-		ent_rm(e);
-}
-
-static void ent_free(entry *e)
-{
-	FFSLICE_FOREACH_T(&e->meta, ffstr_free, ffstr);
-	ffslice_free(&e->meta);
-	FFSLICE_FOREACH_T(&e->dict, ffstr_free, ffstr);
-	ffslice_free(&e->dict);
-	FFSLICE_FOREACH_T(&e->tmeta, ffstr_free, ffstr);
-	ffslice_free(&e->tmeta);
-
-	ffmem_free(e->trk);
-	ffmem_free(e);
-}
-
 /** Prepare the item before starting a track. */
 static void ent_start_prepare(entry *e, void *trk)
 {
@@ -261,6 +178,34 @@ static void ent_start_prepare(entry *e, void *trk)
 	ffslice_free(&e->tmeta);
 	qu->track->setval(trk, "queue_item", (int64)e);
 	ent_ref(e);
+}
+
+static void plist_remove_entry(entry *e, ffbool from_index, ffbool remove)
+{
+	plist *pl = e->plist;
+
+	if (from_index) {
+		ssize_t i = plist_ent_idx(pl, e);
+		if (i >= 0)
+			_ffarr_rmshift_i(&pl->indexes, i, 1, sizeof(entry*));
+
+		if (pl->filtered_plist != NULL) {
+			i = plist_ent_idx(pl->filtered_plist, e);
+			if (i >= 0)
+				_ffarr_rmshift_i(&pl->filtered_plist->indexes, i, 1, sizeof(entry*));
+		}
+	}
+
+	if (!remove)
+		return;
+
+	if (pl->cur == e)
+		pl->cur = NULL;
+	if (pl->xcursor == e)
+		pl->xcursor = NULL;
+	fflist_rm(&pl->ents, &e->sib);
+	if (pl->ents.len == 0 && pl->rm)
+		plist_free(pl);
 }
 
 static void plist_free(plist *pl)
@@ -313,140 +258,6 @@ static void que_destroy(void)
 	ffmem_free0(qu);
 }
 
-
-/**
-@meta: string of format "[clear;]NAME=VAL;NAME=VAL..." */
-static int que_setmeta(entry *ent, const char *meta, void *trk)
-{
-	int rc = -1, f;
-	ffarr buf = {};
-	ffstr s, m, name, val;
-	char *fn = NULL;
-
-	ffstr_setz(&s, meta);
-	while (s.len != 0) {
-		ffstr_shift(&s, ffstr_nextval(s.ptr, s.len, &m, ';'));
-
-		if (ffstr_eqcz(&m, "clear")) {
-			ent->no_tmeta = 1;
-			continue;
-		}
-
-		if (NULL == ffs_split2by(m.ptr, m.len, '=', &name, &val)
-			|| name.len == 0) {
-			errlog(core, trk, "que", "--meta: invalid data");
-			goto end;
-		}
-
-		f = FMED_QUE_OVWRITE;
-		if (ffstr_matchz(&val, "@file:")) {
-			ffstr_shift(&val, FFSLEN("@file:"));
-			if (NULL == (fn = ffsz_alcopy(val.ptr, val.len)))
-				goto end;
-			if (0 != fffile_readall(&buf, fn, -1)) {
-				syserrlog("%s: %s", fffile_read_S, fn);
-				goto end;
-			}
-			ffstr_acqstr3(&val, &buf);
-			f |= FMED_QUE_ACQUIRE;
-		}
-
-		_que_meta_set(&ent->e, name.ptr, name.len, val.ptr, val.len, f);
-	}
-
-	rc = 0;
-
-end:
-	ffarr_free(&buf);
-	ffmem_free(fn);
-	return rc;
-}
-
-/** Start multiple tracks. */
-static void que_xplay(entry *e)
-{
-	for (;;) {
-		e->plist->xcursor = e;
-		ffbool last = (e->sib.next == fflist_sentl(&e->plist->ents));
-		que_play2(e, 1);
-		if (0 == core->cmd(FMED_WORKER_AVAIL))
-			break;
-		if (last)
-			break;
-		e = FF_GETPTR(entry, sib, e->sib.next);
-	}
-}
-
-static void que_play(entry *e)
-{
-	if (e->plist->parallel) {
-		e = e->plist->xcursor;
-		if (e == NULL || e->sib.next == fflist_sentl(&e->plist->ents))
-			return;
-		e = FF_GETPTR(entry, sib, e->sib.next);
-		que_xplay(e);
-		return;
-	}
-
-	que_play2(e, 0);
-}
-
-static void que_play2(entry *ent, uint flags)
-{
-	fmed_que_entry *e = &ent->e;
-	void *trk = qu->track->create(FMED_TRK_TYPE_PLAYBACK, e->url.ptr);
-	uint i;
-
-	if (trk == NULL)
-		return;
-	else if (trk == FMED_TRK_EFMT) {
-		entry *next;
-		if (NULL != (next = que_getnext(ent))) {
-			struct quetask *qt = ffmem_new(struct quetask);
-			FF_ASSERT(qt != NULL);
-			qt->cmd = FMED_QUE_PLAY;
-			qt->param = (size_t)next;
-			que_task_add(qt);
-		}
-
-		que_cmd(FMED_QUE_RM, e);
-		return;
-	}
-
-	fmed_trk *t = qu->track->conf(trk);
-	if (ent->trk != NULL)
-		qu->track->copy_info(t, ent->trk);
-
-	if (qu->mixing)
-		t->type = FMED_TRK_TYPE_MIXIN;
-
-	if (e->dur != 0)
-		qu->track->setval(trk, "track_duration", e->dur);
-	if (e->from != 0)
-		t->audio.abs_seek = e->from;
-	if (e->to != 0 && FMED_NULL == t->audio.until)
-		t->audio.until = e->to - e->from;
-
-	ffstr *dict = ent->dict.ptr;
-	for (i = 0;  i != ent->dict.len;  i += 2) {
-		if ((ssize_t)dict[i + 1].len >= 0)
-			qu->track->setvalstr(trk, dict[i].ptr, dict[i + 1].ptr);
-		else
-			qu->track->setval(trk, dict[i].ptr, *(int64*)dict[i + 1].ptr); //FMED_QUE_NUM
-	}
-
-	const char *smeta = qu->track->getvalstr(trk, "meta");
-	if (smeta != FMED_PNULL && 0 != que_setmeta(ent, smeta, trk)) {
-		que_cmd(FMED_QUE_RM, e);
-		return;
-	}
-
-	ent_start_prepare(ent, trk);
-	if (flags & 1)
-		qu->track->cmd(trk, FMED_TRACK_XSTART);
-	else
-		qu->track->cmd(trk, FMED_TRACK_START);
-}
 
 /** Save playlist file. */
 static void que_save(entry *first, const fflist_item *sentl, const char *fn)
@@ -589,24 +400,6 @@ static void pl_expand_next(plist *pl, entry *e)
 	}
 }
 
-static void que_mix(void)
-{
-	fflist *ents = &qu->curlist->ents;
-	void *mxout;
-	entry *e;
-
-	if (NULL == (mxout = qu->track->create(FMED_TRACK_MIX, NULL)))
-		return;
-	qu->track->setval(mxout, "mix_tracks", ents->len);
-	ent_ref(mxout);
-	qu->track->cmd(mxout, FMED_TRACK_START);
-
-	qu->mixing = 1;
-	FFLIST_WALK(ents, e, sib) {
-		que_play(e);
-	}
-}
-
 /** Get playlist by its index. */
 static plist* plist_by_idx(size_t idx)
 {
@@ -711,16 +504,49 @@ static void que_cmd(uint cmd, void *param)
 
 // matches enum FMED_QUE
 static const char *const scmds[] = {
-	"play", "play-excl", "mix", "stop-after", "next", "prev", "save", "clear", "add", "rm", "rmdead",
-	"meta-set", "setonchange", "expand", "have-user-meta",
-	"que-new", "que-del", "que-sel", "que-list", "is-curlist",
-	"id", "item", "item-locked", "item-unlock",
-	"flt-new", "flt-add", "flt-del", "lst-noflt",
-	"sort", "count",
-	"xplay", "add2", "add-after", "settrackprops", "copytrackprops",
-	"", "", "", "",
-	"expand2", "expand-all",
-	"curid", "setcurid",
+	"FMED_QUE_PLAY",
+	"FMED_QUE_PLAY_EXCL",
+	"FMED_QUE_MIX",
+	"FMED_QUE_STOP_AFTER",
+	"FMED_QUE_NEXT2",
+	"FMED_QUE_PREV2",
+	"FMED_QUE_SAVE",
+	"FMED_QUE_CLEAR",
+	"FMED_QUE_ADD",
+	"FMED_QUE_RM",
+	"FMED_QUE_RMDEAD",
+	"FMED_QUE_METASET",
+	"FMED_QUE_SETONCHANGE",
+	"FMED_QUE_EXPAND",
+	"FMED_QUE_HAVEUSERMETA",
+	"FMED_QUE_NEW",
+	"FMED_QUE_DEL",
+	"FMED_QUE_SEL",
+	"FMED_QUE_LIST",
+	"FMED_QUE_ISCURLIST",
+	"FMED_QUE_ID",
+	"FMED_QUE_ITEM",
+	"FMED_QUE_ITEMLOCKED",
+	"FMED_QUE_ITEMUNLOCK",
+	"FMED_QUE_NEW_FILTERED",
+	"FMED_QUE_ADD_FILTERED",
+	"FMED_QUE_DEL_FILTERED",
+	"FMED_QUE_LIST_NOFILTER",
+	"FMED_QUE_SORT",
+	"FMED_QUE_COUNT",
+	"FMED_QUE_XPLAY",
+	"FMED_QUE_ADD2",
+	"FMED_QUE_ADDAFTER",
+	"FMED_QUE_SETTRACKPROPS",
+	"FMED_QUE_COPYTRACKPROPS",
+	"FMED_QUE_SET_RANDOM",
+	"FMED_QUE_SET_NEXTIFERROR",
+	"FMED_QUE_SET_REPEATALL",
+	"FMED_QUE_SET_QUITIFDONE",
+	"FMED_QUE_EXPAND2",
+	"FMED_QUE_EXPAND_ALL",
+	"FMED_QUE_CURID",
+	"FMED_QUE_SETCURID",
 };
 
 static ssize_t que_cmdv(uint cmd, ...)
@@ -858,21 +684,7 @@ static ssize_t que_cmdv(uint cmd, ...)
 		fmed_que_entry *qsrc = va_arg(va, void*);
 		entry *e = FF_GETPTR(entry, e, qent);
 		entry *src = FF_GETPTR(entry, e, qsrc);
-
-		if (src->trk != NULL)
-			que_cmdv(FMED_QUE_SETTRACKPROPS, qent, src->trk);
-
-		const ffstr *dict = src->dict.ptr;
-		for (uint i = 0;  i != src->dict.len;  i += 2) {
-			if ((ssize_t)dict[i + 1].len >= 0)
-				que_meta_set(&e->e, &dict[i], &dict[i + 1], FMED_QUE_TRKDICT);
-			else {
-				ffstr s;
-				ffstr_set(&s, dict[i + 1].ptr, sizeof(int64));
-				que_meta_set(&e->e, &dict[i], &s, FMED_QUE_TRKDICT | FMED_QUE_NUM);
-			}
-		}
-
+		que_copytrackprops(e, src);
 		goto end;
 	}
 
@@ -902,16 +714,7 @@ static ssize_t que_cmdv(uint cmd, ...)
 		void *ondone = va_arg(va, void*);
 		void *ctx = va_arg(va, void*);
 		entry *e = FF_GETPTR(entry, e, _e);
-		void *trk = qu->track->create(FMED_TRK_TYPE_EXPAND, e->e.url.ptr);
-		if (trk == NULL || trk == FMED_TRK_EFMT) {
-			r = (size_t)trk;
-			goto end;
-		}
-		qu->track->setval(trk, "queue-ondone", (int64)(size_t)ondone);
-		qu->track->setval(trk, "queue-ondone-ctx", (int64)(size_t)ctx);
-		ent_ref(e); // for user to be able to get the next element in the list
-		ent_start_prepare(e, trk);
-		qu->track->cmd(trk, FMED_TRACK_START);
+		r = (ffsize)que_expand2(e, ondone, ctx);
 		goto end;
 	}
 
@@ -1270,319 +1073,4 @@ done:
 	if (!(flags & FMED_QUE_NO_ONCHANGE) && qu->onchange != NULL)
 		qu->onchange(&e->e, FMED_QUE_ONADD | (flags & FMED_QUE_MORE));
 	return &e->e;
-}
-
-static int que_arrfind(const ffstr *m, uint n, const char *name, size_t name_len)
-{
-	uint i;
-	for (i = 0;  i != n;  i += 2) {
-		if (ffstr_ieq(&m[i], name, name_len))
-			return i;
-	}
-	return -1;
-}
-
-static void _que_meta_set(fmed_que_entry *ent, const char *name, size_t name_len, const char *val, size_t val_len, uint flags)
-{
-	ffstr pair[2];
-	ffstr_set(&pair[0], name, name_len);
-	ffstr_set(&pair[1], val, val_len);
-	que_cmd2(FMED_QUE_METASET | (flags << 16), ent, (size_t)pair);
-}
-
-static void que_meta_set(fmed_que_entry *ent, const ffstr *name, const ffstr *val, uint flags)
-{
-	entry *e = FF_GETPTR(entry, e, ent);
-	char *sname, *sval;
-	ffarr2 *a;
-
-	if (!(flags & FMED_QUE_NUM)) {
-		dbglog0("meta #%u: %S: %S f:%xu"
-			, (e->meta.len + e->tmeta.len) / 2 + 1, name, val, flags);
-	}
-
-	a = &e->meta;
-	if (flags & FMED_QUE_TMETA) {
-		if (e->no_tmeta)
-			return;
-		a = &e->tmeta;
-
-	} else if (flags & FMED_QUE_TRKDICT) {
-		a = &e->dict;
-		if ((flags & FMED_QUE_NUM) && val->len != sizeof(int64))
-			return;
-	}
-
-	if (!(flags & FMED_QUE_PRIV) && ffstr_matchz(name, "__")) {
-		fmed_warnlog(core, NULL, "queue", "meta names starting with \"__\" are considered private: \"%S\""
-			, name);
-		return;
-	}
-
-	if (flags & (FMED_QUE_OVWRITE | FMED_QUE_METADEL)) {
-		int i = que_arrfind(a->ptr, a->len, name->ptr, name->len);
-
-		if (i == -1) {
-
-		} else if (flags & FMED_QUE_METADEL) {
-			fflk_lock(&qu->plist_lock);
-			ffarr ar;
-			ffarr_set3(&ar, (void*)a->ptr, a->len, a->len);
-			_ffarr_rm(&ar, i, 2, sizeof(ffstr));
-			a->len -= 2;
-			fflk_unlock(&qu->plist_lock);
-
-		} else {
-			if (NULL == (sval = ffsz_alcopy(val->ptr, val->len)))
-				goto err;
-
-			fflk_lock(&qu->plist_lock);
-			ffstr *arr = a->ptr;
-			ffstr_free(&arr[i + 1]);
-			ffstr_set(&arr[i + 1], sval, val->len);
-			fflk_unlock(&qu->plist_lock);
-		}
-
-		if (a == &e->meta) {
-			ffstr empty;
-			empty.len = 0;
-			que_meta_set(ent, name, &empty, FMED_QUE_TMETA | FMED_QUE_METADEL | (flags & ~FMED_QUE_OVWRITE));
-		}
-
-		if (i != -1)
-			return;
-
-		if (flags & FMED_QUE_METADEL)
-			return;
-	}
-
-	if (NULL == (sname = ffsz_alcopylwr(name->ptr, name->len)))
-		goto err;
-	if (flags & FMED_QUE_ACQUIRE)
-		sval = val->ptr;
-	else {
-		if (NULL == (sval = ffsz_alcopy(val->ptr, val->len)))
-			goto err;
-	}
-
-	fflk_lock(&qu->plist_lock);
-	if (NULL == ffslice_growT(a, 2, ffstr)) {
-		fflk_unlock(&qu->plist_lock);
-		goto err;
-	}
-
-	ffstr *arr = a->ptr;
-	ffstr_set(&arr[a->len], sname, name->len);
-	ffstr_set(&arr[a->len + 1], sval, val->len);
-	if ((flags & (FMED_QUE_TRKDICT | FMED_QUE_NUM)) == (FMED_QUE_TRKDICT | FMED_QUE_NUM))
-		arr[a->len + 1].len = -(ssize_t)arr[a->len + 1].len;
-	a->len += 2;
-	fflk_unlock(&qu->plist_lock);
-	return;
-
-err:
-	if (flags & FMED_QUE_ACQUIRE)
-		ffmem_free(val->ptr);
-	syserrlog("%s", ffmem_alloc_S);
-}
-
-static ffstr* que_meta_find(fmed_que_entry *ent, const char *name, size_t name_len)
-{
-	int i;
-	entry *e = FF_GETPTR(entry, e, ent);
-
-	if (name_len == (size_t)-1)
-		name_len = ffsz_len(name);
-
-	for (uint k = 0;  k != 2;  k++) {
-		const ffarr2 *meta = (k == 0) ? &e->meta : &e->tmeta;
-		if (-1 != (i = que_arrfind(meta->ptr, meta->len, name, name_len)))
-			return &((ffstr*)meta->ptr)[i + 1];
-	}
-
-	return NULL;
-}
-
-static ffstr* que_meta(fmed_que_entry *ent, size_t n, ffstr *name, uint flags)
-{
-	entry *e = FF_GETPTR(entry, e, ent);
-	size_t nn;
-	ffstr *m;
-
-	n *= 2;
-	if (n == e->meta.len + e->tmeta.len)
-		return NULL;
-
-	if (n < e->meta.len) {
-		m = e->meta.ptr;
-		nn = n;
-	} else {
-		if (flags & FMED_QUE_NO_TMETA)
-			return NULL;
-		m = e->tmeta.ptr;
-		nn = n - e->meta.len;
-	}
-
-	*name = m[nn];
-
-	if (flags & FMED_QUE_UNIQ) {
-		if (-1 != que_arrfind(e->meta.ptr, ffmin(n, e->meta.len), name->ptr, name->len))
-			return FMED_QUE_SKIP;
-
-		if (n >= e->meta.len) {
-			if (-1 != que_arrfind(e->tmeta.ptr, nn, name->ptr, name->len))
-				return FMED_QUE_SKIP;
-		}
-	}
-
-	if (ffstr_matchz(name, "__"))
-		return FMED_QUE_SKIP;
-
-	return &m[nn + 1];
-}
-
-
-/** Called after a track has been finished.
-Thread: main */
-static void que_ontrkfin(entry *e)
-{
-	if (qu->mixing) {
-		if (qu->quit_if_done && e->trk_mixed)
-			core->sig(FMED_STOP);
-	} else if (e->stop_after)
-		e->stop_after = 0;
-	else if (e->trk_stopped)
-	{}
-	else if (!e->trk_err || qu->next_if_err) {
-		if (qu->random || qu->repeat == FMED_QUE_REPEAT_ALL) {
-			/* Don't start the next track when there are too many consecutive errors.
-			When in Random or Repeat-all mode we may waste CPU resources
-			 without making any progress, e.g.:
-			. input: storage isn't online, files been moved, etc.
-			. filters: format or codec isn't supported, decoding error, etc.
-			. output: audio system is failing */
-
-			if (!e->trk_err && e->plist->nerrors != 0)
-				e->plist->nerrors = 0;
-			else if (e->trk_err) {
-				if (++e->plist->nerrors == MAX_N_ERRORS) {
-					infolog("Stopping playback: too many consecutive errors");
-					e->plist->nerrors = 0;
-					goto end;
-				}
-			}
-		}
-		que_cmd(FMED_QUE_NEXT2, &e->e);
-	}
-
-end:
-	ent_unref(e);
-}
-
-static void que_taskfunc(void *udata)
-{
-	struct quetask *qt = udata;
-	qt->tsk.handler = NULL;
-	switch ((enum CMD)qt->cmd) {
-	case CMD_TRKFIN:
-		que_ontrkfin((void*)qt->param);
-		break;
-
-	case CMD_TRKFIN_EXPAND: {
-		entry *e = (void*)qt->param;
-		pl_expand_next(e->plist, e);
-		ent_unref(e);
-		break;
-	}
-
-	default:
-		que_cmd(qt->cmd, (void*)qt->param);
-	}
-	ffmem_free(qt);
-}
-
-static void que_task_add(struct quetask *qt)
-{
-	qt->tsk.handler = &que_taskfunc;
-	qt->tsk.param = qt;
-	core->task(&qt->tsk, FMED_TASK_POST);
-}
-
-
-typedef struct que_trk {
-	entry *e;
-	const fmed_track *track;
-	void *trk;
-	fmed_filt *d;
-} que_trk;
-
-static void* que_trk_open(fmed_filt *d)
-{
-	que_trk *t;
-	entry *e = (void*)d->track->getval(d->trk, "queue_item");
-
-	if ((int64)e == FMED_NULL)
-		return FMED_FILT_SKIP; //the track wasn't created by this module
-
-	t = ffmem_tcalloc1(que_trk);
-	if (t == NULL) {
-		ent_unref(e);
-		return NULL;
-	}
-	t->track = d->track;
-	t->trk = d->trk;
-	t->e = e;
-	t->d = d;
-
-	if (1 == fmed_getval("error")) {
-		que_trk_close(t);
-		return NULL;
-	}
-	return t;
-}
-
-static void que_trk_close(void *ctx)
-{
-	que_trk *t = ctx;
-	entry *e = t->e;
-
-	if ((int64)t->d->audio.total != FMED_NULL && t->d->audio.fmt.sample_rate != 0)
-		t->e->e.dur = ffpcm_time(t->d->audio.total, t->d->audio.fmt.sample_rate);
-
-	int stopped = t->track->getval(t->trk, "stopped");
-	int err = t->track->getval(t->trk, "error");
-	t->e->trk_stopped = (stopped != FMED_NULL);
-	if (t->d->type == FMED_TRK_TYPE_EXPAND && !e->plist->expand_all)
-		e->trk_stopped = 1;
-	t->e->trk_err = (err != FMED_NULL);
-	t->e->trk_mixed = (FMED_NULL != t->track->getval(t->trk, "mix_tracks"));
-
-	struct quetask *qt = ffmem_new(struct quetask);
-	if (qt != NULL) {
-		qt->cmd = CMD_TRKFIN;
-		if (t->d->type == FMED_TRK_TYPE_EXPAND && e->plist->expand_all)
-			qt->cmd = CMD_TRKFIN_EXPAND;
-		qt->param = (size_t)t->e;
-		que_task_add(qt);
-	}
-
-	if (t->d->type == FMED_TRK_TYPE_EXPAND && qu->onchange != NULL)
-		qu->onchange(&e->e, FMED_QUE_ONUPDATE);
-
-	int64 v = t->track->getval(t->trk, "queue-ondone");
-	if (v != FMED_NULL) {
-		void (*ondone)(void*) = (void*)(size_t)v;
-		v = t->track->getval(t->trk, "queue-ondone-ctx");
-		FF_ASSERT(v != FMED_NULL);
-		void *ctx = (void*)(size_t)v;
-		ondone(ctx);
-	}
-
-	ffmem_free(t);
-}
-
-static int que_trk_process(void *ctx, fmed_filt *d)
-{
-	d->outlen = 0;
-	return FMED_RDONE;
 }

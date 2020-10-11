@@ -24,9 +24,9 @@ mixer                 mixer
 
 
 #define FMED_VER_MAJOR  1
-#define FMED_VER_MINOR  19
+#define FMED_VER_MINOR  20
 #define FMED_VER_FULL  ((FMED_VER_MAJOR << 8) | FMED_VER_MINOR)
-#define FMED_VER  "1.19"
+#define FMED_VER  "1.20"
 
 #define FMED_VER_GETMAJ(fullver)  ((fullver) >> 8)
 #define FMED_VER_GETMIN(fullver)  ((fullver) & 0xff)
@@ -35,7 +35,7 @@ mixer                 mixer
 It must be updated when incompatible changes are made to this file,
  then all modules must be rebuilt.
 The core will refuse to load modules built for any other core version. */
-#define FMED_VER_CORE  ((FMED_VER_MAJOR << 8) | 15)
+#define FMED_VER_CORE  ((FMED_VER_MAJOR << 8) | 20)
 
 #define FMED_HOMEPAGE  "https://stsaz.github.io/fmedia/"
 
@@ -250,11 +250,8 @@ struct fmed_mod {
 
 // TRACK
 
-enum {
-	FMED_NULL = -1LL
-};
-
-#define FMED_PNULL ((void*)FMED_NULL)
+#define FMED_NULL (-1LL)
+#define FMED_PNULL ((void*)(ffssize)-1)
 
 enum FMED_TRACK_CMD {
 	FMED_TRACK_START,
@@ -535,16 +532,25 @@ struct fmed_trk {
 	};
 
 //fmed_filt only:
-	size_t datalen;
 	union {
-	const char *data;
-	void **datani; //non-iterleaved
-	};
+		struct {
+			ffstr data_in;
+			ffstr data_out;
+		};
+		// obsolete:
+		struct {
+			size_t datalen;
+			union {
+			const char *data;
+			void **datani; //non-iterleaved
+			};
 
-	size_t outlen;
-	union {
-	const char *out;
-	void **outni;
+			size_t outlen;
+			union {
+			const char *out;
+			void **outni;
+			};
+		};
 	};
 };
 
@@ -742,7 +748,8 @@ enum FMED_QUE {
 	FMED_QUE_STOP_AFTER,
 
 	/** Start playing next/previous track.
-	@param: fmed_que_entry* */
+	@param: fmed_que_entry*: base (current) track
+	  NULL: base is the current track */
 	FMED_QUE_NEXT2,
 	FMED_QUE_PREV2,
 
