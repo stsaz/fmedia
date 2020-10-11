@@ -110,6 +110,7 @@ static const ffpars_arg gui_conf_args[] = {
 	{ "theme",	FFPARS_TINT | FFPARS_F8BIT, FFPARS_DSTOFF(ggui, theme_startup) },
 	{ "random",	FFPARS_TBOOL8, FFPARS_DSTOFF(ggui, list_random) },
 	{ "list_repeat",	FFPARS_TINT8, {FF_OFF(ggui, conf) + FF_OFF(struct guiconf, list_repeat)} },
+	{ "auto_attenuate_ceiling",	FFPARS_TFLOAT | FFPARS_FSIGN, {FF_OFF(ggui, conf) + FF_OFF(struct guiconf, auto_attenuate_ceiling)} },
 	{ "sel_after_cursor",	FFPARS_TBOOL8, FFPARS_DSTOFF(ggui, sel_after_cur) },
 	{ "list_columns_width",	FFPARS_TINT16 | FFPARS_FLIST, FFPARS_DST(&conf_list_col_width) },
 	{ "file_delete_method",	FFPARS_TSTR, FFPARS_DST(&conf_file_delete_method) },
@@ -802,6 +803,7 @@ static const char *const usrconf_setts[] = {
 	"gui.gui.list_track",
 	"gui.gui.list_scroll",
 	"gui.gui.list_repeat",
+	"gui.gui.auto_attenuate_ceiling",
 };
 
 /** Write user configuration value. */
@@ -837,6 +839,9 @@ static void usrconf_write_val(ffconfw *conf, uint i)
 		break;
 	case 8:
 		ffconf_writeint(conf, gg->conf.list_repeat, 0, FFCONF_TVAL);
+		break;
+	case 9:
+		ffconf_writefloat(conf, gg->conf.auto_attenuate_ceiling, 2, FFCONF_TVAL);
 		break;
 	}
 }
@@ -1440,6 +1445,10 @@ static void* gtrk_open(fmed_filt *d)
 	if (g->qent == FMED_PNULL) {
 		ffmem_free(g);
 		return FMED_FILT_SKIP; //tracks being recorded are not started from "queue"
+	}
+
+	if (gg->conf.auto_attenuate_ceiling < 0) {
+		d->audio.auto_attenuate_ceiling = gg->conf.auto_attenuate_ceiling;
 	}
 
 	if (FMED_PNULL != d->track->getvalstr(d->trk, "output"))

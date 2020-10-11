@@ -170,6 +170,7 @@ void rec_sets_destroy(rec_sets_t *sets);
 
 struct guiconf {
 	byte list_repeat;
+	float auto_attenuate_ceiling;
 };
 
 typedef struct ggui {
