@@ -101,6 +101,7 @@ static const struct cmd cmds[] = {
 	{ A_PLAY_STOP_AFTER,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op },
 	{ A_PLAY_NEXT,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op },
 	{ A_PLAY_PREV,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op },
+	{ A_PLAY_REPEAT,	F1 | CMD_FCORE | CMD_FUDATA,	&gui_corecmd_op },
 
 	{ A_PLAY_SEEK,	F1,	&gui_seek },
 	{ A_PLAY_FFWD,	F1,	&gui_seek },
@@ -998,6 +999,16 @@ static void gui_tonxtlist(void)
 void gui_status(const char *s, size_t len)
 {
 	ffui_stbar_settext(&gg->wmain.stbar, 1, s, len);
+}
+
+void wmain_status(const char *fmt, ...)
+{
+	va_list va;
+	va_start(va, fmt);
+	char *s = ffsz_allocfmtv(fmt, va);
+	va_end(va);
+	ffui_stbar_settextz(&gg->wmain.stbar, 1, s);
+	ffmem_free(s);
 }
 
 void gui_clear(void)

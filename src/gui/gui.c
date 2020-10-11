@@ -109,6 +109,7 @@ static const ffpars_arg gui_conf_args[] = {
 	{ "global_hotkeys",	FFPARS_TOBJ, FFPARS_DST(&gui_conf_ghk) },
 	{ "theme",	FFPARS_TINT | FFPARS_F8BIT, FFPARS_DSTOFF(ggui, theme_startup) },
 	{ "random",	FFPARS_TBOOL8, FFPARS_DSTOFF(ggui, list_random) },
+	{ "list_repeat",	FFPARS_TINT8, {FF_OFF(ggui, conf) + FF_OFF(struct guiconf, list_repeat)} },
 	{ "sel_after_cursor",	FFPARS_TBOOL8, FFPARS_DSTOFF(ggui, sel_after_cur) },
 	{ "list_columns_width",	FFPARS_TINT16 | FFPARS_FLIST, FFPARS_DST(&conf_list_col_width) },
 	{ "file_delete_method",	FFPARS_TSTR, FFPARS_DST(&conf_file_delete_method) },
@@ -301,6 +302,7 @@ static const char *const scmds[] = {
 	"A_PLAY_STOP_AFTER",
 	"A_PLAY_NEXT",
 	"A_PLAY_PREV",
+	"A_PLAY_REPEAT",
 
 	"A_PLAY_SEEK",
 	"A_PLAY_FFWD",
@@ -418,6 +420,7 @@ struct corecmd {
 	fftask tsk;
 	const struct cmd *cmd;
 	void *udata;
+	struct cmd cmd_s;
 };
 
 static void gui_corecmd(void *param)
@@ -437,6 +440,19 @@ void gui_corecmd_add(const struct cmd *cmd, void *udata)
 	c->tsk.handler = &gui_corecmd;
 	c->tsk.param = c;
 	c->cmd = cmd;
+	c->udata = udata;
+	core->task(&c->tsk, FMED_TASK_POST);
+}
+
+void gui_corecmd_add2(uint action_id, void *udata)
+{
+	struct corecmd *c = ffmem_new(struct corecmd);
+	c->tsk.handler = &gui_corecmd;
+	c->tsk.param = c;
+	c->cmd_s.cmd = action_id;
+	c->cmd_s.flags = F1 | CMD_FCORE | CMD_FUDATA;
+	c->cmd_s.func = gui_corecmd_op;
+	c->cmd = &c->cmd_s;
 	c->udata = udata;
 	core->task(&c->tsk, FMED_TASK_POST);
 }
@@ -535,6 +551,19 @@ void gui_corecmd_op(uint cmd, void *udata)
 		gg->curtrk->d->audio.gain = gg->vol;
 		break;
 
+	case A_PLAY_REPEAT: {
+		gg->conf.list_repeat = ffint_cycleinc(gg->conf.list_repeat, 3);
+		uint rpt = FMED_QUE_REPEAT_NONE;
+		switch (gg->conf.list_repeat) {
+		case 1:
+			rpt = FMED_QUE_REPEAT_TRACK; break;
+		case 2:
+			rpt = FMED_QUE_REPEAT_ALL; break;
+		}
+		gg->qu->cmdv(FMED_QUE_SET_REPEATALL, rpt);
+		wmain_status("Repeat: %s", repeat_str[gg->conf.list_repeat]);
+		break;
+	}
 
 	case A_LIST_CLEAR:
 		gg->qu->cmd(FMED_QUE_CLEAR | FMED_QUE_NO_ONCHANGE, NULL);
@@ -764,9 +793,15 @@ char* gui_userpath(const char *fn)
 }
 
 static const char *const usrconf_setts[] = {
-	"gui.gui.theme", "gui.gui.record.output", "gui.gui.convert.output",
-	"gui.gui.random", "gui.gui.sel_after_cursor", "gui.gui.list_columns_width",
-	"gui.gui.list_track", "gui.gui.list_scroll",
+	"gui.gui.theme",
+	"gui.gui.record.output",
+	"gui.gui.convert.output",
+	"gui.gui.random",
+	"gui.gui.sel_after_cursor",
+	"gui.gui.list_columns_width",
+	"gui.gui.list_track",
+	"gui.gui.list_scroll",
+	"gui.gui.list_repeat",
 };
 
 /** Write user configuration value. */
@@ -799,6 +834,9 @@ static void usrconf_write_val(ffconfw *conf, uint i)
 	case 7:
 		n = ffui_view_topindex(&gg->wmain.vlist);
 		ffconf_writeint(conf, n, 0, FFCONF_TVAL);
+		break;
+	case 8:
+		ffconf_writeint(conf, gg->conf.list_repeat, 0, FFCONF_TVAL);
 		break;
 	}
 }
@@ -1044,6 +1082,9 @@ static FFTHDCALL int gui_worker(void *param)
 
 	if (gg->autosave_playlists)
 		gui_corecmd_add(&cmd_loadlists, NULL);
+
+	if (gg->conf.list_repeat != 0)
+		gui_corecmd_add2(A_PLAY_REPEAT, NULL);
 
 	gui_themes_read();
 	gui_themes_add(gg->theme_startup);

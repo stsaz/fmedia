@@ -168,6 +168,10 @@ typedef struct rec_sets_t {
 
 void rec_sets_destroy(rec_sets_t *sets);
 
+struct guiconf {
+	byte list_repeat;
+};
+
 typedef struct ggui {
 	fflock lktrk, lklog;
 	gui_trk *curtrk; //currently playing track
@@ -233,6 +237,7 @@ typedef struct ggui {
 		;
 	int itab_convert; // index of "conversion" tab;  -1:none
 	int fav_pl; // Favorites playlist index;  -1:none
+	struct guiconf conf;
 } ggui;
 
 const fmed_core *core;
@@ -281,6 +286,7 @@ enum CMDS {
 	A_PLAY_STOP_AFTER,
 	A_PLAY_NEXT,
 	A_PLAY_PREV,
+	A_PLAY_REPEAT,
 
 	A_PLAY_SEEK,
 	A_PLAY_FFWD,
@@ -434,6 +440,7 @@ int gui_setmeta(gui_trk *g, fmed_que_entry *qent);
 void gui_conv_progress(gui_trk *g);
 void gui_clear(void);
 void gui_status(const char *s, size_t len);
+void wmain_status(const char *fmt, ...);
 void gui_media_added(fmed_que_entry *ent);
 void gui_rec(uint cmd);
 char* gui_usrconf_filename(void);
@@ -520,6 +527,7 @@ struct cvt_set {
 int sett_tostr(const void *sets, const struct cvt_set *sett, ffarr *dst);
 int gui_cvt_getsettings(const struct cvt_set *psets, uint nsets, void *sets, ffui_view *vlist);
 
+const char* const repeat_str[3];
 
 #define dbglog0(...)  fmed_dbglog(core, NULL, "gui", __VA_ARGS__)
 #define errlog0(...)  fmed_errlog(core, NULL, "gui", __VA_ARGS__)

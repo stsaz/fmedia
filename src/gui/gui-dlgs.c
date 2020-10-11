@@ -356,3 +356,6 @@ static void gui_wfilter_action(ffui_wnd *wnd, int id)
 		break;
 	}
 }
+
+
+const char* const repeat_str[3] = { "None", "Track", "Playlist" };
