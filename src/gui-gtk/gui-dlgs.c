@@ -5,6 +5,7 @@ Copyright (c) 2019 Simon Zolin */
 #include <gui-gtk/conv.h>
 #include <gui-gtk/meta-info.h>
 #include <gui-gtk/play-props.h>
+#include <gui-gtk/youtube-dload.h>
 
 
 static void wabout_action(ffui_wnd *wnd, int id)

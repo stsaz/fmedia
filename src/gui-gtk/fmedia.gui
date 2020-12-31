@@ -1,4 +1,4 @@
-# fmedia v1.8 GUI
+# fmedia v1.21 GUI
 
 menu mfile {
 	item "_Add..." {
@@ -8,6 +8,9 @@ menu mfile {
 	item "Add _URL..." {
 		action A_LIST_ADDURL
 		hotkey "Ctrl+U"
+	}
+	item "Download from YouTube..." {
+		action A_DLOAD_SHOW
 	}
 	item "-" {
 	}
@@ -364,5 +367,46 @@ window wplayprops {
 		column Value {
 			width 200
 		}
+	}
+}
+
+window wdload {
+	title "Download from YouTube"
+	position 300 100 300 500
+	label lurl {
+		text "URL:"
+		style horizontal
+	}
+	editbox eurl {
+		style horizontal
+	}
+	button bshowfmt {
+		style horizontal
+		text "Show Available Formats"
+		action A_DLOAD_SHOWFMT
+	}
+	text tlog {
+	}
+
+	label lcmdline {
+		text "Formats:"
+		style horizontal
+	}
+	editbox ecmdline {
+		style horizontal
+		text "<VIDEO>+<AUDIO>"
+	}
+	label lout {
+		text "Out Dir:"
+		style horizontal
+	}
+	editbox eout {
+		style horizontal
+		text ""
+	}
+	button bdl {
+		style horizontal
+		text Download
+		action A_DLOAD_DL
 	}
 }

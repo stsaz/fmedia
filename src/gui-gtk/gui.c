@@ -104,6 +104,8 @@ static const ffpars_arg gui_conf_args[] = {
 	{ "list_columns_width",	FFPARS_TINT16 | FFPARS_FLIST, FFPARS_DST(&conf_list_col_width) },
 	{ "list_track",	FFPARS_TINT, FFPARS_DSTOFF(struct gui_conf, list_actv_trk_idx) },
 	{ "list_scroll",	FFPARS_TINT, FFPARS_DSTOFF(struct gui_conf, list_scroll_pos) },
+	{ "ydl_format",	FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY, FFPARS_DSTOFF(struct gui_conf, ydl_format) },
+	{ "ydl_outdir",	FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY, FFPARS_DSTOFF(struct gui_conf, ydl_outdir) },
 
 	{ "record",	FFPARS_TOBJ, FFPARS_DST(&conf_ctxany) },
 	{ "convert",	FFPARS_TOBJ, FFPARS_DST(&conf_convert) },
@@ -167,12 +169,21 @@ end:
 	return 0;
 }
 
+static void conf_destroy()
+{
+	ffmem_free(gg->conf.ydl_format);
+	ffmem_free(gg->conf.ydl_outdir);
+}
+
 static void gui_destroy(void)
 {
 	if (gg == NULL)
 		return;
 
 	wconv_destroy();
+	wdload_destroy();
+	conf_destroy();
+	ffmem_free(gg->home_dir);
 	ffsem_close(gg->sem);
 	ffmem_free0(gg);
 }
@@ -210,6 +221,19 @@ static const ffui_ldr_ctl wabout_ctls[] = {
 	FFUI_LDR_CTL(struct gui_wabout, lurl),
 	FFUI_LDR_CTL_END
 };
+static const ffui_ldr_ctl wdload_ctls[] = {
+	FFUI_LDR_CTL(struct gui_wdload, wdload),
+	FFUI_LDR_CTL(struct gui_wdload, lurl),
+	FFUI_LDR_CTL(struct gui_wdload, eurl),
+	FFUI_LDR_CTL(struct gui_wdload, bshowfmt),
+	FFUI_LDR_CTL(struct gui_wdload, tlog),
+	FFUI_LDR_CTL(struct gui_wdload, lcmdline),
+	FFUI_LDR_CTL(struct gui_wdload, ecmdline),
+	FFUI_LDR_CTL(struct gui_wdload, lout),
+	FFUI_LDR_CTL(struct gui_wdload, eout),
+	FFUI_LDR_CTL(struct gui_wdload, bdl),
+	FFUI_LDR_CTL_END
+};
 static const ffui_ldr_ctl wuri_ctls[] = {
 	FFUI_LDR_CTL(struct gui_wuri, wuri),
 	FFUI_LDR_CTL(struct gui_wuri, turi),
@@ -239,6 +263,7 @@ static const ffui_ldr_ctl top_ctls[] = {
 	FFUI_LDR_CTL3(ggui, wuri, wuri_ctls),
 	FFUI_LDR_CTL3(ggui, winfo, winfo_ctls),
 	FFUI_LDR_CTL3(ggui, wplayprops, wplayprops_ctls),
+	FFUI_LDR_CTL3(ggui, wdload, wdload_ctls),
 	FFUI_LDR_CTL_END
 };
 
@@ -251,6 +276,7 @@ static void* gui_getctl(void *udata, const ffstr *name)
 static const char *const action_str[] = {
 	"A_LIST_ADDFILE",
 	"A_LIST_ADDURL",
+	"A_DLOAD_SHOW",
 	"A_FILE_SHOWPCM",
 	"A_FILE_SHOWINFO",
 	"A_FILE_SHOWDIR",
@@ -303,6 +329,9 @@ static const char *const action_str[] = {
 	"A_CHANGES_SHOW",
 
 	"A_URL_ADD",
+
+	"A_DLOAD_SHOWFMT",
+	"A_DLOAD_DL",
 };
 
 static int gui_getcmd(void *udata, const ffstr *name)
@@ -357,6 +386,7 @@ static FFTHDCALL int gui_worker(void *param)
 	wuri_init();
 	winfo_init();
 	wplayprops_init();
+	wdload_init();
 
 	if (gg->conf.list_random)
 		corecmd_add(_A_LIST_RANDOM, NULL);
@@ -894,6 +924,8 @@ static const char *const usrconf_setts[] = {
 	"gui.gui.list_scroll",
 	"gui.gui.list_repeat",
 	"gui.gui.auto_attenuate_ceiling",
+	"gui.gui.ydl_format",
+	"gui.gui.ydl_outdir",
 };
 
 /** Write user configuration value. */
@@ -921,6 +953,20 @@ static void usrconf_write_val(ffconfw *conf, uint i)
 	case 5:
 		ffconf_writefloat(conf, gg->conf.auto_attenuate_ceiling, 2, FFCONF_TVAL);
 		break;
+	case 6: {
+		ffstr text = {};
+		ffui_edit_textstr(&gg->wdload.ecmdline, &text);
+		ffconf_writestr(conf, &text, FFCONF_TVAL);
+		ffstr_free(&text);
+		break;
+	}
+	case 7: {
+		ffstr text = {};
+		ffui_edit_textstr(&gg->wdload.eout, &text);
+		ffconf_writestr(conf, &text, FFCONF_TVAL);
+		ffstr_free(&text);
+		break;
+	}
 	}
 }
 

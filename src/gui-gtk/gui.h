@@ -55,6 +55,20 @@ struct gui_wabout {
 	ffui_label labout, lurl;
 };
 
+struct gui_wdload {
+	ffui_wnd wdload;
+	ffui_label lurl;
+	ffui_edit eurl;
+	ffui_btn bshowfmt;
+	ffui_text tlog;
+
+	ffui_label lcmdline;
+	ffui_edit ecmdline;
+	ffui_label lout;
+	ffui_edit eout;
+	ffui_btn bdl;
+};
+
 struct gui_wuri {
 	ffui_wnd wuri;
 	ffui_edit turi;
@@ -87,6 +101,8 @@ struct gui_conf {
 	ushort list_col_width[16];
 	uint list_actv_trk_idx;
 	uint list_scroll_pos;
+	char *ydl_format;
+	char *ydl_outdir;
 };
 typedef struct ggui {
 	ffsem sem;
@@ -99,6 +115,8 @@ typedef struct ggui {
 	uint vol; //0..MAXVOL
 	uint go_pos;
 	uint tabs_counter;
+	char *home_dir;
+	void *subps;
 
 	struct gui_conf conf;
 	struct conv_sets conv_sets;
@@ -109,6 +127,7 @@ typedef struct ggui {
 	struct gui_wuri wuri;
 	struct gui_winfo winfo;
 	struct gui_wplayprops wplayprops;
+	struct gui_wdload wdload;
 	ffui_dialog dlg;
 	ffui_menu mfile;
 	ffui_menu mlist;
@@ -125,6 +144,7 @@ enum ACTION {
 
 	A_LIST_ADDFILE,
 	A_LIST_ADDURL,
+	A_DLOAD_SHOW,
 	A_FILE_SHOWPCM,
 	A_FILE_SHOWINFO,
 	A_FILE_SHOWDIR,
@@ -178,6 +198,9 @@ enum ACTION {
 
 	A_URL_ADD,
 
+	A_DLOAD_SHOWFMT,
+	A_DLOAD_DL,
+
 	A_ONCLOSE,
 	A_ONDROPFILE,
 	LOADLISTS,
@@ -215,5 +238,7 @@ void wuri_init();
 void winfo_init();
 void winfo_show(uint idx);
 void wplayprops_init();
+void wdload_init();
+void wdload_destroy();
 
 extern const char* const repeat_str[3];

@@ -137,6 +137,10 @@ static void wmain_action(ffui_wnd *wnd, int id)
 		ffui_show(&gg->wplayprops.wplayprops, 1);
 		return;
 
+	case A_DLOAD_SHOW:
+		ffui_show(&gg->wdload.wdload, 1);
+		return;
+
 	case A_LIST_SAVE:
 		list_save();
 		return;

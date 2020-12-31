@@ -670,7 +670,6 @@ static void mon_onsig(fmed_trk *trk, uint sig)
 
 
 static const ffuint signals[] = { SIGINT };
-static const int sigs_block[] = { SIGIO };
 
 static void crash_handler(struct ffsig_info *inf);
 
@@ -1131,6 +1130,9 @@ int main(int argc, char **argv, char **env)
 		}
 	}
 
+	static const int sigs_block[] = { SIGIO, SIGCHLD };
+	ffsig_mask(SIG_BLOCK, sigs_block, FF_COUNT(sigs_block));
+
 	if (0 != core->sig(FMED_OPEN))
 		goto end;
 
@@ -1143,7 +1145,6 @@ int main(int argc, char **argv, char **env)
 		syserrlog(core, NULL, "core", "%s", "ffsig_subscribe()");
 		goto end;
 	}
-	ffsig_mask(SIG_BLOCK, sigs_block, FF_COUNT(sigs_block));
 
 	fftask_set(&gcmd->tsk_start, &open_input, g->cmd);
 	core->task(&gcmd->tsk_start, FMED_TASK_POST);
