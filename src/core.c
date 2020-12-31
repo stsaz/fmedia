@@ -249,7 +249,7 @@ fmed_core* core_init(char **argv, char **env)
 		goto err;
 	if (NULL == ffpath_split2(p, ffsz_len(p), &path, NULL))
 		goto err;
-	if (NULL == ffstr_copy(&fmed->root, path.ptr, path.len + FFSLEN("/")))
+	if (NULL == ffstr_dup(&fmed->root, path.ptr, path.len + FFSLEN("/")))
 		goto err;
 
 	core->loglev = FMED_LOG_INFO;

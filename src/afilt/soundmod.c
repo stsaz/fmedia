@@ -11,7 +11,7 @@ Copyright (c) 2015 Simon Zolin */
 #define infolog(trk, ...)  fmed_infolog(core, trk, FILT_NAME, __VA_ARGS__)
 
 
-const fmed_core *core;
+extern const fmed_core *core;
 
 enum {
 	SILGEN_BUF_MSEC = 100,

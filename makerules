@@ -61,6 +61,8 @@ $(OBJ_DIR)/soundmod.o: $(SRCDIR)/afilt/soundmod.c $(SRCDIR)/fmedia.h $(FF_HDR) $
 	$(C)  $(CFLAGS_ALTOPT) $<  -o$@
 $(OBJ_DIR)/start-stop-level.o: $(SRCDIR)/afilt/start-stop-level.c $(SRCDIR)/fmedia.h $(FF_HDR) $(FF_AUDIO_HDR)
 	$(C)  $(CFLAGS_ALTOPT) $<  -o$@
+$(OBJ_DIR)/auto-attenuator.o: $(SRCDIR)/afilt/auto-attenuator.c $(SRCDIR)/fmedia.h $(FF_HDR) $(FF_AUDIO_HDR)
+	$(C)  $(CFLAGS_ALTOPT) $<  -o$@
 
 $(OBJ_DIR)/%.o: $(SRCDIR)/afilt/%.c $(SRCDIR)/fmedia.h $(FF_HDR) $(FF_AUDIO_HDR)
 	$(C)  $(CFLAGS) $<  -o$@

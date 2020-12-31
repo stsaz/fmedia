@@ -8,6 +8,12 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.21 - Dec 29, 2020
+
+ + GUI (Linux): File->"Download from YouTube" (via /usr/bin/youtube-dl)
+ - core: --gain didn't work (v1.20 bug)
+
+
 fmedia v1.20 - Oct 9, 2020
 
  + --auto-attenuate: Automatically reduce the volume of loud tracks

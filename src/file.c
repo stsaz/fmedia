@@ -33,7 +33,7 @@ typedef struct filemod {
 } filemod;
 
 static filemod *mod;
-const fmed_core *core;
+extern const fmed_core *core;
 
 typedef struct fmed_file {
 	fffileread *fr;
