@@ -283,7 +283,7 @@ static int trk_setout(fm_trk *t)
 			&& FMED_PNULL == (s = trk_getvalstr(t, "output"))
 			&& core->props->playback_module != NULL);
 
-		if (!playback && t->props.audio.auto_attenuate_ceiling != 0.0)
+		if (!(playback && t->props.audio.auto_attenuate_ceiling != 0.0))
 			addfilter(t, "#soundmod.gain");
 	}
 
