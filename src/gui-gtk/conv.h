@@ -1,9 +1,6 @@
 /**
 Copyright (c) 2019 Simon Zolin */
 
-#include <gui-gtk/gui.h>
-
-
 // CONFIG
 
 static int conf_conv_sets_output(ffparser_schem *ps, void *obj, char *val)

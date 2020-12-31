@@ -499,12 +499,14 @@ LIBS_GTK := -lgtk-3 -lgdk-3 -lpangocairo-1.0 -lpango-1.0 -lfribidi -latk-1.0 -lc
 $(OBJ_DIR)/gui.o: $(SRCDIR)/gui-gtk/gui.c $(SRCDIR)/gui-gtk/gui.h $(SRCDIR)/fmedia.h $(FF)/FF/gui-gtk/gtk.h
 	$(C)  $(CFLAGS_ALTOPT) $(CFLAGS_GTK) $<  -o$@
 
+$(OBJ_DIR)/gui-dlgs.o: $(SRCDIR)/gui-gtk/gui-dlgs.c $(wildcard $(SRCDIR)/gui-gtk/*.h) $(SRCDIR)/fmedia.h $(FF_GUIHDR)
+	$(C) $(CFLAGS) $(CFLAGS_GTK)  $< -o$@
+
 $(OBJ_DIR)/%.o: $(SRCDIR)/gui-gtk/%.c $(SRCDIR)/gui-gtk/gui.h $(SRCDIR)/fmedia.h $(FF)/FF/gui-gtk/gtk.h
 	$(C) $(CFLAGS) $(CFLAGS_GTK)  $< -o$@
 
 GUIGTK_O := $(OBJ_DIR)/gui.o \
 	$(OBJ_DIR)/gui-main.o \
-	$(OBJ_DIR)/gui-conv.o \
 	$(OBJ_DIR)/gui-dlgs.o \
 	$(FF_OBJ_DIR)/fftime.o \
 	$(FF_OBJ_DIR)/ffpath.o \

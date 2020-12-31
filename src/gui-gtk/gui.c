@@ -359,13 +359,13 @@ static FFTHDCALL int gui_worker(void *param)
 	wplayprops_init();
 
 	if (gg->conf.list_random)
-		corecmd_run(A_LIST_RANDOM, NULL);
+		corecmd_add(_A_LIST_RANDOM, NULL);
 
 	if (gg->conf.autosave_playlists)
 		corecmd_add(LOADLISTS, NULL);
 
 	if (gg->conf.list_repeat != 0)
-		corecmd_add(A_PLAY_REPEAT, NULL);
+		corecmd_add(_A_PLAY_REPEAT, NULL);
 
 	ffsem_post(gg->sem);
 	dbglog("entering UI loop");
@@ -472,6 +472,7 @@ static void corecmd_run(uint cmd, void *udata)
 
 	case A_STOP_AFTER:
 		gg->qu->cmd(FMED_QUE_STOP_AFTER, NULL);
+		wmain_status("Stop After Current: set");
 		break;
 
 	case A_NEXT:
@@ -483,8 +484,10 @@ static void corecmd_run(uint cmd, void *udata)
 		break;
 	}
 
-	case A_PLAY_REPEAT: {
+	case A_PLAY_REPEAT:
 		gg->conf.list_repeat = ffint_cycleinc(gg->conf.list_repeat, 3);
+		// fallthrough
+	case _A_PLAY_REPEAT: {
 		uint rpt = FMED_QUE_REPEAT_NONE;
 		switch (gg->conf.list_repeat) {
 		case 1:
@@ -567,6 +570,8 @@ static void corecmd_run(uint cmd, void *udata)
 
 	case A_LIST_RANDOM:
 		gg->conf.list_random = !gg->conf.list_random;
+		// fallthrough
+	case _A_LIST_RANDOM:
 		gg->qu->cmdv(FMED_QUE_SET_RANDOM, (uint)gg->conf.list_random);
 		wmain_status("Random: %d", gg->conf.list_random);
 		break;

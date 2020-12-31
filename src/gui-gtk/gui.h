@@ -182,6 +182,8 @@ enum ACTION {
 	A_ONDROPFILE,
 	LOADLISTS,
 	LIST_DISPINFO,
+	_A_PLAY_REPEAT,
+	_A_LIST_RANDOM,
 };
 
 void corecmd_add(uint cmd, void *udata);
@@ -214,4 +216,4 @@ void winfo_init();
 void winfo_show(uint idx);
 void wplayprops_init();
 
-const char* const repeat_str[3];
+extern const char* const repeat_str[3];

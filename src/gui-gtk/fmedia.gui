@@ -291,6 +291,7 @@ window wmain {
 }
 
 window wconvert {
+	position 300 100 300 300
 	title "Convert"
 
 	mainmenu mmconv {
