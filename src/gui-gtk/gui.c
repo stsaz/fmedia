@@ -114,6 +114,7 @@ static int gui_sig(uint signo)
 		gg->vol = 100;
 		gg->go_pos = -1;
 		wconvert_init();
+		wlog_init();
 		return 0;
 
 	case FMED_OPEN:
@@ -136,6 +137,7 @@ static int gui_sig(uint signo)
 		}
 
 		ffsem_wait(gg->sem, -1); //give the GUI thread some time to create controls
+		wlog_run();
 end:
 		ffsem_close(gg->sem);
 		gg->sem = FFSEM_INV;
@@ -162,6 +164,7 @@ static void gui_destroy(void)
 	wconv_destroy();
 	wdload_destroy();
 	conf_destroy();
+	wlog_destroy();
 	ffmem_free(gg->home_dir);
 	ffsem_close(gg->sem);
 	ffmem_free0(gg);
@@ -233,6 +236,7 @@ static const ffui_ldr_ctl top_ctls[] = {
 	FFUI_LDR_CTL3(ggui, winfo, winfo_ctls),
 	FFUI_LDR_CTL3(ggui, wplayprops, wplayprops_ctls),
 	FFUI_LDR_CTL3(ggui, wdload, wdload_ctls),
+	FFUI_LDR_CTL3_PTR(ggui, wlog, wlog_ctls),
 	FFUI_LDR_CTL_END
 };
 

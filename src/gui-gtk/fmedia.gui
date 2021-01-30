@@ -429,3 +429,10 @@ window wdload {
 		action A_DLOAD_DL
 	}
 }
+
+window wlog {
+	title "Log Messages"
+	position 300 100 600 200
+	text tlog {
+	}
+}

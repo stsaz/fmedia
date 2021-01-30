@@ -91,7 +91,9 @@ struct gui_conf {
 	char *ydl_outdir;
 };
 struct gui_wconvert;
+struct gui_wlog;
 extern const ffui_ldr_ctl wconvert_ctls[];
+extern const ffui_ldr_ctl wlog_ctls[];
 typedef struct ggui {
 	ffsem sem;
 	uint load_err;
@@ -115,6 +117,7 @@ typedef struct ggui {
 	struct gui_winfo winfo;
 	struct gui_wplayprops wplayprops;
 	struct gui_wdload wdload;
+	struct gui_wlog *wlog;
 	ffui_dialog dlg;
 	ffui_menu mfile;
 	ffui_menu mlist;
@@ -235,6 +238,10 @@ void wconv_destroy();
 void wconv_show();
 void wconv_setdata(int id, uint pos);
 int wconvert_conf_writeval(ffstr *line, ffconfw *conf);
+
+void wlog_init();
+void wlog_run();
+void wlog_destroy();
 
 void wabout_init();
 void wuri_init();
