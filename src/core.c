@@ -564,7 +564,7 @@ static const void* core_getmod(const char *name)
 const fmed_modinfo* core_getmodinfo(const ffstr *name)
 {
 	core_mod *mod;
-	FFLIST_WALK(&fmed->mods, mod, sib) {
+	_FFLIST_WALK(&fmed->mods, mod, sib) {
 		if (ffstr_eqz(name, mod->name))
 			return (fmed_modinfo*)mod;
 	}

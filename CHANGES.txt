@@ -8,6 +8,14 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.22 - Jan 25, 2021
+
+ + GUI (Linux): "Convert" dialog with editable conversion properties and hotkeys for marking Start/Stop position
+ + GUI (Linux): window for log messages
+ + .mp4 read: support .mov
+ + detect input file format from file data
+
+
 fmedia v1.21 - Dec 29, 2020
 
  + GUI (Linux): File->"Download from YouTube" (via /usr/bin/youtube-dl)

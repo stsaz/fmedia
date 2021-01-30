@@ -159,7 +159,7 @@ static void que_mix(void)
 	qu->track->cmd(mxout, FMED_TRACK_START);
 
 	qu->mixing = 1;
-	FFLIST_WALK(ents, e, sib) {
+	_FFLIST_WALK(ents, e, sib) {
 		que_play(e);
 	}
 }

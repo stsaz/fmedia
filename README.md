@@ -10,7 +10,7 @@ Its low CPU & memory consumption saves energy when running on a notebook's batte
 Play or convert audio files, record new audio tracks from microphone, save songs from Internet radio, and much more!
 fmedia is free and open-source project, and you can use it as a standalone application or as a library for your own software.
 
-fmedia can read: .mp3, .ogg (Vorbis, Opus), .opus, .m4a/.mp4 (AAC, ALAC, MPEG), .mka/.mkv (AAC, ALAC, MPEG, Vorbis), .caf (AAC, ALAC), .avi (AAC, MPEG), .aac, .mpc, .flac, .ape, .wv, .wav.
+fmedia can read: .mp3, .ogg (Vorbis, Opus), .opus, .mp4/.m4a/.mov (AAC, ALAC, MPEG), .mka/.mkv (AAC, ALAC, MPEG, Vorbis), .caf (AAC, ALAC), .avi (AAC, MPEG), .aac, .mpc, .flac, .ape, .wv, .wav.
 
 fmedia can write: .mp3, .ogg, .opus, .m4a (AAC), .flac, .wav, .aac (--stream-copy only).
 
@@ -149,6 +149,7 @@ INSTALL
 		git clone https://github.com/stsaz/ffos
 		git clone https://github.com/stsaz/ff
 		git clone https://github.com/stsaz/ff-3pt
+		git clone https://github.com/stsaz/avpack
 		git clone https://github.com/stsaz/fmedia
 
 Note: builds from the latest `master` branch are not supported and *may not work*!

@@ -107,7 +107,7 @@ static FFINL char* fileout_getname(fmed_fileout *f, fmed_filt *d)
 	// "PATH/.EXT" -> "PATH/$filename.EXT"
 	if (NULL == ffpath_split2(fn.ptr, fn.len, &fdir, &fname))
 		ffstr_set(&fdir, ".", 1);
-	if (fname.ptr == ffpath_splitname(fname.ptr, fname.len, &ext, NULL)) {
+	if (0 == ffpath_splitname(fname.ptr, fname.len, &ext, NULL)) {
 		if (0 == ffstr_catfmt(&outfn, "%S/$filename%S"
 			, &fdir, &ext))
 			goto done;

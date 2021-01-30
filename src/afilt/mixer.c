@@ -271,7 +271,7 @@ static void mix_close(void *ctx)
 	mxr *m = ctx;
 	mix_in *mi;
 
-	FFLIST_WALK(&m->inputs, mi, sib) {
+	_FFLIST_WALK(&m->inputs, mi, sib) {
 		mi->m = NULL;
 		if (mi->more) {
 			mi->more = 0;
@@ -359,7 +359,7 @@ static int mix_read(void *ctx, fmed_filt *d)
 		ffmem_zero(m->data.ptr, DATA_SIZE);
 		m->data.len = 0;
 		m->filled = 0;
-		FFLIST_WALK(&m->inputs, mi, sib) {
+		_FFLIST_WALK(&m->inputs, mi, sib) {
 			mi->off = 0;
 			mi->filled = 0;
 		}
@@ -379,7 +379,7 @@ static int mix_read(void *ctx, fmed_filt *d)
 	}
 
 	//notify those streams that have more output
-	FFLIST_WALK(&m->inputs, mi, sib) {
+	_FFLIST_WALK(&m->inputs, mi, sib) {
 		if (mi->more) {
 			mi->more = 0;
 			track->cmd(mi->trk, FMED_TRACK_WAKE);

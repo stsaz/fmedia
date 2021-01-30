@@ -64,5 +64,6 @@ int core_conf_parse(fmed_config *conf, const char *filename, uint flags);
 #define infolog0(...)  fmed_infolog(core, NULL, "core", __VA_ARGS__)
 #define dbglog0(...)  fmed_dbglog(core, NULL, "core", __VA_ARGS__)
 #define errlog0(...)  fmed_errlog(core, NULL, "core", __VA_ARGS__)
+#define errlog1(trk, ...)  fmed_errlog(core, trk, NULL, __VA_ARGS__)
 #define syswarnlog(trk, ...)  fmed_syswarnlog(core, NULL, "core", __VA_ARGS__)
 #define syserrlog(...)  fmed_syserrlog(core, NULL, "core", __VA_ARGS__)
