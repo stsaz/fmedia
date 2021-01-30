@@ -1,4 +1,4 @@
-# fmedia v1.21 GUI
+# fmedia v1.22 GUI
 
 menu mfile {
 	item "_Add..." {
@@ -157,6 +157,14 @@ menu mconvert {
 		action A_SHOWCONVERT
 		hotkey "Ctrl+T"
 	}
+	item "Set Seek Position" {
+		action A_CONV_SET_SEEK
+		hotkey "["
+	}
+	item "Set Until Position" {
+		action A_CONV_SET_UNTIL
+		hotkey "]"
+	}
 }
 
 menu mhelp {
@@ -294,7 +302,7 @@ window wmain {
 }
 
 window wconvert {
-	position 300 100 300 300
+	position 300 100 500 500
 	title "Convert"
 
 	mainmenu mmconv {
@@ -304,7 +312,7 @@ window wconvert {
 	}
 
 	label lfn {
-		text "Convert files to:"
+		text "Convert selected files to:"
 	}
 
 	editbox eout {
@@ -315,6 +323,15 @@ window wconvert {
 		style horizontal
 		text "..."
 		action A_CONVOUTBROWSE
+	}
+	listview vconfig {
+		style editable grid_lines
+		column Name {
+			width 200
+		}
+		column Value {
+			width 200
+		}
 	}
 }
 
@@ -345,6 +362,7 @@ window winfo {
 	position 300 100 300 500
 
 	listview vinfo {
+		style editable
 		column Name {
 		}
 		column Value {
@@ -361,6 +379,7 @@ window wplayprops {
 	# }
 
 	listview vconfig {
+		style editable grid_lines
 		column Name {
 			width 200
 		}

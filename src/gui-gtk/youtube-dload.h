@@ -45,7 +45,7 @@ static void subps_destroy(struct subps *sp)
 }
 
 static void subps_progress(struct subps *sp);
-static void wdload_status_add(int id, const ffstr *s);
+static void wdload_status_add_enqueue(int id, const ffstr *s);
 static void subps_onsig(struct subps *sp);
 
 static int sig_prepare(struct subps *sp)
@@ -77,7 +77,7 @@ static int pipe_prepare(struct subps *sp)
 
 static void subps_status(struct subps *sp)
 {
-	wdload_status_add(0, (ffstr*)&sp->data);
+	wdload_status_add_enqueue(0, (ffstr*)&sp->data);
 	sp->data.len = 0;
 }
 
@@ -206,9 +206,21 @@ static void subps_onsig(struct subps *sp)
 	subps_progress(sp);
 }
 
-static void wdload_status_add(int id, const ffstr *s)
+/** Thread: GUI */
+static void wdload_status_add(void *param)
 {
-	ffui_send_text_addtextstr(&gg->wdload.tlog, s);
+	ffstr *s = param;
+	ffui_text_addtextstr(&gg->wdload.tlog, s);
+	ffui_text_scroll(&gg->wdload.tlog, -1);
+	ffstr_free(s);
+	ffmem_free(s);
+}
+
+static void wdload_status_add_enqueue(int id, const ffstr *s)
+{
+	ffstr *sc = ffmem_new(ffstr);
+	ffstr_dup2(sc, s);
+	ffui_thd_post(wdload_status_add, sc, 0);
 }
 
 struct subps* subps_new()

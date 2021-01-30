@@ -134,7 +134,7 @@ static void wmain_action(ffui_wnd *wnd, int id)
 	}
 
 	case A_SHOW_PROPS:
-		ffui_show(&gg->wplayprops.wplayprops, 1);
+		wplayprops_show();
 		return;
 
 	case A_DLOAD_SHOW:
@@ -175,6 +175,13 @@ static void wmain_action(ffui_wnd *wnd, int id)
 	case A_SHOWCONVERT:
 		wconv_show();
 		return;
+
+	case A_CONV_SET_SEEK:
+	case A_CONV_SET_UNTIL: {
+		int pos = ffui_trk_val(&gg->wmain.tpos);
+		wconv_setdata(id, pos);
+		return;
+	}
 
 	case A_CONF_EDIT:
 	case A_USRCONF_EDIT:
@@ -278,6 +285,7 @@ void wmain_list_update(uint idx, int delta)
 
 static void list_setdata_scroll(void *param)
 {
+	ffui_view_clear(&gg->wmain.vlist);
 	ffui_view_setdata(&gg->wmain.vlist, 0, (size_t)param);
 	if (ffui_tab_active(&gg->wmain.tabs) == 0 && gg->conf.list_scroll_pos != 0) {
 		// ffui_view_scroll_setvert() doesn't work here
@@ -303,12 +311,10 @@ void wmain_ent_removed(uint idx)
 
 void wmain_newtrack(fmed_que_entry *ent, uint time_total, fmed_filt *d)
 {
-	ffui_post_trk_setrange(&gg->wmain.tpos, time_total);
-	ent->dur = time_total * 1000;
+	int conversion = (FMED_PNULL != d->track->getvalstr(d->trk, "output"));
 
 	char buf[1024];
 	size_t n;
-
 	n = ffs_fmt(buf, buf + sizeof(buf), "%u kbps, %s, %u Hz, %s, %s"
 		, (d->audio.bitrate + 500) / 1000
 		, d->audio.decoder
@@ -316,6 +322,13 @@ void wmain_newtrack(fmed_que_entry *ent, uint time_total, fmed_filt *d)
 		, ffpcm_fmtstr(d->audio.fmt.format)
 		, ffpcm_channelstr(d->audio.fmt.channels));
 	gg->qu->meta_set(ent, FFSTR("__info"), buf, n, FMED_QUE_PRIV | FMED_QUE_OVWRITE);
+
+	if (conversion) {
+		int idx = gg->qu->cmdv(FMED_QUE_ID, ent);
+		if (idx != -1)
+			ffui_send_view_setdata(&gg->wmain.vlist, idx, 0);
+		return;
+	}
 
 	void *active_qent = gg->wmain.active_qent;
 	gg->wmain.active_qent = ent;
@@ -327,6 +340,9 @@ void wmain_newtrack(fmed_que_entry *ent, uint time_total, fmed_filt *d)
 	if (idx != -1)
 		ffui_send_view_setdata(&gg->wmain.vlist, idx, 0);
 
+	ffui_post_trk_setrange(&gg->wmain.tpos, time_total);
+	ent->dur = time_total * 1000;
+
 	ffstr artist = {}, title = {}, *val;
 	if (NULL != (val = gg->qu->meta_find(ent, FFSTR("artist"))))
 		artist = *val;
@@ -337,6 +353,7 @@ void wmain_newtrack(fmed_que_entry *ent, uint time_total, fmed_filt *d)
 		//use filename as a title
 		ffpath_split3(ent->url.ptr, ent->url.len, NULL, &title, NULL);
 	}
+
 	char *sz = ffsz_alfmt("%S - %S - fmedia", &artist, &title);
 	ffui_send_wnd_settext(&gg->wmain.wmain, sz);
 	ffmem_free(sz);
@@ -392,11 +409,16 @@ uint tab_new(uint flags)
 }
 
 /** Create a new tab. */
-void wmain_tab_new()
+ffuint wmain_tab_new(ffuint flags)
 {
 	char buf[32];
-	ffs_fmt(buf, buf + sizeof(buf), "Playlist %u%Z", ++gg->tabs_counter);
+	if (flags & TAB_CONVERT)
+		ffsz_copyz(buf, sizeof(buf), "Converting...");
+	else
+		ffs_fmt(buf, buf + sizeof(buf), "Playlist %u%Z", ++gg->tabs_counter);
+
 	ffui_send_tab_ins(&gg->wmain.tabs, buf);
+	return ffui_send_tab_count(&gg->wmain.tabs) - 1;
 }
 
 /** Create a new tab and playlist. */
@@ -407,6 +429,11 @@ void list_new()
 	ffui_tab_setactive(&gg->wmain.tabs, n);
 	ffui_view_clear(&gg->wmain.vlist);
 	corecmd_add(A_LIST_NEW, (void*)(size_t)n);
+}
+
+void wmain_list_select(ffuint idx)
+{
+	ffui_send_tab_setactive(&gg->wmain.tabs, idx);
 }
 
 /** Remove the current tab and activate its neighbour or create a new tab. */

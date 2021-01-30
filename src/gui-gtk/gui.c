@@ -10,19 +10,6 @@ Copyright (c) 2019 Simon Zolin */
 const fmed_core *core;
 ggui *gg;
 
-typedef struct gtrk {
-	void *trk;
-	fmed_que_entry *qent;
-	fmed_filt *d;
-	uint sample_rate;
-
-	uint time_cur;
-	uint time_total;
-	int time_seek;
-
-	uint paused :1;
-} gtrk;
-
 
 //FMEDIA MODULE
 static const void* gui_iface(const char *name);
@@ -34,16 +21,7 @@ static const fmed_mod fmed_gui_mod = {
 	&gui_iface, &gui_sig, &gui_destroy, &gui_conf
 };
 
-//GUI-TRACK
-static void* gtrk_open(fmed_filt *d);
-static int gtrk_process(void *ctx, fmed_filt *d);
-static void gtrk_close(void *ctx);
-static const fmed_filter gui_track_iface = {
-	&gtrk_open, &gtrk_process, &gtrk_close
-};
-static void gtrk_seek(uint cmd, uint val);
-static void gtrk_vol(uint pos);
-static double gtrk_vol2(gtrk *t, uint pos);
+#include <gui-gtk/track.h>
 
 static FFTHDCALL int gui_worker(void *param);
 static void gui_que_onchange(fmed_que_entry *e, uint flags);
@@ -135,6 +113,7 @@ static int gui_sig(uint signo)
 			return -1;
 		gg->vol = 100;
 		gg->go_pos = -1;
+		wconvert_init();
 		return 0;
 
 	case FMED_OPEN:
@@ -205,16 +184,6 @@ static const ffui_ldr_ctl wmain_ctls[] = {
 	FFUI_LDR_CTL(struct gui_wmain, tray_icon),
 	FFUI_LDR_CTL_END
 };
-static const ffui_ldr_ctl wconvert_ctls[] = {
-	FFUI_LDR_CTL(struct gui_wconvert, wconvert),
-	FFUI_LDR_CTL(struct gui_wconvert, mmconv),
-	FFUI_LDR_CTL(struct gui_wconvert, lfn),
-	FFUI_LDR_CTL(struct gui_wconvert, lsets),
-	FFUI_LDR_CTL(struct gui_wconvert, eout),
-	FFUI_LDR_CTL(struct gui_wconvert, boutbrowse),
-	FFUI_LDR_CTL(struct gui_wconvert, vsets),
-	FFUI_LDR_CTL_END
-};
 static const ffui_ldr_ctl wabout_ctls[] = {
 	FFUI_LDR_CTL(struct gui_wabout, wabout),
 	FFUI_LDR_CTL(struct gui_wabout, labout),
@@ -258,7 +227,7 @@ static const ffui_ldr_ctl top_ctls[] = {
 	FFUI_LDR_CTL(ggui, mhelp),
 	FFUI_LDR_CTL(ggui, dlg),
 	FFUI_LDR_CTL3(ggui, wmain, wmain_ctls),
-	FFUI_LDR_CTL3(ggui, wconvert, wconvert_ctls),
+	FFUI_LDR_CTL3_PTR(ggui, wconvert, wconvert_ctls),
 	FFUI_LDR_CTL3(ggui, wabout, wabout_ctls),
 	FFUI_LDR_CTL3(ggui, wuri, wuri_ctls),
 	FFUI_LDR_CTL3(ggui, winfo, winfo_ctls),
@@ -318,8 +287,12 @@ static const char *const action_str[] = {
 	"A_LIST_SORTRANDOM",
 
 	"A_SHOWCONVERT",
+	"A_CONV_SET_SEEK",
+	"A_CONV_SET_UNTIL",
+
 	"A_CONVERT",
 	"A_CONVOUTBROWSE",
+	"A_CONV_EDIT",
 
 	"A_ABOUT",
 	"A_CONF_EDIT",
@@ -332,6 +305,8 @@ static const char *const action_str[] = {
 
 	"A_DLOAD_SHOWFMT",
 	"A_DLOAD_DL",
+
+	"A_PLAYPROPS_EDIT",
 };
 
 static int gui_getcmd(void *udata, const ffstr *name)
@@ -381,7 +356,6 @@ static FFTHDCALL int gui_worker(void *param)
 	if (0 != load_ui())
 		goto err;
 	wmain_init();
-	wconvert_init();
 	wabout_init();
 	wuri_init();
 	winfo_init();
@@ -439,6 +413,22 @@ void corecmd_add(uint cmd, void *udata)
 	c->cmd = cmd;
 	c->udata = udata;
 	core->task(&c->tsk, FMED_TASK_POST);
+}
+
+void corecmd_addfunc(fftask_handler func, void *udata)
+{
+	dbglog("%s func:%p  udata:%p", __func__, func, udata);
+	struct corecmd *c = ffmem_new(struct corecmd);
+	c->tsk.handler = func;
+	c->tsk.param = udata;
+	core->task(&c->tsk, FMED_TASK_POST);
+}
+
+void gui_list_sel(uint idx)
+{
+	gg->qu->cmdv(FMED_QUE_SEL, idx);
+	uint n = gg->qu->cmdv(FMED_QUE_COUNT);
+	wmain_list_set(0, n);
 }
 
 static void corecmd_run(uint cmd, void *udata)
@@ -573,12 +563,9 @@ static void corecmd_run(uint cmd, void *udata)
 	case A_LIST_DEL:
 		gg->qu->cmdv(FMED_QUE_DEL, (uint)(size_t)udata);
 		break;
-	case A_LIST_SEL: {
-		gg->qu->cmdv(FMED_QUE_SEL, (uint)(size_t)udata);
-		uint n = gg->qu->cmdv(FMED_QUE_COUNT);
-		wmain_list_set(0, n);
+	case A_LIST_SEL:
+		gui_list_sel((ffsize)udata);
 		break;
-	}
 	case A_LIST_SAVE: {
 		char *list_fn = udata;
 		gg->qu->fmed_queue_save(-1, list_fn);
@@ -637,10 +624,6 @@ static void corecmd_run(uint cmd, void *udata)
 		ffmem_free(s);
 		break;
 	}
-
-	case A_CONVERT:
-		convert();
-		break;
 
 	case A_ONCLOSE:
 		if (gg->conf.autosave_playlists)
@@ -780,7 +763,7 @@ static void lists_load(void)
 			break;
 		if (i != 1) {
 			gg->qu->cmdv(FMED_QUE_NEW, 0);
-			wmain_tab_new();
+			wmain_tab_new(0);
 			list_add((ffstr*)&buf, i - 1);
 		} else {
 			list_add((ffstr*)&buf, -1);
@@ -926,6 +909,7 @@ static const char *const usrconf_setts[] = {
 	"gui.gui.auto_attenuate_ceiling",
 	"gui.gui.ydl_format",
 	"gui.gui.ydl_outdir",
+	"gui.gui.seek_step",
 };
 
 /** Write user configuration value. */
@@ -967,6 +951,9 @@ static void usrconf_write_val(ffconfw *conf, uint i)
 		ffstr_free(&text);
 		break;
 	}
+	case 8:
+		ffconf_writeint(conf, gg->conf.seek_step_delta, 0, FFCONF_TVAL);
+		break;
 	}
 }
 
@@ -1010,6 +997,11 @@ void usrconf_write(void)
 				break;
 			}
 		}
+
+		if (!found) {
+			found = wconvert_conf_writeval(&ln, &conf);
+		}
+
 		if (!found && ln.len != 0)
 			ffconf_writeln(&conf, &ln, 0);
 	}
@@ -1020,6 +1012,7 @@ void usrconf_write(void)
 		ffconf_writez(&conf, usrconf_setts[i], FFCONF_TKEY | FFCONF_ASIS);
 		usrconf_write_val(&conf, i);
 	}
+	wconvert_conf_writeval(NULL, &conf);
 
 	ffconf_writefin(&conf);
 
@@ -1085,138 +1078,4 @@ static void gui_que_onchange(fmed_que_entry *ent, uint flags)
 	case FMED_QUE_ONCLEAR:
 		break;
 	}
-}
-
-static void* gtrk_open(fmed_filt *d)
-{
-	fmed_que_entry *ent = (void*)d->track->getval(d->trk, "queue_item");
-	if (ent == FMED_PNULL)
-		return FMED_FILT_SKIP;
-
-	gtrk *t = ffmem_new(gtrk);
-	if (t == NULL)
-		return NULL;
-	t->time_cur = -1;
-	t->time_seek = -1;
-	t->qent = ent;
-	t->d = d;
-
-	if (d->audio.fmt.format == 0) {
-		errlog("audio format isn't set");
-		ffmem_free(t);
-		return NULL;
-	}
-
-	if (gg->vol != 100)
-		gtrk_vol2(t, gg->vol);
-
-	t->sample_rate = d->audio.fmt.sample_rate;
-	t->time_total = ffpcm_time(d->audio.total, t->sample_rate) / 1000;
-	wmain_newtrack(ent, t->time_total, d);
-	d->meta_changed = 0;
-
-	if (gg->conf.auto_attenuate_ceiling < 0) {
-		d->audio.auto_attenuate_ceiling = gg->conf.auto_attenuate_ceiling;
-	}
-
-	t->trk = d->trk;
-	gg->curtrk = t;
-	return t;
-}
-
-static int gtrk_process(void *ctx, fmed_filt *d)
-{
-	gtrk *t = ctx;
-
-	if ((int64)d->audio.pos == FMED_NULL)
-		goto done;
-
-	if (t->time_seek != -1) {
-		d->audio.seek = t->time_seek * 1000;
-		d->snd_output_clear = 1;
-		t->time_seek = -1;
-		return FMED_RMORE;
-	}
-
-	if (d->meta_changed) {
-		d->meta_changed = 0;
-		wmain_newtrack(t->qent, t->time_total, d);
-	}
-
-	uint playtime = (uint)(ffpcm_time(d->audio.pos, t->sample_rate) / 1000);
-	if (playtime == t->time_cur)
-		goto done;
-	t->time_cur = playtime;
-	wmain_update(playtime, t->time_total);
-
-done:
-	d->out = d->data;
-	d->outlen = d->datalen;
-	d->datalen = 0;
-	if (d->flags & FMED_FLAST)
-		return FMED_RDONE;
-	return FMED_ROK;
-}
-
-static void gtrk_close(void *ctx)
-{
-	gtrk *t = ctx;
-	if (gg->curtrk == t) {
-		gg->curtrk = NULL;
-		wmain_fintrack();
-	}
-}
-
-/** Set seek position. */
-static void gtrk_seek(uint cmd, uint val)
-{
-	gtrk *t = gg->curtrk;
-	int delta;
-	if (t == NULL)
-		return;
-
-	switch (cmd) {
-	case A_SEEK:
-		t->time_seek = val;
-		break;
-
-	case A_FFWD:
-		delta = gg->conf.seek_step_delta;
-		goto use_delta;
-	case A_RWND:
-		delta = -(int)gg->conf.seek_step_delta;
-		goto use_delta;
-
-	case A_LEAP_FWD:
-		delta = gg->conf.seek_leap_delta;
-		goto use_delta;
-	case A_LEAP_BACK:
-		delta = -(int)gg->conf.seek_leap_delta;
-		goto use_delta;
-
-use_delta:
-		t->time_seek = ffmax((int)t->time_cur + delta, 0);
-		break;
-	}
-}
-
-/** Set volume. */
-static void gtrk_vol(uint pos)
-{
-	if (gg->curtrk == NULL)
-		return;
-
-	double db = gtrk_vol2(gg->curtrk, pos);
-	wmain_status("Volume: %.02FdB", db);
-}
-
-static double gtrk_vol2(gtrk *t, uint pos)
-{
-	double db;
-	if (pos <= 100)
-		db = ffpcm_vol2db(pos, 48);
-	else
-		db = ffpcm_vol2db_inc(pos - 100, 25, 6);
-	t->d->audio.gain = db * 100;
-	return db;
 }

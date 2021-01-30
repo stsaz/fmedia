@@ -41,15 +41,6 @@ struct gui_wmain {
 	fmed_que_entry *active_qent;
 };
 
-struct gui_wconvert {
-	ffui_wnd wconvert;
-	ffui_menu mmconv;
-	ffui_label lfn, lsets;
-	ffui_edit eout;
-	ffui_btn boutbrowse;
-	ffui_view vsets;
-};
-
 struct gui_wabout {
 	ffui_wnd wabout;
 	ffui_label labout, lurl;
@@ -86,11 +77,6 @@ struct gui_wplayprops {
 };
 
 struct gtrk;
-struct conv_sets {
-	uint init :1;
-
-	char *output;
-};
 struct gui_conf {
 	float auto_attenuate_ceiling;
 	uint seek_step_delta,
@@ -104,6 +90,8 @@ struct gui_conf {
 	char *ydl_format;
 	char *ydl_outdir;
 };
+struct gui_wconvert;
+extern const ffui_ldr_ctl wconvert_ctls[];
 typedef struct ggui {
 	ffsem sem;
 	uint load_err;
@@ -119,10 +107,9 @@ typedef struct ggui {
 	void *subps;
 
 	struct gui_conf conf;
-	struct conv_sets conv_sets;
 
 	struct gui_wmain wmain;
-	struct gui_wconvert wconvert;
+	struct gui_wconvert *wconvert;
 	struct gui_wabout wabout;
 	struct gui_wuri wuri;
 	struct gui_winfo winfo;
@@ -186,8 +173,12 @@ enum ACTION {
 	A_LIST_SORTRANDOM,
 
 	A_SHOWCONVERT,
+	A_CONV_SET_SEEK,
+	A_CONV_SET_UNTIL,
+
 	A_CONVERT,
 	A_CONVOUTBROWSE,
+	A_CONV_EDIT,
 
 	A_ABOUT,
 	A_CONF_EDIT,
@@ -201,18 +192,25 @@ enum ACTION {
 	A_DLOAD_SHOWFMT,
 	A_DLOAD_DL,
 
+	A_PLAYPROPS_EDIT,
+
+// private:
 	A_ONCLOSE,
 	A_ONDROPFILE,
 	LOADLISTS,
 	LIST_DISPINFO,
 	_A_PLAY_REPEAT,
 	_A_LIST_RANDOM,
+	A_CONV_DISP,
+	A_PLAYPROPS_DISP,
 };
 
 void corecmd_add(uint cmd, void *udata);
+void corecmd_addfunc(fftask_handler func, void *udata);
 void ctlconf_write(void);
 void usrconf_write(void);
 void gui_showtextfile(uint id);
+void gui_list_sel(uint idx);
 
 void wmain_init();
 void wmain_newtrack(fmed_que_entry *ent, uint time_total, fmed_filt *d);
@@ -221,23 +219,29 @@ void wmain_update(uint playtime, uint time_total);
 void wmain_ent_added(uint idx);
 void wmain_ent_removed(uint idx);
 void wmain_status(const char *fmt, ...);
-void wmain_tab_new();
+enum {
+	TAB_CONVERT = 1,
+};
+ffuint wmain_tab_new(ffuint flags);
 void wmain_list_clear();
 void wmain_list_cols_width_write(ffconfw *conf);
 void wmain_list_update(uint idx, int delta);
 void wmain_list_set(uint idx, int delta);
+void wmain_list_select(ffuint idx);
 
 int conf_convert(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
 void wconvert_init();
 void wconv_destroy();
 void wconv_show();
-void convert();
+void wconv_setdata(int id, uint pos);
+int wconvert_conf_writeval(ffstr *line, ffconfw *conf);
 
 void wabout_init();
 void wuri_init();
 void winfo_init();
 void winfo_show(uint idx);
 void wplayprops_init();
+void wplayprops_show();
 void wdload_init();
 void wdload_destroy();
 
