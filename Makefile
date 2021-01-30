@@ -1,15 +1,17 @@
-# fmedia v0.14 makefile
+# fmedia v1.22 makefile
 
 PROJ := fmedia
-ROOT := ..
-PROJDIR := $(ROOT)/fmedia
-SRCDIR := $(PROJDIR)/src
 VER :=
 OS :=
 OPT := LTO3
 
+# repositories
+ROOT := ..
+PROJDIR := $(ROOT)/fmedia
+SRCDIR := $(PROJDIR)/src
 FFBASE := $(ROOT)/ffbase
 FFAUDIO := $(ROOT)/ffaudio
+AVPACK := $(ROOT)/avpack
 FFOS := $(ROOT)/ffos
 FF := $(ROOT)/ff
 FF3PT := $(ROOT)/ff-3pt
@@ -55,7 +57,7 @@ endif
 CFLAGS_APP := \
 	-Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -Wno-implicit-fallthrough \
 	-Wno-stringop-overflow \
-	-I$(SRCDIR) -I$(FFBASE) -I$(FFAUDIO) -I$(FF) -I$(FFOS) -I$(FF3PT)
+	-I$(SRCDIR) -I$(FFBASE) -I$(FFAUDIO) -I$(AVPACK) -I$(FF) -I$(FFOS) -I$(FF3PT)
 CFLAGS := $(CFLAGS_STD) $(CFLAGS_DEBUG) $(CFLAGS_OPT) $(CFLAGS_OS) $(CFLAGS_CPU) $(CFLAGS_APP)
 # alternative optimization flags: no LTO
 ifneq ($(OPT),0)

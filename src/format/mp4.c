@@ -3,29 +3,30 @@ Copyright (c) 2016 Simon Zolin */
 
 #include <fmedia.h>
 
-#include <FF/mformat/mp4.h>
+#include <avpack/mp4read.h>
 #include <FF/mtags/mmtag.h>
 
 
+#define errlog1(trk, ...)  fmed_errlog(core, trk, NULL, __VA_ARGS__)
+#define warnlog1(trk, ...)  fmed_warnlog(core, trk, NULL, __VA_ARGS__)
 #define dbglog1(trk, ...)  fmed_dbglog(core, trk, NULL, __VA_ARGS__)
 
 
 static const fmed_core *core;
 static const fmed_queue *qu;
 
+#include <format/mp4-write.h>
 
 typedef struct mp4 {
-	ffmp4 mp;
+	mp4read mp;
+	ffstr in;
+	void *trk;
+	uint srate;
 	uint state;
 	uint seeking :1;
 } mp4;
 
-typedef struct mp4_out {
-	uint state;
-	ffmp4_cook mp;
-	uint stmcopy :1;
-} mp4_out;
-
+static void mp4_meta(mp4 *m, fmed_filt *d);
 
 //FMEDIA MODULE
 static const void* mp4_iface(const char *name);
@@ -51,9 +52,6 @@ static int mp4_out_encode(void *ctx, fmed_filt *d);
 static const fmed_filter mp4_output = {
 	&mp4_out_create, &mp4_out_encode, &mp4_out_free
 };
-
-static void mp4_meta(mp4 *m, fmed_filt *d);
-static int mp4_out_addmeta(mp4_out *m, fmed_filt *d);
 
 
 FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
@@ -90,14 +88,22 @@ static void mp4_destroy(void)
 {
 }
 
+static void mp4_log(void *udata, ffstr msg)
+{
+	mp4 *m = udata;
+	dbglog1(m->trk, "%S", &msg);
+}
 
 static void* mp4_in_create(fmed_filt *d)
 {
 	mp4 *m = ffmem_tcalloc1(mp4);
 	if (m == NULL)
 		return NULL;
+	m->trk = d->trk;
 
-	ffmp4_init(&m->mp);
+	mp4read_open(&m->mp);
+	m->mp.log = mp4_log;
+	m->mp.udata = m;
 
 	if ((int64)d->input.size != FMED_NULL)
 		m->mp.total_size = d->input.size;
@@ -109,7 +115,7 @@ static void* mp4_in_create(fmed_filt *d)
 static void mp4_in_free(void *ctx)
 {
 	mp4 *m = ctx;
-	ffmp4_close(&m->mp);
+	mp4read_close(&m->mp);
 	ffmem_free(m);
 }
 
@@ -121,9 +127,52 @@ static void mp4_meta(mp4 *m, fmed_filt *d)
 	ffstr_setz(&name, ffmmtag_str[m->mp.tag]);
 	val = m->mp.tagval;
 
-	dbglog(core, d->trk, "mp4", "tag: %S: %S", &name, &val);
+	dbglog1(d->trk, "tag: %S: %S", &name, &val);
 
 	d->track->meta_set(d->trk, &name, &val, FMED_QUE_TMETA);
+}
+
+static void print_tracks(mp4 *m, fmed_filt *d)
+{
+	for (ffuint i = 0;  ;  i++) {
+		const struct mp4read_audio_info *ai = mp4read_track_info(&m->mp, i);
+		if (ai == NULL)
+			break;
+		switch (ai->type) {
+		case 0: {
+			const struct mp4read_video_info *vi = mp4read_track_info(&m->mp, i);
+			dbglog1(d->trk, "track#%u: codec:%s  size:%ux%u"
+				, i
+				, vi->codec_name, vi->width, vi->height);
+			d->video.decoder = vi->codec_name;
+			d->video.width = vi->width;
+			d->video.height = vi->height;
+			break;
+		}
+		case 1:
+			dbglog1(d->trk, "track#%u: codec:%s  magic:%*xb  total_samples:%u  format:%u/%u"
+				, i
+				, ai->codec_name
+				, ai->codec_conf.len, ai->codec_conf.ptr
+				, ai->total_samples
+				, ai->format.rate, ai->format.channels);
+			break;
+		}
+	}
+}
+
+static const struct mp4read_audio_info* get_last_audio_track(mp4 *m)
+{
+	for (ffuint i = 0;  ;  i++) {
+		const struct mp4read_audio_info *ai = mp4read_track_info(&m->mp, i);
+		if (ai == NULL)
+			break;
+		if (ai->type == 1) {
+			mp4read_track_activate(&m->mp, i);
+			return ai;
+		}
+	}
+	return NULL;
 }
 
 /**
@@ -144,8 +193,9 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 		return FMED_RLASTOUT;
 	}
 
-	m->mp.data = d->data;
-	m->mp.datalen = d->datalen;
+	m->in = d->data_in;
+
+	ffstr out;
 
 	for (;;) {
 
@@ -155,8 +205,8 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 	case I_DATA:
 		if ((int64)d->audio.seek != FMED_NULL && !m->seeking) {
 			m->seeking = 1;
-			uint64 seek = ffpcm_samples(d->audio.seek, m->mp.fmt.sample_rate);
-			ffmp4_seek(&m->mp, seek);
+			uint64 seek = ffpcm_samples(d->audio.seek, m->srate);
+			mp4read_seek(&m->mp, seek);
 			if (d->stream_copy)
 				d->audio.seek = FMED_NULL;
 		}
@@ -167,100 +217,102 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 		//fallthrough
 
 	case I_HDR:
-		r = ffmp4_read(&m->mp);
+		r = mp4read_process(&m->mp, &m->in, &out);
 		switch (r) {
-		case FFMP4_RMORE:
+		case MP4READ_MORE:
 			if (d->flags & FMED_FLAST) {
-				warnlog(core, d->trk, "mp4", "file is incomplete");
+				warnlog1(d->trk, "file is incomplete");
 				d->outlen = 0;
 				return FMED_RDONE;
 			}
 			return FMED_RMORE;
 
-		case FFMP4_RHDR: {
-			dbglog1(d->trk, "codec:%s  magic:%*xb  total_samples:%u  format:%u/%u"
-				, ffmp4_codec(m->mp.codec)
-				, m->mp.outlen, m->mp.out
-				, ffmp4_totalsamples(&m->mp)
-				, m->mp.fmt.sample_rate, m->mp.fmt.channels);
-			ffpcm_fmtcopy(&d->audio.fmt, &m->mp.fmt);
-
-			d->audio.total = ffmp4_totalsamples(&m->mp);
+		case MP4READ_HEADER: {
+			print_tracks(m, d);
+			const struct mp4read_audio_info *ai = get_last_audio_track(m);
+			if (ai == NULL) {
+				errlog1(d->trk, "no audio track found");
+				return FMED_RERR;
+			}
+			if (ai->format.bits == 0) {
+				errlog1(d->trk, "mp4read_process(): %s", mp4read_error(&m->mp));
+				return FMED_RERR;
+			}
+			ffpcm_set((ffpcm*)&d->audio.fmt, ai->format.bits, ai->format.channels, ai->format.rate);
+			d->audio.total = ai->total_samples;
 
 			const char *filt;
-			if (m->mp.codec == FFMP4_ALAC) {
+			switch (ai->codec) {
+			case FFMP4_ALAC:
 				filt = "alac.decode";
-				d->audio.bitrate = ffmp4_bitrate(&m->mp);
+				d->audio.bitrate = ai->real_bitrate;
+				break;
 
-			} else if (m->mp.codec == FFMP4_AAC) {
+			case FFMP4_AAC:
 				filt = "aac.decode";
 				if (!d->stream_copy) {
-					fmed_setval("audio_enc_delay", m->mp.enc_delay);
-					fmed_setval("audio_end_padding", m->mp.end_padding);
-					d->audio.bitrate = (m->mp.aac_brate != 0) ? m->mp.aac_brate : ffmp4_bitrate(&m->mp);
+					fmed_setval("audio_enc_delay", ai->enc_delay);
+					fmed_setval("audio_end_padding", ai->end_padding);
+					d->audio.bitrate = (ai->aac_bitrate != 0) ? ai->aac_bitrate : ai->real_bitrate;
 				}
+				break;
 
-			} else if (m->mp.codec == FFMP4_MPEG1) {
+			case FFMP4_MPEG1:
 				filt = "mpeg.decode";
-				d->audio.bitrate = (m->mp.aac_brate != 0) ? m->mp.aac_brate : 0;
+				d->audio.bitrate = (ai->aac_bitrate != 0) ? ai->aac_bitrate : 0;
+				break;
 
-			} else {
-				errlog(core, d->trk, "mp4", "%s: decoding unsupported", ffmp4_codec(m->mp.codec));
+			default:
+				errlog1(d->trk, "%s: decoding unsupported", ai->codec_name);
 				return FMED_RERR;
 			}
 
-			if (m->mp.frame_samples != 0)
-				fmed_setval("audio_frame_samples", m->mp.frame_samples);
+			if (ai->frame_samples != 0)
+				fmed_setval("audio_frame_samples", ai->frame_samples);
 
 			if (!d->stream_copy
 				&& 0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, (void*)filt))
 				return FMED_RERR;
 
-			d->video.decoder = ffmp4_codec(m->mp.video.codec);
-			d->video.width = m->mp.video.width;
-			d->video.height = m->mp.video.height;
+			m->srate = ai->format.rate;
 
-			d->data = m->mp.data,  d->datalen = m->mp.datalen;
-			d->out = m->mp.out,  d->outlen = m->mp.outlen;
+			d->data_in = m->in;
+			d->data_out = ai->codec_conf;
 			m->state = I_DATA1;
+
+			if (d->input_info)
+				return FMED_ROK;
 			continue;
 		}
 
-		case FFMP4_RTAG:
+		case MP4READ_TAG:
 			mp4_meta(m, d);
 			break;
 
-		case FFMP4_RMETAFIN:
-			if (d->input_info)
-				return FMED_ROK;
-
-			m->state = I_DATA;
-			continue;
-
-		case FFMP4_RDATA:
-			d->audio.pos = ffmp4_cursample(&m->mp);
-			dbglog(core, d->trk, NULL, "passing %L bytes at position #%U"
-				, m->mp.outlen, d->audio.pos);
-			d->data = m->mp.data,  d->datalen = m->mp.datalen;
-			d->out = m->mp.out,  d->outlen = m->mp.outlen;
+		case MP4READ_DATA:
+			d->audio.pos = mp4read_cursample(&m->mp);
+			dbglog1(d->trk, "passing %L bytes at position #%U"
+				, out.len, d->audio.pos);
+			d->data_in = m->in;
+			d->data_out = out;
 			m->seeking = 0;
 			return FMED_RDATA;
 
-		case FFMP4_RDONE:
+		case MP4READ_DONE:
 			d->outlen = 0;
 			return FMED_RLASTOUT;
 
-		case FFMP4_RSEEK:
+		case MP4READ_SEEK:
 			d->input.seek = m->mp.off;
 			return FMED_RMORE;
 
-		case FFMP4_RWARN:
-			warnlog(core, d->trk, "mp4", "ffmp4_read(): at offset 0x%xU: %s"
-				, m->mp.off, ffmp4_errstr(&m->mp));
+		case MP4READ_WARN:
+			warnlog1(d->trk, "mp4read_process(): at offset 0x%xU: %s"
+				, m->mp.off, mp4read_error(&m->mp));
 			break;
 
-		case FFMP4_RERR:
-			errlog(core, d->trk, "mp4", "ffmp4_read(): %s", ffmp4_errstr(&m->mp));
+		case MP4READ_ERROR:
+			errlog1(d->trk, "mp4read_process(): %s", mp4read_error(&m->mp));
 			return FMED_RERR;
 		}
 		break;
@@ -269,156 +321,4 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 	}
 
 	//unreachable
-}
-
-
-static void* mp4_out_create(fmed_filt *d)
-{
-	mp4_out *m = ffmem_tcalloc1(mp4_out);
-	if (m == NULL)
-		return NULL;
-	return m;
-}
-
-static void mp4_out_free(void *ctx)
-{
-	mp4_out *m = ctx;
-	ffmp4_wclose(&m->mp);
-	ffmem_free(m);
-}
-
-static int mp4_out_addmeta(mp4_out *m, fmed_filt *d)
-{
-	uint i;
-	ffstr name, *val;
-	void *qent;
-
-	if (FMED_PNULL == (qent = (void*)fmed_getval("queue_item")))
-		return 0;
-
-	for (i = 0;  NULL != (val = qu->meta(qent, i, &name, FMED_QUE_UNIQ));  i++) {
-		if (val == FMED_QUE_SKIP
-			|| ffstr_eqcz(&name, "vendor"))
-			continue;
-
-		int tag;
-		if (-1 == (tag = ffs_findarrz(ffmmtag_str, FFCNT(ffmmtag_str), name.ptr, name.len))) {
-			warnlog(core, d->trk, "mp4", "unsupported tag: %S", &name);
-			continue;
-		}
-
-		if (0 != ffmp4_addtag(&m->mp, tag, val->ptr, val->len)) {
-			warnlog(core, d->trk, "mp4", "can't add tag: %S", &name);
-		}
-	}
-	return 0;
-}
-
-/* Encoding process:
-. Add encoder filter to the chain
-. Get encoder config data
-. Initialize MP4 output
-. Wrap encoded audio data into MP4 */
-static int mp4_out_encode(void *ctx, fmed_filt *d)
-{
-	mp4_out *m = ctx;
-	int r;
-
-	enum { I_INIT_ENC, I_INIT, I_MP4 };
-
-	switch (m->state) {
-
-	case I_INIT_ENC:
-		if (ffsz_eq(d->datatype, "aac")) {
-			m->state = I_INIT;
-
-		} else if (ffsz_eq(d->datatype, "pcm")) {
-			if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT_PREV, "aac.encode"))
-				return FMED_RERR;
-			m->state = I_INIT;
-			return FMED_RMORE;
-
-		} else if (ffsz_eq(d->datatype, "mp4")) {
-			m->state = I_INIT;
-			m->stmcopy = 1;
-
-		} else {
-			errlog(core, d->trk, NULL, "unsupported input data format: %s", d->datatype);
-			return FMED_RERR;
-		}
-		// fall through
-
-	case I_INIT: {
-		struct ffmp4_info info = {};
-		ffstr_set(&info.conf, d->data, d->datalen);
-		d->datalen = 0;
-		ffpcm_fmtcopy(&info.fmt, &d->audio.convfmt);
-
-		if (!m->stmcopy && (int64)d->audio.total != FMED_NULL
-			&& d->duration_accurate)
-			info.total_samples = ((d->audio.total - d->audio.pos) * d->audio.convfmt.sample_rate / d->audio.fmt.sample_rate);
-
-		if (FMED_NULL == (r = (int)fmed_getval("audio_frame_samples")))
-			return FMED_RERR;
-		info.frame_samples = r;
-
-		if (FMED_NULL != (r = fmed_getval("audio_enc_delay")))
-			info.enc_delay = r;
-		if (FMED_NULL != (r = fmed_getval("audio_bitrate")))
-			info.bitrate = r;
-
-		if (0 != (r = ffmp4_create_aac(&m->mp, &info))) {
-			errlog(core, d->trk, NULL, "ffmp4_create_aac(): %s", ffmp4_werrstr(&m->mp));
-			return FMED_RERR;
-		}
-
-		if (0 != mp4_out_addmeta(m, d))
-			return FMED_RERR;
-
-		if (!m->stmcopy)
-			d->output.size = ffmp4_wsize(&m->mp);
-
-		m->state = I_MP4;
-		// break
-	}
-	}
-
-	if (d->flags & FMED_FLAST)
-		m->mp.fin = 1;
-
-	if (d->datalen != 0) {
-		m->mp.data = d->data,  m->mp.datalen = d->datalen;
-		d->datalen = 0;
-	}
-
-	for (;;) {
-		r = ffmp4_write(&m->mp);
-		switch (r) {
-		case FFMP4_RMORE:
-			return FMED_RMORE;
-
-		case FFMP4_RSEEK:
-			d->output.seek = m->mp.off;
-			continue;
-
-		case FFMP4_RDATA:
-			d->out = m->mp.out,  d->outlen = m->mp.outlen;
-			return FMED_RDATA;
-
-		case FFMP4_RDONE:
-			d->outlen = 0;
-			core->log(FMED_LOG_INFO, d->trk, NULL, "MP4: frames:%u, overhead: %.2F%%"
-				, m->mp.frameno
-				, (double)m->mp.mp4_size * 100 / (m->mp.mp4_size + m->mp.mdat_size));
-			return FMED_RDONE;
-
-		case FFMP4_RWARN:
-			warnlog(core, d->trk, NULL, "ffmp4_write(): %s", ffmp4_werrstr(&m->mp));
-			continue;
-
-		case FFMP4_RERR:
-			errlog(core, d->trk, NULL, "ffmp4_write(): %s", ffmp4_werrstr(&m->mp));
-			return FMED_RERR;
-		}
-	}
 }

@@ -233,7 +233,6 @@ CF_O := $(OBJ_DIR)/caf.o \
 	$(FF_O) \
 	$(FF_OBJ_DIR)/ffpcm.o \
 	$(FF_OBJ_DIR)/ffid3.o \
-	$(FF_OBJ_DIR)/ffmp4-fmt.o \
 	$(FF_OBJ_DIR)/ffcaf.o
 caf.$(SO): $(CF_O)
 	$(LD) -shared $(CF_O) $(LDFLAGS)  -o$@
@@ -300,8 +299,6 @@ flac.$(SO): $(FLAC_O)
 #
 MP4_O := $(OBJ_DIR)/mp4.o \
 	$(FF_O) \
-	$(FF_OBJ_DIR)/ffmp4.o \
-	$(FF_OBJ_DIR)/ffmp4-fmt.o \
 	$(FF_OBJ_DIR)/ffid3.o \
 	$(FF_OBJ_DIR)/ffmmtag.o \
 	$(FF_OBJ_DIR)/ffpcm.o
