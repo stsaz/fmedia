@@ -2,6 +2,7 @@
 Copyright (c) 2019 Simon Zolin */
 
 #include <core-priv.h>
+#include <format-detector.h>
 #include <FF/data/utf8.h>
 
 

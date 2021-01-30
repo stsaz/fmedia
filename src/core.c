@@ -582,7 +582,6 @@ static const fmed_modinfo* core_modbyext(const ffstr3 *map, const ffstr *ext)
 		it = (void*)((char*)it + sizeof(inmap_item) + len + 1);
 	}
 
-	errlog(core, NULL, "core", "unknown file format: %S", ext);
 	return NULL;
 }
 
@@ -691,11 +690,18 @@ static const void* core_getmod2(uint flags, const char *name, ssize_t name_len)
 
 	case FMED_MOD_INEXT:
 		mod = core_modbyext(&fmed->conf.inmap, &s);
+		if (mod == NULL) {
+			dbglog0("unknown input file format: %S.  Will detect format from data.", &s);
+			ffstr nm = FFSTR_INITZ("#core.format-detector");
+			mod = core_getmodinfo(&nm);
+		}
 		flags |= FMED_MOD_NOLOG;
 		break;
 
 	case FMED_MOD_OUTEXT:
 		mod = core_modbyext(&fmed->conf.outmap, &s);
+		if (mod == NULL)
+			errlog0("unknown output file format: %S", &s);
 		flags |= FMED_MOD_NOLOG;
 		break;
 
@@ -1303,12 +1309,16 @@ static const fmed_mod* fmed_getmod_core(const fmed_core *_core)
 	return &fmed_core_mod;
 }
 
+extern const fmed_filter _fmed_format_detector;
+
 static const void* core_iface(const char *name)
 {
 	if (!ffsz_cmp(name, "core"))
 		return (void*)1;
 	else if (!ffsz_cmp(name, "track"))
 		return &_fmed_track;
+	else if (!ffsz_cmp(name, "format-detector"))
+		return &_fmed_format_detector;
 	return NULL;
 }
 
