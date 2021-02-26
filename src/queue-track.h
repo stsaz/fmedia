@@ -155,7 +155,6 @@ static void que_mix(void)
 	if (NULL == (mxout = qu->track->create(FMED_TRACK_MIX, NULL)))
 		return;
 	qu->track->setval(mxout, "mix_tracks", ents->len);
-	ent_ref(mxout);
 	qu->track->cmd(mxout, FMED_TRACK_START);
 
 	qu->mixing = 1;
