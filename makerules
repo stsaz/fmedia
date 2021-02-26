@@ -1,7 +1,7 @@
 
 OBJ_DIR := .
-BIN_CONTAINERS := avi.$(SO) mkv.$(SO) mp4.$(SO) ogg.$(SO) caf.$(SO)
-BIN_ACODECS := wav.$(SO) \
+BIN_CONTAINERS := fmt.$(SO)
+BIN_ACODECS := \
 	aac.$(SO) alac.$(SO) ape.$(SO) flac.$(SO) mpeg.$(SO) mpc.$(SO) opus.$(SO) vorbis.$(SO) wavpack.$(SO)
 BIN_AFILTERS := dynanorm.$(SO) \
 	soxr.$(SO) \
@@ -181,16 +181,6 @@ dynanorm.$(SO): $(DYNANORM_O)
 
 
 #
-WAV_O := $(OBJ_DIR)/wav.o \
-	$(FF_O) \
-	$(FF_OBJ_DIR)/ffmmtag.o \
-	$(FF_OBJ_DIR)/ffpcm.o \
-	$(FF_OBJ_DIR)/ffwav.o
-wav.$(SO): $(WAV_O)
-	$(LD) -shared $(WAV_O) $(LDFLAGS)  -o$@
-
-
-#
 MPEG_O := $(OBJ_DIR)/mpeg.o \
 	$(OBJ_DIR)/mp3.o \
 	$(FF_O) \
@@ -218,44 +208,18 @@ mpc.$(SO): $(MPC_O)
 
 
 #
-OGG_O := $(OBJ_DIR)/ogg.o \
-	$(FF_O) \
-	$(FF_OBJ_DIR)/ffpath.o \
-	$(FF_OBJ_DIR)/ffpcm.o \
-	$(FF_OBJ_DIR)/ffogg.o \
-	$(FF_OBJ_DIR)/ffogg-fmt.o
-ogg.$(SO): $(OGG_O)
-	$(LD) -shared $(OGG_O) $(LDFLAGS)  -o$@
-
-
-#
-CF_O := $(OBJ_DIR)/caf.o \
-	$(FF_O) \
-	$(FF_OBJ_DIR)/ffpcm.o \
-	$(FF_OBJ_DIR)/ffid3.o \
-	$(FF_OBJ_DIR)/ffcaf.o
-caf.$(SO): $(CF_O)
-	$(LD) -shared $(CF_O) $(LDFLAGS)  -o$@
-
-
-#
-AVI_O := $(OBJ_DIR)/avi.o \
+FMT_O := $(OBJ_DIR)/mod-fmt.o \
+	$(OBJ_DIR)/avi.o \
+	$(OBJ_DIR)/caf.o \
+	$(OBJ_DIR)/mkv.o \
+	$(OBJ_DIR)/mp4.o \
+	$(OBJ_DIR)/ogg.o \
+	$(OBJ_DIR)/wav.o \
 	$(FF_O) \
 	$(FF_OBJ_DIR)/ffmmtag.o \
-	$(FF_OBJ_DIR)/ffpcm.o \
-	$(FF_OBJ_DIR)/ffavi.o
-avi.$(SO): $(AVI_O)
-	$(LD) -shared $(AVI_O) $(LDFLAGS)  -o$@
-
-
-#
-MKV_O := $(OBJ_DIR)/mkv.o \
-	$(FF_O) \
-	$(FF_OBJ_DIR)/ffmmtag.o \
-	$(FF_OBJ_DIR)/ffpcm.o \
-	$(FF_OBJ_DIR)/ffmkv.o
-mkv.$(SO): $(MKV_O)
-	$(LD) -shared $(MKV_O) $(LDFLAGS)  -o$@
+	$(FF_OBJ_DIR)/ffpcm.o
+fmt.$(SO): $(FMT_O)
+	$(LD) -shared $(FMT_O) $(LDFLAGS)  -o$@
 
 
 #
@@ -294,16 +258,6 @@ FLAC_O := $(OBJ_DIR)/flac.o \
 	$(FF_OBJ_DIR)/ffpcm.o
 flac.$(SO): $(FLAC_O)
 	$(LD) -shared $(FLAC_O) $(LDFLAGS) $(LD_RPATH_ORIGIN) -lFLAC-ff  -o$@
-
-
-#
-MP4_O := $(OBJ_DIR)/mp4.o \
-	$(FF_O) \
-	$(FF_OBJ_DIR)/ffid3.o \
-	$(FF_OBJ_DIR)/ffmmtag.o \
-	$(FF_OBJ_DIR)/ffpcm.o
-mp4.$(SO): $(MP4_O)
-	$(LD) -shared $(MP4_O) $(LDFLAGS)  -o$@
 
 
 #

@@ -224,13 +224,6 @@ static int vorbis_in_decode(void *ctx, fmed_filt *d)
 		dbglog(core, d->trk, NULL, "%S: %S", &vtag->name, &vtag->val);
 		ffstr name = vtag->name;
 
-		if (ffstr_eqcz(&name, "AUDIO_TOTAL")) {
-			uint64 total;
-			if (ffstr_toint(&vtag->val, &total, FFS_INT64))
-				d->audio.total = total;
-			break;
-		}
-
 		if (vtag->tag != 0)
 			ffstr_setz(&name, ffmmtag_str[vtag->tag]);
 		d->track->meta_set(d->trk, &name, &vtag->val, FMED_QUE_TMETA);
@@ -373,7 +366,7 @@ static int vorbis_out_encode(void *ctx, fmed_filt *d)
 
 	v->npkt++;
 	if (v->npkt == 1 || v->npkt == 3)
-		fmed_setval("ogg_flush", 1);
+		d->ogg_flush = 1;
 
 	fmed_setval("ogg_granpos", ffvorbis_enc_pos(&v->vorbis));
 

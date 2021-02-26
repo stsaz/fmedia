@@ -6,7 +6,7 @@ Copyright (c) 2017 Simon Zolin */
 #include <FF/aformat/aac-adts.h>
 
 
-const fmed_core *core;
+extern const fmed_core *core;
 
 //INPUT
 static void* aac_adts_open(fmed_filt *d);

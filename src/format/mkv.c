@@ -2,126 +2,140 @@
 Copyright (c) 2016 Simon Zolin */
 
 #include <fmedia.h>
-
-#include <FF/mformat/mkv.h>
+#include <avpack/mkv-read.h>
 #include <FF/audio/pcm.h>
 #include <FF/mtags/mmtag.h>
-#include <FF/array.h>
-#include <FFOS/error.h>
 
 
-static const fmed_core *core;
+#define errlog1(trk, ...)  fmed_errlog(core, trk, NULL, __VA_ARGS__)
+#define dbglog1(trk, ...)  fmed_dbglog(core, trk, NULL, __VA_ARGS__)
 
-typedef struct fmed_mkv {
-	ffmkv mkv;
-	ffmkv_vorbis mkv_vorbis;
+extern const fmed_core *core;
+
+struct mkvin {
+	mkvread mkv;
+	ffstr in;
+	ffstr vorb_in;
+	struct mkv_vorbis mkv_vorbis;
+	void *trk;
+	uint64 atrack;
 	uint state;
+	uint sample_rate;
 	uint seeking :1;
-} fmed_mkv;
-
-
-//FMEDIA MODULE
-static const void* mkv_iface(const char *name);
-static int mkv_sig(uint signo);
-static void mkv_destroy(void);
-static const fmed_mod fmed_mkv_mod = {
-	.ver = FMED_VER_FULL, .ver_core = FMED_VER_CORE,
-	&mkv_iface, &mkv_sig, &mkv_destroy
 };
 
-//INPUT
-static void* mkv_open(fmed_filt *d);
-static void mkv_close(void *ctx);
-static int mkv_process(void *ctx, fmed_filt *d);
-static const fmed_filter fmed_mkv_input = {
-	&mkv_open, &mkv_process, &mkv_close
-};
-
-
-FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
+void mkv_log(void *udata, ffstr msg)
 {
-	core = _core;
-	return &fmed_mkv_mod;
+	struct mkvin *m = udata;
+	dbglog1(m->trk, "%S", &msg);
 }
 
-
-static const void* mkv_iface(const char *name)
+void* mkv_open(fmed_filt *d)
 {
-	if (!ffsz_cmp(name, "in"))
-		return &fmed_mkv_input;
-	return NULL;
-}
-
-static int mkv_sig(uint signo)
-{
-	switch (signo) {
-	case FMED_SIG_INIT:
-		ffmem_init();
-		return 0;
-	}
-	return 0;
-}
-
-static void mkv_destroy(void)
-{
-}
-
-
-static void* mkv_open(fmed_filt *d)
-{
-	fmed_mkv *m = ffmem_tcalloc1(fmed_mkv);
+	struct mkvin *m = ffmem_new(struct mkvin);
 	if (m == NULL) {
-		errlog(core, d->trk, NULL, "%s", ffmem_alloc_S);
+		errlog1(d->trk, "%s", ffmem_alloc_S);
 		return NULL;
 	}
-	ffmkv_open(&m->mkv);
-	m->mkv.options = FFMKV_O_TAGS;
+
+	ffuint64 total_size = 0;
+	if ((ffint64)d->input.size != FMED_NULL)
+		total_size = d->input.size;
+	mkvread_open(&m->mkv, total_size);
+	m->mkv.log = mkv_log;
+	m->mkv.udata = m;
+	m->trk = d->trk;
 	return m;
 }
 
-static void mkv_close(void *ctx)
+void mkv_close(void *ctx)
 {
-	fmed_mkv *m = ctx;
-	ffmkv_close(&m->mkv);
+	struct mkvin *m = ctx;
+	mkvread_close(&m->mkv);
 	ffmem_free(m);
 }
 
-static void mkv_meta(fmed_mkv *m, fmed_filt *d)
+void mkv_meta(struct mkvin *m, fmed_filt *d)
 {
 	ffstr name, val;
-	if (m->mkv.tag == -1)
-		return;
-	ffstr_setz(&name, ffmmtag_str[m->mkv.tag]);
-	ffstr_set2(&val, &m->mkv.tagval);
+	name = mkvread_tag(&m->mkv, &val);
 	d->track->meta_set(d->trk, &name, &val, FMED_QUE_TMETA);
 }
 
-static const ushort mkv_codecs[] = {
-	FFMKV_AUDIO_AAC, FFMKV_AUDIO_ALAC, FFMKV_AUDIO_MPEG, FFMKV_AUDIO_VORBIS,
+const ushort mkv_codecs[] = {
+	MKV_A_AAC, MKV_A_ALAC, MKV_A_MPEG, MKV_A_VORBIS,
 };
-static const char* const mkv_codecs_str[] = {
+const char* const mkv_codecs_str[] = {
 	"aac.decode", "alac.decode", "mpeg.decode", "vorbis.decode",
 };
-static const ushort mkv_vcodecs[] = {
-	FFMKV_V_AVC, FFMKV_V_HEVC,
+const ushort mkv_vcodecs[] = {
+	MKV_V_AVC, MKV_V_HEVC,
 };
-static const char* const mkv_vcodecs_str[] = {
+const char* const mkv_vcodecs_str[] = {
 	"H.264", "H.265",
 };
 
-static int mkv_process(void *ctx, fmed_filt *d)
+void print_tracks(struct mkvin *m, fmed_filt *d)
+{
+	for (ffuint i = 0;  ;  i++) {
+		const struct mkvread_audio_info *ai = mkvread_track_info(&m->mkv, i);
+		if (ai == NULL)
+			break;
+
+		switch (ai->type) {
+		case MKV_TRK_VIDEO: {
+			const struct mkvread_video_info *vi = mkvread_track_info(&m->mkv, i);
+			int i = ffint_find2(mkv_vcodecs, FF_COUNT(mkv_vcodecs), vi->codec);
+			if (i != -1)
+				d->video.decoder = mkv_vcodecs_str[i];
+
+			dbglog1(d->trk, "track#%u: codec:%s  size:%ux%u"
+				, i
+				, d->video.decoder, vi->width, vi->height);
+			d->video.width = vi->width;
+			d->video.height = vi->height;
+			break;
+		}
+		case MKV_TRK_AUDIO:
+			dbglog1(d->trk, "track#%u: codec:%d  magic:%*xb  duration:%U  format:%u/%u"
+				, i
+				, ai->codec
+				, ai->codec_conf.len, ai->codec_conf.ptr
+				, ai->duration_msec
+				, ai->sample_rate, ai->channels);
+			break;
+		}
+	}
+}
+
+static const struct mkvread_audio_info* get_first_audio_track(struct mkvin *m)
+{
+	for (ffuint i = 0;  ;  i++) {
+		const struct mkvread_audio_info *ai = mkvread_track_info(&m->mkv, i);
+		if (ai == NULL)
+			break;
+
+		if (ai->type == MKV_TRK_AUDIO) {
+			m->atrack = ai->id;
+			return ai;
+		}
+	}
+	return NULL;
+}
+
+int mkv_process(void *ctx, fmed_filt *d)
 {
 	enum { I_HDR, I_VORBIS_HDR, I_DATA, };
-	fmed_mkv *m = ctx;
+	struct mkvin *m = ctx;
 	int r;
 
 	if (d->flags & FMED_FSTOP) {
-		d->outlen = 0;
+		d->data_out.len = 0;
 		return FMED_RLASTOUT;
 	}
 
 	if (d->flags & FMED_FFWD) {
-		ffstr_set(&m->mkv.data, d->data, d->datalen);
+		ffstr_set(&m->in, d->data, d->datalen);
 		d->datalen = 0;
 	}
 
@@ -131,14 +145,13 @@ again:
 		break;
 
 	case I_VORBIS_HDR:
-		r = ffmkv_vorbis_hdr(&m->mkv_vorbis);
+		r = mkv_vorbis_hdr(&m->mkv_vorbis, &m->vorb_in, &d->data_out);
 		if (r < 0) {
-			errlog(core, d->trk, NULL, "ffmkv_vorbis_hdr()");
+			errlog1(d->trk, "mkv_vorbis_hdr()");
 			return FMED_RERR;
 		} else if (r == 1) {
 			m->state = I_DATA;
 		} else {
-			d->out = m->mkv_vorbis.out.ptr,  d->outlen = m->mkv_vorbis.out.len;
 			return FMED_RDATA;
 		}
 		break;
@@ -146,34 +159,42 @@ again:
 	case I_DATA:
 		if ((int64)d->audio.seek != FMED_NULL && !m->seeking) {
 			m->seeking = 1;
-			uint64 seek = ffpcm_samples(d->audio.seek, m->mkv.info.sample_rate);
-			ffmkv_seek(&m->mkv, seek);
+			mkvread_seek(&m->mkv, d->audio.seek);
 		}
 		break;
 	}
 
 	for (;;) {
-		r = ffmkv_read(&m->mkv);
+		r = mkvread_process(&m->mkv, &m->in, &d->data_out);
 		switch (r) {
-		case FFMKV_RMORE:
+		case MKVREAD_MORE:
 			if (d->flags & FMED_FLAST) {
-				errlog(core, d->trk, NULL, "file is incomplete");
-				d->outlen = 0;
+				errlog1(d->trk, "file is incomplete");
+				d->data_out.len = 0;
 				return FMED_RDONE;
 			}
 			return FMED_RMORE;
 
-		case FFMKV_RDONE:
-			d->outlen = 0;
+		case MKVREAD_DONE:
+			d->data_out.len = 0;
 			return FMED_RDONE;
 
-		case FFMKV_RDATA:
+		case MKVREAD_DATA:
+			if (mkvread_block_trackid(&m->mkv) != m->atrack)
+				continue;
 			goto data;
 
-		case FFMKV_RHDR: {
-			int i = ffint_find2(mkv_codecs, FFCNT(mkv_codecs), m->mkv.info.format);
+		case MKVREAD_HEADER: {
+			print_tracks(m, d);
+			const struct mkvread_audio_info *ai = get_first_audio_track(m);
+			if (ai == NULL) {
+				errlog1(d->trk, "no audio track found");
+				return FMED_RERR;
+			}
+
+			int i = ffint_find2(mkv_codecs, FF_COUNT(mkv_codecs), ai->codec);
 			if (i == -1) {
-				errlog(core, d->trk, NULL, "unsupported codec: %xu", m->mkv.info.format);
+				errlog1(d->trk, "unsupported codec: %xu", ai->codec);
 				return FMED_RERR;
 			}
 
@@ -181,60 +202,53 @@ again:
 			if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, (void*)codec)) {
 				return FMED_RERR;
 			}
-			d->audio.fmt.channels = m->mkv.info.channels;
-			d->audio.fmt.sample_rate = m->mkv.info.sample_rate;
-			d->audio.total = m->mkv.info.total_samples;
-			d->audio.bitrate = m->mkv.info.bitrate;
+			d->audio.fmt.channels = ai->channels;
+			d->audio.fmt.sample_rate = ai->sample_rate;
+			m->sample_rate = ai->sample_rate;
+			d->audio.total = ffpcm_samples(ai->duration_msec, ai->sample_rate);
+			// d->audio.bitrate = ;
 
 			if ((int64)d->audio.seek != FMED_NULL) {
 				m->seeking = 1;
-				uint64 seek = ffpcm_samples(d->audio.seek, m->mkv.info.sample_rate);
-				ffmkv_seek(&m->mkv, seek);
+				mkvread_seek(&m->mkv, d->audio.seek);
 			}
 
-			if (m->mkv.info.format == FFMKV_AUDIO_VORBIS) {
-				ffstr_set2(&m->mkv_vorbis.data, &m->mkv.info.asc);
+			if (ai->codec == MKV_A_VORBIS) {
+				ffstr_set2(&m->vorb_in, &ai->codec_conf);
 				m->state = I_VORBIS_HDR;
 				goto again;
-			} else if (m->mkv.info.format == FFMKV_AUDIO_MPEG)
-				m->mkv.info.asc.len = 0;
+			} else if (ai->codec == MKV_A_MPEG) {
+				//
+			} else
+				d->data_out = ai->codec_conf;
 
-			i = ffint_find2(mkv_vcodecs, FFCNT(mkv_vcodecs), m->mkv.info.vcodec);
-			if (i != -1)
-				d->video.decoder = mkv_vcodecs_str[i];
-			d->video.width = m->mkv.info.width;
-			d->video.height = m->mkv.info.height;
-
-			d->out = m->mkv.info.asc.ptr,  d->outlen = m->mkv.info.asc.len;
 			m->state = I_DATA;
 			return FMED_RDATA;
 		}
 
-		case FFMKV_RTAG:
+		case MKVREAD_TAG:
 			mkv_meta(m, d);
 			break;
 
-		case FFMKV_RSEEK:
-			d->input.seek = ffmkv_seekoff(&m->mkv);
+		case MKVREAD_SEEK:
+			d->input.seek = mkvread_offset(&m->mkv);
 			return FMED_RMORE;
 
-		case FFMKV_RWARN:
-			fmed_warnlog(core, d->trk, NULL, "ffmkv_read(): %s  offset:%xU"
-				, ffmkv_errstr(&m->mkv), ffmkv_off(&m->mkv));
-			break;
-
-		case FFMKV_RERR:
+		case MKVREAD_ERROR:
 		default:
-			fmed_errlog(core, d->trk, NULL, "ffmkv_read(): %s  offset:%xU"
-				, ffmkv_errstr(&m->mkv), ffmkv_off(&m->mkv));
+			errlog1(d->trk, "mkvread_read(): %s  offset:%xU"
+				, mkvread_error(&m->mkv), mkvread_offset(&m->mkv));
 			return FMED_RERR;
 		}
 	}
 
 data:
-	d->audio.pos = ffmkv_cursample(&m->mkv);
-	d->out = m->mkv.out.ptr,  d->outlen = m->mkv.out.len;
-	dbglog(core, d->trk, NULL, "data size:%L", d->outlen);
+	d->audio.pos = ffpcm_samples(mkvread_curpos(&m->mkv), m->sample_rate);
+	dbglog1(d->trk, "data size:%L  pos:%U", d->data_out.len, d->audio.pos);
 	m->seeking = 0;
 	return FMED_RDATA;
 }
+
+const fmed_filter mkv_input = {
+	mkv_open, mkv_process, mkv_close
+};

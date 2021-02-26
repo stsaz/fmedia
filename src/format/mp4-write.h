@@ -1,7 +1,9 @@
 /** fmedia: .mp4 write
 2021, Simon Zolin */
 
-#include <avpack/mp4write.h>
+#include <avpack/mp4-write.h>
+
+const fmed_queue *qu;
 
 typedef struct mp4_out {
 	uint state;
@@ -17,6 +19,8 @@ static void* mp4_out_create(fmed_filt *d)
 	mp4_out *m = ffmem_new(mp4_out);
 	if (m == NULL)
 		return NULL;
+	if (qu == NULL)
+		qu = core->getmod("#queue.queue");
 	return m;
 }
 
@@ -117,9 +121,6 @@ static int mp4_out_encode(void *ctx, fmed_filt *d)
 		if (0 != mp4_out_addmeta(m, d))
 			return FMED_RERR;
 
-		if (!m->stmcopy)
-			d->output.size = mp4write_size(&m->mp);
-
 		m->state = I_MP4;
 		break;
 	}
@@ -161,3 +162,7 @@ static int mp4_out_encode(void *ctx, fmed_filt *d)
 		}
 	}
 }
+
+const fmed_filter mp4_output = {
+	mp4_out_create, mp4_out_encode, mp4_out_free
+};

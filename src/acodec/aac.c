@@ -234,6 +234,7 @@ static int aac_decode(void *ctx, fmed_filt *d)
 		}
 
 		d->audio.pos = ffaac_cursample(&a->aac) + fr_len / ffpcm_size1(&a->aac.fmt) - a->cache.len / ffpcm_size1(&a->aac.fmt);
+		d->audio.pos = ffmax((ffint64)d->audio.pos, 0);
 		d->out = (void*)a->cache.ptr,  d->outlen = a->cache.len;
 		a->cache.len = 0;
 		a->state = R_CACHE_DONE;

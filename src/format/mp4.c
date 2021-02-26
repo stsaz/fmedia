@@ -3,7 +3,7 @@ Copyright (c) 2016 Simon Zolin */
 
 #include <fmedia.h>
 
-#include <avpack/mp4read.h>
+#include <avpack/mp4-read.h>
 #include <FF/mtags/mmtag.h>
 
 
@@ -12,8 +12,7 @@ Copyright (c) 2016 Simon Zolin */
 #define dbglog1(trk, ...)  fmed_dbglog(core, trk, NULL, __VA_ARGS__)
 
 
-static const fmed_core *core;
-static const fmed_queue *qu;
+extern const fmed_core *core;
 
 #include <format/mp4-write.h>
 
@@ -25,68 +24,6 @@ typedef struct mp4 {
 	uint state;
 	uint seeking :1;
 } mp4;
-
-static void mp4_meta(mp4 *m, fmed_filt *d);
-
-//FMEDIA MODULE
-static const void* mp4_iface(const char *name);
-static int mp4_sig(uint signo);
-static void mp4_destroy(void);
-static const fmed_mod fmed_mp4_mod = {
-	.ver = FMED_VER_FULL, .ver_core = FMED_VER_CORE,
-	&mp4_iface, &mp4_sig, &mp4_destroy
-};
-
-//INPUT
-static void* mp4_in_create(fmed_filt *d);
-static void mp4_in_free(void *ctx);
-static int mp4_in_decode(void *ctx, fmed_filt *d);
-static const fmed_filter fmed_mp4_input = {
-	&mp4_in_create, &mp4_in_decode, &mp4_in_free
-};
-
-//OUTPUT
-static void* mp4_out_create(fmed_filt *d);
-static void mp4_out_free(void *ctx);
-static int mp4_out_encode(void *ctx, fmed_filt *d);
-static const fmed_filter mp4_output = {
-	&mp4_out_create, &mp4_out_encode, &mp4_out_free
-};
-
-
-FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
-{
-	core = _core;
-	return &fmed_mp4_mod;
-}
-
-
-static const void* mp4_iface(const char *name)
-{
-	if (!ffsz_cmp(name, "input"))
-		return &fmed_mp4_input;
-	else if (!ffsz_cmp(name, "output"))
-		return &mp4_output;
-	return NULL;
-}
-
-static int mp4_sig(uint signo)
-{
-	switch (signo) {
-	case FMED_SIG_INIT:
-		ffmem_init();
-		return 0;
-
-	case FMED_OPEN:
-		qu = core->getmod("#queue.queue");
-		break;
-	}
-	return 0;
-}
-
-static void mp4_destroy(void)
-{
-}
 
 static void mp4_log(void *udata, ffstr msg)
 {
@@ -122,10 +59,10 @@ static void mp4_in_free(void *ctx)
 static void mp4_meta(mp4 *m, fmed_filt *d)
 {
 	ffstr name, val;
-	if (m->mp.tag == 0)
+	int tag = mp4read_tag(&m->mp, &val);
+	if (tag == 0)
 		return;
-	ffstr_setz(&name, ffmmtag_str[m->mp.tag]);
-	val = m->mp.tagval;
+	ffstr_setz(&name, ffmmtag_str[tag]);
 
 	dbglog1(d->trk, "tag: %S: %S", &name, &val);
 
@@ -161,7 +98,7 @@ static void print_tracks(mp4 *m, fmed_filt *d)
 	}
 }
 
-static const struct mp4read_audio_info* get_last_audio_track(mp4 *m)
+static const struct mp4read_audio_info* get_first_audio_track(mp4 *m)
 {
 	for (ffuint i = 0;  ;  i++) {
 		const struct mp4read_audio_info *ai = mp4read_track_info(&m->mp, i);
@@ -229,7 +166,7 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 
 		case MP4READ_HEADER: {
 			print_tracks(m, d);
-			const struct mp4read_audio_info *ai = get_last_audio_track(m);
+			const struct mp4read_audio_info *ai = get_first_audio_track(m);
 			if (ai == NULL) {
 				errlog1(d->trk, "no audio track found");
 				return FMED_RERR;
@@ -243,12 +180,12 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 
 			const char *filt;
 			switch (ai->codec) {
-			case FFMP4_ALAC:
+			case MP4_A_ALAC:
 				filt = "alac.decode";
 				d->audio.bitrate = ai->real_bitrate;
 				break;
 
-			case FFMP4_AAC:
+			case MP4_A_AAC:
 				filt = "aac.decode";
 				if (!d->stream_copy) {
 					fmed_setval("audio_enc_delay", ai->enc_delay);
@@ -257,7 +194,7 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 				}
 				break;
 
-			case FFMP4_MPEG1:
+			case MP4_A_MPEG1:
 				filt = "mpeg.decode";
 				d->audio.bitrate = (ai->aac_bitrate != 0) ? ai->aac_bitrate : 0;
 				break;
@@ -322,3 +259,7 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 
 	//unreachable
 }
+
+const fmed_filter mp4_input = {
+	mp4_in_create, mp4_in_decode, mp4_in_free
+};

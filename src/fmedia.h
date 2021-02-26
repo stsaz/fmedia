@@ -528,6 +528,7 @@ struct fmed_trk {
 		uint show_tags :1;
 		uint print_time :1;
 		uint duration_accurate :1;
+		uint ogg_flush :1;
 	};
 	};
 

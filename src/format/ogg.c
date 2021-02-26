@@ -3,147 +3,62 @@ Copyright (c) 2015 Simon Zolin */
 
 #include <fmedia.h>
 
-#include <FF/mformat/ogg.h>
-#include <FF/audio/opus.h>
+#include <avpack/ogg-read.h>
 #include <FF/array.h>
 #include <FF/path.h>
-#include <FFOS/random.h>
-
 
 #define errlog0(...)  fmed_errlog(core, NULL, "ogg", __VA_ARGS__)
+#define errlog1(trk, ...)  fmed_errlog(core, trk, NULL, __VA_ARGS__)
+#define dbglog1(trk, ...)  fmed_dbglog(core, trk, NULL, __VA_ARGS__)
 
+extern const fmed_core *core;
 
-static const fmed_core *core;
+#include <format/ogg-write.h>
 
-typedef struct fmed_ogg {
-	ffogg og;
-	uint sample_rate;
-	uint hdr :1;
-	uint seek_ready :1;
-	uint seek_done :1;
-	uint stmcopy :1;
-} fmed_ogg;
-
-typedef struct ogg_out {
-	ffogg_cook og;
-	uint state;
-} ogg_out;
-
-static struct ogg_in_conf_t {
+struct ogg_in_conf_t {
 	byte seekable;
-} ogg_in_conf;
+} conf;
 
-static struct ogg_out_conf_t {
-	ushort max_page_duration;
-} ogg_out_conf;
-
-
-//FMEDIA MODULE
-static const void* ogg_iface(const char *name);
-static int ogg_conf(const char *name, ffpars_ctx *ctx);
-static int ogg_sig(uint signo);
-static void ogg_destroy(void);
-static const fmed_mod fmed_ogg_mod = {
-	.ver = FMED_VER_FULL, .ver_core = FMED_VER_CORE,
-	&ogg_iface, &ogg_sig, &ogg_destroy, &ogg_conf
-};
-
-//DECODE
-static void* ogg_open(fmed_filt *d);
-static void ogg_close(void *ctx);
-static int ogg_decode(void *ctx, fmed_filt *d);
-static int ogg_dec_conf(ffpars_ctx *ctx);
-static const fmed_filter fmed_ogg_input = {
-	&ogg_open, &ogg_decode, &ogg_close
-};
-
-static const ffpars_arg ogg_in_conf_args[] = {
+const ffpars_arg ogg_in_conf_args[] = {
 	{ "seekable",  FFPARS_TBOOL | FFPARS_F8BIT,  FFPARS_DSTOFF(struct ogg_in_conf_t, seekable) }
 };
 
-//ENCODE
-static void* ogg_out_open(fmed_filt *d);
-static void ogg_out_close(void *ctx);
-static int ogg_out_encode(void *ctx, fmed_filt *d);
-static int ogg_out_config(ffpars_ctx *ctx);
-static const fmed_filter fmed_ogg_output = {
-	&ogg_out_open, &ogg_out_encode, &ogg_out_close
-};
-
-static const ffpars_arg ogg_out_conf_args[] = {
-	{ "max_page_duration",  FFPARS_TINT | FFPARS_F16BIT,  FFPARS_DSTOFF(struct ogg_out_conf_t, max_page_duration) },
-};
-
-
-FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
+int ogg_in_conf(ffpars_ctx *ctx)
 {
-	core = _core;
-	return &fmed_ogg_mod;
-}
-
-
-static const void* ogg_iface(const char *name)
-{
-	if (!ffsz_cmp(name, "input")) {
-		return &fmed_ogg_input;
-	} else if (!ffsz_cmp(name, "output")) {
-		return &fmed_ogg_output;
-	}
-	return NULL;
-}
-
-static int ogg_conf(const char *name, ffpars_ctx *ctx)
-{
-	if (!ffsz_cmp(name, "input"))
-		return ogg_dec_conf(ctx);
-	else if (!ffsz_cmp(name, "output"))
-		return ogg_out_config(ctx);
-	return -1;
-}
-
-static int ogg_sig(uint signo)
-{
-	switch (signo) {
-	case FMED_SIG_INIT: {
-		ffmem_init();
-		fftime t;
-		fftime_now(&t);
-		ffrnd_seed(fftime_sec(&t));
-		return 0;
-	}
-
-	case FMED_OPEN:
-		break;
-	}
+	conf.seekable = 1;
+	ffpars_setargs(ctx, &conf, ogg_in_conf_args, FF_COUNT(ogg_in_conf_args));
 	return 0;
 }
 
-static void ogg_destroy(void)
+struct ogg_in {
+	oggread og;
+	ffstr in;
+	void *trk;
+	uint sample_rate;
+	uint state;
+	uint seek_pending :1;
+	uint stmcopy :1;
+};
+
+void ogg_log(void *udata, ffstr msg)
 {
+	struct ogg_in *o = udata;
+	dbglog1(o->trk, "%S", &msg);
 }
 
-
-static int ogg_dec_conf(ffpars_ctx *ctx)
+void* ogg_open(fmed_filt *d)
 {
-	ogg_in_conf.seekable = 1;
-	ffpars_setargs(ctx, &ogg_in_conf, ogg_in_conf_args, FFCNT(ogg_in_conf_args));
-	return 0;
-}
-
-static void* ogg_open(fmed_filt *d)
-{
-	fmed_ogg *o = ffmem_tcalloc1(fmed_ogg);
+	struct ogg_in *o = ffmem_new(struct ogg_in);
 	if (o == NULL)
 		return NULL;
-	ffogg_init(&o->og);
+	o->trk = d->trk;
 
-	if ((int64)d->input.size != FMED_NULL)
-		o->og.total_size = d->input.size;
-	else
-		d->audio.total = 0;
-
-	if (ogg_in_conf.seekable)
-		o->og.seekable = 1;
+	ffuint64 total_size = 0;
+	if (conf.seekable && (int64)d->input.size != FMED_NULL)
+		total_size = d->input.size;
+	oggread_open(&o->og, total_size);
+	o->og.log = ogg_log;
+	o->og.udata = o;
 
 	if (d->stream_copy) {
 		d->datatype = "OGG";
@@ -152,29 +67,53 @@ static void* ogg_open(fmed_filt *d)
 	return o;
 }
 
-static void ogg_close(void *ctx)
+void ogg_close(void *ctx)
 {
-	fmed_ogg *o = ctx;
-	ffogg_close(&o->og);
+	struct ogg_in *o = ctx;
+	oggread_close(&o->og);
 	ffmem_free(o);
-}
-
-static const char* ogg_enc_mod(const char *fn)
-{
-	ffstr name, ext;
-	ffpath_split2(fn, ffsz_len(fn), NULL, &name);
-	ffs_rsplit2by(name.ptr, name.len, '.', NULL, &ext);
-	if (ffstr_eqcz(&ext, "opus"))
-		return "opus.encode";
-	return "vorbis.encode";
 }
 
 #define VORBIS_HEAD_STR  "\x01vorbis"
 #define FLAC_HEAD_STR  "\x7f""FLAC"
+#define OPUS_HEAD_STR  "OpusHead"
 
-static int ogg_decode(void *ctx, fmed_filt *d)
+int add_decoder(struct ogg_in *o, fmed_filt *d, ffstr data)
 {
-	fmed_ogg *o = ctx;
+	const char *dec;
+	if (ffstr_matchz(&data, VORBIS_HEAD_STR))
+		dec = "vorbis.decode";
+	else if (ffstr_matchz(&data, OPUS_HEAD_STR))
+		dec = "opus.decode";
+	else if (ffstr_matchz(&data, FLAC_HEAD_STR)) {
+		dec = "flac.ogg-in";
+	} else {
+		errlog1(d->trk, "Unknown codec in OGG packet: %*xb"
+			, ffmin(data.len, 16), data.ptr);
+		return 1;
+	}
+	if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, (void*)dec)) {
+		return 1;
+	}
+	return 0;
+}
+
+uint file_bitrate(fmed_filt *d, oggread *og, uint sample_rate)
+{
+	if (d->audio.total == 0 || og->total_size == 0)
+		return 0;
+	return ffpcm_brate(og->total_size, d->audio.total, sample_rate);
+}
+
+/*
+. p0.1 -> vorbis-info (sample-rate)
+. p1.x -> vorbis-tags
+. px.x -> vorbis-data
+*/
+int ogg_decode(void *ctx, fmed_filt *d)
+{
+	enum { I_HDR, I_INFO, I_DATA, };
+	struct ogg_in *o = ctx;
 	int r;
 
 	if (d->flags & FMED_FSTOP) {
@@ -182,217 +121,93 @@ static int ogg_decode(void *ctx, fmed_filt *d)
 		return FMED_RLASTOUT;
 	}
 
+	if (o->state == I_INFO) {
+		o->state = I_DATA;
+		o->sample_rate = d->audio.fmt.sample_rate;
+		d->audio.bitrate = file_bitrate(d, &o->og, o->sample_rate);
+	}
+
 	if (d->flags & FMED_FFWD) {
-		o->og.data = d->data;
-		o->og.datalen = d->datalen;
-		d->datalen = 0;
+		o->in = d->data_in;
+		d->data_in.len = 0;
 	}
 
 	for (;;) {
 
-		if (o->seek_ready && (int64)d->audio.seek != FMED_NULL && !o->seek_done) {
-			o->seek_done = 1;
-			ffogg_seek(&o->og, ffpcm_samples(d->audio.seek, o->sample_rate));
+		if (o->state == I_DATA && (int64)d->audio.seek != FMED_NULL && !o->seek_pending) {
+			o->seek_pending = 1;
+			oggread_seek(&o->og, ffpcm_samples(d->audio.seek, o->sample_rate));
 			if (o->stmcopy)
 				d->audio.seek = FMED_NULL;
 		}
 
-		r = ffogg_read(&o->og);
+		r = oggread_process(&o->og, &o->in, &d->data_out);
 		switch (r) {
-		case FFOGG_RMORE:
+		case OGGREAD_MORE:
 			if (d->flags & FMED_FLAST) {
-				dbglog(core, d->trk, "ogg", "no eos page");
+				dbglog1(d->trk, "no eos page");
 				d->outlen = 0;
 				return FMED_RLASTOUT;
 			}
 			return FMED_RMORE;
 
-		case FFOGG_RHDR:
-		if (!o->hdr) {
-			o->hdr = 1;
-			const char *dec;
-			if (ffs_matchz(o->og.out.ptr, o->og.out.len, VORBIS_HEAD_STR))
-				dec = "vorbis.decode";
-			else if (ffs_matchz(o->og.out.ptr, o->og.out.len, FFOPUS_HEAD_STR))
-				dec = "opus.decode";
-			else if (ffs_matchz(o->og.out.ptr, o->og.out.len, FLAC_HEAD_STR)) {
-				dec = "flac.ogg-in";
-			} else {
-				errlog0("Unknown codec in OGG packet: %*xb"
-					, (size_t)ffmin(o->og.out.len, 16), o->og.out.ptr);
-				return FMED_RERR;
+		case OGGREAD_HEADER:
+		case OGGREAD_DATA:
+			if (o->state == I_HDR) {
+				o->state = I_INFO;
+				d->audio.total = oggread_info(&o->og)->total_samples;
+				if (0 != add_decoder(o, d, d->data_out))
+					return FMED_RERR;
 			}
-			if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, (void*)dec)) {
-				return FMED_RERR;
-			}
-			//break
-		}
-
-		case FFOGG_RDATA:
 			goto data;
 
-		case FFOGG_RDONE:
-			d->outlen = 0;
+		case OGGREAD_DONE:
+			d->data_out.len = 0;
 			return FMED_RLASTOUT;
 
-		case FFOGG_RHDRFIN:
-			break;
-
-		case FFOGG_RINFO:
-			d->audio.total = o->og.total_samples;
-			o->sample_rate = d->audio.fmt.sample_rate;
-			o->seek_ready = 1;
-			d->audio.bitrate = ffogg_bitrate(&o->og, d->audio.fmt.sample_rate);
-			break;
-
-		case FFOGG_RSEEK:
-			d->input.seek = o->og.off;
+		case OGGREAD_SEEK:
+			d->input.seek = oggread_offset(&o->og);
 			return FMED_RMORE;
 
-		case FFOGG_RWARN:
-			warnlog(core, d->trk, "ogg", "near sample %U, offset %xU: ffogg_read(): %s"
-				, ffogg_cursample(&o->og), o->og.off, ffogg_errstr(o->og.err));
-			break;
-
-		case FFOGG_RERR:
+		case OGGREAD_ERROR:
 		default:
-			errlog(core, d->trk, "ogg", "ffogg_read(): %s", ffogg_errstr(o->og.err));
+			errlog1(d->trk, "oggread_process(): %s", oggread_error(&o->og));
 			return FMED_RERR;
 		}
 	}
 
 data:
-	dbglog(core, d->trk, "ogg", "packet #%u, %L bytes, page #%u, granule pos: %U"
-		, o->og.pktno, o->og.out.len, ffogg_pageno(&o->og), ffogg_granulepos(&o->og));
+	o->seek_pending = 0;
+	d->audio.pos = oggread_page_pos(&o->og);
+	dbglog1(d->trk, "packet#%u.%u  length:%L  page-start-pos:%U"
+		, (int)oggread_page_num(&o->og), (int)oggread_pkt_num(&o->og)
+		, d->data_out.len
+		, d->audio.pos);
 
 	if (o->stmcopy) {
 		uint64 set_gpos = (uint64)-1;
-		if (ffogg_page_last_pkt(&o->og)) {
-			fmed_setval("ogg_flush", 1);
-			set_gpos = ffogg_granulepos(&o->og);
+		const struct ogg_hdr *h = (struct ogg_hdr*)o->og.chunk.ptr;
+		int page_is_last_pkt = (o->og.seg_off == h->nsegments);
+		if (page_is_last_pkt) {
+			d->ogg_flush = 1;
+			set_gpos = o->og.page_endpos;
 		}
 		fmed_setval("ogg_granpos", set_gpos);
-	}
 
-	r = FMED_RDATA;
-	if (ffogg_cursample(&o->og) != (uint64)-1) {
-		d->audio.pos = ffogg_cursample(&o->og);
-
-		if (o->stmcopy && o->sample_rate != 0
+		if (o->sample_rate != 0
 			&& d->audio.until != FMED_NULL && d->audio.until > 0
 			&& ffpcm_time(d->audio.pos, o->sample_rate) >= (uint64)d->audio.until) {
-			dbglog(core, d->trk, NULL, "reached time %Ums", d->audio.until);
-			r = FMED_RLASTOUT;
+
+			dbglog1(d->trk, "reached time %Ums", d->audio.until);
+			d->data_out.len = 0;
 			d->audio.until = FMED_NULL;
+			return FMED_RLASTOUT;
 		}
 	}
-	o->seek_done = 0;
-	d->out = o->og.out.ptr,  d->outlen = o->og.out.len;
-	return r;
+
+	return FMED_RDATA;
 }
 
-
-static int ogg_out_config(ffpars_ctx *ctx)
-{
-	ogg_out_conf.max_page_duration = 1000;
-	ffpars_setargs(ctx, &ogg_out_conf, ogg_out_conf_args, FFCNT(ogg_out_conf_args));
-	return 0;
-}
-
-static void* ogg_out_open(fmed_filt *d)
-{
-	ogg_out *o = ffmem_tcalloc1(ogg_out);
-	if (o == NULL)
-		return NULL;
-	return o;
-}
-
-static void ogg_out_close(void *ctx)
-{
-	ogg_out *o = ctx;
-	ffogg_wclose(&o->og);
-	ffmem_free(o);
-}
-
-static int ogg_out_encode(void *ctx, fmed_filt *d)
-{
-	enum { I_CONF, I_CREAT, I_ENCODE };
-	ogg_out *o = ctx;
-	int r;
-
-	switch (o->state) {
-	case I_CONF: {
-
-		if (ffsz_eq(d->datatype, "OGG")) {
-			if (0 != (r = ffogg_create(&o->og, ffrnd_get()))) {
-				errlog(core, d->trk, "ogg", "ffogg_create() failed: %s", ffogg_errstr(r));
-				return FMED_RERR;
-			}
-			o->og.allow_partial = 1;
-
-			o->state = I_ENCODE;
-			break;
-
-		} else if (!ffsz_eq(d->datatype, "pcm")) {
-			errlog(core, d->trk, NULL, "unsupported input data format: %s", d->datatype);
-			return FMED_RERR;
-		}
-
-		const char *enc = ogg_enc_mod(d->track->getvalstr(d->trk, "output"));
-		if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT_PREV, (void*)enc)) {
-			return FMED_RERR;
-		}
-		o->state = I_CREAT;
-		return FMED_RMORE;
-	}
-
-	case I_CREAT:
-		if (0 != (r = ffogg_create(&o->og, ffrnd_get()))) {
-			errlog(core, d->trk, "ogg", "ffogg_create() failed: %s", ffogg_errstr(r));
-			return FMED_RERR;
-		}
-		o->og.max_pagedelta = ffpcm_samples(ogg_out_conf.max_page_duration, d->audio.convfmt.sample_rate);
-		o->state = I_ENCODE;
-		//break;
-
-	case I_ENCODE:
-		break;
-	}
-
-	if (d->flags & FMED_FFWD) {
-		o->og.fin = !!(d->flags & FMED_FLAST);
-		o->og.flush = (1 == fmed_getval("ogg_flush"));
-		o->og.pkt_endpos = fmed_getval("ogg_granpos");
-		ffstr_set(&o->og.pkt, d->data, d->datalen);
-		d->datalen = 0;
-	}
-
-	r = ffogg_write(&o->og);
-	switch (r) {
-
-	case FFOGG_RDONE:
-		core->log(FMED_LOG_INFO, d->trk, NULL, "OGG: packets:%U, pages:%U, overhead: %.2F%%"
-			, o->og.stat.npkts, o->og.stat.npages
-			, (double)o->og.stat.total_ogg * 100 / (o->og.stat.total_payload + o->og.stat.total_ogg));
-		// break
-
-	case FFOGG_RDATA:
-		fmed_setval("ogg_flush", 0);
-		goto data;
-
-	case FFOGG_RMORE:
-		return FMED_RMORE;
-
-	default:
-		errlog(core, d->trk, "ogg", "ffogg_write() failed: %s", ffogg_errstr(o->og.err));
-		return FMED_RERR;
-	}
-
-data:
-	d->out = o->og.out.ptr,  d->outlen = o->og.out.len;
-
-	dbglog(core, d->trk, "ogg", "output: %L bytes, page: %u"
-		, (size_t)d->outlen, o->og.page.number - 1);
-
-	return (r == FFOGG_RDONE) ? FMED_RLASTOUT : FMED_RDATA;
-}
+const fmed_filter ogg_input = {
+	ogg_open, ogg_decode, ogg_close
+};

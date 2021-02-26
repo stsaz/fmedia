@@ -2,101 +2,59 @@
 Copyright (c) 2020 Simon Zolin */
 
 #include <fmedia.h>
-
-#include <FF/aformat/caf.h>
+#include <avpack/caf-read.h>
 #include <FF/audio/pcm.h>
-#include <FF/array.h>
-#include <FFOS/error.h>
 
+#define dbglog1(trk, ...)  fmed_dbglog(core, trk, NULL, __VA_ARGS__)
+#define errlog1(trk, ...)  fmed_errlog(core, trk, NULL, __VA_ARGS__)
 
-#undef dbglog
-#undef errlog
-#define dbglog(trk, ...)  fmed_dbglog(core, trk, NULL, __VA_ARGS__)
-#define errlog(trk, ...)  fmed_errlog(core, trk, NULL, __VA_ARGS__)
-
-static const fmed_core *core;
+extern const fmed_core *core;
 
 typedef struct fmed_caf {
-	ffcaf caf;
+	cafread caf;
+	void *trk;
+	ffstr in;
 	uint state;
 } fmed_caf;
 
-
-//FMEDIA MODULE
-static const void* cafmod_iface(const char *name);
-static int cafmod_sig(uint signo);
-static void cafmod_destroy(void);
-static const fmed_mod fmed_caf_mod = {
-	.ver = FMED_VER_FULL, .ver_core = FMED_VER_CORE,
-	&cafmod_iface, &cafmod_sig, &cafmod_destroy
-};
-
-//INPUT
-static void* caf_open(fmed_filt *d);
-static void caf_close(void *ctx);
-static int caf_process(void *ctx, fmed_filt *d);
-static const fmed_filter fmed_caf_input = {
-	&caf_open, &caf_process, &caf_close
-};
-
-
-FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
+void caf_log(void *udata, ffstr msg)
 {
-	core = _core;
-	return &fmed_caf_mod;
+	fmed_caf *c = udata;
+	dbglog1(c->trk, "%S", &msg);
 }
-
-
-static const void* cafmod_iface(const char *name)
-{
-	if (!ffsz_cmp(name, "in"))
-		return &fmed_caf_input;
-	return NULL;
-}
-
-static int cafmod_sig(uint signo)
-{
-	switch (signo) {
-	case FMED_SIG_INIT:
-		ffmem_init();
-		return 0;
-	}
-	return 0;
-}
-
-static void cafmod_destroy(void)
-{
-}
-
 
 static void* caf_open(fmed_filt *d)
 {
 	fmed_caf *c = ffmem_tcalloc1(fmed_caf);
 	if (c == NULL) {
-		errlog(d->trk, "%s", ffmem_alloc_S);
+		errlog1(d->trk, "%s", ffmem_alloc_S);
 		return NULL;
 	}
-	ffcaf_open(&c->caf);
+	c->trk = d->trk;
+	cafread_open(&c->caf);
+	c->caf.log = caf_log;
+	c->caf.udata = c;
 	return c;
 }
 
 static void caf_close(void *ctx)
 {
 	fmed_caf *c = ctx;
-	ffcaf_close(&c->caf);
+	cafread_close(&c->caf);
 	ffmem_free(c);
 }
 
 static void caf_meta(fmed_caf *c, fmed_filt *d)
 {
+	c->caf.tagname = cafread_tag(&c->caf, &c->caf.tagval);
 	d->track->meta_set(d->trk, &c->caf.tagname, &c->caf.tagval, FMED_QUE_TMETA);
 }
 
 static const byte caf_codecs[] = {
-	FFCAF_AAC, FFCAF_ALAC,
+	CAF_AAC, CAF_ALAC, CAF_LPCM,
 };
 static const char* const caf_codecs_str[] = {
-	"aac.decode", "alac.decode",
+	"aac.decode", "alac.decode", "",
 };
 
 static int caf_process(void *ctx, fmed_filt *d)
@@ -106,13 +64,13 @@ static int caf_process(void *ctx, fmed_filt *d)
 	int r;
 
 	if (d->flags & FMED_FSTOP) {
-		d->outlen = 0;
+		d->data_out.len = 0;
 		return FMED_RLASTOUT;
 	}
 
 	if (d->flags & FMED_FFWD) {
-		ffcaf_input(&c->caf, d->data, d->datalen);
-		d->datalen = 0;
+		c->in = d->data_in;
+		d->data_in.len = 0;
 	}
 
 	switch (c->state) {
@@ -123,73 +81,91 @@ static int caf_process(void *ctx, fmed_filt *d)
 		break;
 	}
 
-	if (d->flags & FMED_FLAST)
-		ffcaf_fin(&c->caf);
-
 	for (;;) {
-		r = ffcaf_read(&c->caf);
+		r = cafread_process(&c->caf, &c->in, &d->data_out);
 		switch (r) {
-		case FFCAF_MORE:
+		case CAFREAD_MORE_OR_DONE:
 			if (d->flags & FMED_FLAST) {
-				errlog(d->trk, "file is incomplete");
-				d->outlen = 0;
+				d->data_out.len = 0;
+				return FMED_RDONE;
+			}
+			// fallthrough
+
+		case CAFREAD_MORE:
+			if (d->flags & FMED_FLAST) {
+				errlog1(d->trk, "file is incomplete");
+				d->data_out.len = 0;
 				return FMED_RDONE;
 			}
 			return FMED_RMORE;
 
-		case FFCAF_DONE:
-			d->outlen = 0;
+		case CAFREAD_DONE:
+			d->data_out.len = 0;
 			return FMED_RDONE;
 
-		case FFCAF_DATA:
+		case CAFREAD_DATA:
 			goto data;
 
-		case FFCAF_HDR: {
-			dbglog(d->trk, "packets:%U  frames/packet:%u  bytes/packet:%u"
-				, c->caf.info.total_packets, c->caf.info.packet_frames, c->caf.info.packet_bytes);
+		case CAFREAD_HEADER: {
+			const caf_info *ai = cafread_info(&c->caf);
+			dbglog1(d->trk, "packets:%U  frames/packet:%u  bytes/packet:%u"
+				, ai->total_packets, ai->packet_frames, ai->packet_bytes);
 
-			int i = ffint_find1(caf_codecs, FFCNT(caf_codecs), c->caf.info.format);
+			int i = ffint_find1(caf_codecs, FFCNT(caf_codecs), ai->codec);
 			if (i == -1) {
-				errlog(d->trk, "unsupported codec: %xu", c->caf.info.format);
+				errlog1(d->trk, "unsupported codec: %xu", ai->codec);
 				return FMED_RERR;
 			}
 
 			const char *codec = caf_codecs_str[i];
-			if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, (void*)codec)) {
+			if (codec[0] == '\0') {
+				if (ai->format & CAF_FMT_FLOAT) {
+					errlog1(d->trk, "float data isn't supported");
+					return FMED_RERR;
+				}
+				if (!(ai->format & CAF_FMT_LE)) {
+					errlog1(d->trk, "big-endian data isn't supported");
+					return FMED_RERR;
+				}
+				d->datatype = "pcm";
+				d->audio.fmt.format = ai->format & 0xff;
+				d->audio.fmt.ileaved = 1;
+			} else if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, (void*)codec)) {
 				return FMED_RERR;
 			}
-			d->audio.fmt.channels = c->caf.info.pcm.channels;
-			d->audio.fmt.sample_rate = c->caf.info.pcm.sample_rate;
-			d->audio.total = c->caf.info.total_frames;
-			d->audio.bitrate = c->caf.info.bitrate;
+			d->audio.fmt.channels = ai->channels;
+			d->audio.fmt.sample_rate = ai->sample_rate;
+			d->audio.total = ai->total_frames;
+			d->audio.bitrate = ai->bitrate;
 
 			if (d->input_info)
 				return FMED_RDONE;
 
-			ffstr asc = ffcaf_asc(&c->caf);
-			d->out = asc.ptr,  d->outlen = asc.len;
+			d->data_out = ai->codec_conf;
 			c->state = I_DATA;
 			return FMED_RDATA;
 		}
 
-		case FFCAF_TAG:
+		case CAFREAD_TAG:
 			caf_meta(c, d);
 			break;
 
-		case FFCAF_SEEK:
-			d->input.seek = ffcaf_seekoff(&c->caf);
+		case CAFREAD_SEEK:
+			d->input.seek = cafread_offset(&c->caf);
 			return FMED_RMORE;
 
-		case FFCAF_ERR:
+		case CAFREAD_ERROR:
 		default:
-			errlog(d->trk, "ffcaf_read(): %s", ffcaf_errstr(&c->caf));
+			errlog1(d->trk, "cafread_process(): %s", cafread_error(&c->caf));
 			return FMED_RERR;
 		}
 	}
 
 data:
-	d->audio.pos = ffcaf_cursample(&c->caf);
-	ffstr out = ffcaf_output(&c->caf);
-	d->out = out.ptr,  d->outlen = out.len;
+	d->audio.pos = cafread_cursample(&c->caf);
 	return FMED_RDATA;
 }
+
+const fmed_filter caf_input = {
+	caf_open, caf_process, caf_close
+};

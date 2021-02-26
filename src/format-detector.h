@@ -9,6 +9,7 @@ enum FILE_FORMAT {
 	FILE_FLAC,
 	FILE_WAV,
 	FILE_AVI,
+	FILE_CAF,
 };
 
 static const char file_ext[][5] = {
@@ -18,6 +19,7 @@ static const char file_ext[][5] = {
 	"flac",
 	"wav",
 	"avi",
+	"caf",
 };
 
 /** Detect file format by first several bytes
@@ -50,6 +52,14 @@ static inline int file_format_detect(const void *data, ffsize len)
 		if (!ffmem_cmp(&d[4], "ftyp", 4)
 			&& ffint_be_cpu32_ptr(&d[0]) <= 255)
 			return FILE_MP4;
+	}
+
+	if (len >= 8) {
+		// char caff[4]; // "caff"
+		// ffbyte ver[2]; // =1
+		// ffbyte flags[2]; // =0
+		if (!ffmem_cmp(d, "caff\x00\x01\x00\x00", 8))
+			return FILE_CAF;
 	}
 
 	if (len >= 5) {
