@@ -64,6 +64,15 @@ void wlog_run()
 		core->cmd(FMED_SETLOG, &gui_logger);
 }
 
+void wlog_show(uint show)
+{
+	struct gui_wlog *w = gg->wlog;
+	if (!show) {
+		ffui_show(&w->wnd, 0);
+		return;
+	}
+}
+
 void wlog_init()
 {
 	struct gui_wlog *c = ffmem_new(struct gui_wlog);

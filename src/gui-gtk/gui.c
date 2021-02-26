@@ -104,17 +104,16 @@ static int gui_conf(const char *name, ffpars_ctx *ctx)
 	return -1;
 }
 
+void dlgs_init();
 static int gui_sig(uint signo)
 {
 	switch (signo) {
 	case FMED_SIG_INIT:
-		ffmem_init();
 		if (NULL == (gg = ffmem_new(ggui)))
 			return -1;
 		gg->vol = 100;
 		gg->go_pos = -1;
-		wconvert_init();
-		wlog_init();
+		dlgs_init();
 		return 0;
 
 	case FMED_OPEN:
@@ -156,15 +155,14 @@ static void conf_destroy()
 	ffmem_free(gg->conf.ydl_outdir);
 }
 
+void dlgs_destroy();
 static void gui_destroy(void)
 {
 	if (gg == NULL)
 		return;
 
-	wconv_destroy();
-	wdload_destroy();
+	dlgs_destroy();
 	conf_destroy();
-	wlog_destroy();
 	ffmem_free(gg->home_dir);
 	ffsem_close(gg->sem);
 	ffmem_free0(gg);
@@ -187,41 +185,6 @@ static const ffui_ldr_ctl wmain_ctls[] = {
 	FFUI_LDR_CTL(struct gui_wmain, tray_icon),
 	FFUI_LDR_CTL_END
 };
-static const ffui_ldr_ctl wabout_ctls[] = {
-	FFUI_LDR_CTL(struct gui_wabout, wabout),
-	FFUI_LDR_CTL(struct gui_wabout, labout),
-	FFUI_LDR_CTL(struct gui_wabout, lurl),
-	FFUI_LDR_CTL_END
-};
-static const ffui_ldr_ctl wdload_ctls[] = {
-	FFUI_LDR_CTL(struct gui_wdload, wdload),
-	FFUI_LDR_CTL(struct gui_wdload, lurl),
-	FFUI_LDR_CTL(struct gui_wdload, eurl),
-	FFUI_LDR_CTL(struct gui_wdload, bshowfmt),
-	FFUI_LDR_CTL(struct gui_wdload, tlog),
-	FFUI_LDR_CTL(struct gui_wdload, lcmdline),
-	FFUI_LDR_CTL(struct gui_wdload, ecmdline),
-	FFUI_LDR_CTL(struct gui_wdload, lout),
-	FFUI_LDR_CTL(struct gui_wdload, eout),
-	FFUI_LDR_CTL(struct gui_wdload, bdl),
-	FFUI_LDR_CTL_END
-};
-static const ffui_ldr_ctl wuri_ctls[] = {
-	FFUI_LDR_CTL(struct gui_wuri, wuri),
-	FFUI_LDR_CTL(struct gui_wuri, turi),
-	FFUI_LDR_CTL(struct gui_wuri, bok),
-	FFUI_LDR_CTL_END
-};
-static const ffui_ldr_ctl winfo_ctls[] = {
-	FFUI_LDR_CTL(struct gui_winfo, winfo),
-	FFUI_LDR_CTL(struct gui_winfo, vinfo),
-	FFUI_LDR_CTL_END
-};
-static const ffui_ldr_ctl wplayprops_ctls[] = {
-	FFUI_LDR_CTL(struct gui_wplayprops, wplayprops),
-	FFUI_LDR_CTL(struct gui_wplayprops, vconfig),
-	FFUI_LDR_CTL_END
-};
 static const ffui_ldr_ctl top_ctls[] = {
 	FFUI_LDR_CTL(ggui, mfile),
 	FFUI_LDR_CTL(ggui, mlist),
@@ -230,15 +193,43 @@ static const ffui_ldr_ctl top_ctls[] = {
 	FFUI_LDR_CTL(ggui, mhelp),
 	FFUI_LDR_CTL(ggui, dlg),
 	FFUI_LDR_CTL3(ggui, wmain, wmain_ctls),
+	FFUI_LDR_CTL3_PTR(ggui, wabout, wabout_ctls),
+	FFUI_LDR_CTL3_PTR(ggui, wcmd, wcmd_ctls),
 	FFUI_LDR_CTL3_PTR(ggui, wconvert, wconvert_ctls),
-	FFUI_LDR_CTL3(ggui, wabout, wabout_ctls),
-	FFUI_LDR_CTL3(ggui, wuri, wuri_ctls),
-	FFUI_LDR_CTL3(ggui, winfo, winfo_ctls),
-	FFUI_LDR_CTL3(ggui, wplayprops, wplayprops_ctls),
-	FFUI_LDR_CTL3(ggui, wdload, wdload_ctls),
+	FFUI_LDR_CTL3_PTR(ggui, wdload, wdload_ctls),
+	FFUI_LDR_CTL3_PTR(ggui, winfo, winfo_ctls),
 	FFUI_LDR_CTL3_PTR(ggui, wlog, wlog_ctls),
+	FFUI_LDR_CTL3_PTR(ggui, wplayprops, wplayprops_ctls),
+	FFUI_LDR_CTL3_PTR(ggui, wrename, wrename_ctls),
+	FFUI_LDR_CTL3_PTR(ggui, wuri, wuri_ctls),
 	FFUI_LDR_CTL_END
 };
+
+void dlgs_init()
+{
+	wabout_init();
+	wcmd_init();
+	wconvert_init();
+	wdload_init();
+	winfo_init();
+	wlog_init();
+	wplayprops_init();
+	wrename_init();
+	wuri_init();
+}
+
+void dlgs_destroy()
+{
+	wconv_destroy();
+	wdload_destroy();
+	wlog_destroy();
+	ffmem_free(gg->wabout);
+	ffmem_free(gg->wcmd);
+	ffmem_free(gg->winfo);
+	ffmem_free(gg->wplayprops);
+	ffmem_free(gg->wrename);
+	ffmem_free(gg->wuri);
+}
 
 static void* gui_getctl(void *udata, const ffstr *name)
 {
@@ -253,6 +244,7 @@ static const char *const action_str[] = {
 	"A_FILE_SHOWPCM",
 	"A_FILE_SHOWINFO",
 	"A_FILE_SHOWDIR",
+	"A_SHOW_RENAME",
 	"A_FILE_DELFILE",
 	"A_SHOW",
 	"A_HIDE",
@@ -294,16 +286,17 @@ static const char *const action_str[] = {
 	"A_CONV_SET_SEEK",
 	"A_CONV_SET_UNTIL",
 
-	"A_CONVERT",
-	"A_CONVOUTBROWSE",
-	"A_CONV_EDIT",
-
 	"A_ABOUT",
+	"A_CMD_SHOW",
 	"A_CONF_EDIT",
 	"A_USRCONF_EDIT",
 	"A_FMEDGUI_EDIT",
 	"A_README_SHOW",
 	"A_CHANGES_SHOW",
+
+	"A_CONVERT",
+	"A_CONVOUTBROWSE",
+	"A_CONV_EDIT",
 
 	"A_URL_ADD",
 
@@ -311,6 +304,11 @@ static const char *const action_str[] = {
 	"A_DLOAD_DL",
 
 	"A_PLAYPROPS_EDIT",
+
+	"A_CMD_EXEC",
+	"A_CMD_FILTER",
+
+	"A_RENAME",
 };
 
 static int gui_getcmd(void *udata, const ffstr *name)
@@ -360,11 +358,6 @@ static FFTHDCALL int gui_worker(void *param)
 	if (0 != load_ui())
 		goto err;
 	wmain_init();
-	wabout_init();
-	wuri_init();
-	winfo_init();
-	wplayprops_init();
-	wdload_init();
 
 	if (gg->conf.list_random)
 		corecmd_add(_A_LIST_RANDOM, NULL);
@@ -396,6 +389,7 @@ done:
 struct corecmd {
 	fftask tsk;
 	uint cmd;
+	fftask_handler uhandler;
 	void *udata;
 };
 
@@ -419,12 +413,21 @@ void corecmd_add(uint cmd, void *udata)
 	core->task(&c->tsk, FMED_TASK_POST);
 }
 
+static void corecmd_handler2(void *param)
+{
+	struct corecmd *c = param;
+	c->uhandler(c->udata);
+	ffmem_free(c);
+}
+
 void corecmd_addfunc(fftask_handler func, void *udata)
 {
 	dbglog("%s func:%p  udata:%p", __func__, func, udata);
 	struct corecmd *c = ffmem_new(struct corecmd);
-	c->tsk.handler = func;
-	c->tsk.param = udata;
+	c->tsk.handler = corecmd_handler2;
+	c->tsk.param = c;
+	c->uhandler = func;
+	c->udata = udata;
 	core->task(&c->tsk, FMED_TASK_POST);
 }
 
@@ -911,8 +914,6 @@ static const char *const usrconf_setts[] = {
 	"gui.gui.list_scroll",
 	"gui.gui.list_repeat",
 	"gui.gui.auto_attenuate_ceiling",
-	"gui.gui.ydl_format",
-	"gui.gui.ydl_outdir",
 	"gui.gui.seek_step",
 };
 
@@ -941,21 +942,7 @@ static void usrconf_write_val(ffconfw *conf, uint i)
 	case 5:
 		ffconf_writefloat(conf, gg->conf.auto_attenuate_ceiling, 2, FFCONF_TVAL);
 		break;
-	case 6: {
-		ffstr text = {};
-		ffui_edit_textstr(&gg->wdload.ecmdline, &text);
-		ffconf_writestr(conf, &text, FFCONF_TVAL);
-		ffstr_free(&text);
-		break;
-	}
-	case 7: {
-		ffstr text = {};
-		ffui_edit_textstr(&gg->wdload.eout, &text);
-		ffconf_writestr(conf, &text, FFCONF_TVAL);
-		ffstr_free(&text);
-		break;
-	}
-	case 8:
+	case 6:
 		ffconf_writeint(conf, gg->conf.seek_step_delta, 0, FFCONF_TVAL);
 		break;
 	}
@@ -1005,6 +992,9 @@ void usrconf_write(void)
 		if (!found) {
 			found = wconvert_conf_writeval(&ln, &conf);
 		}
+		if (!found) {
+			found = wdload_conf_writeval(&ln, &conf);
+		}
 
 		if (!found && ln.len != 0)
 			ffconf_writeln(&conf, &ln, 0);
@@ -1017,6 +1007,7 @@ void usrconf_write(void)
 		usrconf_write_val(&conf, i);
 	}
 	wconvert_conf_writeval(NULL, &conf);
+	wdload_conf_writeval(NULL, &conf);
 
 	ffconf_writefin(&conf);
 

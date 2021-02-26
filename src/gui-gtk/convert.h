@@ -153,17 +153,17 @@ static struct conv_prop_ent conv_props[] = {
 	{ "  Until ([m:]s[.ms])",	PROP_IN_UNTIL },
 
 	{ "Filters:", 0 },
-	{ "  Audio Format (int8 | int16 | int24 | int32 | float32)",	PROP_FILT_AFORMAT },
+	{ "  Audio Format\n  (int8 | int16 | int24 | int32 | float32)",	PROP_FILT_AFORMAT },
 	{ "  Sample Rate (Hz)",	PROP_FILT_SRATE },
 	{ "  Channels",	PROP_FILT_CHAN },
 	{ "  Gain (dB)",	PROP_FILT_GAIN },
 
 	{ "Encoder:", 0 },
 	{ "  .mp4/.mp3/.ogg: Data Copy (0 | 1)",	PROP_ENC_DATACOPY },
-	{ "  .mp4: AAC Quality (VBR-quality:1..5 | CBR-bitrate:8..800)",	PROP_ENC_AAC_QUAL },
-	{ "  .ogg: Vorbis Quality (-1.0 .. 10.0)",	PROP_ENC_VORBIS_QUAL },
-	{ "  .opus: Opus Bitrate (6..510)",	PROP_ENC_OPUS_BRATE },
-	{ "  .mp3: MPEG-L3 Quality (VBR-quality:9..0 | CBR-bitrate:64..320",	PROP_ENC_MPEG_QUAL },
+	{ "  .mp4: AAC Quality\n  (VBR-quality:1..5 | CBR-bitrate:8..800)",	PROP_ENC_AAC_QUAL },
+	{ "  .ogg: Vorbis Quality\n  (-1.0 .. 10.0)",	PROP_ENC_VORBIS_QUAL },
+	{ "  .opus: Opus Bitrate\n  (6..510)",	PROP_ENC_OPUS_BRATE },
+	{ "  .mp3: MPEG-L3 Quality\n  (VBR-quality:9..0 | CBR-bitrate:64..320",	PROP_ENC_MPEG_QUAL },
 
 	{ "Output:", 0 },
 	{ "  Overwrite File (0 | 1)",	PROP_OUT_OVERWRITE },
@@ -426,14 +426,23 @@ void wconv_destroy()
 	ffmem_free0(gg->wconvert);
 }
 
-void wconv_show()
+void wconv_show(uint show)
 {
-	if (!gg->wconvert->init) {
-		gg->wconvert->init = 1;
-		ffui_edit_settextz(&gg->wconvert->eout, gg->wconvert->output);
+	struct gui_wconvert *w = gg->wconvert;
+
+	if (!show) {
+		ffui_show(&w->wnd, 0);
+		return;
 	}
-	ffui_view_setdata(&gg->wconvert->vconfig, 0, FF_COUNT(conv_props));
-	ffui_show(&gg->wconvert->wnd, 1);
+
+	if (!w->init) {
+		w->init = 1;
+		ffui_edit_settextz(&w->eout, w->output);
+	}
+
+	ffui_view_setdata(&w->vconfig, 0, FF_COUNT(conv_props));
+	ffui_show(&w->wnd, 1);
+	ffui_wnd_present(&w->wnd);
 }
 
 void wconv_setdata(int id, uint pos)

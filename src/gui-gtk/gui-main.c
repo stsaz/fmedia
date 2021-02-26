@@ -28,7 +28,7 @@ void wmain_init()
 	gg->wmain.wmain.onclose_id = A_ONCLOSE;
 	ffui_view_dragdrop(&gg->wmain.vlist, A_ONDROPFILE);
 	tab_new(0);
-	ffui_show(&gg->wmain, 1);
+	ffui_show(&gg->wmain.wmain, 1);
 }
 
 /** Called before leaving the current playlist. */
@@ -60,14 +60,14 @@ static void wmain_action(ffui_wnd *wnd, int id)
 		list_chooseaddfiles();
 		return;
 	case A_LIST_ADDURL:
-		ffui_show(&gg->wuri.wuri, 1);
+		wuri_show(1);
 		return;
 
 	case A_FILE_SHOWINFO: {
 		ffarr4 *sel = ffui_view_getsel(&gg->wmain.vlist);
 		int i = ffui_view_selnext(&gg->wmain.vlist, sel);
 		if (i != -1)
-			winfo_show(i);
+			winfo_show(1, i);
 		ffui_view_sel_free(sel);
 		return;
 	}
@@ -134,11 +134,15 @@ static void wmain_action(ffui_wnd *wnd, int id)
 	}
 
 	case A_SHOW_PROPS:
-		wplayprops_show();
+		wplayprops_show(1);
 		return;
 
 	case A_DLOAD_SHOW:
-		ffui_show(&gg->wdload.wdload, 1);
+		wdload_show(1);
+		return;
+
+	case A_SHOW_RENAME:
+		wrename_show(1);
 		return;
 
 	case A_LIST_SAVE:
@@ -169,11 +173,11 @@ static void wmain_action(ffui_wnd *wnd, int id)
 	}
 
 	case A_ABOUT:
-		ffui_show(&gg->wabout, 1);
+		wabout_show(1);
 		return;
 
 	case A_SHOWCONVERT:
-		wconv_show();
+		wconv_show(1);
 		return;
 
 	case A_CONV_SET_SEEK:
@@ -182,6 +186,10 @@ static void wmain_action(ffui_wnd *wnd, int id)
 		wconv_setdata(id, pos);
 		return;
 	}
+
+	case A_CMD_SHOW:
+		wcmd_show(1);
+		return;
 
 	case A_CONF_EDIT:
 	case A_USRCONF_EDIT:
@@ -200,6 +208,11 @@ static void wmain_action(ffui_wnd *wnd, int id)
 		return;
 	}
 	corecmd_add(id, NULL);
+}
+
+void wmain_cmd(int id)
+{
+	wmain_action(&gg->wmain.wmain, id);
 }
 
 enum LIST_HDR {
@@ -488,6 +501,15 @@ void list_save()
 void hidetotray()
 {
 	ffui_show(&gg->wmain.wmain, 0);
+	wabout_show(0);
+	wcmd_show(0);
+	wconv_show(0);
+	wdload_show(0);
+	winfo_show(0, 0);
+	wlog_show(0);
+	wplayprops_show(0);
+	wrename_show(0);
+	wuri_show(0);
 	if (!ffui_tray_hasicon(&gg->wmain.tray_icon)) {
 		ffui_icon ico;
 		char *fn = core->getpath(FFSTR("fmedia.ico"));

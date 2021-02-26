@@ -1,4 +1,4 @@
-# fmedia v1.22 GUI
+# fmedia v1.23 GUI
 
 menu mfile {
 	item "_Add..." {
@@ -23,6 +23,10 @@ menu mfile {
 	}
 	item "Show Fi_le in Explorer" {
 		action A_FILE_SHOWDIR
+	}
+	item "Rename File..." {
+		action A_SHOW_RENAME
+		hotkey "Shift+F6"
 	}
 	item "_Delete From Disk" {
 		action A_FILE_DELFILE
@@ -168,6 +172,10 @@ menu mconvert {
 }
 
 menu mhelp {
+	item "Quick Command..." {
+		action A_CMD_SHOW
+		hotkey "Ctrl+`"
+	}
 	item "Edit Default Settings" {
 		action A_CONF_EDIT
 	}
@@ -434,5 +442,32 @@ window wlog {
 	title "Log Messages"
 	position 300 100 600 200
 	text tlog {
+	}
+}
+
+window wcmd {
+	title "Quick Command"
+	position 300 100 300 500
+
+	#editbox tfilter {
+	#	onchange A_CMD_FILTER
+	#}
+
+	listview vlist {
+		style grid_lines
+		dblclick A_CMD_EXEC
+		column Name {
+		}
+	}
+}
+
+window wrename {
+	title "Rename File"
+	position 300 100 500 300
+	editbox tname {
+	}
+	button brename {
+		text "Rename"
+		action A_RENAME
 	}
 }

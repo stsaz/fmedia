@@ -4,6 +4,38 @@
 #include <FFOS/process.h>
 #include <FFOS/signal.h>
 
+struct gui_wdload {
+	ffui_wnd wdload;
+	ffui_label lurl;
+	ffui_edit eurl;
+	ffui_btn bshowfmt;
+	ffui_text tlog;
+
+	ffui_label lcmdline;
+	ffui_edit ecmdline;
+	ffui_label lout;
+	ffui_edit eout;
+	ffui_btn bdl;
+
+	ffbyte wconf_flags[2];
+
+	int first :1;
+};
+
+const ffui_ldr_ctl wdload_ctls[] = {
+	FFUI_LDR_CTL(struct gui_wdload, wdload),
+	FFUI_LDR_CTL(struct gui_wdload, lurl),
+	FFUI_LDR_CTL(struct gui_wdload, eurl),
+	FFUI_LDR_CTL(struct gui_wdload, bshowfmt),
+	FFUI_LDR_CTL(struct gui_wdload, tlog),
+	FFUI_LDR_CTL(struct gui_wdload, lcmdline),
+	FFUI_LDR_CTL(struct gui_wdload, ecmdline),
+	FFUI_LDR_CTL(struct gui_wdload, lout),
+	FFUI_LDR_CTL(struct gui_wdload, eout),
+	FFUI_LDR_CTL(struct gui_wdload, bdl),
+	FFUI_LDR_CTL_END
+};
+
 #define YDL  "/usr/bin/youtube-dl"
 
 /** Subprocess context */
@@ -210,8 +242,8 @@ static void subps_onsig(struct subps *sp)
 static void wdload_status_add(void *param)
 {
 	ffstr *s = param;
-	ffui_text_addtextstr(&gg->wdload.tlog, s);
-	ffui_text_scroll(&gg->wdload.tlog, -1);
+	ffui_text_addtextstr(&gg->wdload->tlog, s);
+	ffui_text_scroll(&gg->wdload->tlog, -1);
 	ffstr_free(s);
 	ffmem_free(s);
 }
@@ -238,19 +270,21 @@ void wdload_destroy()
 {
 	subps_destroy(gg->subps);
 	ffmem_free(gg->subps);
+	ffmem_free0(gg->wdload);
 }
 
 static void wdload_action(ffui_wnd *wnd, int id)
 {
+	struct gui_wdload *w = gg->wdload;
 	dbglog("%s cmd:%u", __func__, id);
 
 	switch (id) {
 	case A_DLOAD_SHOWFMT: {
 		ffstr url = {};
-		ffui_edit_textstr(&gg->wdload.eurl, &url);
-		ffui_text_clear(&gg->wdload.tlog);
+		ffui_edit_textstr(&w->eurl, &url);
+		ffui_text_clear(&w->tlog);
 		if (url.len == 0) {
-			ffui_text_addtextz(&gg->wdload.tlog, "URL value must not be empty");
+			ffui_text_addtextz(&w->tlog, "URL value must not be empty");
 		} else {
 			struct subps *sp = subps_new();
 			sp->url = url;
@@ -263,42 +297,108 @@ static void wdload_action(ffui_wnd *wnd, int id)
 	}
 
 	case A_DLOAD_DL: {
-		ffstr url = {}, formats = {};
-		ffui_edit_textstr(&gg->wdload.eurl, &url);
-		ffui_edit_textstr(&gg->wdload.ecmdline, &formats);
-		const gchar *eout_text = gtk_entry_get_text(GTK_ENTRY(gg->wdload.eout.h));
-		ffui_text_clear(&gg->wdload.tlog);
-		if (url.len == 0 || formats.len == 0 || eout_text[0] == '\0') {
-			ffui_text_addtextz(&gg->wdload.tlog, "URL, Formats and OutDir values must not be empty");
+		ffstr url = {}, formats = {}, out = {};
+		ffui_edit_textstr(&w->eurl, &url);
+		ffui_edit_textstr(&w->ecmdline, &formats);
+		ffui_edit_textstr(&w->eout, &out);
+		ffui_text_clear(&w->tlog);
+		if (url.len == 0 || formats.len == 0 || out.len == 0) {
+			ffui_text_addtextz(&w->tlog, "URL, Formats and OutDir values must not be empty");
 		} else {
 			struct subps *sp = subps_new();
 			sp->url = url;
 			sp->formats = formats;
-			sp->workdir = ffsz_dup(eout_text);
+			sp->workdir = out.ptr;
 			fftask_set(&sp->task, (fftask_handler)subps_dload_url, sp);
 			core->task(&sp->task, FMED_TASK_POST);
 			break;
 		}
 		ffstr_free(&url);
 		ffstr_free(&formats);
+		ffstr_free(&out);
 		break;
 	}
 	}
 }
 
+static void wdload_writeval(ffconfw *conf, ffuint i)
+{
+	struct gui_wdload *w = gg->wdload;
+	ffstr s = {};
+
+	switch (i) {
+	case 0:
+		ffui_edit_textstr(&w->ecmdline, &s);
+		ffconf_writestr(conf, &s, FFCONF_TVAL);
+		break;
+	case 1:
+		ffui_edit_textstr(&w->eout, &s);
+		ffconf_writestr(conf, &s, FFCONF_TVAL);
+		break;
+	}
+
+	ffstr_free(&s);
+}
+
+int wdload_conf_writeval(ffstr *line, ffconfw *conf)
+{
+	struct gui_wdload *w = gg->wdload;
+	static const char setts[][19] = {
+		"gui.gui.ydl_format",
+		"gui.gui.ydl_outdir",
+	};
+
+	if (line == NULL) {
+		for (ffuint i = 0;  i != FF_COUNT(setts);  i++) {
+			if (!w->wconf_flags[i]) {
+				ffconf_writez(conf, setts[i], FFCONF_TKEY | FFCONF_ASIS);
+				wdload_writeval(conf, i);
+			}
+		}
+		return 0;
+	}
+
+	for (ffuint i = 0;  i != FF_COUNT(setts);  i++) {
+		if (ffstr_matchz(line, setts[i])) {
+			ffconf_writez(conf, setts[i], FFCONF_TKEY | FFCONF_ASIS);
+			wdload_writeval(conf, i);
+			w->wconf_flags[i] = 1;
+			return 1;
+		}
+	}
+	return 0;
+}
+
+void wdload_show(uint show)
+{
+	struct gui_wdload *w = gg->wdload;
+
+	if (!show) {
+		ffui_show(&w->wdload, 0);
+		return;
+	}
+
+	if (w->first) {
+		w->first = 0;
+		ffui_text_setmonospace(&w->tlog, 1);
+		const char *s = gg->conf.ydl_format;
+		if (s != NULL && s[0] != '\0')
+			ffui_edit_settextz(&w->ecmdline, s);
+
+		s = gg->conf.ydl_outdir;
+		if (s == NULL || s[0] == '\0')
+			s = gg->home_dir;
+		ffui_edit_settextz(&w->eout, s);
+	}
+	ffui_show(&w->wdload, 1);
+}
+
 void wdload_init()
 {
-	gg->wdload.wdload.hide_on_close = 1;
-	gg->wdload.wdload.on_action = &wdload_action;
-	ffui_text_setmonospace(&gg->wdload.tlog, 1);
+	struct gui_wdload *w = ffmem_new(struct gui_wdload);
+	gg->wdload = w;
+	w->wdload.hide_on_close = 1;
+	w->wdload.on_action = &wdload_action;
 	gg->home_dir = core->env_expand(NULL, 0, "$HOME");
-
-	const char *s = gg->conf.ydl_format;
-	if (s != NULL && s[0] != '\0')
-		ffui_edit_settextz(&gg->wdload.ecmdline, s);
-
-	s = gg->conf.ydl_outdir;
-	if (s == NULL || s[0] == '\0')
-		s = gg->home_dir;
-	ffui_edit_settextz(&gg->wdload.eout, s);
+	w->first = 1;
 }

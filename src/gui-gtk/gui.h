@@ -41,41 +41,6 @@ struct gui_wmain {
 	fmed_que_entry *active_qent;
 };
 
-struct gui_wabout {
-	ffui_wnd wabout;
-	ffui_label labout, lurl;
-};
-
-struct gui_wdload {
-	ffui_wnd wdload;
-	ffui_label lurl;
-	ffui_edit eurl;
-	ffui_btn bshowfmt;
-	ffui_text tlog;
-
-	ffui_label lcmdline;
-	ffui_edit ecmdline;
-	ffui_label lout;
-	ffui_edit eout;
-	ffui_btn bdl;
-};
-
-struct gui_wuri {
-	ffui_wnd wuri;
-	ffui_edit turi;
-	ffui_btn bok;
-};
-
-struct gui_winfo {
-	ffui_wnd winfo;
-	ffui_view vinfo;
-};
-
-struct gui_wplayprops {
-	ffui_wnd wplayprops;
-	ffui_view vconfig;
-};
-
 struct gtrk;
 struct gui_conf {
 	float auto_attenuate_ceiling;
@@ -90,10 +55,26 @@ struct gui_conf {
 	char *ydl_format;
 	char *ydl_outdir;
 };
+
+struct gui_wabout;
+struct gui_wcmd;
 struct gui_wconvert;
+struct gui_wdload;
+struct gui_winfo;
 struct gui_wlog;
+struct gui_wplayprops;
+struct gui_wrename;
+struct gui_wuri;
+extern const ffui_ldr_ctl wabout_ctls[];
+extern const ffui_ldr_ctl wcmd_ctls[];
 extern const ffui_ldr_ctl wconvert_ctls[];
+extern const ffui_ldr_ctl wdload_ctls[];
+extern const ffui_ldr_ctl winfo_ctls[];
 extern const ffui_ldr_ctl wlog_ctls[];
+extern const ffui_ldr_ctl wplayprops_ctls[];
+extern const ffui_ldr_ctl wrename_ctls[];
+extern const ffui_ldr_ctl wuri_ctls[];
+
 typedef struct ggui {
 	ffsem sem;
 	uint load_err;
@@ -110,14 +91,16 @@ typedef struct ggui {
 
 	struct gui_conf conf;
 
-	struct gui_wmain wmain;
+	struct gui_wabout *wabout;
+	struct gui_wcmd *wcmd;
 	struct gui_wconvert *wconvert;
-	struct gui_wabout wabout;
-	struct gui_wuri wuri;
-	struct gui_winfo winfo;
-	struct gui_wplayprops wplayprops;
-	struct gui_wdload wdload;
+	struct gui_wdload *wdload;
+	struct gui_winfo *winfo;
 	struct gui_wlog *wlog;
+	struct gui_wmain wmain;
+	struct gui_wplayprops *wplayprops;
+	struct gui_wrename *wrename;
+	struct gui_wuri *wuri;
 	ffui_dialog dlg;
 	ffui_menu mfile;
 	ffui_menu mlist;
@@ -138,6 +121,7 @@ enum ACTION {
 	A_FILE_SHOWPCM,
 	A_FILE_SHOWINFO,
 	A_FILE_SHOWDIR,
+	A_SHOW_RENAME,
 	A_FILE_DELFILE,
 	A_SHOW,
 	A_HIDE,
@@ -179,16 +163,17 @@ enum ACTION {
 	A_CONV_SET_SEEK,
 	A_CONV_SET_UNTIL,
 
-	A_CONVERT,
-	A_CONVOUTBROWSE,
-	A_CONV_EDIT,
-
 	A_ABOUT,
+	A_CMD_SHOW,
 	A_CONF_EDIT,
 	A_USRCONF_EDIT,
 	A_FMEDGUI_EDIT,
 	A_README_SHOW,
 	A_CHANGES_SHOW,
+
+	A_CONVERT,
+	A_CONVOUTBROWSE,
+	A_CONV_EDIT,
 
 	A_URL_ADD,
 
@@ -196,6 +181,11 @@ enum ACTION {
 	A_DLOAD_DL,
 
 	A_PLAYPROPS_EDIT,
+
+	A_CMD_EXEC,
+	A_CMD_FILTER,
+
+	A_RENAME,
 
 // private:
 	A_ONCLOSE,
@@ -206,8 +196,10 @@ enum ACTION {
 	_A_LIST_RANDOM,
 	A_CONV_DISP,
 	A_PLAYPROPS_DISP,
+	A_CMD_DISP,
 };
 
+// GUI-core:
 void corecmd_add(uint cmd, void *udata);
 void corecmd_addfunc(fftask_handler func, void *udata);
 void ctlconf_write(void);
@@ -215,7 +207,9 @@ void usrconf_write(void);
 void gui_showtextfile(uint id);
 void gui_list_sel(uint idx);
 
+// Main:
 void wmain_init();
+void wmain_cmd(int id);
 void wmain_newtrack(fmed_que_entry *ent, uint time_total, fmed_filt *d);
 void wmain_fintrack();
 void wmain_update(uint playtime, uint time_total);
@@ -232,24 +226,41 @@ void wmain_list_update(uint idx, int delta);
 void wmain_list_set(uint idx, int delta);
 void wmain_list_select(ffuint idx);
 
+// Dialogs:
+
 int conf_convert(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
 void wconvert_init();
 void wconv_destroy();
-void wconv_show();
+void wconv_show(uint show);
 void wconv_setdata(int id, uint pos);
 int wconvert_conf_writeval(ffstr *line, ffconfw *conf);
 
 void wlog_init();
 void wlog_run();
+void wlog_show(uint show);
 void wlog_destroy();
 
 void wabout_init();
+void wabout_show(uint show);
+
 void wuri_init();
+void wuri_show(uint show);
+
 void winfo_init();
-void winfo_show(uint idx);
+void winfo_show(uint show, uint idx);
+
+void wcmd_init();
+void wcmd_show(uint show);
+
 void wplayprops_init();
-void wplayprops_show();
+void wplayprops_show(uint show);
+
 void wdload_init();
+void wdload_show(uint show);
 void wdload_destroy();
+int wdload_conf_writeval(ffstr *line, ffconfw *conf);
+
+void wrename_init();
+void wrename_show(uint show);
 
 extern const char* const repeat_str[3];
