@@ -558,9 +558,9 @@ static void trk_free(fm_trk *t)
 	}
 
 	if (g->mon != NULL) {
-		g->mon->onsig(&t->props, FMED_TRK_ONCLOSE);
+		g->mon->onsig(t, FMED_TRK_ONCLOSE);
 		if (g->last && g->trks.len == 0)
-			g->mon->onsig(&t->props, FMED_TRK_ONLAST);
+			g->mon->onsig(t, FMED_TRK_ONLAST);
 	}
 
 	dbglog(t, "closed");

@@ -405,7 +405,7 @@ enum FMED_TRK_MON {
 };
 struct fmed_trk_mon {
 	/** Called within the worker thread when track object is about to be destroyed. */
-	void (*onsig)(fmed_trk *trk, uint sig);
+	void (*onsig)(void *trk, uint sig);
 };
 /** Associate monitor interface with tracks. */
 #define fmed_trk_monitor(trk, mon)  cmd(NULL, FMED_TRACK_MONITOR, mon)

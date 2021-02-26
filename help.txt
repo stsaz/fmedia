@@ -19,7 +19,8 @@ AUDIO DEVICES:
 --dev=DEVNO         Use playback device
 --dev-capture=DEVNO Use capture device
 --dev-loopback=DEVNO
-                    Use playback device in a loopback mode (record from playback) (WASAPI only)
+                    Use playback device in a loopback mode (record from playback) (WASAPI only).
+                    If used together with --dev-capture, 2 recording streams from both devices will run in parallel.
 
 AUDIO FORMAT:
 By default these settings are used for output.  When recording, they apply for input.

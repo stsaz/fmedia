@@ -40,11 +40,11 @@ static fmed_core *core;
 
 
 static void open_input(void *udata);
-static int rec_track_start(fmed_cmd *cmd, fmed_trk *trkinfo);
+static int rec_tracks_start(fmed_cmd *cmd, fmed_trk *trkinfo);
 static void rec_lpback_new_track(fmed_cmd *cmd);
 
 // TRACK MONITOR
-static void mon_onsig(fmed_trk *trk, uint sig);
+static void mon_onsig(void *trk, uint sig);
 static const struct fmed_trk_mon mon_iface = { &mon_onsig };
 
 //LOG
@@ -94,19 +94,22 @@ static void std_log(uint flags, fmed_logdata *ld)
 }
 
 
-static void mon_onsig(fmed_trk *trk, uint sig)
+static void mon_onsig(void *trk, uint sig)
 {
+	dbglog0("%s: %d", FF_FUNC, sig);
+	fmed_trk *ti = g->track->conf(trk);
 	switch (sig) {
 	case FMED_TRK_ONCLOSE:
-		if (trk == g->rec_trk)
+		if (trk == g->rec_trk) {
 			g->rec_trk = NULL;
+			core->sig(FMED_STOP);
+		}
 
-		if ((trk->type == FMED_TRK_TYPE_REC
-			|| trk->type == FMED_TRK_TYPE_PLIST)
-				&& !g->cmd->gui)
+		if (ti->type == FMED_TRK_TYPE_PLIST
+			&& !g->cmd->gui)
 			core->sig(FMED_STOP);
 
-		if (trk->err)
+		if (ti->err)
 			g->psexit = 1;
 		break;
 
@@ -337,7 +340,7 @@ static void open_input(void *udata)
 	}
 
 	if (fmed->rec) {
-		if (0 != rec_track_start(udata, &trkinfo))
+		if (0 != rec_tracks_start(udata, &trkinfo))
 			goto end;
 	}
 
@@ -351,23 +354,24 @@ end:
 }
 
 /** Start a track for recording audio. */
-static int rec_track_start(fmed_cmd *cmd, fmed_trk *trkinfo)
+static void* rec_track_start(fmed_cmd *cmd, fmed_trk *trkinfo, uint flags)
 {
 	const fmed_track *track = g->track;
 	void *trk;
 	if (NULL == (trk = track->create(FMED_TRACK_REC, NULL)))
-		return -1;
+		return NULL;
 
 	fmed_trk *ti = track->conf(trk);
 	ffpcmex fmt = ti->audio.fmt;
 	track->copy_info(ti, trkinfo);
 	ti->audio.fmt = fmt;
 
-	if (cmd->lbdev_name != (uint)-1) {
+	if (flags & 1)
+		track->setval(trk, "capture_device", cmd->captdev_name);
+	else if (flags & 2) {
 		track->setval(trk, "loopback_device", cmd->lbdev_name);
 		rec_lpback_new_track(cmd);
-	} else if (cmd->captdev_name != 0)
-		track->setval(trk, "capture_device", cmd->captdev_name);
+	}
 
 	if (cmd->outfn.len != 0)
 		track->setvalstr(trk, "output", cmd->outfn.ptr);
@@ -376,8 +380,47 @@ static int rec_track_start(fmed_cmd *cmd, fmed_trk *trkinfo)
 	ti->a_in_buf_time = cmd->capture_buf_len;
 
 	g->rec_trk = trk;
-	track->cmd(trk, FMED_TRACK_START);
+	return trk;
+}
+
+/** Start all recording tracks
+* no --dev-... specified: use default capture device
+* --dev-capture specified: use capture device
+* --dev-loopback specified: use loopback device
+* --dev-capture AND --dev-loopback specified: use capture device and loopback device
+*/
+static int rec_tracks_start(fmed_cmd *cmd, fmed_trk *trkinfo)
+{
+	void *trk0 = NULL, *trk1 = NULL;
+
+	if (cmd->captdev_name == 0
+		&& cmd->lbdev_name == (uint)-1) {
+		if (NULL == (trk0 = rec_track_start(cmd, trkinfo, 0)))
+			goto end;
+	}
+
+	if (cmd->captdev_name != 0) {
+		if (NULL == (trk0 = rec_track_start(cmd, trkinfo, 1)))
+			goto end;
+	}
+
+	if (cmd->lbdev_name != (uint)-1) {
+		if (NULL == (trk1 = rec_track_start(cmd, trkinfo, 2)))
+			goto end;
+		// Note: g->rec_trk holds only one track
+	}
+
+	// try to start both tracks at the same time
+	if (trk0 != NULL)
+		g->track->cmd(trk0, FMED_TRACK_START);
+	if (trk1 != NULL)
+		g->track->cmd(trk1, FMED_TRACK_START);
 	return 0;
+
+end:
+	if (trk0 != NULL)
+		g->track->cmd(trk0, FMED_TRACK_STOP);
+	return -1;
 }
 
 /** Create a track to support recording from WASAPI in loopback mode.
