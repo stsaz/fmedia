@@ -470,6 +470,14 @@ static fmed_que_entry* convert1(fmed_que_entry *input, const ffstr *fn, fmed_trk
 		return NULL;
 	gg->qu->meta_set(qent, FFSTR("output"), fn->ptr, fn->len, FMED_QUE_TRKDICT);
 
+	// copy meta from source
+	ffstr sname, *sval;
+	for (ffsize n = 0;  NULL != (sval = gg->qu->meta(input, n, &sname, FMED_QUE_NO_TMETA));  n++) {
+		if (sval == FMED_QUE_SKIP)
+			continue;
+		gg->qu->meta_set(qent, sname.ptr, sname.len, sval->ptr, sval->len, 0);
+	}
+
 	gg->qu->cmdv(FMED_QUE_SETTRACKPROPS, qent, trkinfo);
 	return qent;
 }
