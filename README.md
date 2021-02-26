@@ -420,7 +420,7 @@ Understanding the top-level source code hierarchy can help you to get involved i
 	    fmedia
 	------------------------
 	      ff      |
-	--------------| ffaudio
+	--------------| avpack, ffaudio
 	 ffos, ff-3pt |
 	------------------------
 	    ffbase
@@ -433,6 +433,7 @@ Each of them plays its own part:
 * ffos provides cross-platform abilities.  Code based on ffos can run on Windows, Linux and FreeBSD.
 * ff-3pt provides simple access to 3rd party libraries such as libFLAC.
 * ff contains all low/mid level interfaces that can be reused between different applications.
+* avpack provides API for reading/writing audio-video container formats, e.g. ".mp4".
 * fmedia contains application code, it's largely based on all FF libraries.
 
 

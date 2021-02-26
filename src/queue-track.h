@@ -210,7 +210,6 @@ static void que_trk_close(void *ctx)
 	if (t->d->type == FMED_TRK_TYPE_EXPAND && !e->plist->expand_all)
 		e->trk_stopped = 1;
 	t->e->trk_err = (err != FMED_NULL);
-	t->e->trk_mixed = (FMED_NULL != t->track->getval(t->trk, "mix_tracks"));
 
 	struct quetask *qt = ffmem_new(struct quetask);
 	if (qt != NULL) {
@@ -247,8 +246,7 @@ Thread: main */
 static void que_ontrkfin(entry *e)
 {
 	if (qu->mixing) {
-		if (qu->quit_if_done && e->trk_mixed)
-			core->sig(FMED_STOP);
+		qu->track->cmd(NULL, FMED_TRACK_LAST);
 	} else if (e->stop_after)
 		e->stop_after = 0;
 	else if (e->trk_stopped)

@@ -8,6 +8,21 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.23 - Feb 25, 2021
+
+ + Windows: record from capture and loopback device in parallel into separate files:
+   "--record --dev-capture=N --dev-loopback=N -o rec$counter.wav"
+ + GUI (Linux): Help->QuickCommand: dialog with all menu commands in one list
+ + GUI (Linux): File->RenameFile: rename/move a file on disk
+ + .caf read: support pcm-le data
+ * .mkv read: couldn't read some files
+ - .mp4 read/write: fix (v1.22 bug)
+ - GUI (Linux): Convert: didn't copy meta data from source
+ - core: --mix didn't work
+ - core: didn't work on old Windows (v1.19 bug)
+ - core: didn't truncate output files when '--overwrite' is used (v1.16 bug)
+
+
 fmedia v1.22 - Jan 25, 2021
 
  + GUI (Linux): "Convert" dialog with editable conversion properties and hotkeys for marking Start/Stop position
