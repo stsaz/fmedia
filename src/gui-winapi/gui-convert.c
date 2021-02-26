@@ -2,10 +2,72 @@
 Copyright (c) 2020 Simon Zolin */
 
 #include <fmedia.h>
-#include <gui/gui.h>
+#include <gui-winapi/gui.h>
 #include <FF/time.h>
 #include <FFOS/process.h>
 
+typedef struct cvt_sets_t {
+	uint init :1;
+
+	char *_output[7];
+	ffslice output; // char*[]
+
+	union {
+	int vorbis_quality;
+	float vorbis_quality_f;
+	};
+	uint opus_bitrate;
+	int opus_frsize;
+	int opus_bandwidth;
+	int mpg_quality;
+	int aac_quality;
+	int aac_bandwidth;
+	int flac_complevel;
+	int flac_md5;
+	int stream_copy;
+
+	int format;
+	int conv_pcm_rate;
+	int channels;
+	union {
+	int gain;
+	float gain_f;
+	};
+	char *meta;
+	int seek;
+	int until;
+
+	int overwrite;
+	int out_preserve_date;
+} cvt_sets_t;
+
+struct gui_wconvert {
+	ffui_wnd wconvert;
+	ffui_menu mmconv;
+	ffui_label lfn, lsets;
+	ffui_combx eout;
+	ffui_btn boutbrowse;
+	ffui_view vsets;
+	ffui_paned pnsets;
+	ffui_paned pnout;
+
+	cvt_sets_t conv_sets;
+	ffbyte conf_flags[1];
+	int wconv_init :1;
+};
+
+const ffui_ldr_ctl wconvert_ctls[] = {
+	FFUI_LDR_CTL(struct gui_wconvert, wconvert),
+	FFUI_LDR_CTL(struct gui_wconvert, mmconv),
+	FFUI_LDR_CTL(struct gui_wconvert, lfn),
+	FFUI_LDR_CTL(struct gui_wconvert, lsets),
+	FFUI_LDR_CTL(struct gui_wconvert, eout),
+	FFUI_LDR_CTL(struct gui_wconvert, boutbrowse),
+	FFUI_LDR_CTL(struct gui_wconvert, vsets),
+	FFUI_LDR_CTL(struct gui_wconvert, pnsets),
+	FFUI_LDR_CTL(struct gui_wconvert, pnout),
+	FFUI_LDR_CTL_END
+};
 
 enum {
 	VSETS_NAME,
@@ -19,14 +81,6 @@ static void gui_convert(void);
 static int conv_sets_add(char *val);
 
 
-void wconvert_init()
-{
-	gg->wconvert.wconvert.hide_on_close = 1;
-	gg->wconvert.wconvert.onactivate_id = CVT_ACTIVATE;
-	gg->wconvert.wconvert.on_action = &gui_cvt_action;
-	gg->wconvert.vsets.edit_id = CVT_SETS_EDITDONE;
-}
-
 static const struct cmd cvt_cmds[] = {
 	{ OUTBROWSE,	F0,	&gui_conv_browse },
 	{ CONVERT,	F0 | CMD_FCORE,	&gui_convert },
@@ -34,6 +88,7 @@ static const struct cmd cvt_cmds[] = {
 
 static void gui_cvt_action(ffui_wnd *wnd, int id)
 {
+	struct gui_wconvert *w = gg->wconvert;
 	const struct cmd *cmd = getcmd(id, cvt_cmds, FFCNT(cvt_cmds));
 	if (cmd != NULL) {
 		if (cmd->flags & CMD_FCORE)
@@ -48,7 +103,7 @@ static void gui_cvt_action(ffui_wnd *wnd, int id)
 		char buf[255];
 		ffs_fmt2(buf, sizeof(buf), "Convert %u file(s) to:%Z"
 			, (int)ffui_view_selcount(&gg->wmain.vlist));
-		ffui_settextz(&gg->wconvert.lfn, buf);
+		ffui_settextz(&w->lfn, buf);
 		break;
 	}
 
@@ -56,20 +111,20 @@ static void gui_cvt_action(ffui_wnd *wnd, int id)
 		int i, isub;
 		ffui_point pt;
 		ffui_cur_pos(&pt);
-		if (-1 == (i = ffui_view_hittest(&gg->wconvert.vsets, &pt, &isub))
+		if (-1 == (i = ffui_view_hittest(&w->vsets, &pt, &isub))
 			|| isub != VSETS_VAL)
 			return;
-		ffui_view_edit(&gg->wconvert.vsets, i, VSETS_VAL);
+		ffui_view_edit(&w->vsets, i, VSETS_VAL);
 		}
 		break;
 
 	case CVT_SETS_EDITDONE: {
-		int i = ffui_view_focused(&gg->wconvert.vsets);
+		int i = ffui_view_focused(&w->vsets);
 		ffui_viewitem it;
 		ffui_view_iteminit(&it);
 		ffui_view_setindex(&it, i);
-		ffui_view_settextz(&it, gg->wconvert.vsets.text);
-		ffui_view_set(&gg->wconvert.vsets, VSETS_VAL, &it);
+		ffui_view_settextz(&it, w->vsets.text);
+		ffui_view_set(&w->vsets, VSETS_VAL, &it);
 		}
 		break;
 	}
@@ -217,9 +272,10 @@ static const ffpars_arg cvt_sets_conf[] = {
 	{ "preserve_date",	FFPARS_TINT, FFPARS_DSTOFF(cvt_sets_t, out_preserve_date) },
 };
 
-void gui_cvt_sets_init(cvt_sets_t *sets)
+static void gui_cvt_sets_init(cvt_sets_t *sets)
 {
-	ffslice_set(&gg->conv_sets.output, gg->conv_sets._output, 0);
+	struct gui_wconvert *w = gg->wconvert;
+	ffslice_set(&w->conv_sets.output, w->conv_sets._output, 0);
 
 	sets->init = 1;
 	sets->format = sets->conv_pcm_rate = sets->channels = SETT_EMPTY_INT;
@@ -244,18 +300,19 @@ void gui_cvt_sets_init(cvt_sets_t *sets)
 If entry exists, remove and re-add it. */
 static int conv_sets_add(char *val)
 {
-	ssize_t i = ffszarr_find((void*)gg->conv_sets.output.ptr, gg->conv_sets.output.len, val, ffsz_len(val));
+	struct gui_wconvert *w = gg->wconvert;
+	ssize_t i = ffszarr_find((void*)w->conv_sets.output.ptr, w->conv_sets.output.len, val, ffsz_len(val));
 	if (i == -1
-		&& gg->conv_sets.output.len == FFCNT(gg->conv_sets._output))
+		&& w->conv_sets.output.len == FFCNT(w->conv_sets._output))
 		i = 0;
 
 	if (i != -1) {
-		char *old = *ffslice_itemT(&gg->conv_sets.output, i, char*);
+		char *old = *ffslice_itemT(&w->conv_sets.output, i, char*);
 		ffmem_free(old);
-		ffslice_rmT(&gg->conv_sets.output, i, 1, char*);
+		ffslice_rmT(&w->conv_sets.output, i, 1, char*);
 	}
 
-	char **it = ffslice_pushT(&gg->conv_sets.output, FF_COUNT(gg->conv_sets._output), char*);
+	char **it = ffslice_pushT(&w->conv_sets.output, FF_COUNT(w->conv_sets._output), char*);
 	*it = val;
 	return i;
 }
@@ -263,15 +320,17 @@ static int conv_sets_add(char *val)
 /** Write all convert.output file names to config. */
 void conv_sets_write(ffconfw *conf)
 {
+	struct gui_wconvert *w = gg->wconvert;
 	char **it;
-	FFSLICE_WALK_T(&gg->conv_sets.output, it, char*) {
+	FFSLICE_WALK_T(&w->conv_sets.output, it, char*) {
 		ffconf_writez(conf, *it, FFCONF_TVAL);
 	}
 }
 
 int gui_conf_convert(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
 {
-	ffpars_setargs(ctx, &gg->conv_sets, cvt_sets_conf, FFCNT(cvt_sets_conf));
+	struct gui_wconvert *w = gg->wconvert;
+	ffpars_setargs(ctx, &w->conv_sets, cvt_sets_conf, FFCNT(cvt_sets_conf));
 	return 0;
 }
 
@@ -369,7 +428,7 @@ static void conv_sets_reset(cvt_sets_t *sets)
 	ffmem_safefree0(sets->meta);
 }
 
-void cvt_sets_destroy(cvt_sets_t *sets)
+static void cvt_sets_destroy(cvt_sets_t *sets)
 {
 	char **it;
 	FFSLICE_WALK_T(&sets->output, it, char*) {
@@ -378,28 +437,35 @@ void cvt_sets_destroy(cvt_sets_t *sets)
 	conv_sets_reset(sets);
 }
 
-void gui_showconvert(void)
+void wconv_show(uint show)
 {
-	if (!gg->wconv_init) {
-		if (!gg->conv_sets.init)
-			gui_cvt_sets_init(&gg->conv_sets);
+	struct gui_wconvert *w = gg->wconvert;
+
+	if (!show) {
+		ffui_show(&w->wconvert, 0);
+		return;
+	}
+
+	if (!w->wconv_init) {
+		if (!w->conv_sets.init)
+			gui_cvt_sets_init(&w->conv_sets);
 
 		// initialize wconvert.eout
-		if (gg->conv_sets.output.len != 0)
-			ffui_settextz(&gg->wconvert.eout, *ffslice_lastT(&gg->conv_sets.output, char*));
+		if (w->conv_sets.output.len != 0)
+			ffui_settextz(&w->eout, *ffslice_lastT(&w->conv_sets.output, char*));
 		char **iter;
-		FFSLICE_RWALK_T(&gg->conv_sets.output, iter, char*) {
-			ffui_combx_insz(&gg->wconvert.eout, -1, *iter);
+		FFSLICE_RWALK_T(&w->conv_sets.output, iter, char*) {
+			ffui_combx_insz(&w->eout, -1, *iter);
 		}
 
-		ffui_view_showgroups(&gg->wconvert.vsets, 1);
+		ffui_view_showgroups(&w->vsets, 1);
 		const char *const *grp;
 		int grp_id = 0;
 		ffui_viewgrp vg;
 		FFARRS_FOREACH(cvt_grps, grp) {
 			ffui_viewgrp_reset(&vg);
 			ffui_viewgrp_settextz(&vg, *grp);
-			ffui_view_insgrp(&gg->wconvert.vsets, -1, grp_id++, &vg);
+			ffui_view_insgrp(&w->vsets, -1, grp_id++, &vg);
 		}
 		grp_id = 0;
 
@@ -415,28 +481,29 @@ void gui_showconvert(void)
 			ffui_view_setgroupid(&it, grp_id);
 
 			ffui_view_settextz(&it, cvt_sets[i].name);
-			ffui_view_append(&gg->wconvert.vsets, &it);
+			ffui_view_append(&w->vsets, &it);
 
 			s.len = 0;
-			sett_tostr(&gg->conv_sets, &cvt_sets[i], &s);
+			sett_tostr(&w->conv_sets, &cvt_sets[i], &s);
 			ffui_view_settextstr(&it, &s);
-			ffui_view_set(&gg->wconvert.vsets, VSETS_VAL, &it);
+			ffui_view_set(&w->vsets, VSETS_VAL, &it);
 
 			ffui_view_settextz(&it, cvt_sets[i].desc);
-			ffui_view_set(&gg->wconvert.vsets, VSETS_DESC, &it);
+			ffui_view_set(&w->vsets, VSETS_DESC, &it);
 
 		}
 
 		ffarr_free(&s);
-		gg->wconv_init = 1;
+		w->wconv_init = 1;
 	}
 
-	ffui_show(&gg->wconvert.wconvert, 1);
-	ffui_wnd_setfront(&gg->wconvert.wconvert);
+	ffui_show(&w->wconvert, 1);
+	ffui_wnd_setfront(&w->wconvert);
 }
 
 void gui_setconvpos(uint cmd)
 {
+	struct gui_wconvert *w = gg->wconvert;
 	char buf[64];
 	int pos = ffui_trk_val(&gg->wmain.tpos);
 	int r = ffs_fmt2(buf, sizeof(buf), "%02u:%02u", pos / 60, pos % 60);
@@ -455,7 +522,7 @@ void gui_setconvpos(uint cmd)
 
 	ffui_view_setindex(&it, i);
 	ffui_view_settext(&it, buf, r);
-	ffui_view_set(&gg->wconvert.vsets, VSETS_VAL, &it);
+	ffui_view_set(&w->vsets, VSETS_VAL, &it);
 	ffui_view_itemreset(&it);
 }
 
@@ -508,15 +575,16 @@ end:
 /** Create new tracks for selected files.  Pass conversion settings to each track.  Start the first added track. */
 static void gui_convert(void)
 {
+	struct gui_wconvert *w = gg->wconvert;
 	int i;
 	fmed_que_entry e, *qent, *inp;
 	ffstr fn, name;
 	uint k;
 	ffarr ar = {0};
 
-	conv_sets_reset(&gg->conv_sets);
+	conv_sets_reset(&w->conv_sets);
 
-	ffui_textstr(&gg->wconvert.eout, &fn);
+	ffui_textstr(&w->eout, &fn);
 	if (fn.len == 0 || 0 == ffui_view_selcount(&gg->wmain.vlist)) {
 		errlog(core, NULL, "gui", "convert: no files selected");
 		ffstr_free(&fn);
@@ -526,11 +594,11 @@ static void gui_convert(void)
 	// update output file names list
 	i = conv_sets_add(fn.ptr);
 	if (i != -1)
-		ffui_combx_rm(&gg->wconvert.eout, gg->conv_sets.output.len - i - 1);
-	ffui_combx_insz(&gg->wconvert.eout, 0, fn.ptr);
-	ffui_combx_set(&gg->wconvert.eout, 0);
+		ffui_combx_rm(&w->eout, w->conv_sets.output.len - i - 1);
+	ffui_combx_insz(&w->eout, 0, fn.ptr);
+	ffui_combx_set(&w->eout, 0);
 
-	if (0 != gui_cvt_getsettings(cvt_sets, FFCNT(cvt_sets), &gg->conv_sets, &gg->wconvert.vsets))
+	if (0 != gui_cvt_getsettings(cvt_sets, FFCNT(cvt_sets), &w->conv_sets, &w->vsets))
 		goto end;
 
 	int curtab = ffui_tab_active(&gg->wmain.tabs);
@@ -572,7 +640,7 @@ static void gui_convert(void)
 		gg->track->copy_info(&trkprops, NULL);
 		for (k = 0;  k != FFCNT(cvt_sets);  k++) {
 
-			void *p = (char*)&gg->conv_sets + (cvt_sets[k].flags & 0xffff);
+			void *p = (char*)&w->conv_sets + (cvt_sets[k].flags & 0xffff);
 
 			if (cvt_sets[k].flags & CVTF_STR) {
 				switch (cvt_sets[k].settname) {
@@ -608,11 +676,68 @@ end:
 
 static void gui_conv_browse(void)
 {
+	struct gui_wconvert *w = gg->wconvert;
 	const char *fn;
 
 	ffui_dlg_nfilter(&gg->dlg, DLG_FILT_OUTPUT);
-	if (NULL == (fn = ffui_dlg_save(&gg->dlg, &gg->wconvert.wconvert, NULL, 0)))
+	if (NULL == (fn = ffui_dlg_save(&gg->dlg, &w->wconvert, NULL, 0)))
 		return;
 
-	ffui_settextz(&gg->wconvert.eout, fn);
+	ffui_settextz(&w->eout, fn);
+}
+
+static void conv_writeval(ffconfw *conf, ffuint i)
+{
+	// struct gui_wconvert *w = gg->wconvert;
+	switch (i) {
+	case 0:
+		conv_sets_write(conf);
+		break;
+	}
+}
+
+int wconvert_conf_writeval(ffstr *line, ffconfw *conf)
+{
+	struct gui_wconvert *w = gg->wconvert;
+	static const char setts[][23] = {
+		"gui.gui.convert.output",
+	};
+
+	if (line == NULL) {
+		for (ffuint i = 0;  i != FF_COUNT(setts);  i++) {
+			if (!w->conf_flags[i]) {
+				ffconf_writez(conf, setts[i], FFCONF_TKEY | FFCONF_ASIS);
+				conv_writeval(conf, i);
+			}
+		}
+		return 0;
+	}
+
+	for (ffuint i = 0;  i != FF_COUNT(setts);  i++) {
+		if (ffstr_matchz(line, setts[i])) {
+			ffconf_writez(conf, setts[i], FFCONF_TKEY | FFCONF_ASIS);
+			conv_writeval(conf, i);
+			w->conf_flags[i] = 1;
+			return 1;
+		}
+	}
+	return 0;
+}
+
+void wconvert_init()
+{
+	struct gui_wconvert *w = ffmem_new(struct gui_wconvert);
+	gg->wconvert = w;
+	w->wconvert.hide_on_close = 1;
+	w->wconvert.onactivate_id = CVT_ACTIVATE;
+	w->wconvert.on_action = &gui_cvt_action;
+	w->vsets.edit_id = CVT_SETS_EDITDONE;
+	gui_cvt_sets_init(&w->conv_sets);
+}
+
+void wconvert_destroy()
+{
+	struct gui_wconvert *w = gg->wconvert;
+	cvt_sets_destroy(&w->conv_sets);
+	ffmem_free0(gg->wconvert);
 }

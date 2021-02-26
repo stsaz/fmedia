@@ -2,7 +2,7 @@
 Copyright (c) 2016 Simon Zolin */
 
 #include <fmedia.h>
-#include <gui/gui.h>
+#include <gui-winapi/gui.h>
 
 #include <FF/gui/loader.h>
 #include <FF/path.h>
@@ -41,7 +41,6 @@ static void gui_list_rmdead(void);
 static void gui_list_random(void);
 static void sel_after_cur(void);
 static void gui_tonxtlist(void);
-static void gui_goto_show(void);
 static void gui_go_set(void);
 static void gui_vol(uint id);
 static void gui_media_showdir(void);
@@ -50,9 +49,6 @@ static void gui_media_fileop(uint cmd);
 static void gui_showtextfile(uint cmd);
 static void gui_on_dropfiles(ffui_wnd *wnd, ffui_fdrop *df);
 static void gui_onclose(void);
-static void gui_media_addurl(uint id);
-static void gui_showrecdir(void);
-static void gui_filt_show(void);
 static void list_setdata(void);
 static void fav_add(void);
 static void fav_show(void);
@@ -116,9 +112,6 @@ static const struct cmd cmds[] = {
 	{ A_PLAY_VOLDOWN,	F1,	&gui_vol },
 	{ A_PLAY_VOLRESET,	F1,	&gui_vol },
 
-	{ GOTO_SHOW,	F0,	&gui_goto_show },
-
-	{ A_FILE_SHOWINFO,	F0 | CMD_FCORE,	&gui_media_showinfo },
 	{ A_FILE_SHOWPCM,	F0 | CMD_FCORE,	&gui_media_showpcm },
 	{ A_FILE_COPYFILE,	F1 | CMD_FCORE,	&gui_media_fileop },
 	{ A_FILE_COPYFN,	F0 | CMD_FCORE,	&gui_media_copyfn },
@@ -138,22 +131,16 @@ static const struct cmd cmds[] = {
 	{ A_LIST_SEL_AFTER_CUR,	F0,	&sel_after_cur },
 
 	{ REC,	F1 | CMD_FCORE,	&gui_rec },
-	{ REC_SETS,	F0,	&gui_rec_show },
 	{ PLAYREC,	F1 | CMD_FCORE,	&gui_rec },
 	{ MIXREC,	F1 | CMD_FCORE,	&gui_rec },
-	{ SHOWRECS,	F0,	&gui_showrecdir },
-	{ DEVLIST_SHOWREC,	F1,	&gui_dev_show },
-	{ DEVLIST_SHOW,	F1,	&gui_dev_show },
+	{ SHOWRECS,	F0,	wrec_showrecdir },
 
-	{ SHOWCONVERT,	F0,	&gui_showconvert },
 	{ SETCONVPOS_SEEK,	F1,	&gui_setconvpos },
 	{ SETCONVPOS_UNTIL,	F1,	&gui_setconvpos },
 
 	{ OPEN,	F1,	&gui_media_opendlg },
 	{ ADD,	F1,	&gui_media_opendlg },
-	{ ADDURL,	F1,	&gui_media_addurl },
 	{ TO_NXTLIST,	F0 | CMD_FCORE,	&gui_tonxtlist },
-	{ FILTER_SHOW,	F0,	&gui_filt_show },
 
 	{ FAV_ADD,	F0 | CMD_FCORE,	&fav_add },
 	{ FAV_SHOW,	F0 | CMD_FCORE,	&fav_show },
@@ -325,9 +312,37 @@ static void gui_action(ffui_wnd *wnd, int id)
 		break;
 	}
 
+
+	case A_FILE_SHOWINFO:
+		winfo_show(1);  break;
+
+	case DEVLIST_SHOWREC:
+	case DEVLIST_SHOW:
+		wdev_show(1, id);  break;
+
+	case REC_SETS:
+		wrec_show(1);  break;
+
+	case SHOWCONVERT:
+		wconv_show(1);  break;
+
+	case ADDURL:
+		wuri_show(1);  break;
+
+	case FILTER_SHOW:
+		wfilter_show(1);  break;
+
 	case A_SHOW_PROPS:
-		ffui_show(&gg->wplayprops.wplayprops, 1);
+		wplayprops_show(1);  break;
+
+	case GOTO_SHOW: {
+		uint pos = ffui_trk_val(&gg->wmain.tpos);
+		wgoto_show(1, pos);
 		break;
+	}
+
+	case ABOUT:
+		wabout_show(1);  break;
 
 	case HIDE:
 		if (!ffui_tray_visible(&gg->wmain.tray_icon)) {
@@ -335,14 +350,15 @@ static void gui_action(ffui_wnd *wnd, int id)
 			ffui_tray_show(&gg->wmain.tray_icon, 1);
 		}
 		ffui_show(&gg->wmain.wmain, 0);
-		ffui_show(&gg->winfo.winfo, 0);
-		ffui_show(&gg->wgoto.wgoto, 0);
-		ffui_show(&gg->wconvert.wconvert, 0);
-		ffui_show(&gg->wrec.wrec, 0);
-		ffui_show(&gg->wdev.wnd, 0);
-		ffui_show(&gg->wlog.wlog, 0);
-		ffui_show(&gg->wuri.wuri, 0);
-		ffui_show(&gg->wfilter.wnd, 0);
+		wconv_show(0);
+		wdev_show(0, 0);
+		wfilter_show(0);
+		wgoto_show(0, 0);
+		winfo_show(0);
+		wlog_show(0);
+		wplayprops_show(0);
+		wrec_show(0);
+		wuri_show(0);
 		gg->min_tray = 1;
 		break;
 
@@ -352,10 +368,6 @@ static void gui_action(ffui_wnd *wnd, int id)
 		if (!(gg->status_tray && gg->rec_trk != NULL))
 			ffui_tray_show(&gg->wmain.tray_icon, 0);
 		gg->min_tray = 0;
-		break;
-
-	case ABOUT:
-		ffui_show(&gg->wabout.wabout, 1);
 		break;
 
 	case QUIT:
@@ -422,18 +434,6 @@ static void gui_go_set(void)
 	size_t n = ffs_fmt(buf, buf + sizeof(buf), "Marker: %u:%02u"
 		, gg->go_pos / 60, gg->go_pos % 60);
 	gui_status(buf, n);
-}
-
-static void gui_goto_show(void)
-{
-	uint pos = ffui_trk_val(&gg->wmain.tpos);
-	ffarr s = {0};
-	ffstr_catfmt(&s, "%02u:%02u", pos / 60, pos % 60);
-	ffui_settextstr(&gg->wgoto.etime, &s);
-	ffarr_free(&s);
-	ffui_edit_selall(&gg->wgoto.etime);
-	ffui_setfocus(&gg->wgoto.etime);
-	ffui_show(&gg->wgoto.wgoto, 1);
 }
 
 /*
@@ -534,22 +534,6 @@ static void gui_media_showdir(void)
 		return;
 
 	ffui_openfolder((const char *const *)&ent->url.ptr, 1);
-}
-
-static void gui_showrecdir(void)
-{
-	char *p, *exp;
-	ffstr dir;
-	ffpath_split2(gg->rec_sets.output, ffsz_len(gg->rec_sets.output), &dir, NULL);
-	if (NULL == (p = ffsz_alcopy(dir.ptr, dir.len)))
-		return;
-	if (NULL == (exp = core->env_expand(NULL, 0, p)))
-		goto done;
-	ffui_openfolder((const char *const *)&exp, 0);
-
-done:
-	ffmem_safefree(p);
-	ffmem_safefree(exp);
 }
 
 /** Copy to clipboard filenames of selected items:
@@ -750,13 +734,6 @@ static void gui_media_opendlg(uint id)
 
 err:
 	FFARR_FREE_ALL_PTR(&gg->filenames, ffmem_free, char*);
-}
-
-static void gui_media_addurl(uint id)
-{
-	ffui_edit_selall(&gg->wuri.turi);
-	ffui_setfocus(&gg->wuri.turi);
-	ffui_show(&gg->wuri.wuri, 1);
 }
 
 int gui_newtab(uint flags)
@@ -1043,13 +1020,6 @@ static void gui_on_dropfiles(ffui_wnd *wnd, ffui_fdrop *df)
 
 err:
 	FFARR_FREE_ALL_PTR(&gg->filenames, ffmem_free, char*);
-}
-
-static void gui_filt_show(void)
-{
-	ffui_edit_selall(&gg->wfilter.ttext);
-	ffui_setfocus(&gg->wfilter.ttext);
-	ffui_show(&gg->wfilter.wnd, 1);
 }
 
 void gui_filter(const ffstr *text, uint flags)

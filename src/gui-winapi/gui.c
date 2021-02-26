@@ -8,7 +8,8 @@ track: ... -> gui-trk -> ...
 */
 
 #include <fmedia.h>
-#include <gui/gui.h>
+#include <gui-winapi/gui.h>
+#include <gui-winapi/track.h>
 
 #include <FF/audio/pcm.h>
 #include <FF/array.h>
@@ -44,14 +45,7 @@ static void gui_savelists(void);
 static void gui_loadlists(void);
 static void upd_done(void *obj);
 
-//GUI-TRACK
-static void* gtrk_open(fmed_filt *d);
-static int gtrk_process(void *ctx, fmed_filt *d);
-static void gtrk_close(void *ctx);
 static int gtrk_conf(ffpars_ctx *ctx);
-static const fmed_filter fmed_gui = {
-	&gtrk_open, &gtrk_process, &gtrk_close
-};
 
 //RECORDING TRACK WRAPPER
 static void* rec_open(fmed_filt *d);
@@ -118,12 +112,6 @@ static const ffpars_arg gui_conf_args[] = {
 	{ "list_scroll",	FFPARS_TINT, FFPARS_DSTOFF(ggui, list_scroll_pos) },
 };
 
-//LOG
-static void gui_log(uint flags, fmed_logdata *ld);
-static const fmed_log gui_logger = {
-	&gui_log
-};
-
 
 FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 {
@@ -161,94 +149,6 @@ static int gui_conf_ghk_add(ffparser_schem *p, void *obj, ffstr *val)
 
 #define add  FFUI_LDR_CTL
 
-static const ffui_ldr_ctl wconvert_ctls[] = {
-	add(gui_wconvert, wconvert),
-	add(gui_wconvert, mmconv),
-	add(gui_wconvert, lfn),
-	add(gui_wconvert, lsets),
-	add(gui_wconvert, eout),
-	add(gui_wconvert, boutbrowse),
-	add(gui_wconvert, vsets),
-	add(gui_wconvert, pnsets),
-	add(gui_wconvert, pnout),
-	{NULL, 0, NULL}
-};
-
-static const ffui_ldr_ctl wrec_ctls[] = {
-	add(gui_wrec, wrec),
-	add(gui_wrec, mmrec),
-	add(gui_wrec, lfn),
-	add(gui_wrec, lsets),
-	add(gui_wrec, eout),
-	add(gui_wrec, boutbrowse),
-	add(gui_wrec, vsets),
-	add(gui_wrec, pnsets),
-	add(gui_wrec, pnout),
-	{NULL, 0, NULL}
-};
-
-static const ffui_ldr_ctl wdev_ctls[] = {
-	add(gui_wdev, wnd),
-	add(gui_wdev, vdev),
-	add(gui_wdev, bok),
-	add(gui_wdev, pn),
-	{NULL, 0, NULL}
-};
-
-static const ffui_ldr_ctl winfo_ctls[] = {
-	add(gui_winfo, winfo),
-	add(gui_winfo, vinfo),
-	add(gui_winfo, pninfo),
-	{NULL, 0, NULL}
-};
-
-static const ffui_ldr_ctl wgoto_ctls[] = {
-	add(gui_wgoto, wgoto),
-	add(gui_wgoto, etime),
-	add(gui_wgoto, bgo),
-	{NULL, 0, NULL}
-};
-
-static const ffui_ldr_ctl wabout_ctls[] = {
-	add(gui_wabout, wabout),
-	add(gui_wabout, ico),
-	add(gui_wabout, labout),
-	add(gui_wabout, lurl),
-	{NULL, 0, NULL}
-};
-
-static const ffui_ldr_ctl wlog_ctls[] = {
-	add(gui_wlog, wlog),
-	add(gui_wlog, pnlog),
-	add(gui_wlog, tlog),
-	{NULL, 0, NULL}
-};
-
-static const ffui_ldr_ctl wuri_ctls[] = {
-	add(gui_wuri, wuri),
-	add(gui_wuri, turi),
-	add(gui_wuri, bok),
-	add(gui_wuri, bcancel),
-	add(gui_wuri, pnuri),
-	{NULL, 0, NULL}
-};
-
-static const ffui_ldr_ctl wfilter_ctls[] = {
-	add(gui_wfilter, wnd),
-	add(gui_wfilter, ttext),
-	add(gui_wfilter, cbfilename),
-	add(gui_wfilter, breset),
-	add(gui_wfilter, pntext),
-	{NULL, 0, NULL}
-};
-
-static const ffui_ldr_ctl wplayprops_ctls[] = {
-	FFUI_LDR_CTL(gui_wplayprops, wplayprops),
-	FFUI_LDR_CTL(gui_wplayprops, vconfig),
-	FFUI_LDR_CTL(gui_wplayprops, pn),
-	FFUI_LDR_CTL_END
-};
-
 static const ffui_ldr_ctl wmain_ctls[] = {
 	add(gui_wmain, wmain),
 	add(gui_wmain, bpause),
@@ -282,18 +182,46 @@ static const ffui_ldr_ctl top_ctls[] = {
 	add(ggui, dlg),
 
 	FFUI_LDR_CTL3(ggui, wmain, wmain_ctls),
-	FFUI_LDR_CTL3(ggui, wconvert, wconvert_ctls),
-	FFUI_LDR_CTL3(ggui, wrec, wrec_ctls),
-	FFUI_LDR_CTL3(ggui, wdev, wdev_ctls),
-	FFUI_LDR_CTL3(ggui, winfo, winfo_ctls),
-	FFUI_LDR_CTL3(ggui, wgoto, wgoto_ctls),
-	FFUI_LDR_CTL3(ggui, wlog, wlog_ctls),
-	FFUI_LDR_CTL3(ggui, wuri, wuri_ctls),
-	FFUI_LDR_CTL3(ggui, wfilter, wfilter_ctls),
-	FFUI_LDR_CTL3(ggui, wplayprops, wplayprops_ctls),
-	FFUI_LDR_CTL3(ggui, wabout, wabout_ctls),
+	FFUI_LDR_CTL3_PTR(ggui, wabout, wabout_ctls),
+	FFUI_LDR_CTL3_PTR(ggui, wconvert, wconvert_ctls),
+	FFUI_LDR_CTL3_PTR(ggui, wdev, wdevlist_ctls),
+	FFUI_LDR_CTL3_PTR(ggui, wfilter, wfilter_ctls),
+	FFUI_LDR_CTL3_PTR(ggui, wgoto, wgoto_ctls),
+	FFUI_LDR_CTL3_PTR(ggui, winfo, winfo_ctls),
+	FFUI_LDR_CTL3_PTR(ggui, wlog, wlog_ctls),
+	FFUI_LDR_CTL3_PTR(ggui, wplayprops, wplayprops_ctls),
+	FFUI_LDR_CTL3_PTR(ggui, wrec, wrec_ctls),
+	FFUI_LDR_CTL3_PTR(ggui, wuri, wuri_ctls),
 	{NULL, 0, NULL}
 };
+
+void dlgs_init()
+{
+	wabout_init();
+	wconvert_init();
+	wdev_init();
+	wfilter_init();
+	wgoto_init();
+	winfo_init();
+	wlog_init();
+	wplayprops_init();
+	wrec_init();
+	wuri_init();
+}
+
+void dlgs_destroy()
+{
+	wrec_destroy();
+	wconvert_destroy();
+	ffmem_free(gg->wabout);
+	ffmem_free(gg->wdev);
+	ffmem_free(gg->wfilter);
+	ffmem_free(gg->wgoto);
+	ffmem_free(gg->winfo);
+	ffmem_free(gg->wlog);
+	ffmem_free(gg->wplayprops);
+	ffmem_free(gg->wuri);
+}
 
 #undef add
 
@@ -429,6 +357,7 @@ void gui_runcmd(const struct cmd *cmd, void *udata)
 struct corecmd {
 	fftask tsk;
 	const struct cmd *cmd;
+	fftask_handler uhandler;
 	void *udata;
 	struct cmd cmd_s;
 };
@@ -463,6 +392,24 @@ void gui_corecmd_add2(uint action_id, void *udata)
 	c->cmd_s.flags = F1 | CMD_FCORE | CMD_FUDATA;
 	c->cmd_s.func = gui_corecmd_op;
 	c->cmd = &c->cmd_s;
+	c->udata = udata;
+	core->task(&c->tsk, FMED_TASK_POST);
+}
+
+static void corecmd_handler2(void *param)
+{
+	struct corecmd *c = param;
+	c->uhandler(c->udata);
+	ffmem_free(c);
+}
+
+void corecmd_addfunc(fftask_handler func, void *udata)
+{
+	dbglog0("%s func:%p  udata:%p", __func__, func, udata);
+	struct corecmd *c = ffmem_new(struct corecmd);
+	c->tsk.handler = corecmd_handler2;
+	c->tsk.param = c;
+	c->uhandler = func;
 	c->udata = udata;
 	core->task(&c->tsk, FMED_TASK_POST);
 }
@@ -804,15 +751,13 @@ char* gui_userpath(const char *fn)
 
 static const char *const usrconf_setts[] = {
 	"gui.gui.theme",
-	"gui.gui.record.output",
-	"gui.gui.convert.output",
+	"gui.gui.auto_attenuate_ceiling",
+	"gui.gui.list_repeat",
 	"gui.gui.random",
 	"gui.gui.sel_after_cursor",
 	"gui.gui.list_columns_width",
 	"gui.gui.list_track",
 	"gui.gui.list_scroll",
-	"gui.gui.list_repeat",
-	"gui.gui.auto_attenuate_ceiling",
 };
 
 /** Write user configuration value. */
@@ -824,10 +769,10 @@ static void usrconf_write_val(ffconfw *conf, uint i)
 		ffconf_writeint(conf, gg->theme_index, 0, FFCONF_TVAL);
 		break;
 	case 1:
-		ffconf_writez(conf, gg->rec_sets.output, FFCONF_TVAL);
+		ffconf_writefloat(conf, gg->conf.auto_attenuate_ceiling, 2, FFCONF_TVAL);
 		break;
 	case 2:
-		conv_sets_write(conf);
+		ffconf_writeint(conf, gg->conf.list_repeat, 0, FFCONF_TVAL);
 		break;
 	case 3:
 		ffconf_writebool(conf, gg->list_random, FFCONF_TVAL);
@@ -846,12 +791,6 @@ static void usrconf_write_val(ffconfw *conf, uint i)
 		n = ffui_view_topindex(&gg->wmain.vlist);
 		ffconf_writeint(conf, n, 0, FFCONF_TVAL);
 		break;
-	case 8:
-		ffconf_writeint(conf, gg->conf.list_repeat, 0, FFCONF_TVAL);
-		break;
-	case 9:
-		ffconf_writefloat(conf, gg->conf.auto_attenuate_ceiling, 2, FFCONF_TVAL);
-		break;
 	}
 }
 
@@ -867,13 +806,6 @@ void usrconf_write(void)
 	ffconf_winit(&conf, NULL, 0);
 	conf.flags |= FFCONF_CRLF;
 	byte flags[FFCNT(usrconf_setts)] = {};
-
-	if (gg->wrec_init) {
-		ffmem_free0(gg->rec_sets.output);
-		ffstr s;
-		ffui_textstr(&gg->wrec.eout, &s);
-		gg->rec_sets.output = s.ptr;
-	}
 
 	if (NULL == (fn = gui_userpath(FMED_USERCONF)))
 		return;
@@ -903,6 +835,12 @@ void usrconf_write(void)
 				break;
 			}
 		}
+
+		if (!found)
+			found = wrec_conf_writeval(&ln, &conf);
+		if (!found)
+			found = wconvert_conf_writeval(&ln, &conf);
+
 		if (!found && ln.len != 0)
 			ffconf_writeln(&conf, &ln, 0);
 	}
@@ -913,6 +851,8 @@ void usrconf_write(void)
 		ffconf_writez(&conf, usrconf_setts[i], FFCONF_TKEY | FFCONF_ASIS);
 		usrconf_write_val(&conf, i);
 	}
+	wrec_conf_writeval(NULL, &conf);
+	wconvert_conf_writeval(NULL, &conf);
 
 	ffconf_writefin(&conf);
 
@@ -1078,16 +1018,6 @@ static FFTHDCALL int gui_worker(void *param)
 	ffui_ldr_fin(&ldr);
 
 	wmain_init();
-	wabout_init();
-	wconvert_init();
-	wrec_init();
-	wdev_init();
-	winfo_init();
-	gg->wlog.wlog.hide_on_close = 1;
-	wuri_init();
-	wfilter_init();
-	wgoto_init();
-	wplayprops_init();
 
 	ffui_dlg_multisel(&gg->dlg);
 
@@ -1125,6 +1055,8 @@ done:
 	return 0;
 }
 
+extern const fmed_filter fmed_gui;
+extern const fmed_log gui_logger;
 static const void* gui_iface(const char *name)
 {
 	if (!ffsz_cmp(name, "gui"))
@@ -1366,6 +1298,7 @@ static int gui_sig(uint signo)
 		gg->sort_col = -1;
 		gg->itab_convert = -1;
 		gg->fav_pl = -1;
+		dlgs_init();
 		fflk_init(&gg->lktrk);
 		fflk_init(&gg->lklog);
 		return 0;
@@ -1424,8 +1357,7 @@ static void gui_destroy(void)
 		return;
 
 	gui_themes_destroy();
-	cvt_sets_destroy(&gg->conv_sets);
-	rec_sets_destroy(&gg->rec_sets);
+	dlgs_destroy();
 	ffsem_close(gg->sem);
 	ffmem_free0(gg);
 }
@@ -1436,159 +1368,6 @@ static int gtrk_conf(ffpars_ctx *ctx)
 	gg->seek_step_delta = 5;
 	gg->seek_leap_delta = 60;
 	gg->status_tray = 1;
-	rec_sets_init(&gg->rec_sets);
-	gui_cvt_sets_init(&gg->conv_sets);
 	ffpars_setargs(ctx, gg, gui_conf_args, FFCNT(gui_conf_args));
 	return 0;
-}
-
-static void* gtrk_open(fmed_filt *d)
-{
-	gui_trk *g = ffmem_tcalloc1(gui_trk);
-	if (g == NULL)
-		return NULL;
-	g->lastpos = (uint)-1;
-	g->d = d;
-	g->trk = d->trk;
-
-	g->qent = (void*)fmed_getval("queue_item");
-	if (g->qent == FMED_PNULL) {
-		ffmem_free(g);
-		return FMED_FILT_SKIP; //tracks being recorded are not started from "queue"
-	}
-
-	if (gg->conf.auto_attenuate_ceiling < 0) {
-		d->audio.auto_attenuate_ceiling = gg->conf.auto_attenuate_ceiling;
-	}
-
-	if (FMED_PNULL != d->track->getvalstr(d->trk, "output"))
-		g->conversion = 1;
-	else {
-		fflk_lock(&gg->lktrk);
-		gg->curtrk = g;
-		fflk_unlock(&gg->lktrk);
-
-		gui_corecmd_op(A_PLAY_VOL, NULL);
-	}
-
-	g->state = ST_PLAYING;
-	return g;
-}
-
-static void gtrk_close(void *ctx)
-{
-	gui_trk *g = ctx;
-	gui_setmeta(NULL, g->qent);
-
-	if (gg->curtrk == g) {
-		fflk_lock(&gg->lktrk);
-		gg->curtrk = NULL;
-		fflk_unlock(&gg->lktrk);
-		gui_clear();
-	}
-	ffmem_free(g);
-}
-
-static int gtrk_process(void *ctx, fmed_filt *d)
-{
-	gui_trk *g = ctx;
-	int64 playpos;
-	uint playtime, first = 0;
-
-	if (d->meta_block)
-		goto done;
-
-	if (g->sample_rate == 0) {
-		if (d->audio.fmt.format == 0) {
-			errlog(core, d->trk, NULL, "audio format isn't set");
-			return FMED_RERR;
-		}
-
-		g->sample_rate = d->audio.fmt.sample_rate;
-		g->total_time_sec = ffpcm_time(d->audio.total, g->sample_rate) / 1000;
-		first = 1;
-	}
-
-	if (g->conversion) {
-		gui_conv_progress(g);
-		goto done;
-	}
-
-	if (first) {
-		gui_newtrack(g, d, g->qent);
-		d->meta_changed = 0;
-	}
-
-	if (g->goback) {
-		g->goback = 0;
-		return FMED_RMORE;
-	}
-
-	if (d->flags & FMED_FSTOP) {
-		d->outlen = 0;
-		return FMED_RDONE;
-	}
-
-	if (d->meta_changed) {
-		d->meta_changed = 0;
-		gui_setmeta(g, g->qent);
-	}
-
-	playpos = d->audio.pos;
-	if (playpos == FMED_NULL) {
-		goto done;
-	}
-
-	playtime = (uint)(ffpcm_time(playpos, g->sample_rate) / 1000);
-	if (playtime == g->lastpos)
-		goto done;
-	g->lastpos = playtime;
-
-	wmain_update(playtime, g->total_time_sec);
-
-done:
-	d->out = d->data;
-	d->outlen = d->datalen;
-	d->datalen = 0;
-	if (d->flags & FMED_FLAST)
-		return FMED_RDONE;
-	return FMED_ROK;
-}
-
-
-// TIME :TID [LEVEL] MOD: *ID: {"IN_FILENAME": } TEXT
-static void gui_log(uint flags, fmed_logdata *ld)
-{
-	char buf[4096];
-	char *s = buf;
-	const char *end = buf + sizeof(buf) - FFSLEN("\r\n");
-
-	if (ld->tid != 0) {
-		s += ffs_fmt(s, end, "%s :%xU [%s] %s: "
-			, ld->stime, ld->tid, ld->level, ld->module);
-	} else {
-		s += ffs_fmt(s, end, "%s [%s] %s: "
-			, ld->stime, ld->level, ld->module);
-	}
-	if (ld->ctx != NULL)
-		s += ffs_fmt(s, end, "%S:\t", ld->ctx);
-
-	if ((flags & _FMED_LOG_LEVMASK) <= FMED_LOG_USER && ld->trk != NULL) {
-		const char *infn = gg->track->getvalstr(ld->trk, "input");
-		if (infn != FMED_PNULL)
-			s += ffs_fmt(s, end, "\"%s\": ", infn);
-	}
-
-	s += ffs_fmtv(s, end, ld->fmt, ld->va);
-	if (flags & FMED_LOG_SYS)
-		s += ffs_fmt(s, end, ": %E", fferr_last());
-	*s++ = '\r';
-	*s++ = '\n';
-
-	fflk_lock(&gg->lklog);
-	ffui_edit_addtext(&gg->wlog.tlog, buf, s - buf);
-	fflk_unlock(&gg->lklog);
-
-	if ((flags & _FMED_LOG_LEVMASK) <= FMED_LOG_USER)
-		ffui_show(&gg->wlog.wlog, 1);
 }

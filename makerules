@@ -404,7 +404,9 @@ oss.$(SO): $(OSS_O)
 
 ifeq ($(OS),win)
 #
-$(OBJ_DIR)/%.o: $(SRCDIR)/gui/%.c $(SRCDIR)/gui/gui.h $(SRCDIR)/fmedia.h $(FF_GUIHDR)
+$(OBJ_DIR)/gui-dlgs.o: $(SRCDIR)/gui-winapi/gui-dlgs.c $(SRCDIR)/gui-winapi/*.h $(SRCDIR)/fmedia.h $(FF_GUIHDR)
+	$(C) $(CFLAGS)  $< -o$@
+$(OBJ_DIR)/%.o: $(SRCDIR)/gui-winapi/%.c $(SRCDIR)/gui-winapi/gui.h $(SRCDIR)/fmedia.h $(FF_GUIHDR)
 	$(C) $(CFLAGS)  $< -o$@
 
 GUI_O := $(OBJ_DIR)/gui.o \
@@ -513,8 +515,8 @@ install-only:
 
 ifeq ($(OS),win)
 	$(CP) ./fmedia-gui.exe \
-		$(PROJDIR)/src/gui/fmedia.gui \
-		$(PROJDIR)/src/gui/theme.conf \
+		$(PROJDIR)/src/gui-winapi/fmedia.gui \
+		$(PROJDIR)/src/gui-winapi/theme.conf \
 		$(INSTDIR)/
 	unix2dos $(INSTDIR)/*.txt $(INSTDIR)/*.conf $(INSTDIR)/*.gui $(INSTDIR)/LICENSE
 
@@ -586,7 +588,7 @@ ifneq ($(OS),win)
 else
 
 	$(CP) ./fmedia-gui.exe \
-		$(PROJDIR)/src/gui/fmedia.gui \
+		$(PROJDIR)/src/gui-winapi/fmedia.gui \
 		$(INSTDIR)/
 	unix2dos $(INSTDIR)/*.txt $(INSTDIR)/*.conf $(INSTDIR)/*.gui
 	chmod 644 $(INSTDIR)/*

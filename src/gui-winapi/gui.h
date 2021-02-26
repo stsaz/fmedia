@@ -2,6 +2,7 @@
 Copyright (c) 2016 Simon Zolin */
 
 #include <FF/gui/winapi.h>
+#include <FF/gui/loader.h>
 #include <FF/data/conf.h>
 #include <FFOS/thread.h>
 #include <FFOS/semaphore.h>
@@ -31,153 +32,33 @@ typedef struct gui_wmain {
 	int actv_tab;
 } gui_wmain;
 
-typedef struct gui_wconvert {
-	ffui_wnd wconvert;
-	ffui_menu mmconv;
-	ffui_label lfn, lsets;
-	ffui_combx eout;
-	ffui_btn boutbrowse;
-	ffui_view vsets;
-	ffui_paned pnsets;
-	ffui_paned pnout;
-} gui_wconvert;
-
-typedef struct gui_wrec {
-	ffui_wnd wrec;
-	ffui_menu mmrec;
-	ffui_label lfn, lsets;
-	ffui_edit eout;
-	ffui_btn boutbrowse;
-	ffui_view vsets;
-	ffui_paned pnsets;
-	ffui_paned pnout;
-} gui_wrec;
-
-typedef struct gui_wdev {
-	ffui_wnd wnd;
-	ffui_view vdev;
-	ffui_btn bok;
-	ffui_paned pn;
-} gui_wdev;
-
-typedef struct gui_winfo {
-	ffui_wnd winfo;
-	ffui_view vinfo;
-	ffui_paned pninfo;
-} gui_winfo;
-
-typedef struct gui_wgoto {
-	ffui_wnd wgoto;
-	ffui_edit etime;
-	ffui_btn bgo;
-} gui_wgoto;
-
-typedef struct gui_wabout {
-	ffui_wnd wabout;
-	ffui_img ico;
-	ffui_label labout;
-	ffui_label lurl;
-} gui_wabout;
-
-typedef struct gui_wlog {
-	ffui_wnd wlog;
-	ffui_paned pnlog;
-	ffui_edit tlog;
-} gui_wlog;
-
-typedef struct gui_wuri {
-	ffui_wnd wuri;
-	ffui_edit turi;
-	ffui_btn bok;
-	ffui_btn bcancel;
-	ffui_paned pnuri;
-} gui_wuri;
-
-typedef struct gui_wfilter {
-	ffui_wnd wnd;
-	ffui_edit ttext;
-	ffui_chbox cbfilename;
-	ffui_btn breset;
-	ffui_paned pntext;
-} gui_wfilter;
-
-typedef struct gui_wplayprops {
-	ffui_wnd wplayprops;
-	ffui_view vconfig;
-	ffui_paned pn;
-} gui_wplayprops;
-
 typedef struct gui_trk gui_trk;
-
-typedef struct cvt_sets_t {
-	uint init :1;
-
-	char *_output[7];
-	ffslice output; // char*[]
-
-	union {
-	int vorbis_quality;
-	float vorbis_quality_f;
-	};
-	uint opus_bitrate;
-	int opus_frsize;
-	int opus_bandwidth;
-	int mpg_quality;
-	int aac_quality;
-	int aac_bandwidth;
-	int flac_complevel;
-	int flac_md5;
-	int stream_copy;
-
-	int format;
-	int conv_pcm_rate;
-	int channels;
-	union {
-	int gain;
-	float gain_f;
-	};
-	char *meta;
-	int seek;
-	int until;
-
-	int overwrite;
-	int out_preserve_date;
-} cvt_sets_t;
-
-void cvt_sets_destroy(cvt_sets_t *sets);
-
-typedef struct rec_sets_t {
-	uint init :1;
-
-	char *output;
-
-	union {
-	int vorbis_quality;
-	float vorbis_quality_f;
-	};
-	uint opus_bitrate;
-	int mpg_quality;
-	int aac_quality;
-	int flac_complevel;
-
-	int lpbk_devno;
-	int devno;
-	int format;
-	int sample_rate;
-	int channels;
-	union {
-	int gain;
-	float gain_f;
-	};
-	int until;
-} rec_sets_t;
-
-void rec_sets_destroy(rec_sets_t *sets);
 
 struct guiconf {
 	byte list_repeat;
 	float auto_attenuate_ceiling;
 };
+
+struct gui_wabout;
+struct gui_wconvert;
+struct gui_wdevlist;
+struct gui_wfilter;
+struct gui_wgoto;
+struct gui_winfo;
+struct gui_wlog;
+struct gui_wplayprops;
+struct gui_wrec;
+struct gui_wuri;
+extern const ffui_ldr_ctl wabout_ctls[];
+extern const ffui_ldr_ctl wconvert_ctls[];
+extern const ffui_ldr_ctl wdevlist_ctls[];
+extern const ffui_ldr_ctl wfilter_ctls[];
+extern const ffui_ldr_ctl wgoto_ctls[];
+extern const ffui_ldr_ctl winfo_ctls[];
+extern const ffui_ldr_ctl wlog_ctls[];
+extern const ffui_ldr_ctl wplayprops_ctls[];
+extern const ffui_ldr_ctl wrec_ctls[];
+extern const ffui_ldr_ctl wuri_ctls[];
 
 typedef struct ggui {
 	fflock lktrk, lklog;
@@ -207,20 +88,18 @@ typedef struct ggui {
 	ffui_dialog dlg;
 
 	gui_wmain wmain;
-	gui_wconvert wconvert;
-	gui_wrec wrec;
-	gui_wdev wdev;
-	gui_winfo winfo;
-	gui_wgoto wgoto;
-	gui_wabout wabout;
-	gui_wlog wlog;
-	gui_wuri wuri;
-	gui_wfilter wfilter;
-	gui_wplayprops wplayprops;
+	struct gui_wabout *wabout;
+	struct gui_wconvert *wconvert;
+	struct gui_wdevlist *wdev;
+	struct gui_wfilter *wfilter;
+	struct gui_wgoto *wgoto;
+	struct gui_winfo *winfo;
+	struct gui_wlog *wlog;
+	struct gui_wplayprops *wplayprops;
+	struct gui_wrec *wrec;
+	struct gui_wuri *wuri;
 
 	ffthd th;
-	cvt_sets_t conv_sets;
-	rec_sets_t rec_sets;
 
 	ffarr ghks; //struct ghk_ent[]
 
@@ -236,9 +115,7 @@ typedef struct ggui {
 	uint list_actv_trk_idx;
 	uint list_scroll_pos;
 	uint fdel_method; // enum FDEL_METHOD
-	uint wconv_init :1
-		, wrec_init :1
-		, min_tray :1
+	uint min_tray :1
 		, list_filter :1
 		, sort_reverse :1
 		, devlist_rec :1 // whether 'device list' window is opened for capture devices
@@ -248,8 +125,8 @@ typedef struct ggui {
 	struct guiconf conf;
 } ggui;
 
-const fmed_core *core;
-ggui *gg;
+extern const fmed_core *core;
+extern ggui *gg;
 
 enum FDEL_METHOD {
 	FDEL_DEFAULT,
@@ -415,10 +292,9 @@ struct cmd {
 	void *func; // cmdfunc*
 };
 
-const struct cmd cmd_add;
+extern const struct cmd cmd_add;
 
 const struct cmd* getcmd(uint cmd, const struct cmd *cmds, uint n);
-
 
 void* gui_getctl(void *udata, const ffstr *name);
 void gui_media_open(uint id);
@@ -443,6 +319,7 @@ void wmain_init(void);
 void gui_runcmd(const struct cmd *cmd, void *udata);
 void gui_corecmd_op(uint cmd, void *udata);
 void gui_corecmd_add(const struct cmd *cmd, void *udata);
+void corecmd_addfunc(fftask_handler func, void *udata);
 void gui_newtrack(gui_trk *g, fmed_filt *d, fmed_que_entry *plid);
 void wmain_update(uint playtime, uint time_total);
 int gui_setmeta(gui_trk *g, fmed_que_entry *qent);
@@ -485,34 +362,45 @@ void gui_showque(uint i);
 double gui_getvol(void);
 void gui_seek(uint cmd);
 
-void wconvert_init(void);
-void gui_showconvert(void);
+void wconvert_init();
+void wconvert_destroy();
+void wconv_show(uint show);
 void gui_setconvpos(uint cmd);
 int gui_conf_convert(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
-void gui_cvt_sets_init(cvt_sets_t *sets);
-void conv_sets_write(ffconfw *conf);
+int wconvert_conf_writeval(ffstr *line, ffconfw *conf);
 
+void wrec_init();
+void wrec_destroy();
 void rec_setdev(int idev);
 int gui_conf_rec(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
-void wrec_init(void);
-void gui_rec_show(void);
+void wrec_show(uint show);
 int gui_rec_addsetts(void *trk);
-void rec_sets_init(rec_sets_t *sets);
+int wrec_conf_writeval(ffstr *line, ffconfw *conf);
+void wrec_showrecdir();
 
-void wdev_init(void);
-void gui_dev_show(uint cmd);
+void wdev_init();
+void wdev_show(uint show, uint cmd);
 
-void winfo_init(void);
-void gui_media_showinfo(void);
+void winfo_init();
+void winfo_show(uint show);
 
-void wgoto_init(void);
+void wgoto_init();
+void wgoto_show(uint show, uint pos);
 
-void wuri_init(void);
+void wuri_init();
+void wuri_show(uint show);
 
-void wfilter_init(void);
+void wfilter_init();
+void wfilter_show(uint show);
 
-void wabout_init(void);
+void wabout_init();
+void wabout_show(uint show);
+
 void wplayprops_init();
+void wplayprops_show(uint show);
+
+void wlog_init();
+void wlog_show(uint show);
 
 
 enum CVTF {
@@ -537,7 +425,7 @@ struct cvt_set {
 int sett_tostr(const void *sets, const struct cvt_set *sett, ffarr *dst);
 int gui_cvt_getsettings(const struct cvt_set *psets, uint nsets, void *sets, ffui_view *vlist);
 
-const char* const repeat_str[3];
+extern const char* const repeat_str[3];
 
 #define dbglog0(...)  fmed_dbglog(core, NULL, "gui", __VA_ARGS__)
 #define errlog0(...)  fmed_errlog(core, NULL, "gui", __VA_ARGS__)

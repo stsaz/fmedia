@@ -2,7 +2,7 @@
 Copyright (c) 2018 Simon Zolin */
 
 #include <fmedia.h>
-#include <gui/gui.h>
+#include <gui-winapi/gui.h>
 #include <FF/gui/loader.h>
 #include <FF/data/conf.h>
 #include <FFOS/process.h>

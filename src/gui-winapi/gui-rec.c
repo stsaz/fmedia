@@ -2,10 +2,65 @@
 Copyright (c) 2020 Simon Zolin */
 
 #include <fmedia.h>
-#include <gui/gui.h>
+#include <gui-winapi/gui.h>
 #include <FF/time.h>
+#include <FF/path.h>
 #include <FFOS/process.h>
 
+
+typedef struct rec_sets_t {
+	uint init :1;
+
+	char *output;
+
+	union {
+	int vorbis_quality;
+	float vorbis_quality_f;
+	};
+	uint opus_bitrate;
+	int mpg_quality;
+	int aac_quality;
+	int flac_complevel;
+
+	int lpbk_devno;
+	int devno;
+	int format;
+	int sample_rate;
+	int channels;
+	union {
+	int gain;
+	float gain_f;
+	};
+	int until;
+} rec_sets_t;
+
+struct gui_wrec {
+	ffui_wnd wrec;
+	ffui_menu mmrec;
+	ffui_label lfn, lsets;
+	ffui_edit eout;
+	ffui_btn boutbrowse;
+	ffui_view vsets;
+	ffui_paned pnsets;
+	ffui_paned pnout;
+
+	rec_sets_t rec_sets;
+	ffbyte conf_flags[1];
+	int wrec_init :1;
+};
+
+const ffui_ldr_ctl wrec_ctls[] = {
+	FFUI_LDR_CTL(struct gui_wrec, wrec),
+	FFUI_LDR_CTL(struct gui_wrec, mmrec),
+	FFUI_LDR_CTL(struct gui_wrec, lfn),
+	FFUI_LDR_CTL(struct gui_wrec, lsets),
+	FFUI_LDR_CTL(struct gui_wrec, eout),
+	FFUI_LDR_CTL(struct gui_wrec, boutbrowse),
+	FFUI_LDR_CTL(struct gui_wrec, vsets),
+	FFUI_LDR_CTL(struct gui_wrec, pnsets),
+	FFUI_LDR_CTL(struct gui_wrec, pnout),
+	FFUI_LDR_CTL_END
+};
 
 enum {
 	VSETS_NAME,
@@ -16,14 +71,6 @@ enum {
 static void gui_rec_init(void);
 static void gui_rec_action(ffui_wnd *wnd, int id);
 static void gui_rec_browse(void);
-
-
-void wrec_init()
-{
-	gg->wrec.wrec.hide_on_close = 1;
-	gg->wrec.wrec.on_action = &gui_rec_action;
-	gg->wrec.vsets.edit_id = CVT_SETS_EDITDONE;
-}
 
 enum {
 	SETT_DEV_LP,
@@ -144,36 +191,38 @@ void rec_sets_init(rec_sets_t *sets)
 	sets->flac_complevel = 6;
 }
 
-void rec_sets_destroy(rec_sets_t *sets)
+static void rec_sets_destroy(rec_sets_t *sets)
 {
 	ffmem_safefree0(sets->output);
 }
 
 int gui_conf_rec(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
 {
-	ffpars_setargs(ctx, &gg->rec_sets, rec_sets_conf, FFCNT(rec_sets_conf));
+	struct gui_wrec *w = gg->wrec;
+	ffpars_setargs(ctx, &w->rec_sets, rec_sets_conf, FFCNT(rec_sets_conf));
 	return 0;
 }
 
 void gui_rec_init(void)
 {
-	if (gg->wrec_init)
+	struct gui_wrec *w = gg->wrec;
+	if (w->wrec_init)
 		return;
 
-	if (!gg->rec_sets.init)
-		rec_sets_init(&gg->rec_sets);
+	if (!w->rec_sets.init)
+		rec_sets_init(&w->rec_sets);
 
-	if (ffui_textlen(&gg->wrec.eout) == 0)
-		ffui_settextz(&gg->wrec.eout, gg->rec_sets.output);
+	if (ffui_textlen(&w->eout) == 0)
+		ffui_settextz(&w->eout, w->rec_sets.output);
 
-	ffui_view_showgroups(&gg->wrec.vsets, 1);
+	ffui_view_showgroups(&w->vsets, 1);
 	const char *const *grp;
 	int grp_id = 0;
 	ffui_viewgrp vg;
 	FFARRS_FOREACH(rec_grps, grp) {
 		ffui_viewgrp_reset(&vg);
 		ffui_viewgrp_settextz(&vg, *grp);
-		ffui_view_insgrp(&gg->wrec.vsets, -1, grp_id++, &vg);
+		ffui_view_insgrp(&w->vsets, -1, grp_id++, &vg);
 	}
 	grp_id = 0;
 
@@ -189,26 +238,33 @@ void gui_rec_init(void)
 		ffui_view_setgroupid(&it, grp_id);
 
 		ffui_view_settextz(&it, rec_sets[i].name);
-		ffui_view_append(&gg->wrec.vsets, &it);
+		ffui_view_append(&w->vsets, &it);
 
 		s.len = 0;
-		sett_tostr(&gg->rec_sets, &rec_sets[i], &s);
+		sett_tostr(&w->rec_sets, &rec_sets[i], &s);
 		ffui_view_settextstr(&it, &s);
-		ffui_view_set(&gg->wrec.vsets, VSETS_VAL, &it);
+		ffui_view_set(&w->vsets, VSETS_VAL, &it);
 
 		ffui_view_settextz(&it, rec_sets[i].desc);
-		ffui_view_set(&gg->wrec.vsets, VSETS_DESC, &it);
+		ffui_view_set(&w->vsets, VSETS_DESC, &it);
 	}
 
 	ffarr_free(&s);
-	gg->wrec_init = 1;
+	w->wrec_init = 1;
 }
 
-void gui_rec_show(void)
+void wrec_show(uint show)
 {
+	struct gui_wrec *w = gg->wrec;
+
+	if (!show) {
+		ffui_show(&w->wrec, 0);
+		return;
+	}
+
 	gui_rec_init();
-	ffui_show(&gg->wrec.wrec, 1);
-	ffui_wnd_setfront(&gg->wrec.wrec);
+	ffui_show(&w->wrec, 1);
+	ffui_wnd_setfront(&w->wrec);
 }
 
 static const struct cmd rec_cmds[] = {
@@ -218,17 +274,19 @@ static const struct cmd rec_cmds[] = {
 
 static void gui_rec_browse(void)
 {
+	struct gui_wrec *w = gg->wrec;
 	const char *fn;
 
 	ffui_dlg_nfilter(&gg->dlg, DLG_FILT_OUTPUT);
-	if (NULL == (fn = ffui_dlg_save(&gg->dlg, &gg->wrec.wrec, NULL, 0)))
+	if (NULL == (fn = ffui_dlg_save(&gg->dlg, &w->wrec, NULL, 0)))
 		return;
 
-	ffui_settextz(&gg->wrec.eout, fn);
+	ffui_settextz(&w->eout, fn);
 }
 
 static void gui_rec_action(ffui_wnd *wnd, int id)
 {
+	struct gui_wrec *w = gg->wrec;
 	const struct cmd *cmd = getcmd(id, rec_cmds, FFCNT(rec_cmds));
 	if (cmd != NULL) {
 		if (cmd->flags & CMD_FCORE)
@@ -243,20 +301,20 @@ static void gui_rec_action(ffui_wnd *wnd, int id)
 		int i, isub;
 		ffui_point pt;
 		ffui_cur_pos(&pt);
-		if (-1 == (i = ffui_view_hittest(&gg->wrec.vsets, &pt, &isub))
+		if (-1 == (i = ffui_view_hittest(&w->vsets, &pt, &isub))
 			|| isub != VSETS_VAL)
 			return;
-		ffui_view_edit(&gg->wrec.vsets, i, VSETS_VAL);
+		ffui_view_edit(&w->vsets, i, VSETS_VAL);
 		break;
 	}
 
 	case CVT_SETS_EDITDONE: {
-		int i = ffui_view_selnext(&gg->wrec.vsets, -1);
+		int i = ffui_view_selnext(&w->vsets, -1);
 		ffui_viewitem it;
 		ffui_view_iteminit(&it);
 		ffui_view_setindex(&it, i);
-		ffui_view_settextz(&it, gg->wrec.vsets.text);
-		ffui_view_set(&gg->wrec.vsets, VSETS_VAL, &it);
+		ffui_view_settextz(&it, w->vsets.text);
+		ffui_view_set(&w->vsets, VSETS_VAL, &it);
 		break;
 	}
 	}
@@ -264,18 +322,19 @@ static void gui_rec_action(ffui_wnd *wnd, int id)
 
 int gui_rec_addsetts(void *trk)
 {
-	if (gg->wrec_init) {
-		rec_sets_destroy(&gg->rec_sets);
+	struct gui_wrec *w = gg->wrec;
+	if (w->wrec_init) {
+		rec_sets_destroy(&w->rec_sets);
 		ffstr s;
-		ffui_textstr(&gg->wrec.eout, &s);
-		gg->rec_sets.output = s.ptr;
+		ffui_textstr(&w->eout, &s);
+		w->rec_sets.output = s.ptr;
 
-		if (0 != gui_cvt_getsettings(rec_sets, FFCNT(rec_sets), &gg->rec_sets, &gg->wrec.vsets))
+		if (0 != gui_cvt_getsettings(rec_sets, FFCNT(rec_sets), &w->rec_sets, &w->vsets))
 			return -1;
 	}
 
 	char *exp;
-	if (NULL == (exp = core->env_expand(NULL, 0, gg->rec_sets.output)))
+	if (NULL == (exp = core->env_expand(NULL, 0, w->rec_sets.output)))
 		return -1;
 	gg->track->setvalstr4(trk, "output", exp, FMED_TRK_FACQUIRE);
 
@@ -283,7 +342,7 @@ int gui_rec_addsetts(void *trk)
 
 	for (uint i = 0;  i != FFCNT(rec_sets);  i++) {
 
-		void *p = (char*)&gg->rec_sets + (rec_sets[i].flags & 0xffff);
+		void *p = (char*)&w->rec_sets + (rec_sets[i].flags & 0xffff);
 
 		/*if (rec_sets[i].flags & CVTF_STR) {
 			char **pstr = p;
@@ -305,19 +364,92 @@ int gui_rec_addsetts(void *trk)
 
 void rec_setdev(int idev)
 {
-        gui_rec_init();
+	struct gui_wrec *w = gg->wrec;
+	gui_rec_init();
 
-        uint i;
-        for (i = 0;  i != FFCNT(rec_sets);  i++) {
-                if (rec_sets[i].settname == SETT_DEV_REC)
-                        break;
-        }
+	uint i;
+	for (i = 0;  i != FFCNT(rec_sets);  i++) {
+		if (rec_sets[i].settname == SETT_DEV_REC)
+			break;
+	}
 
-        ffui_viewitem it = {};
-        char buf[64];
-        uint n = ffs_fromint(idev, buf, sizeof(buf), 0);
+	ffui_viewitem it = {};
+	char buf[64];
+	uint n = ffs_fromint(idev, buf, sizeof(buf), 0);
 
-        ffui_view_setindex(&it, i);
-        ffui_view_settext(&it, buf, n);
-        ffui_view_set(&gg->wrec.vsets, VSETS_VAL, &it);
+	ffui_view_setindex(&it, i);
+	ffui_view_settext(&it, buf, n);
+	ffui_view_set(&w->vsets, VSETS_VAL, &it);
+}
+
+static void conv_writeval(ffconfw *conf, ffuint i)
+{
+	struct gui_wrec *w = gg->wrec;
+	switch (i) {
+	case 0:
+		ffconf_writez(conf, w->rec_sets.output, FFCONF_TVAL);
+		break;
+	}
+}
+
+int wrec_conf_writeval(ffstr *line, ffconfw *conf)
+{
+	struct gui_wrec *w = gg->wrec;
+	static const char setts[][22] = {
+		"gui.gui.record.output",
+	};
+
+	if (line == NULL) {
+		for (ffuint i = 0;  i != FF_COUNT(setts);  i++) {
+			if (!w->conf_flags[i]) {
+				ffconf_writez(conf, setts[i], FFCONF_TKEY | FFCONF_ASIS);
+				conv_writeval(conf, i);
+			}
+		}
+		return 0;
+	}
+
+	for (ffuint i = 0;  i != FF_COUNT(setts);  i++) {
+		if (ffstr_matchz(line, setts[i])) {
+			ffconf_writez(conf, setts[i], FFCONF_TKEY | FFCONF_ASIS);
+			conv_writeval(conf, i);
+			w->conf_flags[i] = 1;
+			return 1;
+		}
+	}
+	return 0;
+}
+
+void wrec_showrecdir()
+{
+	struct gui_wrec *w = gg->wrec;
+	char *p, *exp;
+	ffstr dir;
+	ffpath_split2(w->rec_sets.output, ffsz_len(w->rec_sets.output), &dir, NULL);
+	if (NULL == (p = ffsz_alcopy(dir.ptr, dir.len)))
+		return;
+	if (NULL == (exp = core->env_expand(NULL, 0, p)))
+		goto done;
+	ffui_openfolder((const char *const *)&exp, 0);
+
+done:
+	ffmem_safefree(p);
+	ffmem_safefree(exp);
+}
+
+void wrec_init()
+{
+	struct gui_wrec *w = ffmem_new(struct gui_wrec);
+	gg->wrec = w;
+	w->wrec.hide_on_close = 1;
+	w->wrec.on_action = &gui_rec_action;
+	w->vsets.edit_id = CVT_SETS_EDITDONE;
+	rec_sets_init(&w->rec_sets);
+}
+
+void wrec_destroy()
+{
+	struct gui_wrec *w = gg->wrec;
+	rec_sets_destroy(&w->rec_sets);
+	ffmem_free0(gg->wrec);
 }
