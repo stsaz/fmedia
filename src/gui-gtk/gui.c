@@ -82,6 +82,7 @@ static const ffpars_arg gui_conf_args[] = {
 	{ "list_columns_width",	FFPARS_TINT16 | FFPARS_FLIST, FFPARS_DST(&conf_list_col_width) },
 	{ "list_track",	FFPARS_TINT, FFPARS_DSTOFF(struct gui_conf, list_actv_trk_idx) },
 	{ "list_scroll",	FFPARS_TINT, FFPARS_DSTOFF(struct gui_conf, list_scroll_pos) },
+
 	{ "ydl_format",	FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY, FFPARS_DSTOFF(struct gui_conf, ydl_format) },
 	{ "ydl_outdir",	FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY, FFPARS_DSTOFF(struct gui_conf, ydl_outdir) },
 

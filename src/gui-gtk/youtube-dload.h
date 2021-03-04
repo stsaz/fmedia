@@ -305,6 +305,9 @@ static void wdload_action(ffui_wnd *wnd, int id)
 		if (url.len == 0 || formats.len == 0 || out.len == 0) {
 			ffui_text_addtextz(&w->tlog, "URL, Formats and OutDir values must not be empty");
 		} else {
+			gg->conf.ydl_format = ffsz_dup(formats.ptr);
+			gg->conf.ydl_outdir = ffsz_dup(out.ptr);
+
 			struct subps *sp = subps_new();
 			sp->url = url;
 			sp->formats = formats;
@@ -323,21 +326,18 @@ static void wdload_action(ffui_wnd *wnd, int id)
 
 static void wdload_writeval(ffconfw *conf, ffuint i)
 {
-	struct gui_wdload *w = gg->wdload;
 	ffstr s = {};
 
 	switch (i) {
 	case 0:
-		ffui_edit_textstr(&w->ecmdline, &s);
+		ffstr_setz(&s, gg->conf.ydl_format);
 		ffconf_writestr(conf, &s, FFCONF_TVAL);
 		break;
 	case 1:
-		ffui_edit_textstr(&w->eout, &s);
+		ffstr_setz(&s, gg->conf.ydl_outdir);
 		ffconf_writestr(conf, &s, FFCONF_TVAL);
 		break;
 	}
-
-	ffstr_free(&s);
 }
 
 int wdload_conf_writeval(ffstr *line, ffconfw *conf)
