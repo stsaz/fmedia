@@ -343,6 +343,9 @@ void wmain_newtrack(fmed_que_entry *ent, uint time_total, fmed_filt *d)
 		return;
 	}
 
+	ffui_post_trk_setrange(&gg->wmain.tpos, time_total);
+	ent->dur = time_total * 1000;
+
 	void *active_qent = gg->wmain.active_qent;
 	gg->wmain.active_qent = ent;
 	int idx = gg->qu->cmdv(FMED_QUE_ID, active_qent);
@@ -352,9 +355,6 @@ void wmain_newtrack(fmed_que_entry *ent, uint time_total, fmed_filt *d)
 	idx = gg->qu->cmdv(FMED_QUE_ID, ent);
 	if (idx != -1)
 		ffui_send_view_setdata(&gg->wmain.vlist, idx, 0);
-
-	ffui_post_trk_setrange(&gg->wmain.tpos, time_total);
-	ent->dur = time_total * 1000;
 
 	ffstr artist = {}, title = {}, *val;
 	if (NULL != (val = gg->qu->meta_find(ent, FFSTR("artist"))))
