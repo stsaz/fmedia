@@ -8,6 +8,12 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.23.1 - Mar 3, 2021
+
+ - .ogg read: fix (v1.23 bug)
+ - GUI (Linux): youtube downloader: save/restore settings for format and output directory
+
+
 fmedia v1.23 - Feb 25, 2021
 
  + Windows: record from capture and loopback device in parallel into separate files:
