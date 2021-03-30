@@ -170,22 +170,6 @@ static void gui_destroy(void)
 }
 
 
-static const ffui_ldr_ctl wmain_ctls[] = {
-	FFUI_LDR_CTL(struct gui_wmain, wmain),
-	FFUI_LDR_CTL(struct gui_wmain, mm),
-	FFUI_LDR_CTL(struct gui_wmain, bpause),
-	FFUI_LDR_CTL(struct gui_wmain, bstop),
-	FFUI_LDR_CTL(struct gui_wmain, bprev),
-	FFUI_LDR_CTL(struct gui_wmain, bnext),
-	FFUI_LDR_CTL(struct gui_wmain, lpos),
-	FFUI_LDR_CTL(struct gui_wmain, tvol),
-	FFUI_LDR_CTL(struct gui_wmain, tpos),
-	FFUI_LDR_CTL(struct gui_wmain, tabs),
-	FFUI_LDR_CTL(struct gui_wmain, vlist),
-	FFUI_LDR_CTL(struct gui_wmain, stbar),
-	FFUI_LDR_CTL(struct gui_wmain, tray_icon),
-	FFUI_LDR_CTL_END
-};
 static const ffui_ldr_ctl top_ctls[] = {
 	FFUI_LDR_CTL(ggui, mfile),
 	FFUI_LDR_CTL(ggui, mlist),
@@ -193,7 +177,7 @@ static const ffui_ldr_ctl top_ctls[] = {
 	FFUI_LDR_CTL(ggui, mconvert),
 	FFUI_LDR_CTL(ggui, mhelp),
 	FFUI_LDR_CTL(ggui, dlg),
-	FFUI_LDR_CTL3(ggui, wmain, wmain_ctls),
+	FFUI_LDR_CTL3_PTR(ggui, wmain, wmain_ctls),
 	FFUI_LDR_CTL3_PTR(ggui, wabout, wabout_ctls),
 	FFUI_LDR_CTL3_PTR(ggui, wcmd, wcmd_ctls),
 	FFUI_LDR_CTL3_PTR(ggui, wconvert, wconvert_ctls),
@@ -208,6 +192,7 @@ static const ffui_ldr_ctl top_ctls[] = {
 
 void dlgs_init()
 {
+	wmain_init();
 	wabout_init();
 	wcmd_init();
 	wconvert_init();
@@ -227,6 +212,7 @@ void dlgs_destroy()
 	ffmem_free(gg->wabout);
 	ffmem_free(gg->wcmd);
 	ffmem_free(gg->winfo);
+	ffmem_free(gg->wmain);
 	ffmem_free(gg->wplayprops);
 	ffmem_free(gg->wrename);
 	ffmem_free(gg->wuri);
@@ -358,7 +344,8 @@ static FFTHDCALL int gui_worker(void *param)
 
 	if (0 != load_ui())
 		goto err;
-	wmain_init();
+
+	wmain_show();
 
 	if (gg->conf.list_random)
 		corecmd_add(_A_LIST_RANDOM, NULL);
@@ -695,8 +682,8 @@ done:
 static void showdir_selected(void)
 {
 	int i;
-	ffarr4 *sel = (void*)ffui_send_view_getsel(&gg->wmain.vlist);
-	while (-1 != (i = ffui_view_selnext(&gg->wmain.vlist, sel))) {
+	ffarr4 *sel = wmain_list_getsel_send();
+	while (-1 != (i = ffui_view_selnext(NULL, sel))) {
 		fmed_que_entry *ent = (fmed_que_entry*)gg->qu->fmed_queue_item(-1, i);
 		showdir(ent->url.ptr);
 		break;
@@ -812,8 +799,8 @@ static void list_add(const ffstr *fn, int plid)
 static void list_rmitems(void)
 {
 	int i, n = 0;
-	ffarr4 *sel = (void*)ffui_send_view_getsel(&gg->wmain.vlist);
-	while (-1 != (i = ffui_view_selnext(&gg->wmain.vlist, sel))) {
+	ffarr4 *sel = wmain_list_getsel_send();
+	while (-1 != (i = ffui_view_selnext(NULL, sel))) {
 		fmed_que_entry *ent = (fmed_que_entry*)gg->qu->fmed_queue_item(-1, i - n);
 		gg->qu->cmd2(FMED_QUE_RM | FMED_QUE_NO_ONCHANGE, ent, 0);
 		wmain_ent_removed(i - n);
@@ -830,8 +817,8 @@ static void file_showpcm(void)
 	fmed_que_entry *ent;
 	void *trk;
 
-	ffarr4 *sel = (void*)ffui_send_view_getsel(&gg->wmain.vlist);
-	while (-1 != (i = ffui_view_selnext(&gg->wmain.vlist, sel))) {
+	ffarr4 *sel = wmain_list_getsel_send();
+	while (-1 != (i = ffui_view_selnext(NULL, sel))) {
 		ent = (fmed_que_entry*)gg->qu->fmed_queue_item(-1, i);
 
 		if (NULL == (trk = gg->track->create(FMED_TRK_TYPE_PLAYBACK, ent->url.ptr)))
@@ -850,8 +837,8 @@ static void file_del(void)
 	int i, n = 0;
 	fmed_que_entry *ent;
 
-	ffarr4 *sel = (void*)ffui_send_view_getsel(&gg->wmain.vlist);
-	while (-1 != (i = ffui_view_selnext(&gg->wmain.vlist, sel))) {
+	ffarr4 *sel = wmain_list_getsel_send();
+	while (-1 != (i = ffui_view_selnext(NULL, sel))) {
 		ent = (fmed_que_entry*)gg->qu->fmed_queue_item(-1, i - n);
 
 		char *fn = ffsz_alfmt("%S.deleted", &ent->url);
@@ -916,6 +903,7 @@ static const char *const usrconf_setts[] = {
 	"gui.gui.list_repeat",
 	"gui.gui.auto_attenuate_ceiling",
 	"gui.gui.seek_step",
+	"gui.gui.seek_leap",
 };
 
 /** Write user configuration value. */
@@ -934,7 +922,7 @@ static void usrconf_write_val(ffconfw *conf, uint i)
 		ffconf_writeint(conf, n, 0, FFCONF_TVAL);
 		break;
 	case 3:
-		n = ffui_view_scroll_vert(&gg->wmain.vlist);
+		n = wmain_list_scroll_vert();
 		ffconf_writeint(conf, n, 0, FFCONF_TVAL);
 		break;
 	case 4:
@@ -945,6 +933,9 @@ static void usrconf_write_val(ffconfw *conf, uint i)
 		break;
 	case 6:
 		ffconf_writeint(conf, gg->conf.seek_step_delta, 0, FFCONF_TVAL);
+		break;
+	case 7:
+		ffconf_writeint(conf, gg->conf.seek_leap_delta, 0, FFCONF_TVAL);
 		break;
 	}
 }

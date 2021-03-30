@@ -5,6 +5,41 @@ Copyright (c) 2019 Simon Zolin */
 #include <FF/path.h>
 
 
+struct gui_wmain {
+	ffui_wnd wnd;
+	ffui_menu mm;
+	ffui_btn bpause
+		, bstop
+		, bprev
+		, bnext;
+	ffui_label lpos;
+	ffui_trkbar tvol;
+	ffui_trkbar tpos;
+	ffui_tab tabs;
+	ffui_view vlist;
+	ffui_ctl stbar;
+	ffui_trayicon tray_icon;
+
+	fmed_que_entry *active_qent;
+};
+
+const ffui_ldr_ctl wmain_ctls[] = {
+	FFUI_LDR_CTL(struct gui_wmain, wnd),
+	FFUI_LDR_CTL(struct gui_wmain, mm),
+	FFUI_LDR_CTL(struct gui_wmain, bpause),
+	FFUI_LDR_CTL(struct gui_wmain, bstop),
+	FFUI_LDR_CTL(struct gui_wmain, bprev),
+	FFUI_LDR_CTL(struct gui_wmain, bnext),
+	FFUI_LDR_CTL(struct gui_wmain, lpos),
+	FFUI_LDR_CTL(struct gui_wmain, tvol),
+	FFUI_LDR_CTL(struct gui_wmain, tpos),
+	FFUI_LDR_CTL(struct gui_wmain, tabs),
+	FFUI_LDR_CTL(struct gui_wmain, vlist),
+	FFUI_LDR_CTL(struct gui_wmain, stbar),
+	FFUI_LDR_CTL(struct gui_wmain, tray_icon),
+	FFUI_LDR_CTL_END
+};
+
 static void wmain_action(ffui_wnd *wnd, int id);
 static uint tab_new(uint flags);
 static void list_new();
@@ -18,29 +53,37 @@ static void list_cols_width_load();
 
 void wmain_init()
 {
-	gg->vol = ffui_trk_val(&gg->wmain.tvol);
-	gg->wmain.vlist.dispinfo_id = LIST_DISPINFO;
+	struct gui_wmain *w = ffmem_new(struct gui_wmain);
+	gg->wmain = w;
+	w->vlist.dispinfo_id = LIST_DISPINFO;
+	w->wnd.on_action = &wmain_action;
+	w->wnd.onclose_id = A_ONCLOSE;
+}
 
+void wmain_show()
+{
+	struct gui_wmain *w = gg->wmain;
+	gg->vol = ffui_trk_val(&w->tvol);
 	list_cols_width_load();
 
 	ffui_dlg_multisel(&gg->dlg, 1);
-	gg->wmain.wmain.on_action = &wmain_action;
-	gg->wmain.wmain.onclose_id = A_ONCLOSE;
-	ffui_view_dragdrop(&gg->wmain.vlist, A_ONDROPFILE);
+	ffui_view_dragdrop(&w->vlist, A_ONDROPFILE);
 	tab_new(0);
-	ffui_show(&gg->wmain.wmain, 1);
+	ffui_show(&w->wnd, 1);
 }
 
 /** Called before leaving the current playlist. */
 static void list_onleave()
 {
-	if (0 != ffui_tab_active(&gg->wmain.tabs))
+	struct gui_wmain *w = gg->wmain;
+	if (0 != ffui_tab_active(&w->tabs))
 		return;
-	gg->conf.list_scroll_pos = ffui_view_scroll_vert(&gg->wmain.vlist);
+	gg->conf.list_scroll_pos = ffui_view_scroll_vert(&w->vlist);
 }
 
 static void wmain_action(ffui_wnd *wnd, int id)
 {
+	struct gui_wmain *w = gg->wmain;
 	dbglog("%s cmd:%u", __func__, id);
 
 	switch (id) {
@@ -53,8 +96,8 @@ static void wmain_action(ffui_wnd *wnd, int id)
 		return;
 	case A_LIST_SEL:
 		list_onleave();
-		ffui_view_clear(&gg->wmain.vlist);
-		corecmd_add(A_LIST_SEL, (void*)(size_t)gg->wmain.tabs.changed_index);
+		ffui_view_clear(&w->vlist);
+		corecmd_add(A_LIST_SEL, (void*)(size_t)w->tabs.changed_index);
 		return;
 	case A_LIST_ADDFILE:
 		list_chooseaddfiles();
@@ -64,8 +107,8 @@ static void wmain_action(ffui_wnd *wnd, int id)
 		return;
 
 	case A_FILE_SHOWINFO: {
-		ffarr4 *sel = ffui_view_getsel(&gg->wmain.vlist);
-		int i = ffui_view_selnext(&gg->wmain.vlist, sel);
+		ffarr4 *sel = ffui_view_getsel(&w->vlist);
+		int i = ffui_view_selnext(&w->vlist, sel);
 		if (i != -1)
 			winfo_show(1, i);
 		ffui_view_sel_free(sel);
@@ -78,19 +121,19 @@ static void wmain_action(ffui_wnd *wnd, int id)
 		break;
 
 	case A_SHOW:
-		ffui_show(&gg->wmain.wmain, 1);
-		ffui_tray_show(&gg->wmain.tray_icon, 0);
+		ffui_show(&w->wnd, 1);
+		ffui_tray_show(&w->tray_icon, 0);
 		return;
 	case A_HIDE:
 		hidetotray();
 		return;
 
 	case A_QUIT:
-		ffui_wnd_close(&gg->wmain.wmain);
+		ffui_wnd_close(&w->wnd);
 		return;
 
 	case A_PLAY:
-		gg->focused = ffui_view_focused(&gg->wmain.vlist);
+		gg->focused = ffui_view_focused(&w->vlist);
 		if (gg->focused == -1)
 			return;
 		break;
@@ -107,7 +150,7 @@ static void wmain_action(ffui_wnd *wnd, int id)
 		break;
 
 	case A_SEEK: {
-		int val = ffui_trk_val(&gg->wmain.tpos);
+		int val = ffui_trk_val(&w->tpos);
 		corecmd_add(id, (void*)(size_t)val);
 		return;
 	}
@@ -119,16 +162,16 @@ static void wmain_action(ffui_wnd *wnd, int id)
 	case A_GOPOS:
 		break;
 	case A_VOLUP:
-		ffui_trk_set(&gg->wmain.tvol, gg->vol + 5);
+		ffui_trk_set(&w->tvol, gg->vol + 5);
 		break;
 	case A_VOLDOWN:
-		ffui_trk_set(&gg->wmain.tvol, gg->vol - 5);
+		ffui_trk_set(&w->tvol, gg->vol - 5);
 		break;
 	case A_VOLRESET:
-		ffui_trk_set(&gg->wmain.tvol, 100);
+		ffui_trk_set(&w->tvol, 100);
 		break;
 	case A_VOL: {
-		int val = ffui_trk_val(&gg->wmain.tvol);
+		int val = ffui_trk_val(&w->tvol);
 		corecmd_add(id, (void*)(size_t)val);
 		return;
 	}
@@ -149,7 +192,7 @@ static void wmain_action(ffui_wnd *wnd, int id)
 		list_save();
 		return;
 	case A_LIST_SELECTALL:
-		ffui_view_selall(&gg->wmain.vlist);
+		ffui_view_selall(&w->vlist);
 		return;
 	case A_LIST_READMETA:
 	case A_LIST_REMOVE:
@@ -167,7 +210,7 @@ static void wmain_action(ffui_wnd *wnd, int id)
 
 	case A_ONDROPFILE: {
 		ffstr *d = ffmem_new(ffstr);
-		ffstr_alcopystr(d, &gg->wmain.vlist.drop_data);
+		ffstr_alcopystr(d, &w->vlist.drop_data);
 		corecmd_add(id, d);
 		return;
 	}
@@ -182,7 +225,7 @@ static void wmain_action(ffui_wnd *wnd, int id)
 
 	case A_CONV_SET_SEEK:
 	case A_CONV_SET_UNTIL: {
-		int pos = ffui_trk_val(&gg->wmain.tpos);
+		int pos = ffui_trk_val(&w->tpos);
 		wconv_setdata(id, pos);
 		return;
 	}
@@ -200,7 +243,7 @@ static void wmain_action(ffui_wnd *wnd, int id)
 		return;
 
 	case LIST_DISPINFO:
-		list_dispinfo(&gg->wmain.vlist.disp);
+		list_dispinfo(&w->vlist.disp);
 		return;
 
 	default:
@@ -212,7 +255,8 @@ static void wmain_action(ffui_wnd *wnd, int id)
 
 void wmain_cmd(int id)
 {
-	wmain_action(&gg->wmain.wmain, id);
+	struct gui_wmain *w = gg->wmain;
+	wmain_action(&w->wnd, id);
 }
 
 enum LIST_HDR {
@@ -240,6 +284,7 @@ static const char* const list_colname[] = {
 
 static void list_dispinfo(struct ffui_view_disp *disp)
 {
+	struct gui_wmain *w = gg->wmain;
 	fmed_que_entry *ent;
 	char buf[256];
 	ffstr *val = NULL, s;
@@ -252,7 +297,7 @@ static void list_dispinfo(struct ffui_view_disp *disp)
 	switch (sub) {
 	case H_IDX:
 		ffs_fmt(buf, buf + sizeof(buf), "%s%u%Z"
-			, (ent == gg->wmain.active_qent) ? "> " : ""
+			, (ent == w->active_qent) ? "> " : ""
 			, disp->idx + 1);
 		ffstr_setz(&s, buf);
 		val = &s;
@@ -268,7 +313,7 @@ static void list_dispinfo(struct ffui_view_disp *disp)
 
 	switch (sub) {
 	case H_TIT:
-		if (val == NULL) {
+		if (val == NULL || val->len == 0) {
 			//use filename as a title
 			ffpath_split3(ent->url.ptr, ent->url.len, NULL, &s, NULL);
 			val = &s;
@@ -293,16 +338,18 @@ static void list_dispinfo(struct ffui_view_disp *disp)
 
 void wmain_list_update(uint idx, int delta)
 {
-	ffui_send_view_setdata(&gg->wmain.vlist, idx, delta);
+	struct gui_wmain *w = gg->wmain;
+	ffui_send_view_setdata(&w->vlist, idx, delta);
 }
 
 static void list_setdata_scroll(void *param)
 {
-	ffui_view_clear(&gg->wmain.vlist);
-	ffui_view_setdata(&gg->wmain.vlist, 0, (size_t)param);
-	if (ffui_tab_active(&gg->wmain.tabs) == 0 && gg->conf.list_scroll_pos != 0) {
+	struct gui_wmain *w = gg->wmain;
+	ffui_view_clear(&w->vlist);
+	ffui_view_setdata(&w->vlist, 0, (size_t)param);
+	if (ffui_tab_active(&w->tabs) == 0 && gg->conf.list_scroll_pos != 0) {
 		// ffui_view_scroll_setvert() doesn't work here
-		ffui_post_view_scroll_set(&gg->wmain.vlist, gg->conf.list_scroll_pos);
+		ffui_post_view_scroll_set(&w->vlist, gg->conf.list_scroll_pos);
 		gg->conf.list_scroll_pos = 0;
 	}
 }
@@ -314,16 +361,19 @@ void wmain_list_set(uint idx, int delta)
 
 void wmain_ent_added(uint idx)
 {
-	ffui_send_view_setdata(&gg->wmain.vlist, idx, 1);
+	struct gui_wmain *w = gg->wmain;
+	ffui_send_view_setdata(&w->vlist, idx, 1);
 }
 
 void wmain_ent_removed(uint idx)
 {
-	ffui_send_view_setdata(&gg->wmain.vlist, idx, -1);
+	struct gui_wmain *w = gg->wmain;
+	ffui_send_view_setdata(&w->vlist, idx, -1);
 }
 
 void wmain_newtrack(fmed_que_entry *ent, uint time_total, fmed_filt *d)
 {
+	struct gui_wmain *w = gg->wmain;
 	int conversion = (FMED_PNULL != d->track->getvalstr(d->trk, "output"));
 
 	char buf[1024];
@@ -339,138 +389,155 @@ void wmain_newtrack(fmed_que_entry *ent, uint time_total, fmed_filt *d)
 	if (conversion) {
 		int idx = gg->qu->cmdv(FMED_QUE_ID, ent);
 		if (idx != -1)
-			ffui_send_view_setdata(&gg->wmain.vlist, idx, 0);
+			ffui_send_view_setdata(&w->vlist, idx, 0);
 		return;
 	}
 
-	ffui_post_trk_setrange(&gg->wmain.tpos, time_total);
+	ffui_post_trk_setrange(&w->tpos, time_total);
 	ent->dur = time_total * 1000;
 
-	void *active_qent = gg->wmain.active_qent;
-	gg->wmain.active_qent = ent;
+	void *active_qent = w->active_qent;
+	w->active_qent = ent;
 	int idx = gg->qu->cmdv(FMED_QUE_ID, active_qent);
 	if (idx != -1)
-		ffui_send_view_setdata(&gg->wmain.vlist, idx, 0);
+		ffui_send_view_setdata(&w->vlist, idx, 0);
 
 	idx = gg->qu->cmdv(FMED_QUE_ID, ent);
 	if (idx != -1)
-		ffui_send_view_setdata(&gg->wmain.vlist, idx, 0);
+		ffui_send_view_setdata(&w->vlist, idx, 0);
 
 	ffstr artist = {}, title = {}, *val;
 	if (NULL != (val = gg->qu->meta_find(ent, FFSTR("artist"))))
 		artist = *val;
 
-	if (NULL != (val = gg->qu->meta_find(ent, FFSTR("title"))))
+	if (NULL != (val = gg->qu->meta_find(ent, FFSTR("title")))
+		&& val->len != 0) {
 		title = *val;
-	else {
+	} else {
 		//use filename as a title
 		ffpath_split3(ent->url.ptr, ent->url.len, NULL, &title, NULL);
 	}
 
 	char *sz = ffsz_alfmt("%S - %S - fmedia", &artist, &title);
-	ffui_send_wnd_settext(&gg->wmain.wmain, sz);
+	ffui_send_wnd_settext(&w->wnd, sz);
 	ffmem_free(sz);
 }
 
 void wmain_fintrack()
 {
-	if (gg->wmain.active_qent != NULL) {
-		int idx = gg->qu->cmdv(FMED_QUE_ID, gg->wmain.active_qent);
-		gg->wmain.active_qent = NULL;
+	struct gui_wmain *w = gg->wmain;
+	if (w->active_qent != NULL) {
+		int idx = gg->qu->cmdv(FMED_QUE_ID, w->active_qent);
+		w->active_qent = NULL;
 		if (idx >= 0)
-			ffui_send_view_setdata(&gg->wmain.vlist, idx, 0);
+			ffui_send_view_setdata(&w->vlist, idx, 0);
 	}
-	ffui_send_wnd_settext(&gg->wmain.wmain, "fmedia");
-	ffui_send_lbl_settext(&gg->wmain.lpos, "");
-	ffui_post_trk_setrange(&gg->wmain.tpos, 0);
+	ffui_send_wnd_settext(&w->wnd, "fmedia");
+	ffui_send_lbl_settext(&w->lpos, "");
+	ffui_post_trk_setrange(&w->tpos, 0);
 }
 
 void wmain_update(uint playtime, uint time_total)
 {
-	ffui_post_trk_set(&gg->wmain.tpos, playtime);
+	struct gui_wmain *w = gg->wmain;
+	ffui_post_trk_set(&w->tpos, playtime);
 
 	char buf[256];
 	ffs_fmt(buf, buf + sizeof(buf), "%u:%02u / %u:%02u%Z"
 		, playtime / 60, playtime % 60
 		, time_total / 60, time_total % 60);
-	ffui_send_lbl_settext(&gg->wmain.lpos, buf);
+	ffui_send_lbl_settext(&w->lpos, buf);
 }
 
 /** Set status bar text. */
 void wmain_status(const char *fmt, ...)
 {
+	struct gui_wmain *w = gg->wmain;
 	va_list va;
 	va_start(va, fmt);
 	char *s = ffsz_alfmtv(fmt, va);
 	va_end(va);
-	ffui_send_stbar_settextz(&gg->wmain.stbar, s);
+	ffui_send_stbar_settextz(&w->stbar, s);
 	ffmem_free(s);
 }
 
 void wmain_list_clear()
 {
-	ffui_post_view_clear(&gg->wmain.vlist);
+	struct gui_wmain *w = gg->wmain;
+	ffui_post_view_clear(&w->vlist);
 }
 
 /** Create a new tab. */
 uint tab_new(uint flags)
 {
+	struct gui_wmain *w = gg->wmain;
 	char buf[32];
 	ffs_fmt(buf, buf + sizeof(buf), "Playlist %u%Z", ++gg->tabs_counter);
-	ffui_tab_append(&gg->wmain.tabs, buf);
-	return ffui_tab_count(&gg->wmain.tabs);
+	ffui_tab_append(&w->tabs, buf);
+	return ffui_tab_count(&w->tabs);
 }
 
 /** Create a new tab. */
 ffuint wmain_tab_new(ffuint flags)
 {
+	struct gui_wmain *w = gg->wmain;
 	char buf[32];
 	if (flags & TAB_CONVERT)
 		ffsz_copyz(buf, sizeof(buf), "Converting...");
 	else
 		ffs_fmt(buf, buf + sizeof(buf), "Playlist %u%Z", ++gg->tabs_counter);
 
-	ffui_send_tab_ins(&gg->wmain.tabs, buf);
-	return ffui_send_tab_count(&gg->wmain.tabs) - 1;
+	ffui_send_tab_ins(&w->tabs, buf);
+	return ffui_send_tab_count(&w->tabs) - 1;
+}
+
+int wmain_tab_active()
+{
+	struct gui_wmain *w = gg->wmain;
+	return ffui_send_tab_active(&w->tabs);
 }
 
 /** Create a new tab and playlist. */
 void list_new()
 {
+	struct gui_wmain *w = gg->wmain;
 	uint n = tab_new(0);
 	n--;
-	ffui_tab_setactive(&gg->wmain.tabs, n);
-	ffui_view_clear(&gg->wmain.vlist);
+	ffui_tab_setactive(&w->tabs, n);
+	ffui_view_clear(&w->vlist);
 	corecmd_add(A_LIST_NEW, (void*)(size_t)n);
 }
 
 void wmain_list_select(ffuint idx)
 {
-	ffui_send_tab_setactive(&gg->wmain.tabs, idx);
+	struct gui_wmain *w = gg->wmain;
+	ffui_send_tab_setactive(&w->tabs, idx);
 }
 
 /** Remove the current tab and activate its neighbour or create a new tab. */
 void list_del()
 {
-	int i = ffui_tab_active(&gg->wmain.tabs);
-	ffbool last = (1 == ffui_tab_count(&gg->wmain.tabs));
+	struct gui_wmain *w = gg->wmain;
+	int i = ffui_tab_active(&w->tabs);
+	ffbool last = (1 == ffui_tab_count(&w->tabs));
 	if (last) {
-		wmain_action(&gg->wmain.wmain, A_LIST_NEW);
+		wmain_action(&w->wnd, A_LIST_NEW);
 	} else {
 		uint newsel = (i == 0) ? i + 1 : i - 1;
-		ffui_tab_setactive(&gg->wmain.tabs, newsel);
-		ffui_view_clear(&gg->wmain.vlist);
+		ffui_tab_setactive(&w->tabs, newsel);
+		ffui_view_clear(&w->vlist);
 		corecmd_add(A_LIST_SEL, (void*)(size_t)newsel);
 	}
-	ffui_tab_del(&gg->wmain.tabs, i);
+	ffui_tab_del(&w->tabs, i);
 	corecmd_add(A_LIST_DEL, (void*)(size_t)i);
 }
 
 /** Add the files chosen by user */
 void list_chooseaddfiles()
 {
+	struct gui_wmain *w = gg->wmain;
 	char *fn;
-	if (NULL == (fn = ffui_dlg_open(&gg->dlg, &gg->wmain.wmain)))
+	if (NULL == (fn = ffui_dlg_open(&gg->dlg, &w->wnd)))
 		return;
 
 	ffstr *s;
@@ -486,10 +553,11 @@ void list_chooseaddfiles()
 /** User chooses file to save the current playlist to. */
 void list_save()
 {
+	struct gui_wmain *w = gg->wmain;
 	char *fn;
 	ffstr name;
 	ffstr_setz(&name, "Playlist.m3u8");
-	if (NULL == (fn = ffui_dlg_save(&gg->dlg, &gg->wmain.wmain, name.ptr, name.len)))
+	if (NULL == (fn = ffui_dlg_save(&gg->dlg, &w->wnd, name.ptr, name.len)))
 		return;
 
 	char *list_fn;
@@ -500,7 +568,8 @@ void list_save()
 
 void hidetotray()
 {
-	ffui_show(&gg->wmain.wmain, 0);
+	struct gui_wmain *w = gg->wmain;
+	ffui_show(&w->wnd, 0);
 	wabout_show(0);
 	wcmd_show(0);
 	wconv_show(0);
@@ -510,19 +579,20 @@ void hidetotray()
 	wplayprops_show(0);
 	wrename_show(0);
 	wuri_show(0);
-	if (!ffui_tray_hasicon(&gg->wmain.tray_icon)) {
+	if (!ffui_tray_hasicon(&w->tray_icon)) {
 		ffui_icon ico;
 		char *fn = core->getpath(FFSTR("fmedia.ico"));
 		ffui_icon_load(&ico, fn);
 		ffmem_free(fn);
-		ffui_tray_seticon(&gg->wmain.tray_icon, &ico);
+		ffui_tray_seticon(&w->tray_icon, &ico);
 	}
-	ffui_tray_show(&gg->wmain.tray_icon, 1);
+	ffui_tray_show(&w->tray_icon, 1);
 }
 
 /** Load widths of list's columns. */
 static void list_cols_width_load()
 {
+	struct gui_wmain *w = gg->wmain;
 	ffui_viewcol vc = {};
 	ffui_viewcol_reset(&vc);
 	for (uint i = 0;  i != _H_LAST;  i++) {
@@ -531,18 +601,37 @@ static void list_cols_width_load()
 			continue;
 
 		ffui_viewcol_setwidth(&vc, gg->conf.list_col_width[i]);
-		ffui_view_setcol(&gg->wmain.vlist, i, &vc);
+		ffui_view_setcol(&w->vlist, i, &vc);
 	}
 }
 
 /** Write widths of list's columns to config. */
 void wmain_list_cols_width_write(ffconfw *conf)
 {
+	struct gui_wmain *w = gg->wmain;
 	ffui_viewcol vc = {};
 	for (uint i = 0;  i != _H_LAST;  i++) {
 		ffui_viewcol_reset(&vc);
 		ffui_viewcol_setwidth(&vc, 0);
-		ffui_view_col(&gg->wmain.vlist, i, &vc);
+		ffui_view_col(&w->vlist, i, &vc);
 		ffconf_writeint(conf, ffui_viewcol_width(&vc), 0, FFCONF_TVAL);
 	}
+}
+
+ffarr4* wmain_list_getsel()
+{
+	struct gui_wmain *w = gg->wmain;
+	return (void*)ffui_view_getsel(&w->vlist);
+}
+
+ffarr4* wmain_list_getsel_send()
+{
+	struct gui_wmain *w = gg->wmain;
+	return (void*)ffui_send_view_getsel(&w->vlist);
+}
+
+int wmain_list_scroll_vert()
+{
+	struct gui_wmain *w = gg->wmain;
+	return ffui_view_scroll_vert(&w->vlist);
 }

@@ -537,14 +537,14 @@ static void convert(void *param)
 	trkinfo_set(&trkinfo);
 
 	// create "Convert" tab
-	int curtab = ffui_send_tab_active(&gg->wmain.tabs);
+	int curtab = wmain_tab_active();
 	c->itab = wmain_tab_new(TAB_CONVERT) + 1;
 	gg->qu->cmdv(FMED_QUE_NEW, FMED_QUE_NORND);
 
 	fmed_que_entry *first = NULL;
 	int i;
-	ffarr4 *sel = (void*)ffui_send_view_getsel(&gg->wmain.vlist);
-	while (-1 != (i = ffui_view_selnext(&gg->wmain.vlist, sel))) {
+	ffarr4 *sel = wmain_list_getsel();
+	while (-1 != (i = ffui_view_selnext(NULL, sel))) {
 		fmed_que_entry *ent = (fmed_que_entry*)gg->qu->fmed_queue_item(curtab, i);
 		ent = convert1(ent, &fn, &trkinfo);
 		if (first == NULL)

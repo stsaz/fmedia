@@ -23,24 +23,6 @@ enum {
 #define FMED_USERCONF  "fmedia-user.conf"
 #define AUTOPLIST_FN  "list%u.m3u8"
 
-struct gui_wmain {
-	ffui_wnd wmain;
-	ffui_menu mm;
-	ffui_btn bpause
-		, bstop
-		, bprev
-		, bnext;
-	ffui_label lpos;
-	ffui_trkbar tvol;
-	ffui_trkbar tpos;
-	ffui_tab tabs;
-	ffui_view vlist;
-	ffui_ctl stbar;
-	ffui_trayicon tray_icon;
-
-	fmed_que_entry *active_qent;
-};
-
 struct gtrk;
 struct gui_conf {
 	float auto_attenuate_ceiling;
@@ -62,6 +44,7 @@ struct gui_wconvert;
 struct gui_wdload;
 struct gui_winfo;
 struct gui_wlog;
+struct gui_wmain;
 struct gui_wplayprops;
 struct gui_wrename;
 struct gui_wuri;
@@ -71,6 +54,7 @@ extern const ffui_ldr_ctl wconvert_ctls[];
 extern const ffui_ldr_ctl wdload_ctls[];
 extern const ffui_ldr_ctl winfo_ctls[];
 extern const ffui_ldr_ctl wlog_ctls[];
+extern const ffui_ldr_ctl wmain_ctls[];
 extern const ffui_ldr_ctl wplayprops_ctls[];
 extern const ffui_ldr_ctl wrename_ctls[];
 extern const ffui_ldr_ctl wuri_ctls[];
@@ -97,7 +81,7 @@ typedef struct ggui {
 	struct gui_wdload *wdload;
 	struct gui_winfo *winfo;
 	struct gui_wlog *wlog;
-	struct gui_wmain wmain;
+	struct gui_wmain *wmain;
 	struct gui_wplayprops *wplayprops;
 	struct gui_wrename *wrename;
 	struct gui_wuri *wuri;
@@ -209,6 +193,7 @@ void gui_list_sel(uint idx);
 
 // Main:
 void wmain_init();
+void wmain_show();
 void wmain_cmd(int id);
 void wmain_newtrack(fmed_que_entry *ent, uint time_total, fmed_filt *d);
 void wmain_fintrack();
@@ -220,11 +205,15 @@ enum {
 	TAB_CONVERT = 1,
 };
 ffuint wmain_tab_new(ffuint flags);
+int wmain_tab_active();
 void wmain_list_clear();
 void wmain_list_cols_width_write(ffconfw *conf);
 void wmain_list_update(uint idx, int delta);
 void wmain_list_set(uint idx, int delta);
 void wmain_list_select(ffuint idx);
+ffarr4* wmain_list_getsel();
+ffarr4* wmain_list_getsel_send();
+int wmain_list_scroll_vert();
 
 // Dialogs:
 

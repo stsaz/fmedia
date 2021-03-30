@@ -16,6 +16,7 @@ enum {
 	CONF_RANDOM = 1,
 	CONF_REPEAT,
 	CONF_SEEKSTEP,
+	CONF_SEEK_LEAP_DELTA,
 	CONF_AUTO_ATTENUATE,
 };
 
@@ -29,6 +30,7 @@ const char* const repeat_str[3] = { "None", "Track", "Playlist" };
 struct pprops_conf_ent pprops_conf[] = {
 	{ "Playback:", 0 },
 	{ "  Seek Step (sec)",	CONF_SEEKSTEP },
+	{ "  Seek Leap Delta (sec)",	CONF_SEEK_LEAP_DELTA },
 
 	{ "List:", 0 },
 	{ "  Random (0 | 1)",	CONF_RANDOM },
@@ -68,6 +70,10 @@ void pprops_disp(ffui_view *v)
 			zval = ffsz_allocfmt("%u", gg->conf.seek_step_delta);
 			break;
 
+		case CONF_SEEK_LEAP_DELTA:
+			zval = ffsz_allocfmt("%u", gg->conf.seek_leap_delta);
+			break;
+
 		case CONF_AUTO_ATTENUATE:
 			zval = ffsz_allocfmt("%.02F", (double)gg->conf.auto_attenuate_ceiling);
 			break;
@@ -102,6 +108,11 @@ void pprops_edit()
 
 	case CONF_SEEKSTEP:
 		if (ffstr_to_uint32(&text, &gg->conf.seek_step_delta))
+			k = 1;
+		break;
+
+	case CONF_SEEK_LEAP_DELTA:
+		if (ffstr_to_uint32(&text, &gg->conf.seek_leap_delta))
 			k = 1;
 		break;
 
