@@ -37,6 +37,12 @@ void wrename_action(ffui_wnd *wnd, int id)
 
 		newfn = ffsz_dupn(fn.ptr, fn.len);
 		int k = 0;
+
+		if (fffile_exists(newfn)) {
+			errlog("file rename: %s -> %s: target file already exists", ent->url.ptr, newfn);
+			goto end;
+		}
+
 		if (0 != fffile_rename(ent->url.ptr, newfn))
 			syserrlog("file rename: %s -> %s", ent->url.ptr, newfn);
 		else {
