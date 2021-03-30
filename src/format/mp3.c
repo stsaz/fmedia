@@ -207,6 +207,13 @@ again:
 			m->state = I_DATA;
 			fmed_setval("mpeg_delay", m->mpg.rdr.delay);
 
+			if (d->audio.abs_seek != 0) {
+				d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, "plist.cuehook");
+				m->seeking = 1;
+				uint64 samples = fmed_apos_samples(d->audio.abs_seek, d->audio.fmt.sample_rate);
+				ffmpg_rseek(&m->mpg.rdr, samples);
+			}
+
 			if (!d->stream_copy
 				&& 0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, "mpeg.decode"))
 				return FMED_RERR;

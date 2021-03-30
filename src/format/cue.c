@@ -6,6 +6,8 @@ Copyright (c) 2019 Simon Zolin */
 #include <FF/data/utf8.h>
 
 
+#define dbglog1(trk, ...)  fmed_dbglog(core, trk, NULL, __VA_ARGS__)
+
 extern const fmed_core *core;
 extern const fmed_queue *qu;
 extern int plist_fullname(fmed_filt *d, const ffstr *name, ffstr *dst);
@@ -301,3 +303,51 @@ err:
 	ffarr_free(&val);
 	return rc;
 }
+
+
+struct cuehook {
+	uint64 abs_seek;
+	uint64 abs_seek_ms;
+};
+
+void* cuehook_open(fmed_filt *d)
+{
+	if (d->audio.abs_seek == 0)
+		return FMED_FILT_SKIP;
+
+	struct cuehook *c = ffmem_new(struct cuehook);
+	c->abs_seek = fmed_apos_samples(d->audio.abs_seek, d->audio.fmt.sample_rate);
+	c->abs_seek_ms = ffpcm_time(c->abs_seek, d->audio.fmt.sample_rate);
+	dbglog1(d->trk, "abs_seek:%U", c->abs_seek);
+	d->audio.total -= c->abs_seek;
+	return c;
+}
+
+void cuehook_close(void *ctx)
+{
+	struct cuehook *c = ctx;
+	ffmem_free(c);
+}
+
+int cuehook_process(void *ctx, fmed_filt *d)
+{
+	struct cuehook *c = ctx;
+
+	if (d->flags & FMED_FFWD) {
+		d->audio.pos = ffmax((int64)(d->audio.pos - c->abs_seek), 0);
+		d->data_out = d->data_in;
+		if (d->flags & FMED_FLAST)
+			return FMED_RDONE;
+		return FMED_RDATA;
+	}
+
+	if ((int64)d->audio.seek != FMED_NULL) {
+		d->audio.seek += c->abs_seek_ms;
+		dbglog1(d->trk, "seek:%U", d->audio.seek);
+	}
+	return FMED_RMORE;
+}
+
+const fmed_filter cuehook_iface = {
+	cuehook_open, cuehook_process, cuehook_close
+};

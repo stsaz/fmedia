@@ -75,6 +75,7 @@ FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 }
 
 extern const fmed_filter fmed_cue_input;
+extern const fmed_filter cuehook_iface;
 extern const fmed_filter fmed_dir_input;
 extern int dir_conf(ffpars_ctx *ctx);
 
@@ -88,6 +89,8 @@ static const void* plist_iface(const char *name)
 		return &fmed_pls_input;
 	else if (!ffsz_cmp(name, "cue"))
 		return &fmed_cue_input;
+	else if (ffsz_eq(name, "cuehook"))
+		return &cuehook_iface;
 	else if (!ffsz_cmp(name, "dir"))
 		return &fmed_dir_input;
 	return NULL;
