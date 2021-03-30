@@ -8,8 +8,13 @@ Copyright (c) 2016 Simon Zolin */
 #include <FFOS/semaphore.h>
 
 
-typedef struct gui_wmain {
-	ffui_wnd wmain;
+struct ghk_ent {
+	uint cmd;
+	uint hk;
+};
+
+struct gui_wmain {
+	ffui_wnd wnd;
 	ffui_menu mm;
 	ffui_btn bpause
 		, bstop
@@ -20,17 +25,14 @@ typedef struct gui_wmain {
 	ffui_trkbar tpos
 		, tvol;
 	ffui_view vlist;
-	ffui_paned pntop
-		, pnpos
-		, pntabs
-		, pnlist;
+	ffui_paned pntop;
 	ffui_stbar stbar;
 	ffui_trayicon tray_icon;
 	ffui_icon ico;
 	ffui_icon ico_rec;
 
 	int actv_tab;
-} gui_wmain;
+};
 
 typedef struct gui_trk gui_trk;
 
@@ -56,6 +58,7 @@ extern const ffui_ldr_ctl wfilter_ctls[];
 extern const ffui_ldr_ctl wgoto_ctls[];
 extern const ffui_ldr_ctl winfo_ctls[];
 extern const ffui_ldr_ctl wlog_ctls[];
+extern const ffui_ldr_ctl wmain_ctls[];
 extern const ffui_ldr_ctl wplayprops_ctls[];
 extern const ffui_ldr_ctl wrec_ctls[];
 extern const ffui_ldr_ctl wuri_ctls[];
@@ -87,7 +90,7 @@ typedef struct ggui {
 		, mlist_popup;
 	ffui_dialog dlg;
 
-	gui_wmain wmain;
+	ffvec paned_array; // ffui_paned*[]
 	struct gui_wabout *wabout;
 	struct gui_wconvert *wconvert;
 	struct gui_wdevlist *wdev;
@@ -95,6 +98,7 @@ typedef struct ggui {
 	struct gui_wgoto *wgoto;
 	struct gui_winfo *winfo;
 	struct gui_wlog *wlog;
+	struct gui_wmain *wmain;
 	struct gui_wplayprops *wplayprops;
 	struct gui_wrec *wrec;
 	struct gui_wuri *wuri;
@@ -315,7 +319,9 @@ void gui_themes_add(uint def);
 void gui_themes_destroy(void);
 void gui_theme_set(int idx);
 
-void wmain_init(void);
+void wmain_init();
+void wmain_destroy();
+void wmain_show();
 void gui_runcmd(const struct cmd *cmd, void *udata);
 void gui_corecmd_op(uint cmd, void *udata);
 void gui_corecmd_add(const struct cmd *cmd, void *udata);
@@ -338,6 +344,14 @@ void wmain_list_cols_width_write(ffconfw *conf);
 void wmain_rec_started();
 void wmain_rec_stopped();
 void list_update(uint idx, int delta);
+void gtrk_seek2(uint pos_sec);
+void wmain_redraw();
+int wmain_list_next_selected(int from);
+int wmain_list_n_selected();
+void wmain_list_clear();
+int wmain_tab_active();
+void wmain_tab_activate(int i);
+int wmain_curpos();
 
 enum GUI_FILT {
 	GUI_FILT_URL = 1,
@@ -428,5 +442,6 @@ int gui_cvt_getsettings(const struct cvt_set *psets, uint nsets, void *sets, ffu
 extern const char* const repeat_str[3];
 
 #define dbglog0(...)  fmed_dbglog(core, NULL, "gui", __VA_ARGS__)
+#define warnlog0(...)  fmed_warnlog(core, NULL, "gui", __VA_ARGS__)
 #define errlog0(...)  fmed_errlog(core, NULL, "gui", __VA_ARGS__)
 #define syserrlog0(...)  fmed_syserrlog(core, NULL, "gui", __VA_ARGS__)

@@ -402,6 +402,7 @@ oss.$(SO): $(OSS_O)
 
 ifeq ($(OS),win)
 #
+FF_GUIHDR := $(FF)/FF/gui/winapi.h $(FF)/FF/gui/loader.h
 $(OBJ_DIR)/gui-dlgs.o: $(SRCDIR)/gui-winapi/gui-dlgs.c $(SRCDIR)/gui-winapi/*.h $(SRCDIR)/fmedia.h $(FF_GUIHDR)
 	$(C) $(CFLAGS)  $< -o$@
 $(OBJ_DIR)/%.o: $(SRCDIR)/gui-winapi/%.c $(SRCDIR)/gui-winapi/gui.h $(SRCDIR)/fmedia.h $(FF_GUIHDR)

@@ -31,8 +31,7 @@ void wgoto_action(ffui_wnd *wnd, int id)
 			return;
 
 		fftime_join(&t, &dt, FFTIME_TZNODATE);
-		ffui_trk_set(&gg->wmain.tpos, fftime_sec(&t));
-		gui_seek(A_PLAY_GOTO);
+		gtrk_seek2(fftime_sec(&t));
 		ffui_show(&w->wgoto, 0);
 		break;
 	}

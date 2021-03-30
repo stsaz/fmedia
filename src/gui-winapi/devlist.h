@@ -5,14 +5,12 @@ struct gui_wdevlist {
 	ffui_wnd wnd;
 	ffui_view vdev;
 	ffui_btn bok;
-	ffui_paned pn;
 };
 
 const ffui_ldr_ctl wdevlist_ctls[] = {
 	FFUI_LDR_CTL(struct gui_wdevlist, wnd),
 	FFUI_LDR_CTL(struct gui_wdevlist, vdev),
 	FFUI_LDR_CTL(struct gui_wdevlist, bok),
-	FFUI_LDR_CTL(struct gui_wdevlist, pn),
 	FFUI_LDR_CTL_END
 };
 

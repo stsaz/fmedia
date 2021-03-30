@@ -3,13 +3,11 @@
 
 typedef struct gui_wlog {
 	ffui_wnd wlog;
-	ffui_paned pnlog;
 	ffui_edit tlog;
 } gui_wlog;
 
 const ffui_ldr_ctl wlog_ctls[] = {
 	FFUI_LDR_CTL(struct gui_wlog, wlog),
-	FFUI_LDR_CTL(struct gui_wlog, pnlog),
 	FFUI_LDR_CTL(struct gui_wlog, tlog),
 	FFUI_LDR_CTL_END
 };

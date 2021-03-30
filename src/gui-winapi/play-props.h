@@ -4,7 +4,6 @@
 struct gui_wplayprops {
 	ffui_wnd wplayprops;
 	ffui_view vconfig;
-	ffui_paned pn;
 
 	int first :1;
 };
@@ -12,7 +11,6 @@ struct gui_wplayprops {
 const ffui_ldr_ctl wplayprops_ctls[] = {
 	FFUI_LDR_CTL(struct gui_wplayprops, wplayprops),
 	FFUI_LDR_CTL(struct gui_wplayprops, vconfig),
-	FFUI_LDR_CTL(struct gui_wplayprops, pn),
 	FFUI_LDR_CTL_END
 };
 

@@ -6,7 +6,6 @@ struct gui_wuri {
 	ffui_edit turi;
 	ffui_btn bok;
 	ffui_btn bcancel;
-	ffui_paned pnuri;
 };
 
 const ffui_ldr_ctl wuri_ctls[] = {
@@ -14,7 +13,6 @@ const ffui_ldr_ctl wuri_ctls[] = {
 	FFUI_LDR_CTL(struct gui_wuri, turi),
 	FFUI_LDR_CTL(struct gui_wuri, bok),
 	FFUI_LDR_CTL(struct gui_wuri, bcancel),
-	FFUI_LDR_CTL(struct gui_wuri, pnuri),
 	FFUI_LDR_CTL_END
 };
 

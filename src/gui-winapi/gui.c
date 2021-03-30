@@ -40,7 +40,6 @@ static int gui_install(uint sig);
 
 static FFTHDCALL int gui_worker(void *param);
 static void gui_que_onchange(fmed_que_entry *e, uint flags);
-static void gui_ghk_reg(void);
 static void gui_savelists(void);
 static void gui_loadlists(void);
 static void upd_done(void *obj);
@@ -55,11 +54,6 @@ static const fmed_filter gui_rec_iface = {
 	&rec_open, &rec_process, &rec_close
 };
 
-
-struct ghk_ent {
-	uint cmd;
-	uint hk;
-};
 
 static int gui_conf_ghk_add(ffparser_schem *p, void *obj, ffstr *val);
 
@@ -149,27 +143,6 @@ static int gui_conf_ghk_add(ffparser_schem *p, void *obj, ffstr *val)
 
 #define add  FFUI_LDR_CTL
 
-static const ffui_ldr_ctl wmain_ctls[] = {
-	add(gui_wmain, wmain),
-	add(gui_wmain, bpause),
-	add(gui_wmain, bstop),
-	add(gui_wmain, bprev),
-	add(gui_wmain, bnext),
-	add(gui_wmain, lpos),
-	add(gui_wmain, tabs),
-	add(gui_wmain, tpos),
-	add(gui_wmain, tvol),
-	add(gui_wmain, vlist),
-	add(gui_wmain, stbar),
-	add(gui_wmain, pntop),
-	add(gui_wmain, pnpos),
-	add(gui_wmain, pntabs),
-	add(gui_wmain, pnlist),
-	add(gui_wmain, tray_icon),
-	add(gui_wmain, mm),
-	{NULL, 0, NULL}
-};
-
 static const ffui_ldr_ctl top_ctls[] = {
 	add(ggui, mfile),
 	add(ggui, mlist),
@@ -181,7 +154,7 @@ static const ffui_ldr_ctl top_ctls[] = {
 	add(ggui, mlist_popup),
 	add(ggui, dlg),
 
-	FFUI_LDR_CTL3(ggui, wmain, wmain_ctls),
+	FFUI_LDR_CTL3_PTR(ggui, wmain, wmain_ctls),
 	FFUI_LDR_CTL3_PTR(ggui, wabout, wabout_ctls),
 	FFUI_LDR_CTL3_PTR(ggui, wconvert, wconvert_ctls),
 	FFUI_LDR_CTL3_PTR(ggui, wdev, wdevlist_ctls),
@@ -197,6 +170,7 @@ static const ffui_ldr_ctl top_ctls[] = {
 
 void dlgs_init()
 {
+	wmain_init();
 	wabout_init();
 	wconvert_init();
 	wdev_init();
@@ -211,6 +185,7 @@ void dlgs_init()
 
 void dlgs_destroy()
 {
+	wmain_destroy();
 	wrec_destroy();
 	wconvert_destroy();
 	ffmem_free(gg->wabout);
@@ -438,7 +413,7 @@ void gui_corecmd_op(uint cmd, void *udata)
 	switch (cmd) {
 	case PLAY: {
 		int focused;
-		if (-1 == (focused = ffui_view_focused(&gg->wmain.vlist)))
+		if (-1 == (focused = ffui_view_focused(&gg->wmain->vlist)))
 			break;
 		/* Note: we should use 'gg->lktrk' here,
 		 but because it's only relevant for non-conversion tracks,
@@ -474,7 +449,7 @@ void gui_corecmd_op(uint cmd, void *udata)
 	case A_PLAY_STOP:
 		gg->track->cmd(NULL, FMED_TRACK_STOPALL);
 		if (gg->curtrk != NULL && gg->curtrk->state == ST_PAUSED)
-			gg->wmain.wmain.on_action(&gg->wmain.wmain, A_PLAY_PAUSE);
+			gg->wmain->wnd.on_action(&gg->wmain->wnd, A_PLAY_PAUSE);
 		break;
 
 	case A_PLAY_STOP_AFTER:
@@ -524,7 +499,7 @@ void gui_corecmd_op(uint cmd, void *udata)
 
 	case A_LIST_CLEAR:
 		gg->qu->cmd(FMED_QUE_CLEAR | FMED_QUE_NO_ONCHANGE, NULL);
-		ffui_view_clear(&gg->wmain.vlist);
+		ffui_view_clear(&gg->wmain->vlist);
 		break;
 
 	case A_LIST_SAVELIST: {
@@ -575,7 +550,7 @@ static void gui_que_onchange(fmed_que_entry *e, uint flags)
 			break;
 		else if (flags & FMED_QUE_ADD_DONE) {
 			uint n = gg->qu->cmdv(FMED_QUE_COUNT);
-			ffui_view_setcount(&gg->wmain.vlist, n);
+			ffui_view_setcount(&gg->wmain->vlist, n);
 
 			if (gg->list_actv_trk_idx != 0) {
 				gg->qu->cmdv(FMED_QUE_SETCURID, 0, gg->list_actv_trk_idx);
@@ -583,7 +558,7 @@ static void gui_que_onchange(fmed_que_entry *e, uint flags)
 			}
 
 			if (gg->list_scroll_pos != 0) {
-				ffui_view_makevisible(&gg->wmain.vlist, gg->list_scroll_pos);
+				ffui_view_makevisible(&gg->wmain->vlist, gg->list_scroll_pos);
 				gg->list_scroll_pos = 0;
 			}
 			break;
@@ -602,8 +577,7 @@ static void gui_que_onchange(fmed_que_entry *e, uint flags)
 		break;
 
 	case FMED_QUE_ONCLEAR:
-		ffui_view_clear(&gg->wmain.vlist);
-		ffui_view_redraw(&gg->wmain.vlist, 0, 0);
+		wmain_list_clear();
 		break;
 	}
 }
@@ -647,7 +621,7 @@ void gui_media_showpcm(void)
 	int i = -1;
 	fmed_que_entry *ent;
 
-	while (-1 != (i = ffui_view_selnext(&gg->wmain.vlist, i))) {
+	while (-1 != (i = wmain_list_next_selected(i))) {
 		ent = (fmed_que_entry*)gg->qu->fmed_queue_item(-1, i);
 
 		void *trk;
@@ -720,25 +694,6 @@ void gui_rec(uint cmd)
 }
 
 
-static void gui_ghk_reg(void)
-{
-	struct ghk_ent *e;
-	uint i = 0;
-	(void)i;
-
-	FFARR_WALKT(&gg->ghks, e, struct ghk_ent) {
-		i++;
-		if (0 != ffui_wnd_ghotkey_reg(&gg->wmain.wmain, e->hk, e->cmd)) {
-			warnlog(core, NULL, "gui", "can't register global hotkey #%u", i);
-			continue;
-		}
-
-		dbglog(core, NULL, "gui", "registered global hotkey #%u", i);
-	}
-
-	ffarr_free(&gg->ghks);
-}
-
 char* gui_usrconf_filename(void)
 {
 	return gui_userpath(GUI_USERCONF);
@@ -788,7 +743,7 @@ static void usrconf_write_val(ffconfw *conf, uint i)
 		ffconf_writeint(conf, n, 0, FFCONF_TVAL);
 		break;
 	case 7:
-		n = ffui_view_topindex(&gg->wmain.vlist);
+		n = ffui_view_topindex(&gg->wmain->vlist);
 		ffconf_writeint(conf, n, 0, FFCONF_TVAL);
 		break;
 	}
@@ -879,7 +834,7 @@ static void gui_savelists(void)
 		goto end;
 
 	uint n = 1;
-	uint total = (uint)ffui_tab_count(&gg->wmain.tabs);
+	uint total = (uint)ffui_tab_count(&gg->wmain->tabs);
 	for (uint i = 0; ; i++) {
 		if (i == (uint)gg->itab_convert
 			|| i == (uint)gg->fav_pl)
@@ -994,8 +949,6 @@ static FFTHDCALL int gui_worker(void *param)
 	ffui_wnd_initstyle();
 	ffui_ldr_init(&ldr);
 
-	gg->wmain.vlist.dispinfo_id = LIST_DISPINFO;
-
 	if (NULL == (fn = core->getpath(FFSTR("./fmedia.gui"))))
 		goto err;
 	if (NULL == (fnconf = gui_usrconf_filename()))
@@ -1015,9 +968,10 @@ static FFTHDCALL int gui_worker(void *param)
 	ffui_ldr_loadconf(&ldr, fnconf);
 	ffmem_free0(fn);
 	ffmem_free0(fnconf);
+	gg->paned_array = ldr.paned_array;
 	ffui_ldr_fin(&ldr);
 
-	wmain_init();
+	wmain_show();
 
 	ffui_dlg_multisel(&gg->dlg);
 
@@ -1034,8 +988,6 @@ static FFTHDCALL int gui_worker(void *param)
 	gui_themes_read();
 	gui_themes_add(gg->theme_startup);
 
-	gui_ghk_reg();
-
 	dbglog0("entering UI loop");
 	ffui_run();
 	dbglog0("leaving UI loop");
@@ -1047,7 +999,7 @@ err:
 	ffmem_safefree(fnconf);
 done:
 	ffui_dlg_destroy(&gg->dlg);
-	ffui_wnd_destroy(&gg->wmain.wmain);
+	ffui_wnd_destroy(&gg->wmain->wnd);
 	ffui_uninit();
 	if (gg->load_err)
 		ffsem_post(gg->sem);
@@ -1342,19 +1294,23 @@ end:
 
 static void gui_stop(void)
 {
-	ffui_wnd_close(&gg->wmain.wmain);
+	ffui_wnd_close(&gg->wmain->wnd);
 	if (0 != ffthd_join(gg->th, 3000, NULL))
 		syserrlog0("ffthd_join");
 	ffarr_free(&gg->ghks);
 	FFARR_FREE_ALL_PTR(&gg->filenames, ffmem_free, char*);
-	ffui_icon_destroy(&gg->wmain.ico);
-	ffui_icon_destroy(&gg->wmain.ico_rec);
 }
 
 static void gui_destroy(void)
 {
 	if (gg == NULL)
 		return;
+
+	ffui_paned **pn;
+	FFSLICE_WALK_T(&gg->paned_array, pn, ffui_paned*) {
+		ffmem_free(*pn);
+	}
+	ffvec_free(&gg->paned_array);
 
 	gui_themes_destroy();
 	dlgs_destroy();

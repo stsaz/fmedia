@@ -1,4 +1,4 @@
-# fmedia v1.17 GUI
+# fmedia v1.24 GUI
 
 menu mfile {
 	item "&Open..." {
@@ -305,7 +305,6 @@ window wmain {
 	title "fmedia"
 	position 100 100 380 300
 	borderstick 7
-	# style visible
 	icon {
 		resource 2
 	}
@@ -337,7 +336,6 @@ window wmain {
 
 	button bpause {
 		position 5 5 30 30
-		style visible
 		tooltip "Play/Pause"
 		action A_PLAY_PAUSE
 		icon {
@@ -347,8 +345,8 @@ window wmain {
 	}
 
 	button bstop {
-		position 40 5 30 30
-		style visible
+		size 30 30
+		style horizontal
 		tooltip "Stop"
 		action A_PLAY_STOP
 		icon {
@@ -358,8 +356,8 @@ window wmain {
 	}
 
 	button bprev {
-		position 75 5 30 30
-		style visible
+		size 30 30
+		style horizontal
 		tooltip "Previous"
 		action A_PLAY_PREV
 		icon {
@@ -369,8 +367,8 @@ window wmain {
 	}
 
 	button bnext {
-		position 110 5 30 30
-		style visible
+		size 30 30
+		style horizontal
 		tooltip "Next"
 		action A_PLAY_NEXT
 		icon {
@@ -380,8 +378,7 @@ window wmain {
 	}
 
 	label lpos {
-		position 155 10 150 20
-		style visible
+		position 135 10 150 30
 		font {
 			name Arial
 			height 12
@@ -389,33 +386,35 @@ window wmain {
 		}
 	}
 
-	trackbar tpos {
-		position 0 42 300 20
-		style no_ticks both visible
-		range 0
-		page_size 15
-		onscrolling SEEKING
-		onscroll A_PLAY_SEEK
-	}
-
 	trackbar tvol {
-		position 300 10 100 20
-		style no_ticks both visible
+		position 305 10 120 20
+		style no_ticks both
 		range 125
 		value 100
 		page_size 5
 		onscrolling A_PLAY_VOL
 	}
 
+	trackbar tpos {
+		size 300 20
+		resize cx
+		style no_ticks both
+		range 0
+		page_size 15
+		onscrolling SEEKING
+		onscroll A_PLAY_SEEK
+	}
+
 	tab tabs {
-		position 0 65 300 20
-		style visible
+		size 300 20
+		resize cx
 		onchange A_LIST_SEL
 	}
 
 	listview vlist {
-		position 0 85 360 175
-		style explorer_theme grid_lines multi_select visible
+		size 360 175
+		resize cx cy
+		style explorer_theme grid_lines multi_select
 		dblclick PLAY
 		popupmenu mlist_popup
 
@@ -447,24 +446,8 @@ window wmain {
 			move x
 		}
 	}
-	paned pnpos {
-		child tpos {
-			resize cx
-		}
-	}
-	paned pntabs {
-		child tabs {
-			resize cx
-		}
-	}
-	paned pnlist {
-		child vlist {
-			resize cx cy
-		}
-	}
 
 	statusbar stbar {
-		style visible
 		parts 100 -1
 	}
 
@@ -492,33 +475,31 @@ window wconvert {
 	}
 
 	label lfn {
-		position 0 0 200 15
+		size 200 15
 		text "Convert files to:"
-		style visible
 	}
 
 	combobox eout {
-		position 0 15 200 25
-		style visible
+		size 200 25
 	}
 
 	button boutbrowse {
-		position 220 15 35 25
-		style visible
+		size 35 25
+		style horizontal
 		text "..."
 		action OUTBROWSE
 		tooltip "Select output directory"
 	}
 
 	label lsets {
-		position 0 40 300 15
+		size 300 15
 		text "Settings (click on the middle column to modify):"
-		style visible
 	}
 
 	listview vsets {
-		position 0 55 250 100
-		style edit_labels explorer_theme grid_lines visible
+		size 250 100
+		resize cx cy
+		style edit_labels explorer_theme grid_lines
 
 		lclick CVT_SETS_EDIT
 
@@ -536,12 +517,6 @@ window wconvert {
 		}
 		child boutbrowse {
 			move x
-		}
-	}
-
-	paned pnsets {
-		child vsets {
-			resize cx cy
 		}
 	}
 }
@@ -564,32 +539,30 @@ window wrec {
 	}
 
 	label lfn {
-		position 0 0 200 15
+		size 200 15
 		text "Output filename template:"
-		style visible
 	}
 
 	editbox eout {
-		position 0 15 200 25
-		style visible
+		size 200 25
 	}
 
 	button boutbrowse {
-		position 220 15 35 25
-		style visible
+		size 35 25
+		style horizontal
 		text "..."
 		action OUTBROWSE
 	}
 
 	label lsets {
-		position 0 40 300 15
+		size 300 15
 		text "Settings (click on the middle column to modify):"
-		style visible
 	}
 
 	listview vsets {
-		position 0 55 250 100
-		style edit_labels explorer_theme grid_lines visible
+		size 250 100
+		resize cx cy
+		style edit_labels explorer_theme grid_lines
 
 		lclick CVT_SETS_EDIT
 
@@ -609,12 +582,6 @@ window wrec {
 			move x
 		}
 	}
-
-	paned pnsets {
-		child vsets {
-			resize cx cy
-		}
-	}
 }
 
 window wdev {
@@ -629,8 +596,9 @@ window wdev {
 	}
 
 	listview vdev {
-		position 0 0 250 100
-		style explorer_theme grid_lines visible
+		size 250 100
+		resize cx
+		style explorer_theme grid_lines
 		column "#" {
 			width 20
 		}
@@ -640,16 +608,9 @@ window wdev {
 	}
 
 	button bok {
-		position 0 110 50 25
-		style visible
+		size 50 25
 		text "OK"
 		action DEVLIST_SELOK
-	}
-
-	paned pn {
-		child vdev {
-			resize cx
-		}
 	}
 }
 
@@ -659,8 +620,9 @@ window winfo {
 	style popup
 
 	listview vinfo {
-		position 0 0 100 100
-		style edit_labels explorer_theme grid_lines multi_select visible
+		size 100 100
+		resize cx cy
+		style edit_labels explorer_theme grid_lines multi_select
 
 		lclick INFOEDIT
 
@@ -668,12 +630,6 @@ window winfo {
 		}
 		column Value {
 			width 200
-		}
-	}
-
-	paned pninfo {
-		child vinfo {
-			resize cx cy
 		}
 	}
 }
@@ -690,13 +646,11 @@ window wgoto {
 	}
 
 	editbox etime {
-		position 10 10 100 25
-		style visible
+		size 100 25
 	}
 
 	button bgo {
-		position 10 40 50 25
-		style visible
+		size 50 25
 		text "Go!"
 		action A_PLAY_GOTO
 	}
@@ -710,7 +664,6 @@ window wabout {
 	opacity 90
 
 	image ico {
-		style visible
 		position 0 5 85 85
 		icon {
 			resource 2
@@ -720,7 +673,6 @@ window wabout {
 
 	label labout {
 		position 130 15 300 80
-		style visible
 		font {
 			name Arial
 			height 12
@@ -729,7 +681,6 @@ window wabout {
 
 	label lurl {
 		position 130 100 215 25
-		style visible
 		font {
 			name Arial
 			height 12
@@ -748,17 +699,11 @@ window wlog {
 	style popup
 
 	text tlog {
-		position 0 0 100 100
-		style visible
+		size 100 100
+		resize cx cy
 		font {
 			name "Courier New"
 			height 8
-		}
-	}
-
-	paned pnlog {
-		child tlog {
-			resize cx cy
 		}
 	}
 }
@@ -775,28 +720,21 @@ window wuri {
 	}
 
 	editbox turi {
-		position 0 0 100 25
-		style visible
+		size 100 25
+		resize cx
 	}
 
 	button bok {
-		position 0 25 50 25
-		style visible
+		size 50 25
 		text "OK"
 		action URL_ADD
 	}
 
 	button bcancel {
-		position 50 25 50 25
-		style visible
+		size 50 25
+		style horizontal
 		text "Cancel"
 		action URL_CLOSE
-	}
-
-	paned pnuri {
-		child turi {
-			resize cx
-		}
 	}
 }
 
@@ -812,21 +750,20 @@ window wfilter {
 	}
 
 	editbox ttext {
-		position 0 0 150 25
-		style visible
+		size 150 25
 		onchange FILTER_APPLY
 	}
 
 	button breset {
-		position 150 0 50 25
-		style visible
+		size 50 25
+		style horizontal
 		text "Reset"
 		action FILTER_RESET
 	}
 
 	checkbox cbfilename {
-		position 0 35 150 25
-		style visible checked
+		size 150 25
+		style checked
 		text "Search in file names"
 	}
 
@@ -848,18 +785,13 @@ window wplayprops {
 	# }
 
 	listview vconfig {
-		position 0 0 90 90
-		style visible
+		size 90 90
+		resize cx cy
 		column Name {
 			width 200
 		}
 		column Value {
 			width 200
-		}
-	}
-	paned pn {
-		child vconfig {
-			resize cx cy
 		}
 	}
 }

@@ -4,13 +4,11 @@
 struct gui_winfo {
 	ffui_wnd winfo;
 	ffui_view vinfo;
-	ffui_paned pninfo;
 };
 
 const ffui_ldr_ctl winfo_ctls[] = {
 	FFUI_LDR_CTL(struct gui_winfo, winfo),
 	FFUI_LDR_CTL(struct gui_winfo, vinfo),
-	FFUI_LDR_CTL(struct gui_winfo, pninfo),
 	FFUI_LDR_CTL_END
 };
 
@@ -60,7 +58,7 @@ void winfo_show_core(void *param)
 	ffui_view_showgroups(&w->vinfo, 1);
 	ffui_show(&w->winfo, 1);
 
-	if (-1 == (i = ffui_view_selnext(&gg->wmain.vlist, -1))) {
+	if (-1 == (i = wmain_list_next_selected(-1))) {
 		ffui_view_clear(&w->vinfo);
 		ffui_view_cleargroups(&w->vinfo);
 		return;

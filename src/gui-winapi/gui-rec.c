@@ -41,7 +41,6 @@ struct gui_wrec {
 	ffui_edit eout;
 	ffui_btn boutbrowse;
 	ffui_view vsets;
-	ffui_paned pnsets;
 	ffui_paned pnout;
 
 	rec_sets_t rec_sets;
@@ -57,7 +56,6 @@ const ffui_ldr_ctl wrec_ctls[] = {
 	FFUI_LDR_CTL(struct gui_wrec, eout),
 	FFUI_LDR_CTL(struct gui_wrec, boutbrowse),
 	FFUI_LDR_CTL(struct gui_wrec, vsets),
-	FFUI_LDR_CTL(struct gui_wrec, pnsets),
 	FFUI_LDR_CTL(struct gui_wrec, pnout),
 	FFUI_LDR_CTL_END
 };

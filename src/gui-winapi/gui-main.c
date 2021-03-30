@@ -10,6 +10,25 @@ Copyright (c) 2016 Simon Zolin */
 #include <FFOS/process.h>
 
 
+const ffui_ldr_ctl wmain_ctls[] = {
+	FFUI_LDR_CTL(struct gui_wmain, wnd),
+	FFUI_LDR_CTL(struct gui_wmain, bpause),
+	FFUI_LDR_CTL(struct gui_wmain, bstop),
+	FFUI_LDR_CTL(struct gui_wmain, bprev),
+	FFUI_LDR_CTL(struct gui_wmain, bnext),
+	FFUI_LDR_CTL(struct gui_wmain, lpos),
+	FFUI_LDR_CTL(struct gui_wmain, tabs),
+	FFUI_LDR_CTL(struct gui_wmain, tpos),
+	FFUI_LDR_CTL(struct gui_wmain, tvol),
+	FFUI_LDR_CTL(struct gui_wmain, vlist),
+	FFUI_LDR_CTL(struct gui_wmain, stbar),
+	FFUI_LDR_CTL(struct gui_wmain, pntop),
+	FFUI_LDR_CTL(struct gui_wmain, tray_icon),
+	FFUI_LDR_CTL(struct gui_wmain, mm),
+	FFUI_LDR_CTL_END
+};
+
+
 enum LIST_HDR {
 	H_IDX,
 	H_ART,
@@ -33,7 +52,7 @@ static const char* const list_colname[] = {
 	"__url",
 };
 
-static void gui_action(ffui_wnd *wnd, int id);
+static void wmain_action(ffui_wnd *wnd, int id);
 static void gui_media_opendlg(uint id);
 static void gui_media_savelist(void);
 static void gui_media_remove(void);
@@ -54,39 +73,60 @@ static void fav_add(void);
 static void fav_show(void);
 static void list_cols_width_load();
 static void list_onleave(int active_tab);
+void ghk_reg();
 
 enum {
 	GUI_TRKINFO_WNDCAPTION = 1,
 };
 
 
-void wmain_init(void)
+void wmain_init()
 {
-	ffui_show(&gg->wmain.wmain, 1);
-	gg->wmain.wmain.top = 1;
-	gg->wmain.wmain.on_action = &gui_action;
-	gg->wmain.wmain.onclose_id = ONCLOSE;
-	gg->wmain.wmain.manual_close = 1;
-	gg->wmain.wmain.onminimize_id = (gg->minimize_to_tray) ? HIDE : 0;
-	gui_newtab(0);
-	ffui_tray_settooltipz(&gg->wmain.tray_icon, "fmedia");
-	gg->wmain.vlist.colclick_id = A_LIST_SORT;
-	gg->wmain.wmain.on_dropfiles = &gui_on_dropfiles;
-	ffui_fdrop_accept(&gg->wmain.wmain, 1);
+	struct gui_wmain *w = ffmem_new(struct gui_wmain);
+	gg->wmain = w;
+	w->wnd.top = 1;
+	w->wnd.on_action = wmain_action;
+	w->wnd.onclose_id = ONCLOSE;
+	w->wnd.manual_close = 1;
+	w->wnd.onminimize_id = (gg->minimize_to_tray) ? HIDE : 0;
+	w->wnd.on_dropfiles = &gui_on_dropfiles;
+	w->vlist.colclick_id = A_LIST_SORT;
+	w->vlist.dispinfo_id = LIST_DISPINFO;
+}
 
+void wmain_destroy()
+{
+	struct gui_wmain *w = gg->wmain;
+	ffui_icon_destroy(&w->ico);
+	ffui_icon_destroy(&w->ico_rec);
+	ffmem_free(w);
+	gg->wmain = NULL;
+}
+
+void wmain_show()
+{
+	struct gui_wmain *w = gg->wmain;
 	list_cols_width_load();
+	gui_newtab(0);
+	ffui_tray_settooltipz(&w->tray_icon, "fmedia");
 
 	if (gg->list_random) {
 		gg->list_random = 0;
 		gui_list_random();
 	}
+
 	if (gg->sel_after_cur) {
 		gg->sel_after_cur = 0;
 		sel_after_cur();
 	}
 
-	ffui_icon_loadres(&gg->wmain.ico, L"#2", 0, 0);
-	ffui_icon_loadres(&gg->wmain.ico_rec, L"#7", 0, 0);
+	ffui_icon_loadres(&w->ico, L"#2", 0, 0);
+	ffui_icon_loadres(&w->ico_rec, L"#7", 0, 0);
+
+	ffui_fdrop_accept(&w->wnd, 1);
+	ffui_show(&w->wnd, 1);
+
+	ghk_reg();
 }
 
 
@@ -147,13 +187,6 @@ static const struct cmd cmds[] = {
 
 	{ CHECKUPDATE,	F0 | CMD_FCORE,	&gui_upd_check },
 
-	{ CONF_EDIT,	F1,	&gui_showtextfile },
-	{ USRCONF_EDIT,	F1,	&gui_showtextfile },
-	{ FMEDGUI_EDIT,	F1,	&gui_showtextfile },
-	{ THEMES_EDIT,	F1,	&gui_showtextfile },
-	{ README_SHOW,	F1,	&gui_showtextfile },
-	{ CHANGES_SHOW,	F1,	&gui_showtextfile },
-
 	{ LIST_DISPINFO,	F0,	&list_setdata },
 };
 
@@ -182,8 +215,9 @@ const struct cmd* getcmd(uint cmd, const struct cmd *cmds, uint n)
 /** Provide GUI subsystem with the information it needs for a playlist item. */
 static void list_setdata(void)
 {
+	struct gui_wmain *w = gg->wmain;
 	char buf[256];
-	LVITEM *it = gg->wmain.vlist.dispinfo_item;
+	LVITEM *it = w->vlist.dispinfo_item;
 	fmed_que_entry *ent;
 	size_t n;
 	ffstr *val = NULL, s;
@@ -255,8 +289,9 @@ static void list_setdata(void)
 	gg->qu->cmdv(FMED_QUE_ITEMUNLOCK, ent);
 }
 
-static void gui_action(ffui_wnd *wnd, int id)
+static void wmain_action(ffui_wnd *wnd, int id)
 {
+	struct gui_wmain *w = gg->wmain;
 	const struct cmd *cmd = getcmd(id, cmds, FFCNT(cmds));
 	if (cmd != NULL) {
 		if (cmd->flags & CMD_FCORE)
@@ -274,7 +309,7 @@ static void gui_action(ffui_wnd *wnd, int id)
 	switch (id) {
 	case SEEKING:
 		{
-		uint pos = ffui_trk_val(&gg->wmain.tpos);
+		uint pos = ffui_trk_val(&w->tpos);
 		char buf[64];
 		size_t n = ffs_fmt(buf, buf + sizeof(buf), "Seek to %u:%02u"
 			, pos / 60, pos % 60);
@@ -284,31 +319,31 @@ static void gui_action(ffui_wnd *wnd, int id)
 
 
 	case A_LIST_SELALL:
-		ffui_view_sel(&gg->wmain.vlist, -1);
+		ffui_view_sel(&w->vlist, -1);
 		break;
 
 	case A_LIST_SELINVERT:
-		ffui_view_sel_invert(&gg->wmain.vlist);
+		ffui_view_sel_invert(&w->vlist);
 		break;
 
 	case A_LIST_SORT: {
-		if (list_colname[gg->wmain.vlist.col] == NULL)
+		if (list_colname[w->vlist.col] == NULL)
 			break;
 		ffui_viewcol vc = {};
 
-		if (gg->sort_col >= 0 && gg->sort_col != gg->wmain.vlist.col) {
+		if (gg->sort_col >= 0 && gg->sort_col != w->vlist.col) {
 			ffui_viewcol_setsort(&vc, 0);
-			ffui_view_setcol(&gg->wmain.vlist, gg->sort_col, &vc);
+			ffui_view_setcol(&w->vlist, gg->sort_col, &vc);
 			gg->sort_reverse = 0;
 		}
 
-		gg->qu->cmdv(FMED_QUE_SORT, -1, list_colname[gg->wmain.vlist.col], gg->sort_reverse);
+		gg->qu->cmdv(FMED_QUE_SORT, -1, list_colname[w->vlist.col], gg->sort_reverse);
 
 		ffui_viewcol_setsort(&vc, (gg->sort_reverse == 0) ? HDF_SORTUP : HDF_SORTDOWN);
-		ffui_view_setcol(&gg->wmain.vlist, gg->wmain.vlist.col, &vc);
-		gg->sort_col = gg->wmain.vlist.col;
+		ffui_view_setcol(&w->vlist, w->vlist.col, &vc);
+		gg->sort_col = w->vlist.col;
 		gg->sort_reverse = !gg->sort_reverse;
-		ffui_ctl_invalidate(&gg->wmain.vlist);
+		ffui_ctl_invalidate(&w->vlist);
 		break;
 	}
 
@@ -336,7 +371,7 @@ static void gui_action(ffui_wnd *wnd, int id)
 		wplayprops_show(1);  break;
 
 	case GOTO_SHOW: {
-		uint pos = ffui_trk_val(&gg->wmain.tpos);
+		uint pos = ffui_trk_val(&w->tpos);
 		wgoto_show(1, pos);
 		break;
 	}
@@ -345,11 +380,11 @@ static void gui_action(ffui_wnd *wnd, int id)
 		wabout_show(1);  break;
 
 	case HIDE:
-		if (!ffui_tray_visible(&gg->wmain.tray_icon)) {
-			ffui_tray_seticon(&gg->wmain.tray_icon, &gg->wmain.ico);
-			ffui_tray_show(&gg->wmain.tray_icon, 1);
+		if (!ffui_tray_visible(&w->tray_icon)) {
+			ffui_tray_seticon(&w->tray_icon, &w->ico);
+			ffui_tray_show(&w->tray_icon, 1);
 		}
-		ffui_show(&gg->wmain.wmain, 0);
+		ffui_show(&w->wnd, 0);
 		wconv_show(0);
 		wdev_show(0, 0);
 		wfilter_show(0);
@@ -363,11 +398,20 @@ static void gui_action(ffui_wnd *wnd, int id)
 		break;
 
 	case SHOW:
-		ffui_show(&gg->wmain.wmain, 1);
-		ffui_wnd_setfront(&gg->wmain.wmain);
+		ffui_show(&w->wnd, 1);
+		ffui_wnd_setfront(&w->wnd);
 		if (!(gg->status_tray && gg->rec_trk != NULL))
-			ffui_tray_show(&gg->wmain.tray_icon, 0);
+			ffui_tray_show(&w->tray_icon, 0);
 		gg->min_tray = 0;
+		break;
+
+	case CONF_EDIT:
+	case USRCONF_EDIT:
+	case FMEDGUI_EDIT:
+	case THEMES_EDIT:
+	case README_SHOW:
+	case CHANGES_SHOW:
+		gui_showtextfile(id);
 		break;
 
 	case QUIT:
@@ -440,6 +484,7 @@ static void gui_go_set(void)
 Note: if Left/Right key is pressed while trackbar is focused, SEEK command will be received after RWND/FFWD. */
 void gui_seek(uint cmd)
 {
+	struct gui_wmain *w = gg->wmain;
 	uint pos;
 	int delta;
 	if (gg->curtrk == NULL)
@@ -448,7 +493,7 @@ void gui_seek(uint cmd)
 	switch (cmd) {
 	default:
 	case A_PLAY_GOTO:
-		pos = ffui_trk_val(&gg->wmain.tpos);
+		pos = ffui_trk_val(&w->tpos);
 		break;
 
 	case A_PLAY_FFWD:
@@ -468,27 +513,35 @@ void gui_seek(uint cmd)
 		goto use_delta;
 
 use_delta:
-		pos = ffui_trk_val(&gg->wmain.tpos);
+		pos = ffui_trk_val(&w->tpos);
 		pos = ffmax((int)pos + delta, 0);
-		ffui_trk_set(&gg->wmain.tpos, pos);
+		ffui_trk_set(&w->tpos, pos);
 		break;
 
 	case A_PLAY_GOPOS:
 		if (gg->go_pos == (uint)-1)
 			return;
 		pos = gg->go_pos;
-		ffui_trk_set(&gg->wmain.tpos, pos);
+		ffui_trk_set(&w->tpos, pos);
 		break;
 	}
 
 	gui_corecmd_add(&cmd_seek, (void*)(size_t)pos);
 }
 
+void gtrk_seek2(uint pos_sec)
+{
+	if (gg->curtrk == NULL)
+		return;
+	gui_corecmd_add(&cmd_seek, (void*)(ffsize)pos_sec);
+}
+
 /** Convert volume trackbar position to dB value. */
 double gui_getvol(void)
 {
+	struct gui_wmain *w = gg->wmain;
 	double db;
-	uint pos = ffui_trk_val(&gg->wmain.tvol);
+	uint pos = ffui_trk_val(&w->tvol);
 	if (pos <= 100)
 		db = ffpcm_vol2db(pos, 48);
 	else
@@ -498,21 +551,22 @@ double gui_getvol(void)
 
 static void gui_vol(uint id)
 {
+	struct gui_wmain *w = gg->wmain;
 	char buf[64];
 	double db;
 	size_t n;
 
 	switch (id) {
 	case A_PLAY_VOLUP:
-		ffui_trk_move(&gg->wmain.tvol, FFUI_TRK_PGUP);
+		ffui_trk_move(&w->tvol, FFUI_TRK_PGUP);
 		break;
 
 	case A_PLAY_VOLDOWN:
-		ffui_trk_move(&gg->wmain.tvol, FFUI_TRK_PGDN);
+		ffui_trk_move(&w->tvol, FFUI_TRK_PGDN);
 		break;
 
 	case A_PLAY_VOLRESET:
-		ffui_trk_set(&gg->wmain.tvol, 100);
+		ffui_trk_set(&w->tvol, 100);
 		break;
 	}
 
@@ -526,9 +580,10 @@ static void gui_vol(uint id)
 
 static void gui_media_showdir(void)
 {
+	struct gui_wmain *w = gg->wmain;
 	const fmed_que_entry *ent;
 	int focused;
-	if (-1 == (focused = ffui_view_selnext(&gg->wmain.vlist, -1)))
+	if (-1 == (focused = ffui_view_selnext(&w->vlist, -1)))
 		return;
 	if (NULL == (ent = (fmed_que_entry*)gg->qu->fmed_queue_item(-1, focused)))
 		return;
@@ -541,11 +596,12 @@ static void gui_media_showdir(void)
 /path/file2 */
 static void gui_media_copyfn(void)
 {
+	struct gui_wmain *w = gg->wmain;
 	int i = -1;
 	fmed_que_entry *ent;
 	ffarr buf = {0};
 
-	while (-1 != (i = ffui_view_selnext(&gg->wmain.vlist, i))) {
+	while (-1 != (i = ffui_view_selnext(&w->vlist, i))) {
 		ent = (fmed_que_entry*)gg->qu->fmed_queue_item(-1, i);
 
 		if (0 == ffstr_catfmt(&buf, "%S" FF_NEWLN, &ent->url))
@@ -564,20 +620,22 @@ done:
 /** Update number of total list items and set to redraw the next items. */
 void list_update(uint idx, int delta)
 {
+	struct gui_wmain *w = gg->wmain;
 	uint n = gg->qu->cmdv(FMED_QUE_COUNT);
-	ffui_view_setcount(&gg->wmain.vlist, n);
+	ffui_view_setcount(&w->vlist, n);
 	if (idx != 0 && delta == 0)
-		ffui_view_redraw(&gg->wmain.vlist, idx, idx);
+		ffui_view_redraw(&w->vlist, idx, idx);
 	else if (delta > 0)
-		ffui_view_redraw(&gg->wmain.vlist, idx, idx + 100);
+		ffui_view_redraw(&w->vlist, idx, idx + 100);
 	else if (delta < 0)
-		ffui_view_redraw(&gg->wmain.vlist, idx, idx + 100);
+		ffui_view_redraw(&w->vlist, idx, idx + 100);
 	else
-		ffui_ctl_invalidate(&gg->wmain.vlist);
+		ffui_ctl_invalidate(&w->vlist);
 }
 
 static void gui_media_fileop(uint cmd)
 {
+	struct gui_wmain *w = gg->wmain;
 	int i = -1, first_idx = -1;
 	fmed_que_entry *ent;
 	fmed_que_entry **pei;
@@ -587,7 +645,7 @@ static void gui_media_fileop(uint cmd)
 	size_t n;
 	char **pitem;
 
-	while (-1 != (i = ffui_view_selnext(&gg->wmain.vlist, i))) {
+	while (-1 != (i = ffui_view_selnext(&w->vlist, i))) {
 		ent = (fmed_que_entry*)gg->qu->fmed_queue_item(-1, i);
 
 		switch (cmd) {
@@ -620,7 +678,7 @@ static void gui_media_fileop(uint cmd)
 
 	case A_FILE_DELFILE:
 		if (0 == gui_files_del(&ents)) {
-			ffui_view_unselall(&gg->wmain.vlist);
+			ffui_view_unselall(&w->vlist);
 			list_update(first_idx, -(int)ents.len);
 			n = ffs_fmt(st, st + sizeof(st), "Deleted %L files", ents.len);
 			gui_status(st, n);
@@ -680,6 +738,7 @@ end:
 
 static void gui_trk_setinfo2(fmed_que_entry *ent, uint flags)
 {
+	struct gui_wmain *w = gg->wmain;
 	uint n;
 	char buf[255];
 	ffstr artist = {0}, title = {0}, *val;
@@ -696,7 +755,7 @@ static void gui_trk_setinfo2(fmed_que_entry *ent, uint flags)
 
 	if (flags & GUI_TRKINFO_WNDCAPTION) {
 		n = ffs_fmt(buf, buf + sizeof(buf), "%S - %S - fmedia", &artist, &title);
-		ffui_settext(&gg->wmain.wmain, buf, n);
+		ffui_settext(&w->wnd, buf, n);
 	}
 }
 
@@ -710,10 +769,11 @@ void gui_media_added(fmed_que_entry *ent)
 
 static void gui_media_opendlg(uint id)
 {
+	struct gui_wmain *w = gg->wmain;
 	const char *fn, **ps;
 
 	ffui_dlg_nfilter(&gg->dlg, DLG_FILT_INPUT);
-	if (NULL == (fn = ffui_dlg_open(&gg->dlg, &gg->wmain.wmain)))
+	if (NULL == (fn = ffui_dlg_open(&gg->dlg, &w->wnd)))
 		return;
 
 	do {
@@ -738,6 +798,7 @@ err:
 
 int gui_newtab(uint flags)
 {
+	struct gui_wmain *w = gg->wmain;
 	char buf[32];
 	static uint tabs;
 	ffui_tabitem it = {0};
@@ -750,48 +811,52 @@ int gui_newtab(uint flags)
 		int n = ffs_fmt(buf, buf + sizeof(buf), "Playlist %u", ++tabs);
 		ffui_tab_settext(&it, buf, n);
 	}
-	int itab = ffui_tab_append(&gg->wmain.tabs, &it);
+	int itab = ffui_tab_append(&w->tabs, &it);
 	if (!(flags & GUI_TAB_NOSEL))
-		ffui_tab_setactive(&gg->wmain.tabs, itab);
+		ffui_tab_setactive(&w->tabs, itab);
 	return itab;
 }
 
 void gui_que_new(void)
 {
-	list_onleave(gg->wmain.actv_tab);
+	struct gui_wmain *w = gg->wmain;
+	list_onleave(w->actv_tab);
 	int itab = gui_newtab(0);
-	gg->wmain.actv_tab = itab;
+	w->actv_tab = itab;
 	gg->qu->cmd(FMED_QUE_NEW, NULL);
-	ffui_view_clear(&gg->wmain.vlist);
+	ffui_view_clear(&w->vlist);
 	gg->qu->cmd(FMED_QUE_SEL, (void*)(size_t)itab);
 }
 
 /** Called before leaving the current playlist. */
 static void list_onleave(int active_tab)
 {
+	struct gui_wmain *w = gg->wmain;
 	if (active_tab != 0)
 		return;
-	gg->list_scroll_pos = ffui_view_topindex(&gg->wmain.vlist);
+	gg->list_scroll_pos = ffui_view_topindex(&w->vlist);
 }
 
 void gui_showque(uint i)
 {
+	struct gui_wmain *w = gg->wmain;
 	gg->qu->cmd(FMED_QUE_SEL, (void*)(size_t)i);
 	uint n = gg->qu->cmdv(FMED_QUE_COUNT);
-	ffui_view_setcount(&gg->wmain.vlist, n);
+	ffui_view_setcount(&w->vlist, n);
 
-	if (ffui_tab_active(&gg->wmain.tabs) == 0 && gg->list_scroll_pos != 0) {
-		ffui_view_makevisible(&gg->wmain.vlist, gg->list_scroll_pos);
+	if (ffui_tab_active(&w->tabs) == 0 && gg->list_scroll_pos != 0) {
+		ffui_view_makevisible(&w->vlist, gg->list_scroll_pos);
 		gg->list_scroll_pos = 0;
 	}
 
-	ffui_ctl_invalidate(&gg->wmain.vlist);
+	ffui_ctl_invalidate(&w->vlist);
 }
 
 void gui_que_del(void)
 {
-	list_onleave(gg->wmain.actv_tab);
-	int sel = ffui_tab_active(&gg->wmain.tabs);
+	struct gui_wmain *w = gg->wmain;
+	list_onleave(w->actv_tab);
+	int sel = ffui_tab_active(&w->tabs);
 	if (sel == -1)
 		return;
 
@@ -806,36 +871,38 @@ void gui_que_del(void)
 	} else if (gg->fav_pl > sel)
 		gg->fav_pl--;
 
-	ffbool last = (1 == ffui_tab_count(&gg->wmain.tabs));
+	ffbool last = (1 == ffui_tab_count(&w->tabs));
 
 	if (!last) {
 		uint newsel = (sel == 0) ? sel + 1 : sel - 1;
-		ffui_tab_setactive(&gg->wmain.tabs, newsel);
-		gg->wmain.actv_tab = newsel;
+		ffui_tab_setactive(&w->tabs, newsel);
+		w->actv_tab = newsel;
 		gui_showque(newsel);
 	} else
 		gui_que_new();
 
-	ffui_tab_del(&gg->wmain.tabs, sel);
+	ffui_tab_del(&w->tabs, sel);
 	gg->qu->cmdv(FMED_QUE_DEL, sel);
 }
 
 void gui_que_sel(void)
 {
-	list_onleave(gg->wmain.actv_tab);
-	int sel = ffui_tab_active(&gg->wmain.tabs);
-	gg->wmain.actv_tab = sel;
+	struct gui_wmain *w = gg->wmain;
+	list_onleave(w->actv_tab);
+	int sel = ffui_tab_active(&w->tabs);
+	w->actv_tab = sel;
 	gui_showque(sel);
 }
 
 static void gui_media_savelist(void)
 {
+	struct gui_wmain *w = gg->wmain;
 	char *fn;
 	ffstr name;
 	ffstr_setz(&name, "Playlist");
 	ffui_dlg_nfilter(&gg->dlg, DLG_FILT_PLAYLISTS);
 	gg->dlg.of.lpstrDefExt = L""; //the first extension from the current filter will be appended to filename
-	fn = ffui_dlg_save(&gg->dlg, &gg->wmain.wmain, name.ptr, name.len);
+	fn = ffui_dlg_save(&gg->dlg, &w->wnd, name.ptr, name.len);
 	gg->dlg.of.lpstrDefExt = NULL;
 	if (fn == NULL)
 		return;
@@ -848,17 +915,18 @@ static void gui_media_savelist(void)
 
 static void gui_media_remove(void)
 {
+	struct gui_wmain *w = gg->wmain;
 	int i = -1, n = 0, first = -1;
 	void *id;
 
-	while (-1 != (i = ffui_view_selnext(&gg->wmain.vlist, i))) {
+	while (-1 != (i = ffui_view_selnext(&w->vlist, i))) {
 		if (first < 0)
 			first = i;
 		id = (fmed_que_entry*)gg->qu->fmed_queue_item(-1, i - n);
 		gg->qu->cmd2(FMED_QUE_RM | FMED_QUE_NO_ONCHANGE, id, 0);
 		n++;
 	}
-	ffui_view_unselall(&gg->wmain.vlist);
+	ffui_view_unselall(&w->vlist);
 	list_update(first, -n);
 }
 
@@ -899,10 +967,11 @@ Playlist contents are stored on disk on list close and on application exit.
 /** Create playlist and load contents. */
 static void fav_prep(uint flags)
 {
+	struct gui_wmain *w = gg->wmain;
 	if (gg->fav_pl != -1)
 		return;
 
-	gg->fav_pl = ffui_tab_count(&gg->wmain.tabs);
+	gg->fav_pl = ffui_tab_count(&w->tabs);
 	gui_newtab(GUI_TAB_FAV | flags);
 	gg->qu->cmd(FMED_QUE_NEW, NULL);
 
@@ -931,17 +1000,18 @@ Load playlist from file if it isn't loaded.
 Create playlist if it doesn't exist. */
 static void fav_add(void)
 {
+	struct gui_wmain *w = gg->wmain;
 	int i = -1, sel;
 	fmed_que_entry e = {}, *ent;
 
-	if (0 == ffui_view_selcount(&gg->wmain.vlist))
+	if (0 == ffui_view_selcount(&w->vlist))
 		return;
-	if (-1 == (sel = ffui_tab_active(&gg->wmain.tabs)))
+	if (-1 == (sel = ffui_tab_active(&w->tabs)))
 		return;
 
 	fav_prep(GUI_TAB_NOSEL);
 
-	while (-1 != (i = ffui_view_selnext(&gg->wmain.vlist, i))) {
+	while (-1 != (i = ffui_view_selnext(&w->vlist, i))) {
 		ent = (fmed_que_entry*)gg->qu->fmed_queue_item(sel, i);
 		e.url = ent->url;
 		e.from = ent->from;
@@ -953,21 +1023,22 @@ static void fav_add(void)
 
 static void gui_tonxtlist(void)
 {
+	struct gui_wmain *w = gg->wmain;
 	int i = -1, sel;
 	fmed_que_entry e = {0}, *ent;
 
-	if (0 == ffui_view_selcount(&gg->wmain.vlist))
+	if (0 == ffui_view_selcount(&w->vlist))
 		return;
 
-	if (-1 == (sel = ffui_tab_active(&gg->wmain.tabs)))
+	if (-1 == (sel = ffui_tab_active(&w->tabs)))
 		return;
 
-	if (sel + 1 == ffui_tab_count(&gg->wmain.tabs)) {
+	if (sel + 1 == ffui_tab_count(&w->tabs)) {
 		gui_newtab(GUI_TAB_NOSEL);
 		gg->qu->cmd(FMED_QUE_NEW, NULL);
 	}
 
-	while (-1 != (i = ffui_view_selnext(&gg->wmain.vlist, i))) {
+	while (-1 != (i = ffui_view_selnext(&w->vlist, i))) {
 		ent = (fmed_que_entry*)gg->qu->fmed_queue_item(sel, i);
 		e.url = ent->url;
 		e.from = ent->from;
@@ -979,25 +1050,28 @@ static void gui_tonxtlist(void)
 
 void gui_status(const char *s, size_t len)
 {
-	ffui_stbar_settext(&gg->wmain.stbar, 1, s, len);
+	struct gui_wmain *w = gg->wmain;
+	ffui_stbar_settext(&w->stbar, 1, s, len);
 }
 
 void wmain_status(const char *fmt, ...)
 {
+	struct gui_wmain *w = gg->wmain;
 	va_list va;
 	va_start(va, fmt);
 	char *s = ffsz_allocfmtv(fmt, va);
 	va_end(va);
-	ffui_stbar_settextz(&gg->wmain.stbar, 1, s);
+	ffui_stbar_settextz(&w->stbar, 1, s);
 	ffmem_free(s);
 }
 
 void gui_clear(void)
 {
-	ffui_settextz(&gg->wmain.wmain, "fmedia");
-	ffui_trk_set(&gg->wmain.tpos, 0);
-	ffui_trk_setrange(&gg->wmain.tpos, 0);
-	ffui_settext(&gg->wmain.lpos, NULL, 0);
+	struct gui_wmain *w = gg->wmain;
+	ffui_settextz(&w->wnd, "fmedia");
+	ffui_trk_set(&w->tpos, 0);
+	ffui_trk_setrange(&w->tpos, 0);
+	ffui_settext(&w->lpos, NULL, 0);
 	gui_status("", 0);
 }
 
@@ -1024,6 +1098,7 @@ err:
 
 void gui_filter(const ffstr *text, uint flags)
 {
+	struct gui_wmain *w = gg->wmain;
 	fmed_que_entry *e = NULL;
 	ffstr *meta, name;
 	uint nfilt = 0, nall = 0, inc;
@@ -1071,7 +1146,7 @@ void gui_filter(const ffstr *text, uint flags)
 	}
 
 	list_update(0, 0);
-	ffui_ctl_invalidate(&gg->wmain.vlist);
+	ffui_ctl_invalidate(&w->vlist);
 
 	gg->list_filter = 1;
 	char buf[128];
@@ -1083,6 +1158,7 @@ void gui_filter(const ffstr *text, uint flags)
 /** Update window caption and playlist item with a new meta. */
 int gui_setmeta(gui_trk *g, fmed_que_entry *plid)
 {
+	struct gui_wmain *w = gg->wmain;
 	ssize_t idx;
 	if (-1 != (idx = gg->qu->cmdv(FMED_QUE_ID, plid))) {
 		fmed_que_entry *e2 = (void*)gg->qu->fmed_queue_item(-1, idx);
@@ -1092,12 +1168,12 @@ int gui_setmeta(gui_trk *g, fmed_que_entry *plid)
 
 	if (idx != -1) {
 		if (g == NULL) {
-			ffui_view_redraw(&gg->wmain.vlist, idx, idx);
+			ffui_view_redraw(&w->vlist, idx, idx);
 			return idx;
 		}
 
 		plid->dur = g->total_time_sec * 1000;
-		ffui_view_redraw(&gg->wmain.vlist, idx, idx);
+		ffui_view_redraw(&w->vlist, idx, idx);
 	}
 
 	if (g == NULL)
@@ -1110,6 +1186,7 @@ int gui_setmeta(gui_trk *g, fmed_que_entry *plid)
 /** Update all properties of the playlist item with a new info. */
 void gui_newtrack(gui_trk *g, fmed_filt *d, fmed_que_entry *plid)
 {
+	struct gui_wmain *w = gg->wmain;
 	char buf[1024];
 	size_t n;
 
@@ -1125,29 +1202,31 @@ void gui_newtrack(gui_trk *g, fmed_filt *d, fmed_que_entry *plid)
 		goto done;
 
 	if (gg->sel_after_cur) {
-		ffui_view_unselall(&gg->wmain.vlist);
+		ffui_view_unselall(&w->vlist);
 		int idx = gg->qu->cmdv(FMED_QUE_ID, plid);
-		ffui_view_sel(&gg->wmain.vlist, idx);
+		ffui_view_sel(&w->vlist, idx);
 	}
 
 done:
-	ffui_trk_setrange(&gg->wmain.tpos, g->total_time_sec);
+	ffui_trk_setrange(&w->tpos, g->total_time_sec);
 }
 
 void wmain_update(uint playtime, uint time_total)
 {
-	ffui_trk_set(&gg->wmain.tpos, playtime);
+	struct gui_wmain *w = gg->wmain;
+	ffui_trk_set(&w->tpos, playtime);
 
 	char buf[256];
 	size_t n = ffs_fmt(buf, buf + sizeof(buf), "%u:%02u / %u:%02u"
 		, playtime / 60, playtime % 60
 		, time_total / 60, time_total % 60);
-	ffui_settext(&gg->wmain.lpos, buf, n);
+	ffui_settext(&w->lpos, buf, n);
 }
 
 /** Show progress of conversion track. */
 void gui_conv_progress(gui_trk *g)
 {
+	struct gui_wmain *w = gg->wmain;
 	char buf[255];
 	uint playtime = (uint)(ffpcm_time(g->d->audio.pos, g->sample_rate) / 1000);
 	if (playtime == g->lastpos && !(g->d->flags & FMED_FLAST))
@@ -1173,12 +1252,13 @@ void gui_conv_progress(gui_trk *g)
 		ffstr_set(&val, buf, n);
 	}
 	gg->qu->meta_set(plid, FFSTR("__dur"), val.ptr, val.len, FMED_QUE_PRIV | FMED_QUE_OVWRITE);
-	ffui_view_redraw(&gg->wmain.vlist, idx, idx);
+	ffui_view_redraw(&w->vlist, idx, idx);
 }
 
 /** Load widths of list's columns. */
 static void list_cols_width_load()
 {
+	struct gui_wmain *w = gg->wmain;
 	ffui_viewcol vc;
 	ffui_viewcol_reset(&vc);
 	for (uint i = 0;  i != _H_LAST;  i++) {
@@ -1187,34 +1267,101 @@ static void list_cols_width_load()
 			continue;
 
 		ffui_viewcol_setwidth(&vc, gg->list_col_width[i]);
-		ffui_view_setcol(&gg->wmain.vlist, i, &vc);
+		ffui_view_setcol(&w->vlist, i, &vc);
 	}
 }
 
 /** Write widths of list's columns to config. */
 void wmain_list_cols_width_write(ffconfw *conf)
 {
+	struct gui_wmain *w = gg->wmain;
 	ffui_viewcol vc;
 	for (uint i = 0;  i != _H_LAST;  i++) {
 		ffui_viewcol_reset(&vc);
 		ffui_viewcol_setwidth(&vc, 0);
-		ffui_view_col(&gg->wmain.vlist, i, &vc);
+		ffui_view_col(&w->vlist, i, &vc);
 		ffconf_writeint(conf, ffui_viewcol_width(&vc), 0, FFCONF_TVAL);
 	}
 }
 
 void wmain_rec_started()
 {
-	ffui_stbar_settextz(&gg->wmain.stbar, 0, "Recording...");
-	if (gg->status_tray && !ffui_tray_visible(&gg->wmain.tray_icon)) {
-		ffui_tray_seticon(&gg->wmain.tray_icon, &gg->wmain.ico_rec);
-		ffui_tray_show(&gg->wmain.tray_icon, 1);
+	struct gui_wmain *w = gg->wmain;
+	ffui_stbar_settextz(&w->stbar, 0, "Recording...");
+	if (gg->status_tray && !ffui_tray_visible(&w->tray_icon)) {
+		ffui_tray_seticon(&w->tray_icon, &w->ico_rec);
+		ffui_tray_show(&w->tray_icon, 1);
 	}
 }
 
 void wmain_rec_stopped()
 {
-	ffui_stbar_settextz(&gg->wmain.stbar, 0, "");
+	struct gui_wmain *w = gg->wmain;
+	ffui_stbar_settextz(&w->stbar, 0, "");
 	if (gg->status_tray && !gg->min_tray)
-		ffui_tray_show(&gg->wmain.tray_icon, 0);
+		ffui_tray_show(&w->tray_icon, 0);
+}
+
+void wmain_redraw()
+{
+	struct gui_wmain *w = gg->wmain;
+	ffui_ctl_post(&w->tpos, WM_SIZE, 0, 0);
+	ffui_ctl_post(&w->tvol, WM_SIZE, 0, 0);
+	RedrawWindow(w->wnd.h, NULL, NULL, RDW_ERASE | RDW_INVALIDATE | RDW_ALLCHILDREN);
+}
+
+int wmain_list_n_selected()
+{
+	struct gui_wmain *w = gg->wmain;
+	return ffui_view_selcount(&w->vlist);
+}
+
+int wmain_list_next_selected(int from)
+{
+	struct gui_wmain *w = gg->wmain;
+	return ffui_view_selnext(&w->vlist, from);
+}
+
+int wmain_tab_active()
+{
+	struct gui_wmain *w = gg->wmain;
+	return ffui_tab_active(&w->tabs);
+}
+
+void wmain_tab_activate(int i)
+{
+	struct gui_wmain *w = gg->wmain;
+	ffui_tab_setactive(&w->tabs, i);
+}
+
+int wmain_curpos()
+{
+	struct gui_wmain *w = gg->wmain;
+	return ffui_trk_val(&w->tpos);
+}
+
+void wmain_list_clear()
+{
+	struct gui_wmain *w = gg->wmain;
+	ffui_view_clear(&w->vlist);
+	ffui_view_redraw(&w->vlist, 0, 0);
+}
+
+void ghk_reg()
+{
+	struct gui_wmain *w = gg->wmain;
+	struct ghk_ent *e;
+	uint i = 0;
+
+	FFSLICE_WALK_T(&gg->ghks, e, struct ghk_ent) {
+		i++;
+		if (0 != ffui_wnd_ghotkey_reg(&w->wnd, e->hk, e->cmd)) {
+			warnlog0("can't register global hotkey #%u", i);
+			continue;
+		}
+
+		dbglog0("registered global hotkey #%u", i);
+	}
+
+	ffarr_free(&gg->ghks);
 }

@@ -191,9 +191,7 @@ void gui_theme_set(int idx)
 	ffui_menu_set(&gg->mfile, MENU_FIRST_IDX + idx, &mi);
 	gg->theme_index = idx;
 
-	ffui_ctl_post(&gg->wmain.tpos, WM_SIZE, 0, 0);
-	ffui_ctl_post(&gg->wmain.tvol, WM_SIZE, 0, 0);
-	RedrawWindow(gg->wmain.wmain.h, NULL, NULL, RDW_ERASE | RDW_INVALIDATE | RDW_ALLCHILDREN);
+	wmain_redraw();
 
 	ffmem_free(fn);
 	ffui_ldr_fin(&ldr);

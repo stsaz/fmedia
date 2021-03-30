@@ -48,7 +48,6 @@ struct gui_wconvert {
 	ffui_combx eout;
 	ffui_btn boutbrowse;
 	ffui_view vsets;
-	ffui_paned pnsets;
 	ffui_paned pnout;
 
 	cvt_sets_t conv_sets;
@@ -64,7 +63,6 @@ const ffui_ldr_ctl wconvert_ctls[] = {
 	FFUI_LDR_CTL(struct gui_wconvert, eout),
 	FFUI_LDR_CTL(struct gui_wconvert, boutbrowse),
 	FFUI_LDR_CTL(struct gui_wconvert, vsets),
-	FFUI_LDR_CTL(struct gui_wconvert, pnsets),
 	FFUI_LDR_CTL(struct gui_wconvert, pnout),
 	FFUI_LDR_CTL_END
 };
@@ -102,7 +100,7 @@ static void gui_cvt_action(ffui_wnd *wnd, int id)
 	case CVT_ACTIVATE: {
 		char buf[255];
 		ffs_fmt2(buf, sizeof(buf), "Convert %u file(s) to:%Z"
-			, (int)ffui_view_selcount(&gg->wmain.vlist));
+			, (int)wmain_list_n_selected());
 		ffui_settextz(&w->lfn, buf);
 		break;
 	}
@@ -505,7 +503,7 @@ void gui_setconvpos(uint cmd)
 {
 	struct gui_wconvert *w = gg->wconvert;
 	char buf[64];
-	int pos = ffui_trk_val(&gg->wmain.tpos);
+	int pos = wmain_curpos();
 	int r = ffs_fmt2(buf, sizeof(buf), "%02u:%02u", pos / 60, pos % 60);
 	if (r <= 0)
 		return;
@@ -585,7 +583,7 @@ static void gui_convert(void)
 	conv_sets_reset(&w->conv_sets);
 
 	ffui_textstr(&w->eout, &fn);
-	if (fn.len == 0 || 0 == ffui_view_selcount(&gg->wmain.vlist)) {
+	if (fn.len == 0 || 0 == wmain_list_n_selected()) {
 		errlog(core, NULL, "gui", "convert: no files selected");
 		ffstr_free(&fn);
 		goto end;
@@ -601,18 +599,18 @@ static void gui_convert(void)
 	if (0 != gui_cvt_getsettings(cvt_sets, FFCNT(cvt_sets), &w->conv_sets, &w->vsets))
 		goto end;
 
-	int curtab = ffui_tab_active(&gg->wmain.tabs);
+	int curtab = wmain_tab_active();
 	int itab = gg->itab_convert;
 	if (itab == -1) {
 		itab = gui_newtab(GUI_TAB_CONVERT);
 		gg->qu->cmdv(FMED_QUE_NEW, FMED_QUE_NORND);
 		gg->itab_convert = itab;
 	} else {
-		ffui_tab_setactive(&gg->wmain.tabs, itab);
+		wmain_tab_activate(itab);
 	}
 
 	i = -1;
-	while (-1 != (i = ffui_view_selnext(&gg->wmain.vlist, i))) {
+	while (-1 != (i = wmain_list_next_selected(i))) {
 		inp = (fmed_que_entry*)gg->qu->fmed_queue_item(curtab, i);
 
 		ffmem_tzero(&e);
