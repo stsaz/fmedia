@@ -282,6 +282,7 @@ static const char *const action_str[] = {
 	"A_CHANGES_SHOW",
 
 	"A_CONVERT",
+	"A_CONV_MOVE_UNTIL",
 	"A_CONVOUTBROWSE",
 	"A_CONV_EDIT",
 

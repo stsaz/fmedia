@@ -317,6 +317,9 @@ window wconvert {
 		item "_Convert!" {
 			action A_CONVERT
 		}
+		item "Move Until Position -> Seek" {
+			action A_CONV_MOVE_UNTIL
+		}
 	}
 
 	label lfn {

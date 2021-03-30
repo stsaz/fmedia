@@ -385,6 +385,10 @@ static void wconvert_action(ffui_wnd *wnd, int id)
 		corecmd_addfunc(convert, NULL);
 		break;
 
+	case A_CONV_MOVE_UNTIL:
+		wconv_setdata(id, 0);
+		break;
+
 	case A_CONVOUTBROWSE: {
 		char *fn;
 		ffstr name = {};
@@ -452,6 +456,12 @@ void wconv_setdata(int id, uint pos)
 		gg->wconvert->in_seek = pos*1000; break;
 	case A_CONV_SET_UNTIL:
 		gg->wconvert->in_until = pos*1000; break;
+
+	case A_CONV_MOVE_UNTIL:
+		gg->wconvert->in_seek = gg->wconvert->in_until;
+		gg->wconvert->in_until = 0;
+		break;
+
 	default:
 		return;
 	}
