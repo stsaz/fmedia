@@ -63,10 +63,10 @@ void mkv_meta(struct mkvin *m, fmed_filt *d)
 }
 
 const ushort mkv_codecs[] = {
-	MKV_A_AAC, MKV_A_ALAC, MKV_A_MPEG, MKV_A_VORBIS,
+	MKV_A_AAC, MKV_A_ALAC, MKV_A_MPEG, MKV_A_OPUS, MKV_A_VORBIS, MKV_A_PCM,
 };
 const char* const mkv_codecs_str[] = {
-	"aac.decode", "alac.decode", "mpeg.decode", "vorbis.decode",
+	"aac.decode", "alac.decode", "mpeg.decode", "opus.decode", "vorbis.decode", "",
 };
 const ushort mkv_vcodecs[] = {
 	MKV_V_AVC, MKV_V_HEVC,
@@ -160,6 +160,7 @@ again:
 		if ((int64)d->audio.seek != FMED_NULL && !m->seeking) {
 			m->seeking = 1;
 			mkvread_seek(&m->mkv, d->audio.seek);
+			d->audio.seek = FMED_NULL;
 		}
 		break;
 	}
@@ -199,8 +200,15 @@ again:
 			}
 
 			const char *codec = mkv_codecs_str[i];
-			if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, (void*)codec)) {
-				return FMED_RERR;
+			if (codec[0] == '\0') {
+				d->datatype = "pcm";
+				d->audio.fmt.format = ai->bits;
+				d->audio.fmt.ileaved = 1;
+
+			} else {
+				if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, (void*)codec)) {
+					return FMED_RERR;
+				}
 			}
 			d->audio.fmt.channels = ai->channels;
 			d->audio.fmt.sample_rate = ai->sample_rate;
@@ -211,6 +219,7 @@ again:
 			if ((int64)d->audio.seek != FMED_NULL) {
 				m->seeking = 1;
 				mkvread_seek(&m->mkv, d->audio.seek);
+				d->audio.seek = FMED_NULL;
 			}
 
 			if (ai->codec == MKV_A_VORBIS) {
