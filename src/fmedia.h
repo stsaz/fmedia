@@ -498,8 +498,8 @@ struct fmed_trk {
 	byte _bar_end;
 
 	fftime mtime;
-	ffarr2 include_files; //ffstr[]
-	ffarr2 exclude_files; //ffstr[]
+	ffslice include_files; //ffstr[]
+	ffslice exclude_files; //ffstr[]
 	union {
 	uint bits;
 	struct {

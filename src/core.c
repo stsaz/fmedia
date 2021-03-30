@@ -28,12 +28,12 @@ while (!(expr)) { \
 }
 
 typedef struct fmedia {
-	ffarr workers; //worker[]
+	ffvec workers; //worker[]
 	ffkqu_time kqutime;
 
 	uint stopped;
 
-	ffarr bmods; //core_modinfo[]
+	ffvec bmods; //core_modinfo[]
 	fflist mods; //core_mod[]
 
 	ffenv env;
@@ -104,7 +104,7 @@ static int core_sigmods(uint signo);
 static core_modinfo* core_findmod(const ffstr *name);
 static int mod_readconf(core_mod *mod, const char *name);
 static int mod_load_delayed(core_mod *mod);
-static const fmed_modinfo* core_modbyext(const ffstr3 *map, const ffstr *ext);
+static const fmed_modinfo* core_modbyext(const ffslice *map, const ffstr *ext);
 static int core_filetype(const char *fn);
 
 static core_modinfo* mod_create(const ffstr *soname);
@@ -211,8 +211,8 @@ static int conf_init(fmed_config *conf)
 
 static void conf_destroy(fmed_config *conf)
 {
-	ffarr_free(&conf->inmap);
-	ffarr_free(&conf->outmap);
+	ffvec_free(&conf->inmap);
+	ffvec_free(&conf->outmap);
 }
 
 
@@ -268,22 +268,22 @@ void core_free(void)
 	fflist_item *next;
 
 	struct worker *w;
-	FFARR_WALKT(&fmed->workers, w, struct worker) {
+	FFSLICE_WALK(&fmed->workers, w) {
 		if (w->init)
 			wrk_destroy(w);
 	}
 	tracks_destroy();
-	ffarr_free(&fmed->workers);
+	ffvec_free(&fmed->workers);
 
 	FFLIST_WALKSAFE(&fmed->mods, mod, sib, next) {
 		mod_freeiface(mod);
 	}
 
 	core_modinfo *minfo;
-	FFARR_WALKT(&fmed->bmods, minfo, core_modinfo) {
+	FFSLICE_WALK(&fmed->bmods, minfo) {
 		mod_destroy(minfo);
 	}
-	ffarr_free(&fmed->bmods);
+	ffvec_free(&fmed->bmods);
 
 	conf_destroy(&fmed->conf);
 	ffmem_free(fmed->props.user_path);
@@ -310,9 +310,9 @@ static void mod_destroy(core_modinfo *m)
 static core_modinfo* mod_create(const ffstr *soname)
 {
 	core_modinfo *bmod;
-	if (NULL == (bmod = ffarr_pushgrowT(&fmed->bmods, 8, core_modinfo)))
+	if (NULL == (bmod = ffvec_pushT(&fmed->bmods, core_modinfo)))
 		goto fail;
-	ffmem_tzero(bmod);
+	ffmem_zero_obj(bmod);
 	if (NULL == (bmod->name = ffsz_alcopystr(soname)))
 		goto fail;
 	return bmod;
@@ -334,7 +334,7 @@ static int mod_load(core_modinfo *minfo)
 	const fmed_mod *m;
 	ffdl dl = NULL;
 	ffstr s;
-	ffarr a = {0};
+	char *fn = NULL;
 	ffbool locked = 0;
 
 	ffstr_setz(&s, minfo->name);
@@ -360,19 +360,19 @@ static int mod_load(core_modinfo *minfo)
 		}
 
 	} else {
-		if (0 == ffstr_catfmt(&a, "%Smod%c%S.%s%Z", &fmed->root, FFPATH_SLASH, &s, FFDL_EXT))
+		if (NULL == (fn = ffsz_allocfmt("%Smod%c%S.%s"
+			, &fmed->root, FFPATH_SLASH, &s, FFDL_EXT)))
 			goto fail;
-		const char *fn = a.ptr;
 
 		dl = ffdl_open(fn, FFDL_SELFDIR);
 		if (dl == NULL) {
-			errlog(core, NULL, "core", "module %s: %s: %s", fn, ffdl_open_S, ffdl_errstr());
+			errlog0("module %s: %s: %s", fn, ffdl_open_S, ffdl_errstr());
 			goto fail;
 		}
 
 		getmod = (void*)ffdl_addr(dl, FMED_MODFUNCNAME);
 		if (getmod == NULL) {
-			errlog(core, NULL, "core", "module %s: %s '%s': %s"
+			errlog0("module %s: %s '%s': %s"
 				, fn, ffdl_addr_S, FMED_MODFUNCNAME, ffdl_errstr());
 			goto fail;
 		}
@@ -393,14 +393,14 @@ static int mod_load(core_modinfo *minfo)
 		goto fail;
 
 	if (m->ver_core != FMED_VER_CORE) {
-		errlog(core, NULL, "core", "module %s v%u.%u: module is built for core v%u.%u"
+		errlog0("module %s v%u.%u: module is built for core v%u.%u"
 			, minfo->name, FMED_VER_GETMAJ(m->ver), FMED_VER_GETMIN(m->ver)
 			, FMED_VER_GETMAJ(m->ver_core), FMED_VER_GETMIN(m->ver_core));
 		goto fail;
 	}
 
 	if (s.ptr[0] != '#') {
-		dbglog(core, NULL, "core", "loaded module %s v%u.%u"
+		dbglog0("loaded module %s v%u.%u"
 			, minfo->name, FMED_VER_GETMAJ(m->ver), FMED_VER_GETMIN(m->ver));
 	}
 
@@ -417,7 +417,7 @@ fail:
 	if (rc != 0) {
 		FF_SAFECLOSE(dl, NULL, ffdl_close);
 	}
-	ffarr_free(&a);
+	ffmem_free(fn);
 	return rc;
 }
 
@@ -446,7 +446,7 @@ static int mod_loadiface(core_mod *mod, const core_modinfo *bmod)
 	ffs_split2by(mod->name, ffsz_len(mod->name), '.', &soname, &modname);
 
 	if (NULL == (mod->iface = bmod->m->iface(modname.ptr))) {
-		errlog(core, NULL, "core", "can't initialize %s", mod->name);
+		errlog0("can't initialize %s", mod->name);
 		goto end;
 	}
 
@@ -546,7 +546,7 @@ fail:
 static core_modinfo* core_findmod(const ffstr *name)
 {
 	core_modinfo *mod;
-	FFARR_WALKT(&fmed->bmods, mod, core_modinfo) {
+	FFSLICE_WALK(&fmed->bmods, mod) {
 		if (ffstr_eqz(name, mod->name))
 			return mod;
 	}
@@ -571,7 +571,7 @@ const fmed_modinfo* core_getmodinfo(const ffstr *name)
 	return NULL;
 }
 
-static const fmed_modinfo* core_modbyext(const ffstr3 *map, const ffstr *ext)
+static const fmed_modinfo* core_modbyext(const ffslice *map, const ffstr *ext)
 {
 	const inmap_item *it = (void*)map->ptr;
 	while (it != (void*)(map->ptr + map->len)) {
@@ -689,7 +689,7 @@ static const void* core_getmod2(uint flags, const char *name, ssize_t name_len)
 	switch (t) {
 
 	case FMED_MOD_INEXT:
-		mod = core_modbyext(&fmed->conf.inmap, &s);
+		mod = core_modbyext((ffslice*)&fmed->conf.inmap, &s);
 		if (mod == NULL) {
 			dbglog0("unknown input file format: %S.  Will detect format from data.", &s);
 			ffstr nm = FFSTR_INITZ("#core.format-detector");
@@ -699,7 +699,7 @@ static const void* core_getmod2(uint flags, const char *name, ssize_t name_len)
 		break;
 
 	case FMED_MOD_OUTEXT:
-		mod = core_modbyext(&fmed->conf.outmap, &s);
+		mod = core_modbyext((ffslice*)&fmed->conf.outmap, &s);
 		if (mod == NULL)
 			errlog0("unknown output file format: %S", &s);
 		flags |= FMED_MOD_NOLOG;
@@ -756,7 +756,7 @@ static const void* core_getmod2(uint flags, const char *name, ssize_t name_len)
 
 err:
 	if (!(flags & FMED_MOD_NOLOG))
-		errlog(core, NULL, "core", "module not found: %S", &s);
+		errlog0("module not found: %S", &s);
 	return NULL;
 }
 
@@ -768,7 +768,7 @@ static int core_open(void)
 		ffsc_init(&sc);
 		n = ffsc_get(&sc, FFSYSCONF_NPROCESSORS_ONLN);
 	}
-	if (NULL == ffarr_alloczT(&fmed->workers, n, struct worker))
+	if (NULL == ffvec_zallocT(&fmed->workers, n, struct worker))
 		return 1;
 	fmed->workers.len = n;
 	struct worker *w = (void*)fmed->workers.ptr;
@@ -845,7 +845,7 @@ static uint work_assign(uint flags)
 		goto done;
 	}
 
-	FFARR_WALKT(&fmed->workers, w, struct worker) {
+	FFSLICE_WALK(&fmed->workers, w) {
 		uint nj = ffatom_get(&w->njobs);
 		if (nj < j) {
 			id = w - ww;
@@ -872,7 +872,7 @@ done:
 /** A job is completed. */
 static void work_release(uint wid, uint flags)
 {
-	struct worker *w = ffarr_itemT(&fmed->workers, wid, struct worker);
+	struct worker *w = ffslice_itemT(&fmed->workers, wid, struct worker);
 	if (flags & FMED_WORKER_FPARALLEL) {
 		ssize_t n = ffatom_decret(&w->njobs);
 		FMED_ASSERT(n >= 0);
@@ -883,7 +883,7 @@ static void work_release(uint wid, uint flags)
 static uint work_avail()
 {
 	struct worker *w;
-	FFARR_WALKT(&fmed->workers, w, struct worker) {
+	FFSLICE_WALK(&fmed->workers, w) {
 		if (ffatom_get(&w->njobs) == 0)
 			return 1;
 	}
@@ -892,21 +892,21 @@ static uint work_avail()
 
 void core_job_enter(uint id, size_t *ctx)
 {
-	struct worker *w = ffarr_itemT(&fmed->workers, id, struct worker);
+	struct worker *w = ffslice_itemT(&fmed->workers, id, struct worker);
 	FF_ASSERT(w->id == ffthd_curid());
 	*ctx = w->taskmgr.tasks.len;
 }
 
 ffbool core_job_shouldyield(uint id, size_t *ctx)
 {
-	struct worker *w = ffarr_itemT(&fmed->workers, id, struct worker);
+	struct worker *w = ffslice_itemT(&fmed->workers, id, struct worker);
 	FF_ASSERT(w->id == ffthd_curid());
 	return (*ctx != w->taskmgr.tasks.len);
 }
 
 ffbool core_ismainthr(void)
 {
-	struct worker *w = ffarr_itemT(&fmed->workers, 0, struct worker);
+	struct worker *w = ffslice_itemT(&fmed->workers, 0, struct worker);
 	return (w->id == ffthd_curid());
 }
 
@@ -919,7 +919,7 @@ static int FFTHDCALL work_loop(void *param)
 	if (ents == NULL)
 		return -1;
 
-	dbglog(core, NULL, "core", "entering kqueue loop", 0);
+	dbglog0("entering kqueue loop", 0);
 
 	while (!FF_READONCE(fmed->stopped)) {
 
@@ -947,12 +947,7 @@ static int FFTHDCALL work_loop(void *param)
 
 static char* core_getpath(const char *name, size_t len)
 {
-	ffstr3 s = {0};
-	if (0 == ffstr_catfmt(&s, "%S%*s%Z", &fmed->root, len, name)) {
-		ffarr_free(&s);
-		return NULL;
-	}
-	return s.ptr;
+	return ffsz_allocfmt("%S%*s", &fmed->root, len, name);
 }
 
 static char* core_env_expand(char *dst, size_t cap, const char *src)
@@ -963,7 +958,7 @@ static char* core_env_expand(char *dst, size_t cap, const char *src)
 static int core_sigmods(uint signo)
 {
 	core_modinfo *mod;
-	FFARR_WALKT(&fmed->bmods, mod, core_modinfo) {
+	FFSLICE_WALK(&fmed->bmods, mod) {
 		if (mod->m == NULL)
 			continue;
 		if (signo == FMED_OPEN && mod->opened)
@@ -1024,7 +1019,7 @@ static ssize_t core_cmd(uint signo, ...)
 	va_list va;
 	va_start(va, signo);
 
-	dbglog(core, NULL, "core", "received signal: %s"
+	dbglog0("received signal: %s"
 		, sig_str[signo]);
 
 	switch (signo) {
@@ -1057,7 +1052,7 @@ static ssize_t core_cmd(uint signo, ...)
 		core_sigmods(signo);
 		FF_WRITEONCE(fmed->stopped, 1);
 		struct worker *w;
-		FFARR_WALKT(&fmed->workers, w, struct worker) {
+		FFSLICE_WALK(&fmed->workers, w) {
 			if (w->init) {
 				if (0 != ffkqu_post(&w->kqpost, &w->evposted))
 					syserrlog("%s", "ffkqu_post");
@@ -1082,7 +1077,7 @@ static ssize_t core_cmd(uint signo, ...)
 		fffd *pkq = va_arg(va, fffd*);
 		uint flags = va_arg(va, uint);
 		r = work_assign(flags);
-		struct worker *w = ffarr_itemT(&fmed->workers, r, struct worker);
+		struct worker *w = ffslice_itemT(&fmed->workers, r, struct worker);
 		*pkq = w->kq;
 		break;
 	}
@@ -1143,7 +1138,7 @@ static void core_task(fftask *task, uint cmd)
 {
 	struct worker *w = (void*)fmed->workers.ptr;
 
-	dbglog(core, NULL, "core", "task:%p, cmd:%u, active:%u, handler:%p, param:%p"
+	dbglog0("task:%p, cmd:%u, active:%u, handler:%p, param:%p"
 		, task, cmd, fftask_active(&w->taskmgr, task), task->handler, task->param);
 
 	if (w->kq == FFKQ_NULL) {
@@ -1173,7 +1168,7 @@ static int xtask(int signo, fftask *task, uint wid)
 	}
 	w = &w[wid];
 
-	dbglog(core, NULL, "core", "task:%p, cmd:%u, active:%u, handler:%p, param:%p"
+	dbglog0("task:%p, cmd:%u, active:%u, handler:%p, param:%p"
 		, task, signo, fftask_active(&w->taskmgr, task), task->handler, task->param);
 
 	if (w->kq == FFKQ_NULL) {
@@ -1193,7 +1188,7 @@ static int core_timer(fftmrq_entry *tmr, int64 _interval, uint flags)
 	struct worker *w = (void*)fmed->workers.ptr;
 	int interval = _interval;
 	uint period = ffmin((uint)ffabs(interval), TMR_INT);
-	dbglog(core, NULL, "core", "timer:%p  interval:%d  handler:%p  param:%p"
+	dbglog0("timer:%p  interval:%d  handler:%p  param:%p"
 		, tmr, interval, tmr->handler, tmr->param);
 
 	if (w->kq == FF_BADFD) {
@@ -1214,7 +1209,7 @@ static int core_timer(fftmrq_entry *tmr, int64 _interval, uint flags)
 
 		if (fftmrq_empty(&w->tmrq)) {
 			fftmrq_stop(&w->tmrq, w->kq);
-			dbglog(core, NULL, "core", "stopped kernel timer", 0);
+			dbglog0("stopped kernel timer", 0);
 		}
 		*/
 		return 0;
@@ -1222,7 +1217,7 @@ static int core_timer(fftmrq_entry *tmr, int64 _interval, uint flags)
 
 	if (fftmrq_started(&w->tmrq) && period < w->period) {
 		fftmrq_stop(&w->tmrq, w->kq);
-		dbglog(core, NULL, "core", "restarting kernel timer", 0);
+		dbglog0("restarting kernel timer", 0);
 	}
 
 	if (!fftmrq_started(&w->tmrq)) {
@@ -1231,7 +1226,7 @@ static int core_timer(fftmrq_entry *tmr, int64 _interval, uint flags)
 			return -1;
 		}
 		w->period = period;
-		dbglog(core, NULL, "core", "started kernel timer  interval:%u", period);
+		dbglog0("started kernel timer  interval:%u", period);
 	}
 
 	fftmrq_add(&w->tmrq, tmr, interval);

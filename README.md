@@ -10,7 +10,7 @@ Its low CPU & memory consumption saves energy when running on a notebook's batte
 Play or convert audio files, record new audio tracks from microphone, save songs from Internet radio, and much more!
 fmedia is free and open-source project, and you can use it as a standalone application or as a library for your own software.
 
-fmedia can read: .mp3, .ogg (Vorbis, Opus), .opus, .mp4/.m4a/.mov (AAC, ALAC, MPEG), .mka/.mkv (AAC, ALAC, MPEG, Vorbis), .caf (AAC, ALAC), .avi (AAC, MPEG), .aac, .mpc, .flac, .ape, .wv, .wav.
+fmedia can read: .mp3, .ogg (Vorbis/Opus), .opus, .mp4/.m4a/.mov (AAC/ALAC/MPEG), .mka/.mkv (AAC/ALAC/MPEG/Vorbis/Opus/PCM), .caf (AAC/ALAC/PCM), .avi (AAC/MPEG), .aac, .mpc, .flac, .ape, .wv, .wav.
 
 fmedia can write: .mp3, .ogg, .opus, .m4a (AAC), .flac, .wav, .aac (--stream-copy only).
 
@@ -253,11 +253,15 @@ Or use this special executable file (Windows only):
 You should use this binary file for opening files via Explorer's "Open With..." feature.
 Note: command-line options are not supported.
 
-fmedia GUI is provided by a separate module - gui.dll.  It is written in such a way that it won't become unresponsive even if the main thread (the one that processes audio) is waiting for I/O operations.  The module doesn't perform any sound processing, it just issues commands to fmedia core and receives the feedback.
+fmedia GUI is highly customizable, thanks to FF library that is used under the hood.
+FF UI technology allows you to modify properties of every UI control: windows, buttons, menus, tray icons and more.
+You may resize controls, set different styling, change any text, hotkeys, etc.
+All this information is stored within `fmedia.gui` which is a plain text file.
+After you make some changes in `fmedia.gui`, save it and then restart fmedia.
 
-fmedia GUI is highly customizable, thanks to FF library that is used under the hood.  FF UI technology allows you to modify properties of every UI control: windows, buttons, menus, tray icons and more.  You may resize controls, set different styling, change any text, hotkeys, etc.  All this information is stored within "fmedia.gui" which is a plain text file.  After you make some changes in fmedia.gui, save it and then restart fmedia.
-
-By default fmedia GUI saves its state in file `"%APPDATA%\fmedia\fmedia.gui.conf"`.  You can change this by setting "portable_conf" to "true" in fmedia.conf.  After that, "fmedia.gui.conf" will be stored in program directory (e.g. `"C:\Program Files\fmedia\fmedia.gui.conf"`), thus making fmedia completely portable.
+By default fmedia GUI saves its state in file `%APPDATA%\fmedia\fmedia.gui.conf`.
+You can change this by setting `portable_conf` to `true` in `fmedia.conf`.
+After that, `fmedia.gui.conf` will be stored in program directory (e.g. `C:\Program Files\fmedia\fmedia.gui.conf`), thus making fmedia completely portable.
 
 
 ---------------
@@ -315,6 +319,7 @@ Extract several tracks from .cue file
 Split audio file
 
 	fmedia ./file.wav --seek=00:35 --until=01:35 --out=./file-1.wav
+	fmedia ./file.wav --split=01:00 -o 'file-$counter.wav'
 
 Cut compressed audio without re-encoding
 
@@ -402,7 +407,9 @@ Then associate it with ".xyz" file extension:
 
 fmedia will call module "xyz.decode" each time user orders fmedia to play "*.xyz" files.
 
-See fmedia source code for more details.  For example, main.c::main() will show you how fmedia command line binary initializes core module.  See acodec/wav.c for an example on how to write a simple filter for fmedia.
+See fmedia source code for more details.
+For example, `main.c::main()` will show you how fmedia command line binary initializes core module.
+See `src/format/wav.c` for an example on how to write a simple filter for fmedia.
 
 
 ### LOW-LEVEL INTERFACE

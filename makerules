@@ -187,7 +187,6 @@ MPEG_O := $(OBJ_DIR)/mpeg.o \
 	$(FF_OBJ_DIR)/ffpcm.o \
 	$(FF_OBJ_DIR)/ffmp3.o \
 	$(FF_OBJ_DIR)/ffmpg.o \
-	$(FF_OBJ_DIR)/ffmpg-fmt.o \
 	$(FF_OBJ_DIR)/ffmp3lame.o \
 	$(FF_OBJ_DIR)/ffmmtag.o \
 	$(FF_OBJ_DIR)/ffapetag.o \

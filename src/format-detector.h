@@ -3,23 +3,25 @@
 
 enum FILE_FORMAT {
 	FILE_UNK,
+	FILE_AVI,
+	FILE_CAF,
+	FILE_FLAC,
+	FILE_MKV,
 	FILE_MP3,
 	FILE_MP4,
 	FILE_OGG,
-	FILE_FLAC,
 	FILE_WAV,
-	FILE_AVI,
-	FILE_CAF,
 };
 
 static const char file_ext[][5] = {
+	"avi",
+	"caf",
+	"flac",
+	"mkv",
 	"mp3",
 	"mp4",
 	"ogg",
-	"flac",
 	"wav",
-	"avi",
-	"caf",
 };
 
 /** Detect file format by first several bytes
@@ -86,6 +88,12 @@ static inline int file_format_detect(const void *data, ffsize len)
 			&& d[3] <= 9
 			&& d[4] <= 9)
 			return FILE_MP3;
+	}
+
+	if (len >= 4) {
+		// byte id[4] // 1a45dfa3
+		if (!ffmem_cmp(d, "\x1a\x45\xdf\xa3", 4))
+			return FILE_MKV;
 	}
 
 	if (len >= 2) {

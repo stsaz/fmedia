@@ -206,7 +206,7 @@ static int conf_ext_val(ffparser_schem *p, void *obj, ffstr *val)
 	fmed_config *conf = obj;
 	size_t n;
 	inmap_item *it;
-	ffstr3 *map = conf->inoutmap;
+	ffvec *map = conf->inoutmap;
 	ffconf *backend = ffpars_schem_backend(p);
 
 	if (backend->type == FFCONF_TKEY) {

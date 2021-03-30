@@ -155,7 +155,7 @@ static void* open_input_wcard(const fmed_queue *qu, char *src, const fmed_track 
 
 	ffstr s;
 	ffstr_setz(&s, src);
-	if (ffarr_end(&s) == ffs_findof(s.ptr, s.len, "*?", 2))
+	if (ffstr_findany(&s, "*?", 2) < 0)
 		return NULL;
 
 	if (0 != ffdir_expopen(&de, src, 0))
@@ -164,7 +164,7 @@ static void* open_input_wcard(const fmed_queue *qu, char *src, const fmed_track 
 	const char *fn;
 	while (NULL != (fn = ffdir_expread(&de))) {
 		fmed_que_entry e, *qe;
-		ffmem_tzero(&e);
+		ffmem_zero_obj(&e);
 		ffstr_setz(&e.url, fn);
 		qe = qu->add(&e);
 		qu->cmdv(FMED_QUE_SETTRACKPROPS, qe, trkinfo);
@@ -293,7 +293,7 @@ static void open_input(void *udata)
 	track->copy_info(&trkinfo, NULL);
 	trk_prep(fmed, &trkinfo);
 
-	FFARR_WALKT(&fmed->in_files, pfn, char*) {
+	FFSLICE_WALK(&fmed->in_files, pfn) {
 
 #ifdef FF_WIN
 		if (NULL != (qe = open_input_wcard(qu, *pfn, track, &trkinfo))) {
@@ -303,7 +303,7 @@ static void open_input(void *udata)
 		}
 #endif
 
-		ffmem_tzero(&e);
+		ffmem_zero_obj(&e);
 		ffstr_setz(&e.url, *pfn);
 		qe = qu->add(&e);
 		if (first == NULL)
@@ -466,17 +466,16 @@ static int loadcore(char *argv0)
 	char buf[FF_MAXPATH];
 	const char *path;
 	ffdl dl = NULL;
-	ffarr a = {0};
+	ffvec fn = {};
 
 	if (NULL == (path = ffps_filename(buf, sizeof(buf), argv0)))
 		goto end;
-	if (0 == ffstr_catfmt(&a, "%s/../mod/core.%s%Z", path, FFDL_EXT))
-		goto end;
-	a.len = ffpath_norm(a.ptr, a.cap, a.ptr, a.len - 1, 0);
-	a.ptr[a.len] = '\0';
+	ffvec_addfmt(&fn, "%s/../mod/core.%s%Z", path, FFDL_EXT);
+	fn.len = ffpath_normalize(fn.ptr, fn.cap, fn.ptr, fn.len - 1, 0);
+	fn.ptr[fn.len] = '\0';
 
-	if (NULL == (dl = ffdl_open(a.ptr, 0))) {
-		fffile_fmt(ffstderr, NULL, "can't load %s: %s\n", a.ptr, ffdl_errstr());
+	if (NULL == (dl = ffdl_open(fn.ptr, 0))) {
+		fffile_fmt(ffstderr, NULL, "can't load %s: %s\n", fn.ptr, ffdl_errstr());
 		goto end;
 	}
 
@@ -484,7 +483,7 @@ static int loadcore(char *argv0)
 	g->core_free = (void*)ffdl_addr(dl, "core_free");
 	if (g->core_init == NULL || g->core_free == NULL) {
 		fffile_fmt(ffstderr, NULL, "can't resolve functions from %s: %s\n"
-			, a.ptr, ffdl_errstr());
+			, fn.ptr, ffdl_errstr());
 		goto end;
 	}
 
@@ -494,7 +493,7 @@ static int loadcore(char *argv0)
 
 end:
 	FF_SAFECLOSE(dl, NULL, ffdl_close);
-	ffarr_free(&a);
+	ffvec_free(&fn);
 	return rc;
 }
 
