@@ -72,6 +72,17 @@ static int conf_list_col_width(ffparser_schem *p, void *obj, const int64 *val)
 	return 0;
 }
 
+int conf_file_delete_method(ffparser_schem *p, void *obj, const ffstr *val)
+{
+	if (ffstr_eqz(val, "default"))
+		gg->conf.file_delete_method = FDM_TRASH;
+	else if (ffstr_eqz(val, "rename"))
+		gg->conf.file_delete_method = FDM_RENAME;
+	else
+		return FFPARS_EBADVAL;
+	return 0;
+}
+
 static const ffpars_arg gui_conf_args[] = {
 	{ "seek_step",	FFPARS_TINT8 | FFPARS_FNOTZERO, FFPARS_DSTOFF(struct gui_conf, seek_step_delta) },
 	{ "seek_leap",	FFPARS_TINT8 | FFPARS_FNOTZERO, FFPARS_DSTOFF(struct gui_conf, seek_leap_delta) },
@@ -82,6 +93,7 @@ static const ffpars_arg gui_conf_args[] = {
 	{ "list_columns_width",	FFPARS_TINT16 | FFPARS_FLIST, FFPARS_DST(&conf_list_col_width) },
 	{ "list_track",	FFPARS_TINT, FFPARS_DSTOFF(struct gui_conf, list_actv_trk_idx) },
 	{ "list_scroll",	FFPARS_TINT, FFPARS_DSTOFF(struct gui_conf, list_scroll_pos) },
+	{ "file_delete_method",	FFPARS_TSTR, FFPARS_DST(conf_file_delete_method) },
 
 	{ "ydl_format",	FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY, FFPARS_DSTOFF(struct gui_conf, ydl_format) },
 	{ "ydl_outdir",	FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY, FFPARS_DSTOFF(struct gui_conf, ydl_outdir) },
@@ -832,6 +844,94 @@ static void file_showpcm(void)
 	ffui_view_sel_free(sel);
 }
 
+int file_del_rename(ffstr url)
+{
+	int r = 1;
+	char *fn = ffsz_alfmt("%S.deleted", &url);
+
+	if (fffile_exists(fn)) {
+		errlog("can't rename file: %s: target file exists", fn);
+	} else if (0 != fffile_rename(url.ptr, fn)) {
+		syserrlog("can't rename file: %S -> %s", &url, fn);
+	} else {
+		r = 0;
+	}
+
+	ffmem_free(fn);
+	return r;
+}
+
+/*int file_del_del(ffstr url)
+{
+	if (0 == fffile_remove(url.ptr)) {
+		syserrlog("can't delete file: %S", &url);
+		return -1;
+	}
+	return 0;
+}*/
+
+/** Exec and wait
+Return exit code or -1 on error */
+static inline int ffps_exec_wait(const char *filename, const char **argv, const char **env)
+{
+	ffps_execinfo info = {};
+	info.argv = argv;
+	info.env = env;
+	ffps ps = ffps_exec_info(filename, &info);
+	if (ps == FFPS_NULL)
+		return -1;
+
+	int code;
+	if (0 != ffps_wait(ps, -1, &code))
+		return -1;
+
+	return code;
+}
+
+int kde_trash(const char *fn)
+{
+	const char *args[] = {
+		"/usr/bin/kioclient5",
+		"move",
+		fn,
+		"trash:/",
+		NULL,
+	};
+	return ffps_exec_wait(args[0], args, (const char**)environ);
+}
+
+int gnome_trash(const char *fn)
+{
+	const char *args[] = {
+		"/usr/bin/gio",
+		"trash",
+		fn,
+		NULL,
+	};
+	return ffps_exec_wait(args[0], args, (const char**)environ);
+}
+
+int file_del_trash(ffstr url)
+{
+	if (gg->is_kde >= 0) {
+		if (0 == kde_trash(url.ptr)) {
+			gg->is_kde = 1;
+			goto done;
+		}
+		dbglog("can't move file to trash (KDE): %S: %s", &url, fferr_strptr(fferr_last()));
+		gg->is_kde = -1;
+	}
+
+	if (0 != gnome_trash(url.ptr)) {
+		syserrlog("can't move file to trash: %S", &url);
+		return -1;
+	}
+
+done:
+	dbglog("move file to trash: %S", &url);
+	return 0;
+}
+
 /** Delete all selected files. */
 static void file_del(void)
 {
@@ -842,18 +942,19 @@ static void file_del(void)
 	while (-1 != (i = ffui_view_selnext(NULL, sel))) {
 		ent = (fmed_que_entry*)gg->qu->fmed_queue_item(-1, i - n);
 
-		char *fn = ffsz_alfmt("%S.deleted", &ent->url);
-		if (fn == NULL)
-			break;
+		int r;
+		switch (gg->conf.file_delete_method) {
+		case FDM_TRASH:
+			r = file_del_trash(ent->url);  break;
 
-		if (0 == fffile_rename(ent->url.ptr, fn)) {
+		case FDM_RENAME:
+			r = file_del_rename(ent->url);  break;
+		}
+		if (r == 0) {
 			gg->qu->cmd(FMED_QUE_RM | FMED_QUE_NO_ONCHANGE, ent);
 			wmain_ent_removed(i - n);
 			n++;
-		} else
-			syserrlog("can't rename file: %s", fn);
-
-		ffmem_free(fn);
+		}
 	}
 	ffui_view_sel_free(sel);
 	wmain_status("Deleted %u files", n);

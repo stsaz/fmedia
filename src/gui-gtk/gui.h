@@ -23,12 +23,18 @@ enum {
 #define FMED_USERCONF  "fmedia-user.conf"
 #define AUTOPLIST_FN  "list%u.m3u8"
 
+enum FILE_DEL_METHOD {
+	FDM_TRASH,
+	FDM_RENAME,
+};
+
 struct gtrk;
 struct gui_conf {
 	float auto_attenuate_ceiling;
 	uint seek_step_delta,
 		seek_leap_delta;
 	byte autosave_playlists;
+	uint file_delete_method; // enum FILE_DEL_METHOD
 	byte list_random;
 	byte list_repeat;
 	ushort list_col_width[16];
@@ -72,6 +78,7 @@ typedef struct ggui {
 	uint tabs_counter;
 	char *home_dir;
 	void *subps;
+	int is_kde;
 
 	struct gui_conf conf;
 
