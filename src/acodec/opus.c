@@ -6,6 +6,7 @@ Copyright (c) 2016 Simon Zolin */
 #include <FF/audio/opus.h>
 #include <FF/mtags/mmtag.h>
 
+#define dbglog1(trk, ...)  fmed_dbglog(core, trk, NULL, __VA_ARGS__)
 
 static const fmed_core *core;
 static const fmed_queue *qu;
@@ -103,6 +104,7 @@ typedef struct opus_in {
 	ffopus opus;
 	uint sampsize;
 	uint64 pagepos;
+	uint last :1;
 } opus_in;
 
 static void* opus_open(fmed_filt *d)
@@ -117,7 +119,7 @@ static void* opus_open(fmed_filt *d)
 		return NULL;
 	}
 
-	o->stmcopy = d->stream_copy;
+	o->pagepos = (uint64)-1;
 	return o;
 }
 
@@ -132,8 +134,17 @@ static int opus_in_decode(void *ctx, fmed_filt *d)
 {
 	enum { R_HDR, R_TAGS, R_DATA1, R_DATA };
 	opus_in *o = ctx;
-	uint64 pos;
+	int have_tags = 0;
+	int reset = 0;
+	int r;
 
+	ffstr in = {};
+	if (d->flags & FMED_FFWD) {
+		ffstr_set(&in, d->data, d->datalen);
+		d->datalen = 0;
+	}
+
+again:
 	switch (o->state) {
 	case R_HDR:
 	case R_TAGS:
@@ -159,26 +170,26 @@ static int opus_in_decode(void *ctx, fmed_filt *d)
 		if ((d->flags & FMED_FFWD) && (int64)d->audio.seek != FMED_NULL) {
 			uint64 seek = ffpcm_samples(d->audio.seek, o->opus.info.rate);
 			ffopus_seek(&o->opus, seek);
+			reset = 1;
 			d->audio.seek = FMED_NULL;
+		}
+		if (d->flags & FMED_FFWD) {
+			if (o->pagepos != d->audio.pos) {
+				ffopus_setpos(&o->opus, d->audio.pos, reset);
+				o->pagepos = d->audio.pos;
+			}
 		}
 		break;
 	}
 
-	int r;
-	ffstr in = {0};
-	if (d->flags & FMED_FFWD) {
-		ffstr_set(&in, d->data, d->datalen);
-		d->datalen = 0;
-
-		if (o->pagepos != d->audio.pos) {
-			o->opus.pos = d->audio.pos;
-			o->pagepos = d->audio.pos;
-		}
+	if (o->last) {
+		return FMED_RDONE;
 	}
 
+	ffstr out;
 	for (;;) {
 
-	r = ffopus_decode(&o->opus, in.ptr, in.len);
+	r = ffopus_decode(&o->opus, &in, &out);
 
 	switch (r) {
 
@@ -195,7 +206,11 @@ static int opus_in_decode(void *ctx, fmed_filt *d)
 
 	case FFOPUS_RMORE:
 		if (d->flags & FMED_FLAST) {
-			d->outlen = 0;
+			if (!o->last) {
+				o->last = 1;
+				ffopus_flush(&o->opus);
+				continue;
+			}
 			return FMED_RDONE;
 		}
 		return FMED_RMORE;
@@ -208,9 +223,10 @@ static int opus_in_decode(void *ctx, fmed_filt *d)
 		d->audio.fmt.ileaved = 1;
 		o->sampsize = ffpcm_size1(&d->audio.fmt);
 		d->datatype = "pcm";
-		return FMED_RMORE;
+		break;
 
 	case FFOPUS_RTAG: {
+		have_tags = 1;
 		const ffvorbtag *vtag = &o->opus.vtag;
 		dbglog(core, d->trk, NULL, "%S: %S", &vtag->name, &vtag->val);
 		ffstr name = vtag->name;
@@ -222,16 +238,17 @@ static int opus_in_decode(void *ctx, fmed_filt *d)
 	}
 
 	case FFOPUS_RHDRFIN:
-		return FMED_RMORE;
+		if (!have_tags)
+			goto again; // this packet wasn't a Tags packet but audio data
+		break;
 	}
 	}
 
 data:
-	pos = ffopus_pos(&o->opus);
-	dbglog(core, d->trk, NULL, "decoded %u samples (%U)"
-		, o->opus.pcm.len / o->sampsize, pos);
-	d->audio.pos = pos - o->opus.pcm.len / ffpcm_size1(&d->audio.fmt);
-	d->out = o->opus.pcm.ptr,  d->outlen = o->opus.pcm.len;
+	d->audio.pos = ffopus_startpos(&o->opus);
+	dbglog1(d->trk, "decoded %L samples (at %U)"
+		, out.len / o->sampsize, d->audio.pos);
+	d->data_out = out;
 	return FMED_RDATA;
 }
 
