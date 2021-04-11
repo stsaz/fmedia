@@ -365,8 +365,6 @@ static int vorbis_out_encode(void *ctx, fmed_filt *d)
 	}
 
 	v->npkt++;
-	if (v->npkt == 1 || v->npkt == 3)
-		d->ogg_flush = 1;
 
 	fmed_setval("ogg_granpos", ffvorbis_enc_pos(&v->vorbis));
 

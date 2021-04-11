@@ -384,8 +384,6 @@ static int opus_out_encode(void *ctx, fmed_filt *d)
 	}
 
 	o->npkt++;
-	if (o->npkt == 1 || o->npkt == 2)
-		d->ogg_flush = 1;
 
 	fmed_setval("ogg_granpos", ffopus_enc_pos(&o->opus));
 
