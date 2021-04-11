@@ -216,8 +216,8 @@ again:
 				d->audio.fmt.format = ai->bits;
 				d->audio.fmt.ileaved = 1;
 
-			} else {
-				if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, (void*)codec)) {
+			} else if (!d->stream_copy) {
+				if (NULL == (void*)d->track->cmd(d->trk, FMED_TRACK_FILT_ADD, (void*)codec)) {
 					return FMED_RERR;
 				}
 			}
@@ -239,8 +239,16 @@ again:
 				goto again;
 			} else if (ai->codec == MKV_A_MPEG) {
 				//
+			} else if (ai->codec == MKV_A_OPUS) {
+				if (d->stream_copy) {
+					d->datatype = "Opus";
+					d->audio.fmt.format = FFPCM_FLOAT;
+					fmed_setval("opus_no_tags", 1);
+				}
+				d->data_out = ai->codec_conf;
 			} else
 				d->data_out = ai->codec_conf;
+
 
 			m->state = I_DATA;
 			return FMED_RDATA;
