@@ -178,6 +178,15 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 			ffpcm_set((ffpcm*)&d->audio.fmt, ai->format.bits, ai->format.channels, ai->format.rate);
 			d->audio.total = ai->total_samples;
 
+			if (d->audio.abs_seek != 0) {
+				d->track->cmd(d->trk, FMED_TRACK_FILT_ADD, "plist.cuehook");
+				m->seeking = 1;
+				uint64 samples = fmed_apos_samples(d->audio.abs_seek, d->audio.fmt.sample_rate);
+				if ((int64)d->audio.seek != FMED_NULL)
+					samples += ffpcm_samples(d->audio.seek, ai->format.rate);
+				mp4read_seek(&m->mp, samples);
+			}
+
 			const char *filt;
 			switch (ai->codec) {
 			case MP4_A_ALAC:

@@ -193,6 +193,17 @@ again:
 				return FMED_RERR;
 			}
 
+			if (d->audio.abs_seek != 0) {
+				d->track->cmd(d->trk, FMED_TRACK_FILT_ADD, "plist.cuehook");
+				m->seeking = 1;
+				uint64 msec = d->audio.abs_seek;
+				if (d->audio.abs_seek < 0)
+					msec = -d->audio.abs_seek * 1000 / 75;
+				if ((int64)d->audio.seek != FMED_NULL)
+					msec += d->audio.seek;
+				mkvread_seek(&m->mkv, msec);
+			}
+
 			int i = ffint_find2(mkv_codecs, FF_COUNT(mkv_codecs), ai->codec);
 			if (i == -1) {
 				errlog1(d->trk, "unsupported codec: %xu", ai->codec);
@@ -216,7 +227,7 @@ again:
 			d->audio.total = ffpcm_samples(ai->duration_msec, ai->sample_rate);
 			// d->audio.bitrate = ;
 
-			if ((int64)d->audio.seek != FMED_NULL) {
+			if ((int64)d->audio.seek != FMED_NULL && !m->seeking) {
 				m->seeking = 1;
 				mkvread_seek(&m->mkv, d->audio.seek);
 				d->audio.seek = FMED_NULL;
