@@ -164,7 +164,7 @@ again:
 			fmed_setval("mpeg_delay", m->mpg.rdr.delay);
 
 			if (d->audio.abs_seek != 0) {
-				d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, "plist.cuehook");
+				d->track->cmd(d->trk, FMED_TRACK_FILT_ADD, "plist.cuehook");
 				m->seeking = 1;
 				uint64 samples = fmed_apos_samples(d->audio.abs_seek, d->audio.fmt.sample_rate);
 				ffmpg_rseek(&m->mpg.rdr, samples);

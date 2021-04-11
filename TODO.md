@@ -5,7 +5,7 @@ This is the list of the things that need to be done.
 ## Features
 
 * .ts
-* .mkv, .avi seeking
+* .avi seeking
 * 24-bit conversion via soxr
 * gapless playback of the next track in queue
 * noise gate filter
@@ -37,7 +37,6 @@ This is the list of the things that need to be done.
 
 * .mkv, .avi: support MPEG delay
 * join several files into one
-* fatal decoding errors should have filename in their log messages
 * ALSA: Add fallback path (using fmedia timer) in case "snd_async_add_pcm_handler(): (-38) Function not implemented"
 * docker build (#42)
 

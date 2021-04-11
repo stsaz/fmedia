@@ -8,6 +8,17 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.24 - Apr 10, 2021
+
+ + .mkv: support Opus;  support .webm;  support seeking (slightly inaccurate)
+ + .mkv(Opus) -> .ogg copy: "fmedia f.mkv -o f.ogg --stream-copy"
+ + .cue: support .mp4/.mkv/.mp3
+ + .avi: support "pcm" codec
+ + GUI(Linux): "File->Delete From Disk": move to Trash by default
+ - .mkv: crash when reading tags
+ - Opus decode: fix "clicks" on tracks changing;  accurate positioning
+
+
 fmedia v1.23.1 - Mar 3, 2021
 
  - .ogg read: fix (v1.23 bug)

@@ -160,24 +160,25 @@ again:
 		if ((int64)d->audio.seek != FMED_NULL && !m->seeking) {
 			m->seeking = 1;
 			mkvread_seek(&m->mkv, d->audio.seek);
-			d->audio.seek = FMED_NULL;
+		}
+		if (m->seeking && (int64)d->audio.seek == FMED_NULL) {
+			m->seeking = 0;
 		}
 		break;
 	}
 
+	ffstr out;
 	for (;;) {
-		r = mkvread_process(&m->mkv, &m->in, &d->data_out);
+		r = mkvread_process(&m->mkv, &m->in, &out);
 		switch (r) {
 		case MKVREAD_MORE:
 			if (d->flags & FMED_FLAST) {
-				errlog1(d->trk, "file is incomplete");
-				d->data_out.len = 0;
+				dbglog1(d->trk, "file is incomplete");
 				return FMED_RDONE;
 			}
 			return FMED_RMORE;
 
 		case MKVREAD_DONE:
-			d->data_out.len = 0;
 			return FMED_RDONE;
 
 		case MKVREAD_DATA:
@@ -230,7 +231,6 @@ again:
 			if ((int64)d->audio.seek != FMED_NULL && !m->seeking) {
 				m->seeking = 1;
 				mkvread_seek(&m->mkv, d->audio.seek);
-				d->audio.seek = FMED_NULL;
 			}
 
 			if (ai->codec == MKV_A_VORBIS) {
@@ -272,8 +272,8 @@ again:
 
 data:
 	d->audio.pos = ffpcm_samples(mkvread_curpos(&m->mkv), m->sample_rate);
-	dbglog1(d->trk, "data size:%L  pos:%U", d->data_out.len, d->audio.pos);
-	m->seeking = 0;
+	dbglog1(d->trk, "data size:%L  pos:%U", out.len, d->audio.pos);
+	d->data_out = out;
 	return FMED_RDATA;
 }
 

@@ -135,6 +135,7 @@ static void subps_exec(struct subps *sp, char **args)
 	info.out = sp->wr;
 	info.err = sp->wr;
 	info.argv = (const char**)args;
+	info.env = (const char**)environ;
 
 	sp->ps = ffps_exec_info(YDL, &info);
 	dbglog("ffps_exec_info: %d", sp->ps);

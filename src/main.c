@@ -472,7 +472,7 @@ static int loadcore(char *argv0)
 		goto end;
 	ffvec_addfmt(&fn, "%s/../mod/core.%s%Z", path, FFDL_EXT);
 	fn.len = ffpath_normalize(fn.ptr, fn.cap, fn.ptr, fn.len - 1, 0);
-	fn.ptr[fn.len] = '\0';
+	((char*)fn.ptr)[fn.len] = '\0';
 
 	if (NULL == (dl = ffdl_open(fn.ptr, 0))) {
 		fffile_fmt(ffstderr, NULL, "can't load %s: %s\n", fn.ptr, ffdl_errstr());

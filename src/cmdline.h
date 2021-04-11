@@ -449,7 +449,7 @@ static const ffpars_arg fmed_cmdline_args[] = {
 	{ "notui",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(notui) },
 	{ "gui",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(gui) },
 	{ "print-time",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(print_time) },
-	{ "debug",	FFPARS_TBOOL8 | FFPARS_FALONE,  FFPARS_DST(&arg_debug) },
+	{ "debug",	FFPARS_SETVAL('D') | FFPARS_TBOOL8 | FFPARS_FALONE,  FFPARS_DST(&arg_debug) },
 	{ "help",	FFPARS_SETVAL('h') | FFPARS_TBOOL | FFPARS_FALONE,  FFPARS_DST(&arg_usage) },
 	{ "cue-gaps",	FFPARS_TINT8,  OFF(cue_gaps) },
 	{ "parallel",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(parallel) },
@@ -466,7 +466,7 @@ static const ffpars_arg fmed_cmdline_main_args[] = {
 	{ "conf",	FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY | FFPARS_FNOTEMPTY,  OFF(conf_fn) },
 	{ "notui",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(notui) },
 	{ "gui",	FFPARS_TBOOL8 | FFPARS_FALONE,  OFF(gui) },
-	{ "debug",	FFPARS_TBOOL8 | FFPARS_FALONE,  FFPARS_DST(&arg_debug) },
+	{ "debug",	FFPARS_SETVAL('D') | FFPARS_TBOOL8 | FFPARS_FALONE,  FFPARS_DST(&arg_debug) },
 	{ "help",	FFPARS_SETVAL('h') | FFPARS_TBOOL | FFPARS_FALONE,  FFPARS_DST(&arg_usage) },
 };
 
