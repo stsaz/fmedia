@@ -103,7 +103,6 @@ typedef struct opus_in {
 	ffopus opus;
 	uint sampsize;
 	uint64 pagepos;
-	uint stmcopy :1;
 } opus_in;
 
 static void* opus_open(fmed_filt *d)
@@ -145,12 +144,6 @@ static int opus_in_decode(void *ctx, fmed_filt *d)
 		break;
 
 	case R_DATA1:
-		if (o->stmcopy) {
-			d->meta_block = 0;
-			d->out = d->data,  d->outlen = d->datalen;
-			return FMED_RDONE;
-		}
-
 		if ((int64)d->audio.total != FMED_NULL) {
 			o->opus.total_samples = d->audio.total;
 			d->audio.total -= o->opus.info.preskip;
@@ -214,13 +207,6 @@ static int opus_in_decode(void *ctx, fmed_filt *d)
 		d->audio.fmt.sample_rate = o->opus.info.rate;
 		d->audio.fmt.ileaved = 1;
 		o->sampsize = ffpcm_size1(&d->audio.fmt);
-
-		if (o->stmcopy) {
-			d->meta_block = 1;
-			d->out = in.ptr,  d->outlen = in.len;
-			return FMED_RDATA; //HDR packet
-		}
-
 		d->datatype = "pcm";
 		return FMED_RMORE;
 
@@ -236,10 +222,6 @@ static int opus_in_decode(void *ctx, fmed_filt *d)
 	}
 
 	case FFOPUS_RHDRFIN:
-		if (o->stmcopy) {
-			d->out = in.ptr,  d->outlen = in.len;
-			return FMED_RDATA; //TAGS packet
-		}
 		return FMED_RMORE;
 	}
 	}

@@ -95,7 +95,6 @@ typedef struct vorbis_in {
 	uint state;
 	uint64 pagepos;
 	ffvorbis vorbis;
-	uint stmcopy :1;
 } vorbis_in;
 
 static void* vorbis_open(fmed_filt *d)
@@ -109,8 +108,6 @@ static void* vorbis_open(fmed_filt *d)
 		ffmem_free(v);
 		return NULL;
 	}
-
-	v->stmcopy = d->stream_copy;
 
 	return v;
 }
@@ -137,12 +134,6 @@ static int vorbis_in_decode(void *ctx, fmed_filt *d)
 	case R_BOOK:
 		if (!(d->flags & FMED_FFWD))
 			return FMED_RMORE;
-
-		if (v->state == R_BOOK && v->stmcopy) {
-			d->meta_block = 0;
-			d->out = d->data,  d->outlen = d->datalen;
-			return FMED_RDONE;
-		}
 
 		v->state++;
 		break;
@@ -209,13 +200,6 @@ static int vorbis_in_decode(void *ctx, fmed_filt *d)
 		d->audio.fmt.sample_rate = ffvorbis_rate(&v->vorbis);
 		d->audio.fmt.ileaved = 0;
 		d->audio.bitrate = ffvorbis_bitrate(&v->vorbis);
-
-		if (v->stmcopy) {
-			d->meta_block = 1;
-			d->out = in.ptr,  d->outlen = in.len;
-			return FMED_RDATA; //HDR packet
-		}
-
 		d->datatype = "pcm";
 		return FMED_RMORE;
 
@@ -231,10 +215,6 @@ static int vorbis_in_decode(void *ctx, fmed_filt *d)
 	}
 
 	case FFVORBIS_RHDRFIN:
-		if (v->stmcopy) {
-			d->out = in.ptr,  d->outlen = in.len;
-			return FMED_RDATA; //TAGS packet
-		}
 		return FMED_RMORE;
 	}
 	}

@@ -9,6 +9,7 @@ Copyright (c) 2015 Simon Zolin */
 
 #define errlog0(...)  fmed_errlog(core, NULL, "ogg", __VA_ARGS__)
 #define errlog1(trk, ...)  fmed_errlog(core, trk, NULL, __VA_ARGS__)
+#define infolog1(trk, ...)  fmed_infolog(core, trk, NULL, __VA_ARGS__)
 #define dbglog1(trk, ...)  fmed_dbglog(core, trk, NULL, __VA_ARGS__)
 
 extern const fmed_core *core;
@@ -156,7 +157,12 @@ int ogg_decode(void *ctx, fmed_filt *d)
 			if (o->state == I_HDR) {
 				o->state = I_INFO;
 				d->audio.total = oggread_info(&o->og)->total_samples;
-				if (0 != add_decoder(o, d, d->data_out))
+				if (d->stream_copy) {
+					d->audio.decoder = "";
+					d->audio.fmt.format = FFPCM_FLOAT;
+					d->audio.fmt.channels = 2;
+					d->audio.fmt.sample_rate = 48000;
+				} else if (0 != add_decoder(o, d, d->data_out))
 					return FMED_RERR;
 			}
 			goto data;
