@@ -393,13 +393,13 @@ static int rec_tracks_start(fmed_cmd *cmd, fmed_trk *trkinfo)
 {
 	void *trk0 = NULL, *trk1 = NULL;
 
-	if (cmd->captdev_name == 0
+	if (cmd->captdev_name == (uint)-1
 		&& cmd->lbdev_name == (uint)-1) {
 		if (NULL == (trk0 = rec_track_start(cmd, trkinfo, 0)))
 			goto end;
 	}
 
-	if (cmd->captdev_name != 0) {
+	if (cmd->captdev_name != (uint)-1) {
 		if (NULL == (trk0 = rec_track_start(cmd, trkinfo, 1)))
 			goto end;
 	}
