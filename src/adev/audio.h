@@ -121,6 +121,7 @@ static int audio_devbyidx(const ffaudio_interface *audio, ffaudio_dev **d, uint 
 		int r = audio->dev_next(*d);
 		if (r != 0) {
 			audio->dev_free(*d);
+			*d = NULL;
 			return r;
 		}
 

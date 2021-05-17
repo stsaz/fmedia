@@ -8,6 +8,11 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.24.1 - May 17, 2021
+
+ - capture stream didn't work with "--dev-capture=0 --dev-loopback=N"
+
+
 fmedia v1.24 - Apr 10, 2021
 
  + .mkv: support Opus;  support .webm;  support seeking (slightly inaccurate)
