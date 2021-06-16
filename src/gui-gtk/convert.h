@@ -62,6 +62,7 @@ static const ffpars_arg conf_conv[] = {
 	{ "opus_bitrate",	FFPARS_TINT, FFPARS_DSTOFF(struct gui_wconvert, enc_opus_brate) },
 	{ "mpeg_quality",	FFPARS_TINT, FFPARS_DSTOFF(struct gui_wconvert, enc_mpeg_qual) },
 	{ "aac_quality",	FFPARS_TINT, FFPARS_DSTOFF(struct gui_wconvert, enc_aac_qual) },
+	{ "data_copy",	FFPARS_TFLOAT, FFPARS_DSTOFF(struct gui_wconvert, enc_datacopy) },
 
 	{ "*",	FFPARS_TSTR | FFPARS_FMULTI, FFPARS_DST(&conf_any) },
 };
@@ -90,6 +91,9 @@ static void conv_writeval(ffconfw *conf, ffuint i)
 	case 4:
 		ffconf_writez(conf, c->output, FFCONF_TVAL);
 		break;
+	case 5:
+		ffconf_writeint(conf, c->enc_datacopy, 0, FFCONF_TVAL);
+		break;
 	}
 }
 
@@ -102,6 +106,7 @@ int wconvert_conf_writeval(ffstr *line, ffconfw *conf)
 		"gui.gui.convert.opus_bitrate",
 		"gui.gui.convert.mpeg_quality",
 		"gui.gui.convert.output",
+		"gui.gui.convert.data_copy",
 	};
 
 	if (line == NULL) {
@@ -315,7 +320,10 @@ static void conv_edit(ffui_view *v)
 		break;
 
 	case PROP_FILT_GAIN:
-		if (ffstr_to_int32(&text, &i)) {
+		if (text.len == 0) {
+			gg->wconvert->filt_gain = 0;
+			k = 1;
+		} else if (ffstr_to_int32(&text, &i)) {
 			gg->wconvert->filt_gain = i*100;
 			k = 1;
 		}

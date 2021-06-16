@@ -306,7 +306,12 @@ static void tui_addtags(tui *t, fmed_que_entry *qent, ffarr *buf)
 	fmed_trk_meta meta;
 	ffmem_tzero(&meta);
 	while (0 == t->d->track->cmd2(t->d->trk, FMED_TRACK_META_ENUM, &meta)) {
-		ffstr_catfmt(buf, "%S\t%S\n", &meta.name, &meta.val);
+		ffsize nt = (meta.name.len < 8) ? 2 : 1;
+		ffstr val = meta.val;
+		const char *end = ffs_skip_mask(val.ptr, val.len, ffcharmask_printable);
+		if (end != ffstr_end(&val))
+			ffstr_setz(&val, "<binary data>");
+		ffstr_catfmt(buf, "%S%*c%S\n", &meta.name, nt, '\t', &val);
 	}
 }
 
