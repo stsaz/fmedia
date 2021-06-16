@@ -520,7 +520,7 @@ struct fmed_trk {
 		uint save_trk :1;
 		uint net_reconnect :1;
 		uint use_dynanorm :1;
-		uint duration_inaccurate :1;
+		uint _unused :1;
 		uint e_no_source :1; // error: no media source
 		uint err :1;
 		uint show_tags :1;

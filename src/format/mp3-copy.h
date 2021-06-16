@@ -1,6 +1,8 @@
 /** fmedia: .mp3 copy
 2017,2021, Simon Zolin */
 
+#include <format/mp3-copy-iface.h>
+
 typedef struct mpeg_copy {
 	ffmpgcopy mpgcpy;
 	ffstr in;
@@ -13,9 +15,9 @@ void* mpeg_copy_open(fmed_filt *d)
 	if (m == NULL)
 		return NULL;
 
-	m->mpgcpy.options = FFMPG_WRITE_ID3V2 | FFMPG_WRITE_ID3V1 | FFMPG_WRITE_XING;
+	m->mpgcpy.options = MP3WRITE_ID3V2 | MP3WRITE_ID3V1;
 	if ((int64)d->input.size != FMED_NULL)
-		ffmpg_setsize(&m->mpgcpy.rdr, d->input.size);
+		ffmpg_copy_setsize(&m->mpgcpy, d->input.size);
 
 	m->until = (uint64)-1;
 	if (d->audio.until != FMED_NULL) {
@@ -62,24 +64,24 @@ int mpeg_copy_process(void *ctx, fmed_filt *d)
 		}
 		return FMED_RMORE;
 
-	case FFMPG_RXING:
-		continue;
-
-	case FFMPG_RHDR:
-		ffpcm_fmtcopy(&d->audio.fmt, &ffmpg_copy_fmt(&m->mpgcpy));
+	case FFMPG_RHDR: {
+		const struct mpeg1read_info *info = mpeg1read_info(&m->mpgcpy.rdr);
 		d->audio.fmt.format = FFPCM_16;
-		d->audio.bitrate = ffmpg_bitrate(&m->mpgcpy.rdr);
-		d->audio.total = ffmpg_length(&m->mpgcpy.rdr);
+		d->audio.fmt.sample_rate = info->sample_rate;
+		d->audio.fmt.channels = info->channels;
+		d->audio.bitrate = info->bitrate;
+		d->audio.total = info->total_samples;
 		d->audio.decoder = "MPEG";
 		d->meta_block = 0;
 
 		if ((int64)d->audio.seek != FMED_NULL) {
-			int64 samples = ffpcm_samples(d->audio.seek, ffmpg_fmt(&m->mpgcpy.rdr).sample_rate);
+			int64 samples = ffpcm_samples(d->audio.seek, d->audio.fmt.sample_rate);
 			ffmpg_copy_seek(&m->mpgcpy, samples);
 			d->audio.seek = FMED_NULL;
 			continue;
 		}
 		continue;
+	}
 
 	case FFMPG_RID32:
 	case FFMPG_RID31:
@@ -87,8 +89,8 @@ int mpeg_copy_process(void *ctx, fmed_filt *d)
 		goto data;
 
 	case FFMPG_RFRAME:
-		d->audio.pos = ffmpg_cursample(&m->mpgcpy.rdr);
-		if (ffpcm_time(d->audio.pos, ffmpg_copy_fmt(&m->mpgcpy).sample_rate) >= m->until) {
+		d->audio.pos = mpeg1read_cursample(&m->mpgcpy.rdr);
+		if (ffpcm_time(d->audio.pos, d->audio.fmt.sample_rate) >= m->until) {
 			dbglog(core, d->trk, NULL, "reached time %Ums", d->audio.until);
 			ffmpg_copy_fin(&m->mpgcpy);
 			m->until = (uint64)-1;
@@ -105,13 +107,13 @@ int mpeg_copy_process(void *ctx, fmed_filt *d)
 		continue;
 
 	case FFMPG_RDONE:
-		core->log(FMED_LOG_INFO, d->trk, NULL, "MPEG: frames:%u", ffmpg_wframes(&m->mpgcpy.writer));
+		core->log(FMED_LOG_INFO, d->trk, NULL, "MPEG: frames:%u", (int)mp3write_frames(&m->mpgcpy.writer));
 		d->outlen = 0;
 		return FMED_RLASTOUT;
 
 	case FFMPG_RWARN:
 		warnlog(core, d->trk, NULL, "near sample %U: ffmpg_copy(): %s"
-			, ffmpg_cursample(&m->mpgcpy.rdr), ffmpg_copy_errstr(&m->mpgcpy));
+			, mpeg1read_cursample(&m->mpgcpy.rdr), ffmpg_copy_errstr(&m->mpgcpy));
 		continue;
 
 	default:

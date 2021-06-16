@@ -1,6 +1,8 @@
 /** fmedia: .mp3 write
 2017,2021, Simon Zolin */
 
+#include <avpack/mp3-write.h>
+
 struct mpeg_out_conf_t {
 	uint min_meta_size;
 } mpeg_out_conf;
@@ -28,7 +30,9 @@ int mpeg_have_trkmeta(fmed_filt *d)
 typedef struct mpeg_out {
 	uint state;
 	uint nframe;
-	ffmpgw mpgw;
+	uint flags;
+	ffstr in;
+	mp3write mpgw;
 } mpeg_out;
 
 void* mpeg_out_open(fmed_filt *d)
@@ -39,15 +43,15 @@ void* mpeg_out_open(fmed_filt *d)
 	mpeg_out *m = ffmem_new(mpeg_out);
 	if (m == NULL)
 		return NULL;
-	ffmpg_winit(&m->mpgw);
-	m->mpgw.options = FFMPG_WRITE_ID3V1 | FFMPG_WRITE_ID3V2;
+	mp3write_create(&m->mpgw);
+	m->mpgw.id3v2_min_size = mpeg_out_conf.min_meta_size;
 	return m;
 }
 
 void mpeg_out_close(void *ctx)
 {
 	mpeg_out *m = ctx;
-	ffmpg_wclose(&m->mpgw);
+	mp3write_close(&m->mpgw);
 	ffmem_free(m);
 }
 
@@ -63,7 +67,7 @@ int mpeg_out_addmeta(mpeg_out *m, fmed_filt *d)
 			|| r == FFMMTAG_VENDOR)
 			continue;
 
-		if (0 != ffmpg_addtag(&m->mpgw, r, meta.val.ptr, meta.val.len)) {
+		if (0 != mp3write_addtag(&m->mpgw, r, meta.val)) {
 			warnlog(core, d->trk, "mpeg", "can't add tag: %S", &meta.name);
 		}
 	}
@@ -74,11 +78,9 @@ int mpeg_out_process(void *ctx, fmed_filt *d)
 {
 	mpeg_out *m = ctx;
 	int r;
-	ffstr s;
 
 	switch (m->state) {
 	case 0:
-		m->mpgw.min_meta = mpeg_out_conf.min_meta_size;
 		if (0 != mpeg_out_addmeta(m, d))
 			return FMED_RERR;
 		m->state = 2;
@@ -97,56 +99,45 @@ int mpeg_out_process(void *ctx, fmed_filt *d)
 		break;
 	}
 
-	if (d->mpg_lametag) {
-		d->mpg_lametag = 0;
-		m->mpgw.lametag = 1;
-		m->mpgw.fin = 1;
+	if (d->flags & FMED_FLAST)
+		m->flags |= MP3WRITE_FLAST;
+	if (d->mpg_lametag)
+		m->flags |= MP3WRITE_FLAMEFRAME;
+
+	ffstr out;
+	if (d->data_in.len != 0) {
+		m->in = d->data_in;
+		d->data_in.len = 0;
 	}
 
 	for (;;) {
-		r = ffmpg_writeframe(&m->mpgw, (void*)d->data, d->datalen, &s);
+		r = mp3write_process(&m->mpgw, &m->in, &out, m->flags);
 		switch (r) {
 
-		case FFMPG_RID32:
-			dbglog(core, d->trk, NULL, "ID3v2: %L bytes"
-				, s.len);
-			goto data;
-
-		case FFMPG_RID31:
-			dbglog(core, d->trk, NULL, "ID3v1: %L bytes"
-				, s.len);
-			goto data;
-
-		case FFMPG_RDATA:
-			d->datalen = 0;
+		case MP3WRITE_DATA:
 			dbglog(core, d->trk, NULL, "frame #%u: %L bytes"
-				, m->nframe++, s.len);
+				, m->nframe++, out.len);
 			goto data;
 
-		case FFMPG_RMORE:
-			if (!(d->flags & FMED_FLAST)) {
-				m->state = 2;
-				return FMED_RMORE;
-			}
-			m->mpgw.fin = 1;
-			break;
+		case MP3WRITE_MORE:
+			return FMED_RMORE;
 
-		case FFMPG_RSEEK:
-			d->output.seek = ffmpg_wseekoff(&m->mpgw);
-			break;
+		case MP3WRITE_SEEK:
+			d->output.seek = mp3write_offset(&m->mpgw);
+			continue;
 
-		case FFMPG_RDONE:
+		case MP3WRITE_DONE:
 			d->outlen = 0;
 			return FMED_RDONE;
 
 		default:
-			errlog(core, d->trk, "mpeg", "ffmpg_writeframe() failed: %s", ffmpg_werrstr(&m->mpgw));
+			errlog(core, d->trk, "mpeg", "mp3write_process() failed");
 			return FMED_RERR;
 		}
 	}
 
 data:
-	d->out = s.ptr,  d->outlen = s.len;
+	d->data_out = out;
 	return FMED_RDATA;
 }
 

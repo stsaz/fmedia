@@ -3,11 +3,14 @@ Copyright (c) 2017 Simon Zolin */
 
 #include <fmedia.h>
 
-#include <FF/aformat/mp3.h>
+#include <avpack/mp3-read.h>
 #include <FF/audio/pcm.h>
 #include <FF/mtags/mmtag.h>
 #include <FF/array.h>
 
+#define errlog1(trk, ...)  fmed_errlog(core, trk, NULL, __VA_ARGS__)
+#define warnlog1(trk, ...)  fmed_warnlog(core, trk, NULL, __VA_ARGS__)
+#define dbglog1(trk, ...)  fmed_dbglog(core, trk, NULL, __VA_ARGS__)
 
 extern const fmed_core *core;
 extern const fmed_queue *qu;
@@ -15,16 +18,18 @@ extern const fmed_queue *qu;
 #include <format/mp3-write.h>
 #include <format/mp3-copy.h>
 
-typedef struct mpeg_in {
-	ffmpgfile mpg;
+typedef struct mp3_in {
+	mp3read mpg;
 	ffstr in;
+	uint sample_rate;
 	uint state;
+	uint nframe;
 	uint have_id32tag :1
 		, seeking :1
 		;
-} mpeg_in;
+} mp3_in;
 
-static void* mpeg_open(fmed_filt *d)
+void* mp3_open(fmed_filt *d)
 {
 	if (d->stream_copy && !d->track->cmd(d->trk, FMED_TRACK_META_HAVEUSER)) {
 
@@ -33,60 +38,48 @@ static void* mpeg_open(fmed_filt *d)
 		return FMED_FILT_SKIP;
 	}
 
-	mpeg_in *m = ffmem_new(mpeg_in);
+	mp3_in *m = ffmem_new(mp3_in);
 	if (m == NULL)
 		return NULL;
-	ffmpg_fopen(&m->mpg);
-	m->mpg.codepage = core->getval("codepage");
-
+	ffuint64 total_size = 0;
 	if ((int64)d->input.size != FMED_NULL) {
-		ffmpg_setsize(&m->mpg.rdr, d->input.size);
-		m->mpg.options = FFMPG_O_ID3V2 | FFMPG_O_APETAG | FFMPG_O_ID3V1;
+		total_size = d->input.size;
 	}
-
+	mp3read_open(&m->mpg, total_size);
+	m->mpg.id3v2.codepage = core->getval("codepage");
 	return m;
 }
 
-static void mpeg_close(void *ctx)
+void mp3_close(void *ctx)
 {
-	mpeg_in *m = ctx;
-	ffmpg_fclose(&m->mpg);
+	mp3_in *m = ctx;
+	mp3read_close(&m->mpg);
 	ffmem_free(m);
 }
 
-static void mpeg_meta(mpeg_in *m, fmed_filt *d, uint type)
+void mp3_meta(mp3_in *m, fmed_filt *d, uint type)
 {
-	ffstr name, val;
-
-	if (type == FFMPG_RID32) {
-		ffstr_set(&name, m->mpg.id32tag.fr.id, 4);
+	if (type == MP3READ_ID32) {
 		if (!m->have_id32tag) {
 			m->have_id32tag = 1;
-			dbglog(core, d->trk, "mpeg", "id3: ID3v2.%u.%u, size: %u"
-				, (uint)m->mpg.id32tag.h.ver[0], (uint)m->mpg.id32tag.h.ver[1], ffid3_size(&m->mpg.id32tag.h));
-		}
-
-	} else if (type == FFMPG_RAPETAG) {
-		name = m->mpg.apetag.name;
-		if (FFAPETAG_FBINARY == (m->mpg.apetag.flags & FFAPETAG_FMASK)) {
-			dbglog(core, d->trk, "mpeg", "skipping binary tag: %S", &m->mpg.apetag.name);
-			return;
+			dbglog1(d->trk, "ID3v2.%u  size:%u"
+				, id3v2read_version(&m->mpg.id3v2), id3v2read_size(&m->mpg.id3v2));
 		}
 	}
 
-	if (m->mpg.tag != 0)
-		ffstr_setz(&name, ffmmtag_str[m->mpg.tag]);
+	ffstr name, val;
+	int tag = mp3read_tag(&m->mpg, &name, &val);
+	if (tag != 0)
+		ffstr_setz(&name, ffmmtag_str[tag]);
 
-	ffstr_set2(&val, &m->mpg.tagval);
-
-	dbglog(core, d->trk, "mpeg", "tag: %S: %S", &name, &val);
+	dbglog1(d->trk, "tag: %S: %S", &name, &val);
 	d->track->meta_set(d->trk, &name, &val, FMED_QUE_TMETA);
 }
 
-static int mpeg_process(void *ctx, fmed_filt *d)
+int mp3_process(void *ctx, fmed_filt *d)
 {
 	enum { I_HDR, I_DATA };
-	mpeg_in *m = ctx;
+	mp3_in *m = ctx;
 	int r;
 
 	if (d->flags & FMED_FSTOP) {
@@ -107,7 +100,7 @@ again:
 	case I_DATA:
 		if ((int64)d->audio.seek != FMED_NULL && !m->seeking) {
 			m->seeking = 1;
-			ffmpg_rseek(&m->mpg.rdr, ffpcm_samples(d->audio.seek, ffmpg_fmt(&m->mpg.rdr).sample_rate));
+			mp3read_seek(&m->mpg, ffpcm_samples(d->audio.seek, m->sample_rate));
 			if (d->stream_copy)
 				d->audio.seek = FMED_NULL;
 		}
@@ -116,58 +109,45 @@ again:
 
 	ffstr out;
 	for (;;) {
-		r = ffmpg_read(&m->mpg, &m->in, &out);
+		r = mp3read_process(&m->mpg, &m->in, &out);
 
 		switch (r) {
-		case FFMPG_RFRAME:
+		case MPEG1READ_DATA:
 			goto data;
 
-		case FFMPG_RMORE:
+		case MPEG1READ_MORE:
 			if (d->flags & FMED_FLAST) {
-				if (!ffmpg_hdrok(&m->mpg)) {
-					errlog(core, d->trk, NULL, "no MPEG header");
-					return FMED_RERR;
-				}
 				d->outlen = 0;
 				return FMED_RDONE;
 			}
 			return FMED_RMORE;
 
-		case FFMPG_RDONE:
+		case MPEG1READ_DONE:
 			d->outlen = 0;
 			return FMED_RLASTOUT;
 
-		case FFMPG_RXING:
-			continue;
-
-		case FFMPG_RHDR:
-			dbglog(core, d->trk, NULL, "preset:%s  tool:%s  xing-frames:%u"
-				, ffmpg_isvbr(&m->mpg.rdr) ? "VBR" : "CBR", m->mpg.rdr.lame.id, m->mpg.rdr.xing.frames);
-			ffpcm_fmtcopy(&d->audio.fmt, &ffmpg_fmt(&m->mpg.rdr));
+		case MPEG1READ_HEADER: {
+			const struct mpeg1read_info *info = mp3read_info(&m->mpg);
 			d->audio.fmt.format = FFPCM_16;
+			m->sample_rate = info->sample_rate;
+			d->audio.fmt.sample_rate = info->sample_rate;
+			d->audio.fmt.channels = info->channels;
+			d->audio.bitrate = info->bitrate;
+			d->audio.total = info->total_samples;
 			d->audio.decoder = "MPEG";
 			d->datatype = "mpeg";
-
-			d->audio.bitrate = ffmpg_bitrate(&m->mpg.rdr);
-			d->audio.total = ffmpg_length(&m->mpg.rdr);
+			fmed_setval("mpeg_delay", info->delay);
 
 			if (d->input_info)
 				return FMED_RDONE;
 
-			if (m->mpg.rdr.duration_inaccurate) {
-				dbglog(core, d->trk, NULL, "duration may be inaccurate");
-			}
-			/* Broken .mp3 files prevent from writing header-first .mp4 files.
-			This tells .mp4 writer not to trust us. */
-			d->duration_inaccurate = 1;
 			m->state = I_DATA;
-			fmed_setval("mpeg_delay", m->mpg.rdr.delay);
 
 			if (d->audio.abs_seek != 0) {
 				d->track->cmd(d->trk, FMED_TRACK_FILT_ADD, "plist.cuehook");
 				m->seeking = 1;
-				uint64 samples = fmed_apos_samples(d->audio.abs_seek, d->audio.fmt.sample_rate);
-				ffmpg_rseek(&m->mpg.rdr, samples);
+				uint64 samples = fmed_apos_samples(d->audio.abs_seek, m->sample_rate);
+				mp3read_seek(&m->mpg, samples);
 			}
 
 			if (!d->stream_copy
@@ -176,38 +156,31 @@ again:
 
 			if ((int64)d->audio.seek != FMED_NULL && !m->seeking) {
 				m->seeking = 1;
-				ffmpg_rseek(&m->mpg.rdr, ffpcm_samples(d->audio.seek, ffmpg_fmt(&m->mpg.rdr).sample_rate));
+				mp3read_seek(&m->mpg, ffpcm_samples(d->audio.seek, m->sample_rate));
 			}
 
 			goto again;
+		}
 
-		case FFMPG_RID31:
-		case FFMPG_RID32:
-		case FFMPG_RAPETAG:
-			mpeg_meta(m, d, r);
+		case MP3READ_ID31:
+		case MP3READ_ID32:
+		case MP3READ_APETAG:
+			mp3_meta(m, d, r);
 			break;
 
-		case FFMPG_RSEEK:
-			d->input.seek = ffmpg_seekoff(&m->mpg);
+		case MPEG1READ_SEEK:
+			d->input.seek = mp3read_offset(&m->mpg);
 			return FMED_RMORE;
 
-		case FFMPG_RWARN:
-			if (m->mpg.err == FFMPG_EID32) {
-				warnlog(core, d->trk, "mpeg", "ID3v2 parse (offset: %u): %s.  ID3v2.%u.%u, flags: 0x%xu, size: %u"
-					, sizeof(ffid3_hdr) + ffid3_size(&m->mpg.id32tag.h) - m->mpg.id32tag.size
-					, ffid3_errstr(m->mpg.id32tag.err)
-					, (uint)m->mpg.id32tag.h.ver[0], (uint)m->mpg.id32tag.h.ver[1], (uint)m->mpg.id32tag.h.flags
-					, ffid3_size(&m->mpg.id32tag.h));
-				continue;
-			}
-			warnlog(core, d->trk, "mpeg", "ffmpg_read(): %s. Near sample %U, offset %U"
-				, ffmpg_ferrstr(&m->mpg), ffmpg_cursample(&m->mpg.rdr), ffmpg_seekoff(&m->mpg));
+		case MP3READ_WARN:
+			warnlog1(d->trk, "mp3read_read(): %s. Near sample %U, offset %U"
+				, mp3read_error(&m->mpg), mp3read_cursample(&m->mpg), mp3read_offset(&m->mpg));
 			break;
 
-		case FFMPG_RERR:
+		case MPEG1READ_ERROR:
 		default:
-			errlog(core, d->trk, "mpeg", "ffmpg_read(): %s. Near sample %U, offset %U"
-				, ffmpg_ferrstr(&m->mpg), ffmpg_cursample(&m->mpg.rdr), ffmpg_seekoff(&m->mpg));
+			errlog1(d->trk, "mp3read_read(): %s. Near sample %U, offset %U"
+				, mp3read_error(&m->mpg), mp3read_cursample(&m->mpg), mp3read_offset(&m->mpg));
 			return FMED_RERR;
 		}
 	}
@@ -215,14 +188,14 @@ again:
 data:
 	if (m->seeking)
 		m->seeking = 0;
-	d->audio.pos = ffmpg_cursample(&m->mpg.rdr);
-	dbglog(core, d->trk, NULL, "passing frame #%u  samples:%u[%U]  size:%u  br:%u  off:%xU"
-		, m->mpg.rdr.frno, (uint)m->mpg.rdr.frsamps, d->audio.pos, (uint)out.len
-		, ffmpg_hdr_bitrate((void*)out.ptr), m->mpg.rdr.off - out.len);
+	d->audio.pos = mp3read_cursample(&m->mpg);
+	dbglog1(d->trk, "passing frame #%u  samples:%u[%U]  size:%u  br:%u  off:%xU"
+		, ++m->nframe, mpeg1_samples(out.ptr), d->audio.pos, (uint)out.len
+		, mpeg1_bitrate(out.ptr), (ffint64)mp3read_offset(&m->mpg) - out.len);
 	d->data_out = out;
 	return FMED_RDATA;
 }
 
 const fmed_filter fmed_mpeg_input = {
-	mpeg_open, mpeg_process, mpeg_close
+	mp3_open, mp3_process, mp3_close
 };
