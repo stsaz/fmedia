@@ -240,78 +240,9 @@ static void* gui_getctl(void *udata, const ffstr *name)
 }
 
 static const char *const action_str[] = {
-	"A_LIST_ADDFILE",
-	"A_LIST_ADDURL",
-	"A_DLOAD_SHOW",
-	"A_FILE_SHOWPCM",
-	"A_FILE_SHOWINFO",
-	"A_FILE_SHOWDIR",
-	"A_SHOW_RENAME",
-	"A_FILE_DELFILE",
-	"A_SHOW",
-	"A_HIDE",
-	"A_QUIT",
-
-	"A_PLAY",
-	"A_PLAYPAUSE",
-	"A_SEEK",
-	"A_STOP",
-	"A_STOP_AFTER",
-	"A_NEXT",
-	"A_PREV",
-	"A_PLAY_REPEAT",
-	"A_FFWD",
-	"A_RWND",
-	"A_LEAP_FWD",
-	"A_LEAP_BACK",
-	"A_SETGOPOS",
-	"A_GOPOS",
-	"A_VOL",
-	"A_VOLUP",
-	"A_VOLDOWN",
-	"A_VOLRESET",
-	"A_SHOW_PROPS",
-
-	"A_LIST_NEW",
-	"A_LIST_DEL",
-	"A_LIST_SEL",
-	"A_LIST_READMETA",
-	"A_LIST_SAVE",
-	"A_LIST_SELECTALL",
-	"A_LIST_REMOVE",
-	"A_LIST_RMDEAD",
-	"A_LIST_CLEAR",
-	"A_LIST_RANDOM",
-	"A_LIST_SORTRANDOM",
-
-	"A_SHOWCONVERT",
-	"A_CONV_SET_SEEK",
-	"A_CONV_SET_UNTIL",
-
-	"A_ABOUT",
-	"A_CMD_SHOW",
-	"A_CONF_EDIT",
-	"A_USRCONF_EDIT",
-	"A_FMEDGUI_EDIT",
-	"A_README_SHOW",
-	"A_CHANGES_SHOW",
-
-	"A_CONVERT",
-	"A_CONV_MOVE_UNTIL",
-	"A_CONVOUTBROWSE",
-	"A_CONV_EDIT",
-
-	"A_URL_ADD",
-
-	"A_DLOAD_SHOWFMT",
-	"A_DLOAD_DL",
-
-	"A_PLAYPROPS_EDIT",
-
-	"A_CMD_EXEC",
-	"A_CMD_FILTER",
-
-	"A_RENAME",
+#define ACTION_NAMES
+#include "actions.h"
+#undef ACTION_NAMES
 };
 
 static int gui_getcmd(void *udata, const ffstr *name)
@@ -319,7 +250,7 @@ static int gui_getcmd(void *udata, const ffstr *name)
 	(void)udata;
 	for (uint i = 0;  i != FFCNT(action_str);  i++) {
 		if (ffstr_eqz(name, action_str[i]))
-			return i + 1;
+			return i;
 	}
 	return 0;
 }
@@ -445,7 +376,7 @@ void gui_list_sel(uint idx)
 static void corecmd_run(uint cmd, void *udata)
 {
 	dbglog("%s cmd:%d %s  udata:%p"
-		, __func__, cmd, (cmd-1 < FF_COUNT(action_str)) ? action_str[cmd-1] : "", udata);
+		, __func__, cmd, (cmd-1 < FF_COUNT(action_str)) ? action_str[cmd] : "", udata);
 
 	switch ((enum ACTION)cmd) {
 
@@ -717,29 +648,29 @@ static void showdir_selected(void)
 	ffui_view_sel_free(sel);
 }
 
-/** Execute GUI file manager to show the directory with a file. */
-static void showdir(const char *fn)
+static void showdir2(const char *dir)
 {
-	char *dirz;
-	ffstr dir;
-	ffpath_split2(fn, ffsz_len(fn), &dir, NULL);
-
-	if (NULL == (dirz = ffsz_alcopystr(&dir)))
-		return;
-
 	const char *argv[] = {
-		"xdg-open", dirz, NULL
+		"xdg-open", dir, NULL
 	};
 	ffps ps = ffps_exec("/usr/bin/xdg-open", argv, (const char**)environ);
 	if (ps == FFPS_INV) {
 		syserrlog("ffps_exec", 0);
-		goto done;
+		return;
 	}
 
 	dbglog("spawned file manager: %u", (int)ffps_id(ps));
 	ffps_close(ps);
+}
 
-done:
+/** Execute GUI file manager to show the directory with a file. */
+static void showdir(const char *fn)
+{
+	ffstr dir;
+	ffpath_split2(fn, ffsz_len(fn), &dir, NULL);
+
+	char *dirz = ffsz_alcopystr(&dir);
+	showdir2(dirz);
 	ffmem_free(dirz);
 }
 

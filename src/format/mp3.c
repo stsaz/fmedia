@@ -122,7 +122,7 @@ again:
 			}
 			return FMED_RMORE;
 
-		case MPEG1READ_DONE:
+		case MP3READ_DONE:
 			d->outlen = 0;
 			return FMED_RLASTOUT;
 

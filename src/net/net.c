@@ -582,6 +582,11 @@ static int httpcli_process(void *ctx, fmed_filt *d)
 		return FMED_RDONE;
 	}
 
+	if ((int64)d->input.seek != FMED_NULL) {
+		errlog(d->trk, "seeking isn't supported");
+		return FMED_RERR;
+	}
+
 	switch (c->st) {
 	case 0: {
 		const char *url = d->track->getvalstr(d->trk, "input");

@@ -251,7 +251,7 @@ static inline int ffmpg_copy(ffmpgcopy *m, ffstr *input, ffstr *output)
 			m->state = CPY_DATA;
 			return FFMPG_RSEEK;
 
-		case MPEG1READ_DONE:
+		case MP3READ_DONE:
 			m->state = CPY_FTRTAGS_OUT;
 			continue;
 

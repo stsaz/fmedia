@@ -1,5 +1,11 @@
 # fmedia v1.22 makefile
 
+# Requirements:
+# make gcc cp objcopy strip touch rm mkdir chmod
+# Linux: tar
+# Windows: zip unix2dos
+# macOS: zip
+
 PROJ := fmedia
 VER :=
 OS :=
