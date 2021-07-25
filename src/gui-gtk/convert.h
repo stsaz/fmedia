@@ -77,22 +77,22 @@ static void conv_writeval(ffconfw *conf, ffuint i)
 	struct gui_wconvert *c = gg->wconvert;
 	switch (i) {
 	case 0:
-		ffconf_writeint(conf, c->enc_aac_qual, 0, FFCONF_TVAL);
+		ffconfw_addint(conf, c->enc_aac_qual);
 		break;
 	case 1:
-		ffconf_writefloat(conf, c->enc_vorbis_qual, 2, FFCONF_TVAL);
+		ffconfw_addfloat(conf, c->enc_vorbis_qual, 2);
 		break;
 	case 2:
-		ffconf_writeint(conf, c->enc_opus_brate, 0, FFCONF_TVAL);
+		ffconfw_addint(conf, c->enc_opus_brate);
 		break;
 	case 3:
-		ffconf_writeint(conf, c->enc_mpeg_qual, 0, FFCONF_TVAL);
+		ffconfw_addint(conf, c->enc_mpeg_qual);
 		break;
 	case 4:
-		ffconf_writez(conf, c->output, FFCONF_TVAL);
+		ffconfw_addstrz(conf, c->output);
 		break;
 	case 5:
-		ffconf_writeint(conf, c->enc_datacopy, 0, FFCONF_TVAL);
+		ffconfw_addint(conf, c->enc_datacopy);
 		break;
 	}
 }
@@ -112,7 +112,7 @@ int wconvert_conf_writeval(ffstr *line, ffconfw *conf)
 	if (line == NULL) {
 		for (ffuint i = 0;  i != FF_COUNT(setts);  i++) {
 			if (!c->wconf_flags[i]) {
-				ffconf_writez(conf, setts[i], FFCONF_TKEY | FFCONF_ASIS);
+				ffconfw_addkeyz(conf, setts[i]);
 				conv_writeval(conf, i);
 			}
 		}
@@ -121,7 +121,7 @@ int wconvert_conf_writeval(ffstr *line, ffconfw *conf)
 
 	for (ffuint i = 0;  i != FF_COUNT(setts);  i++) {
 		if (ffstr_matchz(line, setts[i])) {
-			ffconf_writez(conf, setts[i], FFCONF_TKEY | FFCONF_ASIS);
+			ffconfw_addkeyz(conf, setts[i]);
 			conv_writeval(conf, i);
 			c->wconf_flags[i] = 1;
 			return 1;

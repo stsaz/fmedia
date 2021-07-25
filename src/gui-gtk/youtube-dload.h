@@ -332,11 +332,11 @@ static void wdload_writeval(ffconfw *conf, ffuint i)
 	switch (i) {
 	case 0:
 		ffstr_setz(&s, gg->conf.ydl_format);
-		ffconf_writestr(conf, &s, FFCONF_TVAL);
+		ffconfw_addstr(conf, &s);
 		break;
 	case 1:
 		ffstr_setz(&s, gg->conf.ydl_outdir);
-		ffconf_writestr(conf, &s, FFCONF_TVAL);
+		ffconfw_addstr(conf, &s);
 		break;
 	}
 }
@@ -352,7 +352,7 @@ int wdload_conf_writeval(ffstr *line, ffconfw *conf)
 	if (line == NULL) {
 		for (ffuint i = 0;  i != FF_COUNT(setts);  i++) {
 			if (!w->wconf_flags[i]) {
-				ffconf_writez(conf, setts[i], FFCONF_TKEY | FFCONF_ASIS);
+				ffconfw_addkeyz(conf, setts[i]);
 				wdload_writeval(conf, i);
 			}
 		}
@@ -361,7 +361,7 @@ int wdload_conf_writeval(ffstr *line, ffconfw *conf)
 
 	for (ffuint i = 0;  i != FF_COUNT(setts);  i++) {
 		if (ffstr_matchz(line, setts[i])) {
-			ffconf_writez(conf, setts[i], FFCONF_TKEY | FFCONF_ASIS);
+			ffconfw_addkeyz(conf, setts[i]);
 			wdload_writeval(conf, i);
 			w->wconf_flags[i] = 1;
 			return 1;

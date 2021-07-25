@@ -1014,30 +1014,30 @@ static void usrconf_write_val(ffconfw *conf, uint i)
 	int n;
 	switch (i) {
 	case 0:
-		ffconf_writebool(conf, gg->conf.list_random, FFCONF_TVAL);
+		ffconfw_addint(conf, gg->conf.list_random);
 		break;
 	case 1:
 		wmain_list_cols_width_write(conf);
 		break;
 	case 2:
 		n = gg->qu->cmdv(FMED_QUE_CURID, (int)0);
-		ffconf_writeint(conf, n, 0, FFCONF_TVAL);
+		ffconfw_addint(conf, n);
 		break;
 	case 3:
 		n = wmain_list_scroll_vert();
-		ffconf_writeint(conf, n, 0, FFCONF_TVAL);
+		ffconfw_addint(conf, n);
 		break;
 	case 4:
-		ffconf_writeint(conf, gg->conf.list_repeat, 0, FFCONF_TVAL);
+		ffconfw_addint(conf, gg->conf.list_repeat);
 		break;
 	case 5:
-		ffconf_writefloat(conf, gg->conf.auto_attenuate_ceiling, 2, FFCONF_TVAL);
+		ffconfw_addfloat(conf, gg->conf.auto_attenuate_ceiling, 2);
 		break;
 	case 6:
-		ffconf_writeint(conf, gg->conf.seek_step_delta, 0, FFCONF_TVAL);
+		ffconfw_addint(conf, gg->conf.seek_step_delta);
 		break;
 	case 7:
-		ffconf_writeint(conf, gg->conf.seek_leap_delta, 0, FFCONF_TVAL);
+		ffconfw_addint(conf, gg->conf.seek_leap_delta);
 		break;
 	}
 }
@@ -1050,8 +1050,8 @@ void usrconf_write(void)
 	char *fn;
 	ffarr buf = {};
 	fffd f = FF_BADFD;
-	ffconfw conf;
-	ffconf_winit(&conf, NULL, 0);
+	ffconfw conf = {};
+	ffconfw_init(&conf, 0);
 	byte flags[FFCNT(usrconf_setts)] = {};
 
 	if (NULL == (fn = userpath(FMED_USERCONF)))
@@ -1077,7 +1077,7 @@ void usrconf_write(void)
 			if (ffstr_matchz(&ln, usrconf_setts[i])) {
 				found = 1;
 				flags[i] = 1;
-				ffconf_writez(&conf, usrconf_setts[i], FFCONF_TKEY | FFCONF_ASIS);
+				ffconfw_addkeyz(&conf, usrconf_setts[i]);
 				usrconf_write_val(&conf, i);
 				break;
 			}
@@ -1091,22 +1091,22 @@ void usrconf_write(void)
 		}
 
 		if (!found && ln.len != 0)
-			ffconf_writeln(&conf, &ln, 0);
+			ffconfw_addline(&conf, &ln);
 	}
 
 	for (uint i = 0;  i != FFCNT(usrconf_setts);  i++) {
 		if (flags[i])
 			continue;
-		ffconf_writez(&conf, usrconf_setts[i], FFCONF_TKEY | FFCONF_ASIS);
+		ffconfw_addkeyz(&conf, usrconf_setts[i]);
 		usrconf_write_val(&conf, i);
 	}
 	wconvert_conf_writeval(NULL, &conf);
 	wdload_conf_writeval(NULL, &conf);
 
-	ffconf_writefin(&conf);
+	ffconfw_fin(&conf);
 
 	ffstr out;
-	ffconf_output(&conf, &out);
+	ffconfw_output(&conf, &out);
 	fffile_seek(f, 0, SEEK_SET);
 	fffile_write(f, out.ptr, out.len);
 	fffile_trunc(f, out.len);
@@ -1114,7 +1114,7 @@ void usrconf_write(void)
 end:
 	ffarr_free(&buf);
 	ffmem_free(fn);
-	ffconf_wdestroy(&conf);
+	ffconfw_close(&conf);
 	fffile_safeclose(f);
 }
 

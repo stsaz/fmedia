@@ -614,7 +614,7 @@ void wmain_list_cols_width_write(ffconfw *conf)
 		ffui_viewcol_reset(&vc);
 		ffui_viewcol_setwidth(&vc, 0);
 		ffui_view_col(&w->vlist, i, &vc);
-		ffconf_writeint(conf, ffui_viewcol_width(&vc), 0, FFCONF_TVAL);
+		ffconfw_addint(conf, ffui_viewcol_width(&vc));
 	}
 }
 

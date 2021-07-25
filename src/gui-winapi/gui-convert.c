@@ -321,7 +321,7 @@ void conv_sets_write(ffconfw *conf)
 	struct gui_wconvert *w = gg->wconvert;
 	char **it;
 	FFSLICE_WALK_T(&w->conv_sets.output, it, char*) {
-		ffconf_writez(conf, *it, FFCONF_TVAL);
+		ffconfw_addstrz(conf, *it);
 	}
 }
 
@@ -704,7 +704,7 @@ int wconvert_conf_writeval(ffstr *line, ffconfw *conf)
 	if (line == NULL) {
 		for (ffuint i = 0;  i != FF_COUNT(setts);  i++) {
 			if (!w->conf_flags[i]) {
-				ffconf_writez(conf, setts[i], FFCONF_TKEY | FFCONF_ASIS);
+				ffconfw_addkeyz(conf, setts[i]);
 				conv_writeval(conf, i);
 			}
 		}
@@ -713,7 +713,7 @@ int wconvert_conf_writeval(ffstr *line, ffconfw *conf)
 
 	for (ffuint i = 0;  i != FF_COUNT(setts);  i++) {
 		if (ffstr_matchz(line, setts[i])) {
-			ffconf_writez(conf, setts[i], FFCONF_TKEY | FFCONF_ASIS);
+			ffconfw_addkeyz(conf, setts[i]);
 			conv_writeval(conf, i);
 			w->conf_flags[i] = 1;
 			return 1;

@@ -385,7 +385,7 @@ static void conv_writeval(ffconfw *conf, ffuint i)
 	struct gui_wrec *w = gg->wrec;
 	switch (i) {
 	case 0:
-		ffconf_writez(conf, w->rec_sets.output, FFCONF_TVAL);
+		ffconfw_addstrz(conf, w->rec_sets.output);
 		break;
 	}
 }
@@ -400,7 +400,7 @@ int wrec_conf_writeval(ffstr *line, ffconfw *conf)
 	if (line == NULL) {
 		for (ffuint i = 0;  i != FF_COUNT(setts);  i++) {
 			if (!w->conf_flags[i]) {
-				ffconf_writez(conf, setts[i], FFCONF_TKEY | FFCONF_ASIS);
+				ffconfw_addkeyz(conf, setts[i]);
 				conv_writeval(conf, i);
 			}
 		}
@@ -409,7 +409,7 @@ int wrec_conf_writeval(ffstr *line, ffconfw *conf)
 
 	for (ffuint i = 0;  i != FF_COUNT(setts);  i++) {
 		if (ffstr_matchz(line, setts[i])) {
-			ffconf_writez(conf, setts[i], FFCONF_TKEY | FFCONF_ASIS);
+			ffconfw_addkeyz(conf, setts[i]);
 			conv_writeval(conf, i);
 			w->conf_flags[i] = 1;
 			return 1;

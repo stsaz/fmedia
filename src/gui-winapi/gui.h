@@ -3,7 +3,6 @@ Copyright (c) 2016 Simon Zolin */
 
 #include <FF/gui/winapi.h>
 #include <FF/gui/loader.h>
-#include <FF/data/conf.h>
 #include <FFOS/thread.h>
 #include <FFOS/semaphore.h>
 

@@ -261,7 +261,6 @@ WAVPACK_O := $(OBJ_DIR)/wavpack.o \
 	$(FF_O) \
 	$(FF_OBJ_DIR)/ffwavpack.o \
 	$(FF_OBJ_DIR)/ffapetag.o \
-	$(FF_OBJ_DIR)/ffid3.o \
 	$(FF_OBJ_DIR)/ffmmtag.o \
 	$(FF_OBJ_DIR)/ffpcm.o
 wavpack.$(SO): $(WAVPACK_O)
@@ -273,7 +272,6 @@ APE_O := $(OBJ_DIR)/ape.o \
 	$(FF_O) \
 	$(FF_OBJ_DIR)/ffape.o \
 	$(FF_OBJ_DIR)/ffapetag.o \
-	$(FF_OBJ_DIR)/ffid3.o \
 	$(FF_OBJ_DIR)/ffmmtag.o \
 	$(FF_OBJ_DIR)/ffpcm.o
 ape.$(SO): $(APE_O)

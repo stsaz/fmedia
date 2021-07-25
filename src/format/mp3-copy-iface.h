@@ -29,19 +29,6 @@ enum FFMPG_R {
 	FFMPG_ROUTSEEK,
 };
 
-enum FFMPG_E {
-	FFMPG_EOK,
-	FFMPG_ESYS,
-	FFMPG_EFMT,
-	FFMPG_EID31DATA,
-	FFMPG_EID32DATA,
-	FFMPG_EID32,
-	FFMPG_EAPETAG,
-	FFMPG_ESEEK,
-	FFMPG_ENOFRAME,
-	FFMPG_ESYNC,
-};
-
 typedef struct ffmpgcopy {
 	uint state;
 	uint options; //enum FFMPG_ENC_OPT

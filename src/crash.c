@@ -10,7 +10,7 @@ Copyright (c) 2018 Simon Zolin */
 // #include <FFOS/cpuid.h>
 
 
-static ffthd_bt bt;
+static ffthread_bt bt;
 
 void _crash_handler(const char *fullname, const char *version, struct ffsig_info *inf)
 {
@@ -53,12 +53,13 @@ void _crash_handler(const char *fullname, const char *version, struct ffsig_info
 	s.len = 0;
 
 	// backtrace
-	int n = ffthd_backtrace(&bt);
+	int n = ffthread_backtrace(&bt);
 	for (int i = 0;  i < n;  i++) {
-		size_t offset = (char*)ffthd_backtrace_frame(&bt, i) - (char*)ffthd_backtrace_modbase(&bt, i);
-		ffstr_addfmt(&s, sizeof(buf), "#%u: 0x%p +%xL %s [0x%p]\n"
-			, i, ffthd_backtrace_frame(&bt, i), offset
-			, ffthd_backtrace_modname(&bt, i), ffthd_backtrace_modbase(&bt, i));
+		size_t offset = (char*)ffthread_backtrace_frame(&bt, i) - (char*)ffthread_backtrace_modbase(&bt, i);
+		const ffsyschar *modname = ffthread_backtrace_modname(&bt, i);
+		ffstr_addfmt(&s, sizeof(buf), "#%u: 0x%p +%xL %q [0x%p]\n"
+			, i, ffthread_backtrace_frame(&bt, i), offset
+			, modname, ffthread_backtrace_modbase(&bt, i));
 		fffile_write(f, s.ptr, s.len);
 		if (f != ffstderr)
 			fffile_write(ffstderr, s.ptr, s.len);

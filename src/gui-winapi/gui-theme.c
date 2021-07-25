@@ -4,7 +4,7 @@ Copyright (c) 2018 Simon Zolin */
 #include <fmedia.h>
 #include <gui-winapi/gui.h>
 #include <FF/gui/loader.h>
-#include <FF/data/conf.h>
+#include <FF/data/conf-copy.h>
 #include <FFOS/process.h>
 
 
@@ -25,16 +25,19 @@ struct theme_reader {
 	uint found :1;
 };
 
-static int theme_conf_new(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
+static int theme_conf_new(ffconf_scheme *cs, void *obj)
 {
 	struct theme_reader *tr = obj;
-	const ffstr *name = ffpars_ctxname(p);
+	const ffstr *name = ffconf_scheme_objval(cs);
+
+	static const ffconf_arg dummy = {};
 
 	if (tr->find != NULL) {
 		if (!ffstr_eqz(name, tr->find->name)) {
-			ffpars_ctx_skip(ctx);
+			ffconf_scheme_skipctx(cs);
 			return 0;
 		}
+		ffconf_scheme_addctx(cs, &dummy, NULL);
 		tr->found = 1;
 		return 0;
 	}
@@ -42,93 +45,91 @@ static int theme_conf_new(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
 	struct theme *t = ffarr_pushgrowT(&gg->themes, 2, struct theme);
 	if (NULL == (t->name = ffsz_alcopystr(name)))
 		return FFPARS_ESYS;
-	ffpars_ctx_skip(ctx);
+	ffconf_scheme_skipctx(cs);
 	return 0;
 }
 
-static const ffpars_arg gui_themeconf_args[] = {
-	{ "theme",	FFPARS_TOBJ | FFPARS_FOBJ1 | FFPARS_FNOTEMPTY | FFPARS_FMULTI, FFPARS_DST(&theme_conf_new) },
+static const ffconf_arg gui_themeconf_args[] = {
+	{ "theme",	FFCONF_TOBJ | FFCONF_FNOTEMPTY | FFCONF_FMULTI, (ffsize)theme_conf_new },
+	{}
 };
 
 /** Read themes data from file and:
  a) prepare themes array (set theme name)
  b) gather theme's data and write to file */
-static void themes_read2(struct theme *t, const char *ofn)
+static int themes_read2(struct theme *t, const char *ofn)
 {
-	int r;
-	struct theme_reader tr = {};
+	int rc = -1, r;
 	ffbool copy = 0;
-	ffparser_schem ps;
-	ffconf conf;
-	ffpars_ctx ctx;
 	ffconf_ctxcopy ctxcopy = {};
 	ffstr themedata = {};
-	ffarr ddata = {};
+	ffvec ddata = {};
 	char *fn = NULL;
 
+	struct theme_reader tr = {};
 	tr.find = t;
 
-	ffpars_setargs(&ctx, &tr, gui_themeconf_args, FFCNT(gui_themeconf_args));
-	if (0 != (r = ffconf_scheminit(&ps, &conf, &ctx)))
-		goto fail;
+	ffconf conf = {};
+	ffconf_init(&conf);
+
+	ffconf_scheme cs = {};
+	ffconf_scheme_init(&cs, &conf);
+	ffconf_scheme_addctx(&cs, gui_themeconf_args, &tr);
 
 	fn = core->getpath(FFSTR("theme.conf"));
-	if (0 != fffile_readall(&ddata, fn, -1)) {
-		r = FFPARS_ESYS;
-		goto fail;
+	if (0 != fffile_readwhole(fn, &ddata, -1)) {
+		syserrlog0("theme.conf parser: fffile_readwhole");
+		goto end;
 	}
 
 	ffstr data;
 	ffstr_set2(&data, &ddata);
 
 	while (data.len != 0) {
-		r = ffconf_parsestr(&conf, &data);
-		if (ffpars_iserr(r))
-			goto fail;
+		r = ffconf_parse(&conf, &data);
+		if (r < 0) {
+			errlog0("theme.conf: ffconf_parse: %s", ffconf_errstr(r));
+			goto end;
+		}
 
 		if (copy) {
-			r = ffconf_ctx_copy(&ctxcopy, &conf);
+			r = ffconf_ctx_copy(&ctxcopy, conf.val, r);
 			if (r < 0) {
-				r = FFPARS_EINTL;
-				goto fail;
+				errlog0("theme.conf parser: ffconf_ctx_copy");
+				goto end;
 			} else if (r > 0) {
 				themedata = ffconf_ctxcopy_acquire(&ctxcopy);
 				ffconf_ctxcopy_destroy(&ctxcopy);
-				if (0 != fffile_writeall(ofn, themedata.ptr, themedata.len, 0)) {
-					syserrlog0("fffile_writeall(): %s", ofn);
-					goto fail;
+				if (0 != fffile_writewhole(ofn, themedata.ptr, themedata.len, 0)) {
+					syserrlog0("theme.conf parser: fffile_writewhole(): %s", ofn);
+					goto end;
 				}
-				r = 0;
-				goto fail;
+				rc = 0;
+				goto end;
 			}
 			continue;
 		}
 
-		r = ffconf_schemrun(&ps);
-		if (ffpars_iserr(r))
-			goto fail;
+		r = ffconf_scheme_process(&cs, r);
+		if (r < 0) {
+			errlog0("theme.conf: ffconf_scheme_process: %s: %s", ffconf_errstr(r), cs.errmsg);
+			goto end;
+		}
 
 		if (tr.found) {
-			ffconf_ctxcopy_init(&ctxcopy, &ps);
+			ffconf_ctxcopy_init(&ctxcopy);
 			copy = 1;
 		}
 	}
 
-	r = ffconf_schemfin(&ps);
-	if (ffpars_iserr(r))
-		goto fail;
-
-fail:
-	if (ffpars_iserr(r))
-		errlog0("theme.conf parser: %s"
-			, ffpars_errstr(r));
-
+end:
 	ffmem_free(fn);
 	ffstr_free(&themedata);
-	ffconf_parseclose(&conf);
-	ffpars_schemfree(&ps);
-	ffarr_free(&ddata);
+	ffconf_fin(&conf);
+	ffconf_scheme_destroy(&cs);
+	ffvec_free(&ddata);
 	ffconf_ctxcopy_destroy(&ctxcopy);
+	return rc;
 }
 
 void gui_themes_read(void)
@@ -177,7 +178,8 @@ void gui_theme_set(int idx)
 	struct theme *t = ffarr_itemT(&gg->themes, idx, struct theme);
 
 	char *fn = ffenv_expand(NULL, NULL, 0, "%TMP%\\fmedia-theme.conf");
-	themes_read2(t, fn);
+	if (0 != themes_read2(t, fn))
+		return;
 
 	ffui_loader ldr;
 	ffui_ldr_init2(&ldr, &gui_getctl, NULL, gg);
