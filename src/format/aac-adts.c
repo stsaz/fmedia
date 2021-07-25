@@ -2,30 +2,21 @@
 Copyright (c) 2017 Simon Zolin */
 
 #include <fmedia.h>
+#include <avpack/aac-read.h>
 
-#include <FF/aformat/aac-adts.h>
-
+#define errlog1(trk, ...)  fmed_errlog(core, trk, NULL, __VA_ARGS__)
+#define warnlog1(trk, ...)  fmed_warnlog(core, trk, NULL, __VA_ARGS__)
+#define dbglog1(trk, ...)  fmed_dbglog(core, trk, NULL, __VA_ARGS__)
 
 extern const fmed_core *core;
 
-//INPUT
-static void* aac_adts_open(fmed_filt *d);
-static void aac_adts_close(void *ctx);
-static int aac_adts_process(void *ctx, fmed_filt *d);
-const fmed_filter aac_adts_input = {
-	&aac_adts_open, &aac_adts_process, &aac_adts_close
-};
-
-//OUTPUT
-static void* aac_adts_out_open(fmed_filt *d);
-static void aac_adts_out_close(void *ctx);
-static int aac_adts_out_process(void *ctx, fmed_filt *d);
-const fmed_filter aac_adts_output = { &aac_adts_out_open, &aac_adts_out_process, &aac_adts_out_close };
-
-
 struct aac {
-	ffaac_adts adts;
+	aacread adts;
 	int64 seek_pos;
+	uint64 pos;
+	int sample_rate;
+	int frno;
+	ffstr in;
 };
 
 static void* aac_adts_open(fmed_filt *d)
@@ -34,8 +25,8 @@ static void* aac_adts_open(fmed_filt *d)
 	if (NULL == (a = ffmem_new(struct aac)))
 		return NULL;
 	if (d->stream_copy)
-		a->adts.options = FFAAC_ADTS_OPT_WHOLEFRAME;
-	ffaac_adts_open(&a->adts);
+		a->adts.options = AACREAD_WHOLEFRAME;
+	aacread_open(&a->adts);
 	a->seek_pos = -1;
 	return a;
 }
@@ -43,7 +34,7 @@ static void* aac_adts_open(fmed_filt *d)
 static void aac_adts_close(void *ctx)
 {
 	struct aac *a = ctx;
-	ffaac_adts_close(&a->adts);
+	aacread_close(&a->adts);
 	ffmem_free(a);
 }
 
@@ -51,7 +42,6 @@ static int aac_adts_process(void *ctx, fmed_filt *d)
 {
 	struct aac *a = ctx;
 	int r;
-	ffstr blk;
 
 	if (d->flags & FMED_FSTOP) {
 		d->outlen = 0;
@@ -59,27 +49,34 @@ static int aac_adts_process(void *ctx, fmed_filt *d)
 	}
 
 	if (d->flags & FMED_FFWD) {
-		if (d->flags & FMED_FLAST)
-			ffaac_adts_fin(&a->adts);
-		ffaac_adts_input(&a->adts, d->data, d->datalen);
-		d->datalen = 0;
+		a->in = d->data_in;
+		d->data_in.len = 0;
 	}
 
-	if ((int64)d->audio.seek != FMED_NULL) {
+	if ((int64)d->audio.seek != FMED_NULL && a->seek_pos == -1) {
 		a->seek_pos = d->audio.seek;
 		if (d->stream_copy)
 			d->audio.seek = FMED_NULL;
+		if ((uint64)a->seek_pos < a->pos) {
+			a->pos = 0;
+			d->input.seek = 0;
+			return FMED_RMORE;
+		}
 	}
 
+	ffstr out = {};
+
 	for (;;) {
-		r = ffaac_adts_read(&a->adts);
+		r = aacread_process(&a->adts, &a->in, &out);
 
-		switch ((enum FFAAC_ADTS_R)r) {
+		switch (r) {
 
-		case FFAAC_ADTS_RHDR:
+		case AACREAD_HEADER: {
+			const struct aacread_info *info = aacread_info(&a->adts);
 			d->audio.fmt.format = FFPCM_16;
-			d->audio.fmt.sample_rate = a->adts.info.sample_rate;
-			d->audio.fmt.channels = a->adts.info.channels;
+			d->audio.fmt.sample_rate = info->sample_rate;
+			a->sample_rate = info->sample_rate;
+			d->audio.fmt.channels = info->channels;
 			d->audio.total = 0;
 			d->audio.decoder = "AAC";
 			d->datatype = "aac";
@@ -92,38 +89,37 @@ static int aac_adts_process(void *ctx, fmed_filt *d)
 					return FMED_RERR;
 			}
 
-			ffaac_adts_output(&a->adts, &blk);
-			d->out = blk.ptr,  d->outlen = blk.len;
+			d->data_out = out;
 			return FMED_RDATA;
+		}
 
-		case FFAAC_ADTS_RDATA:
-		case FFAAC_ADTS_RFRAME:
-
+		case AACREAD_DATA:
+		case AACREAD_FRAME:
+			a->pos += aacread_frame_samples(&a->adts);
 			if (a->seek_pos != -1) {
-				uint64 seek_samps = ffpcm_samples(a->seek_pos, a->adts.info.sample_rate);
-				uint64 rpos = ffaac_adts_pos(&a->adts) + ffaac_adts_frsamples(&a->adts);
-				if (rpos < seek_samps)
+				uint64 seek_samps = ffpcm_samples(a->seek_pos, a->sample_rate);
+				if (a->pos < seek_samps)
 					continue;
 				a->seek_pos = -1;
 			}
 
 			goto data;
 
-		case FFAAC_ADTS_RMORE:
+		case AACREAD_MORE:
+			if (d->flags & FMED_FLAST) {
+				d->outlen = 0;
+				return FMED_RLASTOUT;
+			}
 			return FMED_RMORE;
 
-		case FFAAC_ADTS_RDONE:
-			d->outlen = 0;
-			return FMED_RLASTOUT;
-
-		case FFAAC_ADTS_RWARN:
-			warnlog(core, d->trk, "aac", "ffaac_adts_read(): %s.  Offset: %U"
-				, ffaac_adts_errstr(&a->adts), ffaac_adts_off(&a->adts));
+		case AACREAD_WARN:
+			warnlog1(d->trk, "aacread_process(): %s.  Offset: %U"
+				, aacread_error(&a->adts), aacread_offset(&a->adts));
 			continue;
 
-		case FFAAC_ADTS_RERR:
-			errlog(core, d->trk, "aac", "ffaac_adts_read(): %s.  Offset: %U"
-				, ffaac_adts_errstr(&a->adts), ffaac_adts_off(&a->adts));
+		case AACREAD_ERROR:
+			errlog1(d->trk, "aacread_process(): %s.  Offset: %U"
+				, aacread_error(&a->adts), aacread_offset(&a->adts));
 			return FMED_RERR;
 
 		default:
@@ -133,14 +129,17 @@ static int aac_adts_process(void *ctx, fmed_filt *d)
 	}
 
 data:
-	ffaac_adts_output(&a->adts, &blk);
-	d->audio.pos = ffaac_adts_pos(&a->adts);
-	dbglog(core, d->trk, NULL, "passing frame #%u  samples:%u[%U]  size:%u  off:%xU"
-		, a->adts.frno, ffaac_adts_frsamples(&a->adts), d->audio.pos
-		, blk.len, ffaac_adts_froffset(&a->adts));
-	d->out = blk.ptr,  d->outlen = blk.len;
+	d->audio.pos = a->pos;
+	dbglog1(d->trk, "passing frame #%u  samples:%u[%U]  size:%u"
+		, a->frno++, aacread_frame_samples(&a->adts), d->audio.pos
+		, out.len);
+	d->data_out = out;
 	return FMED_RDATA;
 }
+
+const fmed_filter aac_adts_input = {
+	aac_adts_open, aac_adts_process, aac_adts_close
+};
 
 
 struct aac_adts_out {
@@ -168,7 +167,7 @@ static int aac_adts_out_process(void *ctx, fmed_filt *d)
 	switch (a->state) {
 	case 0:
 		if (!ffsz_eq(d->datatype, "aac")) {
-			fmed_errlog(core, d->trk, NULL, "unsupported data type: %s", d->datatype);
+			errlog1(d->trk, "unsupported data type: %s", d->datatype);
 			return FMED_RERR;
 		}
 		// if (d->datalen != 0) {
@@ -186,3 +185,7 @@ static int aac_adts_out_process(void *ctx, fmed_filt *d)
 	d->datalen = 0;
 	return (d->flags & FMED_FLAST) ? FMED_RDONE : FMED_RDATA;
 }
+
+const fmed_filter aac_adts_output = {
+	aac_adts_out_open, aac_adts_out_process, aac_adts_out_close
+};
