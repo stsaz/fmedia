@@ -42,6 +42,7 @@ struct gui_conf {
 	uint list_scroll_pos;
 	char *ydl_format;
 	char *ydl_outdir;
+	char *editor_path;
 };
 
 struct gui_wabout;

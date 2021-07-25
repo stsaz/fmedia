@@ -94,6 +94,7 @@ static const ffpars_arg gui_conf_args[] = {
 	{ "list_track",	FFPARS_TINT, FFPARS_DSTOFF(struct gui_conf, list_actv_trk_idx) },
 	{ "list_scroll",	FFPARS_TINT, FFPARS_DSTOFF(struct gui_conf, list_scroll_pos) },
 	{ "file_delete_method",	FFPARS_TSTR, FFPARS_DST(conf_file_delete_method) },
+	{ "editor_path",	FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY, FFPARS_DSTOFF(struct gui_conf, editor_path) },
 
 	{ "ydl_format",	FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY, FFPARS_DSTOFF(struct gui_conf, ydl_format) },
 	{ "ydl_outdir",	FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY, FFPARS_DSTOFF(struct gui_conf, ydl_outdir) },
@@ -164,8 +165,10 @@ end:
 
 static void conf_destroy()
 {
-	ffmem_free(gg->conf.ydl_format);
-	ffmem_free(gg->conf.ydl_outdir);
+	struct gui_conf *c = &gg->conf;
+	ffmem_free(c->ydl_format);
+	ffmem_free(c->ydl_outdir);
+	ffmem_free(c->editor_path);
 }
 
 void dlgs_destroy();
@@ -648,6 +651,28 @@ static void corecmd_run(uint cmd, void *udata)
 	}
 }
 
+void gui_showtextfile2(const char *fn)
+{
+	const char *argv[] = {
+		"xdg-open", fn, NULL
+	};
+	const char *path = "/usr/bin/xdg-open";
+
+	if (gg->conf.editor_path != NULL) {
+		argv[0] = gg->conf.editor_path;
+		path = gg->conf.editor_path;
+	}
+
+	ffps ps = ffps_exec(path, argv, (const char**)environ);
+	if (ps == FFPS_INV) {
+		syserrlog("ffps_exec", 0);
+		return;
+	}
+
+	dbglog("spawned editor: %u", (int)ffps_id(ps));
+	ffps_close(ps);
+}
+
 /** Execute GUI text editor to open a file. */
 void gui_showtextfile(uint id)
 {
@@ -676,19 +701,7 @@ void gui_showtextfile(uint id)
 	if (fn == NULL && NULL == (fn = core->getpath(name, ffsz_len(name))))
 		return;
 
-	const char *argv[] = {
-		"xdg-open", fn, NULL
-	};
-	ffps ps = ffps_exec("/usr/bin/xdg-open", argv, (const char**)environ);
-	if (ps == FFPS_INV) {
-		syserrlog("ffps_exec", 0);
-		goto done;
-	}
-
-	dbglog("spawned editor: %u", (int)ffps_id(ps));
-	ffps_close(ps);
-
-done:
+	gui_showtextfile2(fn);
 	ffmem_free(fn);
 }
 
