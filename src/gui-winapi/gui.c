@@ -590,10 +590,10 @@ void gui_rec(uint cmd)
 		gg->qu->cmd(FMED_QUE_PLAY, NULL);
 		break;
 
-	case MIXREC:
-		gg->track->cmd(NULL, FMED_TRACK_STOPALL);
-		gg->qu->cmd(FMED_QUE_MIX, NULL);
-		break;
+	// case MIXREC:
+	// 	gg->track->cmd(NULL, FMED_TRACK_STOPALL);
+	// 	gg->qu->cmd(FMED_QUE_MIX, NULL);
+	// 	break;
 	}
 
 	gg->rec_trk = t;
