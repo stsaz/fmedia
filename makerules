@@ -305,7 +305,7 @@ PLIST_O := $(OBJ_DIR)/plist.o \
 	$(FFOS_WREG) \
 	$(FF_OBJ_DIR)/ffpath.o \
 	$(FF_OBJ_DIR)/ffsys.o \
-	$(FF_OBJ_DIR)/ffparse.o $(FF_OBJ_DIR)/ffm3u.o $(FF_OBJ_DIR)/ffcue.o \
+	$(FF_OBJ_DIR)/ffparse.o $(FF_OBJ_DIR)/ffm3u.o \
 	$(FF_OBJ_DIR)/ffpls.o \
 	$(FF_OBJ_DIR)/ffpcm.o
 plist.$(SO): $(PLIST_O)

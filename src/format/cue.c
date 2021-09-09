@@ -2,8 +2,8 @@
 Copyright (c) 2019 Simon Zolin */
 
 #include <fmedia.h>
-#include <FF/data/cue.h>
 #include <FF/data/utf8.h>
+#include <avpack/cue.h>
 
 
 #define dbglog1(trk, ...)  fmed_dbglog(core, trk, NULL, __VA_ARGS__)
@@ -20,8 +20,40 @@ const fmed_filter fmed_cue_input = {
 	&cue_open, &cue_process, &cue_close
 };
 
+enum FFCUE_GAP {
+	/* Gap is added to the end of the previous track:
+	track01.index01 .. track02.index01 */
+	FFCUE_GAPPREV,
+
+	/* Gap is added to the end of the previous track (but track01's pregap is preserved):
+	track01.index00 .. track02.index01
+	track02.index01 .. track03.index01 */
+	FFCUE_GAPPREV1,
+
+	/* Gap is added to the beginning of the current track:
+	track01.index00 .. track02.index00 */
+	FFCUE_GAPCURR,
+
+	/* Skip pregaps:
+	track01.index01 .. track02.index00 */
+	FFCUE_GAPSKIP,
+};
+
+typedef struct ffcuetrk {
+	uint from,
+		to;
+} ffcuetrk;
+
+typedef struct ffcue {
+	uint options; // enum FFCUE_GAP
+	uint from;
+	ffcuetrk trk;
+	uint first :1;
+	uint next :1;
+} ffcue;
+
 typedef struct cue {
-	ffcuep cue;
+	cueread cue;
 	ffcue cu;
 	fmed_que_entry ent;
 	fmed_que_entry *qu_cur;
@@ -97,7 +129,7 @@ static void* cue_open(fmed_filt *d)
 			gaps = cue_opts[val];
 	}
 
-	ffcue_init(&c->cue);
+	cueread_open(&c->cue);
 	c->qu_cur = (void*)fmed_getval("queue_item");
 	c->cu.options = gaps;
 	c->utf8 = 1;
@@ -107,7 +139,7 @@ static void* cue_open(fmed_filt *d)
 static void cue_close(void *ctx)
 {
 	cue *c = ctx;
-	ffcue_close(&c->cue);
+	cueread_close(&c->cue);
 	ffstr_free(&c->ent.url);
 	FFARR_FREE_ALL(&c->gmetas, ffarr_free, ffarr);
 	FFARR_FREE_ALL(&c->metas, ffarr_free, ffarr);
@@ -127,13 +159,74 @@ static ssize_t cue_meta_find(const ffarr *a, size_t n, const ffarr *search)
 	return -1;
 }
 
+/** Get track start/end time from two INDEX values.
+@type: enum CUEREAD_T.
+ 0xa11: get info for the final track.
+Return NULL if the track duration isn't known yet. */
+static ffcuetrk* ffcue_index(ffcue *c, uint type, uint val)
+{
+	switch (type) {
+	case CUEREAD_FILE:
+		c->from = -1;
+		c->first = 1;
+		break;
+
+	case CUEREAD_TRK_NUM:
+		c->trk.from = c->trk.to = -1;
+		c->next = 0;
+		break;
+
+	case CUEREAD_TRK_INDEX00:
+		if (c->first) {
+			if (c->options == FFCUE_GAPPREV1 || c->options == FFCUE_GAPCURR)
+				c->from = val;
+			break;
+		}
+
+		if (c->options == FFCUE_GAPSKIP)
+			c->trk.to = val;
+		else if (c->options == FFCUE_GAPCURR) {
+			c->trk.to = val;
+			c->trk.from = c->from;
+			c->from = val;
+		}
+		break;
+
+	case CUEREAD_TRK_INDEX:
+		if (c->first) {
+			c->first = 0;
+			if (c->from == (uint)-1)
+				c->from = val;
+			break;
+		} else if (c->next)
+			return NULL; // skip "INDEX XX" after "INDEX 01"
+
+		if (c->trk.from == (uint)-1) {
+			c->trk.from = c->from;
+			c->from = val;
+		}
+
+		if (c->trk.to == (uint)-1)
+			c->trk.to = val;
+
+		c->next = 1;
+		return &c->trk;
+
+	case 0xa11:
+		c->trk.from = c->from;
+		c->trk.to = 0;
+		return &c->trk;
+	}
+
+	return NULL;
+}
+
 static int cue_process(void *ctx, fmed_filt *d)
 {
 	cue *c = ctx;
-	size_t n;
 	int rc = FMED_RERR, r, done = 0, fin = 0;
 	ffarr *meta;
-	ffstr metaname, in;
+	ffstr metaname, in, out;
 	ffarr val = {0}, *m;
 	ffcuetrk *ctrk;
 	uint codepage = core->getval("codepage");
@@ -143,11 +236,9 @@ static int cue_process(void *ctx, fmed_filt *d)
 	d->datalen = 0;
 
 	while (!done) {
-		n = in.len;
-		r = ffcue_parse(&c->cue, in.ptr, &n);
-		ffstr_shift(&in, n);
+		r = cueread_process(&c->cue, &in, &out);
 
-		if (r == FFPARS_MORE) {
+		if (r == CUEREAD_MORE) {
 			if (!(d->flags & FMED_FLAST)) {
 				rc = FMED_RMORE;
 				goto err;
@@ -155,7 +246,7 @@ static int cue_process(void *ctx, fmed_filt *d)
 
 			if (fin) {
 				// end of .cue file
-				if (NULL == (ctrk = ffcue_index(&c->cu, FFCUE_FIN, 0)))
+				if (NULL == (ctrk = ffcue_index(&c->cu, 0xa11, 0)))
 					break;
 				done = 1;
 				c->nmeta = c->metas.len;
@@ -166,13 +257,13 @@ static int cue_process(void *ctx, fmed_filt *d)
 			ffstr_setcz(&in, "\n");
 			continue;
 
-		} else if (ffpars_iserr(-r)) {
+		} else if (r == CUEREAD_WARN) {
 			errlog(core, d->trk, "cue", "parse error at line %u: %s"
-				, c->cue.line, ffpars_errstr(-r));
-			goto err;
+				, (int)cueread_line(&c->cue), cueread_error(&c->cue));
+			continue;
 		}
 
-		ffstr *v = &c->cue.val;
+		ffstr *v = &out;
 		if (c->utf8 && ffutf8_valid(v->ptr, v->len))
 			ffarr_copy(&val, v->ptr, v->len);
 		else {
@@ -184,24 +275,24 @@ static int cue_process(void *ctx, fmed_filt *d)
 		}
 
 		switch (r) {
-		case FFCUE_TITLE:
+		case CUEREAD_TITLE:
 			ffstr_setcz(&metaname, "album");
 			goto add_metaname;
 
-		case FFCUE_TRACKNO:
+		case CUEREAD_TRK_NUM:
 			c->nmeta = c->metas.len;
 			ffstr_setcz(&metaname, "tracknumber");
 			goto add_metaname;
 
-		case FFCUE_TRK_TITLE:
+		case CUEREAD_TRK_TITLE:
 			ffstr_setcz(&metaname, "title");
 			goto add_metaname;
 
-		case FFCUE_TRK_PERFORMER:
+		case CUEREAD_TRK_PERFORMER:
 			ffstr_setcz(&metaname, "artist");
 			goto add_metaname;
 
-		case FFCUE_PERFORMER:
+		case CUEREAD_PERFORMER:
 			ffstr_setcz(&metaname, "artist");
 
 add_metaname:
@@ -211,19 +302,19 @@ add_metaname:
 			meta->cap = 0;
 			// break;
 
-		case FFCUE_REM_VAL:
+		case CUEREAD_REM_VAL:
 			if (NULL == (meta = ffarr_pushT(&c->metas, ffarr)))
 				goto err;
 			ffarr_acq(meta, &val);
 			break;
 
-		case FFCUE_REM_NAME:
+		case CUEREAD_REM_NAME:
 			if (NULL == (meta = ffarr_pushT(&c->metas, ffarr)))
 				goto err;
 			ffarr_acq(meta, &val);
 			break;
 
-		case FFCUE_FILE:
+		case CUEREAD_FILE:
 			if (!c->have_gmeta) {
 				c->have_gmeta = 1;
 				c->gmetas = c->metas;
@@ -235,7 +326,7 @@ add_metaname:
 			break;
 		}
 
-		if (NULL == (ctrk = ffcue_index(&c->cu, r, (int)c->cue.intval)))
+		if (NULL == (ctrk = ffcue_index(&c->cu, r, cueread_cdframes(&c->cue))))
 			continue;
 
 add:
