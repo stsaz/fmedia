@@ -2,10 +2,9 @@
 Copyright (c) 2017 Simon Zolin */
 
 #include <fmedia.h>
-
-#include <FF/aformat/mpc.h>
 #include <FF/audio/musepack.h>
 #include <FF/mtags/mmtag.h>
+#include <avpack/mpc-read.h>
 
 
 static const fmed_core *core;
@@ -29,8 +28,11 @@ static const fmed_filter mpc_input = {
 };
 
 typedef struct mpc {
-	ffmpcr mpc;
+	mpcread mpc;
+	ffstr in;
 	int64 aseek;
+	uint64 frno;
+	uint sample_rate;
 	uint seeking :1;
 } mpc;
 
@@ -90,20 +92,17 @@ static void* mpc_open(fmed_filt *d)
 	if (NULL == (m = ffmem_new(mpc)))
 		return NULL;
 	m->aseek = -1;
-	ffmpc_ropen(&m->mpc);
-	m->mpc.options = FFMPC_O_APETAG | FFMPC_O_SEEKTABLE;
-
-	if ((int64)d->input.size != FMED_NULL) {
-		ffmpc_setsize(&m->mpc, d->input.size);
-	}
-
+	uint64 tsize = 0;
+	if ((int64)d->input.size != FMED_NULL)
+		tsize = d->input.size;
+	mpcread_open(&m->mpc, tsize);
 	return m;
 }
 
 static void mpc_close(void *ctx)
 {
 	mpc *m = ctx;
-	ffmpc_rclose(&m->mpc);
+	mpcread_close(&m->mpc);
 	ffmem_free(m);
 }
 
@@ -120,75 +119,75 @@ static int mpc_process(void *ctx, fmed_filt *d)
 
 	if (d->codec_err) {
 		d->codec_err = 0;
-		ffmpc_streamerr(&m->mpc);
 	}
 
 	if (d->datalen != 0) {
-		ffmpc_input(&m->mpc, d->data, d->datalen);
+		ffstr_set(&m->in, d->data, d->datalen);
 		d->datalen = 0;
 	}
 
 	if ((int64)d->audio.seek >= 0)
 		m->aseek = d->audio.seek;
-	if (m->aseek >= 0 && !m->seeking && m->mpc.sample_rate != 0) {
-		ffmpc_blockseek(&m->mpc, ffpcm_samples(m->aseek, m->mpc.sample_rate));
+	if (m->aseek >= 0 && !m->seeking && m->sample_rate != 0) {
+		mpcread_seek(&m->mpc, ffpcm_samples(m->aseek, m->sample_rate));
 		m->seeking = 1;
 	}
 
 	for (;;) {
-		r = ffmpc_read(&m->mpc);
+		r = mpcread_process(&m->mpc, &m->in, &blk);
 
 		switch (r) {
 
-		case FFMPC_RHDR:
-			d->audio.fmt.sample_rate = m->mpc.sample_rate;
-			d->audio.fmt.channels = m->mpc.channels;
-			d->audio.bitrate = ffmpc_bitrate(&m->mpc);
-			d->audio.total = ffmpc_length(&m->mpc);
+		case MPCREAD_HEADER: {
+			const struct mpcread_info *info = mpcread_info(&m->mpc);
+			d->audio.fmt.sample_rate = info->sample_rate;
+			m->sample_rate = info->sample_rate;
+			d->audio.fmt.channels = info->channels;
+
+			if ((int64)d->input.size != FMED_NULL)
+				d->audio.bitrate = ffpcm_brate(d->input.size, info->total_samples, info->sample_rate);
+
+			d->audio.total = info->total_samples;
 			d->audio.decoder = "Musepack";
 
 			if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, "mpc.decode"))
 				return FMED_RERR;
 
-			d->out = m->mpc.sh_block,  d->outlen = m->mpc.sh_block_len;
+			d->data_out = blk;
 			return FMED_RDATA;
+		}
 
-		case FFMPC_RMORE:
+		case MPCREAD_MORE:
 			return FMED_RMORE;
 
-		case FFMPC_RSEEK:
-			d->input.seek = ffmpc_off(&m->mpc);
+		case MPCREAD_SEEK:
+			d->input.seek = mpcread_offset(&m->mpc);
 			return FMED_RMORE;
 
-		case FFMPC_RTAG: {
+		case MPCREAD_TAG: {
 			ffstr name, val;
-			name = m->mpc.apetag.name;
-			if (FFAPETAG_FBINARY == (m->mpc.apetag.flags & FFAPETAG_FMASK)) {
-				dbglog(core, d->trk, NULL, "skipping binary tag: %S", &m->mpc.apetag.name);
-				continue;
-			}
-
-			if (m->mpc.tag != 0)
-				ffstr_setz(&name, ffmmtag_str[m->mpc.tag]);
-
-			ffstr_set2(&val, &m->mpc.tagval);
-
+			int r = mpcread_tag(&m->mpc, &name, &val);
+			if (r != 0)
+				ffstr_setz(&name, ffmmtag_str[r]);
 			dbglog(core, d->trk, NULL, "tag: %S: %S", &name, &val);
 			d->track->meta_set(d->trk, &name, &val, FMED_QUE_TMETA);
 			continue;
 		}
 
-		case FFMPC_RBLOCK:
+		case MPCREAD_DATA:
 			goto data;
 
-		case FFMPC_RDONE:
+		case MPCREAD_DONE:
 			d->outlen = 0;
 			return FMED_RLASTOUT;
 
-		case FFMPC_RWARN:
-		case FFMPC_RERR:
-			errlog(core, d->trk, "mpc", "ffmpc_read(): %s.  Offset: %U"
-				, ffmpc_rerrstr(&m->mpc), ffmpc_off(&m->mpc));
+		case MPCREAD_WARN:
+			warnlog(core, d->trk, "mpc", "mpcread_process(): %s.  Offset: %U"
+				, mpcread_error(&m->mpc), mpcread_offset(&m->mpc));
+			continue;
+		case MPCREAD_ERROR:
+			errlog(core, d->trk, "mpc", "mpcread_process(): %s.  Offset: %U"
+				, mpcread_error(&m->mpc), mpcread_offset(&m->mpc));
 			return FMED_RERR;
 		}
 	}
@@ -198,10 +197,9 @@ data:
 		m->seeking = 0;
 		m->aseek = -1;
 	}
-	ffmpc_blockdata(&m->mpc, &blk);
-	d->audio.pos = ffmpc_blockpos(&m->mpc);
-	dbglog(core, d->trk, NULL, "passing %L bytes at position #%U"
-		, blk.len, d->audio.pos);
+	d->audio.pos = mpcread_cursample(&m->mpc);
+	dbglog(core, d->trk, NULL, "frame#%U passing %L bytes at position #%U"
+		, ++m->frno, blk.len, d->audio.pos);
 	d->out = blk.ptr,  d->outlen = blk.len;
 	return FMED_RDATA;
 }
