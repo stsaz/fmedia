@@ -1,11 +1,11 @@
 /** fmedia: ICY protocol input
 2016,2021, Simon Zolin */
 
-#include <FF/audio/icy.h>
+#include <avpack/icy.h>
 
 struct icy {
 	fmed_filt *d;
-	fficy icy;
+	icyread icy;
 	ffstr data;
 	ffstr next_filt_ext;
 
@@ -66,7 +66,7 @@ void icy_close(void *ctx)
 /** Initialize after a new connection is established. */
 int icy_reset(icy *c, fmed_filt *d)
 {
-	fficy_parseinit(&c->icy, fmed_getval("icy_meta_int"));
+	icyread_open(&c->icy, fmed_getval("icy_meta_int"));
 
 	// "netin" may be initialized if we've reconnected after I/O failure
 	if (c->out_copy && c->netin == NULL)
@@ -96,14 +96,13 @@ int icy_process(void *ctx, fmed_filt *d)
 	}
 
 	for (;;) {
-		if (c->data.len == 0)
+
+		r = icyread_process(&c->icy, &c->data, &s);
+		switch (r) {
+		case ICYREAD_MORE:
 			return FMED_RMORE;
 
-		size_t n = c->data.len;
-		r = fficy_parse(&c->icy, c->data.ptr, &n, &s);
-		ffstr_shift(&c->data, n);
-		switch (r) {
-		case FFICY_RDATA:
+		case ICYREAD_DATA:
 			if (c->netin != NULL) {
 				netin_write(c->netin, &s);
 			}
@@ -112,9 +111,7 @@ int icy_process(void *ctx, fmed_filt *d)
 			d->outlen = s.len;
 			return FMED_RDATA;
 
-		// case FFICY_RMETACHUNK:
-
-		case FFICY_RMETA:
+		case ICYREAD_META:
 			icy_setmeta(c, &s);
 			break;
 		}
@@ -123,38 +120,18 @@ int icy_process(void *ctx, fmed_filt *d)
 
 int icy_setmeta(icy *c, const ffstr *_data)
 {
-	fficymeta icymeta;
 	ffstr artist = {0}, title = {0}, data = *_data, pair[2];
 	fmed_que_entry *qent;
-	int r;
-	ffbool istitle = 0;
 
 	dbglog(c->d->trk, "meta: [%L] %S", data.len, &data);
-	fficy_metaparse_init(&icymeta);
 
-	while (data.len != 0) {
-		size_t n = data.len;
-		r = fficy_metaparse(&icymeta, data.ptr, &n);
-		ffstr_shift(&data, n);
-
-		switch (r) {
-		case FFPARS_KEY:
-			if (ffstr_eqcz(&icymeta.val, "StreamTitle"))
-				istitle = 1;
+	for (;;) {
+		ffstr k, v;
+		if (0 != icymeta_read(&data, &k, &v))
 			break;
 
-		case FFPARS_VAL:
-			if (istitle) {
-				fficy_streamtitle(icymeta.val.ptr, icymeta.val.len, &artist, &title);
-				data.len = 0;
-			}
-			break;
-
-		default:
-			errlog(c->d->trk, "bad metadata");
-			data.len = 0;
-			break;
-		}
+		if (ffstr_ieqz(&k, "StreamTitle"))
+			icymeta_artist_title(v, &artist, &title);
 	}
 
 	qent = (void*)c->d->track->getval(c->d->trk, "queue_item");

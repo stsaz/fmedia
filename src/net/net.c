@@ -487,7 +487,7 @@ static int httpcli_resp(struct httpclient *c, ffhttp_response *resp)
 		return FMED_RERR;
 	c->next_filt_ext = ext;
 
-	s = fficy_shdr[FFICY_HMETAINT];
+	ffstr_setz(&s, ICY_HTTPHDR_META_INT);
 	if (0 != ffhttp_findhdr(&resp->h, s.ptr, s.len, &s)) {
 		uint n;
 		if (ffstr_toint(&s, &n, FFS_INT32)) {
@@ -496,8 +496,8 @@ static int httpcli_resp(struct httpclient *c, ffhttp_response *resp)
 			net->track->setvalstr(c->trk, "icy_format", ext.ptr);
 			net->track->setval(c->trk, "icy_meta_int", n);
 		} else {
-			warnlog(c->trk, "invalid value for HTTP response header %S: %S"
-				, &fficy_shdr[FFICY_HMETAINT], &s);
+			warnlog(c->trk, "invalid value for HTTP response header %s: %S"
+				, ICY_HTTPHDR_META_INT, &s);
 		}
 	}
 
@@ -604,7 +604,8 @@ static int httpcli_process(void *ctx, fmed_filt *d)
 		if (net->conf.meta) {
 			ffstr val;
 			ffstr_setz(&val, "1");
-			http_iface.header(c->con, &fficy_shdr[FFICY_HMETADATA], &val, 0);
+			ffstr s = FFSTR_INITZ(ICY_HTTPHDR_REQUEST_META);
+			http_iface.header(c->con, &s, &val, 0);
 		}
 
 		if (net->conf.user_agent != 0) {
