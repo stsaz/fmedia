@@ -266,21 +266,10 @@ static void que_save(entry *first, const fflist_item *sentl, const char *fn)
 	m3uwrite m3 = {};
 	int rc = -1;
 	entry *e;
-	ffarr fname = {};
+	ffvec v = {};
+	char *tmp_fname = NULL;
 
 	m3uwrite_create(&m3, 0);
-
-	if (0 == ffstr_catfmt(&fname, "%s.tmp%Z", fn))
-		goto done;
-
-	if (FF_BADFD == (f = fffile_open(fname.ptr, FFO_CREATE | FFO_TRUNC | FFO_WRONLY))) {
-		if (0 != ffdir_make_path((void*)fname.ptr, 0))
-			goto done;
-		if (FF_BADFD == (f = fffile_open(fname.ptr, FFO_CREATE | FFO_TRUNC | FFO_WRONLY))) {
-			syserrlog("%s: %s", fffile_open_S, fname.ptr);
-			goto done;
-		}
-	}
 
 	for (e = first;  &e->sib != sentl;  e = FF_GETPTR(entry, sib, e->sib.next)) {
 		int r = 0;
@@ -304,10 +293,29 @@ static void que_save(entry *first, const fflist_item *sentl, const char *fn)
 	}
 
 	ffstr out = m3uwrite_fin(&m3);
+
+	fffile_readwhole(fn, &v, 10*1024*1024);
+	if (ffstr_eq2(&out, &v)) {
+		rc = 0;
+		goto done; // the playlist hasn't changed
+	}
+
+	if (NULL == (tmp_fname = ffsz_allocfmt("%s.tmp", fn)))
+		goto done;
+
+	if (FF_BADFD == (f = fffile_open(tmp_fname, FFO_CREATE | FFO_TRUNC | FFO_WRONLY))) {
+		if (0 != ffdir_make_path(tmp_fname, 0))
+			goto done;
+		if (FF_BADFD == (f = fffile_open(tmp_fname, FFO_CREATE | FFO_TRUNC | FFO_WRONLY))) {
+			syserrlog("%s: %s", fffile_open_S, tmp_fname);
+			goto done;
+		}
+	}
+
 	if (out.len != (size_t)fffile_write(f, out.ptr, out.len))
 		goto done;
 	fffile_safeclose(f);
-	if (0 != fffile_rename(fname.ptr, fn))
+	if (0 != fffile_rename(tmp_fname, fn))
 		goto done;
 	dbglog(core, NULL, "que", "saved playlist to %s (%L KB)", fn, out.len / 1024);
 	rc = 0;
@@ -315,8 +323,9 @@ static void que_save(entry *first, const fflist_item *sentl, const char *fn)
 done:
 	if (rc != 0)
 		syserrlog("saving playlist to file: %s", fn);
-	ffarr_free(&fname);
-	FF_SAFECLOSE(f, FF_BADFD, fffile_close);
+	ffvec_free(&v);
+	fffile_safeclose(f);
+	ffmem_free(tmp_fname);
 	m3uwrite_close(&m3);
 }
 
