@@ -9,7 +9,7 @@ set -e
 BIN=./fmedia
 
 if test "$1" = "clean" ; then
-	rm *.wav *.flac *.mp3 *.m4a *.ogg *.opus
+	rm *.aac *.wav *.flac *.mp3 *.m4a *.ogg *.opus *.mpc *.wv
 	exit
 fi
 
@@ -20,16 +20,14 @@ fi
 
 if test "$1" = "record" ; then
 	# record -> .*
-	OPTS="-y --until=2 --rate=44100 --format=int16"
 	# TODO --meta=artist=A;title=T
-	$BIN --record -o rec.wav $OPTS
-	$BIN --record -o rec.flac $OPTS
-	$BIN --record -o rec.mp3 $OPTS
-	$BIN --record -o rec.m4a $OPTS
-	$BIN --record -o rec.ogg $OPTS
-	$BIN --record -o rec.opus $OPTS
-	$BIN rec.* --pcm-peaks
-	$BIN rec.* --pcm-peaks --seek=0.500
+	./fmedia --record -o rec.wav -y --until=2 --rate=44100 --format=int16
+	./fmedia --record -o rec.flac -y --until=2 --rate=44100 --format=int16
+	./fmedia --record -o rec.mp3 -y --until=2 --rate=44100 --format=int16
+	./fmedia --record -o rec.m4a -y --until=2 --rate=44100 --format=int16
+	./fmedia --record -o rec.ogg -y --until=2 --rate=44100 --format=int16
+	./fmedia --record -o rec.opus -y --until=2 --rate=44100 --format=int16
+	./fmedia rec.* --pcm-peaks
 fi
 
 if test "$1" = "info" ; then
@@ -38,33 +36,15 @@ if test "$1" = "info" ; then
 fi
 
 if test "$1" = "play" ; then
-	# play
-	OPTS=""
-	$BIN rec.wav $OPTS
-	$BIN rec.flac $OPTS
-	$BIN rec.mp3 $OPTS
-	$BIN rec.m4a $OPTS
-	$BIN rec.ogg $OPTS
-	$BIN rec.opus $OPTS
+	ffmpeg -i rec.wav -c:a flac -y rec.flac.ogg
+	ffmpeg -i rec.wav -y rec.aac
+	ffmpeg -i rec.wav -c:a wavpack -y rec.wv
+	mpcenc-bin rec.wav rec.mpc
+	# TODO rec.ape
 
-	# play with seek
-	OPTS="--seek=0.500"
-	$BIN rec.wav $OPTS
-	$BIN rec.flac $OPTS
-	$BIN rec.mp3 $OPTS
-	$BIN rec.m4a $OPTS
-	# TODO $BIN rec.ogg $OPTS
-	# TODO $BIN rec.opus $OPTS
-
-	# play with seek & until
-	OPTS="--seek=0.500 --until=2"
-	# TODO OPTS="--seek=0.500 --until=1"
-	$BIN rec.wav $OPTS
-	$BIN rec.flac $OPTS
-	$BIN rec.mp3 $OPTS
-	$BIN rec.m4a $OPTS
-	$BIN rec.ogg $OPTS
-	$BIN rec.opus $OPTS
+	./fmedia rec.*
+	./fmedia rec.* --seek=0.500
+	./fmedia rec.* --seek=0.500 --until=1.500
 fi
 
 if test "$1" = "convert" ; then
@@ -141,25 +121,52 @@ if test "$1" = "convert" ; then
 fi
 
 if test "$1" = "convert_meta" ; then
-	# convert with meta
-	OPTS="-y --meta=artist=A2;title=T2"
-	$BIN rec.wav -o enc-meta.wav $OPTS
-	$BIN rec.wav -o enc-meta.flac $OPTS
-	$BIN rec.wav -o enc-meta.mp3 $OPTS
-	$BIN rec.wav -o enc-meta.m4a $OPTS
-	$BIN rec.wav -o enc-meta.ogg $OPTS
-	$BIN rec.wav -o enc-meta.opus $OPTS
-	$BIN enc-meta.* --pcm-peaks --tags
+	./fmedia --record -o rec.wav -y --until=2 --rate=44100 --format=int16
 
-	# convert from different format to the same format with meta
-	OPTS="-y --meta=artist=A2;title=T2"
-	$BIN rec.wav -o enc-meta-fmt.wav $OPTS
-	$BIN rec.flac -o enc-meta-fmt.flac $OPTS
-	$BIN rec.mp3 -o enc-meta-fmt.mp3 $OPTS
-	$BIN rec.m4a -o enc-meta-fmt.m4a $OPTS
-	$BIN rec.ogg -o enc-meta-fmt.ogg $OPTS
-	$BIN rec.opus -o enc-meta-fmt.opus $OPTS
-	$BIN enc-meta-fmt.* --pcm-peaks --tags
+	# convert with meta
+	./fmedia rec.wav -o enc_meta.flac -y --meta='artist=SomeArtist;title=SomeTitle'
+	./fmedia enc_meta.flac --info 2>&1 | grep 'SomeArtist - SomeTitle'
+
+	./fmedia rec.wav -o enc_meta.mp3 -y --meta='artist=SomeArtist;title=SomeTitle'
+	./fmedia enc_meta.mp3 --info 2>&1 | grep 'SomeArtist - SomeTitle'
+
+	./fmedia rec.wav -o enc_meta.m4a -y --meta='artist=SomeArtist;title=SomeTitle'
+	./fmedia enc_meta.m4a --info 2>&1 | grep 'SomeArtist - SomeTitle'
+
+	./fmedia rec.wav -o enc_meta.ogg -y --meta='artist=SomeArtist;title=SomeTitle'
+	./fmedia enc_meta.ogg --info 2>&1 | grep 'SomeArtist - SomeTitle'
+
+	./fmedia rec.wav -o enc_meta.opus -y --meta='artist=SomeArtist;title=SomeTitle'
+	./fmedia enc_meta.opus --info 2>&1 | grep 'SomeArtist - SomeTitle'
+
+	ffmpeg -i rec.wav -metadata artist='SomeArtist' -metadata title='SomeTitle' -c:a flac -y enc_meta.flac.ogg
+	./fmedia enc_meta.flac.ogg --info 2>&1 | grep 'SomeArtist - SomeTitle'
+
+	ffmpeg -i rec.wav -metadata artist='SomeArtist' -metadata title='SomeTitle' -c:a wavpack -y enc_meta.wv
+	./fmedia enc_meta.wv --info 2>&1 | grep 'SomeArtist - SomeTitle'
+
+	# mpcenc-bin rec.wav enc_meta.mpc
+	# TODO ./fmedia enc_meta.mpc --info 2>&1 | grep 'SomeArtist - SomeTitle'
+
+	# TODO ./fmedia enc_meta.ape --info 2>&1 | grep 'SomeArtist - SomeTitle'
+
+	./fmedia enc_meta.* --pcm-peaks --tags
+
+	# convert from a file with meta to the same format
+	./fmedia enc_meta.flac -o enc_meta_fmt.flac -y
+	./fmedia enc_meta_fmt.flac --info 2>&1 | grep 'SomeArtist - SomeTitle'
+
+	./fmedia enc_meta.mp3 -o enc_meta_fmt.mp3 -y
+	./fmedia enc_meta_fmt.mp3 --info 2>&1 | grep 'SomeArtist - SomeTitle'
+
+	./fmedia enc_meta.m4a -o enc_meta_fmt.m4a -y
+	./fmedia enc_meta_fmt.m4a --info 2>&1 | grep 'SomeArtist - SomeTitle'
+
+	./fmedia enc_meta.ogg -o enc_meta_fmt.ogg -y
+	./fmedia enc_meta_fmt.ogg --info 2>&1 | grep 'SomeArtist - SomeTitle'
+
+	./fmedia enc_meta.opus -o enc_meta_fmt.opus -y
+	./fmedia enc_meta_fmt.opus --info 2>&1 | grep 'SomeArtist - SomeTitle'
 fi
 
 if test "$1" = "convert_parallel" ; then
@@ -187,7 +194,7 @@ if test "$1" = "convert_streamcopy" ; then
 	$BIN copyseek.* --pcm-peaks
 
 	# convert with stream-copy and new meta
-	OPTS="-y --stream-copy --meta=artist=A2;title=T2"
+	OPTS="-y --stream-copy --meta='artist=SomeArtist;title=SomeTitle'"
 	$BIN rec.mp3 -o copymeta.mp3 $OPTS
 	$BIN rec.ogg -o copymeta.ogg $OPTS # TODO meta not applied
 	$BIN rec.opus -o copymeta.opus $OPTS # TODO meta not applied
@@ -229,3 +236,5 @@ if test "$1" = "all" ; then
 	sh $0 convert_parallel
 	sh $0 filters
 fi
+
+echo DONE

@@ -27,10 +27,6 @@ static const fmed_mod fmed_mpeg_mod = {
 	&mpeg_iface, &mpeg_sig, &mpeg_destroy, &mpeg_mod_conf
 };
 
-extern const fmed_filter fmed_mpeg_input;
-extern const fmed_filter fmed_mpeg_output;
-extern int mpeg_out_config(ffpars_ctx *ctx);
-extern const fmed_filter fmed_mpeg_copy;
 const fmed_filter mpeg_decode_filt;
 
 #include <acodec/mpeg-write.h>
@@ -44,16 +40,10 @@ FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 
 static const void* mpeg_iface(const char *name)
 {
-	if (!ffsz_cmp(name, "in"))
-		return &fmed_mpeg_input;
-	else if (!ffsz_cmp(name, "decode"))
+	if (!ffsz_cmp(name, "decode"))
 		return &mpeg_decode_filt;
 	else if (!ffsz_cmp(name, "encode"))
 		return &fmed_mpeg_enc;
-	else if (!ffsz_cmp(name, "out"))
-		return &fmed_mpeg_output;
-	else if (!ffsz_cmp(name, "copy"))
-		return &fmed_mpeg_copy;
 	return NULL;
 }
 
@@ -61,8 +51,6 @@ static int mpeg_mod_conf(const char *name, ffpars_ctx *ctx)
 {
 	if (!ffsz_cmp(name, "encode"))
 		return mpeg_enc_config(ctx);
-	if (!ffsz_cmp(name, "out"))
-		return mpeg_out_config(ctx);
 	return -1;
 }
 

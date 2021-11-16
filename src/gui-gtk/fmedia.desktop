@@ -1,0 +1,9 @@
+[Desktop Entry]
+Comment=Audio player/recorder/converter
+Exec=fmedia --gui
+GenericName=Audio player/recorder/converter
+Icon=~/bin/fmedia-1/fmedia.ico
+MimeType=audio/x-wav;audio/x-opus+ogg;audio/ogg;audio/mpeg;audio/mp4;audio/flac;
+Name=fmedia
+Type=Application
+Categories=Audio

@@ -129,7 +129,6 @@ CORE_O += $(FF_O) \
 	$(FF_OBJ_DIR)/ffpath.o \
 	$(FF_OBJ_DIR)/ffparse.o $(FF_OBJ_DIR)/ffconf.o \
 	$(FF_OBJ_DIR)/ffpcm.o \
-	$(FF_OBJ_DIR)/ffm3u.o \
 	$(FF_OBJ_DIR)/crc.o
 ifeq ($(OS),win)
 CORE_O += $(FF_OBJ_DIR)/ffwohandler.o
@@ -152,12 +151,11 @@ $(OBJ_DIR)/%.o: $(SRCDIR)/net/%.c $(SRCDIR)/fmedia.h $(SRCDIR)/net/net.h
 	$(C) $(CFLAGS)  $< -o$@
 NET_O := $(OBJ_DIR)/net.o $(OBJ_DIR)/hls.o \
 	$(FF_OBJ_DIR)/ffhttp.o $(FF_OBJ_DIR)/ffhttp-client.o \
-	$(FF_OBJ_DIR)/ffproto.o $(FF_OBJ_DIR)/ffurl.o $(FF_OBJ_DIR)/ffparse.o $(FF_OBJ_DIR)/fficy.o \
+	$(FF_OBJ_DIR)/ffproto.o $(FF_OBJ_DIR)/ffurl.o $(FF_OBJ_DIR)/ffparse.o \
 	$(FF_OBJ_DIR)/ffsys.o \
 	$(FF_OBJ_DIR)/ffcrc.o \
 	$(FF_OBJ_DIR)/ffhashtab.o \
 	$(FF_OBJ_DIR)/ffpath.o \
-	$(FF_OBJ_DIR)/ffm3u.o \
 	$(FF_O) \
 	$(FFOS_SKT)
 net.$(SO): $(NET_O)
@@ -182,12 +180,10 @@ dynanorm.$(SO): $(DYNANORM_O)
 
 #
 MPEG_O := $(OBJ_DIR)/mpeg.o \
-	$(OBJ_DIR)/mp3.o \
 	$(FF_O) \
 	$(FF_OBJ_DIR)/ffpcm.o \
 	$(FF_OBJ_DIR)/ffmpg.o \
-	$(FF_OBJ_DIR)/ffmp3lame.o \
-	$(FF_OBJ_DIR)/ffmmtag.o
+	$(FF_OBJ_DIR)/ffmp3lame.o
 mpeg.$(SO): $(MPEG_O)
 	$(LD) -shared $(MPEG_O) $(LDFLAGS) $(LD_RPATH_ORIGIN) -lmpg123-ff -lmp3lame-ff  -o$@
 
@@ -195,24 +191,22 @@ mpeg.$(SO): $(MPEG_O)
 #
 MPC_O := $(OBJ_DIR)/mpc.o $(FF_O) \
 	$(FF_OBJ_DIR)/ffpcm.o \
-	$(FF_OBJ_DIR)/ffmpc.o \
-	$(FF_OBJ_DIR)/ffmusepack.o \
-	$(FF_OBJ_DIR)/ffmmtag.o \
-	$(FF_OBJ_DIR)/ffapetag.o
+	$(FF_OBJ_DIR)/ffmusepack.o
 mpc.$(SO): $(MPC_O)
 	$(LD) -shared $(MPC_O) $(LDFLAGS) $(LD_RPATH_ORIGIN) -lmpc-ff  -o$@
 
 
 #
 FMT_O := $(OBJ_DIR)/mod-fmt.o \
+	$(OBJ_DIR)/aac-adts.o \
 	$(OBJ_DIR)/avi.o \
 	$(OBJ_DIR)/caf.o \
 	$(OBJ_DIR)/mkv.o \
+	$(OBJ_DIR)/mp3.o \
 	$(OBJ_DIR)/mp4.o \
 	$(OBJ_DIR)/ogg.o \
 	$(OBJ_DIR)/wav.o \
 	$(FF_O) \
-	$(FF_OBJ_DIR)/ffmmtag.o \
 	$(FF_OBJ_DIR)/ffpcm.o
 fmt.$(SO): $(FMT_O)
 	$(LD) -shared $(FMT_O) $(LDFLAGS)  -o$@
@@ -221,9 +215,7 @@ fmt.$(SO): $(FMT_O)
 #
 VORBIS_O := $(OBJ_DIR)/vorbis.o \
 	$(FF_O) \
-	$(FF_OBJ_DIR)/ffvorbis.o \
-	$(FF_OBJ_DIR)/ffmmtag.o \
-	$(FF_OBJ_DIR)/ffvorbistag.o
+	$(FF_OBJ_DIR)/ffvorbis.o
 vorbis.$(SO): $(VORBIS_O)
 	$(LD) -shared $(VORBIS_O) $(LDFLAGS) $(LD_RPATH_ORIGIN) -logg-ff -lvorbis-ff -lvorbisenc-ff  -o$@
 
@@ -231,9 +223,7 @@ vorbis.$(SO): $(VORBIS_O)
 #
 OPUS_O := $(OBJ_DIR)/opus.o \
 	$(FF_O) \
-	$(FF_OBJ_DIR)/ffopus.o \
-	$(FF_OBJ_DIR)/ffmmtag.o \
-	$(FF_OBJ_DIR)/ffvorbistag.o
+	$(FF_OBJ_DIR)/ffopus.o
 opus.$(SO): $(OPUS_O)
 	$(LD) -shared $(OPUS_O) $(LDFLAGS) $(LD_RPATH_ORIGIN) -lopus-ff  -o$@
 
@@ -243,11 +233,9 @@ FLAC_O := $(OBJ_DIR)/flac.o \
 	$(OBJ_DIR)/flac-fmt.o \
 	$(OBJ_DIR)/flac-ogg.o \
 	$(FF_O) \
-	$(FF_OBJ_DIR)/ffflac-ogg.o \
 	$(FF_OBJ_DIR)/ffflac.o \
 	$(FF_OBJ_DIR)/ffpng-fmt.o \
 	$(FF_OBJ_DIR)/ffjpeg-fmt.o \
-	$(FF_OBJ_DIR)/ffmmtag.o \
 	$(FF_OBJ_DIR)/ffpcm.o
 flac.$(SO): $(FLAC_O)
 	$(LD) -shared $(FLAC_O) $(LDFLAGS) $(LD_RPATH_ORIGIN) -lFLAC-ff  -o$@
@@ -257,8 +245,6 @@ flac.$(SO): $(FLAC_O)
 WAVPACK_O := $(OBJ_DIR)/wavpack.o \
 	$(FF_O) \
 	$(FF_OBJ_DIR)/ffwavpack.o \
-	$(FF_OBJ_DIR)/ffapetag.o \
-	$(FF_OBJ_DIR)/ffmmtag.o \
 	$(FF_OBJ_DIR)/ffpcm.o
 wavpack.$(SO): $(WAVPACK_O)
 	$(LD) -shared $(WAVPACK_O) $(LDFLAGS) $(LD_RPATH_ORIGIN) -lwavpack-ff  -o$@
@@ -268,8 +254,6 @@ wavpack.$(SO): $(WAVPACK_O)
 APE_O := $(OBJ_DIR)/ape.o \
 	$(FF_O) \
 	$(FF_OBJ_DIR)/ffape.o \
-	$(FF_OBJ_DIR)/ffapetag.o \
-	$(FF_OBJ_DIR)/ffmmtag.o \
 	$(FF_OBJ_DIR)/ffpcm.o
 ape.$(SO): $(APE_O)
 	$(LD) -shared $(APE_O) $(LDFLAGS) $(LD_RPATH_ORIGIN) -lMAC-ff  -o$@
@@ -277,7 +261,6 @@ ape.$(SO): $(APE_O)
 
 #
 AAC_O := $(OBJ_DIR)/aac.o \
-	$(OBJ_DIR)/aac-adts.o \
 	$(FF_O) \
 	$(FF_OBJ_DIR)/ffaac.o \
 	$(FF_OBJ_DIR)/ffpcm.o
@@ -302,8 +285,6 @@ PLIST_O := $(OBJ_DIR)/plist.o \
 	$(FFOS_WREG) \
 	$(FF_OBJ_DIR)/ffpath.o \
 	$(FF_OBJ_DIR)/ffsys.o \
-	$(FF_OBJ_DIR)/ffparse.o $(FF_OBJ_DIR)/ffm3u.o \
-	$(FF_OBJ_DIR)/ffpls.o \
 	$(FF_OBJ_DIR)/ffpcm.o
 plist.$(SO): $(PLIST_O)
 	$(LD) -shared $(PLIST_O) $(LDFLAGS)  -o$@
@@ -511,6 +492,7 @@ ifeq ($(OS),win)
 
 else ifeq ($(OS),linux)
 	$(CP) $(PROJDIR)/src/gui-gtk/fmedia.gui \
+		$(PROJDIR)/src/gui-gtk/fmedia.desktop \
 		$(PROJDIR)/res/fmedia.ico \
 		$(PROJDIR)/res/play.ico \
 		$(PROJDIR)/res/stop.ico \

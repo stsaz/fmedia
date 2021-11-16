@@ -93,7 +93,7 @@ static const char* const vars[] = {
 
 static FFINL char* fileout_getname(fmed_fileout *f, fmed_filt *d)
 {
-	ffsvar p;
+	ffsvar p = {};
 	ffstr fn, val, fdir, fname, ext;
 	char *tstr;
 	const char *in;
@@ -101,8 +101,8 @@ static FFINL char* fileout_getname(fmed_fileout *f, fmed_filt *d)
 	int r, have_dt = 0, ivar;
 	ffdtm dt;
 
-	ffmem_tzero(&p);
-	ffstr_setz(&fn, d->track->getvalstr(d->trk, "output"));
+	const char *fnz = d->track->getvalstr(d->trk, "output");
+	ffstr_setz(&fn, fnz);
 
 	// "PATH/.EXT" -> "PATH/$filename.EXT"
 	if (NULL == ffpath_split2(fn.ptr, fn.len, &fdir, &fname))

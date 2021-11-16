@@ -3,7 +3,11 @@
 
 #include <fmedia.h>
 
+#define dbglog1(trk, ...)  fmed_dbglog(core, trk, NULL, __VA_ARGS__)
+
 const fmed_core *core;
+
+#include <format/mpc-read.h>
 
 extern const fmed_filter avi_input;
 extern const fmed_filter caf_input;
@@ -15,29 +19,54 @@ extern const fmed_filter ogg_output;
 extern const fmed_filter raw_input;
 extern const fmed_filter wav_input;
 extern const fmed_filter wav_output;
+extern const fmed_filter aac_adts_input;
+extern const fmed_filter aac_adts_output;
+extern const fmed_filter fmed_mpeg_input;
+extern const fmed_filter fmed_mpeg_output;
+extern const fmed_filter fmed_mpeg_copy;
 const void* mod_iface(const char *name)
 {
-	if (ffsz_eq(name, "avi"))
-		return &avi_input;
-	else if (ffsz_eq(name, "caf"))
-		return &caf_input;
-	else if (ffsz_eq(name, "mkv"))
-		return &mkv_input;
-	else if (ffsz_eq(name, "mp4"))
-		return &mp4_input;
-	else if (ffsz_eq(name, "mp4-write"))
-		return &mp4_output;
-	else if (ffsz_eq(name, "ogg"))
-		return &ogg_input;
-	else if (ffsz_eq(name, "ogg-write"))
-		return &ogg_output;
-	else if (ffsz_eq(name, "raw"))
-		return &raw_input;
-	else if (ffsz_eq(name, "wav"))
-		return &wav_input;
-	else if (ffsz_eq(name, "wav-write"))
-		return &wav_output;
-	return NULL;
+	static const char *const names[] = {
+		"aac",
+		"aac-write",
+		"avi",
+		"caf",
+		"mkv",
+		"mp3",
+		"mp3-copy",
+		"mp3-write",
+		"mp4",
+		"mp4-write",
+		"mpc",
+		"ogg",
+		"ogg-write",
+		"raw",
+		"wav",
+		"wav-write",
+	};
+	static const fmed_filter *const ifaces[] = {
+		/*"aac"*/	&aac_adts_input,
+		/*"aac-write"*/	&aac_adts_output,
+		/*"avi"*/	&avi_input,
+		/*"caf"*/	&caf_input,
+		/*"mkv"*/	&mkv_input,
+		/*"mp3"*/	&fmed_mpeg_input,
+		/*"mp3-copy"*/	&fmed_mpeg_copy,
+		/*"mp3-write"*/	&fmed_mpeg_output,
+		/*"mp4"*/	&mp4_input,
+		/*"mp4-write"*/	&mp4_output,
+		/*"mpc"*/	&mpc_input,
+		/*"ogg"*/	&ogg_input,
+		/*"ogg-write"*/	&ogg_output,
+		/*"raw"*/	&raw_input,
+		/*"wav"*/	&wav_input,
+		/*"wav-write"*/	&wav_output,
+	};
+
+	int i = ffszarr_findsorted(names, FF_COUNT(names), name, ffsz_len(name));
+	if (i < 0)
+		return NULL;
+	return ifaces[i];
 }
 
 int mod_sig(uint signo)
@@ -51,12 +80,15 @@ void mod_destroy()
 
 extern int ogg_in_conf(ffpars_ctx *ctx);
 extern int ogg_out_conf(ffpars_ctx *ctx);
+extern int mpeg_out_config(ffpars_ctx *ctx);
 int mod_conf(const char *name, ffpars_ctx *ctx)
 {
 	if (ffsz_eq(name, "ogg"))
 		return ogg_in_conf(ctx);
 	else if (ffsz_eq(name, "ogg-write"))
 		return ogg_out_conf(ctx);
+	else if (ffsz_eq(name, "mp3-write"))
+		return mpeg_out_config(ctx);
 	return -1;
 }
 

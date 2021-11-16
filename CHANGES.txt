@@ -8,6 +8,16 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.25beta - Nov 16, 2021
+
+ + GUI(Linux): file explorer tab: explore files on disk directly from fmedia
+    and add files to playlist without drag-n-drop from file manager app
+ + GUI(Linux): "gui.editor_path" conf option
+ * GUI: on exit, don't rewrite m3u playlist files unless necessary
+ - .ogg(FLAC): couldn't read some files
+ - .aac read: "--stream-copy -o .mp4" produced unreadable mp4 file
+
+
 fmedia v1.24.1 - May 17, 2021
 
  - capture stream didn't work with "--dev-capture=0 --dev-loopback=N"

@@ -1,6 +1,4 @@
----------------
-OVERVIEW
----------------
+## OVERVIEW
 
 fmedia is a fast media player/recorder/converter for Windows, macOS, Linux and FreeBSD.
 It provides smooth playback and recording even if devices are very slow.
@@ -10,30 +8,29 @@ Its low CPU & memory consumption saves energy when running on a notebook's batte
 Play or convert audio files, record new audio tracks from microphone, save songs from Internet radio, and much more!
 fmedia is free and open-source project, and you can use it as a standalone application or as a library for your own software.
 
-fmedia can read: .mp3, .ogg (Vorbis/Opus), .opus, .mp4/.m4a/.mov (AAC/ALAC/MPEG), .mka/.mkv/.webm (AAC/ALAC/MPEG/Vorbis/Opus/PCM), .caf (AAC/ALAC/PCM), .avi (AAC/MPEG/PCM), .aac, .mpc, .flac, .ape, .wv, .wav;  .m3u, .pls, .cue.
+**fmedia can read**: .mp3, .ogg (Vorbis/Opus), .opus, .mp4/.m4a/.mov (AAC/ALAC/MPEG), .mka/.mkv/.webm (AAC/ALAC/MPEG/Vorbis/Opus/PCM), .caf (AAC/ALAC/PCM), .avi (AAC/MPEG/PCM), .aac, .mpc, .flac, .ape, .wv, .wav;  .m3u, .pls, .cue.
 
-fmedia can write: .mp3, .ogg, .opus, .m4a (AAC), .flac, .wav, .aac (--stream-copy only).
+**fmedia can write**: .mp3, .ogg, .opus, .m4a (AAC), .flac, .wav, .aac (--stream-copy only).
 
 ### Contents:
 
-* FEATURES
-* INSTALL
-	* INSTALL ON WINDOWS
-	* INSTALL ON LINUX
-	* BUILD ON LINUX
-	* BUILD ON LINUX FOR WINDOWS
-* CONFIG
-* EXTRACT TRACKS FROM FLAC.CUE
-* TERMINAL UI
-* GRAPHICAL UI
-* USE-CASES
-* FOR DEVELOPERS
-* BUG REPORT
+* [Features](#features)
+* [Install](#install)
+	* Install On Windows
+	* Install On Linux
+* [Build](#build)
+	* Build On Linux
+	* Build On Linux For Windows
+* [Config](#config)
+* [Terminal UI](#terminal-ui)
+* [Graphical UI](#graphical-ui)
+* [Extract Tracks From flac.cue](#extract-tracks-from-flac.cue)
+* [Use-Cases](#Use-Cases)
+* [For Developers](#for-developers)
+* [Bug Report](#bug-report)
 
 
----------------
-FEATURES
----------------
+## FEATURES
 
 * Audio I/O:
 	* ALSA (capture/playback)
@@ -92,9 +89,7 @@ FEATURES
 fmedia uses modified versions of these 3rd party libraries: libALAC, libfdk-aac, libFLAC, libMAC, libmp3lame, libmpg123, libmpc, libogg, libopus, libsoxr, libvorbisenc, libvorbis, libwavpack, libDynamicAudioNormalizer.  See `ff-3pt/README.txt` for details.
 
 
----------------
-INSTALL
----------------
+## INSTALL
 
 ### INSTALL ON WINDOWS
 
@@ -116,20 +111,29 @@ INSTALL
 
 ### INSTALL ON LINUX
 
-1. Unpack archive to the directory of your choice, e.g. to `/usr/local/fmedia-1`:
+1. Unpack archive to the directory of your choice, e.g. to your home directory (`~/bin/fmedia-1`):
 
-		tar Jxf ./fmedia-1.0-linux-amd64.tar.xz -C /usr/local
+		tar Jxf ./fmedia-1.0-linux-amd64.tar.xz -C ~/bin
 
 2. Optionally, create a symbolic link:
 
-		ln -s /usr/local/fmedia-1/fmedia /usr/local/bin/fmedia
+		ln -s ~/bin/fmedia-1/fmedia /usr/local/bin/fmedia
 
-3. Run `fmedia --gui` to open graphical interface;  or execute commands via `fmedia` from console.
+3. Optionally, add fmedia GUI icon to KDE Applications:
 
+		cp ~/bin/fmedia-1/fmedia.desktop ~/.local/share/applications
+
+	Then edit `Exec=` and `Icon=` rows in `~/.local/share/applications/fmedia.desktop` if necessary.
+
+4. Run `fmedia --gui` to open graphical interface;  or execute commands via `fmedia` from console.
+
+
+## BUILD
 
 ### BUILD ON LINUX
 
 0. Requirements:
+
 	* GNU make
 	* gcc or clang
 	* libalsa-devel (for ALSA module)
@@ -137,6 +141,10 @@ INSTALL
 	* jack-audio-connection-kit-devel (for JACK module)
 	* gtk3-devel (for GUI module)
 	* dbus-devel (for DBUS module)
+
+	For Fedora:
+
+		dnf install make gcc alsa-lib-devel pulseaudio-libs-devel jack-audio-connection-kit-devel gtk3-devel dbus-devel
 
 1. Create a directory for all needed sources:
 
@@ -189,6 +197,12 @@ You can build fmedia without dependencies on 3rd-party libraries.  This will be 
 
 ### BUILD ON LINUX FOR WINDOWS
 
+0. Requirements:
+
+	For Fedora:
+
+		dnf install mingw64-gcc mingw64-gcc-c++ mingw64-winpthreads mingw64-winpthreads-static dos2unix
+
 1-3. See section "BUILD ON LINUX".
 
 4. Build with mingw (64-bit):
@@ -206,9 +220,8 @@ You can build fmedia without dependencies on 3rd-party libraries.  This will be 
 5. Ready!
 
 
----------------
-CONFIG
----------------
+## CONFIG
+
 The global configuration file `fmedia.conf` is located within the fmedia directory itself.  It contains all supported settings and their default values.  You must restart fmedia after you make changes to this file.
 
 Additional settings may be stored in file `fmedia-ext.conf`.  This makes it easier to upgrade fmedia without the need to edit `fmedia.conf`.
@@ -227,21 +240,13 @@ Core configuration settings start with "core.", e.g. set codepage for non-Unicod
 	core.codepage win1252
 
 
----------------
-EXTRACT TRACKS FROM flac.cue
----------------
-While extracting a track from the album in FLAC using CUE sheet, the audio is first decoded to PCM and then re-encoded with FLAC.  This behaviour won't result in any audio quality loss since FLAC is a lossless codec.
+## TERMINAL UI
 
-
----------------
-TERMINAL UI
----------------
 By default fmedia runs with a terminal UI, which shows information about the currently playing audio track and the currently playing audio position.  User commands such as seeking are also supported, all supported commands are described in file "help-tui.txt".
 
 
----------------
-GRAPHICAL UI
----------------
+## GRAPHICAL UI
+
 To run fmedia in GUI mode (Windows and Linux) you may execute the console binary like this:
 
 	fmedia --gui
@@ -264,9 +269,12 @@ You can change this by setting `portable_conf` to `true` in `fmedia.conf`.
 After that, `fmedia.gui.conf` will be stored in program directory (e.g. `C:\Program Files\fmedia\fmedia.gui.conf`), thus making fmedia completely portable.
 
 
----------------
-USE-CASES
----------------
+## EXTRACT TRACKS FROM flac.cue
+
+While extracting a track from the album in FLAC using CUE sheet, the audio is first decoded to PCM and then re-encoded with FLAC.  This behaviour won't result in any audio quality loss since FLAC is a lossless codec.
+
+
+## USE-CASES
 
 Note the difference between UNIX and Windows terminals when you use special characters and spaces:
 
@@ -382,9 +390,7 @@ Create a playlist file from directory:
 	fmedia ./Music -o music.m3u8
 
 
----------------
-FOR DEVELOPERS
----------------
+## FOR DEVELOPERS
 
 ### YOUR APPLICATION BASED ON FMEDIA
 
@@ -444,9 +450,8 @@ Each of them plays its own part:
 * fmedia contains application code, it's largely based on all FF libraries.
 
 
----------------
-BUG REPORT
----------------
+## BUG REPORT
+
 If you encounter a bug, please report it: the more issues will be reported by users, the more stable fmedia will become.  When filing a bug report try to provide information that can help us to fix the problem.  Try to execute the same command once again, only this time add --debug switch, e.g.:
 
 	fmedia --debug OPTIONS INPUT_FILES...
@@ -454,7 +459,6 @@ If you encounter a bug, please report it: the more issues will be reported by us
 It will print a lot of information about what fmedia is doing.  This info or a screenshot would be very helpful.
 
 
----------------
-HOMEPAGE
----------------
+## HOMEPAGE
+
 https://stsaz.github.io/fmedia/

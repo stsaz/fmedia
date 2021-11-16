@@ -33,7 +33,7 @@ void* mp3_open(fmed_filt *d)
 {
 	if (d->stream_copy && !d->track->cmd(d->trk, FMED_TRACK_META_HAVEUSER)) {
 
-		if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, "mpeg.copy"))
+		if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, "fmt.mp3-copy"))
 			return NULL;
 		return FMED_FILT_SKIP;
 	}

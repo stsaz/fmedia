@@ -102,20 +102,6 @@ This is the list of the things that need to be done.
 		aac.decode: *1:    "http://...": ffaac_decode(): (400a) AAC_DEC_UNSUPPORTED_GAIN_CONTROL_DATA: Gain control data found but not supported. Most probably the bitstream is corrupt, or has a wrong format.
 		aac: *1:   "http://...": ffaac_adts_read(): lost synchronization.  Offset: ...
 
-* FLAC unsync
-
-		ffflac_decode(): frame #2013: pos:8245248  size:13145, samples:4096
-		ffflac_decode(): frame #2014: pos:8249344  size:6878, samples:4096
-		flac: *1:        ffflac_decode(): at offset 0x1830000: FLAC__STREAM_DECODER_READ_FRAME
-		ffflac_decode(): frame #112: pos:129024  size:6348, samples:1152
-		flac: *1:        ffflac_decode(): at offset 0x1830000: FLAC__STREAM_DECODER_ERROR_STATUS_LOST_SYNC
-		ffflac_decode(): frame #2016: pos:8257536  size:13024, samples:4096
-
-	We should:
-	1. Test that frame numbers are incrementing by 1.
-	2. Provide larger buffer in case decode fails
-	3. Skip the frame and continue.
-
 * mp3 unsync
 
 		./fmedia 1.mp3 -o 1.wav --until=5

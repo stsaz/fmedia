@@ -18,9 +18,6 @@ static const fmed_mod fmed_aac_mod = {
 	&aac_iface, &aac_sig, &aac_destroy, &aac_conf
 };
 
-extern const fmed_filter aac_adts_input;
-extern const fmed_filter aac_adts_output;
-
 //DECODE
 static void* aac_open(fmed_filt *d);
 static void aac_close(void *ctx);
@@ -71,10 +68,6 @@ static const void* aac_iface(const char *name)
 		return &aac_input;
 	else if (!ffsz_cmp(name, "encode"))
 		return &aac_output;
-	else if (!ffsz_cmp(name, "in"))
-		return &aac_adts_input;
-	else if (!ffsz_cmp(name, "out"))
-		return &aac_adts_output;
 	return NULL;
 }
 
