@@ -347,16 +347,18 @@ static void list_setdata_scroll(void *param)
 	struct gui_wmain *w = gg->wmain;
 	ffui_view_clear(&w->vlist);
 	ffui_view_setdata(&w->vlist, 0, (size_t)param);
-	if (ffui_tab_active(&w->tabs) == 0 && gg->conf.list_scroll_pos != 0) {
-		// ffui_view_scroll_setvert() doesn't work here
-		ffui_post_view_scroll_set(&w->vlist, gg->conf.list_scroll_pos);
-		gg->conf.list_scroll_pos = 0;
-	}
 }
 
 void wmain_list_set(uint idx, int delta)
 {
+	struct gui_wmain *w = gg->wmain;
+	if (ffui_send_tab_active(&w->tabs) == TAB_EXP)
+		return;
 	ffui_thd_post(&list_setdata_scroll, (void*)(size_t)delta, FFUI_POST_WAIT);
+	if (ffui_send_tab_active(&w->tabs) == TAB_1 && gg->conf.list_scroll_pos != 0) {
+		// ffui_view_scroll_setvert() doesn't work from list_setdata_scroll()
+		ffui_post_view_scroll_set(&w->vlist, gg->conf.list_scroll_pos);
+	}
 }
 
 void wmain_ent_added(uint idx)
