@@ -24,8 +24,13 @@ static void* aac_adts_open(fmed_filt *d)
 	struct aac *a;
 	if (NULL == (a = ffmem_new(struct aac)))
 		return NULL;
-	if (d->stream_copy)
-		a->adts.options = AACREAD_WHOLEFRAME;
+	if (d->stream_copy) {
+		const char *ofn = d->track->getvalstr(d->trk, "output");
+		ffstr fn = FFSTR_INITZ(ofn), ext;
+		ffstr_rsplitby(&fn, '.', NULL, &ext);
+		if (ffstr_ieqz(&ext, "aac")) // return the whole adts frames only if the output is .aac file
+			a->adts.options = AACREAD_WHOLEFRAME;
+	}
 	aacread_open(&a->adts);
 	a->seek_pos = -1;
 	return a;
