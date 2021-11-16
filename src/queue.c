@@ -3,9 +3,9 @@ Copyright (c) 2015 Simon Zolin */
 
 #include <fmedia.h>
 #include <FF/list.h>
-#include <FF/data/m3u.h>
 #include <FFOS/dir.h>
 #include <FFOS/random.h>
+#include <avpack/m3u.h>
 
 
 #undef syserrlog
@@ -263,11 +263,12 @@ static void que_destroy(void)
 static void que_save(entry *first, const fflist_item *sentl, const char *fn)
 {
 	fffd f = FF_BADFD;
-	ffm3u_cook m3 = {0};
+	m3uwrite m3 = {};
 	int rc = -1;
 	entry *e;
-	char buf[32];
 	ffarr fname = {};
+
+	m3uwrite_create(&m3, 0);
 
 	if (0 == ffstr_catfmt(&fname, "%s.tmp%Z", fn))
 		goto done;
@@ -283,33 +284,32 @@ static void que_save(entry *first, const fflist_item *sentl, const char *fn)
 
 	for (e = first;  &e->sib != sentl;  e = FF_GETPTR(entry, sib, e->sib.next)) {
 		int r = 0;
-		ffstr ss, *s;
-		ss.len = 0;
+		ffstr *s;
+		m3uwrite_entry me = {};
 
 		int dur = (e->e.dur != 0) ? e->e.dur / 1000 : -1;
-		uint n = ffs_fromint(dur, buf, sizeof(buf), FFS_INTSIGN);
-		r |= ffm3u_add(&m3, FFM3U_DUR, buf, n);
+		me.duration_sec = dur;
 
-		if (NULL == (s = que_meta_find(&e->e, FFSTR("artist"))))
-			s = &ss;
-		r |= ffm3u_add(&m3, FFM3U_ARTIST, s->ptr, s->len);
+		if (NULL != (s = que_meta_find(&e->e, FFSTR("artist"))))
+			me.artist = *s;
 
-		if (NULL == (s = que_meta_find(&e->e, FFSTR("title"))))
-			s = &ss;
-		r |= ffm3u_add(&m3, FFM3U_TITLE, s->ptr, s->len);
+		if (NULL != (s = que_meta_find(&e->e, FFSTR("title"))))
+			me.title = *s;
 
-		r |= ffm3u_add(&m3, FFM3U_URL, e->e.url.ptr, e->e.url.len);
+		me.url = e->e.url;
+		r |= m3uwrite_process(&m3, &me);
 
 		if (r != 0)
 			goto done;
 	}
 
-	if (m3.buf.len != (size_t)fffile_write(f, m3.buf.ptr, m3.buf.len))
+	ffstr out = m3uwrite_fin(&m3);
+	if (out.len != (size_t)fffile_write(f, out.ptr, out.len))
 		goto done;
 	fffile_safeclose(f);
 	if (0 != fffile_rename(fname.ptr, fn))
 		goto done;
-	dbglog(core, NULL, "que", "saved playlist to %s (%L KB)", fn, m3.buf.len / 1024);
+	dbglog(core, NULL, "que", "saved playlist to %s (%L KB)", fn, out.len / 1024);
 	rc = 0;
 
 done:
@@ -317,7 +317,7 @@ done:
 		syserrlog("saving playlist to file: %s", fn);
 	ffarr_free(&fname);
 	FF_SAFECLOSE(f, FF_BADFD, fffile_close);
-	ffm3u_fin(&m3);
+	m3uwrite_close(&m3);
 }
 
 /** Get the first playlist item. */

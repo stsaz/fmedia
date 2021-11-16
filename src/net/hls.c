@@ -2,8 +2,8 @@
 Copyright (c) 2019 Simon Zolin */
 
 #include <net/net.h>
-#include <FF/data/m3u.h>
 #include <FF/path.h>
+#include <avpack/m3u.h>
 
 
 //HLS
@@ -27,7 +27,7 @@ struct hls {
 	char *file_url;
 	ffstr base_url;
 	ffstr http_data;
-	ffm3u m3u;
+	m3uread m3u;
 	ffarr qu; //ffstr[]
 	ffstr file_ext;
 	uint first :1;
@@ -47,7 +47,7 @@ static void* hls_open(fmed_filt *d)
 		return NULL;
 	c->m3u_url = d->track->getvalstr(d->trk, "input");
 	ffpath_split2(c->m3u_url, ffsz_len(c->m3u_url), &c->base_url, NULL);
-	ffm3u_init(&c->m3u);
+	m3uread_open(&c->m3u);
 	c->trk = d->trk;
 	c->first = 1;
 	return c;
@@ -58,7 +58,7 @@ static void hls_close(void *ctx)
 	struct hls *c = ctx;
 	ffstr_free(&c->file_ext);
 	http_iface.close(c->con);
-	ffm3u_close(&c->m3u);
+	m3uread_close(&c->m3u);
 	ffmem_free(c->file_url);
 
 	ffstr *ps;
@@ -205,21 +205,21 @@ static int hls_request(struct hls *c, const char *url)
 Return FMED_RMORE or an error. */
 static int hls_m3u_parse(struct hls *c, const ffstr *data)
 {
-	ffstr d = *data;
+	ffstr d = *data, m3uval;
 
 	for (;;) {
 
-		int r = ffm3u_parse(&c->m3u, &d);
+		int r = m3uread_process(&c->m3u, &d, &m3uval);
 
 		switch (r) {
-		case FFM3U_URL: {
+		case M3UREAD_URL: {
 			if (!c->have_media_seq) {
 				errlog(c->trk, ".m3u8 parser: expecting #EXT-X-MEDIA-SEQUENCE before the first data file", 0);
 				return FMED_RERR;
 			}
 
 			ffstr name, ext;
-			name = ffm3u_value(&c->m3u);
+			name = m3uval;
 			ffpath_split3(name.ptr, name.len, NULL, NULL, &ext);
 			if (c->first) {
 				c->first = 0;
@@ -246,15 +246,15 @@ static int hls_m3u_parse(struct hls *c, const ffstr *data)
 			break;
 		}
 
-		case FFPARS_MORE:
+		case M3UREAD_MORE:
 			return FMED_RMORE;
 
-		case FFM3U_EXT: {
+		case M3UREAD_EXT: {
 			if (c->have_media_seq)
 				break;
 			//get sequence number from "#EXT-X-MEDIA-SEQUENCE:1234"
 			ffstr line, name, val;
-			line = ffm3u_value(&c->m3u);
+			line = m3uval;
 			ffs_split2by(line.ptr, line.len, ':', &name, &val);
 			if (!ffstr_eqz(&name, "#EXT-X-MEDIA-SEQUENCE"))
 				break;
@@ -269,10 +269,9 @@ static int hls_m3u_parse(struct hls *c, const ffstr *data)
 		}
 
 		default:
-			if (ffpars_iserr(-r)) {
-				r = -r;
-				errlog(c->trk, ".m3u8 parser: line:%u  (%u) %s"
-					, c->m3u.line, r, ffpars_errstr(r));
+			if (r == M3UREAD_WARN) {
+				errlog(c->trk, ".m3u8 parser: line:%u  %s"
+					, m3uread_line(&c->m3u), m3uread_error(&c->m3u));
 				return FMED_RERR;
 			}
 			break;
@@ -317,8 +316,9 @@ static int hls_process(void *ctx, fmed_filt *d)
 		switch (r) {
 		case FMED_RMORE:
 			if (c->http_status == FFHTTPCL_DONE) {
-				ffm3u_close(&c->m3u);
-				ffm3u_init(&c->m3u);
+				m3uread_close(&c->m3u);
+				ffmem_zero_obj(&c->m3u);
+				m3uread_open(&c->m3u);
 				c->m3u_seq = 0;
 				c->have_media_seq = 0;
 				http_iface.close(c->con);
