@@ -1,13 +1,9 @@
-/** FLAC output.
+/** fmedia: .flac reader
 Copyright (c) 2018 Simon Zolin */
 
 #include <fmedia.h>
 
-#include <FF/aformat/flac.h>
-#include <FF/audio/flac.h>
-#include <FF/mtags/mmtag.h>
-#include <FF/pic/png.h>
-#include <FF/pic/jpeg.h>
+#include <avpack/flac-read.h>
 
 
 #undef dbglog
@@ -23,85 +19,58 @@ Copyright (c) 2018 Simon Zolin */
 extern const fmed_core *core;
 extern const fmed_queue *qu;
 
-
-//IN
-static void* flac_in_create(fmed_filt *d);
-static void flac_in_free(void *ctx);
-static int flac_in_read(void *ctx, fmed_filt *d);
-const fmed_filter fmed_flac_input = {
-	&flac_in_create, &flac_in_read, &flac_in_free
-};
-
-//OUT
-static void* flac_out_create(fmed_filt *d);
-static void flac_out_free(void *ctx);
-static int flac_out_encode(void *ctx, fmed_filt *d);
-const fmed_filter fmed_flac_output = {
-	&flac_out_create, &flac_out_encode, &flac_out_free
-};
-
+#include <format/flac-write.h>
 
 struct flac {
-	ffflac fl;
+	flacread fl;
+	ffstr in;
+	void *trk;
 	uint64 abs_seek;
+	uint64 seek_sample;
+	uint sample_rate;
 	uint seek_ready :1;
 };
 
-
-typedef struct flac_out {
-	ffflac_cook fl;
-	uint state;
-} flac_out;
-
-static int flac_out_addmeta(flac_out *f, fmed_filt *d);
-
-static struct flac_out_conf_t {
-	uint sktab_int;
-	uint min_meta_size;
-} flac_out_conf;
-
-static const ffpars_arg flac_out_conf_args[] = {
-	{ "min_meta_size",  FFPARS_TINT,  FFPARS_DSTOFF(struct flac_out_conf_t, min_meta_size) },
-	{ "seektable_interval",	FFPARS_TINT,  FFPARS_DSTOFF(struct flac_out_conf_t, sktab_int) },
-};
-
+static void flac_in_log(void *udata, ffstr msg)
+{
+	struct flac *f = udata;
+	dbglog(f->trk, "%S", &msg);
+}
 
 static void* flac_in_create(fmed_filt *d)
 {
 	struct flac *f = ffmem_new(struct flac);
 	if (f == NULL)
 		return NULL;
-	ffflac_init(&f->fl);
+	f->trk = d->trk;
+	f->seek_sample = (ffuint64)-1;
 
-	if (0 != ffflac_open(&f->fl)) {
-		errlog(d->trk, "ffflac_open(): %s", ffflac_errstr(&f->fl));
-		flac_in_free(f);
-		return NULL;
-	}
-
+	ffuint64 size = 0;
 	if ((int64)d->input.size != FMED_NULL)
-		f->fl.total_size = d->input.size;
+		size = d->input.size;
+
+	flacread_open(&f->fl, size);
+	f->fl.log = flac_in_log;
+	f->fl.udata = f;
 	return f;
 }
 
 static void flac_in_free(void *ctx)
 {
 	struct flac *f = ctx;
-	ffflac_close(&f->fl);
+	flacread_close(&f->fl);
 	ffmem_free(f);
 }
 
 static void flac_meta(struct flac *f, fmed_filt *d)
 {
-	const ffvorbtag *vtag = &f->fl.vtag;
-	dbglog(d->trk, "%S: %S", &vtag->name, &vtag->val);
+	ffstr name, val;
+	int tag = flacread_tag(&f->fl, &name, &val);
+	dbglog(d->trk, "%S: %S", &name, &val);
 
-	ffstr name = vtag->name;
-	if (vtag->tag == FFMMTAG_PICTURE)
+	if (tag == MMTAG_PICTURE)
 		return;
-	if (vtag->tag != 0)
-		ffstr_setz(&name, ffmmtag_str[vtag->tag]);
-	d->track->meta_set(d->trk, &name, &vtag->val, FMED_QUE_TMETA);
+	d->track->meta_set(d->trk, &name, &val, FMED_QUE_TMETA);
 }
 
 static int flac_in_read(void *ctx, fmed_filt *d)
@@ -115,22 +84,25 @@ static int flac_in_read(void *ctx, fmed_filt *d)
 	}
 
 	if (d->flags & FMED_FFWD) {
-		ffflac_input(&f->fl, d->data, d->datalen);
+		ffstr_set(&f->in, d->data, d->datalen);
 		if (d->flags & FMED_FLAST)
-			f->fl.fin = 1;
+			flacread_finish(&f->fl);
 	}
 
 	if (f->seek_ready) {
 		if ((int64)d->audio.seek != FMED_NULL) {
-			ffflac_seek(&f->fl, f->abs_seek + ffpcm_samples(d->audio.seek, f->fl.fmt.sample_rate));
+			flacread_seek(&f->fl, f->abs_seek + ffpcm_samples(d->audio.seek, f->sample_rate));
 			d->audio.seek = FMED_NULL;
+			f->seek_sample = f->fl.seek_sample;
 		}
 	}
 
+	ffstr out = {};
+
 	for (;;) {
-		r = ffflac_read(&f->fl);
+		r = flacread_process(&f->fl, &f->in, &out);
 		switch (r) {
-		case FFFLAC_RMORE:
+		case FLACREAD_MORE:
 			if (d->flags & FMED_FLAST) {
 				warnlog(d->trk, "file is incomplete");
 				d->outlen = 0;
@@ -138,293 +110,90 @@ static int flac_in_read(void *ctx, fmed_filt *d)
 			}
 			return FMED_RMORE;
 
-		case FFFLAC_RHDR:
+		case FLACREAD_HEADER: {
+			const struct flac_info *i = flacread_info(&f->fl);
 			d->audio.decoder = "FLAC";
-			ffpcm_fmtcopy(&d->audio.fmt, &f->fl.fmt);
+			d->audio.fmt.format = i->bits;
+			d->audio.fmt.channels = i->channels;
+			d->audio.fmt.sample_rate = i->sample_rate;
 			d->audio.fmt.ileaved = 0;
 			d->datatype = "flac";
 
+			f->sample_rate = i->sample_rate;
 			if (d->audio.abs_seek != 0)
-				f->abs_seek = fmed_apos_samples(d->audio.abs_seek, f->fl.fmt.sample_rate);
+				f->abs_seek = fmed_apos_samples(d->audio.abs_seek, f->sample_rate);
 
-			d->audio.total = ffflac_totalsamples(&f->fl) - f->abs_seek;
+			d->audio.total = i->total_samples - f->abs_seek;
 			break;
+		}
 
-		case FFFLAC_RTAG:
+		case FLACREAD_TAG:
 			flac_meta(f, d);
 			break;
 
-		case FFFLAC_RHDRFIN:
+		case FLACREAD_HEADER_FIN: {
+			const struct flac_info *i = flacread_info(&f->fl);
 			dbglog(d->trk, "blocksize:%u..%u  framesize:%u..%u  MD5:%16xb  seek-table:%u  meta-length:%u  total-samples:%,U"
-				, (int)f->fl.info.minblock, (int)f->fl.info.maxblock, (int)f->fl.info.minframe, (int)f->fl.info.maxframe
-				, f->fl.info.md5, (int)f->fl.sktab.len, (int)f->fl.framesoff, f->fl.info.total_samples);
-			d->audio.bitrate = ffflac_bitrate(&f->fl);
+				, (int)i->minblock, (int)i->maxblock, (int)i->minframe, (int)i->maxframe
+				, i->md5, (int)f->fl.sktab.len, (int)f->fl.frame1_off, i->total_samples);
+			d->audio.bitrate = i->bitrate;
 
 			if (d->input_info)
 				return FMED_RDONE;
 
-			fmed_setval("flac.in.minblock", f->fl.info.minblock);
-			fmed_setval("flac.in.maxblock", f->fl.info.maxblock);
+			fmed_setval("flac.in.minblock", i->minblock);
+			fmed_setval("flac.in.maxblock", i->maxblock);
 
 			if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, "flac.decode"))
 				return FMED_RERR;
 
 			f->seek_ready = 1;
 			if (f->abs_seek != 0)
-				ffflac_seek(&f->fl, f->abs_seek);
+				flacread_seek(&f->fl, f->abs_seek);
 			if ((int64)d->audio.seek != FMED_NULL) {
-				ffflac_seek(&f->fl, f->abs_seek + ffpcm_samples(d->audio.seek, f->fl.fmt.sample_rate));
+				flacread_seek(&f->fl, f->abs_seek + ffpcm_samples(d->audio.seek, f->sample_rate));
 				d->audio.seek = FMED_NULL;
 			}
+			f->seek_sample = f->fl.seek_sample;
 			break;
+		}
 
-		case FFFLAC_RDATA:
+		case FLACREAD_DATA:
 			goto data;
 
-		case FFFLAC_RSEEK:
-			d->input.seek = ffflac_seekoff(&f->fl);
+		case FLACREAD_SEEK:
+			d->input.seek = flacread_offset(&f->fl);
 			return FMED_RMORE;
 
-		case FFFLAC_RDONE:
+		case FLACREAD_DONE:
 			d->outlen = 0;
 			return FMED_RDONE;
 
-		case FFFLAC_RWARN:
-			warnlog(d->trk, "ffflac_decode(): at offset 0x%xU: %s"
-				, f->fl.off, ffflac_errstr(&f->fl));
-			break;
-
-		case FFFLAC_RERR:
-			errlog(d->trk, "ffflac_decode(): %s", ffflac_errstr(&f->fl));
+		case FLACREAD_ERROR:
+			errlog(d->trk, "flacread_decode(): at offset 0x%xU: %s"
+				, flacread_offset(&f->fl), flacread_error(&f->fl));
 			return FMED_RERR;
 		}
 	}
 
 data:
 	dbglog(d->trk, "frame samples:%u pos:%U"
-		, f->fl.frame.samples, ffflac_cursample(&f->fl));
-	d->audio.pos = ffflac_cursample(&f->fl);
+		, flacread_samples(&f->fl), flacread_cursample(&f->fl));
+	d->audio.pos = flacread_cursample(&f->fl);
 	if (d->audio.pos > f->abs_seek)
 		d->audio.pos -= f->abs_seek;
 
-	fmed_setval("flac.in.frsamples", f->fl.frame.samples);
+	fmed_setval("flac.in.frsamples", flacread_samples(&f->fl));
 	fmed_setval("flac.in.frpos", f->fl.frame.pos);
-	if (f->fl.seek_ok)
-		fmed_setval("flac.in.seeksample", f->fl.seeksample);
-	ffstr out = ffflac_output(&f->fl);
+	if (f->seek_sample != (ffuint64)-1) {
+		fmed_setval("flac.in.seeksample", f->seek_sample);
+		f->seek_sample = (ffuint64)-1;
+	}
 	d->out = out.ptr;
 	d->outlen = out.len;
 	return FMED_RDATA;
 }
 
-
-int flac_out_config(ffpars_ctx *conf)
-{
-	flac_out_conf.sktab_int = 1;
-	flac_out_conf.min_meta_size = 1000;
-	ffpars_setargs(conf, &flac_out_conf, flac_out_conf_args, FFCNT(flac_out_conf_args));
-	return 0;
-}
-
-static int pic_meta_png(struct flac_picinfo *info, const ffstr *data)
-{
-	struct ffpngr png = {};
-	int rc = -1, r;
-	if (0 != ffpngr_open(&png))
-		goto err;
-	png.input = *data;
-	r = ffpngr_read(&png);
-	if (r != FFPNG_HDR)
-		goto err;
-
-	info->mime = FFPNG_MIME;
-	info->width = png.info.width;
-	info->height = png.info.height;
-	info->bpp = png.info.bpp;
-	rc = 0;
-
-err:
-	ffpngr_close(&png);
-	return rc;
-}
-
-static int pic_meta_jpeg(struct flac_picinfo *info, const ffstr *data)
-{
-	struct ffjpegr jpeg = {};
-	int rc = -1, r;
-	if (0 != ffjpegr_open(&jpeg))
-		goto err;
-	jpeg.input = *data;
-	r = ffjpegr_read(&jpeg);
-	if (r != FFJPEG_HDR)
-		goto err;
-
-	info->mime = FFJPEG_MIME;
-	info->width = jpeg.info.width;
-	info->height = jpeg.info.height;
-	info->bpp = jpeg.info.bpp;
-	rc = 0;
-
-err:
-	ffjpegr_close(&jpeg);
-	return rc;
-}
-
-static void pic_meta(struct flac_picinfo *info, const ffstr *data, void *trk)
-{
-	if (0 == pic_meta_png(info, data))
-		return;
-	if (0 == pic_meta_jpeg(info, data))
-		return;
-	warnlog(trk, "picture write: can't detect MIME; writing without MIME and image dimensions");
-}
-
-static int flac_out_addmeta(flac_out *f, fmed_filt *d)
-{
-	uint i;
-	ffstr name, *val;
-	void *qent;
-
-	const char *vendor = flac_vendor();
-	if (0 != ffflac_addtag(&f->fl, NULL, vendor, ffsz_len(vendor))) {
-		syserrlog(d->trk, "can't add tag: %S", &name);
-		return -1;
-	}
-
-	if (FMED_PNULL == (qent = (void*)fmed_getval("queue_item")))
-		return 0;
-
-	for (i = 0;  NULL != (val = qu->meta(qent, i, &name, FMED_QUE_UNIQ));  i++) {
-		if (val == FMED_QUE_SKIP
-			|| ffstr_eqcz(&name, "vendor"))
-			continue;
-
-		if (ffstr_eqcz(&name, "picture")) {
-			struct flac_picinfo info = {};
-			pic_meta(&info, val, d->trk);
-			ffflac_setpic(&f->fl, &info, val);
-			continue;
-		}
-
-		if (0 != ffflac_addtag(&f->fl, name.ptr, val->ptr, val->len)) {
-			syserrlog(d->trk, "can't add tag: %S", &name);
-			return -1;
-		}
-	}
-	return 0;
-}
-
-static void* flac_out_create(fmed_filt *d)
-{
-	flac_out *f = ffmem_tcalloc1(flac_out);
-	if (f == NULL)
-		return NULL;
-
-	ffflac_winit(&f->fl);
-	if (!d->out_seekable) {
-		f->fl.seekable = 0;
-		f->fl.seektable_int = 0;
-	}
-	return f;
-}
-
-static void flac_out_free(void *ctx)
-{
-	flac_out *f = ctx;
-	ffflac_wclose(&f->fl);
-	ffmem_free(f);
-}
-
-static int flac_out_encode(void *ctx, fmed_filt *d)
-{
-	enum { I_FIRST, I_INIT, I_DATA0, I_DATA };
-	flac_out *f = ctx;
-	int r;
-
-	switch (f->state) {
-	case I_FIRST:
-		if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT_PREV, "flac.encode"))
-			return FMED_RERR;
-		f->state = I_INIT;
-		return FMED_RMORE;
-
-	case I_INIT:
-		if (!ffsz_eq(d->datatype, "flac")) {
-			errlog(d->trk, "unsupported input data format: %s", d->datatype);
-			return FMED_RERR;
-		}
-
-		if ((int64)d->audio.total != FMED_NULL)
-			f->fl.total_samples = (d->audio.total - d->audio.pos) * d->audio.convfmt.sample_rate / d->audio.fmt.sample_rate;
-
-		f->fl.seektable_int = flac_out_conf.sktab_int * d->audio.convfmt.sample_rate;
-		f->fl.min_meta = flac_out_conf.min_meta_size;
-
-		if (d->datalen != sizeof(ffflac_info)) {
-			errlog(d->trk, "invalid first input data block");
-			return FMED_RERR;
-		}
-
-		if (0 != ffflac_wnew(&f->fl, (void*)d->data)) {
-			errlog(d->trk, "ffflac_wnew(): %s", ffflac_out_errstr(&f->fl));
-			return FMED_RERR;
-		}
-		d->datalen = 0;
-		if (0 != flac_out_addmeta(f, d))
-			return FMED_RERR;
-
-		f->state = I_DATA0;
-		break;
-
-	case I_DATA0:
-	case I_DATA:
-		break;
-	}
-
-	if (d->flags & FMED_FFWD) {
-		ffstr_set(&f->fl.in, (const void**)d->datani, d->datalen);
-		if (d->flags & FMED_FLAST) {
-			if (d->datalen != sizeof(ffflac_info)) {
-				errlog(d->trk, "invalid last input data block");
-				return FMED_RERR;
-			}
-			ffflac_wfin(&f->fl, (void*)d->data);
-		}
-	}
-
-	for (;;) {
-	r = ffflac_write(&f->fl, fmed_getval("flac_in_frsamples"));
-
-	switch (r) {
-	case FFFLAC_RMORE:
-		return FMED_RMORE;
-
-	case FFFLAC_RDATA:
-		if (f->state == I_DATA0) {
-			d->output.size = ffflac_wsize(&f->fl);
-			f->state = I_DATA;
-		}
-		goto data;
-
-	case FFFLAC_RDONE:
-		goto data;
-
-	case FFFLAC_RSEEK:
-		d->output.seek = f->fl.seekoff;
-		continue;
-
-	case FFFLAC_RERR:
-	default:
-		errlog(d->trk, "ffflac_write(): %s", ffflac_out_errstr(&f->fl));
-		return FMED_RERR;
-	}
-	}
-
-data:
-	dbglog(d->trk, "output: %L bytes", f->fl.out.len);
-	d->out = f->fl.out.ptr;
-	d->outlen = f->fl.out.len;
-	if (r == FFFLAC_RDONE)
-		return FMED_RDONE;
-	return FMED_ROK;
-}
+const fmed_filter fmed_flac_input = {
+	flac_in_create, flac_in_read, flac_in_free
+};

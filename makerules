@@ -243,13 +243,10 @@ FLAC_O := $(OBJ_DIR)/flac.o \
 	$(OBJ_DIR)/flac-fmt.o \
 	$(OBJ_DIR)/flac-ogg.o \
 	$(FF_O) \
-	$(FF_OBJ_DIR)/ffflac-fmt.o \
-	$(FF_OBJ_DIR)/ffflac-ext.o \
 	$(FF_OBJ_DIR)/ffflac-ogg.o \
 	$(FF_OBJ_DIR)/ffflac.o \
 	$(FF_OBJ_DIR)/ffpng-fmt.o \
 	$(FF_OBJ_DIR)/ffjpeg-fmt.o \
-	$(FF_OBJ_DIR)/ffvorbistag.o \
 	$(FF_OBJ_DIR)/ffmmtag.o \
 	$(FF_OBJ_DIR)/ffpcm.o
 flac.$(SO): $(FLAC_O)

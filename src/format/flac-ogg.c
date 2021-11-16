@@ -2,9 +2,8 @@
 Copyright (c) 2019 Simon Zolin */
 
 #include <fmedia.h>
-
-#include <FF/aformat/flac.h>
-#include <FF/audio/flac.h>
+#include <format/mmtag.h>
+#include <avpack/flac-ogg-read.h>
 
 
 #undef dbglog
@@ -24,8 +23,10 @@ const fmed_filter fmed_flacogg_input = {
 
 
 struct flacogg_in {
-	ffflac_ogg fo;
+	flacoggread fo;
 	uint64 apos;
+	ffstr in;
+	uint fr_samples;
 };
 
 static void* flacogg_in_create(fmed_filt *d)
@@ -33,86 +34,109 @@ static void* flacogg_in_create(fmed_filt *d)
 	struct flacogg_in *f = ffmem_new(struct flacogg_in);
 	if (f == NULL)
 		return NULL;
-
-	if (0 != ffflac_ogg_open(&f->fo)) {
-		ffmem_free(f);
-		return NULL;
-	}
+	flacoggread_open(&f->fo);
 	return f;
 }
 
 static void flacogg_in_free(void *ctx)
 {
 	struct flacogg_in *f = ctx;
-	ffflac_ogg_close(&f->fo);
+	flacoggread_close(&f->fo);
 	ffmem_free(f);
+}
+
+static void flacogg_meta(struct flacogg_in *f, fmed_filt *d)
+{
+	ffstr name, val;
+	int tag = flacoggread_tag(&f->fo, &name, &val);
+	if (tag != 0)
+		ffstr_setz(&name, ffmmtag_str[tag]);
+	dbglog(d->trk, "%S: %S", &name, &val);
+	d->track->meta_set(d->trk, &name, &val, FMED_QUE_TMETA);
 }
 
 static int flacogg_in_read(void *ctx, fmed_filt *d)
 {
 	struct flacogg_in *f = ctx;
 	int r;
-	ffstr out;
 
 	if (d->flags & FMED_FSTOP) {
 		d->outlen = 0;
 		return FMED_RLASTOUT;
 	}
 
-	if (d->flags & FMED_FFWD)
-		ffflac_ogg_input(&f->fo, d->data, d->datalen);
+	if (d->flags & FMED_FFWD) {
+		ffstr_set(&f->in, d->data, d->datalen);
+		d->datalen = 0;
+	}
+
+	if ((int64)d->audio.seek != FMED_NULL)
+		d->audio.seek = FMED_NULL;
+
+	ffstr out = {};
 
 	for (;;) {
-		r = ffflac_ogg_read(&f->fo);
+		r = flacoggread_process(&f->fo, &f->in, &out);
 
 		switch (r) {
-		case FFFLAC_RHDR:
+		case FLACOGGREAD_HEADER: {
 			d->audio.decoder = "FLAC";
-			ffpcm_fmtcopy(&d->audio.fmt, &f->fo.fmt);
+			const struct flac_info *info = flacoggread_info(&f->fo);
+			d->audio.fmt.format = info->bits;
+			d->audio.fmt.channels = info->channels;
+			d->audio.fmt.sample_rate = info->sample_rate;
 			d->audio.fmt.ileaved = 0;
 			d->datatype = "flac";
 			break;
+		}
 
-		case FFFLAC_RTAG:
-			dbglog(d->trk, "meta block type %xu", f->fo.meta_type);
+		case FLACOGGREAD_TAG:
+			flacogg_meta(f, d);
 			break;
 
-		case FFFLAC_RHDRFIN:
+		case FLACOGGREAD_HEADER_FIN: {
 			if (d->input_info)
 				return FMED_RDONE;
 
-			if (f->fo.info.minblock != 4096 || f->fo.info.maxblock != 4096)
+			const struct flac_info *info = flacoggread_info(&f->fo);
+			if (info->minblock != info->maxblock) {
+				errlog(d->trk, "unsupported case: minblock != maxblock");
 				return FMED_RERR;
+			}
 
-			fmed_setval("flac.in.minblock", 4096);
-			fmed_setval("flac.in.maxblock", 4096);
+			fmed_setval("flac.in.minblock", info->minblock);
+			fmed_setval("flac.in.maxblock", info->maxblock);
+			f->fr_samples = info->minblock;
 
 			if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, "flac.decode"))
 				return FMED_RERR;
 			break;
+		}
 
-		case FFFLAC_RDATA:
+		case FLACOGGREAD_DATA:
 			goto data;
 
-		case FFFLAC_RMORE:
+		case FLACOGGREAD_MORE:
+			if (d->flags & FMED_FLAST)
+				return FMED_RDONE;
 			return FMED_RMORE;
 
-		case FFFLAC_RERR:
-			errlog(d->trk, "ffflac_ogg_read(): %s", ffflac_ogg_errstr(&f->fo));
+		case FLACOGGREAD_ERROR:
+			errlog(d->trk, "flacoggread_read(): %s", flacoggread_error(&f->fo));
 			return FMED_RERR;
 
 		default:
+			errlog(d->trk, "flacoggread_read(): %r", r);
 			return FMED_RERR;
 		}
 	}
 
 data:
-	out = ffflac_ogg_output(&f->fo);
 	dbglog(d->trk, "read frame.  size:%L", out.len);
 	d->audio.pos = f->apos;
-	fmed_setval("flac.in.frsamples", 4096);
+	fmed_setval("flac.in.frsamples", f->fr_samples);
 	fmed_setval("flac.in.frpos", f->apos);
-	f->apos += 4096;
+	f->apos += f->fr_samples;
 	d->out = out.ptr,  d->outlen = out.len;
 	return FMED_RDATA;
 }

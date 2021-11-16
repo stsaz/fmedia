@@ -120,7 +120,7 @@ static void* flac_dec_create(fmed_filt *d)
 	if (f == NULL)
 		return NULL;
 
-	ffflac_info info;
+	struct flac_info info;
 	info.minblock = fmed_getval("flac.in.minblock");
 	info.maxblock = fmed_getval("flac.in.maxblock");
 	info.bits = ffpcm_bits(d->audio.fmt.format);
@@ -232,9 +232,9 @@ static int flac_enc_encode(void *ctx, fmed_filt *d)
 	}
 
 	case 1:
-		if (0 != ffflac_create(&f->fl, (void*)&d->audio.convfmt)) {
+		if (0 != (r = ffflac_create(&f->fl, (void*)&d->audio.convfmt))) {
 
-			if (f->state == 0 && f->fl.errtype == FLAC_EFMT) {
+			if (f->state == 0 && r == FLAC_EFMT) {
 				d->audio.convfmt.ileaved = 0;
 				f->state = 1;
 				return FMED_RMORE;
@@ -271,7 +271,7 @@ static int flac_enc_encode(void *ctx, fmed_filt *d)
 
 	if (f->state != 3) {
 		f->state = 3;
-		d->out = (void*)&f->fl.info,  d->outlen = sizeof(ffflac_info);
+		d->out = (void*)&f->fl.info,  d->outlen = sizeof(struct flac_info);
 		return FMED_RDATA;
 	}
 
