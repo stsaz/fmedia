@@ -198,6 +198,15 @@ menu mhelp {
 	}
 }
 
+menu mexplorer {
+	item "Add and Play" {
+		action A_EXPL_ADDPLAY
+	}
+	item "Add to Playlist" {
+		action A_EXPL_ADD
+	}
+}
+
 dialog dlg {
 }
 

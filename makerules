@@ -449,7 +449,7 @@ $(OBJ_DIR)/gui.o: $(SRCDIR)/gui-gtk/gui.c $(SRCDIR)/gui-gtk/gui.h $(SRCDIR)/fmed
 $(OBJ_DIR)/gui-dlgs.o: $(SRCDIR)/gui-gtk/gui-dlgs.c $(wildcard $(SRCDIR)/gui-gtk/*.h) $(SRCDIR)/fmedia.h $(FF_GUIHDR)
 	$(C) $(CFLAGS) $(CFLAGS_GTK)  $< -o$@
 
-$(OBJ_DIR)/%.o: $(SRCDIR)/gui-gtk/%.c $(SRCDIR)/gui-gtk/gui.h $(SRCDIR)/fmedia.h $(FF)/FF/gui-gtk/gtk.h
+$(OBJ_DIR)/gui-main.o: $(SRCDIR)/gui-gtk/gui-main.c $(SRCDIR)/gui-gtk/gui.h $(SRCDIR)/gui-gtk/file-explorer.h $(SRCDIR)/fmedia.h $(FF)/FF/gui-gtk/gtk.h
 	$(C) $(CFLAGS) $(CFLAGS_GTK)  $< -o$@
 
 GUIGTK_O := $(OBJ_DIR)/gui.o \

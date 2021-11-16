@@ -99,6 +99,7 @@ typedef struct ggui {
 	ffui_menu mplay;
 	ffui_menu mconvert;
 	ffui_menu mhelp;
+	ffui_menu mexplorer;
 } ggui;
 
 extern const fmed_core *core;
@@ -115,9 +116,14 @@ void ctlconf_write(void);
 void usrconf_write(void);
 void gui_showtextfile(uint id);
 void gui_list_sel(uint idx);
+struct params_urls_add_play {
+	ffvec v;
+	int play;
+};
 
 // Main:
 void wmain_init();
+void wmain_destroy();
 void wmain_show();
 void wmain_cmd(int id);
 void wmain_newtrack(fmed_que_entry *ent, uint time_total, fmed_filt *d);
@@ -139,6 +145,8 @@ void wmain_list_select(ffuint idx);
 ffarr4* wmain_list_getsel();
 ffarr4* wmain_list_getsel_send();
 int wmain_list_scroll_vert();
+int wmain_exp_conf(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
+int wmain_exp_conf_writeval(ffstr *line, ffconfw *conf);
 
 // Dialogs:
 

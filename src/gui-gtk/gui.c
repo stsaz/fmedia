@@ -102,6 +102,7 @@ static const ffpars_arg gui_conf_args[] = {
 	{ "record",	FFPARS_TOBJ, FFPARS_DST(&conf_ctxany) },
 	{ "convert",	FFPARS_TOBJ, FFPARS_DST(&conf_convert) },
 	{ "global_hotkeys",	FFPARS_TOBJ, FFPARS_DST(&conf_ctxany) },
+	{ "explorer",	FFPARS_TOBJ, FFPARS_DST(wmain_exp_conf) },
 
 	{ "*",	FFPARS_TSTR | FFPARS_FMULTI, FFPARS_DST(&conf_any) },
 };
@@ -191,6 +192,7 @@ static const ffui_ldr_ctl top_ctls[] = {
 	FFUI_LDR_CTL(ggui, mplay),
 	FFUI_LDR_CTL(ggui, mconvert),
 	FFUI_LDR_CTL(ggui, mhelp),
+	FFUI_LDR_CTL(ggui, mexplorer),
 	FFUI_LDR_CTL(ggui, dlg),
 	FFUI_LDR_CTL3_PTR(ggui, wmain, wmain_ctls),
 	FFUI_LDR_CTL3_PTR(ggui, wabout, wabout_ctls),
@@ -224,10 +226,10 @@ void dlgs_destroy()
 	wconv_destroy();
 	wdload_destroy();
 	wlog_destroy();
+	wmain_destroy();
 	ffmem_free(gg->wabout);
 	ffmem_free(gg->wcmd);
 	ffmem_free(gg->winfo);
-	ffmem_free(gg->wmain);
 	ffmem_free(gg->wplayprops);
 	ffmem_free(gg->wrename);
 	ffmem_free(gg->wuri);
@@ -371,6 +373,22 @@ void gui_list_sel(uint idx)
 	gg->qu->cmdv(FMED_QUE_SEL, idx);
 	uint n = gg->qu->cmdv(FMED_QUE_COUNT);
 	wmain_list_set(0, n);
+}
+
+static void urls_add_play(struct params_urls_add_play *p)
+{
+	uint n = gg->qu->cmdv(FMED_QUE_COUNT);
+	char **name;
+	FFSLICE_WALK(&p->v, name) {
+		ffstr s = FFSTR_INITZ(*name);
+		list_add(&s, -1);
+		ffmem_free(*name);
+	}
+
+	if (p->play >= 0) {
+		gg->focused = n + p->play;
+		corecmd_run(A_PLAY, NULL);
+	}
 }
 
 static void corecmd_run(uint cmd, void *udata)
@@ -556,6 +574,14 @@ static void corecmd_run(uint cmd, void *udata)
 		ffarr_free(&fn);
 		ffstr_free(d);
 		ffmem_free(d);
+		break;
+	}
+
+	case _A_URLS_ADD_PLAY: {
+		struct params_urls_add_play *p = udata;
+		urls_add_play(p);
+		ffvec_free(&p->v);
+		ffmem_free(p);
 		break;
 	}
 
@@ -1033,6 +1059,8 @@ void usrconf_write(void)
 		if (!found) {
 			found = wdload_conf_writeval(&ln, &conf);
 		}
+		if (!found)
+			found = wmain_exp_conf_writeval(&ln, &conf);
 
 		if (!found && ln.len != 0)
 			ffconfw_addline(&conf, &ln);
@@ -1046,6 +1074,7 @@ void usrconf_write(void)
 	}
 	wconvert_conf_writeval(NULL, &conf);
 	wdload_conf_writeval(NULL, &conf);
+	wmain_exp_conf_writeval(NULL, &conf);
 
 	ffconfw_fin(&conf);
 
@@ -1075,7 +1104,8 @@ static void gui_que_onchange(fmed_que_entry *ent, uint flags)
 		//fallthrough
 	case FMED_QUE_ONRM:
 	case FMED_QUE_ONUPDATE:
-		if (!gg->qu->cmdv(FMED_QUE_ISCURLIST, ent))
+		if (!gg->qu->cmdv(FMED_QUE_ISCURLIST, ent)
+			|| wmain_tab_active() < 0)
 			return;
 		break;
 	}

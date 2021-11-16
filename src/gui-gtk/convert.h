@@ -556,6 +556,8 @@ static void convert(void *param)
 
 	// create "Convert" tab
 	int curtab = wmain_tab_active();
+	if (curtab < 0)
+		goto done;
 	c->itab = wmain_tab_new(TAB_CONVERT) + 1;
 	gg->qu->cmdv(FMED_QUE_NEW, FMED_QUE_NORND);
 
