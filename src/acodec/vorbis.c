@@ -4,7 +4,7 @@ Copyright (c) 2016 Simon Zolin */
 #include <fmedia.h>
 
 #include <FF/audio/vorbis.h>
-#include <FF/mtags/mmtag.h>
+#include <format/mmtag.h>
 
 
 static const fmed_core *core;
@@ -204,13 +204,12 @@ static int vorbis_in_decode(void *ctx, fmed_filt *d)
 		return FMED_RMORE;
 
 	case FFVORBIS_RTAG: {
-		const ffvorbtag *vtag = &v->vorbis.vtag;
-		dbglog(core, d->trk, NULL, "%S: %S", &vtag->name, &vtag->val);
-		ffstr name = vtag->name;
-
-		if (vtag->tag != 0)
-			ffstr_setz(&name, ffmmtag_str[vtag->tag]);
-		d->track->meta_set(d->trk, &name, &vtag->val, FMED_QUE_TMETA);
+		ffstr name, val;
+		int tag = ffvorbis_tag(&v->vorbis, &name, &val);
+		dbglog(core, d->trk, NULL, "%S: %S", &name, &val);
+		if (tag != 0)
+			ffstr_setz(&name, ffmmtag_str[tag]);
+		d->track->meta_set(d->trk, &name, &val, FMED_QUE_TMETA);
 		break;
 	}
 
@@ -273,14 +272,6 @@ static int vorbis_out_addmeta(vorbis_out *v, fmed_filt *d)
 			continue;
 		if (0 != ffvorbis_addtag(&v->vorbis, name.ptr, val->ptr, val->len))
 			warnlog(core, d->trk, NULL, "can't add tag: %S", &name);
-	}
-
-	if ((int64)d->audio.total != FMED_NULL) {
-		char buf[64];
-		uint64 total = (d->audio.total - d->audio.pos) * d->audio.convfmt.sample_rate / d->audio.fmt.sample_rate;
-		uint n = ffs_fromint(total, buf, sizeof(buf), 0);
-		if (0 != ffvorbis_addtag(&v->vorbis, "AUDIO_TOTAL", buf, n))
-			warnlog(core, d->trk, NULL, "can't add tag: %s", "AUDIO_TOTAL");
 	}
 
 	return 0;

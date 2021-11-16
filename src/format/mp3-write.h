@@ -64,7 +64,7 @@ int mpeg_out_addmeta(mpeg_out *m, fmed_filt *d)
 
 	while (0 == d->track->cmd2(d->trk, FMED_TRACK_META_ENUM, &meta)) {
 		if (-1 == (r = ffs_findarrz(ffmmtag_str, FFCNT(ffmmtag_str), meta.name.ptr, meta.name.len))
-			|| r == FFMMTAG_VENDOR)
+			|| r == MMTAG_VENDOR)
 			continue;
 
 		if (0 != mp3write_addtag(&m->mpgw, r, meta.val)) {

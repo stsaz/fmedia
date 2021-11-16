@@ -4,7 +4,7 @@ Copyright (c) 2015 Simon Zolin */
 #include <fmedia.h>
 
 #include <FF/audio/ape.h>
-#include <FF/mtags/mmtag.h>
+#include <format/mmtag.h>
 
 
 static const fmed_core *core;
@@ -88,20 +88,10 @@ static void ape_in_free(void *ctx)
 static void ape_meta(ape *a, fmed_filt *d)
 {
 	ffstr name, val;
-
-	if (a->ap.is_apetag) {
-		name = a->ap.apetag.name;
-		if (FFAPETAG_FBINARY == (a->ap.apetag.flags & FFAPETAG_FMASK)) {
-			dbglog(core, d->trk, "ape", "skipping binary tag: %S", &name);
-			return;
-		}
-	}
-
-	if (a->ap.tag != 0)
-		ffstr_setz(&name, ffmmtag_str[a->ap.tag]);
-	val = a->ap.tagval;
+	int tag = ffape_tag(&a->ap, &name, &val);
+	if (tag != 0)
+		ffstr_setz(&name, ffmmtag_str[tag]);
 	dbglog(core, d->trk, "ape", "tag: %S: %S", &name, &val);
-
 	d->track->meta_set(d->trk, &name, &val, FMED_QUE_TMETA);
 }
 

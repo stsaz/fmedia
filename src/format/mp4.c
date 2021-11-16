@@ -4,7 +4,7 @@ Copyright (c) 2016 Simon Zolin */
 #include <fmedia.h>
 
 #include <avpack/mp4-read.h>
-#include <FF/mtags/mmtag.h>
+#include <format/mmtag.h>
 
 
 #define errlog1(trk, ...)  fmed_errlog(core, trk, NULL, __VA_ARGS__)

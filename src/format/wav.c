@@ -5,7 +5,7 @@ Copyright (c) 2015 Simon Zolin */
 
 #include <avpack/wav-read.h>
 #include <FF/audio/pcm.h>
-#include <FF/mtags/mmtag.h>
+#include <format/mmtag.h>
 
 
 extern const fmed_core *core;

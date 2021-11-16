@@ -5,7 +5,6 @@ Copyright (c) 2015 Simon Zolin */
 
 #include <FF/audio/mpeg.h>
 #include <FF/audio/pcm.h>
-#include <FF/mtags/mmtag.h>
 #include <FF/array.h>
 
 

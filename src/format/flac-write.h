@@ -5,7 +5,7 @@
 
 #include <avpack/flac-write.h>
 #include <FF/audio/flac.h>
-#include <FF/mtags/mmtag.h>
+#include <format/mmtag.h>
 #include <FF/pic/png.h>
 #include <FF/pic/jpeg.h>
 

@@ -5,7 +5,7 @@ Copyright (c) 2017 Simon Zolin */
 
 #include <avpack/mp3-read.h>
 #include <FF/audio/pcm.h>
-#include <FF/mtags/mmtag.h>
+#include <format/mmtag.h>
 #include <FF/array.h>
 
 #define errlog1(trk, ...)  fmed_errlog(core, trk, NULL, __VA_ARGS__)

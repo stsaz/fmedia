@@ -4,7 +4,7 @@ Copyright (c) 2015 Simon Zolin */
 #include <fmedia.h>
 
 #include <FF/audio/wavpack.h>
-#include <FF/mtags/mmtag.h>
+#include <format/mmtag.h>
 #include <FF/number.h>
 
 
@@ -88,20 +88,10 @@ static void wvpk_in_free(void *ctx)
 static void wvpk_meta(wvpk *w, fmed_filt *d)
 {
 	ffstr name, val;
-
-	if (w->wp.is_apetag) {
-		name = w->wp.apetag.name;
-		if (FFAPETAG_FBINARY == (w->wp.apetag.flags & FFAPETAG_FMASK)) {
-			dbglog(core, d->trk, "ape", "skipping binary tag: %S", &name);
-			return;
-		}
-	}
-
-	if (w->wp.tag != 0)
-		ffstr_setz(&name, ffmmtag_str[w->wp.tag]);
-	val = w->wp.tagval;
+	int tag = ffwvpk_tag(&w->wp, &name, &val);
+	if (tag != 0)
+		ffstr_setz(&name, ffmmtag_str[tag]);
 	dbglog(core, d->trk, "wvpk", "tag: %S: %S", &name, &val);
-
 	d->track->meta_set(d->trk, &name, &val, FMED_QUE_TMETA);
 }
 
