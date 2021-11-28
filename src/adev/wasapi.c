@@ -393,9 +393,6 @@ static void* wasapi_in_open(fmed_filt *d)
 
 	a->buffer_length_msec = wasapi_in_conf.buflen;
 
-	if (0 != audio_in_open(a, d))
-		goto fail;
-
 	int excl = 0;
 	int lowlat;
 	if (wasapi_in_conf.exclusive == EXCL_ALLOWED
@@ -405,6 +402,9 @@ static void* wasapi_in_open(fmed_filt *d)
 		excl = 1;
 	if (excl)
 		a->aflags = FFAUDIO_O_EXCLUSIVE;
+
+	if (0 != audio_in_open(a, d))
+		goto fail;
 
 	wi->tmr.handler = audio_oncapt;
 	wi->tmr.param = a;
