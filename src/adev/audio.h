@@ -245,6 +245,8 @@ end:
 		a->audio->free(a->stream);
 		a->stream = NULL;
 	}
+	if (rc == FMED_RERR)
+		d->err_fatal = 1;
 	return rc;
 }
 
@@ -299,6 +301,7 @@ static inline int audio_out_write(audio_out *a, fmed_filt *d)
 				ffstr_setz(&extra, "device disconnected: ");
 			errlog1(d->trk, "audio device write: %S%s", &extra, a->audio->error(a->stream));
 			a->err_code = -r;
+			d->err_fatal = 1;
 			return FMED_RERR;
 		}
 

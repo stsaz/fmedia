@@ -206,7 +206,7 @@ static void que_trk_close(void *ctx)
 
 	int stopped = t->track->getval(t->trk, "stopped");
 	int err = t->track->getval(t->trk, "error");
-	t->e->trk_stopped = (stopped != FMED_NULL);
+	t->e->trk_stopped = (stopped != FMED_NULL) || t->d->err_fatal;
 	if (t->d->type == FMED_TRK_TYPE_EXPAND && !e->plist->expand_all)
 		e->trk_stopped = 1;
 	t->e->trk_err = (err != FMED_NULL);

@@ -527,6 +527,7 @@ struct fmed_trk {
 		uint print_time :1;
 		uint duration_accurate :1;
 		uint ogg_flush :1;
+		uint err_fatal :1; // fatal error (e.g. audio device failed), playlist continuation isn't possible
 	};
 	};
 
