@@ -519,7 +519,8 @@ static void trk_free(fm_trk *t)
 	core->task(&t->tsk_main, FMED_TASK_DEL);
 	core->cmd(FMED_TASK_XDEL, &t->tsk, t->wid);
 	core->cmd(FMED_TASK_XDEL, &t->tsk_stop, t->wid);
-	t->props.err = (t->state == TRK_ST_ERR);
+	if (t->state == TRK_ST_ERR)
+		t->props.err = 1;
 
 	if (t->props.print_time) {
 		struct ffps_perf i2 = {};
@@ -604,6 +605,7 @@ static const char *const fmed_retstr[] = {
 	"FMED_RASYNC",
 	"FMED_RFIN",
 	"FMED_RSYSERR",
+	"FMED_RDONE_ERR",
 };
 
 static int filt_call(fm_trk *t, fmed_f *f)
@@ -716,6 +718,10 @@ static void trk_process(void *udata)
 			r = FFLIST_CUR_NEXT | FFLIST_CUR_BOUNCE | FFLIST_CUR_SAMEIFBOUNCE;
 			break;
 
+		case FMED_RDONE_ERR:
+			trk_setval(t, "error", 1);
+			t->props.err = 1;
+			// fallthrough
 		case FMED_RDONE:
 			if (filt_islast(t, t->cur)) {
 				filt_close(t, f);

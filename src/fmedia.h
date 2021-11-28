@@ -584,6 +584,7 @@ enum FMED_R {
 	, FMED_RASYNC //an asynchronous operation is scheduled.  The module will call fmed_filt.handler.
 	, FMED_RFIN //close the track
 	, FMED_RSYSERR //system error.  Print error message and close the track.
+	, FMED_RDONE_ERR // same as FMED_RDONE but because of an error
 	, FMED_RERR = -1 //fatal error, the track will be closed.
 };
 

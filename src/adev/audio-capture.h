@@ -160,8 +160,12 @@ static int audio_in_read(audio_in *a, fmed_filt *d)
 			continue;
 
 		} else if (r < 0) {
-			errlog1(d->trk, "read(): %s", a->audio->error(a->stream));
-			return FMED_RERR;
+			ffstr extra = {};
+			if (r == -FFAUDIO_EDEV_OFFLINE)
+				ffstr_setz(&extra, "device disconnected: ");
+			errlog1(d->trk, "audio device read: %S%s", &extra, a->audio->error(a->stream));
+			d->outlen = 0;
+			return FMED_RDONE_ERR;
 
 		} else if (r == 0) {
 			a->async = 1;
