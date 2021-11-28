@@ -145,6 +145,8 @@ typedef struct audio_out {
 	const fmed_track *track;
 	void *trk;
 	uint aflags;
+	int err_code; // enum FFAUDIO_E
+	int handle_dev_offline;
 
 	// runtime
 	ffaudio_buf *stream;
@@ -276,17 +278,28 @@ static inline int audio_out_write(audio_out *a, fmed_filt *d)
 	while (d->datalen != 0) {
 
 		r = a->audio->write(a->stream, d->data, d->datalen);
-		if (r == -FFAUDIO_ESYNC) {
-			warnlog1(d->trk, "underrun detected", 0);
-			continue;
-
-		} else if (r < 0) {
-			errlog1(d->trk, "write(): %s", a->audio->error(a->stream));
-			return FMED_RERR;
-
+		if (r > 0) {
+			//
 		} else if (r == 0) {
 			a->async = 1;
 			return FMED_RASYNC;
+
+		} else if (r == -FFAUDIO_ESYNC) {
+			warnlog1(d->trk, "underrun detected", 0);
+			continue;
+
+		} else if (r == -FFAUDIO_EDEV_OFFLINE && a->handle_dev_offline) {
+			warnlog1(d->trk, "audio device write: device disconnected: %s", a->audio->error(a->stream));
+			a->err_code = FFAUDIO_EDEV_OFFLINE;
+			return FMED_RERR;
+
+		} else {
+			ffstr extra = {};
+			if (r == -FFAUDIO_EDEV_OFFLINE)
+				ffstr_setz(&extra, "device disconnected: ");
+			errlog1(d->trk, "audio device write: %S%s", &extra, a->audio->error(a->stream));
+			a->err_code = -r;
+			return FMED_RERR;
 		}
 
 		d->data += r;

@@ -211,6 +211,8 @@ static void* wasapi_open(fmed_filt *d)
 	return w;
 }
 
+/**
+Return FMED_RMORE (if state==I_TRYOPEN): requesting audio conversion */
 static int wasapi_create(audio_out *w, fmed_filt *d)
 {
 	ffpcm fmt;
@@ -218,6 +220,8 @@ static int wasapi_create(audio_out *w, fmed_filt *d)
 
 	if (FMED_NULL == (int)(w->dev_idx = (int)d->track->getval(d->trk, "playdev_name")))
 		w->dev_idx = wasapi_out_conf.idev;
+	if (w->dev_idx == 0)
+		w->handle_dev_offline = 1;
 
 	ffpcm_fmtcopy(&fmt, &d->audio.convfmt);
 	w->buffer_length_msec = wasapi_out_conf.buflen;
@@ -345,6 +349,15 @@ static int wasapi_write(void *ctx, fmed_filt *d)
 		mod->out = NULL;
 		core->timer(&mod->tmr, 0, 0);
 		mod->usedby = NULL;
+		if (w->err_code == FFAUDIO_EDEV_OFFLINE && w->dev_idx == 0) {
+			/*
+			This code works only because shared mode WASAPI has the same audio format for all devices
+			 so we won't request a new format conversion.
+			For exclusive mode we need to handle new format conversion properly which isn't that easy to do.
+			*/
+			w->state = I_OPEN;
+			return wasapi_write(w, d);
+		}
 		return FMED_RERR;
 	}
 	return r;
