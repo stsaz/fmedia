@@ -30,6 +30,7 @@ struct gctx {
 	const fmed_track *track;
 	const fmed_queue *qu;
 	uint psexit; //process exit code
+	fftask tsk_tracks_stop;
 
 	ffdl core_dl;
 	fmed_core* (*core_init)(char **argv, char **env);
@@ -127,18 +128,28 @@ static void mon_onsig(void *trk, uint sig)
 }
 
 
-static const ffuint signals[] = { SIGINT };
+static const ffuint signals[] = { FFSIG_INT };
 
 static void crash_handler(struct ffsig_info *inf);
+
+static void stop_tracks(void *param)
+{
+	g->track->cmd(NULL, FMED_TRACK_STOPALL_EXIT);
+}
 
 static void signal_handler(struct ffsig_info *info)
 {
 	if (core != NULL)
-		dbglog0("received signal:%d", info->sig);
+		dbglog0("received signal:%u", info->sig);
+
 	switch (info->sig) {
 	case FFSIG_INT:
-		g->track->cmd((void*)-1, FMED_TRACK_STOPALL_EXIT);
+		if (core == NULL)
+			break;
+		fftask_set(&g->tsk_tracks_stop, stop_tracks, NULL);
+		core->cmd(FMED_TASK_XPOST, &g->tsk_tracks_stop, 0);
 		break;
+
 	default:
 		crash_handler(info);
 	}
