@@ -5,6 +5,7 @@ Copyright (c) 2019 Simon Zolin */
 #include <FF/gui-gtk/gtk.h>
 #include <FFOS/thread.h>
 #include <FFOS/semaphore.h>
+#include <FFOS/signal.h>
 
 
 #undef dbglog
@@ -78,8 +79,10 @@ typedef struct ggui {
 	uint go_pos;
 	uint tabs_counter;
 	char *home_dir;
-	void *subps;
 	int is_kde;
+
+	ffkqsig kqsig;
+	ffkevent sigtask;
 
 	struct gui_conf conf;
 
@@ -181,6 +184,7 @@ void wdload_init();
 void wdload_show(uint show);
 void wdload_destroy();
 int wdload_conf_writeval(ffstr *line, ffconfw *conf);
+void wdload_subps_onsig(struct ffsig_info *info, int exit_code);
 
 void wrename_init();
 void wrename_show(uint show);

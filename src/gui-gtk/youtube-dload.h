@@ -2,8 +2,8 @@
 2020, Simon Zolin */
 
 #include <FFOS/process.h>
-#include <FFOS/signal.h>
 
+struct subps;
 struct gui_wdload {
 	ffui_wnd wdload;
 	ffui_label lurl;
@@ -18,6 +18,7 @@ struct gui_wdload {
 	ffui_btn bdl;
 
 	ffbyte wconf_flags[2];
+	struct subps *subps;
 
 	int first :1;
 };
@@ -49,9 +50,6 @@ struct subps {
 	ffvec data;
 	ffkevent kqtask;
 	int active;
-
-	ffkqsig kqsig;
-	ffkevent sigtask;
 };
 
 static void subps_destroy(struct subps *sp)
@@ -66,8 +64,6 @@ static void subps_destroy(struct subps *sp)
 		dbglog("killed child process");
 		ffps_close(sp->ps);  sp->ps = FFPS_NULL;
 	}
-	ffkqsig_detach(sp->kqsig, core->kq);  sp->kqsig = FFKQSIG_NULL;
-	ffkev_fin(&sp->sigtask);
 	ffpipe_close(sp->rd);  sp->rd = FFPIPE_NULL;
 	ffpipe_close(sp->wr);  sp->wr = FFPIPE_NULL;
 	ffvec_free(&sp->data);
@@ -78,18 +74,6 @@ static void subps_destroy(struct subps *sp)
 
 static void subps_progress(struct subps *sp);
 static void wdload_status_add_enqueue(int id, const ffstr *s);
-static void subps_onsig(struct subps *sp);
-
-static int sig_prepare(struct subps *sp)
-{
-	ffkev_init(&sp->sigtask);
-	sp->kqtask.oneshot = 0;
-	sp->sigtask.handler = (ffkev_handler)subps_onsig;
-	sp->sigtask.udata = sp;
-	int sigs[] = { SIGCHLD };
-	sp->kqsig = ffkqsig_attach(core->kq, sigs, 1, ffkev_ptr(&sp->sigtask));
-	return (sp->kqsig == FFKQSIG_NULL);
-}
 
 static int pipe_prepare(struct subps *sp)
 {
@@ -121,11 +105,8 @@ static void subps_exec(struct subps *sp, char **args)
 	sp->ps = FFPS_NULL;
 	sp->rd = FFPIPE_NULL;
 	sp->wr = FFPIPE_NULL;
-	sp->kqsig = FFKQSIG_NULL;
 	sp->active = 1;
 
-	if (0 != sig_prepare(sp))
-		goto end;
 	if (0 != pipe_prepare(sp))
 		goto end;
 
@@ -221,19 +202,14 @@ static void subps_dload_url(struct subps *sp)
 	ffmem_free(args[3]);
 }
 
-/** Called by core on SIGCHLD signal */
-static void subps_onsig(struct subps *sp)
+void wdload_subps_onsig(struct ffsig_info *info, int exit_code)
 {
-	int sig = ffkqsig_read(sp->kqsig, NULL);
-	dbglog("subps_onsig: %d", sig);
-	if (sig != SIGCHLD)
+	struct gui_wdload *w = gg->wdload;
+	struct subps *sp = w->subps;
+	if (sp == NULL || info->pid != sp->ps)
 		return;
 
-	int exit_code;
-	if (0 != ffps_wait(sp->ps, 0, &exit_code))
-		return;
 	sp->ps = FFPS_NULL;
-
 	dbglog("ffps_wait: %d", exit_code);
 	ffvec_addfmt(&sp->data, "\n[Program exited with code %u]\n", exit_code);
 	subps_progress(sp);
@@ -258,19 +234,21 @@ static void wdload_status_add_enqueue(int id, const ffstr *s)
 
 struct subps* subps_new()
 {
-	if (gg->subps == NULL) {
-		gg->subps = ffmem_new(struct subps);
+	struct gui_wdload *w = gg->wdload;
+	if (w->subps == NULL) {
+		w->subps = ffmem_new(struct subps);
 	} else {
-		subps_destroy(gg->subps);
-		ffmem_zero_obj(gg->subps);
+		subps_destroy(w->subps);
+		ffmem_zero_obj(w->subps);
 	}
-	return gg->subps;
+	return w->subps;
 }
 
 void wdload_destroy()
 {
-	subps_destroy(gg->subps);
-	ffmem_free(gg->subps);
+	struct gui_wdload *w = gg->wdload;
+	subps_destroy(w->subps);
+	ffmem_free(w->subps);
 	ffmem_free0(gg->wdload);
 }
 

@@ -36,6 +36,8 @@ static void list_rmitems(void);
 static void showdir_selected(void);
 static void showdir(const char *fn);
 static char* userpath(const char *fn);
+static int sig_prepare();
+static void sig_destroy();
 
 FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 {
@@ -120,6 +122,36 @@ static int gui_conf(const char *name, ffpars_ctx *ctx)
 }
 
 void dlgs_init();
+
+static int gui_start()
+{
+	if (NULL == (gg->qu = core->getmod("#queue.queue"))) {
+		return 1;
+	}
+	gg->qu->cmd(FMED_QUE_SETONCHANGE, &gui_que_onchange);
+
+	if (NULL == (gg->track = core->getmod("#core.track"))) {
+		return 1;
+	}
+
+	fflk_setup();
+	if (FFSEM_INV == (gg->sem = ffsem_open(NULL, 0, 0)))
+		return 1;
+
+	if (FFTHD_INV == (gg->th = ffthd_create(&gui_worker, gg, 0))) {
+		gg->load_err = 1;
+		goto end;
+	}
+
+	ffsem_wait(gg->sem, -1); //give the GUI thread some time to create controls
+	sig_prepare();
+	wlog_run();
+end:
+	ffsem_close(gg->sem);
+	gg->sem = FFSEM_INV;
+	return gg->load_err;
+}
+
 static int gui_sig(uint signo)
 {
 	switch (signo) {
@@ -128,34 +160,12 @@ static int gui_sig(uint signo)
 			return -1;
 		gg->vol = 100;
 		gg->go_pos = -1;
+		gg->kqsig = FFKQSIG_NULL;
 		dlgs_init();
 		return 0;
 
 	case FMED_OPEN:
-		if (NULL == (gg->qu = core->getmod("#queue.queue"))) {
-			return 1;
-		}
-		gg->qu->cmd(FMED_QUE_SETONCHANGE, &gui_que_onchange);
-
-		if (NULL == (gg->track = core->getmod("#core.track"))) {
-			return 1;
-		}
-
-		fflk_setup();
-		if (FFSEM_INV == (gg->sem = ffsem_open(NULL, 0, 0)))
-			return 1;
-
-		if (FFTHD_INV == (gg->th = ffthd_create(&gui_worker, gg, 0))) {
-			gg->load_err = 1;
-			goto end;
-		}
-
-		ffsem_wait(gg->sem, -1); //give the GUI thread some time to create controls
-		wlog_run();
-end:
-		ffsem_close(gg->sem);
-		gg->sem = FFSEM_INV;
-		return gg->load_err;
+		return gui_start();
 
 	case FMED_STOP:
 		ffthd_join(gg->th, -1, NULL);
@@ -182,6 +192,7 @@ static void gui_destroy(void)
 	conf_destroy();
 	ffmem_free(gg->home_dir);
 	ffsem_close(gg->sem);
+	sig_destroy();
 	ffmem_free0(gg);
 }
 
@@ -1141,4 +1152,38 @@ static void gui_que_onchange(fmed_que_entry *ent, uint flags)
 	case FMED_QUE_ONCLEAR:
 		break;
 	}
+}
+
+/** Called by core on SIGCHLD signal */
+static void onsig(void *param)
+{
+	struct ffsig_info info = {};
+	int sig = ffkqsig_readinfo(gg->kqsig, NULL, &info);
+	dbglog("onsig: %d", sig);
+	if (sig != SIGCHLD)
+		return;
+
+	int exit_code;
+	if (0 != ffps_wait(info.pid, 0, &exit_code))
+		return;
+	wdload_subps_onsig(&info, exit_code);
+}
+
+static int sig_prepare()
+{
+	ffkev_init(&gg->sigtask);
+	gg->sigtask.oneshot = 0;
+	gg->sigtask.handler = (ffkev_handler)onsig;
+	gg->sigtask.udata = NULL;
+	int sigs[] = { SIGCHLD };
+	gg->kqsig = ffkqsig_attach(core->kq, sigs, 1, ffkev_ptr(&gg->sigtask));
+	if (gg->kqsig == FFKQSIG_NULL)
+		syserrlog("ffkqsig_attach");
+	return (gg->kqsig == FFKQSIG_NULL);
+}
+
+static void sig_destroy()
+{
+	ffkqsig_detach(gg->kqsig, core->kq);  gg->kqsig = FFKQSIG_NULL;
+	ffkev_fin(&gg->sigtask);
 }
