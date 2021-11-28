@@ -7,6 +7,7 @@ Copyright (c) 2018 Simon Zolin */
 #include <FFOS/file.h>
 #include <FFOS/process.h>
 #include <FFOS/backtrace.h>
+#include <FFOS/thread.h>
 // #include <FFOS/cpuid.h>
 
 
@@ -44,9 +45,9 @@ void _crash_handler(const char *fullname, const char *version, struct ffsig_info
 	// general info
 	ffstr_addfmt(&s, sizeof(buf),
 		"%s v%s\n"
-		"Signal:%u  Address:0x%p  Flags:%xu\n"
+		"Signal:%u  Address:0x%p  Flags:%xu  Thread:%xU\n"
 		, fullname, version
-		, inf->sig, inf->addr, inf->flags);
+		, inf->sig, inf->addr, inf->flags, ffthread_curid());
 	fffile_write(f, s.ptr, s.len);
 	if (f != ffstderr)
 		fffile_write(ffstderr, s.ptr, s.len);

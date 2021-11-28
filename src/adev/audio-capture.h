@@ -55,9 +55,10 @@ static int audio_in_open(audio_in *a, fmed_filt *d)
 		goto err;
 
 	for (;;) {
-		dbglog1(d->trk, "opening device #%d, %s/%u/%u"
+		dbglog1(d->trk, "opening device #%d, %s/%u/%u, flags:%xu"
 			, a->dev_idx
-			, ffaudio_format_str(conf.format), conf.sample_rate, conf.channels);
+			, ffaudio_format_str(conf.format), conf.sample_rate, conf.channels
+			, aflags);
 		r = a->audio->open(a->stream, &conf, aflags | FFAUDIO_O_NONBLOCK | FFAUDIO_O_UNSYNC_NOTIFY);
 
 		if (r == FFAUDIO_EFORMAT) {
@@ -174,7 +175,7 @@ static int audio_in_read(audio_in *a, fmed_filt *d)
 		break;
 	}
 
-	dbglog1(d->trk, "read %L bytes", r);
+	dbglog1(d->trk, "read %u bytes", r);
 
 	d->audio.pos = a->total_samples;
 	a->total_samples += r / a->frame_size;

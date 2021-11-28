@@ -195,9 +195,10 @@ static inline int audio_out_open(audio_out *a, fmed_filt *d, const ffpcm *fmt)
 
 	uint aflags = a->aflags;
 	ffaudio_conf in_conf = conf;
-	dbglog1(d->trk, "opening device #%d, %s/%u/%u"
+	dbglog1(d->trk, "opening device #%d, %s/%u/%u, flags:%xu"
 		, a->dev_idx
-		, ffaudio_format_str(conf.format), conf.sample_rate, conf.channels);
+		, ffaudio_format_str(conf.format), conf.sample_rate, conf.channels
+		, aflags);
 	r = a->audio->open(a->stream, &conf, FFAUDIO_PLAYBACK | FFAUDIO_O_NONBLOCK | FFAUDIO_O_UNSYNC_NOTIFY | aflags);
 
 	if (r == FFAUDIO_EFORMAT) {

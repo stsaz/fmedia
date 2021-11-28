@@ -26,7 +26,7 @@ mixer                 mixer
 #define FMED_VER_MAJOR  1
 #define FMED_VER_MINOR  25
 #define FMED_VER_FULL  ((FMED_VER_MAJOR << 8) | FMED_VER_MINOR)
-#define FMED_VER  "1.25"
+#define FMED_VER  "1.25.1"
 
 #define FMED_VER_GETMAJ(fullver)  ((fullver) >> 8)
 #define FMED_VER_GETMIN(fullver)  ((fullver) & 0xff)

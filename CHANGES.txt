@@ -8,6 +8,17 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.25.1beta - Nov 27, 2021
+
+ * audio capture: don't delete the recorded file after audio device failure
+ * WASAPI playback: switch to new default device after the current device goes offline
+ * playlist: don't activate next track after audio device error
+ - audio playback: "--dev=N" didn't work when format conversion is necessary
+ - WASAPI capture: exclusive mode didn't work
+ - GUI(Linux): close subprocesses correctly
+ - Windows: finalize the file being recorded after Ctrl+C
+
+
 fmedia v1.25beta - Nov 16, 2021
 
  + GUI(Linux): file explorer tab: explore files on disk directly from fmedia

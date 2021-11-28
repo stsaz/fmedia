@@ -309,11 +309,13 @@ static void wdload_writeval(ffconfw *conf, ffuint i)
 
 	switch (i) {
 	case 0:
-		ffstr_setz(&s, gg->conf.ydl_format);
+		if (gg->conf.ydl_format != NULL)
+			ffstr_setz(&s, gg->conf.ydl_format);
 		ffconfw_addstr(conf, &s);
 		break;
 	case 1:
-		ffstr_setz(&s, gg->conf.ydl_outdir);
+		if (gg->conf.ydl_outdir != NULL)
+			ffstr_setz(&s, gg->conf.ydl_outdir);
 		ffconfw_addstr(conf, &s);
 		break;
 	}
