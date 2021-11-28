@@ -172,8 +172,10 @@ static inline int audio_out_open(audio_out *a, fmed_filt *d, const ffpcm *fmt)
 			rc = FMED_RERR;
 			goto end;
 		}
-		conf.device_id = a->audio->dev_info(a->dev, FFAUDIO_DEV_ID);
 	}
+
+	if (a->dev != NULL)
+		conf.device_id = a->audio->dev_info(a->dev, FFAUDIO_DEV_ID);
 
 	a->stream = a->audio->alloc();
 
