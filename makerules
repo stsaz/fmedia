@@ -196,6 +196,7 @@ mpc.$(SO): $(MPC_O)
 #
 FMT_O := $(OBJ_DIR)/mod-fmt.o \
 	$(OBJ_DIR)/aac-adts.o \
+	$(OBJ_DIR)/ape-read.o \
 	$(OBJ_DIR)/avi.o \
 	$(OBJ_DIR)/caf.o \
 	$(OBJ_DIR)/mkv.o \
