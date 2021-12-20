@@ -202,7 +202,7 @@ static int file_stdout_write(void *ctx, fmed_filt *d)
 
 	for (;;) {
 
-		r = ffbuf_add(&f->buf, d->data, d->datalen, &dst);
+		r = ffstr_gather((ffstr*)&f->buf, &f->buf.cap, d->data, d->datalen, f->buf.cap, &dst);
 		d->data += r;
 		d->datalen -= r;
 		if (dst.len == 0) {

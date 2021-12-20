@@ -138,13 +138,13 @@ fmedia uses modified versions of these 3rd party libraries: libALAC, libfdk-aac,
 	* gcc or clang
 	* libalsa-devel (for ALSA module)
 	* libpulse-devel (for Pulse Audio module)
-	* jack-audio-connection-kit-devel (for JACK module)
+	* jack-audio-connection-kit-devel/pipewire-jack-audio-connection-kit-devel (for JACK module)
 	* gtk3-devel (for GUI module)
 	* dbus-devel (for DBUS module)
 
 	For Fedora:
 
-		dnf install make gcc alsa-lib-devel pulseaudio-libs-devel jack-audio-connection-kit-devel gtk3-devel dbus-devel
+		dnf install make gcc alsa-lib-devel pulseaudio-libs-devel pipewire-jack-audio-connection-kit-devel gtk3-devel dbus-devel
 
 1. Create a directory for all needed sources:
 

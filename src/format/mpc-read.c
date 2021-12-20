@@ -1,8 +1,12 @@
 /** fmedia: .mpc reader
 2017, Simon Zolin */
 
+#include <fmedia.h>
 #include <format/mmtag.h>
 #include <avpack/mpc-read.h>
+
+extern const fmed_core *core;
+#define dbglog1(trk, ...)  fmed_dbglog(core, trk, NULL, __VA_ARGS__)
 
 struct mpc {
 	mpcread mpc;
@@ -141,6 +145,6 @@ data:
 	return FMED_RDATA;
 }
 
-static const fmed_filter mpc_input = {
+const fmed_filter mpc_input = {
 	mpc_open, mpc_process, mpc_close
 };

@@ -41,6 +41,7 @@ typedef struct ffmpgcopy {
 	uint64 off;
 	char id31[128];
 	ffarr buf;
+	ffstr chunk;
 	ffstr rinput;
 	const char *error;
 	ffuint64 total_size;
@@ -147,30 +148,27 @@ static inline int ffmpg_copy(ffmpgcopy *m, ffstr *input, ffstr *output)
 		continue;
 
 	case CPY_GATHER:
-		r = ffarr_append_until(&m->buf, input->ptr, input->len, m->gsize);
-		switch (r) {
-		case 0:
-			return FFMPG_RMORE;
-		case -1:
+		r = ffstr_gather((ffstr*)&m->buf, &m->buf.cap, input->ptr, input->len, m->gsize, &m->chunk);
+		if (r < 0)
 			return m->error = "no mem",  FFMPG_RERR;
-		}
 		ffstr_shift(input, r);
+		if (m->chunk.len == 0)
+			return FFMPG_RMORE;
 		m->state = m->gstate;
+		m->buf.len = 0;
 		continue;
 
 
 	case CPY_ID32_HDR:
-		if (ffid3_valid((void*)m->buf.ptr)) {
-			m->gsize = ffid3_size((void*)m->buf.ptr);
+		if (ffid3_valid((void*)m->chunk.ptr)) {
+			m->gsize = ffid3_size((void*)m->chunk.ptr);
 			m->wdataoff = sizeof(ffid3_hdr) + m->gsize;
 			m->state = CPY_ID32_DATA;
-			ffstr_set2(output, &m->buf);
-			m->buf.len = 0;
+			ffstr_set2(output, &m->chunk);
 			return FFMPG_RID32;
 		}
 
-		ffstr_set(&m->rinput, m->buf.ptr, m->buf.len);
-		m->buf.len = 0;
+		ffstr_set(&m->rinput, m->chunk.ptr, m->chunk.len);
 		m->state = CPY_FR1;
 		continue;
 
@@ -202,15 +200,14 @@ static inline int ffmpg_copy(ffmpgcopy *m, ffstr *input, ffstr *output)
 		return FFMPG_RSEEK;
 
 	case CPY_FTRTAGS: {
-		const void *h = m->buf.ptr + m->buf.len - 128;
-		if (m->buf.len >= 128 && ffid31_valid(h)) {
+		const void *h = m->chunk.ptr + m->chunk.len - 128;
+		if (m->chunk.len >= 128 && ffid31_valid(h)) {
 			if (m->options & MP3WRITE_ID3V1)
 				ffmemcpy(m->id31, h, 128);
 			m->total_size -= 128;
 		}
 
 		m->state = CPY_DATA,  m->gstate = CPY_FR;
-		m->buf.len = 0;
 		m->off = m->wdataoff + mpeg1read_offset(&m->rdr);
 		return FFMPG_RSEEK;
 	}

@@ -141,6 +141,6 @@ data:
 	return FMED_RDATA;
 }
 
-const fmed_filter fmed_mpeg_output = {
+const fmed_filter mp3_output = {
 	mpeg_out_open, mpeg_out_process, mpeg_out_close
 };

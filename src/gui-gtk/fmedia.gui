@@ -321,6 +321,7 @@ window wmain {
 window wconvert {
 	position 300 100 500 500
 	title "Convert"
+	popupfor wmain
 
 	mainmenu mmconv {
 		item "_Convert!" {
@@ -357,6 +358,7 @@ window wconvert {
 
 window wabout {
 	title "About fmedia"
+	popupfor wmain
 
 	label labout {
 	}
@@ -368,6 +370,7 @@ window wabout {
 window wuri {
 	title "Add URL"
 	position 300 300 400 100
+	popupfor wmain
 
 	editbox turi {
 	}
@@ -380,6 +383,7 @@ window wuri {
 
 window winfo {
 	position 300 100 300 500
+	popupfor wmain
 
 	listview vinfo {
 		style editable
@@ -394,6 +398,7 @@ window winfo {
 window wplayprops {
 	title "Playback Properties"
 	position 300 100 300 500
+	popupfor wmain
 
 	# editbox tfilter {
 	# }
@@ -453,6 +458,7 @@ window wdload {
 window wlog {
 	title "Log Messages"
 	position 300 100 600 200
+	popupfor wmain
 	text tlog {
 	}
 }
@@ -460,6 +466,7 @@ window wlog {
 window wcmd {
 	title "Quick Command"
 	position 300 100 300 500
+	popupfor wmain
 
 	#editbox tfilter {
 	#	onchange A_CMD_FILTER
@@ -476,6 +483,7 @@ window wcmd {
 window wrename {
 	title "Rename File"
 	position 300 100 500 300
+	popupfor wmain
 	editbox tname {
 	}
 	button brename {

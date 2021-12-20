@@ -1,6 +1,6 @@
 rem fmedia tester
 
-if %1 equ clean (
+if "%1" equ "clean" (
 	del *.aac *.wav *.flac *.mp3 *.m4a *.ogg *.opus *.mpc *.wv
 	goto end
 )

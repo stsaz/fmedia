@@ -39,7 +39,7 @@ if test "$1" = "play" ; then
 	ffmpeg -i rec.wav -c:a flac -y rec.flac.ogg
 	ffmpeg -i rec.wav -y rec.aac
 	ffmpeg -i rec.wav -c:a wavpack -y rec.wv
-	mpcenc-bin rec.wav rec.mpc
+	#mpcenc-bin rec.wav rec.mpc
 	# TODO rec.ape
 
 	./fmedia rec.*
@@ -194,7 +194,7 @@ if test "$1" = "convert_streamcopy" ; then
 	$BIN copyseek.* --pcm-peaks
 
 	# convert with stream-copy and new meta
-	OPTS="-y --stream-copy --meta='artist=SomeArtist;title=SomeTitle'"
+	OPTS="-y --stream-copy --meta=artist=SomeArtist;title=SomeTitle"
 	$BIN rec.mp3 -o copymeta.mp3 $OPTS
 	$BIN rec.ogg -o copymeta.ogg $OPTS # TODO meta not applied
 	$BIN rec.opus -o copymeta.opus $OPTS # TODO meta not applied

@@ -253,7 +253,7 @@ We use dynamic $-variables here, so we don't need to write any meta data by hand
 
 What if you don't want to store every track on disk, but rather store only the tracks you like?  fmedia allows you to do that:
 
-	fmedia http://radio-stream:80/ -o './$time. $artist - $title.mp3' --stream-copy --out-copy=cmd
+	fmedia http://radio-stream:80/ -o './$time. $artist - $title.mp3' --stream-copy --out-copy-cmd
 
 While you're listening to a song, you may hit 'T' (i.e. `Shift+t`), and the currently playing song will be stored on your disk.  When a new track starts, this command is reset.  All other tracks won't be saved unless you press 'T' key for each one.
 

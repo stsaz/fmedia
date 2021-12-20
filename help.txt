@@ -80,9 +80,17 @@ FILTERS:
 ENCODING:
 --vorbis.quality=FLOAT
                    Vorbis encoding quality: -1.0 .. 10.0
+                    VBR-quality guide (44.1k/2ch):
+                     5: ~150kbit/s
+                     7: ~200kbit/s
 --opus.bitrate=INT Opus encoding bitrate: 6..510 (VBR)
 --mpeg-quality=INT MPEG encoding quality: 9..0 (VBR) or 64..320 (CBR)
+                    VBR-quality guide (44.1k/2ch):
+                     0: ~190kbit/s
 --aac-quality=INT  AAC encoding quality: 1..5 (VBR) or 8..800 (CBR, kbit/s)
+                    VBR-quality guide (44.1k/2ch, LC):
+                     4: ~120kbit/s
+                     5: ~210kbit/s
 --aac-profile=STR  Set AAC profile: LC | HE | HEv2
 --flac-compression=INT
                    FLAC compression level: 0..8

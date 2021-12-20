@@ -17,33 +17,33 @@ void gui_log(uint flags, fmed_logdata *ld)
 {
 	struct gui_wlog *w = gg->wlog;
 	char buf[4096];
-	char *s = buf;
-	const char *end = buf + sizeof(buf) - FFSLEN("\r\n");
+	ffuint cap = FFCNT(buf) - FFSLEN("\r\n");
+	ffstr s = FFSTR_INITN(buf, 0);
 
 	if (ld->tid != 0) {
-		s += ffs_fmt(s, end, "%s :%xU [%s] %s: "
+		ffstr_addfmt(&s, cap, "%s :%xU [%s] %s: "
 			, ld->stime, ld->tid, ld->level, ld->module);
 	} else {
-		s += ffs_fmt(s, end, "%s [%s] %s: "
+		ffstr_addfmt(&s, cap, "%s [%s] %s: "
 			, ld->stime, ld->level, ld->module);
 	}
 	if (ld->ctx != NULL)
-		s += ffs_fmt(s, end, "%S:\t", ld->ctx);
+		ffstr_addfmt(&s, cap, "%S:\t", ld->ctx);
 
 	if ((flags & _FMED_LOG_LEVMASK) <= FMED_LOG_USER && ld->trk != NULL) {
 		const char *infn = gg->track->getvalstr(ld->trk, "input");
 		if (infn != FMED_PNULL)
-			s += ffs_fmt(s, end, "\"%s\": ", infn);
+			ffstr_addfmt(&s, cap, "\"%s\": ", infn);
 	}
 
-	s += ffs_fmtv(s, end, ld->fmt, ld->va);
+	ffstr_addfmtv(&s, cap, ld->fmt, ld->va);
 	if (flags & FMED_LOG_SYS)
-		s += ffs_fmt(s, end, ": %E", fferr_last());
-	*s++ = '\r';
-	*s++ = '\n';
+		ffstr_addfmt(&s, cap, ": %E", fferr_last());
+	s.ptr[s.len++] = '\r';
+	s.ptr[s.len++] = '\n';
 
 	fflk_lock(&gg->lklog);
-	ffui_edit_addtext(&w->tlog, buf, s - buf);
+	ffui_edit_addtext(&w->tlog, s.ptr, s.len);
 	fflk_unlock(&gg->lklog);
 
 	if ((flags & _FMED_LOG_LEVMASK) <= FMED_LOG_USER)

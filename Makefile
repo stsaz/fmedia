@@ -71,6 +71,9 @@ ifneq ($(OPT),0)
 endif
 CFLAGS_ALTOPT := $(CFLAGS_STD) $(CFLAGS_DEBUG) $(CFLAGS_OPT) $(CFLAGS_OS) $(CFLAGS_CPU) $(CFLAGS_APP)
 LDFLAGS += -Wno-stringop-overflow -L$(FF3PTLIB) $(LD_LPTHREAD)
+ifeq ($(OS),linux)
+	LDFLAGS += -L/usr/lib64/pipewire-0.3/jack
+endif
 ifeq ($(OS),bsd)
 	LDFLAGS += -lexecinfo
 endif

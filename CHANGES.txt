@@ -8,6 +8,12 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.25.2beta - Dec 15, 2021
+
+ * GUI(Linux): parallel conversion; display the progress
+ *! Rename --out-copy=cmd -> --out-copy-cmd.  A command-line switch with an optional value was a design mistake.
+
+
 fmedia v1.25.1beta - Nov 27, 2021
 
  * audio capture: don't delete the recorded file after audio device failure

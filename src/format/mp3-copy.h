@@ -129,6 +129,6 @@ data:
 	return FMED_RDATA;
 }
 
-const fmed_filter fmed_mpeg_copy = {
+const fmed_filter mp3_copy = {
 	mpeg_copy_open, mpeg_copy_process, mpeg_copy_close
 };

@@ -7,29 +7,30 @@
 
 const fmed_core *core;
 
-#include <format/mpc-read.h>
-
+extern const fmed_filter aac_adts_input;
+extern const fmed_filter aac_adts_output;
+extern const fmed_filter ape_input;
 extern const fmed_filter avi_input;
 extern const fmed_filter caf_input;
 extern const fmed_filter mkv_input;
+extern const fmed_filter mp3_copy;
+extern const fmed_filter mp3_input;
+extern const fmed_filter mp3_output;
 extern const fmed_filter mp4_input;
 extern const fmed_filter mp4_output;
+extern const fmed_filter mpc_input;
 extern const fmed_filter ogg_input;
 extern const fmed_filter ogg_output;
 extern const fmed_filter raw_input;
 extern const fmed_filter wav_input;
 extern const fmed_filter wav_output;
 extern const fmed_filter wv_input;
-extern const fmed_filter aac_adts_input;
-extern const fmed_filter aac_adts_output;
-extern const fmed_filter fmed_mpeg_input;
-extern const fmed_filter fmed_mpeg_output;
-extern const fmed_filter fmed_mpeg_copy;
 const void* mod_iface(const char *name)
 {
 	static const char *const names[] = {
 		"aac",
 		"aac-write",
+		"ape",
 		"avi",
 		"caf",
 		"mkv",
@@ -49,12 +50,13 @@ const void* mod_iface(const char *name)
 	static const fmed_filter *const ifaces[] = {
 		/*"aac"*/	&aac_adts_input,
 		/*"aac-write"*/	&aac_adts_output,
+		/*"ape"*/	&ape_input,
 		/*"avi"*/	&avi_input,
 		/*"caf"*/	&caf_input,
 		/*"mkv"*/	&mkv_input,
-		/*"mp3"*/	&fmed_mpeg_input,
-		/*"mp3-copy"*/	&fmed_mpeg_copy,
-		/*"mp3-write"*/	&fmed_mpeg_output,
+		/*"mp3"*/	&mp3_input,
+		/*"mp3-copy"*/	&mp3_copy,
+		/*"mp3-write"*/	&mp3_output,
 		/*"mp4"*/	&mp4_input,
 		/*"mp4-write"*/	&mp4_output,
 		/*"mpc"*/	&mpc_input,

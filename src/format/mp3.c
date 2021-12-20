@@ -196,6 +196,6 @@ data:
 	return FMED_RDATA;
 }
 
-const fmed_filter fmed_mpeg_input = {
+const fmed_filter mp3_input = {
 	mp3_open, mp3_process, mp3_close
 };

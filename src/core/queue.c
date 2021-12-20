@@ -94,7 +94,6 @@ static const fmed_queue fmed_que_mgr = {
 };
 
 static fmed_que_entry* que_add(plist *pl, fmed_que_entry *ent, entry *prev, uint flags);
-static void que_meta_set(fmed_que_entry *ent, const ffstr *name, const ffstr *val, uint flags);
 static void que_play(entry *e);
 static void que_play2(entry *ent, uint flags);
 static void que_save(entry *first, const fflist_item *sentl, const char *fn);
