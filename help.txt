@@ -105,11 +105,10 @@ OUTPUT:
                      e.g.: --out '$tracknumber. $artist - $title.flac'
 -y, --overwrite    Overwrite output file
 --preserve-date    Set output file date/time equal to input file.
---out-copy[=STR]   Play AND copy data to output file specified by "--out" switch.
-                   Supported by modules: net.icy.
-                   Value:
-                     all: save all tracks (default)
-                     cmd: save each track only by user's command
+--out-copy         Play AND copy data to output file specified by "--out" switch
+                     (for ICY streams only)
+--out-copy-cmd     Play AND copy data to output file specified by "--out" switch,
+                     but save each track only by user's command
 
 OTHER OPTIONS:
 --parallel         Process input files in parallel (fmedia.conf::workers).

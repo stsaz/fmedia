@@ -104,11 +104,9 @@ SALIDA:
                      e.g.: --out '$tracknumber. $artist - $title.flac'
 -y, --overwrite    Sobreescribe el archivo de salida
 --preserve-date    Define la fecha y hora del archivo de salida igual al archivo de entrada.
---out-copy[=STR]   Reproduce Y copia datos a un archivo especificado por "--out".
-                   Supported by modules: net.icy.
-                   Value:
-                     all: save all tracks (default)
-                     cmd: save each track only by user's command
+--out-copy         Reproduce Y copia datos a un archivo especificado por "--out"
+--out-copy-cmd     Reproduce Y copia datos a un archivo especificado por "--out",
+                     save each track only by user's command
 
 OTRAS OPCIONES:
 --parallel         Procesa los archivos de entrada en paralelo (fmedia.conf::workers).

@@ -104,11 +104,9 @@ OUTPUT:
                      contoh: --out '$ tracknumber. $ artist - $ title.flac '
 -y, --overwrite      Menimpa file keluaran
 --preserve-date      Pengaturan tanggal / waktu file output sama dengan file input.
---out-copy [= STR]   Memutar dan Menyalin data ke file keluaran yang ditentukan oleh tombol "--out".
-                     Didukung oleh modules: net.icy.
-                     Parameter:
-                       all: simpan semua trek (default)
-                       cmd: simpan setiap lagu berdasarkan perintah pengguna
+--out-copy         Memutar dan Menyalin data ke file keluaran yang ditentukan oleh tombol "--out"
+--out-copy-cmd     Memutar dan Menyalin data ke file keluaran yang ditentukan oleh tombol "--out",
+                     simpan setiap lagu berdasarkan perintah pengguna
 
 OPSI LAIN:
 --parallel           Proses file input secara paralel (lihat pada file bagian, fmedia.conf::workers).

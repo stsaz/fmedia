@@ -40,6 +40,7 @@ typedef struct fmed_cmd {
 	ffstr meta;
 	ffslice include_files; //ffstr[]
 	ffslice exclude_files; //ffstr[]
+	char *include_files_data, *exclude_files_data;
 
 	float gain;
 	float auto_attenuate;
@@ -67,6 +68,7 @@ typedef struct fmed_cmd {
 	byte cue_gaps;
 
 	ffstr outfn;
+	char *outfnz;
 	byte overwrite;
 	byte out_copy;
 	byte preserve_date;
@@ -97,7 +99,7 @@ static inline void cmd_destroy(fmed_cmd *cmd)
 		return;
 
 	FFARR_FREE_ALL_PTR(&cmd->in_files, ffmem_free, char*);
-	ffstr_free(&cmd->outfn);
+	ffmem_free(cmd->outfnz);
 
 	ffstr_free(&cmd->meta);
 	ffmem_safefree(cmd->aac_profile);
@@ -108,4 +110,6 @@ static inline void cmd_destroy(fmed_cmd *cmd)
 	ffstr_free(&cmd->globcmd);
 	ffslice_free(&cmd->include_files);
 	ffslice_free(&cmd->exclude_files);
+	ffmem_free(cmd->include_files_data);
+	ffmem_free(cmd->exclude_files_data);
 }

@@ -333,7 +333,7 @@ static void open_input(void *udata)
 		fmed_trk *ti = track->conf(trk);
 		track->copy_info(ti, &trkinfo);
 
-		track->setvalstr(trk, "output", fmed->outfn.ptr);
+		track->setvalstr(trk, "output", fmed->outfnz);
 		track->cmd(trk, FMED_TRACK_START);
 		goto end;
 	}
@@ -383,7 +383,7 @@ static void* rec_track_start(fmed_cmd *cmd, fmed_trk *trkinfo, uint flags)
 	}
 
 	if (cmd->outfn.len != 0)
-		track->setvalstr(trk, "output", cmd->outfn.ptr);
+		track->setvalstr(trk, "output", cmd->outfnz);
 
 	track->setval(trk, "low_latency", 1);
 	ti->a_in_buf_time = cmd->capture_buf_len;
@@ -544,6 +544,7 @@ static void crash_handler(struct ffsig_info *inf)
 int main(int argc, char **argv, char **env)
 {
 	int rc = 1, r;
+	char **win_argv = NULL;
 	fmed_cmd *gcmd;
 
 	if (NULL == (g = ffmem_new(struct gctx)))
@@ -569,10 +570,15 @@ int main(int argc, char **argv, char **env)
 	gcmd = g->cmd;
 
 	if (argc == 1) {
-		arg_usage();
+		arg_usage(NULL, NULL);
 		rc = 0;
 		goto end;
 	}
+
+	(void)win_argv;
+#ifdef FF_WIN
+	argv = win_argv = ffcmdarg_from_linew(GetCommandLine(), &argc);
+#endif
 
 	if (0 != (r = fmed_cmdline(argc, argv, 1))) {
 		if (r == -1)
@@ -668,6 +674,7 @@ end:
 	}
 	FF_SAFECLOSE(g->core_dl, NULL, ffdl_close);
 	cmd_destroy(g->cmd);
+	ffmem_free(win_argv);
 	ffmem_free(g->cmd);
 	ffmem_free(g);
 	return rc;

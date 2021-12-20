@@ -103,11 +103,9 @@ AUSGABE:
                      z. B..: --out '$tracknumber. $artist - $title.flac'
 -y, --overwrite    Überschreibe Ausgabedatei
 --preserve-date    Setzt Datum/Zeit der Ausgabedatei auf die Werte der Eingabedatei.
---out-copy[=STR]   Spiele Daten ab UND kopiere sie in die Ausgabedatei welche mit "--out" festgelegt wurde.
-                   Unterstützt durch die Module: net.icy.
-                   Werte:
-                     all: speichere alle Stücke (Standard)
-                     cmd: speichere jedes Stück nur auf Befehl des Anwenders/der Anwenderin
+--out-copy         Spiele Daten ab UND kopiere sie in die Ausgabedatei welche mit "--out" festgelegt wurde
+--out-copy-cmd     Spiele Daten ab UND kopiere sie in die Ausgabedatei welche mit "--out" festgelegt wurde,
+                     speichere jedes Stück nur auf Befehl des Anwenders/der Anwenderin
 
 ANDERE OPTIONEN:
 --parallel         Verarbeite Eingabedateien parallel (fmedia.conf::workers).

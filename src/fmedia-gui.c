@@ -4,7 +4,7 @@ Copyright (c) 2015 Simon Zolin */
 #include <fmedia.h>
 #include <FF/path.h>
 #include <FF/data/conf.h>
-#include <FF/data/psarg.h>
+#include <FF/data/cmdarg-scheme.h>
 #include <FF/gui/winapi.h>
 #include <FFOS/process.h>
 #include <FFOS/mem.h>
@@ -26,11 +26,6 @@ static const fmed_log fgui_logger = {
 	&fgui_log
 };
 
-static int gcmd_send(const fmed_globcmd_iface *globcmd, uint mode);
-
-static void open_input(void);
-
-
 static void fgui_log(uint flags, fmed_logdata *ld)
 {
 	char buf[4096];
@@ -50,29 +45,34 @@ static void fgui_log(uint flags, fmed_logdata *ld)
 }
 
 
-static void open_input(void)
+static void open_input(int argc, char **argv)
 {
 	const fmed_queue *qu;
 	fmed_que_entry e;
-	const char *fn;
 	void *qe, *first = NULL;
-	ffpsarg a;
 
 	if (NULL == (qu = core->getmod("#queue.queue")))
 		return;
 
-	ffpsarg_init(&a, NULL, 0);
-	ffpsarg_next(&a);
+	ffcmdarg a;
+	ffcmdarg_init(&a, (const char**)argv, argc);
 
-	while (NULL != (fn = ffpsarg_next(&a))) {
-		ffmem_tzero(&e);
-		ffstr_setz(&e.url, fn);
+	for (;;) {
+		ffstr val;
+		int r = ffcmdarg_parse(&a, &val);
+		if (r == FFCMDARG_DONE)
+			break;
+		else if (r != FFCMDARG_RVAL)
+			continue;
+
+		ffmem_zero_obj(&e);
+		ffstr_setstr(&e.url, &val);
 		qe = qu->add(&e);
 		if (first == NULL)
 			first = qe;
 	}
 
-	ffpsarg_destroy(&a);
+	ffcmdarg_fin(&a);
 
 	if (first != NULL)
 		qu->cmd(FMED_QUE_PLAY, first);
@@ -81,17 +81,11 @@ static void open_input(void)
 
 /**
 @mode: enum FMED_INSTANCE_MODE */
-static int gcmd_send(const fmed_globcmd_iface *globcmd, uint mode)
+static int gcmd_send(const fmed_globcmd_iface *globcmd, uint mode, const char **argv, int argc)
 {
 	int r = -1;
-	const char *fn;
 	ffconfw confw;
-	ffpsarg a;
-
 	ffconf_winit(&confw, NULL, 0);
-	ffpsarg_init(&a, NULL, 0);
-
-	ffpsarg_next(&a);
 
 	if (mode == FMED_IM_CLEARPLAY)
 		ffconf_write(&confw, FFSTR("clear"), FFCONF_TKEY);
@@ -103,8 +97,16 @@ static int gcmd_send(const fmed_globcmd_iface *globcmd, uint mode)
 		ffstr_setz(&cmd, "play");
 	ffconf_write(&confw, cmd.ptr, cmd.len, FFCONF_TKEY);
 
-	while (NULL != (fn = ffpsarg_next(&a))) {
-		ffconf_writez(&confw, fn, FFCONF_TVAL);
+	ffcmdarg a;
+	ffcmdarg_init(&a, argv, argc);
+	for (;;) {
+		ffstr val;
+		int r = ffcmdarg_parse(&a, &val);
+		if (r == FFCMDARG_DONE)
+			break;
+		else if (r != FFCMDARG_RVAL)
+			continue;
+		ffconf_writestr(&confw, &val, FFCONF_TVAL);
 	}
 
 	if (0 == ffconf_write(&confw, NULL, 0, FFCONF_FIN))
@@ -117,7 +119,7 @@ static int gcmd_send(const fmed_globcmd_iface *globcmd, uint mode)
 	r = 0;
 end:
 	ffconf_wdestroy(&confw);
-	ffpsarg_destroy(&a);
+	ffcmdarg_fin(&a);
 	return r;
 }
 
@@ -170,7 +172,6 @@ static void crash_handler(struct ffsig_info *inf)
 
 int __stdcall WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
 {
-	char *argv[1] = { NULL };
 	if (NULL == (g = ffmem_new(struct gctx)))
 		return 1;
 
@@ -179,6 +180,9 @@ int __stdcall WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	ffsig_subscribe(&crash_handler, sigs_fault, FFCNT(sigs_fault));
 	// ffsig_raise(FFSIG_SEGV);
 #endif
+
+	int argc;
+	char **argv = ffcmdarg_from_linew(GetCommandLine(), &argc);
 
 	if (0 != loadcore(NULL))
 		goto end;
@@ -202,7 +206,7 @@ int __stdcall WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 		&& NULL != (globcmd = core->getmod("#globcmd.globcmd"))
 		&& 0 == globcmd->ctl(FMED_GLOBCMD_OPEN, NULL)) {
 
-		gcmd_send(globcmd, im);
+		gcmd_send(globcmd, im, (const char**)argv, argc);
 		goto end;
 	}
 
@@ -213,7 +217,7 @@ int __stdcall WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 		globcmd->ctl(FMED_GLOBCMD_START, NULL);
 	}
 
-	open_input();
+	open_input(argc, argv);
 
 	core->sig(FMED_START);
 
@@ -222,6 +226,7 @@ end:
 		g->core_free();
 	}
 	FF_SAFECLOSE(g->core_dl, NULL, ffdl_close);
+	ffmem_free(argv);
 	ffmem_free(g);
 	return 0;
 }

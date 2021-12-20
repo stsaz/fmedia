@@ -102,11 +102,9 @@ SORTIE :
                      e.g.: --out '$tracknumber. $artist - $title.flac'
 -y, --overwrite    Ecrit par dessus le fichier de sortie
 --preserve-date    Transfère les données date/heure du fichier d'entrée au fichier de sortie.
---out-copy[=STR]   Joue ET copy des données vers le fichier de sortie spécifié par le switch "--out".
-                   Supporté par les modules: net.icy.
-                   Valeur :
-                     all: sauve toutes les pistes (défaut)
-                     cmd: sauve chaque piste en respectant les commandes de l'utilisateur
+--out-copy         Joue ET copy des données vers le fichier de sortie spécifié par le switch "--out"
+--out-copy-cmd     Joue ET copy des données vers le fichier de sortie spécifié par le switch "--out",
+                     sauve chaque piste en respectant les commandes de l'utilisateur
 
 AUTRES OPTIONS :
 --parallel         Traite les fichiers entrée en parallèle (fmedia.conf::workers).
