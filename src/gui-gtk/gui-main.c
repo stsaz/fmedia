@@ -490,6 +490,29 @@ void wmain_update(uint playtime, uint time_total)
 	ffui_send_lbl_settext(&w->lpos, buf);
 }
 
+void wmain_update_convert(fmed_que_entry *plid, uint playtime, uint time_total)
+{
+	struct gui_wmain *w = gg->wmain;
+	ffssize idx;
+	if (-1 == (idx = gg->qu->cmdv(FMED_QUE_ID, plid))) {
+		FF_ASSERT(0);
+		return;
+	}
+
+	char buf[255];
+	ffstr val;
+	if (playtime == (uint)-1) {
+		ffstr_setz(&val, "Done");
+	} else {
+		ffsize n = ffs_format_r0(buf, sizeof(buf), "%u:%02u / %u:%02u"
+			, playtime / 60, playtime % 60
+			, time_total / 60, time_total % 60);
+		ffstr_set(&val, buf, n);
+	}
+	gg->qu->meta_set(plid, FFSTR("__dur"), val.ptr, val.len, FMED_QUE_PRIV | FMED_QUE_OVWRITE);
+	ffui_post_view_setdata(&w->vlist, idx, 0);
+}
+
 /** Set status bar text. */
 void wmain_status(const char *fmt, ...)
 {

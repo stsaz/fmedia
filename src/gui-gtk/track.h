@@ -137,9 +137,6 @@ static int gtrk_process(void *ctx, fmed_filt *d)
 		d->meta_changed = 0;
 	}
 
-	if (t->conversion)
-		goto done;
-
 	if ((int64)d->audio.pos == FMED_NULL)
 		goto done;
 
@@ -150,15 +147,23 @@ static int gtrk_process(void *ctx, fmed_filt *d)
 		return FMED_RMORE;
 	}
 
+	uint playtime = (uint)(ffpcm_time(d->audio.pos, t->sample_rate) / 1000);
+	if (playtime == t->time_cur && !(d->flags & FMED_FLAST))
+		goto done;
+	t->time_cur = playtime;
+
+	if (t->conversion) {
+		if (d->flags & FMED_FLAST)
+			playtime = (uint)-1;
+		wmain_update_convert(t->qent, playtime, t->time_total);
+		goto done;
+	}
+
 	if (d->meta_changed) {
 		d->meta_changed = 0;
 		wmain_newtrack(t->qent, t->time_total, d);
 	}
 
-	uint playtime = (uint)(ffpcm_time(d->audio.pos, t->sample_rate) / 1000);
-	if (playtime == t->time_cur)
-		goto done;
-	t->time_cur = playtime;
 	wmain_update(playtime, t->time_total);
 
 done:

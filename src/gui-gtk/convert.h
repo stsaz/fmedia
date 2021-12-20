@@ -576,7 +576,7 @@ static void convert(void *param)
 	gui_list_sel(c->itab-1);
 
 	if (first != NULL)
-		gg->qu->cmdv(FMED_QUE_PLAY, first);
+		gg->qu->cmdv(FMED_QUE_XPLAY, first);
 
 done:
 	ffstr_free(&fn);

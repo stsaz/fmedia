@@ -133,6 +133,7 @@ void wmain_cmd(int id);
 void wmain_newtrack(fmed_que_entry *ent, uint time_total, fmed_filt *d);
 void wmain_fintrack();
 void wmain_update(uint playtime, uint time_total);
+void wmain_update_convert(fmed_que_entry *plid, uint playtime, uint time_total);
 void wmain_ent_added(uint idx);
 void wmain_ent_removed(uint idx);
 void wmain_status(const char *fmt, ...);
