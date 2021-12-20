@@ -11,6 +11,7 @@ enum FILE_FORMAT {
 	FILE_MP4,
 	FILE_OGG,
 	FILE_WAV,
+	FILE_WV,
 };
 
 static const char file_ext[][5] = {
@@ -22,6 +23,7 @@ static const char file_ext[][5] = {
 	"mp4",
 	"ogg",
 	"wav",
+	"wv",
 };
 
 /** Detect file format by first several bytes
@@ -46,6 +48,15 @@ static inline int file_format_detect(const void *data, ffsize len)
 		if (!ffmem_cmp(&d[0], "RIFF", 4)
 			&& !ffmem_cmp(&d[8], "AVI ", 4))
 			return FILE_AVI;
+	}
+
+	if (len >= 10) {
+		// id[4] // "wvpk"
+		// size[4]
+		// ver[2] // "XX 04"
+		if (!ffmem_cmp(&d[0], "wvpk", 4)
+			&& d[9] == 0x04)
+			return FILE_WV;
 	}
 
 	if (len >= 8) {

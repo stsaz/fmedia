@@ -426,6 +426,8 @@ int cuehook_process(void *ctx, fmed_filt *d)
 	if (d->flags & FMED_FFWD) {
 		d->audio.pos = ffmax((int64)(d->audio.pos - c->abs_seek), 0);
 		d->data_out = d->data_in;
+		if (d->audio.decoder_seek_msec != 0)
+			d->audio.decoder_seek_msec -= c->abs_seek_ms;
 		if (d->flags & FMED_FLAST)
 			return FMED_RDONE;
 		return FMED_RDATA;

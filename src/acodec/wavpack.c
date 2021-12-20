@@ -10,13 +10,6 @@ Copyright (c) 2015 Simon Zolin */
 
 static const fmed_core *core;
 
-typedef struct wvpk {
-	ffwvpack wp;
-	int64 abs_seek;
-	uint state;
-} wvpk;
-
-
 //FMEDIA MODULE
 static const void* wvpk_iface(const char *name);
 static int wvpk_sig(uint signo);
@@ -26,17 +19,6 @@ static const fmed_mod fmed_wvpk_mod = {
 	&wvpk_iface, &wvpk_sig, &wvpk_destroy
 };
 
-//DECODE
-static void* wvpk_in_create(fmed_filt *d);
-static void wvpk_in_free(void *ctx);
-static int wvpk_in_decode(void *ctx, fmed_filt *d);
-static const fmed_filter fmed_wvpk_input = {
-	&wvpk_in_create, &wvpk_in_decode, &wvpk_in_free
-};
-
-static void wvpk_meta(wvpk *w, fmed_filt *d);
-
-
 FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 {
 	core = _core;
@@ -44,10 +26,12 @@ FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 }
 
 
+static const fmed_filter wvpk_dec_iface;
+
 static const void* wvpk_iface(const char *name)
 {
-	if (!ffsz_cmp(name, "decode"))
-		return &fmed_wvpk_input;
+	if (ffsz_eq(name, "decode"))
+		return &wvpk_dec_iface;
 	return NULL;
 }
 
@@ -61,137 +45,85 @@ static void wvpk_destroy(void)
 }
 
 
-static void* wvpk_in_create(fmed_filt *d)
-{
-	wvpk *w = ffmem_tcalloc1(wvpk);
-	if (w == NULL)
-		return NULL;
-	w->wp.options = FFWVPK_O_ID3V1 | FFWVPK_O_APETAG;
+typedef struct wvpk_dec {
+	ffwvpack_dec wv;
+	uint frsize;
+	uint sample_rate;
+} wvpk_dec;
 
-	if ((int64)d->input.size != FMED_NULL)
-		w->wp.total_size = d->input.size;
+static void* wvpk_dec_create(fmed_filt *d)
+{
+	wvpk_dec *w = ffmem_new(wvpk_dec);
+	ffwvpk_dec_open(&w->wv);
 	return w;
 }
 
-static void wvpk_in_free(void *ctx)
+static void wvpk_dec_free(void *ctx)
 {
-	wvpk *w = ctx;
-	ffwvpk_close(&w->wp);
+	wvpk_dec *w = ctx;
+	ffwvpk_dec_close(&w->wv);
 	ffmem_free(w);
 }
 
-static void wvpk_meta(wvpk *w, fmed_filt *d)
+static int wvpk_dec_decode(void *ctx, fmed_filt *d)
 {
-	ffstr name, val;
-	int tag = ffwvpk_tag(&w->wp, &name, &val);
-	if (tag != 0)
-		ffstr_setz(&name, ffmmtag_str[tag]);
-	dbglog(core, d->trk, "wvpk", "tag: %S: %S", &name, &val);
-	d->track->meta_set(d->trk, &name, &val, FMED_QUE_TMETA);
-}
+	wvpk_dec *w = ctx;
 
-static int wvpk_in_decode(void *ctx, fmed_filt *d)
-{
-	enum { I_HDR, I_DATA };
-	wvpk *w = ctx;
-	int r;
-
-	if (d->flags & FMED_FSTOP) {
-		d->outlen = 0;
-		return FMED_RLASTOUT;
+	if (d->audio.decoder_seek_msec != 0) {
+		ffwvpk_dec_seek(&w->wv, ffpcm_samples(d->audio.decoder_seek_msec, w->sample_rate));
+		d->audio.decoder_seek_msec = 0;
 	}
 
-	w->wp.data = d->data;
-	w->wp.datalen = d->datalen;
-	if (d->flags & FMED_FLAST)
-		w->wp.fin = 1;
+	int r = ffwvpk_decode(&w->wv, &d->data_in, &d->data_out, d->audio.pos);
 
-again:
-	switch (w->state) {
-	case I_HDR:
-		break;
+	switch (r) {
+	case FFWVPK_RHDR: {
+		const struct ffwvpk_info *info = ffwvpk_dec_info(&w->wv);
+		dbglog(core, d->trk, "wvpk", "lossless:%u  compression:%u  MD5:%16xb"
+			, (int)info->lossless
+			, info->comp_level
+			, info->md5);
+		d->audio.decoder = "WavPack";
+		d->audio.fmt.format = info->format;
+		d->audio.fmt.channels = info->channels;
+		d->audio.fmt.sample_rate = info->sample_rate;
+		d->audio.fmt.ileaved = 1;
+		w->sample_rate = info->sample_rate;
+		d->audio.bitrate = ffpcm_brate(d->input.size, d->audio.total, info->sample_rate);
+		d->datatype = "pcm";
 
-	case I_DATA:
-		if ((int64)d->audio.seek != FMED_NULL) {
-			ffwvpk_seek(&w->wp, w->abs_seek + ffpcm_samples(d->audio.seek, w->wp.fmt.sample_rate));
-			d->audio.seek = FMED_NULL;
-		}
-		break;
+		if (d->input_info)
+			return FMED_RDONE;
+
+		w->frsize = ffpcm_size(info->format, info->channels);
+		return FMED_RMORE;
 	}
 
-	for (;;) {
-		r = ffwvpk_decode(&w->wp);
-		switch (r) {
-		case FFWVPK_RMORE:
-			if (d->flags & FMED_FLAST) {
-				warnlog(core, d->trk, "wvpk", "file is incomplete");
-				d->outlen = 0;
-				return FMED_RDONE;
-			}
-			return FMED_RMORE;
+	case FFWVPK_RDATA:
+		break;
 
-		case FFWVPK_RHDR:
-			d->audio.decoder = "WavPack";
-			ffpcm_fmtcopy(&d->audio.fmt, &w->wp.fmt);
-			d->audio.fmt.ileaved = 1;
-			d->audio.bitrate = ffwvpk_bitrate(&w->wp);
-			d->datatype = "pcm";
-
-			if (d->audio.abs_seek != 0) {
-				w->abs_seek = fmed_apos_samples(d->audio.abs_seek, w->wp.fmt.sample_rate);
-			}
-
-			d->audio.total = ffwvpk_total_samples(&w->wp) - w->abs_seek;
-			break;
-
-		case FFWVPK_RTAG:
-			wvpk_meta(w, d);
-			break;
-
-		case FFWVPK_RHDRFIN:
-			dbglog(core, d->trk, "wvpk", "version:%xu  lossless:%u  compression:%s  block-samples:%u  MD5:%16xb"
-				, (int)w->wp.info.version, (int)w->wp.info.lossless
-				, ffwvpk_comp_levelstr[w->wp.info.comp_level], (int)w->wp.info.block_samples
-				, w->wp.info.md5);
-
-			if (d->input_info)
-				return FMED_ROK;
-
-			w->state = I_DATA;
-			if (w->abs_seek != 0)
-				ffwvpk_seek(&w->wp, w->abs_seek);
-			goto again;
-
-		case FFWVPK_RDATA:
-			goto data;
-
-		case FFWVPK_RSEEK:
-			d->input.seek = ffwvpk_seekoff(&w->wp);
-			return FMED_RMORE;
-
-		case FFWVPK_RDONE:
+	case FFWVPK_RMORE:
+		if (d->flags & FMED_FLAST) {
 			d->outlen = 0;
-			return FMED_RLASTOUT;
-
-		case FFWVPK_RWARN:
-			warnlog(core, d->trk, "wvpk", "ffwvpk_decode(): at offset %xU: %s"
-				, w->wp.off, ffwvpk_errstr(&w->wp));
-			break;
-
-		case FFWVPK_RERR:
-			errlog(core, d->trk, "wvpk", "ffwvpk_decode(): %s", ffwvpk_errstr(&w->wp));
-			return FMED_RERR;
+			return FMED_RDONE;
 		}
+		return FMED_RMORE;
+
+	case FFWVPK_RERR:
+		errlog(core, d->trk, "wvpk", "ffwvpk_decode(): %s", ffwvpk_dec_error(&w->wv));
+		return FMED_RERR;
+
+	default:
+		FF_ASSERT(0);
+		return FMED_RERR;
 	}
 
-data:
 	dbglog(core, d->trk, "wvpk", "decoded %L samples (%U)"
-		, (size_t)w->wp.pcmlen / ffpcm_size1(&w->wp.fmt), ffwvpk_cursample(&w->wp));
-	d->audio.pos = ffwvpk_cursample(&w->wp) - w->abs_seek;
-
-	d->data = (void*)w->wp.data;
-	d->datalen = w->wp.datalen;
-	d->out = (void*)w->wp.pcm;
-	d->outlen = w->wp.pcmlen;
+		, (size_t)d->data_out.len / w->frsize, (int64)w->wv.samp_idx);
+	d->audio.pos = w->wv.samp_idx;
 	return FMED_RDATA;
 }
+
+static const fmed_filter wvpk_dec_iface = {
+	wvpk_dec_create, wvpk_dec_decode, wvpk_dec_free
+};

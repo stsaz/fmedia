@@ -481,6 +481,7 @@ struct fmed_trk {
 		float maxpeak; //dB
 		uint bitrate; //bit/s
 		const char *decoder;
+		uint64 decoder_seek_msec; // default:0
 	} audio;
 	struct {
 		uint width, height;

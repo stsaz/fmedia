@@ -19,6 +19,7 @@ extern const fmed_filter ogg_output;
 extern const fmed_filter raw_input;
 extern const fmed_filter wav_input;
 extern const fmed_filter wav_output;
+extern const fmed_filter wv_input;
 extern const fmed_filter aac_adts_input;
 extern const fmed_filter aac_adts_output;
 extern const fmed_filter fmed_mpeg_input;
@@ -43,6 +44,7 @@ const void* mod_iface(const char *name)
 		"raw",
 		"wav",
 		"wav-write",
+		"wv",
 	};
 	static const fmed_filter *const ifaces[] = {
 		/*"aac"*/	&aac_adts_input,
@@ -61,6 +63,7 @@ const void* mod_iface(const char *name)
 		/*"raw"*/	&raw_input,
 		/*"wav"*/	&wav_input,
 		/*"wav-write"*/	&wav_output,
+		/*"wv"*/	&wv_input,
 	};
 
 	int i = ffszarr_findsorted(names, FF_COUNT(names), name, ffsz_len(name));

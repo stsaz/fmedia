@@ -203,6 +203,7 @@ FMT_O := $(OBJ_DIR)/mod-fmt.o \
 	$(OBJ_DIR)/mp4.o \
 	$(OBJ_DIR)/ogg.o \
 	$(OBJ_DIR)/wav.o \
+	$(OBJ_DIR)/wv.o \
 	$(FF_O) \
 	$(FF_OBJ_DIR)/ffpcm.o
 fmt.$(SO): $(FMT_O)
