@@ -20,14 +20,14 @@ struct ogg_in_conf_t {
 	byte seekable;
 } conf;
 
-const ffpars_arg ogg_in_conf_args[] = {
-	{ "seekable",  FFPARS_TBOOL | FFPARS_F8BIT,  FFPARS_DSTOFF(struct ogg_in_conf_t, seekable) }
+const fmed_conf_arg ogg_in_conf_args[] = {
+	{ "seekable",  FMC_BOOL8,  FMC_O(struct ogg_in_conf_t, seekable) }
 };
 
-int ogg_in_conf(ffpars_ctx *ctx)
+int ogg_in_conf(fmed_conf_ctx *ctx)
 {
 	conf.seekable = 1;
-	ffpars_setargs(ctx, &conf, ogg_in_conf_args, FF_COUNT(ogg_in_conf_args));
+	fmed_conf_addctx(ctx, &conf, ogg_in_conf_args);
 	return 0;
 }
 

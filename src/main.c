@@ -6,10 +6,8 @@ Copyright (c) 2015 Simon Zolin */
 
 #include <FF/audio/pcm.h>
 #include <FF/data/conf.h>
-#include <FF/data/utf8.h>
 #include <FF/sys/dir.h>
 #include <FF/path.h>
-#include <FF/time.h>
 #include <FFOS/sig.h>
 #include <FFOS/error.h>
 #include <FFOS/process.h>
@@ -548,7 +546,6 @@ int main(int argc, char **argv, char **env)
 	int rc = 1, r;
 	fmed_cmd *gcmd;
 
-	ffmem_init();
 	if (NULL == (g = ffmem_new(struct gctx)))
 		return 1;
 

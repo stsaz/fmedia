@@ -53,11 +53,6 @@ static const void* wvpk_iface(const char *name)
 
 static int wvpk_sig(uint signo)
 {
-	switch (signo) {
-	case FMED_SIG_INIT:
-		ffmem_init();
-		return 0;
-	}
 	return 0;
 }
 

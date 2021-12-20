@@ -1,13 +1,10 @@
 /** fmedia core.
 Copyright (c) 2015 Simon Zolin */
 
-#include <core-priv.h>
+#include <core/core-priv.h>
 
 #include <FF/path.h>
-#include <FF/data/utf8.h>
-#include <FF/time.h>
 #include <FF/rbtree.h>
-#include <FF/list.h>
 #include <FF/sys/filemap.h>
 #include <FF/sys/taskqueue.h>
 #ifdef FF_WIN
@@ -40,6 +37,7 @@ typedef struct fmedia {
 	ffstr root;
 	fmed_config conf;
 	fmed_props props;
+	fftime_zone tz;
 
 	const fmed_queue *qu;
 	const fmed_log *log;
@@ -102,8 +100,8 @@ extern const fmed_mod* fmed_getmod_winsleep(const fmed_core *_core);
 static int core_open(void);
 static int core_filetype(const char *fn);
 
-#include <core-mod.h>
-#include <core-work.h>
+#include <core/core-mod.h>
+#include <core/core-work.h>
 
 // CORE
 static int64 core_getval(const char *name);
@@ -115,7 +113,7 @@ static int core_sig(uint signo);
 static ssize_t core_cmd(uint cmd, ...);
 static const void* core_getmod(const char *name);
 static const void* core_getmod2(uint flags, const char *name, ssize_t name_len);
-static const fmed_modinfo* core_insmod(const char *name, ffpars_ctx *ctx);
+static const fmed_modinfo* core_insmod(const char *name, fmed_conf_ctx *ctx);
 static int xtask(int signo, fftask *task, uint wid);
 static void core_task(fftask *task, uint cmd);
 static int core_timer(fftmrq_entry *tmr, int64 interval, uint flags);
@@ -140,9 +138,7 @@ static const fmed_log log_dummy = {
 	&log_dummy_func
 };
 
-static int fmed_conf(const char *fn);
-
-static int fmed_conf(const char *filename)
+static int core_conf(const char *filename)
 {
 	int r = -1;
 	char *fn = NULL;
@@ -176,7 +172,7 @@ end:
 
 static int conf_init(fmed_config *conf)
 {
-	conf->codepage = FFU_WIN1252;
+	conf->codepage = FFUNICODE_WIN1252;
 	return 0;
 }
 
@@ -190,7 +186,6 @@ static void conf_destroy(fmed_config *conf)
 fmed_core* core_init(char **argv, char **env)
 {
 	core = &_fmed_core;
-	ffmem_init();
 	fflk_setup();
 	fmed = ffmem_tcalloc1(fmedia);
 	if (fmed == NULL)
@@ -199,10 +194,7 @@ fmed_core* core_init(char **argv, char **env)
 	if (0 != ffenv_init(&fmed->env, env))
 		goto err;
 
-	fftime_zone tz;
-	fftime_local(&tz);
-	fftime_storelocal(&tz);
-	fftime_init();
+	fftime_local(&fmed->tz);
 
 	fflist_init(&fmed->mods);
 	core_insmod("#core.core", NULL);
@@ -354,7 +346,7 @@ static ssize_t core_cmd(uint signo, ...)
 
 	case FMED_CONF: {
 		const char *fn = va_arg(va, char*);
-		if (0 != fmed_conf(fn)) {
+		if (0 != core_conf(fn)) {
 			r = 1;
 		}
 		break;
@@ -450,6 +442,10 @@ static ssize_t core_cmd(uint signo, ...)
 		fmed->log = logger;
 		break;
 	}
+
+	case FMED_TZOFFSET:
+		r = fmed->tz.real_offset;
+		break;
 	}
 
 	va_end(va);
@@ -485,7 +481,7 @@ static void core_log(uint flags, void *trk, const char *module, const char *fmt,
 static void core_logv(uint flags, void *trk, const char *module, const char *fmt, va_list va)
 {
 	char stime[32];
-	ffdtm dt;
+	ffdatetime dt;
 	fftime t;
 	size_t r;
 	fmed_logdata ld = {};
@@ -499,8 +495,9 @@ static void core_logv(uint flags, void *trk, const char *module, const char *fmt
 		e = fferr_last();
 
 	fftime_now(&t);
-	fftime_split(&dt, &t, FFTIME_TZLOCAL);
-	r = fftime_tostr(&dt, stime, sizeof(stime), FFTIME_HMS_MSEC);
+	t.sec += FFTIME_1970_SECONDS + fmed->tz.real_offset;
+	fftime_split1(&dt, &t);
+	r = fftime_tostr1(&dt, stime, sizeof(stime), FFTIME_HMS_MSEC);
 	stime[r] = '\0';
 	ld.stime = stime;
 	ld.tid = ffthd_curid();

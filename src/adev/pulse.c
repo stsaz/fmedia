@@ -35,7 +35,7 @@ static struct pulse_out_conf_t {
 
 //FMEDIA MODULE
 static const void* pulse_iface(const char *name);
-static int pulse_conf(const char *name, ffpars_ctx *ctx);
+static int pulse_conf(const char *name, fmed_conf_ctx *ctx);
 static int pulse_sig(uint signo);
 static void pulse_destroy(void);
 static const fmed_mod fmed_pulse_mod = {
@@ -53,15 +53,15 @@ static int pulse_create(audio_out *a, fmed_filt *d);
 static void* pulse_open(fmed_filt *d);
 static int pulse_write(void *ctx, fmed_filt *d);
 static void pulse_close(void *ctx);
-static int pulse_out_config(ffpars_ctx *ctx);
+static int pulse_out_config(fmed_conf_ctx *ctx);
 static const fmed_filter fmed_pulse_out = {
 	&pulse_open, &pulse_write, &pulse_close
 };
 
-static const ffpars_arg pulse_out_conf_args[] = {
-	{ "device_index",	FFPARS_TINT,  FFPARS_DSTOFF(struct pulse_out_conf_t, idev) },
-	{ "buffer_length",	FFPARS_TINT | FFPARS_FNOTZERO,  FFPARS_DSTOFF(struct pulse_out_conf_t, buflen) },
-	{ "notify_rate",	FFPARS_TINT,  FFPARS_DSTOFF(struct pulse_out_conf_t, nfy_rate) },
+static const fmed_conf_arg pulse_out_conf_args[] = {
+	{ "device_index",	FMC_INT32,  FMC_O(struct pulse_out_conf_t, idev) },
+	{ "buffer_length",	FMC_INT32NZ,  FMC_O(struct pulse_out_conf_t, buflen) },
+	{ "notify_rate",	FMC_INT32,  FMC_O(struct pulse_out_conf_t, nfy_rate) },
 };
 
 //INPUT
@@ -99,7 +99,7 @@ static const void* pulse_iface(const char *name)
 	return NULL;
 }
 
-static int pulse_conf(const char *name, ffpars_ctx *ctx)
+static int pulse_conf(const char *name, fmed_conf_ctx *ctx)
 {
 	if (!ffsz_cmp(name, "out"))
 		return pulse_out_config(ctx);
@@ -109,10 +109,6 @@ static int pulse_conf(const char *name, ffpars_ctx *ctx)
 static int pulse_sig(uint signo)
 {
 	switch (signo) {
-	case FMED_SIG_INIT:
-		ffmem_init();
-		return 0;
-
 	case FMED_OPEN:
 		if (NULL == (mod = ffmem_new(pulse_mod)))
 			return -1;
@@ -162,12 +158,12 @@ static int pulse_adev_list(fmed_adev_ent **ents, uint flags)
 }
 
 
-static int pulse_out_config(ffpars_ctx *ctx)
+static int pulse_out_config(fmed_conf_ctx *ctx)
 {
 	pulse_out_conf.idev = 0;
 	pulse_out_conf.buflen = 500;
 	pulse_out_conf.nfy_rate = 0;
-	ffpars_setargs(ctx, &pulse_out_conf, pulse_out_conf_args, FFCNT(pulse_out_conf_args));
+	fmed_conf_addctx(ctx, &pulse_out_conf, pulse_out_conf_args);
 	return 0;
 }
 

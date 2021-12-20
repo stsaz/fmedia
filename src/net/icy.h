@@ -21,14 +21,14 @@ int icy_setmeta(icy *c, const ffstr *_data);
 
 #define FILT_NAME  "net.icy"
 
-const ffpars_arg icy_conf_args[] = {
-	{ "meta",	FFPARS_TBOOL | FFPARS_F8BIT,  FFPARS_DSTOFF(net_conf, meta) },
+const fmed_conf_arg icy_conf_args[] = {
+	{ "meta",	FMC_BOOL8,  FMC_O(net_conf, meta) },
 };
 
-int icy_config(ffpars_ctx *ctx)
+int icy_config(fmed_conf_ctx *ctx)
 {
 	net->conf.meta = 1;
-	ffpars_setargs(ctx, &net->conf, icy_conf_args, FFCNT(icy_conf_args));
+	fmed_conf_addctx(ctx, &net->conf, icy_conf_args);
 	return 0;
 }
 
@@ -140,7 +140,7 @@ int icy_setmeta(icy *c, const ffstr *_data)
 	if (ffutf8_valid(artist.ptr, artist.len))
 		ffarr_append(&utf, artist.ptr, artist.len);
 	else
-		ffutf8_strencode(&utf, artist.ptr, artist.len, FFU_WIN1252);
+		ffstr_growadd_codepage((ffstr*)&utf, &utf.cap, artist.ptr, artist.len, FFUNICODE_WIN1252);
 	ffstr_free(&c->artist);
 	ffstr_acqstr3(&c->artist, &utf);
 
@@ -148,7 +148,7 @@ int icy_setmeta(icy *c, const ffstr *_data)
 	if (ffutf8_valid(title.ptr, title.len))
 		ffarr_append(&utf, title.ptr, title.len);
 	else
-		ffutf8_strencode(&utf, title.ptr, title.len, FFU_WIN1252);
+		ffstr_growadd_codepage((ffstr*)&utf, &utf.cap, title.ptr, title.len, FFUNICODE_WIN1252);
 	ffstr_free(&c->title);
 	ffstr_acqstr3(&c->title, &utf);
 

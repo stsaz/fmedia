@@ -249,7 +249,7 @@ static int arg_astoplev(ffparser_schem *p, void *obj, const ffstr *val)
 {
 	fmed_cmd *cmd = obj;
 	ffstr db, time, mintime;
-	ffdtm dt;
+	ffdatetime dt;
 	fftime t;
 	ffs_split2by(val->ptr, val->len, ';', &db, &time);
 	ffs_split2by(time.ptr, time.len, ';', &time, &mintime);
@@ -260,18 +260,18 @@ static int arg_astoplev(ffparser_schem *p, void *obj, const ffstr *val)
 	cmd->stop_level = f;
 
 	if (time.len != 0) {
-		if (time.len != fftime_fromstr(&dt, time.ptr, time.len, FFTIME_HMS_MSEC_VAR))
+		if (time.len != fftime_fromstr1(&dt, time.ptr, time.len, FFTIME_HMS_MSEC_VAR))
 			return FFPARS_EBADVAL;
 
-		fftime_join(&t, &dt, FFTIME_TZNODATE);
+		fftime_join1(&t, &dt);
 		cmd->stop_level_time = fftime_ms(&t);
 	}
 
 	if (mintime.len != 0) {
-		if (mintime.len != fftime_fromstr(&dt, mintime.ptr, mintime.len, FFTIME_HMS_MSEC_VAR))
+		if (mintime.len != fftime_fromstr1(&dt, mintime.ptr, mintime.len, FFTIME_HMS_MSEC_VAR))
 			return FFPARS_EBADVAL;
 
-		fftime_join(&t, &dt, FFTIME_TZNODATE);
+		fftime_join1(&t, &dt);
 		cmd->stop_level_mintime = fftime_ms(&t);
 	}
 
@@ -282,12 +282,12 @@ static int arg_seek(ffparser_schem *p, void *obj, const ffstr *val)
 {
 	fmed_cmd *cmd = obj;
 	uint i;
-	ffdtm dt;
+	ffdatetime dt;
 	fftime t;
-	if (val->len != fftime_fromstr(&dt, val->ptr, val->len, FFTIME_HMS_MSEC_VAR))
+	if (val->len != fftime_fromstr1(&dt, val->ptr, val->len, FFTIME_HMS_MSEC_VAR))
 		return FFPARS_EBADVAL;
 
-	fftime_join(&t, &dt, FFTIME_TZNODATE);
+	fftime_join1(&t, &dt);
 	i = fftime_ms(&t);
 
 	if (!ffsz_cmp(p->curarg->name, "seek"))
@@ -312,12 +312,12 @@ static int arg_until(ffparser_schem *p, void *obj, const ffstr *val)
 static int arg_split(ffparser_schem *p, void *obj, const ffstr *val)
 {
 	fmed_cmd *cmd = obj;
-	ffdtm dt;
+	ffdatetime dt;
 	fftime t;
-	if (val->len != fftime_fromstr(&dt, val->ptr, val->len, FFTIME_HMS_MSEC_VAR))
+	if (val->len != fftime_fromstr1(&dt, val->ptr, val->len, FFTIME_HMS_MSEC_VAR))
 		return FFPARS_EBADVAL;
 
-	fftime_join(&t, &dt, FFTIME_TZNODATE);
+	fftime_join1(&t, &dt);
 	cmd->split_time = fftime_ms(&t);
 	return 0;
 }

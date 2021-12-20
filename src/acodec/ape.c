@@ -54,7 +54,6 @@ static int ape_sig(uint signo)
 {
 	switch (signo) {
 	case FMED_SIG_INIT:
-		ffmem_init();
 		return 0;
 	}
 	return 0;

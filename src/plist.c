@@ -12,7 +12,7 @@ const fmed_queue *qu;
 static const void* plist_iface(const char *name);
 static int plist_sig(uint signo);
 static void plist_destroy(void);
-static int plist_conf(const char *name, ffpars_ctx *ctx);
+static int plist_conf(const char *name, fmed_conf_ctx *ctx);
 static const fmed_mod fmed_plist_mod = {
 	.ver = FMED_VER_FULL, .ver_core = FMED_VER_CORE,
 	&plist_iface, &plist_sig, &plist_destroy, &plist_conf
@@ -45,7 +45,7 @@ FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 extern const fmed_filter fmed_cue_input;
 extern const fmed_filter cuehook_iface;
 extern const fmed_filter fmed_dir_input;
-extern int dir_conf(ffpars_ctx *ctx);
+extern int dir_conf(fmed_conf_ctx *ctx);
 
 #include <format/m3u-read.h>
 #include <format/pls-read.h>
@@ -68,7 +68,7 @@ static const void* plist_iface(const char *name)
 	return NULL;
 }
 
-static int plist_conf(const char *name, ffpars_ctx *ctx)
+static int plist_conf(const char *name, fmed_conf_ctx *ctx)
 {
 	if (!ffsz_cmp(name, "dir"))
 		return dir_conf(ctx);
@@ -78,10 +78,6 @@ static int plist_conf(const char *name, ffpars_ctx *ctx)
 static int plist_sig(uint signo)
 {
 	switch (signo) {
-	case FMED_SIG_INIT:
-		ffmem_init();
-		return 0;
-
 	case FMED_OPEN:
 		if (NULL == (qu = core->getmod("#queue.queue")))
 			return 1;

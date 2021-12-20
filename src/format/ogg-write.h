@@ -8,14 +8,14 @@ struct ogg_out_conf_t {
 	ushort max_page_duration;
 } wconf;
 
-const ffpars_arg ogg_out_conf_args[] = {
-	{ "max_page_duration",  FFPARS_TINT | FFPARS_F16BIT,  FFPARS_DSTOFF(struct ogg_out_conf_t, max_page_duration) },
+const fmed_conf_arg ogg_out_conf_args[] = {
+	{ "max_page_duration",  FMC_INT16,  FMC_O(struct ogg_out_conf_t, max_page_duration) },
 };
 
-int ogg_out_conf(ffpars_ctx *ctx)
+int ogg_out_conf(fmed_conf_ctx *ctx)
 {
 	wconf.max_page_duration = 1000;
-	ffpars_setargs(ctx, &wconf, ogg_out_conf_args, FF_COUNT(ogg_out_conf_args));
+	fmed_conf_addctx(ctx, &wconf, ogg_out_conf_args);
 	return 0;
 }
 

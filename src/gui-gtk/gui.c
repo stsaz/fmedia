@@ -13,7 +13,7 @@ ggui *gg;
 
 //FMEDIA MODULE
 static const void* gui_iface(const char *name);
-static int gui_conf(const char *name, ffpars_ctx *ctx);
+static int gui_conf(const char *name, fmed_conf_ctx *ctx);
 static int gui_sig(uint signo);
 static void gui_destroy(void);
 static const fmed_mod fmed_gui_mod = {
@@ -54,68 +54,68 @@ static const void* gui_iface(const char *name)
 }
 
 
-static int conf_ctxany(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
+static int conf_ctxany(fmed_conf *fc, void *obj, fmed_conf_ctx *ctx)
 {
 	ffpars_ctx_skip(ctx);
 	return 0;
 }
 
-static int conf_any(ffparser_schem *p, void *obj, const ffstr *val)
+static int conf_any(fmed_conf *fc, void *obj, const ffstr *val)
 {
 	return 0;
 }
 
-static int conf_list_col_width(ffparser_schem *p, void *obj, const int64 *val)
+static int conf_list_col_width(fmed_conf *fc, void *obj, const int64 *val)
 {
 	struct gui_conf *c = obj;
-	if (p->list_idx > FFCNT(c->list_col_width))
-		return FFPARS_EBIGVAL;
-	c->list_col_width[p->list_idx] = *val;
+	if (c->list_col_width_idx >= FF_COUNT(c->list_col_width))
+		return FMC_EBADVAL;
+	c->list_col_width[c->list_col_width_idx++] = *val;
 	return 0;
 }
 
-int conf_file_delete_method(ffparser_schem *p, void *obj, const ffstr *val)
+int conf_file_delete_method(fmed_conf *fc, void *obj, const ffstr *val)
 {
 	if (ffstr_eqz(val, "default"))
 		gg->conf.file_delete_method = FDM_TRASH;
 	else if (ffstr_eqz(val, "rename"))
 		gg->conf.file_delete_method = FDM_RENAME;
 	else
-		return FFPARS_EBADVAL;
+		return FMC_EBADVAL;
 	return 0;
 }
 
-static const ffpars_arg gui_conf_args[] = {
-	{ "seek_step",	FFPARS_TINT8 | FFPARS_FNOTZERO, FFPARS_DSTOFF(struct gui_conf, seek_step_delta) },
-	{ "seek_leap",	FFPARS_TINT8 | FFPARS_FNOTZERO, FFPARS_DSTOFF(struct gui_conf, seek_leap_delta) },
-	{ "autosave_playlists",	FFPARS_TBOOL8, FFPARS_DSTOFF(struct gui_conf, autosave_playlists) },
-	{ "random",	FFPARS_TBOOL8, FFPARS_DSTOFF(struct gui_conf, list_random) },
-	{ "list_repeat",	FFPARS_TINT8, FFPARS_DSTOFF(struct gui_conf, list_repeat) },
-	{ "auto_attenuate_ceiling",	FFPARS_TFLOAT | FFPARS_FSIGN, FFPARS_DSTOFF(struct gui_conf, auto_attenuate_ceiling) },
-	{ "list_columns_width",	FFPARS_TINT16 | FFPARS_FLIST, FFPARS_DST(&conf_list_col_width) },
-	{ "list_track",	FFPARS_TINT, FFPARS_DSTOFF(struct gui_conf, list_actv_trk_idx) },
-	{ "list_scroll",	FFPARS_TINT, FFPARS_DSTOFF(struct gui_conf, list_scroll_pos) },
-	{ "file_delete_method",	FFPARS_TSTR, FFPARS_DST(conf_file_delete_method) },
-	{ "editor_path",	FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY, FFPARS_DSTOFF(struct gui_conf, editor_path) },
+static const fmed_conf_arg gui_conf_args[] = {
+	{ "seek_step",	FMC_INT8NZ, FMC_O(struct gui_conf, seek_step_delta) },
+	{ "seek_leap",	FMC_INT8NZ, FMC_O(struct gui_conf, seek_leap_delta) },
+	{ "autosave_playlists",	FMC_BOOL8, FMC_O(struct gui_conf, autosave_playlists) },
+	{ "random",	FMC_BOOL8, FMC_O(struct gui_conf, list_random) },
+	{ "list_repeat",	FMC_INT8, FMC_O(struct gui_conf, list_repeat) },
+	{ "auto_attenuate_ceiling",	FMC_FLOAT32S, FMC_O(struct gui_conf, auto_attenuate_ceiling) },
+	{ "list_columns_width",	FMC_INT16 | FFPARS_FLIST, FMC_F(conf_list_col_width) },
+	{ "list_track",	FMC_INT32, FMC_O(struct gui_conf, list_actv_trk_idx) },
+	{ "list_scroll",	FMC_INT32, FMC_O(struct gui_conf, list_scroll_pos) },
+	{ "file_delete_method",	FMC_STR, FMC_F(conf_file_delete_method) },
+	{ "editor_path",	FMC_STRZ, FMC_O(struct gui_conf, editor_path) },
 
-	{ "ydl_format",	FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY, FFPARS_DSTOFF(struct gui_conf, ydl_format) },
-	{ "ydl_outdir",	FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY, FFPARS_DSTOFF(struct gui_conf, ydl_outdir) },
+	{ "ydl_format",	FMC_STRZ, FMC_O(struct gui_conf, ydl_format) },
+	{ "ydl_outdir",	FMC_STRZ, FMC_O(struct gui_conf, ydl_outdir) },
 
-	{ "record",	FFPARS_TOBJ, FFPARS_DST(&conf_ctxany) },
-	{ "convert",	FFPARS_TOBJ, FFPARS_DST(&conf_convert) },
-	{ "global_hotkeys",	FFPARS_TOBJ, FFPARS_DST(&conf_ctxany) },
-	{ "explorer",	FFPARS_TOBJ, FFPARS_DST(wmain_exp_conf) },
+	{ "record",	FMC_OBJ, FMC_F(conf_ctxany) },
+	{ "convert",	FMC_OBJ, FMC_F(conf_convert) },
+	{ "global_hotkeys",	FMC_OBJ, FMC_F(conf_ctxany) },
+	{ "explorer",	FMC_OBJ, FMC_F(wmain_exp_conf) },
 
-	{ "*",	FFPARS_TSTR | FFPARS_FMULTI, FFPARS_DST(&conf_any) },
+	{ "*",	FFPARS_TSTR | FFPARS_FMULTI, FMC_F(conf_any) },
 };
 
-static int gui_conf(const char *name, ffpars_ctx *ctx)
+static int gui_conf(const char *name, fmed_conf_ctx *ctx)
 {
 	if (ffsz_eq(name, "gui")) {
 		gg->conf.seek_step_delta = 5;
 		gg->conf.seek_leap_delta = 60;
 		gg->conf.autosave_playlists = 1;
-		ffpars_setargs(ctx, &gg->conf, gui_conf_args, FFCNT(gui_conf_args));
+		fmed_conf_addctx(ctx, &gg->conf, gui_conf_args);
 		return 0;
 	}
 	return -1;
@@ -775,7 +775,7 @@ static void list_add(const ffstr *fn, int plid)
 	}
 
 	fmed_que_entry e, *pe;
-	ffmem_tzero(&e);
+	ffmem_zero_obj(&e);
 	e.url = *fn;
 	if (NULL == (pe = (void*)gg->qu->fmed_queue_add(FMED_QUE_NO_ONCHANGE, plid, &e)))
 		return;

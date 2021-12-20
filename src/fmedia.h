@@ -114,6 +114,10 @@ enum FMED_SIG {
 	void setlog(const fmed_log *log)
 	*/
 	FMED_SETLOG,
+
+	/** Get local time zone offset.
+	uint tzoff() */
+	FMED_TZOFFSET,
 };
 
 enum FMED_WORKER_F {
@@ -230,6 +234,29 @@ struct fmed_props {
 	ffpcm record_format;
 };
 
+typedef ffpars_arg fmed_conf_arg;
+typedef ffpars_ctx fmed_conf_ctx;
+typedef ffparser_schem fmed_conf;
+#define fmed_conf_addctx(cx, o, a)  ffpars_setargs(cx, o, a, FF_COUNT(a))
+#define FMC_O(s, m)  FFPARS_DSTOFF(s, m)
+#define FMC_F(f)  FFPARS_DST(f)
+#define FMC_STR  FFPARS_TSTR
+#define FMC_STRNE  FFPARS_TSTR | FFPARS_FNOTEMPTY
+#define FMC_STRZ  FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY
+#define FMC_STRZNE  FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY | FFPARS_FNOTEMPTY
+#define FMC_INT8  FFPARS_TINT8
+#define FMC_INT8NZ  FFPARS_TINT8 | FFPARS_FNOTZERO
+#define FMC_INT16  FFPARS_TINT16
+#define FMC_INT32  FFPARS_TINT
+#define FMC_INT32NZ  FFPARS_TINT | FFPARS_FNOTZERO
+#define FMC_SIZE  FFPARS_TSIZE
+#define FMC_SIZENZ  FFPARS_TSIZE | FFPARS_FNOTZERO
+#define FMC_BOOL8  FFPARS_TBOOL8
+#define FMC_FLOAT32S  FFPARS_TFLOAT | FFPARS_FSIGN
+#define FMC_FLOAT64S  FFPARS_TFLOAT64 | FFPARS_FSIGN
+#define FMC_OBJ  FFPARS_TOBJ
+#define FMC_EBADVAL  FFPARS_EBADVAL
+
 struct fmed_mod {
 	uint ver;
 	uint ver_core;
@@ -242,7 +269,7 @@ struct fmed_mod {
 
 	void (*destroy)(void);
 
-	int (*conf)(const char *name, ffpars_ctx *ctx);
+	int (*conf)(const char *name, fmed_conf_ctx *ctx);
 };
 
 

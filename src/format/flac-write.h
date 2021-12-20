@@ -20,17 +20,17 @@ static struct flac_out_conf_t {
 	uint min_meta_size;
 } flac_out_conf;
 
-static const ffpars_arg flac_out_conf_args[] = {
-	{ "min_meta_size",  FFPARS_TINT,  FFPARS_DSTOFF(struct flac_out_conf_t, min_meta_size) },
-	{ "seektable_interval",	FFPARS_TINT,  FFPARS_DSTOFF(struct flac_out_conf_t, sktab_int) },
+static const fmed_conf_arg flac_out_conf_args[] = {
+	{ "min_meta_size",  FMC_INT32,  FMC_O(struct flac_out_conf_t, min_meta_size) },
+	{ "seektable_interval",	FMC_INT32,  FMC_O(struct flac_out_conf_t, sktab_int) },
 };
 
 
-int flac_out_config(ffpars_ctx *conf)
+int flac_out_config(fmed_conf_ctx *conf)
 {
 	flac_out_conf.sktab_int = 1;
 	flac_out_conf.min_meta_size = 1000;
-	ffpars_setargs(conf, &flac_out_conf, flac_out_conf_args, FFCNT(flac_out_conf_args));
+	fmed_conf_addctx(conf, &flac_out_conf, flac_out_conf_args);
 	return 0;
 }
 

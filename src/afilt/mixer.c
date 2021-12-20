@@ -12,7 +12,6 @@ INPUT2 -> mixer-in /
 #include <FF/audio/pcm.h>
 #include <FF/data/parse.h>
 #include <FF/array.h>
-#include <FF/list.h>
 #include <FFOS/error.h>
 
 
@@ -55,7 +54,7 @@ static const fmed_track *track;
 
 //FMEDIA MODULE
 static const void* mix_iface(const char *name);
-static int mix_conf(const char *name, ffpars_ctx *ctx);
+static int mix_conf(const char *name, fmed_conf_ctx *ctx);
 static int mix_sig(uint signo);
 static void mix_destroy(void);
 static const fmed_mod fmed_mix_mod = {
@@ -75,7 +74,7 @@ static const fmed_filter fmed_mix_in = {
 static void* mix_open(fmed_filt *d);
 static int mix_read(void *ctx, fmed_filt *d);
 static void mix_close(void *ctx);
-static int mix_out_conf(ffpars_ctx *ctx);
+static int mix_out_conf(fmed_conf_ctx *ctx);
 static const fmed_filter fmed_mix_out = {
 	&mix_open, &mix_read, &mix_close
 };
@@ -87,38 +86,38 @@ static void mix_input_closed(mxr *m, mix_in *mi);
 static void mix_seterr(mxr *m);
 
 
-static int mix_conf_close(ffparser_schem *p, void *obj);
+static int mix_conf_close(fmed_conf *fc, void *obj);
 
-static int mix_conf_format(ffparser_schem *p, void *obj, ffstr *val)
+static int mix_conf_format(fmed_conf *fc, void *obj, ffstr *val)
 {
 	int r;
 	if (0 > (r = ffpcm_fmt(val->ptr, val->len)))
-		return FFPARS_EBADVAL;
+		return FMC_EBADVAL;
 	pcmfmt.format = r;
 	return 0;
 }
 
-static const ffpars_arg mix_conf_args[] = {
-	{ "format",  FFPARS_TSTR | FFPARS_FNOTEMPTY, FFPARS_DST(&mix_conf_format) }
-	, { "channels",  FFPARS_TINT | FFPARS_FNOTZERO, FFPARS_DSTOFF(ffpcm, channels) }
-	, { "rate",  FFPARS_TINT | FFPARS_FNOTZERO, FFPARS_DSTOFF(ffpcm, sample_rate) }
-	, { "buffer",	FFPARS_TINT | FFPARS_FNOTZERO, FFPARS_DSTOFF(struct mix_conf_t, buf_size) },
-	{ NULL,	FFPARS_TCLOSE, FFPARS_DST(&mix_conf_close) },
+static const fmed_conf_arg mix_conf_args[] = {
+	{ "format",  FMC_STRNE, FMC_F(mix_conf_format) }
+	, { "channels",  FMC_INT32NZ, FMC_O(ffpcm, channels) }
+	, { "rate",  FMC_INT32NZ, FMC_O(ffpcm, sample_rate) }
+	, { "buffer",	FMC_INT32NZ, FMC_O(struct mix_conf_t, buf_size) },
+	{ NULL,	FFPARS_TCLOSE, FMC_F(mix_conf_close) },
 };
 
-static int mix_conf_close(ffparser_schem *p, void *obj)
+static int mix_conf_close(fmed_conf *fc, void *obj)
 {
 	conf.buf_size = ffpcm_bytes(&conf.pcm, conf.buf_size);
 	return 0;
 }
 
-static int mix_out_conf(ffpars_ctx *ctx)
+static int mix_out_conf(fmed_conf_ctx *ctx)
 {
 	conf.pcm.format = FFPCM_16;
 	conf.pcm.channels = 2;
 	conf.pcm.sample_rate = 44100;
 	conf.buf_size = 1000;
-	ffpars_setargs(ctx, &conf, mix_conf_args, FFCNT(mix_conf_args));
+	fmed_conf_addctx(ctx, &conf, mix_conf_args);
 	return 0;
 }
 
@@ -139,7 +138,7 @@ static const void* mix_iface(const char *name)
 	return NULL;
 }
 
-static int mix_conf(const char *name, ffpars_ctx *ctx)
+static int mix_conf(const char *name, fmed_conf_ctx *ctx)
 {
 	if (!ffsz_cmp(name, "out"))
 		return mix_out_conf(ctx);
@@ -149,9 +148,6 @@ static int mix_conf(const char *name, ffpars_ctx *ctx)
 static int mix_sig(uint signo)
 {
 	switch (signo) {
-	case FMED_SIG_INIT:
-		ffmem_init();
-		return 0;
 	case FMED_OPEN:
 		track = core->getmod("#core.track");
 		break;

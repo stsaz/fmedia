@@ -12,7 +12,7 @@ const fmed_queue *qu;
 extern const fmed_filter fmed_flac_output;
 extern const fmed_filter fmed_flac_input;
 extern const fmed_filter fmed_flacogg_input;
-extern int flac_out_config(ffpars_ctx *conf);
+extern int flac_out_config(fmed_conf_ctx *conf);
 
 struct flac_dec {
 	ffflac_dec fl;
@@ -32,7 +32,7 @@ static struct flac_out_conf_t {
 
 //FMEDIA MODULE
 static const void* flac_iface(const char *name);
-static int flac_mod_conf(const char *name, ffpars_ctx *conf);
+static int flac_mod_conf(const char *name, fmed_conf_ctx *conf);
 static int flac_sig(uint signo);
 static void flac_destroy(void);
 static const fmed_mod fmed_flac_mod = {
@@ -52,14 +52,14 @@ static const fmed_filter fmed_flac_dec = {
 static void* flac_enc_create(fmed_filt *d);
 static void flac_enc_free(void *ctx);
 static int flac_enc_encode(void *ctx, fmed_filt *d);
-static int flac_enc_config(ffpars_ctx *conf);
+static int flac_enc_config(fmed_conf_ctx *conf);
 static const fmed_filter mod_flac_enc = {
 	&flac_enc_create, &flac_enc_encode, &flac_enc_free
 };
 
-static const ffpars_arg flac_enc_conf_args[] = {
-	{ "compression",  FFPARS_TINT | FFPARS_F8BIT,  FFPARS_DSTOFF(struct flac_out_conf_t, level) },
-	{ "md5",	FFPARS_TBOOL | FFPARS_F8BIT,  FFPARS_DSTOFF(struct flac_out_conf_t, md5) },
+static const fmed_conf_arg flac_enc_conf_args[] = {
+	{ "compression",  FMC_INT8,  FMC_O(struct flac_out_conf_t, level) },
+	{ "md5",	FMC_BOOL8,  FMC_O(struct flac_out_conf_t, md5) },
 };
 
 
@@ -85,7 +85,7 @@ static const void* flac_iface(const char *name)
 	return NULL;
 }
 
-static int flac_mod_conf(const char *name, ffpars_ctx *ctx)
+static int flac_mod_conf(const char *name, fmed_conf_ctx *ctx)
 {
 	if (!ffsz_cmp(name, "encode"))
 		return flac_enc_config(ctx);
@@ -97,10 +97,6 @@ static int flac_mod_conf(const char *name, ffpars_ctx *ctx)
 static int flac_sig(uint signo)
 {
 	switch (signo) {
-	case FMED_SIG_INIT:
-		ffmem_init();
-		return 0;
-
 	case FMED_OPEN:
 		qu = core->getmod("#queue.queue");
 		break;
@@ -187,11 +183,11 @@ static int flac_dec_decode(void *ctx, fmed_filt *d)
 }
 
 
-static int flac_enc_config(ffpars_ctx *conf)
+static int flac_enc_config(fmed_conf_ctx *conf)
 {
 	flac_out_conf.level = 6;
 	flac_out_conf.md5 = 1;
-	ffpars_setargs(conf, &flac_out_conf, flac_enc_conf_args, FFCNT(flac_enc_conf_args));
+	fmed_conf_addctx(conf, &flac_out_conf, flac_enc_conf_args);
 	return 0;
 }
 

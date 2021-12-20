@@ -29,7 +29,7 @@ static struct alsa_out_conf_t {
 
 //FMEDIA MODULE
 static const void* alsa_iface(const char *name);
-static int alsa_conf(const char *name, ffpars_ctx *ctx);
+static int alsa_conf(const char *name, fmed_conf_ctx *ctx);
 static int alsa_sig(uint signo);
 static void alsa_destroy(void);
 static const fmed_mod fmed_alsa_mod = {
@@ -44,22 +44,22 @@ static int alsa_create(audio_out *a, fmed_filt *d);
 static void* alsa_open(fmed_filt *d);
 static int alsa_write(void *ctx, fmed_filt *d);
 static void alsa_close(void *ctx);
-static int alsa_out_config(ffpars_ctx *ctx);
+static int alsa_out_config(fmed_conf_ctx *ctx);
 static const fmed_filter fmed_alsa_out = {
 	&alsa_open, &alsa_write, &alsa_close
 };
 
-static const ffpars_arg alsa_out_conf_args[] = {
-	{ "device_index",	FFPARS_TINT,  FFPARS_DSTOFF(struct alsa_out_conf_t, idev) },
-	{ "buffer_length",	FFPARS_TINT | FFPARS_FNOTZERO,  FFPARS_DSTOFF(struct alsa_out_conf_t, buflen) },
-	{ "notify_rate",	FFPARS_TINT,  FFPARS_DSTOFF(struct alsa_out_conf_t, nfy_rate) },
+static const fmed_conf_arg alsa_out_conf_args[] = {
+	{ "device_index",	FMC_INT32,  FMC_O(struct alsa_out_conf_t, idev) },
+	{ "buffer_length",	FMC_INT32NZ,  FMC_O(struct alsa_out_conf_t, buflen) },
+	{ "notify_rate",	FMC_INT32,  FMC_O(struct alsa_out_conf_t, nfy_rate) },
 };
 
 //INPUT
 static void* alsa_in_open(fmed_filt *d);
 static void alsa_in_close(void *ctx);
 static int alsa_in_read(void *ctx, fmed_filt *d);
-static int alsa_in_config(ffpars_ctx *ctx);
+static int alsa_in_config(fmed_conf_ctx *ctx);
 static const fmed_filter fmed_alsa_in = {
 	&alsa_in_open, &alsa_in_read, &alsa_in_close
 };
@@ -69,9 +69,9 @@ static struct alsa_in_conf_t {
 	uint buflen;
 } alsa_in_conf;
 
-static const ffpars_arg alsa_in_conf_args[] = {
-	{ "device_index",	FFPARS_TINT,  FFPARS_DSTOFF(struct alsa_in_conf_t, idev) },
-	{ "buffer_length",	FFPARS_TINT | FFPARS_FNOTZERO,  FFPARS_DSTOFF(struct alsa_in_conf_t, buflen) },
+static const fmed_conf_arg alsa_in_conf_args[] = {
+	{ "device_index",	FMC_INT32,  FMC_O(struct alsa_in_conf_t, idev) },
+	{ "buffer_length",	FMC_INT32NZ,  FMC_O(struct alsa_in_conf_t, buflen) },
 };
 
 //ADEV
@@ -101,7 +101,7 @@ static const void* alsa_iface(const char *name)
 	return NULL;
 }
 
-static int alsa_conf(const char *name, ffpars_ctx *ctx)
+static int alsa_conf(const char *name, fmed_conf_ctx *ctx)
 {
 	if (!ffsz_cmp(name, "out"))
 		return alsa_out_config(ctx);
@@ -113,10 +113,6 @@ static int alsa_conf(const char *name, ffpars_ctx *ctx)
 static int alsa_sig(uint signo)
 {
 	switch (signo) {
-	case FMED_SIG_INIT:
-		ffmem_init();
-		return 0;
-
 	case FMED_OPEN:
 		if (NULL == (mod = ffmem_tcalloc1(alsa_mod)))
 			return -1;
@@ -163,12 +159,12 @@ static int alsa_adev_list(fmed_adev_ent **ents, uint flags)
 }
 
 
-static int alsa_out_config(ffpars_ctx *ctx)
+static int alsa_out_config(fmed_conf_ctx *ctx)
 {
 	alsa_out_conf.idev = 0;
 	alsa_out_conf.buflen = 500;
 	alsa_out_conf.nfy_rate = 0;
-	ffpars_setargs(ctx, &alsa_out_conf, alsa_out_conf_args, FFCNT(alsa_out_conf_args));
+	fmed_conf_addctx(ctx, &alsa_out_conf, alsa_out_conf_args);
 	return 0;
 }
 
@@ -328,11 +324,11 @@ typedef struct alsa_in {
 	fftmrq_entry tmr;
 } alsa_in;
 
-static int alsa_in_config(ffpars_ctx *ctx)
+static int alsa_in_config(fmed_conf_ctx *ctx)
 {
 	alsa_in_conf.idev = 0;
 	alsa_in_conf.buflen = 500;
-	ffpars_setargs(ctx, &alsa_in_conf, alsa_in_conf_args, FFCNT(alsa_in_conf_args));
+	fmed_conf_addctx(ctx, &alsa_in_conf, alsa_in_conf_args);
 	return 0;
 }
 

@@ -27,7 +27,7 @@ static struct oss_out_conf_t {
 
 //FMEDIA MODULE
 static const void* oss_iface(const char *name);
-static int oss_conf(const char *name, ffpars_ctx *ctx);
+static int oss_conf(const char *name, fmed_conf_ctx *ctx);
 static int oss_sig(uint signo);
 static void oss_destroy(void);
 static const fmed_mod fmed_oss_mod = {
@@ -44,14 +44,14 @@ static int oss_create(audio_out *a, fmed_filt *d);
 static void* oss_open(fmed_filt *d);
 static int oss_write(void *ctx, fmed_filt *d);
 static void oss_close(void *ctx);
-static int oss_out_config(ffpars_ctx *ctx);
+static int oss_out_config(fmed_conf_ctx *ctx);
 static const fmed_filter fmed_oss_out = {
 	&oss_open, &oss_write, &oss_close
 };
 
-static const ffpars_arg oss_out_conf_args[] = {
-	{ "device_index",	FFPARS_TINT,  FFPARS_DSTOFF(struct oss_out_conf_t, idev) },
-	{ "buffer_length",	FFPARS_TINT,  FFPARS_DSTOFF(struct oss_out_conf_t, buflen) },
+static const fmed_conf_arg oss_out_conf_args[] = {
+	{ "device_index",	FMC_INT32,  FMC_O(struct oss_out_conf_t, idev) },
+	{ "buffer_length",	FMC_INT32,  FMC_O(struct oss_out_conf_t, buflen) },
 };
 
 //INPUT
@@ -89,7 +89,7 @@ static const void* oss_iface(const char *name)
 	return NULL;
 }
 
-static int oss_conf(const char *name, ffpars_ctx *ctx)
+static int oss_conf(const char *name, fmed_conf_ctx *ctx)
 {
 	if (!ffsz_cmp(name, "out"))
 		return oss_out_config(ctx);
@@ -99,10 +99,6 @@ static int oss_conf(const char *name, ffpars_ctx *ctx)
 static int oss_sig(uint signo)
 {
 	switch (signo) {
-	case FMED_SIG_INIT:
-		ffmem_init();
-		return 0;
-
 	case FMED_OPEN:
 		if (NULL == (mod = ffmem_new(oss_mod)))
 			return -1;
@@ -140,11 +136,11 @@ static int oss_adev_list(fmed_adev_ent **ents, uint flags)
 	return r;
 }
 
-static int oss_out_config(ffpars_ctx *ctx)
+static int oss_out_config(fmed_conf_ctx *ctx)
 {
 	oss_out_conf.idev = 0;
 	oss_out_conf.buflen = 500;
-	ffpars_setargs(ctx, &oss_out_conf, oss_out_conf_args, FFCNT(oss_out_conf_args));
+	fmed_conf_addctx(ctx, &oss_out_conf, oss_out_conf_args);
 	return 0;
 }
 

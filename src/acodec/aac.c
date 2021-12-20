@@ -10,7 +10,7 @@ const fmed_core *core;
 
 //FMEDIA MODULE
 static const void* aac_iface(const char *name);
-static int aac_conf(const char *name, ffpars_ctx *ctx);
+static int aac_conf(const char *name, fmed_conf_ctx *ctx);
 static int aac_sig(uint signo);
 static void aac_destroy(void);
 static const fmed_mod fmed_aac_mod = {
@@ -34,17 +34,17 @@ static struct aac_out_conf_t {
 	uint bandwidth;
 } aac_out_conf;
 
-static int aac_conf_aot(ffparser_schem *p, void *obj, const ffstr *val);
+static int aac_conf_aot(fmed_conf *fc, void *obj, const ffstr *val);
 
-static const ffpars_arg aac_out_conf_args[] = {
-	{ "profile",	FFPARS_TSTR,  FFPARS_DST(&aac_conf_aot) },
-	{ "quality",	FFPARS_TINT,  FFPARS_DSTOFF(struct aac_out_conf_t, qual) },
-	{ "afterburner",	FFPARS_TINT,  FFPARS_DSTOFF(struct aac_out_conf_t, afterburner) },
-	{ "bandwidth",	FFPARS_TINT,  FFPARS_DSTOFF(struct aac_out_conf_t, bandwidth) },
+static const fmed_conf_arg aac_out_conf_args[] = {
+	{ "profile",	FMC_STR,  FMC_F(aac_conf_aot) },
+	{ "quality",	FMC_INT32,  FMC_O(struct aac_out_conf_t, qual) },
+	{ "afterburner",	FMC_INT32,  FMC_O(struct aac_out_conf_t, afterburner) },
+	{ "bandwidth",	FMC_INT32,  FMC_O(struct aac_out_conf_t, bandwidth) },
 };
 
 //ENCODE
-static int aac_out_config(ffpars_ctx *ctx);
+static int aac_out_config(fmed_conf_ctx *ctx);
 static void* aac_out_create(fmed_filt *d);
 static void aac_out_free(void *ctx);
 static int aac_out_encode(void *ctx, fmed_filt *d);
@@ -71,7 +71,7 @@ static const void* aac_iface(const char *name)
 	return NULL;
 }
 
-static int aac_conf(const char *name, ffpars_ctx *ctx)
+static int aac_conf(const char *name, fmed_conf_ctx *ctx)
 {
 	if (!ffsz_cmp(name, "encode"))
 		return aac_out_config(ctx);
@@ -80,11 +80,6 @@ static int aac_conf(const char *name, ffpars_ctx *ctx)
 
 static int aac_sig(uint signo)
 {
-	switch (signo) {
-	case FMED_SIG_INIT:
-		ffmem_init();
-		return 0;
-	}
 	return 0;
 }
 
@@ -256,20 +251,20 @@ typedef struct aac_out {
 	ffaac_enc aac;
 } aac_out;
 
-static int aac_conf_aot(ffparser_schem *p, void *obj, const ffstr *val)
+static int aac_conf_aot(fmed_conf *fc, void *obj, const ffstr *val)
 {
 	if (0 == (aac_out_conf.aot = aac_profile(val)))
-		return FFPARS_EBADVAL;
+		return FMC_EBADVAL;
 	return 0;
 }
 
-static int aac_out_config(ffpars_ctx *ctx)
+static int aac_out_config(fmed_conf_ctx *ctx)
 {
 	aac_out_conf.aot = AAC_LC;
 	aac_out_conf.qual = 256;
 	aac_out_conf.afterburner = 1;
 	aac_out_conf.bandwidth = 0;
-	ffpars_setargs(ctx, &aac_out_conf, aac_out_conf_args, FFCNT(aac_out_conf_args));
+	fmed_conf_addctx(ctx, &aac_out_conf, aac_out_conf_args);
 	return 0;
 }
 

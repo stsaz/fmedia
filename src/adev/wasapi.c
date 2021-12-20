@@ -43,7 +43,7 @@ static struct wasapi_in_conf_t {
 
 //FMEDIA MODULE
 static const void* wasapi_iface(const char *name);
-static int wasapi_conf(const char *name, ffpars_ctx *ctx);
+static int wasapi_conf(const char *name, fmed_conf_ctx *ctx);
 static int wasapi_sig(uint signo);
 static void wasapi_destroy(void);
 static const fmed_mod fmed_wasapi_mod = {
@@ -57,31 +57,31 @@ static int wasapi_init(fmed_trk *trk);
 static void* wasapi_open(fmed_filt *d);
 static int wasapi_write(void *ctx, fmed_filt *d);
 static void wasapi_close(void *ctx);
-static int wasapi_out_config(ffpars_ctx *ctx);
+static int wasapi_out_config(fmed_conf_ctx *ctx);
 static const fmed_filter fmed_wasapi_out = {
 	&wasapi_open, &wasapi_write, &wasapi_close
 };
 
-static const ffpars_arg wasapi_out_conf_args[] = {
-	{ "device_index",  FFPARS_TINT,  FFPARS_DSTOFF(struct wasapi_out_conf_t, idev) }
-	, { "buffer_length",  FFPARS_TINT | FFPARS_FNOTZERO,  FFPARS_DSTOFF(struct wasapi_out_conf_t, buflen) }
-	, { "exclusive_mode",  FFPARS_TINT | FFPARS_F8BIT,  FFPARS_DSTOFF(struct wasapi_out_conf_t, exclusive) }
+static const fmed_conf_arg wasapi_out_conf_args[] = {
+	{ "device_index",  FMC_INT32,  FMC_O(struct wasapi_out_conf_t, idev) }
+	, { "buffer_length",  FMC_INT32NZ,  FMC_O(struct wasapi_out_conf_t, buflen) }
+	, { "exclusive_mode",  FMC_INT8,  FMC_O(struct wasapi_out_conf_t, exclusive) }
 };
 
 //INPUT
 static void* wasapi_in_open(fmed_filt *d);
 static int wasapi_in_read(void *ctx, fmed_filt *d);
 static void wasapi_in_close(void *ctx);
-static int wasapi_in_config(ffpars_ctx *ctx);
+static int wasapi_in_config(fmed_conf_ctx *ctx);
 static const fmed_filter fmed_wasapi_in = {
 	&wasapi_in_open, &wasapi_in_read, &wasapi_in_close
 };
 
-static const ffpars_arg wasapi_in_conf_args[] = {
-	{ "device_index",  FFPARS_TINT,  FFPARS_DSTOFF(struct wasapi_in_conf_t, idev) }
-	, { "buffer_length",  FFPARS_TINT | FFPARS_FNOTZERO,  FFPARS_DSTOFF(struct wasapi_in_conf_t, buflen) }
-	, { "latency_autocorrect",  FFPARS_TBOOL | FFPARS_F8BIT,  FFPARS_DSTOFF(struct wasapi_in_conf_t, latency_autocorrect) }
-	, { "exclusive_mode",  FFPARS_TINT | FFPARS_F8BIT,  FFPARS_DSTOFF(struct wasapi_in_conf_t, exclusive) }
+static const fmed_conf_arg wasapi_in_conf_args[] = {
+	{ "device_index",  FMC_INT32,  FMC_O(struct wasapi_in_conf_t, idev) }
+	, { "buffer_length",  FMC_INT32NZ,  FMC_O(struct wasapi_in_conf_t, buflen) }
+	, { "latency_autocorrect",  FMC_BOOL8,  FMC_O(struct wasapi_in_conf_t, latency_autocorrect) }
+	, { "exclusive_mode",  FMC_INT8,  FMC_O(struct wasapi_in_conf_t, exclusive) }
 };
 
 //ADEV
@@ -111,7 +111,7 @@ static const void* wasapi_iface(const char *name)
 	return NULL;
 }
 
-static int wasapi_conf(const char *name, ffpars_ctx *ctx)
+static int wasapi_conf(const char *name, fmed_conf_ctx *ctx)
 {
 	if (!ffsz_cmp(name, "out"))
 		return wasapi_out_config(ctx);
@@ -123,10 +123,6 @@ static int wasapi_conf(const char *name, ffpars_ctx *ctx)
 static int wasapi_sig(uint signo)
 {
 	switch (signo) {
-	case FMED_SIG_INIT:
-		ffmem_init();
-		return 0;
-
 	case FMED_OPEN:
 		if (NULL == (mod = ffmem_tcalloc1(wasapi_mod)))
 			return -1;
@@ -181,12 +177,12 @@ static int wasapi_adev_list(fmed_adev_ent **ents, uint flags)
 	return r;
 }
 
-static int wasapi_out_config(ffpars_ctx *ctx)
+static int wasapi_out_config(fmed_conf_ctx *ctx)
 {
 	wasapi_out_conf.idev = 0;
 	wasapi_out_conf.exclusive = EXCL_DISABLED;
 	wasapi_out_conf.buflen = 500;
-	ffpars_setargs(ctx, &wasapi_out_conf, wasapi_out_conf_args, FFCNT(wasapi_out_conf_args));
+	fmed_conf_addctx(ctx, &wasapi_out_conf, wasapi_out_conf_args);
 	return 0;
 }
 
@@ -370,13 +366,13 @@ typedef struct was_in {
 	uint latcorr;
 } was_in;
 
-static int wasapi_in_config(ffpars_ctx *ctx)
+static int wasapi_in_config(fmed_conf_ctx *ctx)
 {
 	wasapi_in_conf.idev = 0;
 	wasapi_in_conf.exclusive = EXCL_DISABLED;
 	wasapi_in_conf.latency_autocorrect = 0;
 	wasapi_in_conf.buflen = 100;
-	ffpars_setargs(ctx, &wasapi_in_conf, wasapi_in_conf_args, FFCNT(wasapi_in_conf_args));
+	fmed_conf_addctx(ctx, &wasapi_in_conf, wasapi_in_conf_args);
 	return 0;
 }
 

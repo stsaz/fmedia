@@ -119,14 +119,14 @@ struct stdout_conf {
 };
 static struct stdout_conf out_conf;
 
-static const ffpars_arg stdout_conf_args[] = {
-	{ "buffer_size",  FFPARS_TSIZE | FFPARS_FNOTZERO,  FFPARS_DSTOFF(struct stdout_conf, bufsize) }
+static const fmed_conf_arg stdout_conf_args[] = {
+	{ "buffer_size",  FMC_SIZENZ,  FMC_O(struct stdout_conf, bufsize) }
 };
 
-int stdout_config(ffpars_ctx *ctx)
+int stdout_config(fmed_conf_ctx *ctx)
 {
 	out_conf.bufsize = 64 * 1024;
-	ffpars_setargs(ctx, &out_conf, stdout_conf_args, FFCNT(stdout_conf_args));
+	fmed_conf_addctx(ctx, &out_conf, stdout_conf_args);
 	return 0;
 }
 

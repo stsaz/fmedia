@@ -134,7 +134,7 @@ static int loadcore(char *argv0)
 		goto end;
 	if (0 == ffstr_catfmt(&a, "%s/../mod/core.%s%Z", path, FFDL_EXT))
 		goto end;
-	a.len = ffpath_norm(a.ptr, a.cap, a.ptr, a.len - 1, 0);
+	a.len = ffpath_normalize(a.ptr, a.cap, a.ptr, a.len - 1, 0);
 	a.ptr[a.len] = '\0';
 
 	if (NULL == (dl = ffdl_open(a.ptr, 0))) {
@@ -171,7 +171,6 @@ static void crash_handler(struct ffsig_info *inf)
 int __stdcall WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
 {
 	char *argv[1] = { NULL };
-	ffmem_init();
 	if (NULL == (g = ffmem_new(struct gctx)))
 		return 1;
 

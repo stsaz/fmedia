@@ -1,58 +1,19 @@
 /**
 Copyright (c) 2019 Simon Zolin */
 
-#include <core-priv.h>
-#include <format-detector.h>
-#include <FF/data/utf8.h>
+#include <core/core-priv.h>
+#include <core/format-detector.h>
 
 
 enum {
 	CONF_MBUF = 2 * 4096,
 };
 
-
-static int conf_mod(ffparser_schem *p, void *obj, ffstr *val);
-static int conf_modconf(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
-static int conf_output(ffparser_schem *p, void *obj, ffstr *val);
-static int conf_input(ffparser_schem *p, void *obj, ffstr *val);
-static int conf_recfmt(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
-static int conf_inp_format(ffparser_schem *p, void *obj, ffstr *val);
-static int conf_inp_channels(ffparser_schem *p, void *obj, ffstr *val);
-static int conf_ext(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
-static int conf_ext_val(ffparser_schem *p, void *obj, ffstr *val);
-static int conf_codepage(ffparser_schem *p, void *obj, ffstr *val);
-static int conf_include(ffparser_schem *p, void *obj, ffstr *val);
-static int conf_portable(ffparser_schem *p, void *obj, const int64 *val);
-
 // enum FMED_INSTANCE_MODE
 static const char *const im_enumstr[] = {
 	"off", "add", "play", "clear_play"
 };
-static const ffpars_enumlist im_enum = { im_enumstr, FFCNT(im_enumstr), FFPARS_DSTOFF(fmed_config, instance_mode) };
-
-static const ffpars_arg conf_args[] = {
-	{ "workers",	FFPARS_TINT8, FFPARS_DSTOFF(fmed_config, workers) },
-	{ "mod",	FFPARS_TSTR | FFPARS_FNOTEMPTY | FFPARS_FSTRZ | FFPARS_FCOPY | FFPARS_FMULTI, FFPARS_DST(&conf_mod) },
-	{ "mod_conf",	FFPARS_TOBJ | FFPARS_FOBJ1 | FFPARS_FNOTEMPTY | FFPARS_FMULTI, FFPARS_DST(&conf_modconf) },
-	{ "output",	FFPARS_TSTR | FFPARS_FNOTEMPTY | FFPARS_FMULTI, FFPARS_DST(&conf_output) },
-	{ "output_optional",	FFPARS_TSTR | FFPARS_FNOTEMPTY | FFPARS_FMULTI, FFPARS_DST(&conf_output) },
-	{ "input",	FFPARS_TSTR | FFPARS_FNOTEMPTY | FFPARS_FMULTI, FFPARS_DST(&conf_input) },
-	{ "record_format",	FFPARS_TOBJ, FFPARS_DST(&conf_recfmt) },
-	{ "input_ext",	FFPARS_TOBJ, FFPARS_DST(&conf_ext) },
-	{ "output_ext",	FFPARS_TOBJ, FFPARS_DST(&conf_ext) },
-	{ "codepage",	FFPARS_TSTR, FFPARS_DST(&conf_codepage) },
-	{ "instance_mode",	FFPARS_TENUM | FFPARS_F8BIT, FFPARS_DST(&im_enum) },
-	{ "prevent_sleep",	FFPARS_TBOOL8, FFPARS_DSTOFF(fmed_config, prevent_sleep) },
-	{ "include",	FFPARS_TSTR | FFPARS_FNOTEMPTY, FFPARS_DST(&conf_include) },
-	{ "include_user",	FFPARS_TSTR | FFPARS_FNOTEMPTY, FFPARS_DST(&conf_include) },
-	{ "portable_conf",	FFPARS_TBOOL8, FFPARS_DST(&conf_portable) },
-};
-
-static int confusr_mod(ffparser_schem *ps, void *obj, ffstr *val);
-
-static const ffpars_arg confusr_args[] = {
-	{ "*",	FFPARS_TSTR | FFPARS_FMULTI | FFPARS_FLIST, FFPARS_DST(&confusr_mod) },
-};
+static const ffpars_enumlist im_enum = { im_enumstr, FFCNT(im_enumstr), FMC_O(fmed_config, instance_mode) };
 
 #define MODS_WIN_ONLY  "wasapi.", "direct-sound.", "#winsleep."
 #define MODS_LINUX_ONLY  "alsa.", "pulse.", "jack.", "dbus."
@@ -87,22 +48,23 @@ static int allowed_mod(const ffstr *name)
 	return 1;
 }
 
-static int conf_mod(ffparser_schem *p, void *obj, ffstr *val)
+static int conf_mod(fmed_conf *fc, void *obj, ffstr *val)
 {
 	if (!allowed_mod(val))
-		goto end;
+		return 0;
 
-	if (NULL == core_insmod_delayed(val->ptr, NULL))
-		return FFPARS_ESYS;
+	int r = 0;
+	char *name = ffsz_dupstr(val);
+	if (NULL == core_insmod_delayed(name, NULL))
+		r = FFPARS_ESYS;
 
-end:
-	ffstr_free(val);
-	return 0;
+	ffmem_free(name);
+	return r;
 }
 
-static int conf_modconf(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
+static int conf_modconf(fmed_conf *fc, void *obj, fmed_conf_ctx *ctx)
 {
-	const ffstr *name = &p->vals[0];
+	const ffstr *name = &fc->vals[0];
 	char *zname;
 	fmed_config *conf = obj;
 
@@ -125,7 +87,7 @@ static int conf_modconf(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
 	} else {
 		m = core_insmod_delayed(zname, ctx);
 		if (m != NULL && zname[0] != '#') {
-			ffconf_ctxcopy_init(&conf->conf_copy, p);
+			ffconf_ctxcopy_init(&conf->conf_copy, fc);
 			conf->conf_copy_mod = (void*)m;
 		}
 	}
@@ -139,7 +101,7 @@ static int conf_modconf(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
 	return 0;
 }
 
-static int conf_output(ffparser_schem *p, void *obj, ffstr *val)
+static int conf_output(fmed_conf *fc, void *obj, ffstr *val)
 {
 	fmed_config *conf = obj;
 
@@ -148,15 +110,15 @@ static int conf_output(ffparser_schem *p, void *obj, ffstr *val)
 
 	const void *out;
 	if (NULL == (out = core->getmod2(FMED_MOD_INFO, val->ptr, val->len))) {
-		if (ffsz_eq(ffpars_argname(p), "output_optional"))
+		if (ffsz_eq(fc->curarg->name, "output_optional"))
 			return 0;
-		return FFPARS_EBADVAL;
+		return FMC_EBADVAL;
 	}
 	conf->output = out;
 	return 0;
 }
 
-static int conf_input(ffparser_schem *p, void *obj, ffstr *val)
+static int conf_input(fmed_conf *fc, void *obj, ffstr *val)
 {
 	fmed_config *conf = obj;
 
@@ -164,55 +126,55 @@ static int conf_input(ffparser_schem *p, void *obj, ffstr *val)
 		return 0;
 
 	if (NULL == (conf->input = core->getmod2(FMED_MOD_INFO, val->ptr, val->len)))
-		return FFPARS_EBADVAL;
+		return FMC_EBADVAL;
 	return 0;
 }
 
-static int conf_inp_format(ffparser_schem *p, void *obj, ffstr *val)
+static int conf_inp_format(fmed_conf *fc, void *obj, ffstr *val)
 {
 	fmed_config *conf = obj;
 	int r;
 	if (0 > (r = ffpcm_fmt(val->ptr, val->len)))
-		return FFPARS_EBADVAL;
+		return FMC_EBADVAL;
 	conf->inp_pcm.format = r;
 	return 0;
 }
 
-static int conf_inp_channels(ffparser_schem *p, void *obj, ffstr *val)
+static int conf_inp_channels(fmed_conf *fc, void *obj, ffstr *val)
 {
 	fmed_config *conf = obj;
 	int r;
 	if (0 > (r = ffpcm_channels(val->ptr, val->len)))
-		return FFPARS_EBADVAL;
+		return FMC_EBADVAL;
 	conf->inp_pcm.channels = r;
 	return 0;
 }
 
-static const ffpars_arg conf_input_args[] = {
-	{ "format",	FFPARS_TSTR | FFPARS_FNOTEMPTY, FFPARS_DST(&conf_inp_format) },
-	{ "channels",	FFPARS_TSTR | FFPARS_FNOTEMPTY, FFPARS_DST(&conf_inp_channels) },
-	{ "rate",	FFPARS_TINT | FFPARS_FNOTZERO, FFPARS_DSTOFF(fmed_config, inp_pcm.sample_rate) }
+static const fmed_conf_arg conf_input_args[] = {
+	{ "format",	FMC_STRNE, FMC_F(conf_inp_format) },
+	{ "channels",	FMC_STRNE, FMC_F(conf_inp_channels) },
+	{ "rate",	FMC_INT32NZ, FMC_O(fmed_config, inp_pcm.sample_rate) }
 };
 
-static int conf_recfmt(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
+static int conf_recfmt(fmed_conf *fc, void *obj, fmed_conf_ctx *ctx)
 {
 	fmed_config *conf = obj;
-	ffpars_setargs(ctx, conf, conf_input_args, FFCNT(conf_input_args));
+	fmed_conf_addctx(ctx, conf, conf_input_args);
 	return 0;
 }
 
-static int conf_ext_val(ffparser_schem *p, void *obj, ffstr *val)
+static int conf_ext_val(fmed_conf *fc, void *obj, ffstr *val)
 {
 	fmed_config *conf = obj;
 	size_t n;
 	inmap_item *it;
 	ffvec *map = conf->inoutmap;
-	ffconf *backend = ffpars_schem_backend(p);
+	ffconf *backend = ffpars_schem_backend(fc);
 
 	if (backend->type == FFCONF_TKEY) {
 		const fmed_modinfo *mod = core_getmodinfo(val);
 		if (mod == NULL) {
-			return FFPARS_EBADVAL;
+			return FMC_EBADVAL;
 		}
 		conf->inmap_curmod = mod;
 		return 0;
@@ -228,31 +190,44 @@ static int conf_ext_val(ffparser_schem *p, void *obj, ffstr *val)
 	return 0;
 }
 
-static const ffpars_arg conf_ext_args[] = {
-	{ "*",	FFPARS_TSTR | FFPARS_FNOTEMPTY | FFPARS_FLIST, FFPARS_DST(&conf_ext_val) }
+static const fmed_conf_arg conf_ext_args[] = {
+	{ "*",	FMC_STRNE | FFPARS_FLIST, FMC_F(conf_ext_val) }
 };
 
-static int conf_ext(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
+static int conf_ext(fmed_conf *fc, void *obj, fmed_conf_ctx *ctx)
 {
 	fmed_config *conf = obj;
 	conf->inoutmap = &conf->inmap;
-	if (!ffsz_cmp(p->curarg->name, "output_ext"))
+	if (!ffsz_cmp(fc->curarg->name, "output_ext"))
 		conf->inoutmap = &conf->outmap;
-	ffpars_setargs(ctx, conf, conf_ext_args, FFCNT(conf_ext_args));
+	fmed_conf_addctx(ctx, conf, conf_ext_args);
 	return 0;
 }
 
-static int conf_codepage(ffparser_schem *p, void *obj, ffstr *val)
+static int ffu_coding(const char *data, size_t len)
+{
+	static const char *const codestr[] = {
+		"win1251", // FFUNICODE_WIN1251
+		"win1252", // FFUNICODE_WIN1252
+		"win866", // FFUNICODE_WIN866
+	};
+	int r = ffszarr_ifindsorted(codestr, FFCNT(codestr), data, len);
+	if (r < 0)
+		return -1;
+	return _FFUNICODE_CP_BEGIN + r;
+}
+
+static int conf_codepage(fmed_conf *fc, void *obj, ffstr *val)
 {
 	fmed_config *conf = obj;
 	int cp = ffu_coding(val->ptr, val->len);
 	if (cp == -1)
-		return FFPARS_EBADVAL;
+		return FMC_EBADVAL;
 	conf->codepage = cp;
 	return 0;
 }
 
-static int conf_portable(ffparser_schem *p, void *obj, const int64 *val)
+static int conf_portable(fmed_conf *fc, void *obj, const int64 *val)
 {
 	if (*val == 0)
 		return 0;
@@ -262,13 +237,13 @@ static int conf_portable(ffparser_schem *p, void *obj, const int64 *val)
 	return 0;
 }
 
-static int conf_include(ffparser_schem *p, void *obj, ffstr *val)
+static int conf_include(fmed_conf *fc, void *obj, ffstr *val)
 {
 	fmed_config *conf = obj;
-	int r = FFPARS_EBADVAL;
+	int r = FMC_EBADVAL;
 	char *fn = NULL;
 
-	if (!ffsz_cmp(p->curarg->name, "include")) {
+	if (!ffsz_cmp(fc->curarg->name, "include")) {
 		if (NULL == (fn = core->getpath(val->ptr, val->len))) {
 			r = FFPARS_ESYS;
 			goto end;
@@ -290,12 +265,30 @@ end:
 	return r;
 }
 
+static const fmed_conf_arg conf_args[] = {
+	{ "workers",	FMC_INT8, FMC_O(fmed_config, workers) },
+	{ "mod",	FMC_STRNE | FFPARS_FMULTI, FMC_F(conf_mod) },
+	{ "mod_conf",	FMC_OBJ | FFPARS_FOBJ1 | FFPARS_FNOTEMPTY | FFPARS_FMULTI, FMC_F(conf_modconf) },
+	{ "output",	FMC_STRNE | FFPARS_FMULTI, FMC_F(conf_output) },
+	{ "output_optional",	FMC_STRNE | FFPARS_FMULTI, FMC_F(conf_output) },
+	{ "input",	FMC_STRNE | FFPARS_FMULTI, FMC_F(conf_input) },
+	{ "record_format",	FMC_OBJ, FMC_F(conf_recfmt) },
+	{ "input_ext",	FMC_OBJ, FMC_F(conf_ext) },
+	{ "output_ext",	FMC_OBJ, FMC_F(conf_ext) },
+	{ "codepage",	FMC_STR, FMC_F(conf_codepage) },
+	{ "instance_mode",	FFPARS_TENUM | FFPARS_F8BIT, FMC_F(&im_enum) },
+	{ "prevent_sleep",	FMC_BOOL8, FMC_O(fmed_config, prevent_sleep) },
+	{ "include",	FMC_STRNE, FMC_F(conf_include) },
+	{ "include_user",	FMC_STRNE, FMC_F(conf_include) },
+	{ "portable_conf",	FMC_BOOL8, FMC_F(conf_portable) },
+};
+
 /** Process "so.modname" part from "so.modname.key value" */
-static int confusr_mod(ffparser_schem *ps, void *obj, ffstr *val)
+static int confusr_mod(fmed_conf *fc, void *obj, ffstr *val)
 {
 	fmed_config *conf = obj;
 	const core_mod *mod;
-	ffconf *pconf = ffpars_schem_backend(ps);
+	ffconf *pconf = ffpars_schem_backend(fc);
 
 	if (conf->skip_line == pconf->line) {
 		return 0;
@@ -305,7 +298,7 @@ static int confusr_mod(ffparser_schem *ps, void *obj, ffstr *val)
 		return FFPARS_EUKNKEY;
 
 	if (ffstr_eqcz(val, "core"))
-		ffpars_setctx(ps, conf, conf_args, FFCNT(conf_args));
+		ffpars_setctx(fc, conf, conf_args, FFCNT(conf_args));
 
 	else if (conf->usrconf_modname == NULL) {
 		if (NULL == (conf->usrconf_modname = ffsz_alcopy(val->ptr, val->len)))
@@ -332,7 +325,7 @@ static int confusr_mod(ffparser_schem *ps, void *obj, ffstr *val)
 			conf->skip_line = pconf->line;
 			goto end;
 		}
-		ffpars_setctx(ps, mod->conf_ctx.obj, mod->conf_ctx.args, mod->conf_ctx.nargs);
+		ffpars_setctx(fc, mod->conf_ctx.obj, mod->conf_ctx.args, mod->conf_ctx.nargs);
 
 end:
 		ffmem_free0(conf->usrconf_modname);
@@ -343,11 +336,15 @@ end:
 	return 0;
 }
 
+static const fmed_conf_arg confusr_args[] = {
+	{ "*",	FFPARS_TSTR | FFPARS_FMULTI | FFPARS_FLIST, FMC_F(confusr_mod) },
+};
+
 int core_conf_parse(fmed_config *conf, const char *filename, uint flags)
 {
 	ffconf pconf;
-	ffparser_schem ps;
-	ffpars_ctx ctx = {0};
+	fmed_conf ps = {};
+	fmed_conf_ctx ctx = {};
 	int r = FFPARS_ESYS;
 	ffstr s;
 	char *buf = NULL;
@@ -355,9 +352,9 @@ int core_conf_parse(fmed_config *conf, const char *filename, uint flags)
 	fffd f = FF_BADFD;
 
 	if (flags & CONF_F_USR) {
-		ffpars_setargs(&ctx, conf, confusr_args, FFCNT(confusr_args));
+		fmed_conf_addctx(&ctx, conf, confusr_args);
 	} else {
-		ffpars_setargs(&ctx, conf, conf_args, FFCNT(conf_args));
+		fmed_conf_addctx(&ctx, conf, conf_args);
 	}
 
 	ffconf_scheminit(&ps, &pconf, &ctx);

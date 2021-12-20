@@ -19,7 +19,7 @@ const fmed_filter fmed_dir_input = {
 	&dir_open, &dir_process, &dir_close
 };
 
-int dir_conf(ffpars_ctx *ctx);
+int dir_conf(fmed_conf_ctx *ctx);
 static int dir_open_r(const char *dirname, fmed_filt *d);
 
 typedef struct dirconf_t {
@@ -27,15 +27,15 @@ typedef struct dirconf_t {
 } dirconf_t;
 static dirconf_t dirconf;
 
-static const ffpars_arg dir_conf_args[] = {
-	{ "expand",  FFPARS_TBOOL8,  FFPARS_DSTOFF(dirconf_t, expand) },
+static const fmed_conf_arg dir_conf_args[] = {
+	{ "expand",  FMC_BOOL8,  FMC_O(dirconf_t, expand) },
 };
 
 
-int dir_conf(ffpars_ctx *ctx)
+int dir_conf(fmed_conf_ctx *ctx)
 {
 	dirconf.expand = 1;
-	ffpars_setargs(ctx, &dirconf, dir_conf_args, FFCNT(dir_conf_args));
+	fmed_conf_addctx(ctx, &dirconf, dir_conf_args);
 	return 0;
 }
 
@@ -65,7 +65,7 @@ static void* dir_open(fmed_filt *d)
 	cur = first;
 
 	while (NULL != (fn = ffdir_expread(&dr))) {
-		ffmem_tzero(&e);
+		ffmem_zero_obj(&e);
 		ffstr_setz(&e.url, fn);
 		void *prev = cur;
 		cur = (void*)qu->cmdv(FMED_QUE_ADDAFTER, &e, prev);
@@ -195,7 +195,7 @@ static int dir_open_r(const char *dirname, fmed_filt *d)
 				continue;
 			}
 
-			ffmem_tzero(&e);
+			ffmem_zero_obj(&e);
 			ffstr_setz(&e.url, fn);
 			void *cur = (void*)qu->cmdv(FMED_QUE_ADDAFTER | FMED_QUE_MORE, &e, prev_qent);
 			qu->cmdv(FMED_QUE_COPYTRACKPROPS, cur, prev_qent);
@@ -203,7 +203,7 @@ static int dir_open_r(const char *dirname, fmed_filt *d)
 		}
 
 		ffdir_expclose(&dr);
-		ffmem_tzero(&dr);
+		ffmem_zero_obj(&dr);
 
 next:
 		lcur = lcur->next;

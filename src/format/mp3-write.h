@@ -7,21 +7,21 @@ struct mpeg_out_conf_t {
 	uint min_meta_size;
 } mpeg_out_conf;
 
-const ffpars_arg mpeg_out_conf_args[] = {
-	{ "min_meta_size",	FFPARS_TINT,  FFPARS_DSTOFF(struct mpeg_out_conf_t, min_meta_size) },
+const fmed_conf_arg mpeg_out_conf_args[] = {
+	{ "min_meta_size",	FMC_INT32,  FMC_O(struct mpeg_out_conf_t, min_meta_size) },
 };
 
-int mpeg_out_config(ffpars_ctx *ctx)
+int mpeg_out_config(fmed_conf_ctx *ctx)
 {
 	mpeg_out_conf.min_meta_size = 1000;
-	ffpars_setargs(ctx, &mpeg_out_conf, mpeg_out_conf_args, FFCNT(mpeg_out_conf_args));
+	fmed_conf_addctx(ctx, &mpeg_out_conf, mpeg_out_conf_args);
 	return 0;
 }
 
 int mpeg_have_trkmeta(fmed_filt *d)
 {
 	fmed_trk_meta meta;
-	ffmem_tzero(&meta);
+	ffmem_zero_obj(&meta);
 	if (0 == d->track->cmd2(d->trk, FMED_TRACK_META_ENUM, &meta))
 		return 1;
 	return 0;
@@ -59,7 +59,7 @@ int mpeg_out_addmeta(mpeg_out *m, fmed_filt *d)
 {
 	ssize_t r;
 	fmed_trk_meta meta;
-	ffmem_tzero(&meta);
+	ffmem_zero_obj(&meta);
 	meta.flags = FMED_QUE_UNIQ;
 
 	while (0 == d->track->cmd2(d->trk, FMED_TRACK_META_ENUM, &meta)) {

@@ -1,8 +1,6 @@
 /** fmedia: gui-winapi: go to audio position
 2021, Simon Zolin */
 
-#include <FF/time.h>
-
 struct gui_wgoto {
 	ffui_wnd wgoto;
 	ffui_edit etime;
@@ -23,14 +21,14 @@ void wgoto_action(ffui_wnd *wnd, int id)
 	switch (id) {
 	case A_PLAY_GOTO: {
 		ffstr s;
-		ffdtm dt;
+		ffdatetime dt;
 		fftime t;
 
 		ffui_textstr(&w->etime, &s);
-		if (s.len != fftime_fromstr(&dt, s.ptr, s.len, FFTIME_HMS_MSEC_VAR))
+		if (s.len != fftime_fromstr1(&dt, s.ptr, s.len, FFTIME_HMS_MSEC_VAR))
 			return;
 
-		fftime_join(&t, &dt, FFTIME_TZNODATE);
+		fftime_join1(&t, &dt);
 		gtrk_seek2(fftime_sec(&t));
 		ffui_show(&w->wgoto, 0);
 		break;

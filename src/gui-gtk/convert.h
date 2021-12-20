@@ -44,31 +44,31 @@ const ffui_ldr_ctl wconvert_ctls[] = {
 
 // CONFIG
 
-static int conf_conv_sets_output(ffparser_schem *ps, void *obj, char *val)
+static int conf_conv_sets_output(fmed_conf *fc, void *obj, char *val)
 {
 	struct gui_wconvert *c = obj;
 	ffmem_free(c->output);
 	c->output = val;
 	return 0;
 }
-static int conf_any(ffparser_schem *p, void *obj, const ffstr *val)
+static int conf_any(fmed_conf *fc, void *obj, const ffstr *val)
 {
 	return 0;
 }
-static const ffpars_arg conf_conv[] = {
-	{ "output",	FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY | FFPARS_FLIST, FFPARS_DST(&conf_conv_sets_output) },
+static const fmed_conf_arg conf_conv[] = {
+	{ "output",	FMC_STRZ | FFPARS_FLIST, FMC_F(conf_conv_sets_output) },
 
-	{ "vorbis_quality",	FFPARS_TFLOAT, FFPARS_DSTOFF(struct gui_wconvert, enc_vorbis_qual) },
-	{ "opus_bitrate",	FFPARS_TINT, FFPARS_DSTOFF(struct gui_wconvert, enc_opus_brate) },
-	{ "mpeg_quality",	FFPARS_TINT, FFPARS_DSTOFF(struct gui_wconvert, enc_mpeg_qual) },
-	{ "aac_quality",	FFPARS_TINT, FFPARS_DSTOFF(struct gui_wconvert, enc_aac_qual) },
-	{ "data_copy",	FFPARS_TFLOAT, FFPARS_DSTOFF(struct gui_wconvert, enc_datacopy) },
+	{ "vorbis_quality",	FMC_FLOAT32S, FMC_O(struct gui_wconvert, enc_vorbis_qual) },
+	{ "opus_bitrate",	FMC_INT32, FMC_O(struct gui_wconvert, enc_opus_brate) },
+	{ "mpeg_quality",	FMC_INT32, FMC_O(struct gui_wconvert, enc_mpeg_qual) },
+	{ "aac_quality",	FMC_INT32, FMC_O(struct gui_wconvert, enc_aac_qual) },
+	{ "data_copy",	FMC_INT32, FMC_O(struct gui_wconvert, enc_datacopy) },
 
-	{ "*",	FFPARS_TSTR | FFPARS_FMULTI, FFPARS_DST(&conf_any) },
+	{ "*",	FFPARS_TSTR | FFPARS_FMULTI, FMC_F(conf_any) },
 };
-int conf_convert(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
+int conf_convert(fmed_conf *fc, void *obj, fmed_conf_ctx *ctx)
 {
-	ffpars_setargs(ctx, gg->wconvert, conf_conv, FFCNT(conf_conv));
+	fmed_conf_addctx(ctx, gg->wconvert, conf_conv);
 	return 0;
 }
 

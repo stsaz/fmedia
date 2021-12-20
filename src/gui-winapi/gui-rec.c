@@ -3,7 +3,6 @@ Copyright (c) 2020 Simon Zolin */
 
 #include <fmedia.h>
 #include <gui-winapi/gui.h>
-#include <FF/time.h>
 #include <FF/path.h>
 #include <FFOS/process.h>
 
@@ -160,17 +159,17 @@ static const struct cvt_set rec_sets[] = {
 };
 
 // conf -> gui
-static const ffpars_arg rec_sets_conf[] = {
-	{ "output",	FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY, FFPARS_DSTOFF(rec_sets_t, output) },
-	{ "loopback_device",	FFPARS_TINT, FFPARS_DSTOFF(rec_sets_t, lpbk_devno) },
-	{ "capture_device",	FFPARS_TINT, FFPARS_DSTOFF(rec_sets_t, devno) },
-	{ "gain",	FFPARS_TFLOAT, FFPARS_DSTOFF(rec_sets_t, gain_f) },
+static const fmed_conf_arg rec_sets_conf[] = {
+	{ "output",	FMC_STRZ, FMC_O(rec_sets_t, output) },
+	{ "loopback_device",	FMC_INT32, FMC_O(rec_sets_t, lpbk_devno) },
+	{ "capture_device",	FMC_INT32, FMC_O(rec_sets_t, devno) },
+	{ "gain",	FMC_FLOAT32S, FMC_O(rec_sets_t, gain_f) },
 
-	{ "vorbis_quality",	FFPARS_TFLOAT, FFPARS_DSTOFF(rec_sets_t, vorbis_quality_f) },
-	{ "opus_bitrate",	FFPARS_TINT, FFPARS_DSTOFF(rec_sets_t, opus_bitrate) },
-	{ "mpeg_quality",	FFPARS_TINT, FFPARS_DSTOFF(rec_sets_t, mpg_quality) },
-	{ "aac_quality",	FFPARS_TINT, FFPARS_DSTOFF(rec_sets_t, aac_quality) },
-	{ "flac_complevel",	FFPARS_TINT, FFPARS_DSTOFF(rec_sets_t, flac_complevel) },
+	{ "vorbis_quality",	FMC_FLOAT32S, FMC_O(rec_sets_t, vorbis_quality_f) },
+	{ "opus_bitrate",	FMC_INT32, FMC_O(rec_sets_t, opus_bitrate) },
+	{ "mpeg_quality",	FMC_INT32, FMC_O(rec_sets_t, mpg_quality) },
+	{ "aac_quality",	FMC_INT32, FMC_O(rec_sets_t, aac_quality) },
+	{ "flac_complevel",	FMC_INT32, FMC_O(rec_sets_t, flac_complevel) },
 };
 
 void rec_sets_init(rec_sets_t *sets)
@@ -194,10 +193,10 @@ static void rec_sets_destroy(rec_sets_t *sets)
 	ffmem_safefree0(sets->output);
 }
 
-int gui_conf_rec(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
+int gui_conf_rec(fmed_conf *fc, void *obj, fmed_conf_ctx *ctx)
 {
 	struct gui_wrec *w = gg->wrec;
-	ffpars_setargs(ctx, &w->rec_sets, rec_sets_conf, FFCNT(rec_sets_conf));
+	fmed_conf_addctx(ctx, &w->rec_sets, rec_sets_conf);
 	return 0;
 }
 

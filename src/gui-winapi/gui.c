@@ -27,7 +27,7 @@ static const fmed_net_http *net;
 
 //FMEDIA MODULE
 static const void* gui_iface(const char *name);
-static int gui_conf(const char *name, ffpars_ctx *ctx);
+static int gui_conf(const char *name, fmed_conf_ctx *ctx);
 static int gui_sig(uint signo);
 static void gui_destroy(void);
 static const fmed_mod fmed_gui_mod = {
@@ -44,7 +44,7 @@ static void gui_savelists(void);
 static void gui_loadlists(void);
 static void upd_done(void *obj);
 
-static int gtrk_conf(ffpars_ctx *ctx);
+static int gtrk_conf(fmed_conf_ctx *ctx);
 
 //RECORDING TRACK WRAPPER
 static void* rec_open(fmed_filt *d);
@@ -55,55 +55,55 @@ static const fmed_filter gui_rec_iface = {
 };
 
 
-static int gui_conf_ghk_add(ffparser_schem *p, void *obj, ffstr *val);
+static int gui_conf_ghk_add(fmed_conf *fc, void *obj, ffstr *val);
 
-static const ffpars_arg gui_conf_ghk_args[] = {
-	{ "*",	FFPARS_TSTR | FFPARS_FWITHKEY, FFPARS_DST(&gui_conf_ghk_add) },
+static const fmed_conf_arg gui_conf_ghk_args[] = {
+	{ "*",	FFPARS_TSTR | FFPARS_FWITHKEY, FMC_F(gui_conf_ghk_add) },
 };
 
-static int gui_conf_ghk(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
+static int gui_conf_ghk(fmed_conf *fc, void *obj, fmed_conf_ctx *ctx)
 {
-	ffpars_setargs(ctx, gg, gui_conf_ghk_args, FFCNT(gui_conf_ghk_args));
+	fmed_conf_addctx(ctx, gg, gui_conf_ghk_args);
 	return 0;
 }
 
-static int conf_list_col_width(ffparser_schem *p, void *obj, const int64 *val)
+static int conf_list_col_width(fmed_conf *fc, void *obj, const int64 *val)
 {
-	if (p->list_idx > FFCNT(gg->list_col_width))
-		return FFPARS_EBIGVAL;
-	gg->list_col_width[p->list_idx] = *val;
+	if (gg->list_col_width_idx >= FF_COUNT(gg->list_col_width))
+		return FMC_EBADVAL;
+	gg->list_col_width[gg->list_col_width_idx++] = *val;
 	return 0;
 }
 
-static int conf_file_delete_method(ffparser_schem *p, void *obj, const ffstr *val)
+static int conf_file_delete_method(fmed_conf *fc, void *obj, const ffstr *val)
 {
 	if (ffstr_eqz(val, "default"))
 		gg->fdel_method = FDEL_DEFAULT;
 	else if (ffstr_eqz(val, "rename"))
 		gg->fdel_method = FDEL_RENAME;
 	else
-		return FFPARS_EBADVAL;
+		return FMC_EBADVAL;
 	return 0;
 }
 
-static const ffpars_arg gui_conf_args[] = {
-	{ "record",	FFPARS_TOBJ, FFPARS_DST(&gui_conf_rec) },
-	{ "convert",	FFPARS_TOBJ, FFPARS_DST(&gui_conf_convert) },
-	{ "minimize_to_tray",	FFPARS_TBOOL | FFPARS_F8BIT, FFPARS_DSTOFF(ggui, minimize_to_tray) },
-	{ "status_tray",	FFPARS_TBOOL | FFPARS_F8BIT, FFPARS_DSTOFF(ggui, status_tray) },
-	{ "seek_step",	FFPARS_TINT | FFPARS_F8BIT | FFPARS_FNOTZERO, FFPARS_DSTOFF(ggui, seek_step_delta) },
-	{ "seek_leap",	FFPARS_TINT | FFPARS_F8BIT | FFPARS_FNOTZERO, FFPARS_DSTOFF(ggui, seek_leap_delta) },
-	{ "autosave_playlists",	FFPARS_TBOOL8, FFPARS_DSTOFF(ggui, autosave_playlists) },
-	{ "global_hotkeys",	FFPARS_TOBJ, FFPARS_DST(&gui_conf_ghk) },
-	{ "theme",	FFPARS_TINT | FFPARS_F8BIT, FFPARS_DSTOFF(ggui, theme_startup) },
-	{ "random",	FFPARS_TBOOL8, FFPARS_DSTOFF(ggui, list_random) },
-	{ "list_repeat",	FFPARS_TINT8, {FF_OFF(ggui, conf) + FF_OFF(struct guiconf, list_repeat)} },
-	{ "auto_attenuate_ceiling",	FFPARS_TFLOAT | FFPARS_FSIGN, {FF_OFF(ggui, conf) + FF_OFF(struct guiconf, auto_attenuate_ceiling)} },
-	{ "sel_after_cursor",	FFPARS_TBOOL8, FFPARS_DSTOFF(ggui, sel_after_cur) },
-	{ "list_columns_width",	FFPARS_TINT16 | FFPARS_FLIST, FFPARS_DST(&conf_list_col_width) },
-	{ "file_delete_method",	FFPARS_TSTR, FFPARS_DST(&conf_file_delete_method) },
-	{ "list_track",	FFPARS_TINT, FFPARS_DSTOFF(ggui, list_actv_trk_idx) },
-	{ "list_scroll",	FFPARS_TINT, FFPARS_DSTOFF(ggui, list_scroll_pos) },
+static const fmed_conf_arg gui_conf_args[] = {
+	{ "record",	FMC_OBJ, FMC_F(gui_conf_rec) },
+	{ "convert",	FMC_OBJ, FMC_F(gui_conf_convert) },
+	{ "minimize_to_tray",	FMC_BOOL8, FMC_O(ggui, minimize_to_tray) },
+	{ "status_tray",	FMC_BOOL8, FMC_O(ggui, status_tray) },
+	{ "seek_step",	FMC_INT8NZ, FMC_O(ggui, seek_step_delta) },
+	{ "seek_leap",	FMC_INT8NZ, FMC_O(ggui, seek_leap_delta) },
+	{ "autosave_playlists",	FMC_BOOL8, FMC_O(ggui, autosave_playlists) },
+	{ "global_hotkeys",	FMC_OBJ, FMC_F(gui_conf_ghk) },
+	{ "theme",	FMC_INT8, FMC_O(ggui, theme_startup) },
+	{ "random",	FMC_BOOL8, FMC_O(ggui, list_random) },
+	{ "list_repeat",	FMC_INT8, {FF_OFF(ggui, conf) + FF_OFF(struct guiconf, list_repeat)} },
+	{ "auto_attenuate_ceiling",	FMC_FLOAT32S, {FF_OFF(ggui, conf) + FF_OFF(struct guiconf, auto_attenuate_ceiling)} },
+	{ "sel_after_cursor",	FMC_BOOL8, FMC_O(ggui, sel_after_cur) },
+	{ "list_columns_width",	FMC_INT16 | FFPARS_FLIST, FMC_F(conf_list_col_width) },
+	{ "file_delete_method",	FMC_STR, FMC_F(conf_file_delete_method) },
+	{ "list_track",	FMC_INT32, FMC_O(ggui, list_actv_trk_idx) },
+	{ "list_scroll",	FMC_INT32, FMC_O(ggui, list_scroll_pos) },
 };
 
 
@@ -119,9 +119,9 @@ static int gui_getcmd(void *udata, const ffstr *name);
 
 
 /** Add command/hotkey pair into temporary array.*/
-static int gui_conf_ghk_add(ffparser_schem *p, void *obj, ffstr *val)
+static int gui_conf_ghk_add(fmed_conf *fc, void *obj, ffstr *val)
 {
-	const ffstr *cmd = &p->vals[0];
+	const ffstr *cmd = &fc->vals[0];
 	struct ghk_ent *e;
 
 	if (NULL == (e = ffarr_pushgrowT(&gg->ghks, 4, struct ghk_ent)))
@@ -129,12 +129,12 @@ static int gui_conf_ghk_add(ffparser_schem *p, void *obj, ffstr *val)
 
 	if (0 == (e->cmd = gui_getcmd(NULL, cmd))) {
 		warnlog(core, NULL, "gui", "invalid command: %S", cmd);
-		return FFPARS_EBADVAL;
+		return FMC_EBADVAL;
 	}
 
 	if (0 == (e->hk = ffui_hotkey_parse(val->ptr, val->len))) {
 		warnlog(core, NULL, "gui", "invalid hotkey: %S", val);
-		return FFPARS_EBADVAL;
+		return FMC_EBADVAL;
 	}
 
 	return 0;
@@ -510,7 +510,7 @@ void gui_media_add2(const char *fn, int pl, uint flags)
 			return;
 	}
 
-	ffmem_tzero(&e);
+	ffmem_zero_obj(&e);
 	ffstr_setz(&e.url, fn);
 	if (NULL == (pe = (void*)gg->qu->fmed_queue_add(FMED_QUE_NO_ONCHANGE, pl, &e)))
 		return;
@@ -923,7 +923,7 @@ static const void* gui_iface(const char *name)
 	return NULL;
 }
 
-static int gui_conf(const char *name, ffpars_ctx *ctx)
+static int gui_conf(const char *name, fmed_conf_ctx *ctx)
 {
 	if (!ffsz_cmp(name, "gui"))
 		return gtrk_conf(ctx);
@@ -1146,7 +1146,6 @@ static int gui_sig(uint signo)
 {
 	switch (signo) {
 	case FMED_SIG_INIT:
-		ffmem_init();
 		if (NULL == (gg = ffmem_tcalloc1(ggui)))
 			return -1;
 		gg->go_pos = (uint)-1;
@@ -1222,11 +1221,11 @@ static void gui_destroy(void)
 }
 
 
-static int gtrk_conf(ffpars_ctx *ctx)
+static int gtrk_conf(fmed_conf_ctx *ctx)
 {
 	gg->seek_step_delta = 5;
 	gg->seek_leap_delta = 60;
 	gg->status_tray = 1;
-	ffpars_setargs(ctx, gg, gui_conf_args, FFCNT(gui_conf_args));
+	fmed_conf_addctx(ctx, gg, gui_conf_args);
 	return 0;
 }

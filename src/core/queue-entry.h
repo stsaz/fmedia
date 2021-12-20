@@ -7,9 +7,9 @@ struct entry {
 
 	plist *plist;
 	fmed_trk *trk;
-	ffarr2 meta; //ffstr[]
-	ffarr2 tmeta; //ffstr[]. transient meta - reset before every start of this item.
-	ffarr2 dict; //ffstr[]
+	ffslice meta; //ffstr[]
+	ffslice tmeta; //ffstr[]. transient meta - reset before every start of this item.
+	ffslice dict; //ffstr[]
 
 	size_t list_pos; //position number within playlist.  May be invalid.
 	uint refcount;
@@ -23,6 +23,36 @@ struct entry {
 
 	char url[0];
 };
+
+static entry* ent_new(const fmed_que_entry *info)
+{
+	entry *e = ffmem_alloc(sizeof(entry) + info->url.len + 1);
+	if (e == NULL)
+		return NULL;
+	ffmem_zero_obj(e);
+
+	ffsz_copy(e->url, info->url.len + 1, info->url.ptr, info->url.len);
+	e->e.url.ptr = e->url;
+	e->e.url.len = info->url.len;
+
+	e->e.from = info->from;
+	e->e.to = info->to;
+	e->e.dur = info->dur;
+	return e;
+}
+
+static void ent_free(entry *e)
+{
+	FFSLICE_FOREACH_T(&e->meta, ffstr_free, ffstr);
+	ffslice_free(&e->meta);
+	FFSLICE_FOREACH_T(&e->dict, ffstr_free, ffstr);
+	ffslice_free(&e->dict);
+	FFSLICE_FOREACH_T(&e->tmeta, ffstr_free, ffstr);
+	ffslice_free(&e->tmeta);
+
+	ffmem_free(e->trk);
+	ffmem_free(e);
+}
 
 static void ent_rm(entry *e)
 {
@@ -47,19 +77,6 @@ static void ent_unref(entry *e)
 	FF_ASSERT(e->refcount != 0);
 	if (--e->refcount == 0 && e->rm)
 		ent_rm(e);
-}
-
-static void ent_free(entry *e)
-{
-	FFSLICE_FOREACH_T(&e->meta, ffstr_free, ffstr);
-	ffslice_free(&e->meta);
-	FFSLICE_FOREACH_T(&e->dict, ffstr_free, ffstr);
-	ffslice_free(&e->dict);
-	FFSLICE_FOREACH_T(&e->tmeta, ffstr_free, ffstr);
-	ffslice_free(&e->tmeta);
-
-	ffmem_free(e->trk);
-	ffmem_free(e);
 }
 
 static void _que_meta_set(fmed_que_entry *ent, const char *name, size_t name_len, const char *val, size_t val_len, uint flags);
@@ -135,7 +152,7 @@ static void que_meta_set(fmed_que_entry *ent, const ffstr *name, const ffstr *va
 {
 	entry *e = FF_GETPTR(entry, e, ent);
 	char *sname, *sval;
-	ffarr2 *a;
+	ffslice *a;
 
 	if (!(flags & FMED_QUE_NUM)) {
 		dbglog0("meta #%u: %S: %S f:%xu"
@@ -236,7 +253,7 @@ static ffstr* que_meta_find(fmed_que_entry *ent, const char *name, size_t name_l
 		name_len = ffsz_len(name);
 
 	for (uint k = 0;  k != 2;  k++) {
-		const ffarr2 *meta = (k == 0) ? &e->meta : &e->tmeta;
+		const ffslice *meta = (k == 0) ? &e->meta : &e->tmeta;
 		if (-1 != (i = que_arrfind(meta->ptr, meta->len, name, name_len)))
 			return &((ffstr*)meta->ptr)[i + 1];
 	}

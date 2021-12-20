@@ -39,6 +39,7 @@ struct gui_conf {
 	byte list_random;
 	byte list_repeat;
 	ushort list_col_width[16];
+	uint list_col_width_idx;
 	uint list_actv_trk_idx;
 	uint list_scroll_pos;
 	char *ydl_format;
@@ -148,12 +149,12 @@ void wmain_list_select(ffuint idx);
 ffarr4* wmain_list_getsel();
 ffarr4* wmain_list_getsel_send();
 int wmain_list_scroll_vert();
-int wmain_exp_conf(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
+int wmain_exp_conf(fmed_conf *fc, void *obj, fmed_conf_ctx *ctx);
 int wmain_exp_conf_writeval(ffstr *line, ffconfw *conf);
 
 // Dialogs:
 
-int conf_convert(ffparser_schem *p, void *obj, ffpars_ctx *ctx);
+int conf_convert(fmed_conf *fc, void *obj, fmed_conf_ctx *ctx);
 void wconvert_init();
 void wconv_destroy();
 void wconv_show(uint show);

@@ -5,8 +5,6 @@ Copyright (c) 2016 Simon Zolin */
 #include <FF/net/http-client.h>
 #include <FF/net/url.h>
 #include <FF/net/http.h>
-#include <FF/data/utf8.h>
-#include <FF/list.h>
 #include <FF/path.h>
 #include <FFOS/asyncio.h>
 #include <FFOS/socket.h>
@@ -34,7 +32,7 @@ static void netin_write(netin *n, const ffstr *data);
 
 //FMEDIA MODULE
 static const void* net_iface(const char *name);
-static int net_mod_conf(const char *name, ffpars_ctx *ctx);
+static int net_mod_conf(const char *name, fmed_conf_ctx *ctx);
 static int net_sig(uint signo);
 static void net_destroy(void);
 static const fmed_mod fmed_net_mod = {
@@ -43,7 +41,7 @@ static const fmed_mod fmed_net_mod = {
 };
 
 //HTTP
-static int http_config(ffpars_ctx *ctx);
+static int http_config(fmed_conf_ctx *ctx);
 static void* httpcli_open(fmed_filt *d);
 static int httpcli_process(void *ctx, fmed_filt *d);
 static void httpcli_close(void *ctx);
@@ -51,8 +49,8 @@ static const fmed_filter fmed_http = {
 	&httpcli_open, &httpcli_process, &httpcli_close
 };
 
-static int http_conf_proxy(ffparser_schem *p, void *obj, ffstr *val);
-static int http_conf_done(ffparser_schem *p, void *obj);
+static int http_conf_proxy(fmed_conf *fc, void *obj, ffstr *val);
+static int http_conf_done(fmed_conf *fc, void *obj);
 
 // HTTP IFACE
 static void* http_if_request(const char *method, const char *url, uint flags);
@@ -89,19 +87,19 @@ const char *const http_ua[] = {
 static const char *const ua_enumstr[] = {
 	"off", "name_only", "full",
 };
-static const ffpars_enumlist ua_enum = { ua_enumstr, FFCNT(ua_enumstr), FFPARS_DSTOFF(net_conf, user_agent) };
+static const ffpars_enumlist ua_enum = { ua_enumstr, FFCNT(ua_enumstr), FMC_O(net_conf, user_agent) };
 
-static const ffpars_arg net_conf_args[] = {
-	{ "bufsize",	FFPARS_TSIZE | FFPARS_FNOTZERO,  FFPARS_DSTOFF(net_conf, bufsize) },
-	{ "buffers",	FFPARS_TINT | FFPARS_FNOTZERO,  FFPARS_DSTOFF(net_conf, nbufs) },
-	{ "buffer_lowat",	FFPARS_TSIZE,  FFPARS_DSTOFF(net_conf, buf_lowat) },
-	{ "connect_timeout",	FFPARS_TINT,  FFPARS_DSTOFF(net_conf, conn_tmout) },
-	{ "timeout",	FFPARS_TINT,  FFPARS_DSTOFF(net_conf, tmout) },
-	{ "user_agent",	FFPARS_TENUM | FFPARS_F8BIT,  FFPARS_DST(&ua_enum) },
-	{ "max_redirect",	FFPARS_TINT | FFPARS_F8BIT,  FFPARS_DSTOFF(net_conf, max_redirect) },
-	{ "max_reconnect",	FFPARS_TINT8,  FFPARS_DSTOFF(net_conf, max_reconnect) },
-	{ "proxy",	FFPARS_TSTR,  FFPARS_DST(&http_conf_proxy) },
-	{ NULL,	FFPARS_TCLOSE,	FFPARS_DST(&http_conf_done) },
+static const fmed_conf_arg net_conf_args[] = {
+	{ "bufsize",	FMC_SIZENZ,  FMC_O(net_conf, bufsize) },
+	{ "buffers",	FMC_INT32NZ,  FMC_O(net_conf, nbufs) },
+	{ "buffer_lowat",	FMC_SIZE,  FMC_O(net_conf, buf_lowat) },
+	{ "connect_timeout",	FMC_INT32,  FMC_O(net_conf, conn_tmout) },
+	{ "timeout",	FMC_INT32,  FMC_O(net_conf, tmout) },
+	{ "user_agent",	FFPARS_TENUM | FFPARS_F8BIT,  FMC_F(&ua_enum) },
+	{ "max_redirect",	FMC_INT8,  FMC_O(net_conf, max_redirect) },
+	{ "max_reconnect",	FMC_INT8,  FMC_O(net_conf, max_reconnect) },
+	{ "proxy",	FMC_STR,  FMC_F(http_conf_proxy) },
+	{ NULL,	FFPARS_TCLOSE,	FMC_F(http_conf_done) },
 };
 
 
@@ -127,7 +125,7 @@ static const void* net_iface(const char *name)
 	return NULL;
 }
 
-static int net_mod_conf(const char *name, ffpars_ctx *ctx)
+static int net_mod_conf(const char *name, fmed_conf_ctx *ctx)
 {
 	if (!ffsz_cmp(name, "icy"))
 		return icy_config(ctx);
@@ -140,7 +138,6 @@ static int net_sig(uint signo)
 {
 	switch (signo) {
 	case FMED_SIG_INIT:
-		ffmem_init();
 		if (0 != ffskt_init(FFSKT_SIGPIPE | FFSKT_WSA | FFSKT_WSAFUNCS))
 			return -1;
 		if (NULL == (net = ffmem_tcalloc1(netmod)))
@@ -168,7 +165,7 @@ static void net_destroy(void)
 }
 
 
-static int http_config(ffpars_ctx *ctx)
+static int http_config(fmed_conf_ctx *ctx)
 {
 	net->conf.bufsize = 16 * 1024;
 	net->conf.nbufs = 2;
@@ -178,21 +175,21 @@ static int http_config(ffpars_ctx *ctx)
 	net->conf.user_agent = UA_OFF;
 	net->conf.max_redirect = 10;
 	net->conf.max_reconnect = 3;
-	ffpars_setargs(ctx, &net->conf, net_conf_args, FFCNT(net_conf_args));
+	fmed_conf_addctx(ctx, &net->conf, net_conf_args);
 	return 0;
 }
 
-static int http_conf_proxy(ffparser_schem *p, void *obj, ffstr *val)
+static int http_conf_proxy(fmed_conf *fc, void *obj, ffstr *val)
 {
 	ffurl u;
 	ffurl_init(&u);
 	int r = ffurl_parse(&u, val->ptr, val->len);
 	if (r != FFURL_EOK)
-		return FFPARS_EBADVAL;
+		return FMC_EBADVAL;
 
 	if (ffurl_has(&u, FFURL_SCHEME)
 		|| ffurl_has(&u, FFURL_PATH))
-		return FFPARS_EBADVAL;
+		return FMC_EBADVAL;
 
 	ffstr host = ffurl_get(&u, val->ptr, FFURL_HOST);
 	if (NULL == (net->conf.proxy.host = ffsz_alcopystr(&host)))
@@ -204,7 +201,7 @@ static int http_conf_proxy(ffparser_schem *p, void *obj, ffstr *val)
 	return 0;
 }
 
-static int http_conf_done(ffparser_schem *p, void *obj)
+static int http_conf_done(fmed_conf *fc, void *obj)
 {
 	net->conf.buf_lowat = ffmin(net->conf.buf_lowat, net->conf.bufsize);
 	return 0;

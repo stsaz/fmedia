@@ -78,10 +78,10 @@ void mod_destroy()
 {
 }
 
-extern int ogg_in_conf(ffpars_ctx *ctx);
-extern int ogg_out_conf(ffpars_ctx *ctx);
-extern int mpeg_out_config(ffpars_ctx *ctx);
-int mod_conf(const char *name, ffpars_ctx *ctx)
+extern int ogg_in_conf(fmed_conf_ctx *ctx);
+extern int ogg_out_conf(fmed_conf_ctx *ctx);
+extern int mpeg_out_config(fmed_conf_ctx *ctx);
+int mod_conf(const char *name, fmed_conf_ctx *ctx)
 {
 	if (ffsz_eq(name, "ogg"))
 		return ogg_in_conf(ctx);

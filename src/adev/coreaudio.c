@@ -16,7 +16,7 @@ static const fmed_track *track;
 
 //FMEDIA MODULE
 static const void* coraud_iface(const char *name);
-static int coraud_conf(const char *name, ffpars_ctx *ctx);
+static int coraud_conf(const char *name, fmed_conf_ctx *ctx);
 static int coraud_sig(uint signo);
 static void coraud_destroy(void);
 static const fmed_mod fmed_coraud_mod = {
@@ -31,7 +31,7 @@ static const fmed_mod fmed_coraud_mod = {
 static void* coraud_open(fmed_filt *d);
 static int coraud_write(void *ctx, fmed_filt *d);
 static void coraud_close(void *ctx);
-static int coraud_out_config(ffpars_ctx *ctx);
+static int coraud_out_config(fmed_conf_ctx *ctx);
 static const fmed_filter fmed_coraud_out = {
 	&coraud_open, &coraud_write, &coraud_close
 };
@@ -42,8 +42,8 @@ struct coraud_out_conf_t {
 };
 static struct coraud_out_conf_t coraud_out_conf;
 
-static const ffpars_arg coraud_out_conf_args[] = {
-	{ "device_index",	FFPARS_TINT,  FFPARS_DSTOFF(struct coraud_out_conf_t, idev) },
+static const fmed_conf_arg coraud_out_conf_args[] = {
+	{ "device_index",	FMC_INT32,  FMC_O(struct coraud_out_conf_t, idev) },
 };
 
 
@@ -51,7 +51,7 @@ static const ffpars_arg coraud_out_conf_args[] = {
 static void* coraud_in_open(fmed_filt *d);
 static int coraud_in_read(void *ctx, fmed_filt *d);
 static void coraud_in_close(void *ctx);
-static int coraud_in_config(ffpars_ctx *ctx);
+static int coraud_in_config(fmed_conf_ctx *ctx);
 static const fmed_filter fmed_coraud_in = {
 	&coraud_in_open, &coraud_in_read, &coraud_in_close
 };
@@ -62,9 +62,9 @@ struct coraud_in_conf_t {
 };
 static struct coraud_in_conf_t coraud_in_conf;
 
-static const ffpars_arg coraud_in_conf_args[] = {
-	{ "device_index",	FFPARS_TINT,  FFPARS_DSTOFF(struct coraud_in_conf_t, idev) },
-	{ "buffer_length",	FFPARS_TINT | FFPARS_FNOTZERO,  FFPARS_DSTOFF(struct coraud_in_conf_t, buflen) },
+static const fmed_conf_arg coraud_in_conf_args[] = {
+	{ "device_index",	FMC_INT32,  FMC_O(struct coraud_in_conf_t, idev) },
+	{ "buffer_length",	FMC_INT32NZ,  FMC_O(struct coraud_in_conf_t, buflen) },
 };
 
 
@@ -95,7 +95,7 @@ static const void* coraud_iface(const char *name)
 	return NULL;
 }
 
-static int coraud_conf(const char *name, ffpars_ctx *ctx)
+static int coraud_conf(const char *name, fmed_conf_ctx *ctx)
 {
 	if (!ffsz_cmp(name, "out"))
 		return coraud_out_config(ctx);
@@ -108,7 +108,6 @@ static int coraud_sig(uint signo)
 {
 	switch (signo) {
 	case FMED_SIG_INIT:
-		ffmem_init();
 		fflk_setup();
 		return 0;
 
@@ -152,10 +151,10 @@ static int coraud_adev_list(fmed_adev_ent **ents, uint flags)
 }
 
 
-static int coraud_out_config(ffpars_ctx *ctx)
+static int coraud_out_config(fmed_conf_ctx *ctx)
 {
 	coraud_out_conf.idev = 0;
-	ffpars_setargs(ctx, &coraud_out_conf, coraud_out_conf_args, FFCNT(coraud_out_conf_args));
+	fmed_conf_addctx(ctx, &coraud_out_conf, coraud_out_conf_args);
 	return 0;
 }
 
@@ -261,11 +260,11 @@ static int coraud_write(void *ctx, fmed_filt *d)
 }
 
 
-static int coraud_in_config(ffpars_ctx *ctx)
+static int coraud_in_config(fmed_conf_ctx *ctx)
 {
 	coraud_in_conf.idev = 0;
 	coraud_in_conf.buflen = 1000;
-	ffpars_setargs(ctx, &coraud_in_conf, coraud_in_conf_args, FFCNT(coraud_in_conf_args));
+	fmed_conf_addctx(ctx, &coraud_in_conf, coraud_in_conf_args);
 	return 0;
 }
 

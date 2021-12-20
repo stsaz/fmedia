@@ -70,7 +70,7 @@ static int audio_dev_list(const fmed_core *core, const ffaudio_interface *audio,
 
 		if (NULL == (e = ffarr_pushgrowT(&a, 4, fmed_adev_ent)))
 			goto end;
-		ffmem_tzero(e);
+		ffmem_zero_obj(e);
 
 		if (NULL == (e->name = ffsz_dup(audio->dev_info(d, FFAUDIO_DEV_NAME))))
 			goto end;

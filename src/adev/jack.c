@@ -21,7 +21,7 @@ static jack_mod *mod;
 
 //FMEDIA MODULE
 static const void* jack_iface(const char *name);
-static int jack_conf(const char *name, ffpars_ctx *ctx);
+static int jack_conf(const char *name, fmed_conf_ctx *ctx);
 static int jack_sig(uint signo);
 static void jack_destroy(void);
 static const fmed_mod fmed_jack_mod = {
@@ -60,7 +60,7 @@ static const void* jack_iface(const char *name)
 	return NULL;
 }
 
-static int jack_conf(const char *name, ffpars_ctx *ctx)
+static int jack_conf(const char *name, fmed_conf_ctx *ctx)
 {
 	return -1;
 }
@@ -68,10 +68,6 @@ static int jack_conf(const char *name, ffpars_ctx *ctx)
 static int jack_sig(uint signo)
 {
 	switch (signo) {
-	case FMED_SIG_INIT:
-		ffmem_init();
-		return 0;
-
 	case FMED_OPEN:
 		if (NULL == (mod = ffmem_new(jack_mod)))
 			return -1;

@@ -41,13 +41,12 @@ include $(FF)/makerules
 include $(FF3PT)/makerules
 FF_O := $(FFOS_OBJ) \
 	$(FF_OBJ_DIR)/ffarray.o \
-	$(FF_OBJ_DIR)/ffstring.o \
-	$(FF_OBJ_DIR)/ffutf8.o
+	$(FF_OBJ_DIR)/ffstring.o
 
-$(OBJ_DIR)/%.o: $(SRCDIR)/%.c $(SRCDIR)/fmedia.h $(SRCDIR)/core.h $(FF_HDR) $(FF_AUDIO_HDR)
+$(OBJ_DIR)/%.o: $(SRCDIR)/%.c $(SRCDIR)/fmedia.h $(wildcard $(SRCDIR)/*.h) $(FF_HDR) $(FF_AUDIO_HDR)
 	$(C)  $(CFLAGS) $<  -o$@
 
-$(OBJ_DIR)/main.o: $(SRCDIR)/main.c $(SRCDIR)/fmedia.h $(SRCDIR)/cmd.h $(SRCDIR)/core.h $(FF_HDR) $(FF_AUDIO_HDR)
+$(OBJ_DIR)/main.o: $(SRCDIR)/main.c $(SRCDIR)/fmedia.h $(SRCDIR)/cmd.h $(SRCDIR)/cmdline.h $(FF_HDR) $(FF_AUDIO_HDR)
 	$(C)  $(CFLAGS) $<  -o$@
 
 $(OBJ_DIR)/%.o: $(SRCDIR)/adev/%.c $(SRCDIR)/fmedia.h $(SRCDIR)/adev/audio.h $(FF_HDR) $(FF_AUDIO_HDR) $(FF_ADEV_HDR)
@@ -80,12 +79,10 @@ BIN_O := \
 	$(FF_O) \
 	$(FFOS_WREG) \
 	$(FF_OBJ_DIR)/ffsys.o \
-	$(FF_OBJ_DIR)/fftime.o \
 	$(FF_OBJ_DIR)/ffpath.o \
 	$(FF_OBJ_DIR)/ffpcm.o \
 	$(FF_OBJ_DIR)/ffparse.o \
-	$(FF_OBJ_DIR)/ffconf.o \
-	$(FF_OBJ_DIR)/ffpsarg.o
+	$(FF_OBJ_DIR)/ffconf.o
 
 ifeq ($(OS),win)
 BIN_O += $(RES)
@@ -96,6 +93,8 @@ $(BIN): $(BIN_O)
 
 
 #
+$(OBJ_DIR)/%.o: $(SRCDIR)/core/%.c $(SRCDIR)/fmedia.h $(wildcard $(SRCDIR)/core/*.h) $(FF_HDR) $(FF_AUDIO_HDR)
+	$(C) $(CFLAGS) $< -o $@
 CORE_O := $(OBJ_DIR)/core.o $(OBJ_DIR)/core-conf.o \
 	$(OBJ_DIR)/track.o \
 	$(OBJ_DIR)/file.o \
@@ -122,8 +121,6 @@ CORE_O += $(FF_O) \
 	$(FF_OBJ_DIR)/ffsys.o \
 	$(FF_OBJ_DIR)/fftmr.o \
 	$(FF_OBJ_DIR)/ffrbtree.o \
-	$(FF_OBJ_DIR)/fftime.o \
-	$(FF_OBJ_DIR)/fflist.o \
 	$(FF_OBJ_DIR)/ffring.o \
 	$(FF_OBJ_DIR)/ffcrc.o \
 	$(FF_OBJ_DIR)/ffpath.o \
@@ -389,7 +386,6 @@ GUI_O := $(OBJ_DIR)/gui.o \
 	$(FFOS_WREG) \
 	$(FF_OBJ_DIR)/ffsys.o \
 	$(FF_OBJ_DIR)/ffpath.o \
-	$(FF_OBJ_DIR)/fftime.o \
 	$(FF_OBJ_DIR)/ffparse.o $(FF_OBJ_DIR)/ffconf.o \
 	$(FF_OBJ_DIR)/ffpcm.o \
 	$(FF_OBJ_DIR)/ffpic.o \
@@ -407,7 +403,6 @@ BINGUI_O := \
 	$(FF_OBJ_DIR)/ffpath.o \
 	$(FF_OBJ_DIR)/ffsys.o \
 	$(FF_OBJ_DIR)/ffconf.o \
-	$(FF_OBJ_DIR)/ffpsarg.o \
 	$(FF_OBJ_DIR)/ffparse.o \
 	$(FF_OBJ_DIR)/ffgui-winapi.o \
 	$(FF_OBJ_DIR)/ffgui-winapi-ev.o \
@@ -433,7 +428,6 @@ $(OBJ_DIR)/gui-main.o: $(SRCDIR)/gui-gtk/gui-main.c $(SRCDIR)/gui-gtk/gui.h $(SR
 GUIGTK_O := $(OBJ_DIR)/gui.o \
 	$(OBJ_DIR)/gui-main.o \
 	$(OBJ_DIR)/gui-dlgs.o \
-	$(FF_OBJ_DIR)/fftime.o \
 	$(FF_OBJ_DIR)/ffpath.o \
 	$(FF_OBJ_DIR)/ffparse.o $(FF_OBJ_DIR)/ffconf.o \
 	$(FF_OBJ_DIR)/ffgui-gtk.o \

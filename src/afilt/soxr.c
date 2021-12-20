@@ -43,11 +43,6 @@ static const void* soxr_mod_iface(const char *name)
 
 static int soxr_mod_sig(uint signo)
 {
-	switch (signo) {
-	case FMED_SIG_INIT:
-		ffmem_init();
-		return 0;
-	}
 	return 0;
 }
 

@@ -5,7 +5,6 @@ Copyright (c) 2015 Simon Zolin */
 
 #include <FF/sys/fileread.h>
 #include <FF/array.h>
-#include <FF/time.h>
 #include <FFOS/asyncio.h>
 
 
@@ -56,7 +55,7 @@ enum {
 
 //FMEDIA MODULE
 static const void* file_iface(const char *name);
-static int file_conf(const char *name, ffpars_ctx *ctx);
+static int file_conf(const char *name, fmed_conf_ctx *ctx);
 static int file_sig(uint signo);
 static void file_destroy(void);
 static const fmed_mod fmed_file_mod = {
@@ -68,17 +67,17 @@ static const fmed_mod fmed_file_mod = {
 static void* file_open(fmed_filt *d);
 static int file_getdata(void *ctx, fmed_filt *d);
 static void file_close(void *ctx);
-static int file_in_conf(ffpars_ctx *ctx);
+static int file_in_conf(fmed_conf_ctx *ctx);
 static const fmed_filter fmed_file_input = {
 	&file_open, &file_getdata, &file_close
 };
 
-static const ffpars_arg file_in_conf_args[] = {
-	{ "use_thread_pool",	FFPARS_TBOOL8,  FFPARS_DSTOFF(struct file_in_conf_t, use_thread_pool) },
-	{ "buffer_size",  FFPARS_TSIZE | FFPARS_FNOTZERO,  FFPARS_DSTOFF(struct file_in_conf_t, bsize) }
-	, { "buffers",  FFPARS_TINT | FFPARS_F8BIT,  FFPARS_DSTOFF(struct file_in_conf_t, nbufs) }
-	, { "align",  FFPARS_TSIZE | FFPARS_FNOTZERO,  FFPARS_DSTOFF(struct file_in_conf_t, align) }
-	, { "direct_io",  FFPARS_TBOOL | FFPARS_F8BIT,  FFPARS_DSTOFF(struct file_in_conf_t, directio) }
+static const fmed_conf_arg file_in_conf_args[] = {
+	{ "use_thread_pool",	FMC_BOOL8,  FMC_O(struct file_in_conf_t, use_thread_pool) },
+	{ "buffer_size",  FMC_SIZENZ,  FMC_O(struct file_in_conf_t, bsize) }
+	, { "buffers",  FMC_INT8,  FMC_O(struct file_in_conf_t, nbufs) }
+	, { "align",  FMC_SIZENZ,  FMC_O(struct file_in_conf_t, align) }
+	, { "direct_io",  FMC_BOOL8,  FMC_O(struct file_in_conf_t, directio) }
 };
 
 
@@ -96,8 +95,8 @@ const fmed_mod* fmed_getmod_file(const fmed_core *_core)
 }
 
 extern const fmed_filter fmed_file_output;
-extern int fileout_config(ffpars_ctx *ctx);
-extern int stdout_config(ffpars_ctx *ctx);
+extern int fileout_config(fmed_conf_ctx *ctx);
+extern int stdout_config(fmed_conf_ctx *ctx);
 extern const fmed_filter file_stdin;
 extern const fmed_filter file_stdout;
 
@@ -114,7 +113,7 @@ static const void* file_iface(const char *name)
 	return NULL;
 }
 
-static int file_conf(const char *name, ffpars_ctx *ctx)
+static int file_conf(const char *name, fmed_conf_ctx *ctx)
 {
 	if (!ffsz_cmp(name, "in"))
 		return file_in_conf(ctx);
@@ -166,13 +165,13 @@ ffthpool* thpool_create()
 }
 
 
-static int file_in_conf(ffpars_ctx *ctx)
+static int file_in_conf(fmed_conf_ctx *ctx)
 {
 	mod->in_conf.align = 4096;
 	mod->in_conf.bsize = 64 * 1024;
 	mod->in_conf.nbufs = 3;
 	mod->in_conf.directio = 0;
-	ffpars_setargs(ctx, &mod->in_conf, file_in_conf_args, FFCNT(file_in_conf_args));
+	fmed_conf_addctx(ctx, &mod->in_conf, file_in_conf_args);
 	return 0;
 }
 

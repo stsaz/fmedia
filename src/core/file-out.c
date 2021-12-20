@@ -4,7 +4,6 @@ Copyright (c) 2019 Simon Zolin */
 #include <fmedia.h>
 
 #include <FF/sys/filewrite.h>
-#include <FF/time.h>
 #include <FF/path.h>
 #include <FFOS/file.h>
 #include <FFOS/dir.h>
@@ -26,7 +25,7 @@ extern ffthpool* thpool_create();
 static void* fileout_open(fmed_filt *d);
 static int fileout_write(void *ctx, fmed_filt *d);
 static void fileout_close(void *ctx);
-int fileout_config(ffpars_ctx *ctx);
+int fileout_config(fmed_conf_ctx *ctx);
 const fmed_filter fmed_file_output = {
 	&fileout_open, &fileout_write, &fileout_close
 };
@@ -42,10 +41,10 @@ struct file_out_conf_t {
 };
 static struct file_out_conf_t out_conf;
 
-static const ffpars_arg file_out_conf_args[] = {
-	{ "use_thread_pool",	FFPARS_TBOOL8,  FFPARS_DSTOFF(struct file_out_conf_t, use_thread_pool) },
-	{ "buffer_size",  FFPARS_TSIZE | FFPARS_FNOTZERO,  FFPARS_DSTOFF(struct file_out_conf_t, bsize) }
-	, { "preallocate",  FFPARS_TSIZE | FFPARS_FNOTZERO,  FFPARS_DSTOFF(struct file_out_conf_t, prealloc) }
+static const fmed_conf_arg file_out_conf_args[] = {
+	{ "use_thread_pool",	FMC_BOOL8,  FMC_O(struct file_out_conf_t, use_thread_pool) },
+	{ "buffer_size",  FMC_SIZENZ,  FMC_O(struct file_out_conf_t, bsize) }
+	, { "preallocate",  FMC_SIZENZ,  FMC_O(struct file_out_conf_t, prealloc) }
 };
 
 
@@ -61,13 +60,13 @@ typedef struct fmed_fileout {
 
 static char* fileout_getname(fmed_fileout *f, fmed_filt *d);
 
-int fileout_config(ffpars_ctx *ctx)
+int fileout_config(fmed_conf_ctx *ctx)
 {
 	out_conf.bsize = 64 * 1024;
 	out_conf.prealloc = 1 * 1024 * 1024;
 	out_conf.prealloc_grow = 1;
 	out_conf.file_del = 1;
-	ffpars_setargs(ctx, &out_conf, file_out_conf_args, FFCNT(file_out_conf_args));
+	fmed_conf_addctx(ctx, &out_conf, file_out_conf_args);
 	return 0;
 }
 
@@ -99,7 +98,7 @@ static FFINL char* fileout_getname(fmed_fileout *f, fmed_filt *d)
 	const char *in;
 	ffarr buf = {0}, outfn = {0};
 	int r, have_dt = 0, ivar;
-	ffdtm dt;
+	ffdatetime dt;
 
 	const char *fnz = d->track->getvalstr(d->trk, "output");
 	ffstr_setz(&fn, fnz);
@@ -144,7 +143,9 @@ static FFINL char* fileout_getname(fmed_fileout *f, fmed_filt *d)
 					// get time only once
 					fftime t;
 					fftime_now(&t);
-					fftime_split(&dt, &t, FFTIME_TZLOCAL);
+					uint tzoff = core->cmd(FMED_TZOFFSET);
+					t.sec += FFTIME_1970_SECONDS + tzoff;
+					fftime_split1(&dt, &t);
 					have_dt = 1;
 				}
 				break;
@@ -169,12 +170,12 @@ static FFINL char* fileout_getname(fmed_fileout *f, fmed_filt *d)
 				break;
 
 			case VAR_TIME:
-				if (0 == ffstr_catfmt(&buf, "%02u%02u%02u", dt.hour, dt.min, dt.sec))
+				if (0 == ffstr_catfmt(&buf, "%02u%02u%02u", dt.hour, dt.minute, dt.second))
 					goto syserr;
 				break;
 
 			case VAR_TIMEMS:
-				if (0 == ffstr_catfmt(&buf, "%02u%02u%02u-%03u", dt.hour, dt.min, dt.sec, fftime_msec(&dt)))
+				if (0 == ffstr_catfmt(&buf, "%02u%02u%02u-%03u", dt.hour, dt.minute, dt.second, dt.nanosecond/1000000))
 					goto syserr;
 				break;
 

@@ -21,7 +21,7 @@ static struct dsnd_in_conf_t {
 
 //FMEDIA MODULE
 static const void* dsnd_iface(const char *name);
-static int dsnd_conf(const char *name, ffpars_ctx *ctx);
+static int dsnd_conf(const char *name, fmed_conf_ctx *ctx);
 static int dsnd_sig(uint signo);
 static void dsnd_destroy(void);
 static const fmed_mod fmed_dsnd_mod = {
@@ -33,28 +33,28 @@ static const fmed_mod fmed_dsnd_mod = {
 static void* dsnd_open(fmed_filt *d);
 static int dsnd_write(void *ctx, fmed_filt *d);
 static void dsnd_close(void *ctx);
-static int dsnd_out_config(ffpars_ctx *ctx);
+static int dsnd_out_config(fmed_conf_ctx *ctx);
 static const fmed_filter fmed_dsnd_out = {
 	&dsnd_open, &dsnd_write, &dsnd_close
 };
 
-static const ffpars_arg dsnd_out_conf_args[] = {
-	{ "device_index",  FFPARS_TINT,  FFPARS_DSTOFF(struct dsnd_out_conf_t, idev) }
-	, { "buffer_length",  FFPARS_TINT | FFPARS_FNOTZERO,  FFPARS_DSTOFF(struct dsnd_out_conf_t, buflen) }
+static const fmed_conf_arg dsnd_out_conf_args[] = {
+	{ "device_index",  FMC_INT32,  FMC_O(struct dsnd_out_conf_t, idev) }
+	, { "buffer_length",  FMC_INT32NZ,  FMC_O(struct dsnd_out_conf_t, buflen) }
 };
 
 //INPUT
 static void* dsnd_in_open(fmed_filt *d);
 static int dsnd_in_read(void *ctx, fmed_filt *d);
 static void dsnd_in_close(void *ctx);
-static int dsnd_in_config(ffpars_ctx *ctx);
+static int dsnd_in_config(fmed_conf_ctx *ctx);
 static const fmed_filter fmed_dsnd_in = {
 	&dsnd_in_open, &dsnd_in_read, &dsnd_in_close
 };
 
-static const ffpars_arg dsnd_in_conf_args[] = {
-	{ "device_index",  FFPARS_TINT,  FFPARS_DSTOFF(struct dsnd_in_conf_t, idev) }
-	, { "buffer_length",  FFPARS_TINT | FFPARS_FNOTZERO,  FFPARS_DSTOFF(struct dsnd_in_conf_t, buflen) }
+static const fmed_conf_arg dsnd_in_conf_args[] = {
+	{ "device_index",  FMC_INT32,  FMC_O(struct dsnd_in_conf_t, idev) }
+	, { "buffer_length",  FMC_INT32NZ,  FMC_O(struct dsnd_in_conf_t, buflen) }
 };
 
 //ADEV
@@ -84,7 +84,7 @@ static const void* dsnd_iface(const char *name)
 	return NULL;
 }
 
-static int dsnd_conf(const char *name, ffpars_ctx *ctx)
+static int dsnd_conf(const char *name, fmed_conf_ctx *ctx)
 {
 	if (!ffsz_cmp(name, "out"))
 		return dsnd_out_config(ctx);
@@ -96,10 +96,6 @@ static int dsnd_conf(const char *name, ffpars_ctx *ctx)
 static int dsnd_sig(uint signo)
 {
 	switch (signo) {
-	case FMED_SIG_INIT:
-		ffmem_init();
-		return 0;
-
 	case FMED_OPEN: {
 		ffaudio_init_conf conf = {};
 		if (0 != ffdsound.init(&conf))
@@ -132,11 +128,11 @@ typedef struct dsnd_out {
 	fftmrq_entry tmr;
 } dsnd_out;
 
-static int dsnd_out_config(ffpars_ctx *ctx)
+static int dsnd_out_config(fmed_conf_ctx *ctx)
 {
 	dsnd_out_conf.idev = 0;
 	dsnd_out_conf.buflen = 500;
-	ffpars_setargs(ctx, &dsnd_out_conf, dsnd_out_conf_args, FFCNT(dsnd_out_conf_args));
+	fmed_conf_addctx(ctx, &dsnd_out_conf, dsnd_out_conf_args);
 	return 0;
 }
 
@@ -238,11 +234,11 @@ typedef struct dsnd_in {
 	fftmrq_entry tmr;
 } dsnd_in;
 
-static int dsnd_in_config(ffpars_ctx *ctx)
+static int dsnd_in_config(fmed_conf_ctx *ctx)
 {
 	dsnd_in_conf.idev = 0;
 	dsnd_in_conf.buflen = 500;
-	ffpars_setargs(ctx, &dsnd_in_conf, dsnd_in_conf_args, FFCNT(dsnd_in_conf_args));
+	fmed_conf_addctx(ctx, &dsnd_in_conf, dsnd_in_conf_args);
 	return 0;
 }
 

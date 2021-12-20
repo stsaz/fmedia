@@ -38,8 +38,8 @@ typedef struct fmed_cmd {
 	uint stop_level_mintime; //msec
 	uint64 fseek;
 	ffstr meta;
-	ffarr2 include_files; //ffstr[]
-	ffarr2 exclude_files; //ffstr[]
+	ffslice include_files; //ffstr[]
+	ffslice exclude_files; //ffstr[]
 
 	float gain;
 	float auto_attenuate;

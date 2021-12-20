@@ -19,7 +19,7 @@ typedef struct mpeg_dec {
 
 //FMEDIA MODULE
 static const void* mpeg_iface(const char *name);
-static int mpeg_mod_conf(const char *name, ffpars_ctx *ctx);
+static int mpeg_mod_conf(const char *name, fmed_conf_ctx *ctx);
 static int mpeg_sig(uint signo);
 static void mpeg_destroy(void);
 static const fmed_mod fmed_mpeg_mod = {
@@ -47,7 +47,7 @@ static const void* mpeg_iface(const char *name)
 	return NULL;
 }
 
-static int mpeg_mod_conf(const char *name, ffpars_ctx *ctx)
+static int mpeg_mod_conf(const char *name, fmed_conf_ctx *ctx)
 {
 	if (!ffsz_cmp(name, "encode"))
 		return mpeg_enc_config(ctx);
@@ -57,10 +57,6 @@ static int mpeg_mod_conf(const char *name, ffpars_ctx *ctx)
 static int mpeg_sig(uint signo)
 {
 	switch (signo) {
-	case FMED_SIG_INIT:
-		ffmem_init();
-		return 0;
-
 	case FMED_OPEN:
 		qu = core->getmod("#queue.queue");
 		break;

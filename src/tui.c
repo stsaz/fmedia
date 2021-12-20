@@ -101,7 +101,7 @@ static const fmed_core *core;
 
 //FMEDIA MODULE
 static const void* tui_iface(const char *name);
-static int tui_mod_conf(const char *name, ffpars_ctx *conf);
+static int tui_mod_conf(const char *name, fmed_conf_ctx *conf);
 static int tui_sig(uint signo);
 static void tui_destroy(void);
 static const fmed_mod fmed_tui_mod = {
@@ -112,7 +112,7 @@ static const fmed_mod fmed_tui_mod = {
 static void* tui_open(fmed_filt *d);
 static int tui_process(void *ctx, fmed_filt *d);
 static void tui_close(void *ctx);
-static int tui_config(ffpars_ctx *conf);
+static int tui_config(fmed_conf_ctx *conf);
 static const fmed_filter fmed_tui = {
 	&tui_open, &tui_process, &tui_close
 };
@@ -131,8 +131,8 @@ static void tui_corecmd(void *param);
 static void tui_corecmd_add(const struct key *k, void *udata);
 
 
-static const ffpars_arg tui_conf_args[] = {
-	{ "echo_off",	FFPARS_TBOOL | FFPARS_F8BIT,  FFPARS_DSTOFF(struct tui_conf_t, echo_off) },
+static const fmed_conf_arg tui_conf_args[] = {
+	{ "echo_off",	FMC_BOOL8,  FMC_O(struct tui_conf_t, echo_off) },
 };
 
 
@@ -151,7 +151,7 @@ static const void* tui_iface(const char *name)
 	return NULL;
 }
 
-static int tui_mod_conf(const char *name, ffpars_ctx *ctx)
+static int tui_mod_conf(const char *name, fmed_conf_ctx *ctx)
 {
 	if (!ffsz_cmp(name, "tui"))
 		return tui_config(ctx);
@@ -161,10 +161,6 @@ static int tui_mod_conf(const char *name, ffpars_ctx *ctx)
 static int tui_sig(uint signo)
 {
 	switch (signo) {
-	case FMED_SIG_INIT:
-		ffmem_init();
-		break;
-
 	case FMED_OPEN:
 		gt = ffmem_tcalloc1(gtui);
 		fflk_init(&gt->lktrk);
@@ -236,10 +232,10 @@ static void tui_destroy(void)
 }
 
 
-static int tui_config(ffpars_ctx *conf)
+static int tui_config(fmed_conf_ctx *conf)
 {
 	tui_conf.echo_off = 1;
-	ffpars_setargs(conf, &tui_conf, tui_conf_args, FFCNT(tui_conf_args));
+	fmed_conf_addctx(conf, &tui_conf, tui_conf_args);
 	return 0;
 }
 
@@ -304,7 +300,7 @@ static void tui_close(void *ctx)
 static void tui_addtags(tui *t, fmed_que_entry *qent, ffarr *buf)
 {
 	fmed_trk_meta meta;
-	ffmem_tzero(&meta);
+	ffmem_zero_obj(&meta);
 	while (0 == t->d->track->cmd2(t->d->trk, FMED_TRACK_META_ENUM, &meta)) {
 		ffsize nt = (meta.name.len < 8) ? 2 : 1;
 		ffstr val = meta.val;

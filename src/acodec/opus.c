@@ -13,7 +13,7 @@ static const fmed_queue *qu;
 
 //FMEDIA MODULE
 static const void* opus_iface(const char *name);
-static int opus_mod_conf(const char *name, ffpars_ctx *ctx);
+static int opus_mod_conf(const char *name, fmed_conf_ctx *ctx);
 static int opus_sig(uint signo);
 static void opus_destroy(void);
 static const fmed_mod fmed_opus_mod = {
@@ -38,16 +38,16 @@ static struct opus_out_conf_t {
 	uint bandwidth;
 } opus_out_conf;
 
-static const ffpars_arg opus_out_conf_args[] = {
-	{ "min_tag_size",  FFPARS_TINT | FFPARS_F16BIT,  FFPARS_DSTOFF(struct opus_out_conf_t, min_tag_size) },
-	{ "bitrate",  FFPARS_TINT,  FFPARS_DSTOFF(struct opus_out_conf_t, bitrate) },
-	{ "frame_size",  FFPARS_TINT,  FFPARS_DSTOFF(struct opus_out_conf_t, frame_size) },
-	{ "complexity",  FFPARS_TINT,  FFPARS_DSTOFF(struct opus_out_conf_t, complexity) },
-	{ "bandwidth",  FFPARS_TINT,  FFPARS_DSTOFF(struct opus_out_conf_t, bandwidth) },
+static const fmed_conf_arg opus_out_conf_args[] = {
+	{ "min_tag_size",  FMC_INT16,  FMC_O(struct opus_out_conf_t, min_tag_size) },
+	{ "bitrate",  FMC_INT32,  FMC_O(struct opus_out_conf_t, bitrate) },
+	{ "frame_size",  FMC_INT32,  FMC_O(struct opus_out_conf_t, frame_size) },
+	{ "complexity",  FMC_INT32,  FMC_O(struct opus_out_conf_t, complexity) },
+	{ "bandwidth",  FMC_INT32,  FMC_O(struct opus_out_conf_t, bandwidth) },
 };
 
 //ENCODE
-static int opus_out_config(ffpars_ctx *ctx);
+static int opus_out_config(fmed_conf_ctx *ctx);
 static void* opus_out_create(fmed_filt *d);
 static void opus_out_free(void *ctx);
 static int opus_out_encode(void *ctx, fmed_filt *d);
@@ -72,7 +72,7 @@ static const void* opus_iface(const char *name)
 	return NULL;
 }
 
-static int opus_mod_conf(const char *name, ffpars_ctx *ctx)
+static int opus_mod_conf(const char *name, fmed_conf_ctx *ctx)
 {
 	if (!ffsz_cmp(name, "encode"))
 		return opus_out_config(ctx);
@@ -83,10 +83,6 @@ static int opus_mod_conf(const char *name, ffpars_ctx *ctx)
 static int opus_sig(uint signo)
 {
 	switch (signo) {
-	case FMED_SIG_INIT:
-		ffmem_init();
-		return 0;
-
 	case FMED_OPEN:
 		qu = core->getmod("#queue.queue");
 		break;
@@ -259,12 +255,12 @@ typedef struct opus_out {
 	uint64 npkt;
 } opus_out;
 
-static int opus_out_config(ffpars_ctx *ctx)
+static int opus_out_config(fmed_conf_ctx *ctx)
 {
 	opus_out_conf.min_tag_size = 1000;
 	opus_out_conf.bitrate = 192;
 	opus_out_conf.frame_size = 40;
-	ffpars_setargs(ctx, &opus_out_conf, opus_out_conf_args, FFCNT(opus_out_conf_args));
+	fmed_conf_addctx(ctx, &opus_out_conf, opus_out_conf_args);
 	return 0;
 }
 

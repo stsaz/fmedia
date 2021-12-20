@@ -9,7 +9,7 @@ static const fmed_core *core;
 
 //FMEDIA MODULE
 static const void* mpc_iface(const char *name);
-static int mpc_mod_conf(const char *name, ffpars_ctx *ctx);
+static int mpc_mod_conf(const char *name, fmed_conf_ctx *ctx);
 static int mpc_sig(uint signo);
 static void mpc_destroy(void);
 static const fmed_mod fmed_mpc_mod = {
@@ -45,18 +45,13 @@ static const void* mpc_iface(const char *name)
 	return NULL;
 }
 
-static int mpc_mod_conf(const char *name, ffpars_ctx *ctx)
+static int mpc_mod_conf(const char *name, fmed_conf_ctx *ctx)
 {
 	return -1;
 }
 
 static int mpc_sig(uint signo)
 {
-	switch (signo) {
-	case FMED_SIG_INIT:
-		ffmem_init();
-		return 0;
-	}
 	return 0;
 }
 

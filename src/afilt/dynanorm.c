@@ -17,14 +17,14 @@ static const fmed_core *core;
 static const void* danorm_iface(const char *name);
 static int danorm_sig(uint signo);
 static void danorm_destroy(void);
-static int danorm_conf(const char *name, ffpars_ctx *ctx);
+static int danorm_conf(const char *name, fmed_conf_ctx *ctx);
 static const fmed_mod fmed_danorm_mod = {
 	.ver = FMED_VER_FULL, .ver_core = FMED_VER_CORE,
 	&danorm_iface, &danorm_sig, &danorm_destroy, &danorm_conf
 };
 
 //FILTER
-static int danorm_f_conf(ffpars_ctx *ctx);
+static int danorm_f_conf(fmed_conf_ctx *ctx);
 static void* danorm_f_open(fmed_filt *d);
 static void danorm_f_close(void *ctx);
 static int danorm_f_process(void *ctx, fmed_filt *d);
@@ -40,17 +40,17 @@ struct danconf {
 };
 static struct danconf *sconf;
 
-#define OFF(m)  FFPARS_DSTOFF(struct dynanorm_conf, m)
-static const ffpars_arg danorm_conf_args[] = {
-	{ "frame_len_msec",	FFPARS_TINT, OFF(frameLenMsec) },
-	{ "filter_size",	FFPARS_TINT, OFF(filterSize) },
-	{ "peak_value",	FFPARS_TFLOAT64 | FFPARS_FSIGN, OFF(peakValue) },
-	{ "max_amplification",	FFPARS_TFLOAT64 | FFPARS_FSIGN, OFF(maxAmplification) },
-	{ "target_rms",	FFPARS_TFLOAT64 | FFPARS_FSIGN, OFF(targetRms) },
-	{ "compress_factor",	FFPARS_TFLOAT64 | FFPARS_FSIGN, OFF(compressFactor) },
-	{ "channels_coupled",	FFPARS_TBOOL8, FFPARS_DSTOFF(struct danconf, channels_coupled) },
-	{ "enable_dc_correction",	FFPARS_TBOOL8, FFPARS_DSTOFF(struct danconf, enable_dc_correction) },
-	{ "alt_boundary_mode",	FFPARS_TBOOL8, FFPARS_DSTOFF(struct danconf, alt_boundary_mode) },
+#define OFF(m)  FMC_O(struct dynanorm_conf, m)
+static const fmed_conf_arg danorm_conf_args[] = {
+	{ "frame_len_msec",	FMC_INT32, OFF(frameLenMsec) },
+	{ "filter_size",	FMC_INT32, OFF(filterSize) },
+	{ "peak_value",	FMC_FLOAT64S, OFF(peakValue) },
+	{ "max_amplification",	FMC_FLOAT64S, OFF(maxAmplification) },
+	{ "target_rms",	FMC_FLOAT64S, OFF(targetRms) },
+	{ "compress_factor",	FMC_FLOAT64S, OFF(compressFactor) },
+	{ "channels_coupled",	FMC_BOOL8, FMC_O(struct danconf, channels_coupled) },
+	{ "enable_dc_correction",	FMC_BOOL8, FMC_O(struct danconf, enable_dc_correction) },
+	{ "alt_boundary_mode",	FMC_BOOL8, FMC_O(struct danconf, alt_boundary_mode) },
 };
 #undef OFF
 
@@ -69,9 +69,6 @@ static const void* danorm_iface(const char *name)
 static int danorm_sig(uint signo)
 {
 	switch (signo) {
-	case FMED_SIG_INIT:
-		ffmem_init();
-		return 0;
 	case FMED_STOP:
 		ffmem_free(sconf);
 	}
@@ -81,7 +78,7 @@ static void danorm_destroy(void)
 {
 }
 
-static int danorm_conf(const char *name, ffpars_ctx *ctx)
+static int danorm_conf(const char *name, fmed_conf_ctx *ctx)
 {
 	if (ffsz_eq(name, "filter"))
 		return danorm_f_conf(ctx);
@@ -89,14 +86,14 @@ static int danorm_conf(const char *name, ffpars_ctx *ctx)
 }
 
 
-static int danorm_f_conf(ffpars_ctx *ctx)
+static int danorm_f_conf(fmed_conf_ctx *ctx)
 {
 	sconf = ffmem_new(struct danconf);
 	sconf->channels_coupled = 255;
 	sconf->enable_dc_correction = 255;
 	sconf->alt_boundary_mode = 255;
 	dynanorm_init(&sconf->conf);
-	ffpars_setargs(ctx, sconf, danorm_conf_args, FFCNT(danorm_conf_args));
+	fmed_conf_addctx(ctx, sconf, danorm_conf_args);
 	return 0;
 }
 

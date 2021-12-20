@@ -1,12 +1,10 @@
 /** fmedia track.
 Copyright (c) 2016 Simon Zolin */
 
-#include <core.h>
+#include <core/core.h>
 
 #include <FF/data/conf.h>
-#include <FF/data/utf8.h>
 #include <FF/path.h>
-#include <FF/time.h>
 #include <FF/sys/filemap.h>
 #include <FFOS/error.h>
 #include <FFOS/process.h>
@@ -77,7 +75,7 @@ typedef struct fm_trk {
 	fmed_trk props;
 	ffchain filt_chain;
 	ffchain_item chain_parent;
-	struct {FFARR(fmed_f)} filters;
+	ffvec filters;
 	fflist_cursor cur;
 	ffrbtree dict;
 	ffrbtree meta;
@@ -353,7 +351,7 @@ static void* trk_create(uint cmd, const char *fn)
 	t->id.len = ffs_fmt(t->sid, t->sid + sizeof(t->sid), "*%L", ffatom_incret(&g->trkid));
 	t->id.ptr = t->sid;
 
-	if (NULL == ffarr_allocT((ffarr*)&t->filters, N_FILTERS, fmed_f))
+	if (NULL == ffvec_allocT(&t->filters, N_FILTERS, fmed_f))
 		goto err;
 
 	switch (cmd) {
@@ -426,7 +424,7 @@ static fmed_trk* trk_conf(void *trk)
 static void trk_copy_info(fmed_trk *dst, const fmed_trk *src)
 {
 	if (src == NULL) {
-		ffmem_tzero(dst);
+		ffmem_zero_obj(dst);
 		dst->datatype = "";
 		dst->audio.total = FMED_NULL;
 		dst->audio.seek = FMED_NULL;
@@ -472,14 +470,14 @@ static void trk_printtime(fm_trk *t)
 	ffstr3 s = {0};
 	fftime all = {0};
 
-	FFARR_WALK(&t->filters, pf) {
+	FFSLICE_WALK(&t->filters, pf) {
 		fftime_add(&all, &pf->clk);
 	}
 	if (fftime_empty(&all))
 		return;
 	ffstr_catfmt(&s, "time: %u.%06u.  ", (int)fftime_sec(&all), (int)fftime_usec(&all));
 
-	FFARR_WALK(&t->filters, pf) {
+	FFSLICE_WALK(&t->filters, pf) {
 		ffstr_catfmt(&s, "%s: %u.%06u (%u%%), "
 			, pf->name, (int)fftime_sec(&pf->clk), (int)fftime_usec(&pf->clk)
 			, (int)(fftime_mcs(&pf->clk) * 100 / fftime_mcs(&all)));
@@ -536,7 +534,7 @@ static void trk_free(fm_trk *t)
 			);
 	}
 
-	FFARR_RWALK(&t->filters, pf) {
+	FFSLICE_RWALK(&t->filters, pf) {
 		if (pf->ctx != NULL) {
 			t->cur = &pf->sib;
 			dbglog(t, "closing %s", pf->name);
@@ -548,7 +546,7 @@ static void trk_free(fm_trk *t)
 	if (core->loglev == FMED_LOG_DEBUG)
 		trk_printtime(t);
 
-	ffarr_free(&t->filters);
+	ffvec_free(&t->filters);
 
 	ffrbt_freeall(&t->dict, (ffrbt_free_t)&dict_ent_free, FFOFF(dict_ent, nod));
 	ffrbt_freeall(&t->meta, (ffrbt_free_t)&dict_ent_free, FFOFF(dict_ent, nod));
@@ -658,6 +656,54 @@ static int filt_call(fm_trk *t, fmed_f *f)
 
 	dbglog(t, "   %s returned: %s, output:%L"
 		, f->name, ((uint)(r + 1) < FFCNT(fmed_retstr)) ? fmed_retstr[r + 1] : "", t->props.outlen);
+	return r;
+}
+
+/** Shift cursor.
+@cmd: enum FFLIST_CUR
+Return enum FFLIST_CUR. */
+uint fflist_curshift(fflist_cursor *cur, uint cmd, void *sentl)
+{
+	const fflist_cursor c = *cur;
+	uint r;
+	FF_ASSERT((cmd & (FFLIST_CUR_NEXT | FFLIST_CUR_PREV)) != (FFLIST_CUR_NEXT | FFLIST_CUR_PREV));
+
+	if (cmd & FFLIST_CUR_RMPREV)
+		c->prev = sentl;
+	if (cmd & FFLIST_CUR_RMNEXT)
+		c->next = sentl;
+
+	if (cmd & FFLIST_CUR_NEXT) {
+		if (c->next != sentl) {
+			*cur = c->next;
+			r = FFLIST_CUR_NEXT;
+		} else if ((cmd & (FFLIST_CUR_BOUNCE | FFLIST_CUR_SAMEIFBOUNCE)) == (FFLIST_CUR_BOUNCE | FFLIST_CUR_SAMEIFBOUNCE)) {
+			r = FFLIST_CUR_SAME;
+		} else if ((cmd & FFLIST_CUR_BOUNCE) && c->prev != sentl) {
+			*cur = c->prev;
+			r = FFLIST_CUR_PREV;
+		} else
+			r = FFLIST_CUR_NONEXT;
+
+	} else if (cmd & FFLIST_CUR_PREV) {
+		if (c->prev != sentl) {
+			*cur = c->prev;
+			r = FFLIST_CUR_PREV;
+
+		} else if ((cmd & FFLIST_CUR_BOUNCE) && c->next != sentl) {
+			*cur = c->next;
+			r = FFLIST_CUR_NEXT;
+
+		} else
+			r = FFLIST_CUR_NOPREV;
+
+	} else
+		r = FFLIST_CUR_SAME;
+
+	if ((cmd & FFLIST_CUR_RM)
+		|| ((cmd & FFLIST_CUR_RMFIRST) && c->prev == sentl))
+		ffchain_unlink(c);
+
 	return r;
 }
 
@@ -963,7 +1009,7 @@ static int trk_meta_enum(fm_trk *t, fmed_trk_meta *meta)
 static int trk_meta_copy(fm_trk *t, fm_trk *src)
 {
 	fmed_trk_meta meta;
-	ffmem_tzero(&meta);
+	ffmem_zero_obj(&meta);
 	meta.flags = FMED_QUE_UNIQ;
 	while (0 == trk_meta_enum(src, &meta)) {
 		trk_setvalstr4(t, meta.name.ptr, (void*)&meta.val, FMED_TRK_META | FMED_TRK_VALSTR);
@@ -977,14 +1023,14 @@ static fmed_f* filt_add(fm_trk *t, uint cmd, const char *name)
 	uint optional = cmd & 0x80000000;
 	cmd &= ~0x80000000;
 	fmed_f *f;
-	if (ffarr_isfull(&t->filters)) {
+	if (ffvec_isfull(&t->filters)) {
 		if (!optional)
 			errlog(t, "can't add more filters", 0);
 		return NULL;
 	}
 
-	f = ffarr_endT(&t->filters, fmed_f);
-	ffmem_tzero(f);
+	f = ffslice_endT(&t->filters, fmed_f);
+	ffmem_zero_obj(f);
 	if (NULL == (f->filt = core->getmod2(FMED_MOD_IFACE | FMED_MOD_NOLOG, name, -1))) {
 		if (!optional)
 			errlog(t, "no such interface %s", name);
@@ -1037,7 +1083,7 @@ static void filt_close(fm_trk *t, fmed_f *f)
 	}
 
 	uint n = 0;
-	FFARR_RWALKT(&t->filters, f, fmed_f) {
+	FFSLICE_RWALK(&t->filters, f) {
 		if (f->ctx != NULL)
 			break;
 		n++;

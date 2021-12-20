@@ -13,14 +13,14 @@ struct mpeg_enc_conf_t {
 };
 struct mpeg_enc_conf_t mpeg_enc_conf;
 
-const ffpars_arg mpeg_enc_conf_args[] = {
-	{ "quality",	FFPARS_TINT,  FFPARS_DSTOFF(struct mpeg_enc_conf_t, qual) },
+const fmed_conf_arg mpeg_enc_conf_args[] = {
+	{ "quality",	FMC_INT32,  FMC_O(struct mpeg_enc_conf_t, qual) },
 };
 
-int mpeg_enc_config(ffpars_ctx *ctx)
+int mpeg_enc_config(fmed_conf_ctx *ctx)
 {
 	mpeg_enc_conf.qual = 2;
-	ffpars_setargs(ctx, &mpeg_enc_conf, mpeg_enc_conf_args, FFCNT(mpeg_enc_conf_args));
+	fmed_conf_addctx(ctx, &mpeg_enc_conf, mpeg_enc_conf_args);
 	return 0;
 }
 

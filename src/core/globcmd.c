@@ -10,7 +10,7 @@ static const fmed_core *core;
 
 // FMEDIA MODULE
 static const void* globcmd_iface(const char *name);
-static int globcmd_conf(const char *name, ffpars_ctx *ctx);
+static int globcmd_conf(const char *name, fmed_conf_ctx *ctx);
 static int globcmd_sig(uint signo);
 static void globcmd_destroy(void);
 static const fmed_mod fmed_globcmd_mod = {
@@ -42,8 +42,8 @@ typedef struct globcmd {
 
 static globcmd *g;
 
-static const ffpars_arg globcmd_conf_args[] = {
-	{ "pipe_name",  FFPARS_TCHARPTR | FFPARS_FNOTEMPTY | FFPARS_FSTRZ | FFPARS_FRECOPY,  FFPARS_DSTOFF(globcmd, pipe_name) },
+static const fmed_conf_arg globcmd_conf_args[] = {
+	{ "pipe_name",  FMC_STRZNE,  FMC_O(globcmd, pipe_name) },
 };
 
 static int globcmd_init(void);
@@ -78,11 +78,11 @@ static const void* globcmd_iface(const char *name)
 	return NULL;
 }
 
-static int globcmd_conf(const char *name, ffpars_ctx *ctx)
+static int globcmd_conf(const char *name, fmed_conf_ctx *ctx)
 {
 	if (!ffsz_cmp(name, "globcmd")) {
 		g->pipe_name = ffsz_alcopyz("fmedia");
-		ffpars_setargs(ctx, g, globcmd_conf_args, FFCNT(globcmd_conf_args));
+		fmed_conf_addctx(ctx, g, globcmd_conf_args);
 		return 0;
 	}
 	return -1;
@@ -247,9 +247,9 @@ static void globcmd_onaccept(fffd peer)
 
 	dbglog(core, NULL, "globcmd", "accepted client");
 
-	ffmem_tzero(&c);
+	ffmem_zero_obj(&c);
 	c.qu = core->getmod("#queue.queue");
-	ffmem_tzero(&c.conf);
+	ffmem_zero_obj(&c.conf);
 	ffconf_parseinit(&c.conf);
 
 	if (NULL == ffarr_alloc(&buf, GCMD_PIPE_IN_BUFSIZE)) {
@@ -376,7 +376,7 @@ static int globcmd_parse(cmd_parser *c, const ffstr *in)
 			case CMD_ADD:
 			case CMD_PLAY: {
 				fmed_que_entry e, *ent;
-				ffmem_tzero(&e);
+				ffmem_zero_obj(&e);
 				e.url = val;
 				ent = c->qu->add(&e);
 				if (c->cmd == CMD_PLAY)

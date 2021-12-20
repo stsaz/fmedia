@@ -2,7 +2,6 @@
 Copyright (c) 2015 Simon Zolin */
 
 #include <fmedia.h>
-#include <FF/list.h>
 #include <FFOS/dir.h>
 #include <FFOS/random.h>
 #include <avpack/m3u.h>
@@ -75,7 +74,7 @@ static que *qu;
 
 //FMEDIA MODULE
 static const void* que_iface(const char *name);
-static int que_mod_conf(const char *name, ffpars_ctx *ctx);
+static int que_mod_conf(const char *name, fmed_conf_ctx *ctx);
 static int que_sig(uint signo);
 static void que_destroy(void);
 static const fmed_mod fmed_que_mod = {
@@ -100,15 +99,13 @@ static void que_play(entry *e);
 static void que_play2(entry *ent, uint flags);
 static void que_save(entry *first, const fflist_item *sentl, const char *fn);
 static void ent_start_prepare(entry *e, void *trk);
-static void ent_rm(entry *e);
-static void ent_free(entry *e);
 static void rnd_init();
 static void plist_remove_entry(entry *e, ffbool from_index, ffbool remove);
 static entry* que_getnext(entry *from);
 static void pl_expand_next(plist *pl, entry *e);
 
-#include <queue-entry.h>
-#include <queue-track.h>
+#include <core/queue-entry.h>
+#include <core/queue-track.h>
 
 //QUEUE-TRACK
 static void* que_trk_open(fmed_filt *d);
@@ -117,13 +114,13 @@ static void que_trk_close(void *ctx);
 static const fmed_filter fmed_que_trk = {
 	&que_trk_open, &que_trk_process, &que_trk_close
 };
-static const ffpars_arg que_conf_args[] = {
-	{ "next_if_error",	FFPARS_TBOOL8,  FFPARS_DSTOFF(struct que_conf, next_if_err) },
+static const fmed_conf_arg que_conf_args[] = {
+	{ "next_if_error",	FMC_BOOL8,  FMC_O(struct que_conf, next_if_err) },
 };
-static int que_config(ffpars_ctx *ctx)
+static int que_config(fmed_conf_ctx *ctx)
 {
 	qu->conf.next_if_err = 1;
-	ffpars_setargs(ctx, &qu->conf, que_conf_args, FFCNT(que_conf_args));
+	fmed_conf_addctx(ctx, &qu->conf, que_conf_args);
 	return 0;
 }
 
@@ -144,7 +141,7 @@ static const void* que_iface(const char *name)
 	return NULL;
 }
 
-static int que_mod_conf(const char *name, ffpars_ctx *ctx)
+static int que_mod_conf(const char *name, fmed_conf_ctx *ctx)
 {
 	if (!ffsz_cmp(name, "track"))
 		return que_config(ctx);
@@ -1039,19 +1036,10 @@ static fmed_que_entry* que_add(plist *pl, fmed_que_entry *ent, entry *prev, uint
 		goto done;
 	}
 
-	e = ffmem_alloc(sizeof(entry) + ent->url.len + 1);
+	e = ent_new(ent);
 	if (e == NULL)
 		return NULL;
-	ffmem_tzero(e);
 	e->plist = pl;
-
-	ffsz_copy(e->url, ent->url.len + 1, ent->url.ptr, ent->url.len);
-	e->e.url.ptr = e->url;
-	e->e.url.len = ent->url.len;
-
-	e->e.from = ent->from;
-	e->e.to = ent->to;
-	e->e.dur = ent->dur;
 
 	fflk_lock(&qu->plist_lock);
 

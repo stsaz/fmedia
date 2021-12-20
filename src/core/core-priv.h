@@ -1,7 +1,7 @@
 /**
 Copyright (c) 2019 Simon Zolin */
 
-#include <core.h>
+#include <core/core.h>
 #include <FF/data/conf.h>
 #include <FFOS/process.h>
 
@@ -39,14 +39,14 @@ typedef struct core_mod {
 	const void *iface;
 
 	fflock lock;
-	ffpars_ctx conf_ctx;
+	fmed_conf_ctx conf_ctx;
 	ffstr conf_data;
 	fflist_item sib;
 	uint have_conf :1; // whether a module has configuration context
 	char name_s[0];
 } core_mod;
 
-const fmed_modinfo* core_insmod_delayed(const char *sname, ffpars_ctx *ctx);
+const fmed_modinfo* core_insmod_delayed(const char *sname, fmed_conf_ctx *ctx);
 const fmed_modinfo* core_getmodinfo(const ffstr *name);
 
 enum CONF_F {

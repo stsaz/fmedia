@@ -3,7 +3,6 @@ Copyright (c) 2020 Simon Zolin */
 
 #include <fmedia.h>
 #include <gui-winapi/gui.h>
-#include <FF/time.h>
 #include <FFOS/process.h>
 
 typedef struct cvt_sets_t {
@@ -246,28 +245,28 @@ static const struct cvt_set cvt_sets[] = {
 	{ SETT_OUT_PRESDATE, "Preserve Date", "0 or 1", FFOFF(cvt_sets_t, out_preserve_date) },
 };
 
-static int conf_conv_sets_output(ffparser_schem *ps, void *obj, char *val)
+static int conf_conv_sets_output(fmed_conf *fc, void *obj, char *val)
 {
 	conv_sets_add(val);
 	return 0;
 }
 
 // conf -> gui
-static const ffpars_arg cvt_sets_conf[] = {
-	{ "output",	FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY | FFPARS_FLIST, FFPARS_DST(&conf_conv_sets_output) },
+static const fmed_conf_arg cvt_sets_conf[] = {
+	{ "output",	FMC_STRZ | FFPARS_FLIST, FMC_F(conf_conv_sets_output) },
 
-	{ "vorbis_quality",	FFPARS_TFLOAT, FFPARS_DSTOFF(cvt_sets_t, vorbis_quality_f) },
-	{ "opus_bitrate",	FFPARS_TINT, FFPARS_DSTOFF(cvt_sets_t, opus_bitrate) },
-	{ "mpeg_quality",	FFPARS_TINT, FFPARS_DSTOFF(cvt_sets_t, mpg_quality) },
-	{ "aac_quality",	FFPARS_TINT, FFPARS_DSTOFF(cvt_sets_t, aac_quality) },
-	{ "aac_bandwidth",	FFPARS_TINT, FFPARS_DSTOFF(cvt_sets_t, aac_bandwidth) },
-	{ "flac_complevel",	FFPARS_TINT, FFPARS_DSTOFF(cvt_sets_t, flac_complevel) },
+	{ "vorbis_quality",	FMC_FLOAT32S, FMC_O(cvt_sets_t, vorbis_quality_f) },
+	{ "opus_bitrate",	FMC_INT32, FMC_O(cvt_sets_t, opus_bitrate) },
+	{ "mpeg_quality",	FMC_INT32, FMC_O(cvt_sets_t, mpg_quality) },
+	{ "aac_quality",	FMC_INT32, FMC_O(cvt_sets_t, aac_quality) },
+	{ "aac_bandwidth",	FMC_INT32, FMC_O(cvt_sets_t, aac_bandwidth) },
+	{ "flac_complevel",	FMC_INT32, FMC_O(cvt_sets_t, flac_complevel) },
 
-	{ "pcm_rate",	FFPARS_TINT, FFPARS_DSTOFF(cvt_sets_t, conv_pcm_rate) },
-	{ "gain",	FFPARS_TFLOAT, FFPARS_DSTOFF(cvt_sets_t, gain_f) },
+	{ "pcm_rate",	FMC_INT32, FMC_O(cvt_sets_t, conv_pcm_rate) },
+	{ "gain",	FMC_FLOAT32S, FMC_O(cvt_sets_t, gain_f) },
 
-	{ "overwrite",	FFPARS_TINT, FFPARS_DSTOFF(cvt_sets_t, overwrite) },
-	{ "preserve_date",	FFPARS_TINT, FFPARS_DSTOFF(cvt_sets_t, out_preserve_date) },
+	{ "overwrite",	FMC_INT32, FMC_O(cvt_sets_t, overwrite) },
+	{ "preserve_date",	FMC_INT32, FMC_O(cvt_sets_t, out_preserve_date) },
 };
 
 static void gui_cvt_sets_init(cvt_sets_t *sets)
@@ -325,10 +324,10 @@ void conv_sets_write(ffconfw *conf)
 	}
 }
 
-int gui_conf_convert(ffparser_schem *p, void *obj, ffpars_ctx *ctx)
+int gui_conf_convert(fmed_conf *fc, void *obj, fmed_conf_ctx *ctx)
 {
 	struct gui_wconvert *w = gg->wconvert;
-	ffpars_setargs(ctx, &w->conv_sets, cvt_sets_conf, FFCNT(cvt_sets_conf));
+	fmed_conf_addctx(ctx, &w->conv_sets, cvt_sets_conf);
 	return 0;
 }
 
@@ -387,12 +386,12 @@ static int sett_fromstr(const struct cvt_set *st, void *p, ffstr *data)
 	}
 
 	if (st->flags & CVTF_MSEC) {
-		ffdtm dt;
+		ffdatetime dt;
 		fftime t;
-		if (data->len != fftime_fromstr(&dt, data->ptr, data->len, FFTIME_HMS_MSEC_VAR))
+		if (data->len != fftime_fromstr1(&dt, data->ptr, data->len, FFTIME_HMS_MSEC_VAR))
 			return -1;
 
-		fftime_join(&t, &dt, FFTIME_TZNODATE);
+		fftime_join1(&t, &dt);
 		val = fftime_ms(&t);
 
 	} else if (st->flags & CVTF_FLT) {
@@ -613,7 +612,7 @@ static void gui_convert(void)
 	while (-1 != (i = wmain_list_next_selected(i))) {
 		inp = (fmed_que_entry*)gg->qu->fmed_queue_item(curtab, i);
 
-		ffmem_tzero(&e);
+		ffmem_zero_obj(&e);
 		e.url = inp->url;
 		e.from = inp->from;
 		e.to = inp->to;

@@ -12,7 +12,7 @@ static const fmed_queue *qu;
 
 //FMEDIA MODULE
 static const void* vorbis_iface(const char *name);
-static int vorbis_conf(const char *name, ffpars_ctx *ctx);
+static int vorbis_conf(const char *name, fmed_conf_ctx *ctx);
 static int vorbis_sig(uint signo);
 static void vorbis_destroy(void);
 static const fmed_mod fmed_vorbis_mod = {
@@ -34,13 +34,13 @@ static struct vorbis_out_conf_t {
 	float qual;
 } vorbis_out_conf;
 
-static const ffpars_arg vorbis_out_conf_args[] = {
-	{ "min_tag_size",  FFPARS_TINT | FFPARS_F16BIT,  FFPARS_DSTOFF(struct vorbis_out_conf_t, min_tag_size) },
-	{ "quality",  FFPARS_TFLOAT | FFPARS_FSIGN,  FFPARS_DSTOFF(struct vorbis_out_conf_t, qual) }
+static const fmed_conf_arg vorbis_out_conf_args[] = {
+	{ "min_tag_size",  FMC_INT16,  FMC_O(struct vorbis_out_conf_t, min_tag_size) },
+	{ "quality",  FMC_FLOAT32S,  FMC_O(struct vorbis_out_conf_t, qual) }
 };
 
 //ENCODE
-static int vorbis_out_config(ffpars_ctx *ctx);
+static int vorbis_out_config(fmed_conf_ctx *ctx);
 static void* vorbis_out_create(fmed_filt *d);
 static void vorbis_out_free(void *ctx);
 static int vorbis_out_encode(void *ctx, fmed_filt *d);
@@ -65,7 +65,7 @@ static const void* vorbis_iface(const char *name)
 	return NULL;
 }
 
-static int vorbis_conf(const char *name, ffpars_ctx *ctx)
+static int vorbis_conf(const char *name, fmed_conf_ctx *ctx)
 {
 	if (!ffsz_cmp(name, "encode"))
 		return vorbis_out_config(ctx);
@@ -75,10 +75,6 @@ static int vorbis_conf(const char *name, ffpars_ctx *ctx)
 static int vorbis_sig(uint signo)
 {
 	switch (signo) {
-	case FMED_SIG_INIT:
-		ffmem_init();
-		return 0;
-
 	case FMED_OPEN:
 		qu = core->getmod("#queue.queue");
 		break;
@@ -234,11 +230,11 @@ typedef struct vorbis_out {
 	uint64 npkt;
 } vorbis_out;
 
-static int vorbis_out_config(ffpars_ctx *ctx)
+static int vorbis_out_config(fmed_conf_ctx *ctx)
 {
 	vorbis_out_conf.min_tag_size = 1000;
 	vorbis_out_conf.qual = 5.0;
-	ffpars_setargs(ctx, &vorbis_out_conf, vorbis_out_conf_args, FFCNT(vorbis_out_conf_args));
+	fmed_conf_addctx(ctx, &vorbis_out_conf, vorbis_out_conf_args);
 	return 0;
 }
 

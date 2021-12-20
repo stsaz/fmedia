@@ -176,7 +176,7 @@ static core_modinfo* core_findmod(const ffstr *name)
 	return NULL;
 }
 
-static const fmed_modinfo* core_insmod(const char *sname, ffpars_ctx *ctx)
+static const fmed_modinfo* core_insmod(const char *sname, fmed_conf_ctx *ctx)
 {
 	core_mod *mod = NULL;
 	ffstr s, modname;
@@ -225,7 +225,7 @@ fail:
 }
 
 /** Enlist a new module which will be loaded later. */
-const fmed_modinfo* core_insmod_delayed(const char *sname, ffpars_ctx *ctx)
+const fmed_modinfo* core_insmod_delayed(const char *sname, fmed_conf_ctx *ctx)
 {
 	core_mod *mod;
 	core_modinfo *bmod = NULL;
@@ -295,7 +295,7 @@ static int mod_readconf(core_mod *mod, const char *name)
 	if (mod->m->conf == NULL)
 		return -1;
 
-	ffpars_ctx ctx;
+	fmed_conf_ctx ctx;
 	if (0 != mod->m->conf(name, &ctx))
 		return -1;
 

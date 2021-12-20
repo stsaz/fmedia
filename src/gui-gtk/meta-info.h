@@ -1,8 +1,6 @@
 /** fmedia: GUI: display file meta info
 2020, Simon Zolin */
 
-#include <FF/time.h>
-
 struct gui_winfo {
 	ffui_wnd winfo;
 	ffui_view vinfo;
@@ -73,10 +71,12 @@ void winfo_show(uint show, uint idx)
 	ffstr_setz(&name, "File date");
 	data.len = 0;
 	if (have_fi) {
-		ffdtm dt;
+		ffdatetime dt;
 		fftime t = fffile_infomtime(&fi);
-		fftime_split(&dt, &t, FFTIME_TZLOCAL);
-		data.len = fftime_tostr(&dt, data.ptr, data.cap, FFTIME_DATE_WDMY | FFTIME_HMS);
+		uint tzoff = core->cmd(FMED_TZOFFSET);
+		t.sec += FFTIME_1970_SECONDS + tzoff;
+		fftime_split1(&dt, &t);
+		data.len = fftime_tostr1(&dt, data.ptr, data.cap, FFTIME_DATE_WDMY | FFTIME_HMS);
 	}
 	winfo_addpair(&name, (ffstr*)&data);
 
