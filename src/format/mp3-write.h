@@ -9,6 +9,7 @@ struct mpeg_out_conf_t {
 
 const fmed_conf_arg mpeg_out_conf_args[] = {
 	{ "min_meta_size",	FMC_INT32,  FMC_O(struct mpeg_out_conf_t, min_meta_size) },
+	{}
 };
 
 int mpeg_out_config(fmed_conf_ctx *ctx)

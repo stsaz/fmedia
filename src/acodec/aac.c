@@ -41,6 +41,7 @@ static const fmed_conf_arg aac_out_conf_args[] = {
 	{ "quality",	FMC_INT32,  FMC_O(struct aac_out_conf_t, qual) },
 	{ "afterburner",	FMC_INT32,  FMC_O(struct aac_out_conf_t, afterburner) },
 	{ "bandwidth",	FMC_INT32,  FMC_O(struct aac_out_conf_t, bandwidth) },
+	{}
 };
 
 //ENCODE

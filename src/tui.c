@@ -133,6 +133,7 @@ static void tui_corecmd_add(const struct key *k, void *udata);
 
 static const fmed_conf_arg tui_conf_args[] = {
 	{ "echo_off",	FMC_BOOL8,  FMC_O(struct tui_conf_t, echo_off) },
+	{}
 };
 
 

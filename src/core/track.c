@@ -3,7 +3,6 @@ Copyright (c) 2016 Simon Zolin */
 
 #include <core/core.h>
 
-#include <FF/data/conf.h>
 #include <FF/path.h>
 #include <FF/sys/filemap.h>
 #include <FFOS/error.h>
@@ -233,8 +232,8 @@ static void trk_open_capt(fm_trk *t)
 
 	addfilter1(t, core->props->record_module);
 
-	addfilter(t, "#soundmod.until");
-	addfilter(t, "#soundmod.rtpeak");
+	addfilter(t, "afilter.until");
+	addfilter(t, "afilter.rtpeak");
 }
 
 static int trk_setout(fm_trk *t)
@@ -259,7 +258,7 @@ static int trk_setout(fm_trk *t)
 
 	} else if (t->props.type != FMED_TRK_TYPE_MIXIN) {
 		if (t->props.type != FMED_TRK_TYPE_REC)
-			addfilter(t, "#soundmod.until");
+			addfilter(t, "afilter.until");
 		if (core->props->gui)
 			addfilter(t, "gui.gui");
 		else if (core->props->tui)
@@ -267,13 +266,13 @@ static int trk_setout(fm_trk *t)
 	}
 
 	if (t->props.a_start_level != 0)
-		addfilter(t, "#soundmod.startlevel");
+		addfilter(t, "afilter.startlevel");
 
 	if (t->props.a_stop_level != 0)
-		addfilter(t, "#soundmod.stoplevel");
+		addfilter(t, "afilter.stoplevel");
 
 	if (t->props.type == FMED_TRK_TYPE_REC && t->props.a_prebuffer != 0) {
-		addfilter(t, "#soundmod.membuf");
+		addfilter(t, "afilter.membuf");
 	}
 
 	if (t->props.type != FMED_TRK_TYPE_MIXOUT && !stream_copy) {
@@ -282,31 +281,31 @@ static int trk_setout(fm_trk *t)
 			&& core->props->playback_module != NULL);
 
 		if (!(playback && t->props.audio.auto_attenuate_ceiling != 0.0))
-			addfilter(t, "#soundmod.gain");
+			addfilter(t, "afilter.gain");
 	}
 
 	if (t->props.use_dynanorm)
 		addfilter(t, "dynanorm.filter");
 
 	if ((int64)t->props.audio.split != FMED_NULL) {
-		addfilter(t, "#soundmod.split");
+		addfilter(t, "afilter.split");
 		return 0;
 	}
 
-	addfilter(t, "#soundmod.autoconv");
+	addfilter(t, "afilter.autoconv");
 
 	if (t->props.type == FMED_TRK_TYPE_MIXIN) {
-		addfilter(t, "mixer.in");
+		addfilter(t, "afilter.mixer-in");
 
 	} else if (t->props.pcm_peaks) {
-		addfilter(t, "#soundmod.peaks");
+		addfilter(t, "afilter.peaks");
 
 	} else if (FMED_PNULL != (s = trk_getvalstr(t, "output"))) {
 		if (0 != trk_setout_file(t))
 			return -1;
 
 	} else if (core->props->playback_module != NULL) {
-		addfilter(t, "#soundmod.auto-attenuator");
+		addfilter(t, "afilter.auto-attenuator");
 		addfilter1(t, core->props->playback_module);
 	}
 
@@ -329,7 +328,7 @@ static int trk_opened(fm_trk *t)
 Example of a typical chain:
  #queue.track
  -> INPUT
- -> DECODER -> (#soundmod.until) -> UI -> #soundmod.gain -> (#soundmod.conv/conv-soxr) -> (ENCODER)
+ -> DECODER -> (afilter.until) -> UI -> afilter.gain -> (afilter.conv/conv-soxr) -> (ENCODER)
  -> OUTPUT
 */
 static void* trk_create(uint cmd, const char *fn)
@@ -373,7 +372,7 @@ static void* trk_create(uint cmd, const char *fn)
 
 	case FMED_TRK_TYPE_MIXOUT:
 		addfilter(t, "#queue.track");
-		addfilter(t, "mixer.out");
+		addfilter(t, "afilter.mixer-out");
 		break;
 
 	case FMED_TRK_TYPE_PLIST:

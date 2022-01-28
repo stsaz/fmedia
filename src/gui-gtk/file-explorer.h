@@ -8,16 +8,17 @@ static struct exp_file* _exp_names_idx(ffsize idx);
 static int _exp_conf_path(fmed_conf *fc, void *obj, char *val)
 {
 	struct gui_wmain *w = obj;
-	ffstr_setz(&w->exp_path, val);
+	ffstr_dupz(&w->exp_path, val);
 	return 0;
 }
 static const fmed_conf_arg _exp_conf[] = {
 	{ "disable",	FMC_BOOL8, FMC_O(struct gui_wmain, exp_disable) },
 	{ "path",	FMC_STRZ, FMC_F(_exp_conf_path) },
+	{}
 };
-int wmain_exp_conf(fmed_conf *fc, void *obj, fmed_conf_ctx *ctx)
+int wmain_exp_conf(fmed_conf *fc, void *obj)
 {
-	fmed_conf_addctx(ctx, gg->wmain, _exp_conf);
+	fmed_conf_addnewctx(fc, gg->wmain, _exp_conf);
 	return 0;
 }
 

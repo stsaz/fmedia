@@ -3,7 +3,7 @@ Copyright (c) 2015 Simon Zolin */
 
 #include <fmedia.h>
 #include <FF/path.h>
-#include <FF/data/conf.h>
+#include <FF/data/conf2-writer.h>
 #include <FF/data/cmdarg-scheme.h>
 #include <FF/gui/winapi.h>
 #include <FFOS/process.h>
@@ -84,18 +84,16 @@ static void open_input(int argc, char **argv)
 static int gcmd_send(const fmed_globcmd_iface *globcmd, uint mode, const char **argv, int argc)
 {
 	int r = -1;
-	ffconfw confw;
-	ffconf_winit(&confw, NULL, 0);
+	ffconfw confw = {};
+	ffconfw_init(&confw, 0);
 
 	if (mode == FMED_IM_CLEARPLAY)
-		ffconf_write(&confw, FFSTR("clear"), FFCONF_TKEY);
+		ffconfw_addkeyz(&confw, "clear");
 
-	ffstr cmd;
+	char *cmd = "play";
 	if (mode == FMED_IM_ADD)
-		ffstr_setz(&cmd, "add");
-	else
-		ffstr_setz(&cmd, "play");
-	ffconf_write(&confw, cmd.ptr, cmd.len, FFCONF_TKEY);
+		cmd = "add";
+	ffconfw_addkeyz(&confw, cmd);
 
 	ffcmdarg a;
 	ffcmdarg_init(&a, argv, argc);
@@ -104,21 +102,22 @@ static int gcmd_send(const fmed_globcmd_iface *globcmd, uint mode, const char **
 		int r = ffcmdarg_parse(&a, &val);
 		if (r == FFCMDARG_DONE)
 			break;
-		else if (r != FFCMDARG_RVAL)
-			continue;
-		ffconf_writestr(&confw, &val, FFCONF_TVAL);
+		else if (r == FFCMDARG_RVAL)
+			if (ffconfw_addstr(&confw, &val) < 0)
+				goto end;
 	}
 
-	if (0 == ffconf_write(&confw, NULL, 0, FFCONF_FIN))
-		goto end;
+	ffconfw_fin(&confw);
+	ffstr out;
+	ffconfw_output(&confw, &out);
 
-	if (0 != globcmd->write(confw.buf.ptr, confw.buf.len)) {
+	if (0 != globcmd->write(out.ptr, out.len)) {
 		goto end;
 	}
 
 	r = 0;
 end:
-	ffconf_wdestroy(&confw);
+	ffconfw_close(&confw);
 	ffcmdarg_fin(&a);
 	return r;
 }

@@ -170,6 +170,7 @@ static const fmed_conf_arg rec_sets_conf[] = {
 	{ "mpeg_quality",	FMC_INT32, FMC_O(rec_sets_t, mpg_quality) },
 	{ "aac_quality",	FMC_INT32, FMC_O(rec_sets_t, aac_quality) },
 	{ "flac_complevel",	FMC_INT32, FMC_O(rec_sets_t, flac_complevel) },
+	{}
 };
 
 void rec_sets_init(rec_sets_t *sets)
@@ -193,10 +194,10 @@ static void rec_sets_destroy(rec_sets_t *sets)
 	ffmem_safefree0(sets->output);
 }
 
-int gui_conf_rec(fmed_conf *fc, void *obj, fmed_conf_ctx *ctx)
+int gui_conf_rec(fmed_conf *fc, void *obj)
 {
 	struct gui_wrec *w = gg->wrec;
-	fmed_conf_addctx(ctx, &w->rec_sets, rec_sets_conf);
+	fmed_conf_addnewctx(fc, &w->rec_sets, rec_sets_conf);
 	return 0;
 }
 

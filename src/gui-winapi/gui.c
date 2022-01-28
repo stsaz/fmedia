@@ -58,20 +58,21 @@ static const fmed_filter gui_rec_iface = {
 static int gui_conf_ghk_add(fmed_conf *fc, void *obj, ffstr *val);
 
 static const fmed_conf_arg gui_conf_ghk_args[] = {
-	{ "*",	FFPARS_TSTR | FFPARS_FWITHKEY, FMC_F(gui_conf_ghk_add) },
+	{ "*",	FMC_STR_MULTI, FMC_F(gui_conf_ghk_add) },
+	{}
 };
 
-static int gui_conf_ghk(fmed_conf *fc, void *obj, fmed_conf_ctx *ctx)
+static int gui_conf_ghk(fmed_conf *fc, void *obj)
 {
-	fmed_conf_addctx(ctx, gg, gui_conf_ghk_args);
+	fmed_conf_addnewctx(fc, gg, gui_conf_ghk_args);
 	return 0;
 }
 
-static int conf_list_col_width(fmed_conf *fc, void *obj, const int64 *val)
+static int conf_list_col_width(fmed_conf *fc, void *obj, int64 val)
 {
 	if (gg->list_col_width_idx >= FF_COUNT(gg->list_col_width))
 		return FMC_EBADVAL;
-	gg->list_col_width[gg->list_col_width_idx++] = *val;
+	gg->list_col_width[gg->list_col_width_idx++] = val;
 	return 0;
 }
 
@@ -97,13 +98,14 @@ static const fmed_conf_arg gui_conf_args[] = {
 	{ "global_hotkeys",	FMC_OBJ, FMC_F(gui_conf_ghk) },
 	{ "theme",	FMC_INT8, FMC_O(ggui, theme_startup) },
 	{ "random",	FMC_BOOL8, FMC_O(ggui, list_random) },
-	{ "list_repeat",	FMC_INT8, {FF_OFF(ggui, conf) + FF_OFF(struct guiconf, list_repeat)} },
-	{ "auto_attenuate_ceiling",	FMC_FLOAT32S, {FF_OFF(ggui, conf) + FF_OFF(struct guiconf, auto_attenuate_ceiling)} },
+	{ "list_repeat",	FMC_INT8, FF_OFF(ggui, conf) + FF_OFF(struct guiconf, list_repeat) },
+	{ "auto_attenuate_ceiling",	FMC_FLOAT32S, FF_OFF(ggui, conf) + FF_OFF(struct guiconf, auto_attenuate_ceiling) },
 	{ "sel_after_cursor",	FMC_BOOL8, FMC_O(ggui, sel_after_cur) },
-	{ "list_columns_width",	FMC_INT16 | FFPARS_FLIST, FMC_F(conf_list_col_width) },
+	{ "list_columns_width",	FMC_INT16_LIST, FMC_F(conf_list_col_width) },
 	{ "file_delete_method",	FMC_STR, FMC_F(conf_file_delete_method) },
 	{ "list_track",	FMC_INT32, FMC_O(ggui, list_actv_trk_idx) },
 	{ "list_scroll",	FMC_INT32, FMC_O(ggui, list_scroll_pos) },
+	{}
 };
 
 
@@ -121,11 +123,11 @@ static int gui_getcmd(void *udata, const ffstr *name);
 /** Add command/hotkey pair into temporary array.*/
 static int gui_conf_ghk_add(fmed_conf *fc, void *obj, ffstr *val)
 {
-	const ffstr *cmd = &fc->vals[0];
+	const ffstr *cmd = fmed_conf_any_keyname(fc);
 	struct ghk_ent *e;
 
 	if (NULL == (e = ffarr_pushgrowT(&gg->ghks, 4, struct ghk_ent)))
-		return FFPARS_ESYS;
+		return FMC_ESYS;
 
 	if (0 == (e->cmd = gui_getcmd(NULL, cmd))) {
 		warnlog(core, NULL, "gui", "invalid command: %S", cmd);
@@ -1059,9 +1061,9 @@ static int gui_install(uint sig)
 	char fn[FF_MAXPATH];
 	const char *pfn = ffps_filename(fn, sizeof(fn), NULL);
 	if (pfn == NULL)
-		return FFPARS_ELAST;
+		goto end;
 	if (NULL == ffpath_split2(pfn, ffsz_len(pfn), &path, NULL))
-		return FFPARS_ELAST;
+		goto end;
 
 	if (FFWREG_BADKEY == (k = ffwinreg_open(HKEY_CURRENT_USER, "Environment", FFWINREG_READWRITE)))
 		goto end;

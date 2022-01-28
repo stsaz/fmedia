@@ -90,7 +90,6 @@ extern void tracks_destroy(void);
 
 static const fmed_mod* fmed_getmod_core(const fmed_core *_core);
 extern const fmed_mod* fmed_getmod_file(const fmed_core *_core);
-extern const fmed_mod* fmed_getmod_sndmod(const fmed_core *_core);
 extern const fmed_mod* fmed_getmod_queue(const fmed_core *_core);
 extern const fmed_mod* fmed_getmod_globcmd(const fmed_core *_core);
 #ifdef FF_WIN

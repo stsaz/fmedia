@@ -51,6 +51,7 @@ static const fmed_conf_arg danorm_conf_args[] = {
 	{ "channels_coupled",	FMC_BOOL8, FMC_O(struct danconf, channels_coupled) },
 	{ "enable_dc_correction",	FMC_BOOL8, FMC_O(struct danconf, enable_dc_correction) },
 	{ "alt_boundary_mode",	FMC_BOOL8, FMC_O(struct danconf, alt_boundary_mode) },
+	{}
 };
 #undef OFF
 
@@ -142,10 +143,10 @@ static int danorm_f_process(void *ctx, fmed_filt *d)
 			if (d->audio.convfmt.sample_rate == 0)
 				d->audio.convfmt.sample_rate = d->audio.fmt.sample_rate;
 			d->audio.fmt = conv.out;
-			void *f = (void*)d->track->cmd(d->trk, FMED_TRACK_FILT_ADDPREV, "#soundmod.conv");
+			void *f = (void*)d->track->cmd(d->trk, FMED_TRACK_FILT_ADDPREV, "afilter.conv");
 			if (f == NULL)
 				return FMED_RERR;
-			const struct fmed_filter2 *aconv = core->getmod("#soundmod.conv");
+			const struct fmed_filter2 *aconv = core->getmod("afilter.conv");
 			void *fi = (void*)d->track->cmd(d->trk, FMED_TRACK_FILT_INSTANCE, f);
 			if (fi == NULL)
 				return FMED_RERR;

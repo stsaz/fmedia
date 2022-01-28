@@ -225,7 +225,7 @@ The filter is initialized in 2 steps:
 The conversion format may be already set by previous filters - the converter preserves those settings.
 The next filters in chain may set the format they need, and then they ask for actual audio data.
 
-2. The second time the converter is called, it initializes #soundmod.conv filter if needed, and then deletes itself from chain.
+2. The second time the converter is called, it initializes afilter.conv filter if needed, and then deletes itself from chain.
 */
 
 struct autoconv {
@@ -237,7 +237,7 @@ static void* autoconv_open(fmed_filt *d)
 {
 	if (d->stream_copy) {
 		if (ffsz_eq(d->datatype, "pcm")) {
-			errlog(core, d->trk, "#soundmod.autoconv", "decoder doesn't support --stream-copy", 0);
+			errlog(core, d->trk, "afilter.autoconv", "decoder doesn't support --stream-copy", 0);
 			return NULL;
 		}
 		d->audio.convfmt = d->audio.fmt;
@@ -292,8 +292,8 @@ static int autoconv_process(void *ctx, fmed_filt *d)
 		return FMED_RDONE; //no conversion is needed
 	}
 
-	const struct fmed_filter2 *conv = core->getmod("#soundmod.conv");
-	void *f = (void*)d->track->cmd(d->trk, FMED_TRACK_FILT_ADD, "#soundmod.conv");
+	const struct fmed_filter2 *conv = core->getmod("afilter.conv");
+	void *f = (void*)d->track->cmd(d->trk, FMED_TRACK_FILT_ADD, "afilter.conv");
 	if (f == NULL)
 		return FMED_RERR;
 	void *fi = (void*)d->track->cmd(d->trk, FMED_TRACK_FILT_INSTANCE, f);

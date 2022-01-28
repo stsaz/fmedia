@@ -279,13 +279,13 @@ void wconvert_init();
 void wconvert_destroy();
 void wconv_show(uint show);
 void gui_setconvpos(uint cmd);
-int gui_conf_convert(fmed_conf *fc, void *obj, fmed_conf_ctx *ctx);
+int gui_conf_convert(fmed_conf *fc, void *obj);
 int wconvert_conf_writeval(ffstr *line, ffconfw *conf);
 
 void wrec_init();
 void wrec_destroy();
 void rec_setdev(int idev);
-int gui_conf_rec(fmed_conf *fc, void *obj, fmed_conf_ctx *ctx);
+int gui_conf_rec(fmed_conf *fc, void *obj);
 void wrec_show(uint show);
 int gui_rec_addsetts(void *trk);
 int wrec_conf_writeval(ffstr *line, ffconfw *conf);

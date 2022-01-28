@@ -16,7 +16,7 @@ mixer                 mixer
 #pragma once
 
 #include <FF/audio/pcm.h>
-#include <FF/data/parse.h>
+#include <FF/data/conf2-scheme.h>
 #include <FF/sys/taskqueue.h>
 #include <FF/sys/timer-queue.h>
 #include <FFOS/file.h>
@@ -234,28 +234,45 @@ struct fmed_props {
 	ffpcm record_format;
 };
 
-typedef ffpars_arg fmed_conf_arg;
-typedef ffpars_ctx fmed_conf_ctx;
-typedef ffparser_schem fmed_conf;
-#define fmed_conf_addctx(cx, o, a)  ffpars_setargs(cx, o, a, FF_COUNT(a))
-#define FMC_O(s, m)  FFPARS_DSTOFF(s, m)
-#define FMC_F(f)  FFPARS_DST(f)
-#define FMC_STR  FFPARS_TSTR
-#define FMC_STRNE  FFPARS_TSTR | FFPARS_FNOTEMPTY
-#define FMC_STRZ  FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY
-#define FMC_STRZNE  FFPARS_TCHARPTR | FFPARS_FSTRZ | FFPARS_FCOPY | FFPARS_FNOTEMPTY
-#define FMC_INT8  FFPARS_TINT8
-#define FMC_INT8NZ  FFPARS_TINT8 | FFPARS_FNOTZERO
-#define FMC_INT16  FFPARS_TINT16
-#define FMC_INT32  FFPARS_TINT
-#define FMC_INT32NZ  FFPARS_TINT | FFPARS_FNOTZERO
-#define FMC_SIZE  FFPARS_TSIZE
-#define FMC_SIZENZ  FFPARS_TSIZE | FFPARS_FNOTZERO
-#define FMC_BOOL8  FFPARS_TBOOL8
-#define FMC_FLOAT32S  FFPARS_TFLOAT | FFPARS_FSIGN
-#define FMC_FLOAT64S  FFPARS_TFLOAT64 | FFPARS_FSIGN
-#define FMC_OBJ  FFPARS_TOBJ
-#define FMC_EBADVAL  FFPARS_EBADVAL
+typedef ffconf_arg fmed_conf_arg;
+typedef struct ffconf_schemectx fmed_conf_ctx;
+typedef ffconf_scheme fmed_conf;
+#define fmed_conf_addnewctx(fc, o, a)  ffconf_scheme_addctx(fc, a, o)
+#define fmed_conf_addctx(cx, o, a) \
+do { \
+	(cx)->args = a; \
+	(cx)->obj = o; \
+} while (0)
+#define fmed_conf_skipctx(c)  ffconf_scheme_skipctx(c)
+#define fmed_conf_any_keyname(c)  ffconf_scheme_keyname(c)
+#define FMC_O(s, m)  FF_OFF(s, m)
+#define FMC_F(f)  (ffsize)(f)
+#define FMC_STR  FFCONF_TSTR
+#define FMC_STR_MULTI  FFCONF_TSTR | FFCONF_FMULTI
+#define FMC_STRNE  FFCONF_TSTR | FFCONF_FNOTEMPTY
+#define FMC_STRZ  FFCONF_TSTRZ
+#define FMC_STRZNE  FFCONF_TSTRZ | FFCONF_FNOTEMPTY
+#define FMC_STRZ_LIST  FFCONF_TSTRZ | FFCONF_FLIST
+#define FMC_INT8  FFCONF_TINT8
+#define FMC_INT8NZ  FFCONF_TINT8 | FFCONF_FNOTZERO
+#define FMC_INT16  FFCONF_TINT16
+#define FMC_INT16_LIST  FFCONF_TINT16 | FFCONF_FLIST
+#define FMC_INT32  FFCONF_TINT32
+#define FMC_INT32NZ  FFCONF_TINT32 | FFCONF_FNOTZERO
+#ifdef FF_64
+	#define FMC_SIZE  FFCONF_TSIZE64
+	#define FMC_SIZENZ  FFCONF_TSIZE64 | FFCONF_FNOTZERO
+#else
+	#define FMC_SIZE  FFCONF_TSIZE32
+	#define FMC_SIZENZ  FFCONF_TSIZE32 | FFCONF_FNOTZERO
+#endif
+#define FMC_BOOL8  FFCONF_TBOOL8
+#define FMC_FLOAT32S  FFCONF_TFLOAT32 | FFCONF_FSIGN
+#define FMC_FLOAT64S  FFCONF_TFLOAT64 | FFCONF_FSIGN
+#define FMC_ONCLOSE  FFCONF_TCLOSE
+#define FMC_OBJ  FFCONF_TOBJ
+#define FMC_EBADVAL  FFCONF_EBADVAL
+#define FMC_ESYS  FFCONF_ESYS
 
 struct fmed_mod {
 	uint ver;

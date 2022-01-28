@@ -48,7 +48,7 @@ static int conf_conv_sets_output(fmed_conf *fc, void *obj, char *val)
 {
 	struct gui_wconvert *c = obj;
 	ffmem_free(c->output);
-	c->output = val;
+	c->output = ffsz_dup(val);
 	return 0;
 }
 static int conf_any(fmed_conf *fc, void *obj, const ffstr *val)
@@ -56,7 +56,7 @@ static int conf_any(fmed_conf *fc, void *obj, const ffstr *val)
 	return 0;
 }
 static const fmed_conf_arg conf_conv[] = {
-	{ "output",	FMC_STRZ | FFPARS_FLIST, FMC_F(conf_conv_sets_output) },
+	{ "output",	FMC_STRZ_LIST, FMC_F(conf_conv_sets_output) },
 
 	{ "vorbis_quality",	FMC_FLOAT32S, FMC_O(struct gui_wconvert, enc_vorbis_qual) },
 	{ "opus_bitrate",	FMC_INT32, FMC_O(struct gui_wconvert, enc_opus_brate) },
@@ -64,11 +64,12 @@ static const fmed_conf_arg conf_conv[] = {
 	{ "aac_quality",	FMC_INT32, FMC_O(struct gui_wconvert, enc_aac_qual) },
 	{ "data_copy",	FMC_INT32, FMC_O(struct gui_wconvert, enc_datacopy) },
 
-	{ "*",	FFPARS_TSTR | FFPARS_FMULTI, FMC_F(conf_any) },
+	{ "*",	FMC_STR_MULTI, FMC_F(conf_any) },
+	{}
 };
-int conf_convert(fmed_conf *fc, void *obj, fmed_conf_ctx *ctx)
+int conf_convert(fmed_conf *fc, void *obj)
 {
-	fmed_conf_addctx(ctx, gg->wconvert, conf_conv);
+	fmed_conf_addnewctx(fc, gg->wconvert, conf_conv);
 	return 0;
 }
 
@@ -434,7 +435,8 @@ void wconvert_init()
 
 void wconv_destroy()
 {
-	ffmem_free0(gg->wconvert->output);
+	struct gui_wconvert *c = gg->wconvert;
+	ffmem_free(c->output);
 	ffmem_free0(gg->wconvert);
 }
 

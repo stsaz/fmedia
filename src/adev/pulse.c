@@ -62,6 +62,7 @@ static const fmed_conf_arg pulse_out_conf_args[] = {
 	{ "device_index",	FMC_INT32,  FMC_O(struct pulse_out_conf_t, idev) },
 	{ "buffer_length",	FMC_INT32NZ,  FMC_O(struct pulse_out_conf_t, buflen) },
 	{ "notify_rate",	FMC_INT32,  FMC_O(struct pulse_out_conf_t, nfy_rate) },
+	{}
 };
 
 //INPUT

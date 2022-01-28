@@ -65,7 +65,8 @@ static const fmed_filter fmed_wasapi_out = {
 static const fmed_conf_arg wasapi_out_conf_args[] = {
 	{ "device_index",  FMC_INT32,  FMC_O(struct wasapi_out_conf_t, idev) }
 	, { "buffer_length",  FMC_INT32NZ,  FMC_O(struct wasapi_out_conf_t, buflen) }
-	, { "exclusive_mode",  FMC_INT8,  FMC_O(struct wasapi_out_conf_t, exclusive) }
+	, { "exclusive_mode",  FMC_INT8,  FMC_O(struct wasapi_out_conf_t, exclusive) },
+	{}
 };
 
 //INPUT
@@ -81,7 +82,8 @@ static const fmed_conf_arg wasapi_in_conf_args[] = {
 	{ "device_index",  FMC_INT32,  FMC_O(struct wasapi_in_conf_t, idev) }
 	, { "buffer_length",  FMC_INT32NZ,  FMC_O(struct wasapi_in_conf_t, buflen) }
 	, { "latency_autocorrect",  FMC_BOOL8,  FMC_O(struct wasapi_in_conf_t, latency_autocorrect) }
-	, { "exclusive_mode",  FMC_INT8,  FMC_O(struct wasapi_in_conf_t, exclusive) }
+	, { "exclusive_mode",  FMC_INT8,  FMC_O(struct wasapi_in_conf_t, exclusive) },
+	{}
 };
 
 //ADEV

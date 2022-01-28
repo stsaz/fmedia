@@ -29,6 +29,7 @@ static dirconf_t dirconf;
 
 static const fmed_conf_arg dir_conf_args[] = {
 	{ "expand",  FMC_BOOL8,  FMC_O(dirconf_t, expand) },
+	{}
 };
 
 

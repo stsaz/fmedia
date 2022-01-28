@@ -15,6 +15,7 @@ struct mpeg_enc_conf_t mpeg_enc_conf;
 
 const fmed_conf_arg mpeg_enc_conf_args[] = {
 	{ "quality",	FMC_INT32,  FMC_O(struct mpeg_enc_conf_t, qual) },
+	{}
 };
 
 int mpeg_enc_config(fmed_conf_ctx *ctx)

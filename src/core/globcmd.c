@@ -2,7 +2,7 @@
 Copyright (c) 2016 Simon Zolin */
 
 #include <fmedia.h>
-#include <FF/data/conf.h>
+#include <FF/data/conf2.h>
 #include <FFOS/asyncio.h>
 
 
@@ -44,6 +44,7 @@ static globcmd *g;
 
 static const fmed_conf_arg globcmd_conf_args[] = {
 	{ "pipe_name",  FMC_STRZNE,  FMC_O(globcmd, pipe_name) },
+	{}
 };
 
 static int globcmd_init(void);
@@ -56,7 +57,6 @@ static void globcmd_onaccept(fffd peer);
 
 typedef struct cmd_parser {
 	ffconf conf;
-	uint cmd;
 	const fmed_queue *qu;
 	const fmed_que_entry *first;
 } cmd_parser;
@@ -243,14 +243,12 @@ static void globcmd_onaccept(fffd peer)
 	ffarr buf = {0};
 	ffstr in;
 	ssize_t r;
-	cmd_parser c;
+	cmd_parser c = {};
 
 	dbglog(core, NULL, "globcmd", "accepted client");
 
-	ffmem_zero_obj(&c);
 	c.qu = core->getmod("#queue.queue");
-	ffmem_zero_obj(&c.conf);
-	ffconf_parseinit(&c.conf);
+	ffconf_init(&c.conf);
 
 	if (NULL == ffarr_alloc(&buf, GCMD_PIPE_IN_BUFSIZE)) {
 		syserrlog(core, NULL, "globcmd", "mem alloc", 0);
@@ -279,7 +277,7 @@ static void globcmd_onaccept(fffd peer)
 
 done:
 	ffarr_free(&buf);
-	ffconf_parseclose(&c.conf);
+	ffconf_fin(&c.conf);
 	dbglog(core, NULL, "globcmd", "done with client");
 }
 
@@ -305,6 +303,48 @@ static const char* const cmds_sorted_str[] = {
 	"unpause",
 };
 
+static void exec_cmd(cmd_parser *c, int cmd, ffstr *val)
+{
+	switch ((enum CMD)cmd) {
+	case CMD_CLEAR:
+		c->qu->cmd(FMED_QUE_CLEAR, NULL);
+		break;
+
+	case CMD_NEXT:
+		g->track->cmd((void*)-1, FMED_TRACK_STOPALL);
+		c->qu->cmd(FMED_QUE_NEXT2, NULL);
+		break;
+
+	case CMD_ADD:
+	case CMD_PLAY: {
+		if (val == NULL)
+			break;
+		fmed_que_entry e = {}, *ent;
+		e.url = *val;
+		ent = c->qu->add(&e);
+		if (cmd == CMD_PLAY)
+			c->qu->cmd(FMED_QUE_PLAY_EXCL, (void*)ent);
+		break;
+	}
+
+	case CMD_PAUSE:
+		g->track->cmd((void*)-1, FMED_TRACK_PAUSE);
+		break;
+
+	case CMD_UNPAUSE:
+		g->track->cmd((void*)-1, FMED_TRACK_UNPAUSE);
+		break;
+
+	case CMD_STOP:
+		g->track->cmd((void*)-1, FMED_TRACK_STOPALL);
+		break;
+
+	case CMD_QUIT:
+		g->track->cmd((void*)-1, FMED_TRACK_STOPALL_EXIT);
+		break;
+	}
+}
+
 /** Parse commands.  Format:
 CMD [PARAMS] \n
 ...
@@ -312,79 +352,36 @@ CMD [PARAMS] \n
 static int globcmd_parse(cmd_parser *c, const ffstr *in)
 {
 	ffstr data = *in;
-	int r;
+	int r, cmd;
 
 	for (;;) {
 
-		r = ffconf_parsestr(&c->conf, &data);
-		if (ffpars_iserr(r)) {
-			errlog(core, NULL, "globcmd", "pipe command parse: %s", ffpars_errstr(r));
-			return -1;
-		}
-		if (r == FFPARS_MORE)
+		ffstr val;
+		r = ffconf_parse3(&c->conf, &data, &val);
+
+		switch (r) {
+		case FFCONF_RMORE:
 			return 0;
 
-		ffstr val = c->conf.val;
-
-		switch (c->conf.type) {
-
-		case FFCONF_TKEY:
+		case FFCONF_RKEY:
 			r = ffszarr_findsorted(cmds_sorted_str, FFCNT(cmds_sorted_str), val.ptr, val.len);
 			if (r < 0) {
 				warnlog(core, NULL, "globcmd", "unsupported command: %S", &val);
 				return -1;
 			}
 			dbglog(core, NULL, "globcmd", "received pipe command: %S", &val);
-			c->cmd = r;
-
-			switch ((enum CMD)c->cmd) {
-			case CMD_CLEAR:
-				c->qu->cmd(FMED_QUE_CLEAR, NULL);
-				break;
-
-			case CMD_NEXT:
-				g->track->cmd((void*)-1, FMED_TRACK_STOPALL);
-				c->qu->cmd(FMED_QUE_NEXT2, NULL);
-				break;
-
-			case CMD_ADD:
-			case CMD_PLAY:
-				break;
-
-			case CMD_PAUSE:
-				g->track->cmd((void*)-1, FMED_TRACK_PAUSE);
-				break;
-
-			case CMD_UNPAUSE:
-				g->track->cmd((void*)-1, FMED_TRACK_UNPAUSE);
-				break;
-
-			case CMD_STOP:
-				g->track->cmd((void*)-1, FMED_TRACK_STOPALL);
-				break;
-
-			case CMD_QUIT:
-				g->track->cmd((void*)-1, FMED_TRACK_STOPALL_EXIT);
-				break;
-			}
+			cmd = r;
+			exec_cmd(c, r, NULL);
 			break;
 
-		case FFCONF_TVAL:
-		case FFCONF_TVALNEXT:
-
-			switch (c->cmd) {
-			case CMD_ADD:
-			case CMD_PLAY: {
-				fmed_que_entry e, *ent;
-				ffmem_zero_obj(&e);
-				e.url = val;
-				ent = c->qu->add(&e);
-				if (c->cmd == CMD_PLAY)
-					c->qu->cmd(FMED_QUE_PLAY_EXCL, (void*)ent);
-				break;
-			}
-			}
+		case FFCONF_RVAL:
+		case FFCONF_RVAL_NEXT:
+			exec_cmd(c, cmd, &val);
 			break;
+
+		default:
+			warnlog(core, NULL, "globcmd", "pipe command parse: (%d) %s", r, ffconf_errstr(r));
+			return -1;
 		}
 	}
 

@@ -77,7 +77,8 @@ static const fmed_conf_arg file_in_conf_args[] = {
 	{ "buffer_size",  FMC_SIZENZ,  FMC_O(struct file_in_conf_t, bsize) }
 	, { "buffers",  FMC_INT8,  FMC_O(struct file_in_conf_t, nbufs) }
 	, { "align",  FMC_SIZENZ,  FMC_O(struct file_in_conf_t, align) }
-	, { "direct_io",  FMC_BOOL8,  FMC_O(struct file_in_conf_t, directio) }
+	, { "direct_io",  FMC_BOOL8,  FMC_O(struct file_in_conf_t, directio) },
+	{}
 };
 
 

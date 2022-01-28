@@ -53,6 +53,7 @@ static const fmed_conf_arg alsa_out_conf_args[] = {
 	{ "device_index",	FMC_INT32,  FMC_O(struct alsa_out_conf_t, idev) },
 	{ "buffer_length",	FMC_INT32NZ,  FMC_O(struct alsa_out_conf_t, buflen) },
 	{ "notify_rate",	FMC_INT32,  FMC_O(struct alsa_out_conf_t, nfy_rate) },
+	{}
 };
 
 //INPUT
@@ -72,6 +73,7 @@ static struct alsa_in_conf_t {
 static const fmed_conf_arg alsa_in_conf_args[] = {
 	{ "device_index",	FMC_INT32,  FMC_O(struct alsa_in_conf_t, idev) },
 	{ "buffer_length",	FMC_INT32NZ,  FMC_O(struct alsa_in_conf_t, buflen) },
+	{}
 };
 
 //ADEV

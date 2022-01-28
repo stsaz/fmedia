@@ -21,7 +21,8 @@ struct ogg_in_conf_t {
 } conf;
 
 const fmed_conf_arg ogg_in_conf_args[] = {
-	{ "seekable",  FMC_BOOL8,  FMC_O(struct ogg_in_conf_t, seekable) }
+	{ "seekable",  FMC_BOOL8,  FMC_O(struct ogg_in_conf_t, seekable) },
+	{}
 };
 
 int ogg_in_conf(fmed_conf_ctx *ctx)

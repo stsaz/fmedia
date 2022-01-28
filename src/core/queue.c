@@ -115,6 +115,7 @@ static const fmed_filter fmed_que_trk = {
 };
 static const fmed_conf_arg que_conf_args[] = {
 	{ "next_if_error",	FMC_BOOL8,  FMC_O(struct que_conf, next_if_err) },
+	{}
 };
 static int que_config(fmed_conf_ctx *ctx)
 {

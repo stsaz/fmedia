@@ -40,7 +40,8 @@ static const fmed_filter fmed_dsnd_out = {
 
 static const fmed_conf_arg dsnd_out_conf_args[] = {
 	{ "device_index",  FMC_INT32,  FMC_O(struct dsnd_out_conf_t, idev) }
-	, { "buffer_length",  FMC_INT32NZ,  FMC_O(struct dsnd_out_conf_t, buflen) }
+	, { "buffer_length",  FMC_INT32NZ,  FMC_O(struct dsnd_out_conf_t, buflen) },
+	{}
 };
 
 //INPUT
@@ -54,7 +55,8 @@ static const fmed_filter fmed_dsnd_in = {
 
 static const fmed_conf_arg dsnd_in_conf_args[] = {
 	{ "device_index",  FMC_INT32,  FMC_O(struct dsnd_in_conf_t, idev) }
-	, { "buffer_length",  FMC_INT32NZ,  FMC_O(struct dsnd_in_conf_t, buflen) }
+	, { "buffer_length",  FMC_INT32NZ,  FMC_O(struct dsnd_in_conf_t, buflen) },
+	{}
 };
 
 //ADEV

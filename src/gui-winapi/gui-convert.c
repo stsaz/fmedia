@@ -253,7 +253,7 @@ static int conf_conv_sets_output(fmed_conf *fc, void *obj, char *val)
 
 // conf -> gui
 static const fmed_conf_arg cvt_sets_conf[] = {
-	{ "output",	FMC_STRZ | FFPARS_FLIST, FMC_F(conf_conv_sets_output) },
+	{ "output",	FMC_STRZ_LIST, FMC_F(conf_conv_sets_output) },
 
 	{ "vorbis_quality",	FMC_FLOAT32S, FMC_O(cvt_sets_t, vorbis_quality_f) },
 	{ "opus_bitrate",	FMC_INT32, FMC_O(cvt_sets_t, opus_bitrate) },
@@ -267,6 +267,7 @@ static const fmed_conf_arg cvt_sets_conf[] = {
 
 	{ "overwrite",	FMC_INT32, FMC_O(cvt_sets_t, overwrite) },
 	{ "preserve_date",	FMC_INT32, FMC_O(cvt_sets_t, out_preserve_date) },
+	{}
 };
 
 static void gui_cvt_sets_init(cvt_sets_t *sets)
@@ -310,7 +311,7 @@ static int conv_sets_add(char *val)
 	}
 
 	char **it = ffslice_pushT(&w->conv_sets.output, FF_COUNT(w->conv_sets._output), char*);
-	*it = val;
+	*it = ffsz_dup(val);
 	return i;
 }
 
@@ -324,10 +325,10 @@ void conv_sets_write(ffconfw *conf)
 	}
 }
 
-int gui_conf_convert(fmed_conf *fc, void *obj, fmed_conf_ctx *ctx)
+int gui_conf_convert(fmed_conf *fc, void *obj)
 {
 	struct gui_wconvert *w = gg->wconvert;
-	fmed_conf_addctx(ctx, &w->conv_sets, cvt_sets_conf);
+	fmed_conf_addnewctx(fc, &w->conv_sets, cvt_sets_conf);
 	return 0;
 }
 

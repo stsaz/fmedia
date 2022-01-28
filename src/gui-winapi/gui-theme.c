@@ -44,7 +44,7 @@ static int theme_conf_new(ffconf_scheme *cs, void *obj)
 
 	struct theme *t = ffarr_pushgrowT(&gg->themes, 2, struct theme);
 	if (NULL == (t->name = ffsz_alcopystr(name)))
-		return FFPARS_ESYS;
+		return FFCONF_ESYS;
 	ffconf_scheme_skipctx(cs);
 	return 0;
 }

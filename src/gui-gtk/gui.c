@@ -54,9 +54,9 @@ static const void* gui_iface(const char *name)
 }
 
 
-static int conf_ctxany(fmed_conf *fc, void *obj, fmed_conf_ctx *ctx)
+static int conf_ctxany(fmed_conf *fc, void *obj)
 {
-	ffpars_ctx_skip(ctx);
+	fmed_conf_skipctx(fc);
 	return 0;
 }
 
@@ -65,12 +65,12 @@ static int conf_any(fmed_conf *fc, void *obj, const ffstr *val)
 	return 0;
 }
 
-static int conf_list_col_width(fmed_conf *fc, void *obj, const int64 *val)
+static int conf_list_col_width(fmed_conf *fc, void *obj, int64 val)
 {
 	struct gui_conf *c = obj;
 	if (c->list_col_width_idx >= FF_COUNT(c->list_col_width))
 		return FMC_EBADVAL;
-	c->list_col_width[c->list_col_width_idx++] = *val;
+	c->list_col_width[c->list_col_width_idx++] = val;
 	return 0;
 }
 
@@ -92,7 +92,7 @@ static const fmed_conf_arg gui_conf_args[] = {
 	{ "random",	FMC_BOOL8, FMC_O(struct gui_conf, list_random) },
 	{ "list_repeat",	FMC_INT8, FMC_O(struct gui_conf, list_repeat) },
 	{ "auto_attenuate_ceiling",	FMC_FLOAT32S, FMC_O(struct gui_conf, auto_attenuate_ceiling) },
-	{ "list_columns_width",	FMC_INT16 | FFPARS_FLIST, FMC_F(conf_list_col_width) },
+	{ "list_columns_width",	FMC_INT16_LIST, FMC_F(conf_list_col_width) },
 	{ "list_track",	FMC_INT32, FMC_O(struct gui_conf, list_actv_trk_idx) },
 	{ "list_scroll",	FMC_INT32, FMC_O(struct gui_conf, list_scroll_pos) },
 	{ "file_delete_method",	FMC_STR, FMC_F(conf_file_delete_method) },
@@ -106,7 +106,8 @@ static const fmed_conf_arg gui_conf_args[] = {
 	{ "global_hotkeys",	FMC_OBJ, FMC_F(conf_ctxany) },
 	{ "explorer",	FMC_OBJ, FMC_F(wmain_exp_conf) },
 
-	{ "*",	FFPARS_TSTR | FFPARS_FMULTI, FMC_F(conf_any) },
+	{ "*",	FMC_STR_MULTI, FMC_F(conf_any) },
+	{}
 };
 
 static int gui_conf(const char *name, fmed_conf_ctx *ctx)

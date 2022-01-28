@@ -44,6 +44,7 @@ static struct coraud_out_conf_t coraud_out_conf;
 
 static const fmed_conf_arg coraud_out_conf_args[] = {
 	{ "device_index",	FMC_INT32,  FMC_O(struct coraud_out_conf_t, idev) },
+	{}
 };
 
 
@@ -65,6 +66,7 @@ static struct coraud_in_conf_t coraud_in_conf;
 static const fmed_conf_arg coraud_in_conf_args[] = {
 	{ "device_index",	FMC_INT32,  FMC_O(struct coraud_in_conf_t, idev) },
 	{ "buffer_length",	FMC_INT32NZ,  FMC_O(struct coraud_in_conf_t, buflen) },
+	{}
 };
 
 

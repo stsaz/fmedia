@@ -23,6 +23,7 @@ int icy_setmeta(icy *c, const ffstr *_data);
 
 const fmed_conf_arg icy_conf_args[] = {
 	{ "meta",	FMC_BOOL8,  FMC_O(net_conf, meta) },
+	{}
 };
 
 int icy_config(fmed_conf_ctx *ctx)

@@ -84,10 +84,20 @@ const char *const http_ua[] = {
 	"fmedia", "fmedia/" FMED_VER
 };
 
-static const char *const ua_enumstr[] = {
-	"off", "name_only", "full",
-};
-static const ffpars_enumlist ua_enum = { ua_enumstr, FFCNT(ua_enumstr), FMC_O(net_conf, user_agent) };
+int conf_user_agent(fmed_conf *cs, net_conf *nc, ffstr *s)
+{
+	static const char *const ua_enumstr[] = {
+		"off", "name_only", "full",
+	};
+	const char *const *it;
+	FFARRS_FOREACH(ua_enumstr, it) {
+		if (ffstr_eqz(s, *it)) {
+			nc->user_agent = it - ua_enumstr;
+			return 0;
+		}
+	}
+	return FMC_EBADVAL;
+}
 
 static const fmed_conf_arg net_conf_args[] = {
 	{ "bufsize",	FMC_SIZENZ,  FMC_O(net_conf, bufsize) },
@@ -95,11 +105,11 @@ static const fmed_conf_arg net_conf_args[] = {
 	{ "buffer_lowat",	FMC_SIZE,  FMC_O(net_conf, buf_lowat) },
 	{ "connect_timeout",	FMC_INT32,  FMC_O(net_conf, conn_tmout) },
 	{ "timeout",	FMC_INT32,  FMC_O(net_conf, tmout) },
-	{ "user_agent",	FFPARS_TENUM | FFPARS_F8BIT,  FMC_F(&ua_enum) },
+	{ "user_agent",	FMC_STRNE,  FMC_F(conf_user_agent) },
 	{ "max_redirect",	FMC_INT8,  FMC_O(net_conf, max_redirect) },
 	{ "max_reconnect",	FMC_INT8,  FMC_O(net_conf, max_reconnect) },
 	{ "proxy",	FMC_STR,  FMC_F(http_conf_proxy) },
-	{ NULL,	FFPARS_TCLOSE,	FMC_F(http_conf_done) },
+	{ NULL,	FMC_ONCLOSE,	FMC_F(http_conf_done) },
 };
 
 
@@ -193,7 +203,7 @@ static int http_conf_proxy(fmed_conf *fc, void *obj, ffstr *val)
 
 	ffstr host = ffurl_get(&u, val->ptr, FFURL_HOST);
 	if (NULL == (net->conf.proxy.host = ffsz_alcopystr(&host)))
-		return FFPARS_ESYS;
+		return FMC_ESYS;
 	net->conf.proxy.port = u.port;
 	if (u.port == 0)
 		net->conf.proxy.port = FFHTTP_PORT;

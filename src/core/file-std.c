@@ -120,7 +120,8 @@ struct stdout_conf {
 static struct stdout_conf out_conf;
 
 static const fmed_conf_arg stdout_conf_args[] = {
-	{ "buffer_size",  FMC_SIZENZ,  FMC_O(struct stdout_conf, bufsize) }
+	{ "buffer_size",  FMC_SIZENZ,  FMC_O(struct stdout_conf, bufsize) },
+	{}
 };
 
 int stdout_config(fmed_conf_ctx *ctx)

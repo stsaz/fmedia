@@ -79,7 +79,7 @@ static int sndmod_split_process(void *ctx, fmed_filt *d)
 	switch (s->state) {
 	case 0:
 		d->datatype = s->datatype; // the audio output filter needs input data type, but overwrites this value afterwards
-		if (0 == d->track->cmd(d->trk, FMED_TRACK_FILT_ADDLAST, "#soundmod.autoconv")
+		if (0 == d->track->cmd(d->trk, FMED_TRACK_FILT_ADDLAST, "afilter.autoconv")
 			|| 0 == d->track->cmd(d->trk, FMED_TRACK_FILT_ADDLAST, s->mi->name)
 			|| 0 == d->track->cmd(d->trk, FMED_TRACK_FILT_ADDLAST, "#file.out"))
 			return FMED_RERR;

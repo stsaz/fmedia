@@ -52,6 +52,7 @@ static const fmed_filter fmed_oss_out = {
 static const fmed_conf_arg oss_out_conf_args[] = {
 	{ "device_index",	FMC_INT32,  FMC_O(struct oss_out_conf_t, idev) },
 	{ "buffer_length",	FMC_INT32,  FMC_O(struct oss_out_conf_t, buflen) },
+	{}
 };
 
 //INPUT

@@ -10,6 +10,7 @@ struct ogg_out_conf_t {
 
 const fmed_conf_arg ogg_out_conf_args[] = {
 	{ "max_page_duration",  FMC_INT16,  FMC_O(struct ogg_out_conf_t, max_page_duration) },
+	{}
 };
 
 int ogg_out_conf(fmed_conf_ctx *ctx)

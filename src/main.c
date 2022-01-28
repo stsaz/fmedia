@@ -5,7 +5,6 @@ Copyright (c) 2015 Simon Zolin */
 #include <cmd.h>
 
 #include <FF/audio/pcm.h>
-#include <FF/data/conf.h>
 #include <FF/sys/dir.h>
 #include <FF/path.h>
 #include <FFOS/sig.h>
@@ -451,7 +450,7 @@ static void rec_lpback_new_track(fmed_cmd *cmd)
 	if (cmd->lbdev_name != (uint)-1)
 		track->setval(trk, "playdev_name", cmd->lbdev_name);
 
-	r |= track->cmd(trk, FMED_TRACK_ADDFILT, "#soundmod.silgen");
+	r |= track->cmd(trk, FMED_TRACK_ADDFILT, "afilter.silgen");
 	r |= track->cmd(trk, FMED_TRACK_ADDFILT, "wasapi.out");
 	if (r != 0) {
 		track->cmd(trk, FMED_TRACK_STOP);

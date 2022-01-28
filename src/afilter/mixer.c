@@ -10,7 +10,6 @@ INPUT2 -> mixer-in /
 #include <fmedia.h>
 
 #include <FF/audio/pcm.h>
-#include <FF/data/parse.h>
 #include <FF/array.h>
 #include <FFOS/error.h>
 
@@ -49,24 +48,14 @@ static struct mix_conf_t {
 #define DATA_SIZE  (conf.buf_size)
 
 static mxr *mx;
-static const fmed_core *core;
-static const fmed_track *track;
-
-//FMEDIA MODULE
-static const void* mix_iface(const char *name);
-static int mix_conf(const char *name, fmed_conf_ctx *ctx);
-static int mix_sig(uint signo);
-static void mix_destroy(void);
-static const fmed_mod fmed_mix_mod = {
-	.ver = FMED_VER_FULL, .ver_core = FMED_VER_CORE,
-	&mix_iface, &mix_sig, &mix_destroy, &mix_conf
-};
+extern const fmed_core *core;
+extern const fmed_track *track;
 
 //INPUT
 static void* mix_in_open(fmed_filt *d);
 static int mix_in_write(void *ctx, fmed_filt *d);
 static void mix_in_close(void *ctx);
-static const fmed_filter fmed_mix_in = {
+const fmed_filter fmed_mix_in = {
 	&mix_in_open, &mix_in_write, &mix_in_close
 };
 
@@ -74,8 +63,8 @@ static const fmed_filter fmed_mix_in = {
 static void* mix_open(fmed_filt *d);
 static int mix_read(void *ctx, fmed_filt *d);
 static void mix_close(void *ctx);
-static int mix_out_conf(fmed_conf_ctx *ctx);
-static const fmed_filter fmed_mix_out = {
+int mix_out_conf(fmed_conf_ctx *ctx);
+const fmed_filter fmed_mix_out = {
 	&mix_open, &mix_read, &mix_close
 };
 
@@ -102,7 +91,7 @@ static const fmed_conf_arg mix_conf_args[] = {
 	, { "channels",  FMC_INT32NZ, FMC_O(ffpcm, channels) }
 	, { "rate",  FMC_INT32NZ, FMC_O(ffpcm, sample_rate) }
 	, { "buffer",	FMC_INT32NZ, FMC_O(struct mix_conf_t, buf_size) },
-	{ NULL,	FFPARS_TCLOSE, FMC_F(mix_conf_close) },
+	{ NULL,	FMC_ONCLOSE, FMC_F(mix_conf_close) },
 };
 
 static int mix_conf_close(fmed_conf *fc, void *obj)
@@ -111,7 +100,7 @@ static int mix_conf_close(fmed_conf *fc, void *obj)
 	return 0;
 }
 
-static int mix_out_conf(fmed_conf_ctx *ctx)
+int mix_out_conf(fmed_conf_ctx *ctx)
 {
 	conf.pcm.format = FFPCM_16;
 	conf.pcm.channels = 2;
@@ -119,44 +108,6 @@ static int mix_out_conf(fmed_conf_ctx *ctx)
 	conf.buf_size = 1000;
 	fmed_conf_addctx(ctx, &conf, mix_conf_args);
 	return 0;
-}
-
-
-FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
-{
-	core = _core;
-	return &fmed_mix_mod;
-}
-
-
-static const void* mix_iface(const char *name)
-{
-	if (!ffsz_cmp(name, "in"))
-		return &fmed_mix_in;
-	else if (!ffsz_cmp(name, "out"))
-		return &fmed_mix_out;
-	return NULL;
-}
-
-static int mix_conf(const char *name, fmed_conf_ctx *ctx)
-{
-	if (!ffsz_cmp(name, "out"))
-		return mix_out_conf(ctx);
-	return -1;
-}
-
-static int mix_sig(uint signo)
-{
-	switch (signo) {
-	case FMED_OPEN:
-		track = core->getmod("#core.track");
-		break;
-	}
-	return 0;
-}
-
-static void mix_destroy(void)
-{
 }
 
 

@@ -44,7 +44,8 @@ static struct file_out_conf_t out_conf;
 static const fmed_conf_arg file_out_conf_args[] = {
 	{ "use_thread_pool",	FMC_BOOL8,  FMC_O(struct file_out_conf_t, use_thread_pool) },
 	{ "buffer_size",  FMC_SIZENZ,  FMC_O(struct file_out_conf_t, bsize) }
-	, { "preallocate",  FMC_SIZENZ,  FMC_O(struct file_out_conf_t, prealloc) }
+	, { "preallocate",  FMC_SIZENZ,  FMC_O(struct file_out_conf_t, prealloc) },
+	{}
 };
 
 

@@ -44,6 +44,7 @@ static const fmed_conf_arg opus_out_conf_args[] = {
 	{ "frame_size",  FMC_INT32,  FMC_O(struct opus_out_conf_t, frame_size) },
 	{ "complexity",  FMC_INT32,  FMC_O(struct opus_out_conf_t, complexity) },
 	{ "bandwidth",  FMC_INT32,  FMC_O(struct opus_out_conf_t, bandwidth) },
+	{}
 };
 
 //ENCODE

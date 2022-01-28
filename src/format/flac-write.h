@@ -23,6 +23,7 @@ static struct flac_out_conf_t {
 static const fmed_conf_arg flac_out_conf_args[] = {
 	{ "min_meta_size",  FMC_INT32,  FMC_O(struct flac_out_conf_t, min_meta_size) },
 	{ "seektable_interval",	FMC_INT32,  FMC_O(struct flac_out_conf_t, sktab_int) },
+	{}
 };
 
 

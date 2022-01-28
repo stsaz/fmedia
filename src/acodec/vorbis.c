@@ -36,7 +36,8 @@ static struct vorbis_out_conf_t {
 
 static const fmed_conf_arg vorbis_out_conf_args[] = {
 	{ "min_tag_size",  FMC_INT16,  FMC_O(struct vorbis_out_conf_t, min_tag_size) },
-	{ "quality",  FMC_FLOAT32S,  FMC_O(struct vorbis_out_conf_t, qual) }
+	{ "quality",  FMC_FLOAT32S,  FMC_O(struct vorbis_out_conf_t, qual) },
+	{}
 };
 
 //ENCODE

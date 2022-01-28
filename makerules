@@ -5,7 +5,7 @@ BIN_ACODECS := \
 	aac.$(SO) alac.$(SO) ape.$(SO) flac.$(SO) mpeg.$(SO) mpc.$(SO) opus.$(SO) vorbis.$(SO) wavpack.$(SO)
 BIN_AFILTERS := dynanorm.$(SO) \
 	soxr.$(SO) \
-	mixer.$(SO)
+	afilter.$(SO)
 BINS := $(BIN) core.$(SO) tui.$(SO) net.$(SO) plist.$(SO) \
 	$(BIN_CONTAINERS) \
 	$(BIN_ACODECS) \
@@ -43,30 +43,22 @@ FF_O := $(FFOS_OBJ) \
 	$(FF_OBJ_DIR)/ffarray.o \
 	$(FF_OBJ_DIR)/ffstring.o
 
-$(OBJ_DIR)/%.o: $(SRCDIR)/%.c $(SRCDIR)/fmedia.h $(wildcard $(SRCDIR)/*.h) $(FF_HDR) $(FF_AUDIO_HDR)
+# $(PROJDIR)/Makefile $(PROJDIR)/makerules
+GLOBDEPS := $(SRCDIR)/fmedia.h $(FF_HDR)
+
+$(OBJ_DIR)/%.o: $(SRCDIR)/%.c $(wildcard $(SRCDIR)/*.h) $(GLOBDEPS)
 	$(C)  $(CFLAGS) $<  -o$@
 
-$(OBJ_DIR)/main.o: $(SRCDIR)/main.c $(SRCDIR)/fmedia.h $(SRCDIR)/cmd.h $(SRCDIR)/cmdline.h $(FF_HDR) $(FF_AUDIO_HDR)
+$(OBJ_DIR)/main.o: $(SRCDIR)/main.c $(SRCDIR)/cmd.h $(SRCDIR)/cmdline.h $(GLOBDEPS)
 	$(C)  $(CFLAGS) $<  -o$@
 
-$(OBJ_DIR)/%.o: $(SRCDIR)/adev/%.c $(SRCDIR)/fmedia.h $(SRCDIR)/adev/audio.h $(FF_HDR) $(FF_AUDIO_HDR) $(FF_ADEV_HDR)
+$(OBJ_DIR)/%.o: $(SRCDIR)/adev/%.c $(wildcard $(SRCDIR)/adev/*.h) $(GLOBDEPS)
 	$(C)  $(CFLAGS) $<  -o$@
 
-$(OBJ_DIR)/%.o: $(SRCDIR)/acodec/%.c $(SRCDIR)/fmedia.h $(FF_HDR) $(FF_AUDIO_HDR)
+$(OBJ_DIR)/%.o: $(SRCDIR)/acodec/%.c $(wildcard $(SRCDIR)/acodec/*.h) $(FF_AUDIO_HDR) $(GLOBDEPS)
 	$(C)  $(CFLAGS) $<  -o$@
 
-# Note: with -flto it uses pow@GLIBC_2.29 even with -DFF_GLIBCVER=228
-$(OBJ_DIR)/soundmod.o: $(SRCDIR)/afilt/soundmod.c $(SRCDIR)/fmedia.h $(FF_HDR) $(FF_AUDIO_HDR)
-	$(C)  $(CFLAGS_ALTOPT) $<  -o$@
-$(OBJ_DIR)/start-stop-level.o: $(SRCDIR)/afilt/start-stop-level.c $(SRCDIR)/fmedia.h $(FF_HDR) $(FF_AUDIO_HDR)
-	$(C)  $(CFLAGS_ALTOPT) $<  -o$@
-$(OBJ_DIR)/auto-attenuator.o: $(SRCDIR)/afilt/auto-attenuator.c $(SRCDIR)/fmedia.h $(FF_HDR) $(FF_AUDIO_HDR)
-	$(C)  $(CFLAGS_ALTOPT) $<  -o$@
-
-$(OBJ_DIR)/%.o: $(SRCDIR)/afilt/%.c $(SRCDIR)/fmedia.h $(FF_HDR) $(FF_AUDIO_HDR)
-	$(C)  $(CFLAGS) $<  -o$@
-
-$(OBJ_DIR)/%.o: $(SRCDIR)/format/%.c $(SRCDIR)/fmedia.h $(FF_HDR) $(FF_AUDIO_HDR)
+$(OBJ_DIR)/%.o: $(SRCDIR)/format/%.c $(wildcard $(SRCDIR)/format/*.h) $(GLOBDEPS)
 	$(C)  $(CFLAGS) $<  -o$@
 
 $(RES): $(PROJDIR)/res/fmedia.rc $(wildcard $(PROJDIR)/res/*.ico)
@@ -80,9 +72,7 @@ BIN_O := \
 	$(FFOS_WREG) \
 	$(FF_OBJ_DIR)/ffsys.o \
 	$(FF_OBJ_DIR)/ffpath.o \
-	$(FF_OBJ_DIR)/ffpcm.o \
-	$(FF_OBJ_DIR)/ffparse.o \
-	$(FF_OBJ_DIR)/ffconf.o
+	$(FF_OBJ_DIR)/ffpcm.o
 
 ifeq ($(OS),win)
 BIN_O += $(RES)
@@ -93,21 +83,17 @@ $(BIN): $(BIN_O)
 
 
 #
-$(OBJ_DIR)/%.o: $(SRCDIR)/core/%.c $(SRCDIR)/fmedia.h $(wildcard $(SRCDIR)/core/*.h) $(FF_HDR) $(FF_AUDIO_HDR)
+$(OBJ_DIR)/%.o: $(SRCDIR)/core/%.c $(GLOBDEPS) $(wildcard $(SRCDIR)/core/*.h) $(FF_AUDIO_HDR)
 	$(C) $(CFLAGS) $< -o $@
 CORE_O := $(OBJ_DIR)/core.o $(OBJ_DIR)/core-conf.o \
 	$(OBJ_DIR)/track.o \
 	$(OBJ_DIR)/file.o \
 	$(OBJ_DIR)/file-out.o \
 	$(OBJ_DIR)/file-std.o \
-	$(OBJ_DIR)/soundmod.o \
-	$(OBJ_DIR)/peaks.o \
-	$(OBJ_DIR)/split.o \
-	$(OBJ_DIR)/start-stop-level.o \
-	$(OBJ_DIR)/auto-attenuator.o \
-	$(OBJ_DIR)/aconv.o \
 	$(OBJ_DIR)/queue.o \
-	$(OBJ_DIR)/globcmd.o
+	$(OBJ_DIR)/globcmd.o \
+	$(FF_OBJ_DIR)/ffpcm.o \
+	$(FF_OBJ_DIR)/ffring.o
 
 ifeq ($(OS),win)
 	CORE_O += $(OBJ_DIR)/sys-sleep-win.o
@@ -121,17 +107,41 @@ CORE_O += $(FF_O) \
 	$(FF_OBJ_DIR)/ffsys.o \
 	$(FF_OBJ_DIR)/fftmr.o \
 	$(FF_OBJ_DIR)/ffrbtree.o \
-	$(FF_OBJ_DIR)/ffring.o \
-	$(FF_OBJ_DIR)/ffcrc.o \
-	$(FF_OBJ_DIR)/ffpath.o \
-	$(FF_OBJ_DIR)/ffparse.o $(FF_OBJ_DIR)/ffconf.o \
-	$(FF_OBJ_DIR)/ffpcm.o \
-	$(FF_OBJ_DIR)/crc.o
+	$(FF_OBJ_DIR)/ffpath.o
 ifeq ($(OS),win)
 CORE_O += $(FF_OBJ_DIR)/ffwohandler.o
 endif
 core.$(SO): $(CORE_O)
 	$(LD) -shared $(CORE_O) $(LDFLAGS) $(LD_LDL) $(LD_LMATH) $(LD_LPTHREAD)  -o$@
+
+
+#
+# Note: with -flto it uses pow@GLIBC_2.29 even with -DFF_GLIBCVER=228
+$(OBJ_DIR)/soundmod.o: $(SRCDIR)/afilter/soundmod.c $(FF_AUDIO_HDR) $(GLOBDEPS)
+	$(C)  $(CFLAGS_ALTOPT) $<  -o$@
+
+$(OBJ_DIR)/start-stop-level.o: $(SRCDIR)/afilter/start-stop-level.c $(FF_AUDIO_HDR) $(GLOBDEPS)
+	$(C)  $(CFLAGS_ALTOPT) $<  -o$@
+
+$(OBJ_DIR)/auto-attenuator.o: $(SRCDIR)/afilter/auto-attenuator.c $(FF_AUDIO_HDR) $(GLOBDEPS)
+	$(C)  $(CFLAGS_ALTOPT) $<  -o$@
+
+$(OBJ_DIR)/%.o: $(SRCDIR)/afilter/%.c $(FF_AUDIO_HDR) $(GLOBDEPS)
+	$(C)  $(CFLAGS) $<  -o$@
+
+afilter.$(SO): $(OBJ_DIR)/soundmod.o \
+		$(OBJ_DIR)/aconv.o \
+		$(OBJ_DIR)/auto-attenuator.o \
+		$(OBJ_DIR)/mixer.o \
+		$(OBJ_DIR)/peaks.o \
+		$(OBJ_DIR)/split.o \
+		$(OBJ_DIR)/start-stop-level.o \
+		$(FF_O) \
+		$(FF_OBJ_DIR)/ffring.o \
+		$(FF_OBJ_DIR)/ffcrc.o \
+		$(FF_OBJ_DIR)/crc.o \
+		$(FF_OBJ_DIR)/ffpcm.o
+	$(LD) -shared $+ $(LDFLAGS) $(LD_LMATH) -o $@
 
 
 #
@@ -144,7 +154,7 @@ tui.$(SO): $(TUI_O)
 
 
 #
-$(OBJ_DIR)/%.o: $(SRCDIR)/net/%.c $(SRCDIR)/fmedia.h $(SRCDIR)/net/net.h
+$(OBJ_DIR)/%.o: $(SRCDIR)/net/%.c $(GLOBDEPS) $(SRCDIR)/net/net.h
 	$(C) $(CFLAGS)  $< -o$@
 NET_O := $(OBJ_DIR)/net.o $(OBJ_DIR)/hls.o \
 	$(FF_OBJ_DIR)/ffhttp.o $(FF_OBJ_DIR)/ffhttp-client.o \
@@ -234,8 +244,6 @@ FLAC_O := $(OBJ_DIR)/flac.o \
 	$(OBJ_DIR)/flac-ogg.o \
 	$(FF_O) \
 	$(FF_OBJ_DIR)/ffflac.o \
-	$(FF_OBJ_DIR)/ffpng-fmt.o \
-	$(FF_OBJ_DIR)/ffjpeg-fmt.o \
 	$(FF_OBJ_DIR)/ffpcm.o
 flac.$(SO): $(FLAC_O)
 	$(LD) -shared $(FLAC_O) $(LDFLAGS) $(LD_RPATH_ORIGIN) -lFLAC-ff  -o$@
@@ -374,9 +382,9 @@ oss.$(SO): $(OSS_O)
 ifeq ($(OS),win)
 #
 FF_GUIHDR := $(FF)/FF/gui/winapi.h $(FF)/FF/gui/loader.h
-$(OBJ_DIR)/gui-dlgs.o: $(SRCDIR)/gui-winapi/gui-dlgs.c $(SRCDIR)/gui-winapi/*.h $(SRCDIR)/fmedia.h $(FF_GUIHDR)
+$(OBJ_DIR)/gui-dlgs.o: $(SRCDIR)/gui-winapi/gui-dlgs.c $(SRCDIR)/gui-winapi/*.h $(GLOBDEPS) $(FF_GUIHDR)
 	$(C) $(CFLAGS)  $< -o$@
-$(OBJ_DIR)/%.o: $(SRCDIR)/gui-winapi/%.c $(SRCDIR)/gui-winapi/gui.h $(SRCDIR)/fmedia.h $(FF_GUIHDR)
+$(OBJ_DIR)/%.o: $(SRCDIR)/gui-winapi/%.c $(SRCDIR)/gui-winapi/gui.h $(GLOBDEPS) $(FF_GUIHDR)
 	$(C) $(CFLAGS)  $< -o$@
 
 GUI_O := $(OBJ_DIR)/gui.o \
@@ -389,7 +397,6 @@ GUI_O := $(OBJ_DIR)/gui.o \
 	$(FFOS_WREG) \
 	$(FF_OBJ_DIR)/ffsys.o \
 	$(FF_OBJ_DIR)/ffpath.o \
-	$(FF_OBJ_DIR)/ffparse.o $(FF_OBJ_DIR)/ffconf.o \
 	$(FF_OBJ_DIR)/ffpcm.o \
 	$(FF_OBJ_DIR)/ffpic.o \
 	$(FF_GUI_OBJ)
@@ -405,8 +412,6 @@ BINGUI_O := \
 	$(FFOS_WREG) \
 	$(FF_OBJ_DIR)/ffpath.o \
 	$(FF_OBJ_DIR)/ffsys.o \
-	$(FF_OBJ_DIR)/ffconf.o \
-	$(FF_OBJ_DIR)/ffparse.o \
 	$(FF_OBJ_DIR)/ffgui-winapi.o \
 	$(FF_OBJ_DIR)/ffgui-winapi-ev.o \
 	$(RES)
@@ -419,23 +424,22 @@ else ifeq ($(OS),linux)
 CFLAGS_GTK := -I/usr/include/gtk-3.0 -I/usr/include/pango-1.0 -I/usr/include/glib-2.0 -I/usr/lib64/glib-2.0/include -I/usr/include/fribidi -I/usr/include/cairo -I/usr/include/pixman-1 -I/usr/include/freetype2 -I/usr/include/libpng16 -I/usr/include/uuid -I/usr/include/harfbuzz -I/usr/include/gdk-pixbuf-2.0 -I/usr/include/gio-unix-2.0/ -I/usr/include/libdrm -I/usr/include/valgrind -I/usr/include/atk-1.0 -I/usr/include/at-spi2-atk/2.0 -I/usr/include/at-spi-2.0 -I/usr/include/dbus-1.0 -I/usr/lib64/dbus-1.0/include
 LIBS_GTK := -lgtk-3 -lgdk-3 -lpangocairo-1.0 -lpango-1.0 -lfribidi -latk-1.0 -lcairo-gobject -lcairo -lgdk_pixbuf-2.0 -lgio-2.0 -lgobject-2.0 -lglib-2.0
 
-$(OBJ_DIR)/gui.o: $(SRCDIR)/gui-gtk/gui.c $(SRCDIR)/gui-gtk/gui.h $(SRCDIR)/fmedia.h $(FF)/FF/gui-gtk/gtk.h
+$(OBJ_DIR)/gui.o: $(SRCDIR)/gui-gtk/gui.c $(SRCDIR)/gui-gtk/gui.h $(GLOBDEPS) $(FF)/FF/gui-gtk/gtk.h
 	$(C)  $(CFLAGS_ALTOPT) $(CFLAGS_GTK) $<  -o$@
 
-$(OBJ_DIR)/gui-dlgs.o: $(SRCDIR)/gui-gtk/gui-dlgs.c $(wildcard $(SRCDIR)/gui-gtk/*.h) $(SRCDIR)/fmedia.h $(FF_GUIHDR)
+$(OBJ_DIR)/gui-dlgs.o: $(SRCDIR)/gui-gtk/gui-dlgs.c $(wildcard $(SRCDIR)/gui-gtk/*.h) $(GLOBDEPS) $(FF_GUIHDR)
 	$(C) $(CFLAGS) $(CFLAGS_GTK)  $< -o$@
 
-$(OBJ_DIR)/gui-main.o: $(SRCDIR)/gui-gtk/gui-main.c $(SRCDIR)/gui-gtk/gui.h $(SRCDIR)/gui-gtk/file-explorer.h $(SRCDIR)/fmedia.h $(FF)/FF/gui-gtk/gtk.h
+$(OBJ_DIR)/gui-main.o: $(SRCDIR)/gui-gtk/gui-main.c $(SRCDIR)/gui-gtk/gui.h $(SRCDIR)/gui-gtk/file-explorer.h $(GLOBDEPS) $(FF)/FF/gui-gtk/gtk.h
 	$(C) $(CFLAGS) $(CFLAGS_GTK)  $< -o$@
 
 GUIGTK_O := $(OBJ_DIR)/gui.o \
 	$(OBJ_DIR)/gui-main.o \
 	$(OBJ_DIR)/gui-dlgs.o \
 	$(FF_OBJ_DIR)/ffpath.o \
-	$(FF_OBJ_DIR)/ffparse.o $(FF_OBJ_DIR)/ffconf.o \
 	$(FF_OBJ_DIR)/ffgui-gtk.o \
 	$(FF_OBJ_DIR)/ffgui-gtk-loader.o \
-	$(FF_OBJ_DIR)/ffurl.o \
+	$(FF_OBJ_DIR)/ffurl.o $(FF_OBJ_DIR)/ffparse.o \
 	$(FF_OBJ_DIR)/ffproto.o \
 	$(FF_OBJ_DIR)/ffsys.o \
 	$(FF_OBJ_DIR)/ffpcm.o \
@@ -444,13 +448,6 @@ gui.$(SO): $(GUIGTK_O)
 	$(LD) -shared $(GUIGTK_O) $(LDFLAGS) $(LIBS_GTK) $(LD_LPTHREAD) $(LD_LMATH) -o$@
 
 endif
-
-#
-MIXER_O := $(OBJ_DIR)/mixer.o \
-	$(FF_O) \
-	$(FF_OBJ_DIR)/ffpcm.o
-mixer.$(SO): $(MIXER_O)
-	$(LD) -shared $(MIXER_O) $(LDFLAGS) -o$@
 
 
 #
@@ -535,7 +532,7 @@ package-all: install
 	$(MAKE) -f $(firstword $(MAKEFILE_LIST)) package
 
 
-BINS_NODEPS := $(BIN) core.$(SO) net.$(SO) mixer.$(SO) plist.$(SO) \
+BINS_NODEPS := $(BIN) core.$(SO) net.$(SO) afilter.$(SO) plist.$(SO) \
 	$(BIN_CONTAINERS) $(OS_BINS) \
 	wav.$(SO)
 

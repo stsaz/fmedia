@@ -60,6 +60,7 @@ static const fmed_filter mod_flac_enc = {
 static const fmed_conf_arg flac_enc_conf_args[] = {
 	{ "compression",  FMC_INT8,  FMC_O(struct flac_out_conf_t, level) },
 	{ "md5",	FMC_BOOL8,  FMC_O(struct flac_out_conf_t, md5) },
+	{}
 };
 
 
