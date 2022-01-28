@@ -212,9 +212,9 @@ static int conf_ext(fmed_conf *fc, fmed_config *conf)
 static int ffu_coding(const char *data, size_t len)
 {
 	static const char *const codestr[] = {
+		"win866", // FFUNICODE_WIN866
 		"win1251", // FFUNICODE_WIN1251
 		"win1252", // FFUNICODE_WIN1252
-		"win866", // FFUNICODE_WIN866
 	};
 	int r = ffszarr_ifindsorted(codestr, FFCNT(codestr), data, len);
 	if (r < 0)
