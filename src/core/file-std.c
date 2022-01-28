@@ -212,6 +212,7 @@ static int file_stdout_write(void *ctx, fmed_filt *d)
 				break;
 			ffstr_set(&dst, f->buf.ptr, f->buf.len);
 		}
+		f->buf.len = 0;
 
 		if (-1 == file_stdout_writedata(f, dst.ptr, dst.len, d))
 			return FMED_RERR;
