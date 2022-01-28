@@ -82,6 +82,10 @@ typedef struct ggui {
 	char *home_dir;
 	int is_kde;
 
+	fftmrq_entry timer;
+	int timer_refcount;
+	uint timer_val;
+
 	ffkqsig kqsig;
 	ffkevent sigtask;
 
@@ -125,6 +129,8 @@ struct params_urls_add_play {
 	ffvec v;
 	int play;
 };
+void gui_timer_start();
+void gui_timer_stop();
 
 // Main:
 void wmain_init();

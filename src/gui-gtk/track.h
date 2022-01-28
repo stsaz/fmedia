@@ -15,6 +15,7 @@ typedef struct gtrk {
 	uint time_cur;
 	uint time_total;
 	int time_seek;
+	uint last_timer_val;
 
 	uint paused :1;
 	uint have_fmt :1;
@@ -91,6 +92,7 @@ static void* gtrk_open(fmed_filt *d)
 
 	if (FMED_PNULL != d->track->getvalstr(d->trk, "output")) {
 		t->conversion = 1;
+		gui_timer_start();
 	} else {
 		if (gg->vol != 100)
 			gtrk_vol2(t, gg->vol);
@@ -109,6 +111,7 @@ static void gtrk_close(void *ctx)
 {
 	gtrk *t = ctx;
 	if (t->conversion) {
+		gui_timer_stop();
 
 	} else if (gg->curtrk == t) {
 		gg->curtrk = NULL;
@@ -155,6 +158,10 @@ static int gtrk_process(void *ctx, fmed_filt *d)
 	if (t->conversion) {
 		if (d->flags & FMED_FLAST)
 			playtime = (uint)-1;
+		else if (t->last_timer_val == gg->timer_val)
+			goto done; // don't update too frequently
+		t->last_timer_val = gg->timer_val;
+
 		wmain_update_convert(t->qent, playtime, t->time_total);
 		goto done;
 	}

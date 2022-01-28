@@ -1179,3 +1179,26 @@ static void sig_destroy()
 	ffkqsig_detach(gg->kqsig, core->kq);  gg->kqsig = FFKQSIG_NULL;
 	ffkev_fin(&gg->sigtask);
 }
+
+
+void ontimer(void *param)
+{
+	gg->timer_val++;
+}
+
+void gui_timer_start()
+{
+	if (ffint_fetch_add(&gg->timer_refcount, 1) != 0)
+		return;
+	gg->timer_val++;
+	gg->timer.handler = ontimer;
+	core->timer(&gg->timer, 250, 0);
+}
+
+void gui_timer_stop()
+{
+	FF_ASSERT(gg->timer_refcount > 0);
+	if (ffint_fetch_add(&gg->timer_refcount, -1) != 1)
+		return;
+	core->timer(&gg->timer, 0, 0);
+}
