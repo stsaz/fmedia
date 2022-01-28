@@ -195,6 +195,7 @@ int __stdcall WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 		goto end;
 
 	const fmed_log *glog;
+	core->insmod("gui.log", NULL);
 	if (NULL == (glog = core->getmod("gui.log")))
 		goto end;
 	core->cmd(FMED_SETLOG, glog);

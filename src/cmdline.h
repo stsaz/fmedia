@@ -324,7 +324,7 @@ static int arg_split(ffcmdarg_scheme *as, void *obj, const ffstr *val)
 static int arg_install(ffcmdarg_scheme *as, void *obj)
 {
 #ifdef FF_WIN
-	const fmed_modinfo *mi = core->insmod("gui.gui", NULL);
+	const fmed_modinfo *mi = core->getmod2(FMED_MOD_SOINFO, "gui", -1);
 	if (mi != NULL) {
 		uint sig = ffsz_eq(as->arg->long_name, "install") ? FMED_SIG_INSTALL : FMED_SIG_UNINSTALL;
 		mi->m->sig(sig);

@@ -5,7 +5,7 @@ static void core_posted(void *udata)
 {
 }
 
-static void mod_destroy(core_modinfo *m)
+static void somod_destroy(core_modinfo *m)
 {
 	ffmem_safefree(m->name);
 	if (m->m != NULL)
@@ -15,7 +15,7 @@ static void mod_destroy(core_modinfo *m)
 }
 
 /** Get pointer for a new module. */
-static core_modinfo* mod_create(const ffstr *soname)
+static core_modinfo* somod_create(const ffstr *soname)
 {
 	core_modinfo *bmod;
 	if (NULL == (bmod = ffvec_pushT(&fmed->bmods, core_modinfo)))
@@ -26,7 +26,7 @@ static core_modinfo* mod_create(const ffstr *soname)
 	return bmod;
 
 fail:
-	mod_destroy(bmod);
+	somod_destroy(bmod);
 	return NULL;
 }
 
@@ -35,7 +35,7 @@ fail:
 . get its fmedia module interface
 . check if module's version is supported
 . send 'initialize' signal */
-static int mod_load(core_modinfo *minfo)
+static int somod_load(core_modinfo *minfo)
 {
 	int rc = -1;
 	fmed_getmod_t getmod;
@@ -52,8 +52,6 @@ static int mod_load(core_modinfo *minfo)
 			getmod = &fmed_getmod_core;
 		else if (ffstr_eqcz(&s, "#file"))
 			getmod = &fmed_getmod_file;
-		else if (ffstr_eqcz(&s, "#soundmod"))
-			getmod = &fmed_getmod_sndmod;
 		else if (ffstr_eqcz(&s, "#queue"))
 			getmod = &fmed_getmod_queue;
 #ifdef FF_WIN
@@ -130,12 +128,12 @@ fail:
 }
 
 /** Get pointer for a new module interface. */
-static core_mod* mod_createiface(const ffstr *name)
+static core_mod* mod_createiface(ffstr name)
 {
 	core_mod *mod;
-	if (NULL == (mod = ffmem_calloc(1, sizeof(core_mod) + name->len + 1)))
+	if (NULL == (mod = ffmem_calloc(1, sizeof(core_mod) + name.len + 1)))
 		return NULL;
-	ffsz_fcopy(mod->name_s, name->ptr, name->len);
+	ffsz_fcopy(mod->name_s, name.ptr, name.len);
 	mod->name = mod->name_s;
 	return mod;
 }
@@ -176,42 +174,47 @@ static core_modinfo* core_findmod(const ffstr *name)
 	return NULL;
 }
 
-static const fmed_modinfo* core_insmod(const char *sname, fmed_conf_ctx *ctx)
+const fmed_modinfo* core_insmod(ffstr name, ffconf_scheme *fc)
 {
-	core_mod *mod = NULL;
-	ffstr s, modname;
-	ffstr name;
-	ffstr_setz(&name, sname);
+	core_mod *mod = (void*)core_getmodinfo(name);
+	if (mod != NULL) {
+		return NULL;
+	}
 
-	ffs_split2by(name.ptr, name.len, '.', &s, &modname);
-	if (s.len == 0 || modname.len == 0) {
+	ffstr so, modname;
+	ffstr_splitby(&name, '.', &so, &modname);
+	if (so.len == 0 || modname.len == 0) {
 		fferr_set(EINVAL);
 		goto fail;
 	}
 
 	core_modinfo *minfo;
-	if (NULL == (minfo = core_findmod(&s))) {
-		if (NULL == (minfo = mod_create(&s)))
+	if (NULL == (minfo = core_findmod(&so))) {
+		if (NULL == (minfo = somod_create(&so)))
 			goto fail;
 	}
 
-	if (minfo->m == NULL && 0 != mod_load(minfo)) {
-		mod_destroy(minfo);
+	if (minfo->m == NULL && 0 != somod_load(minfo)) {
+		somod_destroy(minfo);
 		fmed->bmods.len--;
 		goto fail;
 	}
 
-	if (NULL == (mod = mod_createiface(&name)))
+	if (NULL == (mod = mod_createiface(name)))
 		goto fail;
+
 	if (0 != mod_loadiface(mod, minfo))
 		goto fail;
 
-	if (ctx != NULL) {
+	if (fc != NULL) {
 		if (minfo->m->conf == NULL)
 			goto fail;
-		if (0 != minfo->m->conf(modname.ptr, ctx))
+		fmed_conf_ctx ctx = {};
+		const char *modnamez = mod->name + so.len + 1;
+		if (0 != minfo->m->conf(modnamez, &ctx))
 			goto fail;
-		mod->conf_ctx = *ctx;
+		mod->conf_ctx = ctx;
+		ffconf_scheme_addctx(fc, ctx.args, ctx.obj);
 	}
 
 	fflist_ins(&fmed->mods, &mod->sib);
@@ -224,110 +227,87 @@ fail:
 	return NULL;
 }
 
-/** Enlist a new module which will be loaded later. */
-const fmed_modinfo* core_insmod_delayed(const char *sname, fmed_conf_ctx *ctx)
+const fmed_modinfo* core_insmodz(const char *name, ffconf_scheme *fc)
 {
-	core_mod *mod;
-	core_modinfo *bmod = NULL;
-	ffstr name;
-	ffstr_setz(&name, sname);
-
-	if (sname[0] == '#')
-		return core_insmod(sname, ctx);
-
-	ffstr soname, modname;
-	ffs_split2by(name.ptr, name.len, '.', &soname, &modname);
-	if (soname.len == 0 || modname.len == 0) {
-		fferr_set(EINVAL);
-		goto fail;
-	}
-
-	if (NULL == (bmod = core_findmod(&soname))) {
-		if (NULL == (bmod = mod_create(&soname)))
-			goto fail;
-	}
-
-	if (NULL == (mod = mod_createiface(&name)))
-		goto fail;
-	fflist_ins(&fmed->mods, &mod->sib);
-
-	return (void*)mod;
-
-fail:
-	if (bmod != NULL) {
-		mod_destroy(bmod);
-		fmed->bmods.len--;
-	}
-	return NULL;
+	ffstr nm = FFSTR_INITZ(name);
+	return core_insmod(nm, fc);
 }
 
-const fmed_modinfo* core_getmodinfo(const ffstr *name)
+/** Enlist a new module which will be loaded later. */
+const fmed_modinfo* core_insmod_delayed(ffstr name)
+{
+	ffstr soname, modname;
+	ffstr_splitby(&name, '.', &soname, &modname);
+	if (soname.len == 0 || modname.len == 0) {
+		fferr_set(EINVAL);
+		return NULL;
+	}
+
+	core_modinfo *m;
+	if (NULL == (m = core_findmod(&soname))) {
+		if (NULL == (m = somod_create(&soname)))
+			return NULL;
+	}
+
+	core_mod *mod = mod_createiface(name);
+	fflist_ins(&fmed->mods, &mod->sib);
+	return (void*)mod;
+}
+
+const fmed_modinfo* core_getmodinfo(ffstr name)
 {
 	core_mod *mod;
 	_FFLIST_WALK(&fmed->mods, mod, sib) {
-		if (ffstr_eqz(name, mod->name))
+		if (ffstr_eqz(&name, mod->name))
 			return (fmed_modinfo*)mod;
 	}
-	return NULL;
-}
-
-static const fmed_modinfo* core_modbyext(const ffslice *map, const ffstr *ext)
-{
-	const inmap_item *it = (void*)map->ptr;
-	while (it != (void*)(map->ptr + map->len)) {
-		size_t len = ffsz_len(it->ext);
-		if (ffstr_ieq(ext, it->ext, len)) {
-			return it->mod;
-		}
-		it = (void*)((char*)it + sizeof(inmap_item) + len + 1);
-	}
-
 	return NULL;
 }
 
 /** Read module's configuration parameters. */
 static int mod_readconf(core_mod *mod, const char *name)
 {
-	int r;
-	ffparser_schem ps;
-	ffconf conf;
+	int r, rc = -1;
+	ffconf conf = {};
+	ffconf_scheme ps = {};
 
 	if (mod->m->conf == NULL)
 		return -1;
 
-	fmed_conf_ctx ctx;
+	ffconf_init(&conf);
+	ffconf_scheme_init(&ps, &conf);
+
+	fmed_conf_ctx ctx = {};
 	if (0 != mod->m->conf(name, &ctx))
 		return -1;
-
-	if (0 != (r = ffconf_scheminit(&ps, &conf, &ctx)))
-		goto fail;
 	mod->conf_ctx = ctx;
+	ffconf_scheme_addctx(&ps, ctx.args, ctx.obj);
 
 	ffstr data = mod->conf_data;
 	while (data.len != 0) {
-		r = ffconf_parsestr(&conf, &data);
-		r = ffconf_schemrun(&ps);
-		if (ffpars_iserr(r))
-			goto fail;
+		r = ffconf_parse(&conf, &data);
+		r = ffconf_scheme_process(&ps, r);
+		if (r < 0)
+			goto done;
 	}
 
-	r = ffconf_schemfin(&ps);
-	if (ffpars_iserr(r))
-		goto fail;
+	r = ffconf_fin(&conf);
+	if (r < 0)
+		goto done;
 
 	ffstr_free(&mod->conf_data);
-	ffconf_parseclose(&conf);
-	ffpars_schemfree(&ps);
-	return 0;
+	rc = 0;
 
-fail:
-	errlog0("can't load module %s: config parser: %u:%u: \"%s\": %s"
-		, mod->name, conf.line, conf.ch
-		, (ps.curarg != NULL) ? ps.curarg->name : ""
-		, ffpars_errstr(r));
-	ffconf_parseclose(&conf);
-	ffpars_schemfree(&ps);
-	return -1;
+done:
+	if (rc != 0) {
+		errlog0("can't load module %s: config parser: %u:%u: \"%s\": %s"
+			, mod->name, conf.line, conf.linechar
+			, (ps.arg != NULL) ? ps.arg->name : ""
+			, ffconf_errstr(r));
+	}
+	ffconf_fin(&conf);
+	ffconf_scheme_destroy(&ps);
+	return rc;
 }
 
 /** Actually load a module. */
@@ -340,7 +320,7 @@ static int mod_load_delayed(core_mod *mod)
 	core_modinfo *bmod;
 	if (NULL == (bmod = core_findmod(&soname)))
 		goto fail;
-	if (bmod->m == NULL && 0 != mod_load(bmod))
+	if (bmod->m == NULL && 0 != somod_load(bmod))
 		goto fail;
 
 	if (0 != mod_loadiface(mod, bmod))
@@ -378,7 +358,7 @@ end:
 static const void* core_getmod2(uint flags, const char *name, ssize_t name_len)
 {
 	const fmed_modinfo *mod;
-	ffstr s, smod, iface;
+	ffstr s;
 	uint t = flags & 0xff;
 
 	if (name_len == -1)
@@ -388,53 +368,33 @@ static const void* core_getmod2(uint flags, const char *name, ssize_t name_len)
 
 	switch (t) {
 
+	case FMED_MOD_SOINFO: {
+		core_modinfo *m = core_findmod(&s);
+		if (0 != somod_load(m))
+			return NULL;
+		return m;
+	}
+
 	case FMED_MOD_INEXT:
-		mod = core_modbyext((ffslice*)&fmed->conf.inmap, &s);
+		mod = modbyext(&fmed->conf.in_ext_map, &s);
 		if (mod == NULL) {
 			dbglog0("unknown input file format: %S.  Will detect format from data.", &s);
 			ffstr nm = FFSTR_INITZ("#core.format-detector");
-			mod = core_getmodinfo(&nm);
+			mod = core_getmodinfo(nm);
 		}
 		flags |= FMED_MOD_NOLOG;
 		break;
 
 	case FMED_MOD_OUTEXT:
-		mod = core_modbyext((ffslice*)&fmed->conf.outmap, &s);
+		mod = modbyext(&fmed->conf.out_ext_map, &s);
 		if (mod == NULL)
 			errlog0("unknown output file format: %S", &s);
 		flags |= FMED_MOD_NOLOG;
 		break;
 
-	case FMED_MOD_INFO:
-		mod = core_getmodinfo(&s);
-		break;
-
 	case FMED_MOD_IFACE:
-		if (NULL == (mod = core_getmodinfo(&s)))
-			goto err;
-		if (mod->m == NULL && 0 != mod_load_delayed((core_mod*)mod))
-			return NULL;
-		return mod->iface;
-
-	case FMED_MOD_SOINFO:
-	case FMED_MOD_IFACE_ANY: {
-		core_modinfo *mi;
-		const void *fc;
-		ffs_split2by(s.ptr, s.len, '.', &smod, &iface);
-		if (NULL == (mi = (void*)core_findmod(&smod)))
-			goto err;
-		if (mi->m == NULL) {
-			if (0 != mod_load(mi))
-				goto err;
-		}
-		if (t == FMED_MOD_SOINFO)
-			return mi;
-		if (iface.len == 0)
-			goto err;
-		if (NULL == (fc = mi->m->iface(iface.ptr)))
-			goto err;
-		return fc;
-	}
+		mod = core_getmodinfo(s);
+		break;
 
 	case FMED_MOD_INFO_ADEV_IN:
 		mod = fmed->conf.input;
@@ -452,6 +412,8 @@ static const void* core_getmod2(uint flags, const char *name, ssize_t name_len)
 		goto err;
 	if (mod->m == NULL && 0 != mod_load_delayed((core_mod*)mod))
 		return NULL;
+	if (t == FMED_MOD_IFACE)
+		return mod->iface;
 	return mod;
 
 err:
@@ -462,10 +424,7 @@ err:
 
 static const void* core_getmod(const char *name)
 {
-	const void *m = core_getmod2(FMED_MOD_IFACE | FMED_MOD_NOLOG, name, -1);
-	if (m != NULL)
-		return m;
-	return core_getmod2(FMED_MOD_IFACE_ANY, name, -1);
+	return core_getmod2(FMED_MOD_IFACE | FMED_MOD_NOLOG, name, -1);
 }
 
 static int core_sigmods(uint signo)

@@ -102,31 +102,7 @@ static int core_filetype(const char *fn);
 #include <core/core-mod.h>
 #include <core/core-work.h>
 
-// CORE
-static int64 core_getval(const char *name);
-static void core_log(uint flags, void *trk, const char *module, const char *fmt, ...);
-static void core_logv(uint flags, void *trk, const char *module, const char *fmt, va_list va);
-static char* core_getpath(const char *name, size_t len);
-static char* core_env_expand(char *dst, size_t cap, const char *src);
-static int core_sig(uint signo);
-static ssize_t core_cmd(uint cmd, ...);
-static const void* core_getmod(const char *name);
-static const void* core_getmod2(uint flags, const char *name, ssize_t name_len);
-static const fmed_modinfo* core_insmod(const char *name, fmed_conf_ctx *ctx);
-static int xtask(int signo, fftask *task, uint wid);
-static void core_task(fftask *task, uint cmd);
-static int core_timer(fftmrq_entry *tmr, int64 interval, uint flags);
-
-static fmed_core _fmed_core = {
-	0, NULL, 0,
-	&core_getval,
-	&core_log, &core_logv,
-	&core_getpath, &core_env_expand,
-	&core_sig, &core_cmd,
-	&core_getmod, &core_getmod2, &core_insmod,
-	&core_task,
-	.timer = &core_timer,
-};
+static fmed_core _fmed_core;
 fmed_core *core;
 
 //LOG
@@ -150,8 +126,18 @@ static int core_conf(const char *filename)
 	else if (NULL == (fn = core->getpath(FFSTR(FMED_GLOBCONF))))
 		goto end;
 
+	fftime t0, t1;
+	if (core->loglev == FMED_LOG_DEBUG)
+		t0 = fftime_monotonic();
+
 	if (0 != core_conf_parse(&fmed->conf, fn, 0))
 		goto end;
+
+	if (core->loglev == FMED_LOG_DEBUG) {
+		t1 = fftime_monotonic();
+		fftime_sub(&t1, &t0);
+		dbglog0("conf process time: %uus", t1.sec*1000000 + t1.nsec/1000);
+	}
 
 	fmed->props.playback_module = fmed->conf.output;
 	fmed->props.record_module = fmed->conf.input;
@@ -169,19 +155,6 @@ end:
 }
 
 
-static int conf_init(fmed_config *conf)
-{
-	conf->codepage = FFUNICODE_WIN1252;
-	return 0;
-}
-
-static void conf_destroy(fmed_config *conf)
-{
-	ffvec_free(&conf->inmap);
-	ffvec_free(&conf->outmap);
-}
-
-
 fmed_core* core_init(char **argv, char **env)
 {
 	core = &_fmed_core;
@@ -196,7 +169,10 @@ fmed_core* core_init(char **argv, char **env)
 	fftime_local(&fmed->tz);
 
 	fflist_init(&fmed->mods);
-	core_insmod("#core.core", NULL);
+	core_insmodz("#core.core", NULL);
+	core_insmodz("#core.track", NULL);
+	core_insmodz("#core.format-detector", NULL);
+	core_insmodz("#queue.queue", NULL);
 
 	ffkqu_settm(&fmed->kqutime, (uint)-1);
 
@@ -243,7 +219,7 @@ void core_free(void)
 
 	core_modinfo *minfo;
 	FFSLICE_WALK(&fmed->bmods, minfo) {
-		mod_destroy(minfo);
+		somod_destroy(minfo);
 	}
 	ffvec_free(&fmed->bmods);
 
@@ -469,14 +445,6 @@ static const char *const loglevs[] = {
 	"error", "warning", "info", "info", "debug",
 };
 
-static void core_log(uint flags, void *trk, const char *module, const char *fmt, ...)
-{
-	va_list va;
-	va_start(va, fmt);
-	core_logv(flags, trk, module, fmt, va);
-	va_end(va);
-}
-
 static void core_logv(uint flags, void *trk, const char *module, const char *fmt, va_list va)
 {
 	char stime[32];
@@ -522,6 +490,14 @@ static void core_logv(uint flags, void *trk, const char *module, const char *fmt
 	va_end(ld.va);
 }
 
+static void core_log(uint flags, void *trk, const char *module, const char *fmt, ...)
+{
+	va_list va;
+	va_start(va, fmt);
+	core_logv(flags, trk, module, fmt, va);
+	va_end(va);
+}
+
 
 extern const fmed_filter _fmed_format_detector;
 
@@ -554,3 +530,15 @@ static const fmed_mod* fmed_getmod_core(const fmed_core *_core)
 {
 	return &fmed_core_mod;
 }
+
+
+static fmed_core _fmed_core = {
+	0, NULL, 0,
+	core_getval,
+	core_log, core_logv,
+	core_getpath, core_env_expand,
+	core_sig, core_cmd,
+	core_getmod, core_getmod2, core_insmodz,
+	core_task,
+	core_timer,
+};

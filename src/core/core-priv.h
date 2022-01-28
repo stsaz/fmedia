@@ -2,8 +2,9 @@
 Copyright (c) 2019 Simon Zolin */
 
 #include <core/core.h>
-#include <FF/data/conf.h>
+#include <FF/data/conf-copy.h>
 #include <FFOS/process.h>
+#include <ffbase/map.h>
 
 
 typedef struct fmed_config {
@@ -16,14 +17,12 @@ typedef struct fmed_config {
 	const fmed_modinfo *input;
 	ffvec inmap; //inmap_item[]
 	ffvec outmap; //inmap_item[]
-	char *usrconf_modname;
-	uint skip_line;
+	ffmap in_ext_map, out_ext_map; // file extension -> inmap_item*
 
 	ffconf_ctxcopy conf_copy;
 	fmed_modinfo *conf_copy_mod; //core_mod
 
-	const fmed_modinfo *inmap_curmod;
-	ffvec *inoutmap;
+	int use_inmap :1;
 } fmed_config;
 
 typedef struct inmap_item {
@@ -46,8 +45,10 @@ typedef struct core_mod {
 	char name_s[0];
 } core_mod;
 
-const fmed_modinfo* core_insmod_delayed(const char *sname, fmed_conf_ctx *ctx);
-const fmed_modinfo* core_getmodinfo(const ffstr *name);
+const fmed_modinfo* core_insmod(ffstr name, ffconf_scheme *fc);
+const fmed_modinfo* core_insmodz(const char *name, ffconf_scheme *fc);
+const fmed_modinfo* core_insmod_delayed(ffstr sname);
+const fmed_modinfo* core_getmodinfo(ffstr name);
 
 enum CONF_F {
 	CONF_F_USR = 1,
@@ -58,6 +59,9 @@ enum CONF_F {
 flags: enum CONF_F
 */
 int core_conf_parse(fmed_config *conf, const char *filename, uint flags);
+const fmed_modinfo* modbyext(const ffmap *map, const ffstr *ext);
+int conf_init(fmed_config *conf);
+void conf_destroy(fmed_config *conf);
 
 
 #undef syserrlog

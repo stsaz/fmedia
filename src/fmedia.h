@@ -144,10 +144,11 @@ typedef struct fmed_modinfo {
 } fmed_modinfo;
 
 enum FMED_GETMOD {
-	FMED_MOD_INFO = 1, /** Get fmed_modinfo*. */
-	FMED_MOD_SOINFO,
+	/** Get so/dll file context (load module if necessary)
+	'name': so/dll file name without extension
+	*/
+	FMED_MOD_SOINFO = 1,
 	FMED_MOD_IFACE, /** Get module's interface (configured only). */
-	FMED_MOD_IFACE_ANY, /** Get module's interface. */
 
 	/** Get fmed_modinfo* by input/output file extension. */
 	FMED_MOD_INEXT,
@@ -194,7 +195,7 @@ struct fmed_core {
 	*/
 	const void* (*getmod2)(uint flags, const char *name, ssize_t name_len);
 
-	const fmed_modinfo* (*insmod)(const char *name, ffpars_ctx *ctx);
+	const fmed_modinfo* (*insmod)(const char *name, ffconf_scheme *fc);
 
 	/** Add task to the main worker.
 	@cmd: enum FMED_TASK. */
