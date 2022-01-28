@@ -1108,33 +1108,24 @@ static void gui_que_onchange(fmed_que_entry *ent, uint flags)
 {
 	uint idx;
 
-	switch (flags & ~_FMED_QUE_FMASK) {
-	case FMED_QUE_ONADD:
-		if (flags & FMED_QUE_ADD_DONE)
-			break;
-		//fallthrough
-	case FMED_QUE_ONRM:
-	case FMED_QUE_ONUPDATE:
-		if (!gg->qu->cmdv(FMED_QUE_ISCURLIST, ent)
-			|| wmain_tab_active() < 0)
-			return;
-		break;
-	}
+	if (flags & FMED_QUE_MORE)
+		return;
+
+	if (ent != NULL && !gg->qu->cmdv(FMED_QUE_ISCURLIST, ent))
+		return;
 
 	switch (flags & ~_FMED_QUE_FMASK) {
-	case FMED_QUE_ONADD:
-		if (flags & FMED_QUE_MORE)
-			break;
-		else if (flags & FMED_QUE_ADD_DONE) {
-			if (gg->conf.list_actv_trk_idx != 0) {
-				gg->qu->cmdv(FMED_QUE_SETCURID, 0, gg->conf.list_actv_trk_idx);
-				gg->conf.list_actv_trk_idx = 0;
-			}
-
-			uint n = gg->qu->cmdv(FMED_QUE_COUNT);
-			wmain_list_set(0, n);
-			return;
+	case FMED_QUE_ONADD_DONE:
+		if (gg->conf.list_actv_trk_idx != 0) {
+			gg->qu->cmdv(FMED_QUE_SETCURID, 0, gg->conf.list_actv_trk_idx);
+			gg->conf.list_actv_trk_idx = 0;
 		}
+
+		uint n = gg->qu->cmdv(FMED_QUE_COUNT);
+		wmain_list_set(0, n);
+		break;
+
+	case FMED_QUE_ONADD:
 		idx = gg->qu->cmdv(FMED_QUE_ID, ent);
 		wmain_ent_added(idx);
 		break;

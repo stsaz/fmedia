@@ -1026,8 +1026,8 @@ static fmed_que_entry* que_add(plist *pl, fmed_que_entry *ent, entry *prev, uint
 	if (flags & FMED_QUE_ADD_DONE) {
 		if (ent == NULL) {
 			if (!(flags & FMED_QUE_NO_ONCHANGE) && qu->onchange != NULL) {
-				dbglog0("calling onchange(FMED_QUE_ONADD | FMED_QUE_ADD_DONE)", 0);
-				qu->onchange(NULL, FMED_QUE_ONADD | FMED_QUE_ADD_DONE);
+				dbglog0("calling onchange(FMED_QUE_ONADD_DONE)", 0);
+				qu->onchange(NULL, FMED_QUE_ONADD_DONE);
 			}
 			return NULL;
 		}
@@ -1062,8 +1062,11 @@ static fmed_que_entry* que_add(plist *pl, fmed_que_entry *ent, entry *prev, uint
 	e->plist->indexes.len++;
 	fflk_unlock(&qu->plist_lock);
 
-	dbglog(core, NULL, "que", "added: (%d: %d-%d) %S"
-		, ent->dur, ent->from, ent->to, &ent->url);
+	dbglog0("added: [%L/%L] '%S' (%d: %d-%d) after:'%s'"
+		, e->list_pos+1, e->plist->indexes.len
+		, &ent->url
+		, ent->dur, ent->from, ent->to
+		, (prev != NULL) ? prev->url : NULL);
 
 done:
 	if (!(flags & FMED_QUE_NO_ONCHANGE) && qu->onchange != NULL)

@@ -372,7 +372,7 @@ add:
 			qu->cmd2(FMED_QUE_METASET, cur, (size_t)pair);
 		}
 
-		qu->cmd2(FMED_QUE_ADD | FMED_QUE_ADD_DONE, cur, 0);
+		qu->cmd2(FMED_QUE_ADD | FMED_QUE_MORE | FMED_QUE_ADD_DONE, cur, 0);
 		c->qu_cur = cur;
 
 next:
@@ -386,6 +386,7 @@ next:
 		c->nmeta = c->metas.len;
 	}
 
+	qu->cmd(FMED_QUE_ADD | FMED_QUE_ADD_DONE, NULL);
 	qu->cmd(FMED_QUE_RM, (void*)fmed_getval("queue_item"));
 	rc = FMED_RFIN;
 

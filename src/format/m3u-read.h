@@ -9,6 +9,7 @@ typedef struct m3u {
 	pls_entry pls_ent;
 	fmed_que_entry *qu_cur;
 	uint fin :1;
+	uint m3u_removed :1;
 } m3u;
 
 static void* m3u_open(fmed_filt *d)
@@ -18,13 +19,15 @@ static void* m3u_open(fmed_filt *d)
 		return NULL;
 	m3uread_open(&m->m3u);
 	m->qu_cur = (void*)fmed_getval("queue_item");
-	qu->cmdv(FMED_QUE_RM, m->qu_cur);
 	return m;
 }
 
 static void m3u_close(void *ctx)
 {
 	m3u *m = ctx;
+	if (!m->m3u_removed) {
+		qu->cmdv(FMED_QUE_RM, m->qu_cur);
+	}
 	m3uread_close(&m->m3u);
 	pls_entry_free(&m->pls_ent);
 	ffmem_free(m);
@@ -58,6 +61,10 @@ static int m3u_add(m3u *m, fmed_filt *d)
 	}
 
 	qu->cmd2(FMED_QUE_ADD | FMED_QUE_MORE | FMED_QUE_ADD_DONE, cur, 0);
+	if (!m->m3u_removed) {
+		m->m3u_removed = 1;
+		qu->cmdv(FMED_QUE_RM, m->qu_cur);
+	}
 	m->qu_cur = cur;
 	pls_entry_free(&m->pls_ent);
 	return 0;

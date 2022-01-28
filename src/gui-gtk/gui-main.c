@@ -374,6 +374,7 @@ void wmain_list_update(uint idx, int delta)
 	struct gui_wmain *w = gg->wmain;
 	if (ffui_send_tab_active(&w->tabs) == w->exp_tab)
 		return;
+	// dbglog("update: ffui_view_setdata %d", delta);
 	ffui_send_view_setdata(&w->vlist, idx, delta);
 }
 
@@ -381,6 +382,7 @@ static void list_setdata_scroll(void *param)
 {
 	struct gui_wmain *w = gg->wmain;
 	ffui_view_clear(&w->vlist);
+	// dbglog("ffui_view_setdata =%L", (ffsize)param);
 	ffui_view_setdata(&w->vlist, 0, (size_t)param);
 }
 
@@ -401,6 +403,7 @@ void wmain_ent_added(uint idx)
 	struct gui_wmain *w = gg->wmain;
 	if (ffui_send_tab_active(&w->tabs) == w->exp_tab)
 		return;
+	// dbglog("ffui_view_setdata +1");
 	ffui_send_view_setdata(&w->vlist, idx, 1);
 }
 
@@ -409,6 +412,7 @@ void wmain_ent_removed(uint idx)
 	struct gui_wmain *w = gg->wmain;
 	if (ffui_send_tab_active(&w->tabs) == w->exp_tab)
 		return;
+	// dbglog("ffui_view_setdata -1");
 	ffui_send_view_setdata(&w->vlist, idx, -1);
 }
 

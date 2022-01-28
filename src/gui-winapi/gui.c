@@ -440,36 +440,29 @@ static void gui_que_onchange(fmed_que_entry *e, uint flags)
 {
 	int idx;
 
-	switch (flags & ~_FMED_QUE_FMASK) {
-	case FMED_QUE_ONADD:
-		if (flags & FMED_QUE_ADD_DONE)
-			break;
-		//fallthrough
-	case FMED_QUE_ONRM:
-	case FMED_QUE_ONUPDATE:
-		if (!gg->qu->cmdv(FMED_QUE_ISCURLIST, e))
-			return;
-	}
+	if (flags & FMED_QUE_MORE)
+		return;
+
+	if (e != NULL && !gg->qu->cmdv(FMED_QUE_ISCURLIST, e))
+		return;
 
 	switch (flags & ~_FMED_QUE_FMASK) {
-	case FMED_QUE_ONADD:
-		if (flags & FMED_QUE_MORE)
-			break;
-		else if (flags & FMED_QUE_ADD_DONE) {
-			uint n = gg->qu->cmdv(FMED_QUE_COUNT);
-			ffui_view_setcount(&gg->wmain->vlist, n);
+	case FMED_QUE_ONADD_DONE:
+		uint n = gg->qu->cmdv(FMED_QUE_COUNT);
+		ffui_view_setcount(&gg->wmain->vlist, n);
 
-			if (gg->list_actv_trk_idx != 0) {
-				gg->qu->cmdv(FMED_QUE_SETCURID, 0, gg->list_actv_trk_idx);
-				gg->list_actv_trk_idx = 0;
-			}
-
-			if (gg->list_scroll_pos != 0) {
-				ffui_view_makevisible(&gg->wmain->vlist, gg->list_scroll_pos);
-				gg->list_scroll_pos = 0;
-			}
-			break;
+		if (gg->list_actv_trk_idx != 0) {
+			gg->qu->cmdv(FMED_QUE_SETCURID, 0, gg->list_actv_trk_idx);
+			gg->list_actv_trk_idx = 0;
 		}
+
+		if (gg->list_scroll_pos != 0) {
+			ffui_view_makevisible(&gg->wmain->vlist, gg->list_scroll_pos);
+			gg->list_scroll_pos = 0;
+		}
+		break;
+
+	case FMED_QUE_ONADD:
 		gui_media_added(e);
 		break;
 

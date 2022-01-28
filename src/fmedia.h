@@ -757,6 +757,7 @@ typedef struct fmed_que_entry {
 
 enum FMED_QUE_EVT {
 	FMED_QUE_ONADD,
+	FMED_QUE_ONADD_DONE,
 	FMED_QUE_ONRM,
 	FMED_QUE_ONCLEAR,
 
@@ -764,7 +765,7 @@ enum FMED_QUE_EVT {
 	FMED_QUE_ONUPDATE,
 };
 
-/** @flags: enum FMED_QUE_EVT. */
+/** @flags: enum FMED_QUE_EVT [+ FMED_QUE_MORE]. */
 typedef void (*fmed_que_onchange_t)(fmed_que_entry *e, uint flags);
 
 enum FMED_QUE {
