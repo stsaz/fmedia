@@ -204,6 +204,7 @@ static const ffui_ldr_ctl top_ctls[] = {
 	FFUI_LDR_CTL(ggui, mconvert),
 	FFUI_LDR_CTL(ggui, mhelp),
 	FFUI_LDR_CTL(ggui, mexplorer),
+	FFUI_LDR_CTL(ggui, mpopup),
 	FFUI_LDR_CTL(ggui, dlg),
 	FFUI_LDR_CTL3_PTR(ggui, wmain, wmain_ctls),
 	FFUI_LDR_CTL3_PTR(ggui, wabout, wabout_ctls),

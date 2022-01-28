@@ -93,7 +93,7 @@ void wmain_show()
 
 	ffui_dlg_multisel(&gg->dlg, 1);
 	ffui_view_dragdrop(&w->vlist, A_ONDROPFILE);
-	ffui_view_popupmenu(&w->vlist, &gg->mfile);
+	ffui_view_popupmenu(&w->vlist, &gg->mpopup);
 	exp_tab_new();
 	tab_new(0);
 	ffui_tab_setactive(&w->tabs, (w->exp_tab+1));
@@ -128,7 +128,7 @@ static void wmain_action(ffui_wnd *wnd, int id)
 		if ((int)w->tabs.changed_index == w->exp_tab) {
 			exp_list_show();
 		} else {
-			ffui_view_popupmenu(&w->vlist, &gg->mfile);
+			ffui_view_popupmenu(&w->vlist, &gg->mpopup);
 			corecmd_add(A_LIST_SEL, (void*)(size_t)(w->tabs.changed_index - (w->exp_tab+1)));
 		}
 		return;

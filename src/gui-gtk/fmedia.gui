@@ -207,6 +207,37 @@ menu mexplorer {
 	}
 }
 
+menu mpopup {
+	item "Analyze & Show PCM Info" {
+		action A_FILE_SHOWPCM
+	}
+	item "Show Media Info" {
+		action A_FILE_SHOWINFO
+		hotkey "I"
+	}
+	item "Show Fi_le in Explorer" {
+		action A_FILE_SHOWDIR
+	}
+	item "Rename File..." {
+		action A_SHOW_RENAME
+		hotkey "Shift+F6"
+	}
+	item "_Delete From Disk" {
+		action A_FILE_DELFILE
+		hotkey "Shift+Delete"
+	}
+	item "Read _Meta Tags" {
+		action A_LIST_READMETA
+	}
+	item "To Ne_xt Playlist" {
+		action A_LIST_TO_NEXT
+	}
+	item "_Remove" {
+		action A_LIST_REMOVE
+		hotkey "Delete"
+	}
+}
+
 dialog dlg {
 }
 

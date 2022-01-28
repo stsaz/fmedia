@@ -104,6 +104,7 @@ typedef struct ggui {
 	ffui_menu mconvert;
 	ffui_menu mhelp;
 	ffui_menu mexplorer;
+	ffui_menu mpopup;
 } ggui;
 
 extern const fmed_core *core;
