@@ -140,7 +140,7 @@ static void wmain_action(ffui_wnd *wnd, int id)
 		return;
 
 	case A_FILE_SHOWINFO: {
-		ffarr4 *sel = ffui_view_getsel(&w->vlist);
+		ffui_sel *sel = ffui_view_getsel(&w->vlist);
 		int i = ffui_view_selnext(&w->vlist, sel);
 		if (i != -1)
 			winfo_show(1, i);
@@ -236,6 +236,10 @@ static void wmain_action(ffui_wnd *wnd, int id)
 	case A_LIST_SELECTALL:
 		ffui_view_selall(&w->vlist);
 		return;
+	case A_LIST_TO_NEXT:
+		if (w->exp_tab == ffui_tab_active(&w->tabs))
+			return;
+		break;
 	case A_LIST_READMETA:
 	case A_LIST_REMOVE:
 	case A_LIST_RMDEAD:
@@ -595,7 +599,8 @@ void list_del()
 	if (last) {
 		wmain_action(&w->wnd, A_LIST_NEW);
 	} else {
-		uint newsel = (i == 0) ? i + 1 : i - 1;
+		int first = (i == (w->exp_tab+1));
+		uint newsel = (first) ? i + 1 : i - 1;
 		ffui_tab_setactive(&w->tabs, newsel);
 		ffui_view_clear(&w->vlist);
 		corecmd_add(A_LIST_SEL, (void*)(size_t)(newsel - (w->exp_tab+1)));
@@ -690,19 +695,19 @@ void wmain_list_cols_width_write(ffconfw *conf)
 	}
 }
 
-ffarr4* wmain_list_getsel()
+ffui_sel* wmain_list_getsel()
 {
 	struct gui_wmain *w = gg->wmain;
 	if (ffui_send_tab_active(&w->tabs) == w->exp_tab)
-		return ffmem_new(ffarr4);
+		return ffmem_new(ffui_sel);
 	return (void*)ffui_view_getsel(&w->vlist);
 }
 
-ffarr4* wmain_list_getsel_send()
+ffui_sel* wmain_list_getsel_send()
 {
 	struct gui_wmain *w = gg->wmain;
 	if (ffui_send_tab_active(&w->tabs) == w->exp_tab)
-		return ffmem_new(ffarr4);
+		return ffmem_new(ffui_sel);
 	return (void*)ffui_send_view_getsel(&w->vlist);
 }
 

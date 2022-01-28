@@ -8,6 +8,14 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.25.3beta - Jan 28, 2022
+
+ - "-o @stdout.wav"
+ - core: "codepage" config option
+ - core: pcm channels conversion
+ - .mp3 encode: mono/interleaved source
+
+
 fmedia v1.25.2beta - Dec 15, 2021
 
  * GUI(Linux): parallel conversion; display the progress

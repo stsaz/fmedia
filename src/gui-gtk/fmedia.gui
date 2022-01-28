@@ -1,4 +1,4 @@
-# fmedia v1.23 GUI
+# fmedia v1.26 GUI
 
 menu mfile {
 	item "_Add..." {
@@ -63,6 +63,9 @@ menu mlist {
 	}
 	item "Select _All" {
 		action A_LIST_SELECTALL
+	}
+	item "To Ne_xt Playlist" {
+		action A_LIST_TO_NEXT
 	}
 	item "-" {
 	}

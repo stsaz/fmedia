@@ -1224,17 +1224,10 @@ void wmain_update(uint playtime, uint time_total)
 }
 
 /** Show progress of conversion track. */
-void gui_conv_progress(gui_trk *g)
+void wmain_convert_progress(fmed_que_entry *plid, int playtime, uint total_time_sec)
 {
 	struct gui_wmain *w = gg->wmain;
 	char buf[255];
-	uint playtime = (uint)(ffpcm_time(g->d->audio.pos, g->sample_rate) / 1000);
-	if (playtime == g->lastpos && !(g->d->flags & FMED_FLAST))
-		return;
-	g->lastpos = playtime;
-
-	fmed_que_entry *plid;
-	plid = (void*)g->d->track->getval(g->d->trk, "queue_item");
 
 	ssize_t idx;
 	if (-1 == (idx = gg->qu->cmdv(FMED_QUE_ID, plid))) {
@@ -1243,12 +1236,12 @@ void gui_conv_progress(gui_trk *g)
 	}
 
 	ffstr val;
-	if (g->d->flags & FMED_FLAST)
+	if (playtime == -1)
 		ffstr_setz(&val, "Done");
 	else {
 		size_t n = ffs_fmt(buf, buf + sizeof(buf), "%u:%02u / %u:%02u"
 			, playtime / 60, playtime % 60
-			, g->total_time_sec / 60, g->total_time_sec % 60);
+			, total_time_sec / 60, total_time_sec % 60);
 		ffstr_set(&val, buf, n);
 	}
 	gg->qu->meta_set(plid, FFSTR("__dur"), val.ptr, val.len, FMED_QUE_PRIV | FMED_QUE_OVWRITE);

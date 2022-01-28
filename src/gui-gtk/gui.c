@@ -404,6 +404,41 @@ static void urls_add_play(struct params_urls_add_play *p)
 	}
 }
 
+static fmed_que_entry* _qent_dup(int cur_list, int idx, int target_list)
+{
+	fmed_que_entry *ent = (fmed_que_entry*)gg->qu->fmed_queue_item(cur_list, idx);
+	fmed_que_entry e = {}, *qent;
+	e.url = ent->url;
+	e.from = ent->from;
+	e.to = ent->to;
+	qent = (void*)gg->qu->fmed_queue_add(FMED_QUE_NO_ONCHANGE, target_list, &e);
+	return qent;
+}
+
+static void list_to_next()
+{
+	int cur_list = wmain_tab_active();
+	if (cur_list < 0)
+		return;
+
+	int next_list = cur_list + 1;
+	int n_lists = gg->qu->cmdv(FMED_QUE_N_LISTS);
+	if (next_list == n_lists) {
+		wmain_tab_new(0);
+		gg->qu->cmdv(FMED_QUE_NEW, 0);
+	}
+
+	ffui_sel *sel = wmain_list_getsel_send();
+	int i;
+	while ((i = ffui_view_selnext(NULL, sel)) >= 0) {
+		if (NULL == _qent_dup(cur_list, i, next_list))
+			goto end;
+	}
+
+end:
+	ffui_view_sel_free(sel);
+}
+
 static void corecmd_run(uint cmd, void *udata)
 {
 	dbglog("%s cmd:%d %s  udata:%p"
@@ -548,6 +583,9 @@ static void corecmd_run(uint cmd, void *udata)
 	case A_LIST_REMOVE:
 		list_rmitems();
 		break;
+	case A_LIST_TO_NEXT:
+		list_to_next();
+		break;
 
 	case A_LIST_RMDEAD:
 		gg->qu->cmd(FMED_QUE_RMDEAD, NULL);
@@ -580,11 +618,11 @@ static void corecmd_run(uint cmd, void *udata)
 	case A_ONDROPFILE: {
 		ffstr *d = udata;
 		ffstr s = *d;
-		ffarr fn = {};
+		ffvec fn = {};
 		while (0 == ffui_fdrop_next(&fn, &s)) {
 			list_add((ffstr*)&fn, -1);
 		}
-		ffarr_free(&fn);
+		ffvec_free(&fn);
 		ffstr_free(d);
 		ffmem_free(d);
 		break;
@@ -678,7 +716,7 @@ void gui_showtextfile(uint id)
 static void showdir_selected(void)
 {
 	int i;
-	ffarr4 *sel = wmain_list_getsel_send();
+	ffui_sel *sel = wmain_list_getsel_send();
 	while (-1 != (i = ffui_view_selnext(NULL, sel))) {
 		fmed_que_entry *ent = (fmed_que_entry*)gg->qu->fmed_queue_item(-1, i);
 		showdir(ent->url.ptr);
@@ -795,7 +833,7 @@ static void list_add(const ffstr *fn, int plid)
 static void list_rmitems(void)
 {
 	int i, n = 0;
-	ffarr4 *sel = wmain_list_getsel_send();
+	ffui_sel *sel = wmain_list_getsel_send();
 	while (-1 != (i = ffui_view_selnext(NULL, sel))) {
 		fmed_que_entry *ent = (fmed_que_entry*)gg->qu->fmed_queue_item(-1, i - n);
 		gg->qu->cmd2(FMED_QUE_RM | FMED_QUE_NO_ONCHANGE, ent, 0);
@@ -813,7 +851,7 @@ static void file_showpcm(void)
 	fmed_que_entry *ent;
 	void *trk;
 
-	ffarr4 *sel = wmain_list_getsel_send();
+	ffui_sel *sel = wmain_list_getsel_send();
 	while (-1 != (i = ffui_view_selnext(NULL, sel))) {
 		ent = (fmed_que_entry*)gg->qu->fmed_queue_item(-1, i);
 
@@ -827,15 +865,15 @@ static void file_showpcm(void)
 	ffui_view_sel_free(sel);
 }
 
-int file_del_rename(ffstr url)
+int file_del_rename(char *url)
 {
 	int r = 1;
-	char *fn = ffsz_alfmt("%S.deleted", &url);
+	char *fn = ffsz_allocfmt("%s.deleted", url);
 
 	if (fffile_exists(fn)) {
 		errlog("can't rename file: %s: target file exists", fn);
-	} else if (0 != fffile_rename(url.ptr, fn)) {
-		syserrlog("can't rename file: %S -> %s", &url, fn);
+	} else if (0 != fffile_rename(url, fn)) {
+		syserrlog("can't rename file: %s -> %s", url, fn);
 	} else {
 		r = 0;
 	}
@@ -853,65 +891,16 @@ int file_del_rename(ffstr url)
 	return 0;
 }*/
 
-/** Exec and wait
-Return exit code or -1 on error */
-static inline int ffps_exec_wait(const char *filename, const char **argv, const char **env)
+int file_del_trash(const char **names, ffsize n)
 {
-	ffps_execinfo info = {};
-	info.argv = argv;
-	info.env = env;
-	ffps ps = ffps_exec_info(filename, &info);
-	if (ps == FFPS_NULL)
-		return -1;
-
-	int code;
-	if (0 != ffps_wait(ps, -1, &code))
-		return -1;
-
-	return code;
-}
-
-int kde_trash(const char *fn)
-{
-	const char *args[] = {
-		"/usr/bin/kioclient5",
-		"move",
-		fn,
-		"trash:/",
-		NULL,
-	};
-	return ffps_exec_wait(args[0], args, (const char**)environ);
-}
-
-int gnome_trash(const char *fn)
-{
-	const char *args[] = {
-		"/usr/bin/gio",
-		"trash",
-		fn,
-		NULL,
-	};
-	return ffps_exec_wait(args[0], args, (const char**)environ);
-}
-
-int file_del_trash(ffstr url)
-{
-	if (gg->is_kde >= 0) {
-		if (0 == kde_trash(url.ptr)) {
-			gg->is_kde = 1;
-			goto done;
-		}
-		dbglog("can't move file to trash (KDE): %S: %s", &url, fferr_strptr(fferr_last()));
-		gg->is_kde = -1;
-	}
-
-	if (0 != gnome_trash(url.ptr)) {
-		syserrlog("can't move file to trash: %S", &url);
+	int r;
+	if (0 != (r = ffui_glib_trash(names, n))) {
+		errlog("can't move files to trash (KDE): %s...: error code %d"
+			, names[0], r);
 		return -1;
 	}
 
-done:
-	dbglog("move file to trash: %S", &url);
+	dbglog("moved file to trash: %s...", names[0]);
 	return 0;
 }
 
@@ -920,27 +909,43 @@ static void file_del(void)
 {
 	int i, n = 0;
 	fmed_que_entry *ent;
+	ffvec v = {};
 
-	ffarr4 *sel = wmain_list_getsel_send();
+	ffui_sel *sel = wmain_list_getsel_send();
+	while (-1 != (i = ffui_view_selnext(NULL, sel))) {
+		ent = (fmed_que_entry*)gg->qu->fmed_queue_item(-1, i);
+		*ffvec_pushT(&v, char*) = ent->url.ptr;
+	}
+
+	int r = 0;
+	char **url;
+
+	switch (gg->conf.file_delete_method) {
+	case FDM_TRASH:
+		r = file_del_trash((const char**)v.ptr, v.len);
+		break;
+
+	case FDM_RENAME:
+		FFSLICE_WALK(&v, url) {
+			r |= file_del_rename(*url);
+		}
+		break;
+	}
+
+	sel->off = 0;
 	while (-1 != (i = ffui_view_selnext(NULL, sel))) {
 		ent = (fmed_que_entry*)gg->qu->fmed_queue_item(-1, i - n);
-
-		int r;
-		switch (gg->conf.file_delete_method) {
-		case FDM_TRASH:
-			r = file_del_trash(ent->url);  break;
-
-		case FDM_RENAME:
-			r = file_del_rename(ent->url);  break;
-		}
-		if (r == 0) {
-			gg->qu->cmd(FMED_QUE_RM | FMED_QUE_NO_ONCHANGE, ent);
-			wmain_ent_removed(i - n);
-			n++;
-		}
+		gg->qu->cmd(FMED_QUE_RM | FMED_QUE_NO_ONCHANGE, ent);
+		wmain_ent_removed(i - n);
+		n++;
 	}
+
 	ffui_view_sel_free(sel);
-	wmain_status("Deleted %u files", n);
+	if (r == 0)
+		wmain_status("Deleted %L files", v.len);
+	else
+		wmain_status("Couldn't delete some files");
+	ffvec_free(&v);
 }
 
 static const char *const ctl_setts[] = {

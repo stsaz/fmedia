@@ -151,6 +151,7 @@ void wplayprops_show(uint show)
 		return;
 	}
 
+	ffui_view_clear(&w->vconfig);
 	ffui_view_setdata(&w->vconfig, 0, FF_COUNT(pprops_conf));
 	ffui_show(&w->wplayprops, 1);
 }

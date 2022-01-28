@@ -561,7 +561,7 @@ int main(int argc, char **argv, char **env)
 	if (NULL == (core = g->core_init(argv, env)))
 		goto end;
 	ffenv_init(NULL, env);
-	fffile_fmt(ffstderr, NULL, "fmedia v%s (" OS_STR "-" CPU_STR ")\n"
+	ffstderr_fmt("φfmedia v%s (" OS_STR "-" CPU_STR ")\n"
 		, core->props->version_str);
 	core->cmd(FMED_SETLOG, &std_logger);
 	g->cmd = ffmem_new(fmed_cmd);

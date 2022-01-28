@@ -171,7 +171,8 @@ static int gtrk_process(void *ctx, fmed_filt *d)
 		wmain_newtrack(t->qent, t->time_total, d);
 	}
 
-	wmain_update(playtime, t->time_total);
+	if (t == gg->curtrk)
+		wmain_update(playtime, t->time_total);
 
 done:
 	d->out = d->data;

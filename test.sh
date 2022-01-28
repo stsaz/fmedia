@@ -18,6 +18,10 @@ if test "$1" = "radio" ; then
 	$BIN $URL -o '$artist-$title.mp3' --out-copy --stream-copy -y --meta=artist=A --until=1
 fi
 
+if test "$1" = "rec1" ; then
+	./fmedia --record -o rec.wav -y --until=2 --rate=44100 --format=int16
+fi
+
 if test "$1" = "record" ; then
 	# record -> .*
 	# TODO --meta=artist=A;title=T
@@ -45,6 +49,14 @@ if test "$1" = "play" ; then
 	./fmedia rec.*
 	./fmedia rec.* --seek=0.500
 	./fmedia rec.* --seek=0.500 --until=1.500
+fi
+
+if test "$1" = "convert_channels" ; then
+	./fmedia rec.wav -o encchan-mono.wav -y --channels=mono
+	./fmedia encchan-mono.wav --pcm-peaks
+
+	./fmedia encchan-mono.wav -o encchan-stereo.wav -y --channels=stereo
+	./fmedia encchan-stereo.wav --pcm-peaks
 fi
 
 if test "$1" = "convert" ; then
@@ -230,6 +242,7 @@ if test "$1" = "all" ; then
 	sh $0 record
 	sh $0 info
 	sh $0 play
+	sh $0 convert_channels
 	sh $0 convert
 	sh $0 convert_meta
 	sh $0 convert_streamcopy

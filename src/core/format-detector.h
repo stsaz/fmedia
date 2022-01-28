@@ -139,8 +139,10 @@ static int fdetcr_process(void *ctx, fmed_filt *d)
 	dbglog0("detected format: %S", &ext);
 
 	const fmed_modinfo *mi = core->getmod2(FMED_MOD_INEXT, ext.ptr, ext.len);
-	if (mi == NULL)
+	if (mi == NULL || ffsz_eq(mi->name, "#core.format-detector")) {
+		errlog1(d->trk, "no module configured for file format '%S'", &ext);
 		return FMED_RERR;
+	}
 	d->track->cmd(d->trk, FMED_TRACK_FILT_ADD, mi->name);
 
 	d->data_out = d->data_in;

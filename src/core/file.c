@@ -89,7 +89,6 @@ const fmed_mod* fmed_getmod_file(const fmed_core *_core)
 
 	if (0 != ffaio_fctxinit())
 		return NULL;
-	core = _core;
 	if (NULL == (mod = ffmem_tcalloc1(filemod)))
 		return NULL;
 	return &fmed_file_mod;

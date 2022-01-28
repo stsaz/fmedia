@@ -264,7 +264,7 @@ menu mlist_popup {
 	item "Show Media Info" {
 		action A_FILE_SHOWINFO
 	}
-	item "To Next Playlist" {
+	item "To Ne&xt Playlist" {
 		action TO_NXTLIST
 	}
 	item "C&opy to Clipboard" {

@@ -55,8 +55,10 @@ FF3PT_CFLAGS := $(CFLAGS_STD) $(CFLAGS_DEBUG) $(CFLAGS_OPT) $(CFLAGS_OS) $(CFLAG
 
 
 # CPU-specific options
-ifeq ($(CPU),i686)
-CFLAGS_CPU += -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast
+ifeq "$(CPU)" "amd64"
+	CFLAGS_CPU += -msse4.2
+else ifeq "$(CPU)" "i686"
+	CFLAGS_CPU += -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast
 endif
 
 

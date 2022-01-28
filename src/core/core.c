@@ -267,6 +267,20 @@ static char* core_env_expand(char *dst, size_t cap, const char *src)
 	return ffenv_expand(&fmed->env, dst, cap, src);
 }
 
+static int core_filetype_ext(const ffstr *ext)
+{
+	if (NULL == core_getmod2(FMED_MOD_INEXT, ext->ptr, ext->len))
+		return FMED_FT_UKN;
+
+	if (ffstr_eqcz(ext, "m3u8")
+		|| ffstr_eqcz(ext, "m3u")
+		|| ffstr_eqcz(ext, "pls")
+		|| ffstr_eqcz(ext, "cue"))
+		return FMED_FT_PLIST;
+
+	return FMED_FT_FILE;
+}
+
 static int core_filetype(const char *fn)
 {
 	ffstr ext;
@@ -277,15 +291,7 @@ static int core_filetype(const char *fn)
 			return FMED_FT_DIR;
 
 	ffpath_split3(fn, ffsz_len(fn), NULL, NULL, &ext);
-	if (ffstr_eqcz(&ext, "m3u8")
-		|| ffstr_eqcz(&ext, "m3u")
-		|| ffstr_eqcz(&ext, "pls"))
-		return FMED_FT_PLIST;
-
-	if (NULL != core_getmod2(FMED_MOD_INEXT, ext.ptr, ext.len))
-		return FMED_FT_FILE;
-
-	return FMED_FT_UKN;
+	return core_filetype_ext(&ext);
 }
 
 static const char* const sig_str[] = {
@@ -358,6 +364,9 @@ static ssize_t core_cmd(uint signo, ...)
 
 	case FMED_FILETYPE:
 		r = core_filetype(va_arg(va, char*));
+		break;
+	case FMED_FILETYPE_EXT:
+		r = core_filetype_ext(va_arg(va, ffstr*));
 		break;
 
 	case FMED_TASK_XPOST:

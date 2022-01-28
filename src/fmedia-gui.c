@@ -29,19 +29,19 @@ static const fmed_log fgui_logger = {
 static void fgui_log(uint flags, fmed_logdata *ld)
 {
 	char buf[4096];
-	char *s = buf;
-	const char *end = buf + sizeof(buf) - FFSLEN("\r\n");
+	ffuint cap = FFCNT(buf) - FFSLEN("\n");
+	ffstr s = FFSTR_INITN(buf, 0);
 
-	s += ffs_fmt(s, end, "%s %s %s: ", ld->stime, ld->level, ld->module);
+	ffstr_addfmt(&s, cap, "%s %s %s: ", ld->stime, ld->level, ld->module);
 	if (ld->ctx != NULL)
-		s += ffs_fmt(s, end, "%S:\t", ld->ctx);
-	s += ffs_fmtv(s, end, ld->fmt, ld->va);
+		ffstr_addfmt(&s, cap, "%S:\t", ld->ctx);
+	ffstr_addfmtv(&s, cap, ld->fmt, ld->va);
 	if (flags & FMED_LOG_SYS)
-		s += ffs_fmt(s, end, ": %E", fferr_last());
-	*s++ = '\r';
-	*s++ = '\n';
+		ffstr_addfmt(&s, cap, ": %E", fferr_last());
+	s.ptr[s.len++] = '\r';
+	s.ptr[s.len++] = '\n';
 
-	ffui_msgdlg_show("fmedia", buf, s - buf, FFUI_MSGDLG_ERR);
+	ffui_msgdlg_show("fmedia", s.ptr, s.len, FFUI_MSGDLG_ERR);
 }
 
 

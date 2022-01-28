@@ -80,7 +80,6 @@ typedef struct ggui {
 	uint go_pos;
 	uint tabs_counter;
 	char *home_dir;
-	int is_kde;
 
 	fftmrq_entry timer;
 	int timer_refcount;
@@ -154,8 +153,8 @@ void wmain_list_cols_width_write(ffconfw *conf);
 void wmain_list_update(uint idx, int delta);
 void wmain_list_set(uint idx, int delta);
 void wmain_list_select(ffuint idx);
-ffarr4* wmain_list_getsel();
-ffarr4* wmain_list_getsel_send();
+ffui_sel* wmain_list_getsel();
+ffui_sel* wmain_list_getsel_send();
 int wmain_list_scroll_vert();
 int wmain_exp_conf(fmed_conf *fc, void *obj);
 int wmain_exp_conf_writeval(ffstr *line, ffconfw *conf);

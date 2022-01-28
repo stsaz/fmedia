@@ -70,7 +70,7 @@ void wrename_show(uint show)
 		return;
 	}
 
-	ffarr4 *sel = wmain_list_getsel();
+	ffui_sel *sel = wmain_list_getsel();
 	int i = ffui_view_selnext(NULL, sel);
 	if (i == -1)
 		goto end;

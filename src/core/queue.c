@@ -553,6 +553,7 @@ static const char *const scmds[] = {
 	"FMED_QUE_EXPAND_ALL",
 	"FMED_QUE_CURID",
 	"FMED_QUE_SETCURID",
+	"FMED_QUE_N_LISTS",
 };
 
 static ssize_t que_cmdv(uint cmd, ...)
@@ -621,6 +622,11 @@ static ssize_t que_cmdv(uint cmd, ...)
 		r = que_cmdv(FMED_QUE_ID, pl->cur);
 		if (r == -1)
 			r = 0;
+		goto end;
+	}
+
+	case FMED_QUE_N_LISTS: {
+		r = qu->plists.len;
 		goto end;
 	}
 

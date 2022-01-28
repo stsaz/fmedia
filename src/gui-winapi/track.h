@@ -69,7 +69,13 @@ int gtrk_process(void *ctx, fmed_filt *d)
 	}
 
 	if (g->conversion) {
-		gui_conv_progress(g);
+		playtime = (uint)(ffpcm_time(d->audio.pos, g->sample_rate) / 1000);
+		if (playtime == g->lastpos && !(d->flags & FMED_FLAST))
+			goto done;
+		g->lastpos = playtime;
+		if (d->flags & FMED_FLAST)
+			playtime = (uint)-1;
+		wmain_convert_progress(g->qent, playtime, g->total_time_sec);
 		goto done;
 	}
 

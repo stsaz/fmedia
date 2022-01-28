@@ -24,9 +24,9 @@ mixer                 mixer
 
 
 #define FMED_VER_MAJOR  1
-#define FMED_VER_MINOR  25
+#define FMED_VER_MINOR  26
 #define FMED_VER_FULL  ((FMED_VER_MAJOR << 8) | FMED_VER_MINOR)
-#define FMED_VER  "1.25.2"
+#define FMED_VER  "1.25.3beta"
 
 #define FMED_VER_GETMAJ(fullver)  ((fullver) >> 8)
 #define FMED_VER_GETMIN(fullver)  ((fullver) & 0xff)
@@ -35,7 +35,7 @@ mixer                 mixer
 It must be updated when incompatible changes are made to this file,
  then all modules must be rebuilt.
 The core will refuse to load modules built for any other core version. */
-#define FMED_VER_CORE  ((FMED_VER_MAJOR << 8) | 25)
+#define FMED_VER_CORE  ((FMED_VER_MAJOR << 8) | 26)
 
 #define FMED_HOMEPAGE  "https://stsaz.github.io/fmedia/"
 
@@ -118,6 +118,11 @@ enum FMED_SIG {
 	/** Get local time zone offset.
 	uint tzoff() */
 	FMED_TZOFFSET,
+
+	/**
+	args: "ffstr *file_extension"
+	Return enum FMED_FT. */
+	FMED_FILETYPE_EXT,
 };
 
 enum FMED_WORKER_F {
@@ -933,6 +938,9 @@ enum FMED_QUE {
 	/** Set the current item index.
 	void set_curid(int plist, size_t id) */
 	FMED_QUE_SETCURID,
+
+	/** Get N of lists */
+	FMED_QUE_N_LISTS,
 
 	_FMED_QUE_LAST
 };

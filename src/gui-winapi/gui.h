@@ -228,7 +228,7 @@ void corecmd_addfunc(fftask_handler func, void *udata);
 void gui_newtrack(gui_trk *g, fmed_filt *d, fmed_que_entry *plid);
 void wmain_update(uint playtime, uint time_total);
 int gui_setmeta(gui_trk *g, fmed_que_entry *qent);
-void gui_conv_progress(gui_trk *g);
+void wmain_convert_progress(fmed_que_entry *plid, int playtime, uint total_time_sec);
 void gui_clear(void);
 void gui_status(const char *s, size_t len);
 void wmain_status(const char *fmt, ...);

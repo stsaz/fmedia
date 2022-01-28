@@ -98,14 +98,14 @@ static void exp_tab_new()
 static int _exp_file_cmp(const void *a, const void *b, void *udata)
 {
 	const struct exp_file *f1 = (struct exp_file*)a, *f2 = (struct exp_file*)b;
-	return ((f1->dir == f2->dir) ? ffsz_cmp(f1->name, f2->name)
+	return ((f1->dir == f2->dir) ? ffsz_icmp(f1->name, f2->name)
 		: (f1->dir) ? -1 : 1);
 }
 
 static int _exp_names_cmp(const void *a, const void *b, void *udata)
 {
 	const char **f1 = (const char**)a, **f2 = (const char**)b;
-	return ffsz_cmp(*f1, *f2);
+	return ffsz_icmp(*f1, *f2);
 }
 
 /** Return 1 if file extension is supported */
@@ -113,30 +113,8 @@ static int _exp_file_supported(const char *name)
 {
 	ffstr ext = {};
 	ffpath_splitname(name, ffsz_len(name), NULL, &ext);
-	static const char* supp_exts[] = {
-		"aac",
-		"ape",
-		"avi",
-		"caf",
-		"cue",
-		"flac",
-		"m3u",
-		"m3u8",
-		"m4a",
-		"mka",
-		"mkv",
-		"mp3",
-		"mp4",
-		"mpc",
-		"ogg",
-		"opus",
-		"pls",
-		"wav",
-		"wv",
-	};
-	if (ffszarr_ifindsorted(supp_exts, FF_COUNT(supp_exts), ext.ptr, ext.len) < 0)
-		return 0;
-	return 1;
+	int ft = core->cmd(FMED_FILETYPE_EXT, &ext);
+	return (ft != FMED_FT_UKN);
 }
 
 /** Add file names to an array */
@@ -364,7 +342,7 @@ static void exp_action(int id)
 	struct gui_wmain *w = gg->wmain;
 	if (ffui_tab_active(&w->tabs) != w->exp_tab)
 		return;
-	ffarr4 *sel = ffui_view_getsel(&w->vlist);
+	ffui_sel *sel = ffui_view_getsel(&w->vlist);
 
 	switch (id) {
 	case A_EXPL_ADDPLAY:

@@ -452,9 +452,9 @@ void wconv_show(uint show)
 	if (!w->init) {
 		w->init = 1;
 		ffui_edit_settextz(&w->eout, w->output);
+		ffui_view_setdata(&w->vconfig, 0, FF_COUNT(conv_props));
 	}
 
-	ffui_view_setdata(&w->vconfig, 0, FF_COUNT(conv_props));
 	ffui_show(&w->wnd, 1);
 	ffui_wnd_present(&w->wnd);
 }
@@ -475,7 +475,11 @@ void wconv_setdata(int id, uint pos)
 	default:
 		return;
 	}
-	ffui_view_setdata(&gg->wconvert->vconfig, 0, FF_COUNT(conv_props));
+	for (int i = 0;  i != FF_COUNT(conv_props);  i++) {
+		int id = conv_props[i].id;
+		if (id == PROP_IN_SEEK || id == PROP_IN_UNTIL)
+			ffui_view_setdata(&gg->wconvert->vconfig, i, 0);
+	}
 }
 
 /** Add 1 item to the conversion queue. */
@@ -565,7 +569,7 @@ static void convert(void *param)
 
 	fmed_que_entry *first = NULL;
 	int i;
-	ffarr4 *sel = wmain_list_getsel();
+	ffui_sel *sel = wmain_list_getsel();
 	while (-1 != (i = ffui_view_selnext(NULL, sel))) {
 		fmed_que_entry *ent = (fmed_que_entry*)gg->qu->fmed_queue_item(curtab, i);
 		ent = convert1(ent, &fn, &trkinfo);

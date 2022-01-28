@@ -1058,6 +1058,8 @@ static int gui_install(uint sig)
 	char *desktop = NULL;
 	int r = -1;
 
+	CoInitializeEx(NULL, 0);
+
 	char fn[FF_MAXPATH];
 	const char *pfn = ffps_filename(fn, sizeof(fn), NULL);
 	if (pfn == NULL)
