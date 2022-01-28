@@ -6,8 +6,8 @@
 #include <avpack/flac-write.h>
 #include <FF/audio/flac.h>
 #include <format/mmtag.h>
-#include <FF/pic/png.h>
-#include <FF/pic/jpeg.h>
+#include <avpack/png-read.h>
+#include <avpack/jpg-read.h>
 
 typedef struct flac_out {
 	flacwrite fl;
@@ -37,45 +37,51 @@ int flac_out_config(fmed_conf_ctx *conf)
 
 static int pic_meta_png(struct flac_picinfo *info, const ffstr *data)
 {
-	struct ffpngr png = {};
+	pngread png = {};
 	int rc = -1, r;
-	if (0 != ffpngr_open(&png))
-		goto err;
-	png.input = *data;
-	r = ffpngr_read(&png);
-	if (r != FFPNG_HDR)
+	pngread_open(&png);
+
+	ffstr in = *data, out;
+	r = pngread_process(&png, &in, &out);
+	if (r != PNGREAD_HEADER)
 		goto err;
 
-	info->mime = FFPNG_MIME;
-	info->width = png.info.width;
-	info->height = png.info.height;
-	info->bpp = png.info.bpp;
+	info->mime = "image/png";
+
+	const struct png_info *i = pngread_info(&png);
+	info->width = i->width;
+	info->height = i->height;
+	info->bpp = i->bpp;
+
 	rc = 0;
 
 err:
-	ffpngr_close(&png);
+	pngread_close(&png);
 	return rc;
 }
 
 static int pic_meta_jpeg(struct flac_picinfo *info, const ffstr *data)
 {
-	struct ffjpegr jpeg = {};
+	jpgread jpeg = {};
 	int rc = -1, r;
-	if (0 != ffjpegr_open(&jpeg))
-		goto err;
-	jpeg.input = *data;
-	r = ffjpegr_read(&jpeg);
-	if (r != FFJPEG_HDR)
+	jpgread_open(&jpeg);
+
+	ffstr in = *data, out;
+	r = jpgread_process(&jpeg, &in, &out);
+	if (r != JPGREAD_HEADER)
 		goto err;
 
-	info->mime = FFJPEG_MIME;
-	info->width = jpeg.info.width;
-	info->height = jpeg.info.height;
-	info->bpp = jpeg.info.bpp;
+	info->mime = "image/jpeg";
+
+	const struct jpg_info *i = jpgread_info(&jpeg);
+	info->width = i->width;
+	info->height = i->height;
+	info->bpp = i->bpp;
+
 	rc = 0;
 
 err:
-	ffjpegr_close(&jpeg);
+	jpgread_close(&jpeg);
 	return rc;
 }
 
