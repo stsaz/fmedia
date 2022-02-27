@@ -20,7 +20,6 @@ FFAUDIO := $(ROOT)/ffaudio
 AVPACK := $(ROOT)/avpack
 FFOS := $(ROOT)/ffos
 FF := $(ROOT)/ff
-FF3PT := $(ROOT)/ff-3pt
 
 include $(FFOS)/makeconf
 
@@ -39,6 +38,7 @@ CFLAGS_OS += -DFF_GLIBCVER=228
 endif
 endif
 
+ALIB3 := $(PROJDIR)/alib3/_$(OSFULL)-$(ARCH)
 
 FF_OBJ_DIR := ./ff-obj
 # CFLAGS_STD += -fsanitize=address
@@ -50,8 +50,6 @@ FFAUDIO_CFLAGS := $(CFLAGS_STD) $(CFLAGS_DEBUG) $(CFLAGS_OPT) $(CFLAGS_OS) $(CFL
 CFLAGS_STD += -DFFBASE_HAVE_FFERR_STR
 FFOS_CFLAGS := $(CFLAGS_STD) $(CFLAGS_DEBUG) $(CFLAGS_OPT) $(CFLAGS_OS) $(CFLAGS_CPU) -pthread
 FF_CFLAGS := $(CFLAGS_STD) $(CFLAGS_DEBUG) $(CFLAGS_OPT) $(CFLAGS_OS) $(CFLAGS_CPU) -I$(AVPACK)
-FF3PTLIB := $(FF3PT)-bin/$(OS)-$(ARCH)
-FF3PT_CFLAGS := $(CFLAGS_STD) $(CFLAGS_DEBUG) $(CFLAGS_OPT) $(CFLAGS_OS) $(CFLAGS_CPU)
 
 
 # CPU-specific options
@@ -65,14 +63,12 @@ endif
 CFLAGS_APP := \
 	-Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -Wno-implicit-fallthrough \
 	-Wno-stringop-overflow \
-	-I$(SRCDIR) -I$(FFBASE) -I$(FFAUDIO) -I$(AVPACK) -I$(FF) -I$(FFOS) -I$(FF3PT)
+	-I$(SRCDIR) -I$(PROJDIR)/alib3 -I$(FFBASE) -I$(FFAUDIO) -I$(AVPACK) -I$(FF) -I$(FFOS)
 CFLAGS := $(CFLAGS_STD) $(CFLAGS_DEBUG) $(CFLAGS_OPT) $(CFLAGS_OS) $(CFLAGS_CPU) $(CFLAGS_APP)
-# alternative optimization flags: no LTO
 ifneq ($(OPT),0)
 	CFLAGS_OPT := -O3
 endif
-CFLAGS_ALTOPT := $(CFLAGS_STD) $(CFLAGS_DEBUG) $(CFLAGS_OPT) $(CFLAGS_OS) $(CFLAGS_CPU) $(CFLAGS_APP)
-LDFLAGS += -Wno-stringop-overflow -L$(FF3PTLIB) $(LD_LPTHREAD)
+LDFLAGS += -Wno-stringop-overflow $(LD_LPTHREAD) -L$(ALIB3)
 ifeq ($(OS),linux)
 	LDFLAGS += -L/usr/lib64/pipewire-0.3/jack
 endif

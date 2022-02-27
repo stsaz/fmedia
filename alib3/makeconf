@@ -1,0 +1,89 @@
+# Global definitions for Makefile:
+# OS, compiler, utils
+
+# Set OS
+ifndef OS
+	uname := $(shell uname)
+	ifeq "$(uname)" "Linux"
+		OS := linux
+	else ifeq "$(uname)" "FreeBSD"
+		OS := freebsd
+	else ifeq "$(uname)" "Darwin"
+		OS := apple
+	endif
+else ifeq "$(OS)" "Windows_NT"
+	# OS=Windows_NT is default env var on Windows
+	OS := windows
+endif
+
+DOTEXE :=
+SO := so
+ifeq "$(OS)" "apple"
+	SO := dylib
+else ifeq "$(OS)" "windows"
+	DOTEXE := .exe
+	SO := dll
+endif
+
+
+# Set compiler
+COMPILER := gcc
+ifeq "$(OS)" "freebsd"
+	COMPILER := clang
+endif
+ifeq "$(OS)" "apple"
+	COMPILER := clang
+endif
+
+CROSS_PREFIX :=
+ifndef CROSS_PREFIX
+	ifeq "$(OS)" "windows"
+		CROSS_PREFIX := x86_64-w64-mingw32-
+	endif
+endif
+
+C := $(CROSS_PREFIX)gcc -c -pipe
+CXX := $(CROSS_PREFIX)g++ -c -pipe
+LINK := $(CROSS_PREFIX)gcc -pipe
+LINKXX := $(CROSS_PREFIX)g++ -pipe
+ifeq "$(COMPILER)" "clang"
+	C := clang -c
+	CXX := clang++ -c
+	LINK := clang
+	LINKXX := clang
+endif
+
+LINK_RPATH_ORIGIN :=
+LINK_INSTALLNAME_LOADERPATH :=
+ifeq "$(OS)" "linux"
+	LINK_RPATH_ORIGIN := '-Wl,-rpath,$$ORIGIN' -Wl,--disable-new-dtags
+else ifeq "$(OS)" "bsd"
+	LINK_RPATH_ORIGIN := '-Wl,-rpath,$$ORIGIN'
+else ifeq "$(OS)" "apple"
+	LINK_INSTALLNAME_LOADERPATH := -Wl,-install_name -Wl,@loader_path/$@
+endif
+
+LINK_PTHREAD :=
+ifneq "$(OS)" "windows"
+	LINK_PTHREAD := -pthread
+endif
+
+CFLAGS := -O3 -fpic -fvisibility=hidden
+LINKFLAGS := -fpic -Wl,-no-undefined -static-libgcc $(LINK_INSTALLNAME_LOADERPATH) -s -lm
+LINKXXFLAGS := $(LINKFLAGS)
+ifeq ($(OS),win)
+	LINKXXFLAGS += -static
+else
+	LINKXXFLAGS += -static-libstdc++
+endif
+
+
+# Set utils
+CURL := curl -L
+RM := rm -rf
+CP := cp -u
+UNTAR_BZ2 := tar xjf
+UNTAR_GZ := tar xzf
+UNTAR_XZ := tar xJf
+UNTAR_ZST := tar -x --zstd -f
+UNZIP := unzip

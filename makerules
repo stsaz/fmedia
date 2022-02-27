@@ -38,7 +38,6 @@ BINS += $(OS_BINS)
 all: ff $(BINS)
 
 include $(FF)/makerules
-include $(FF3PT)/makerules
 FF_O := $(FFOS_OBJ) \
 	$(FF_OBJ_DIR)/ffarray.o \
 	$(FF_OBJ_DIR)/ffstring.o
@@ -182,7 +181,7 @@ soxr.$(SO): $(SOXR_O)
 DYNANORM_O := $(OBJ_DIR)/dynanorm.o \
 	$(FF_O)
 dynanorm.$(SO): $(DYNANORM_O)
-	$(LD) -shared $(DYNANORM_O) $(LDFLAGS) $(LD_RPATH_ORIGIN) -ldynanorm-ff  -o$@
+	$(LD) -shared $(DYNANORM_O) $(LDFLAGS) $(LD_RPATH_ORIGIN) -lDynamicAudioNormalizer-ff  -o$@
 
 
 #
@@ -502,17 +501,18 @@ endif
 	chmod 755 $(INSTDIR)/mod
 	$(CP) \
 		*.$(SO) \
-		$(FF3PTLIB)/libogg-ff.$(SO) $(FF3PTLIB)/libvorbis-ff.$(SO) $(FF3PTLIB)/libvorbisenc-ff.$(SO) \
-		$(FF3PTLIB)/libopus-ff.$(SO) \
-		$(FF3PTLIB)/libmpg123-ff.$(SO) $(FF3PTLIB)/libmp3lame-ff.$(SO) \
-		$(FF3PTLIB)/libFLAC-ff.$(SO) \
-		$(FF3PTLIB)/libmpc-ff.$(SO) \
-		$(FF3PTLIB)/libwavpack-ff.$(SO) \
-		$(FF3PTLIB)/libMAC-ff.$(SO) \
-		$(FF3PTLIB)/libfdk-aac-ff.$(SO) \
-		$(FF3PTLIB)/libALAC-ff.$(SO) \
-		$(FF3PTLIB)/libsoxr-ff.$(SO) \
-		$(FF3PTLIB)/libdynanorm-ff.$(SO) \
+		$(ALIB3)/libALAC-ff.$(SO) \
+		$(ALIB3)/libDynamicAudioNormalizer-ff.$(SO) \
+		$(ALIB3)/libfdk-aac-ff.$(SO) \
+		$(ALIB3)/libFLAC-ff.$(SO) \
+		$(ALIB3)/libMAC-ff.$(SO) \
+		$(ALIB3)/libmp3lame-ff.$(SO) \
+		$(ALIB3)/libmpc-ff.$(SO) \
+		$(ALIB3)/libmpg123-ff.$(SO) \
+		$(ALIB3)/libopus-ff.$(SO) \
+		$(ALIB3)/libsoxr-ff.$(SO) \
+		$(ALIB3)/libvorbis-ff.$(SO) $(ALIB3)/libvorbisenc-ff.$(SO) $(ALIB3)/libogg-ff.$(SO) \
+		$(ALIB3)/libwavpack-ff.$(SO) \
 		$(INSTDIR)/mod
 	chmod 644 $(INSTDIR)/mod/*
 

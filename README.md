@@ -86,7 +86,7 @@ fmedia is free and open-source project, and you can use it as a standalone appli
 	* Terminal UI
 	* Graphical UI (Windows, Linux/GTK)
 
-fmedia uses modified versions of these 3rd party libraries: libALAC, libfdk-aac, libFLAC, libMAC, libmp3lame, libmpg123, libmpc, libogg, libopus, libsoxr, libvorbisenc, libvorbis, libwavpack, libDynamicAudioNormalizer.  See `ff-3pt/README.txt` for details.
+fmedia uses modified versions of these 3rd party libraries: libALAC, libfdk-aac, libFLAC, libMAC, libmp3lame, libmpg123, libmpc, libogg, libopus, libsoxr, libvorbisenc, libvorbis, libwavpack, libDynamicAudioNormalizer.  See contents of `alib3/` for more info.
 
 
 ## INSTALL
@@ -156,30 +156,26 @@ fmedia uses modified versions of these 3rd party libraries: libALAC, libfdk-aac,
 		git clone https://github.com/stsaz/ffaudio
 		git clone https://github.com/stsaz/ffos
 		git clone https://github.com/stsaz/ff
-		git clone https://github.com/stsaz/ff-3pt
 		git clone https://github.com/stsaz/avpack
 		git clone https://github.com/stsaz/fmedia
 
 Note: builds from the latest `master` branch are not supported and *may not work*!
 To build a working package you should checkout a specific git tag for fmedia (e.g. `v1.19`) and then checkout the corresponding git tags for ff* repos with the same release date (e.g. `v20.08`).
 
-3. Build ff-3pt package (3rd-party libraries) or download pre-built binaries.  See `ff-3pt/README.txt` for details.
+3. Build alib3 package (3rd-party audio codec libraries) or use pre-built binaries from the previous fmedia release.
 
 4. Build fmedia:
 
 		cd fmedia
-		export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:../ff-3pt-bin/linux-amd64
 		make install
 
 	You can explicitly specify path to each of FF source repositories, e.g.:
 
-		make install FFOS=~/ffos FF=~/ff FF3PT=~/ff-3pt
+		make install FFOS=~/ffos FF=~/ff
 
 	Default architecture is amd64.  You can specify different target architecture like this:
 
 		make install ARCH=i686
-
-	You'll also need to specify the proper path to ff-3pt binaries in `LD_LIBRARY_PATH`.
 
 5. Ready!  You can copy the directory `./fmedia-1` anywhere you want (see section "INSTALL ON LINUX").
 
@@ -208,13 +204,11 @@ You can build fmedia without dependencies on 3rd-party libraries.  This will be 
 4. Build with mingw (64-bit):
 
 		cd fmedia
-		export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:../ff-3pt-bin/win-amd64
 		mingw64-make OS=win CPREFIX=x86_64-w64-mingw32- install
 
 	Build with mingw (32-bit):
 
 		cd fmedia
-		export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:../ff-3pt-bin/win-i686
 		mingw32-make OS=win ARCH=i686 CPREFIX=i686-w64-mingw32- install
 
 5. Ready!
@@ -420,7 +414,7 @@ See `src/format/wav.c` for an example on how to write a simple filter for fmedia
 
 ### LOW-LEVEL INTERFACE
 
-If you'd like to use low level interfaces, take a look at the source code of FF & FF-3pt libraries.  Together they provide you with an easy interface that you can use to work with a large set of file formats, decode or encode audio and much more.  fmedia itself is built upon FF library - it's completely free and open-source.
+If you'd like to use low level interfaces, take a look at the source code of FF libraries.  Together they provide you with an easy interface that you can use to work with a large set of file formats, decode or encode audio and much more.  fmedia itself is built upon FF library - it's completely free and open-source.
 
 
 ### PARTICIPATE
@@ -434,7 +428,7 @@ Understanding the top-level source code hierarchy can help you to get involved i
 	------------------------
 	      ff      |
 	--------------| avpack, ffaudio
-	 ffos, ff-3pt |
+	     ffos     |
 	------------------------
 	    ffbase
 	------------------------
@@ -444,7 +438,6 @@ Each of them plays its own part:
 * ffbase provides base containers and algorithms
 * ffaudio provides audio I/O
 * ffos provides cross-platform abilities.  Code based on ffos can run on Windows, Linux and FreeBSD.
-* ff-3pt provides simple access to 3rd party libraries such as libFLAC.
 * ff contains all low/mid level interfaces that can be reused between different applications.
 * avpack provides API for reading/writing audio-video container formats, e.g. ".mp4".
 * fmedia contains application code, it's largely based on all FF libraries.

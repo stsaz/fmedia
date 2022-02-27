@@ -28,7 +28,6 @@ This is the list of the things that need to be done.
 * Set to Play Next
 * build for ARM (#3)
 * open http://....m3u (application/x-mpegURL)
-* wasapi: process AUDCLNT_E_DEVICE_INVALIDATED
 * Modify audio tags in-place
 
 		>fmedia --tags --meta='artist=NewArtist' ./file.mp3
