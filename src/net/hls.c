@@ -86,11 +86,11 @@ static void hls_httpsig(void *param)
 			goto wake;
 		}
 
-		ffstr val;
-		if (0 != ffhttp_findihdr(&resp->h, FFHTTP_CONTENT_TYPE, &val)) {
+		ffstr ct = resp->content_type;
+		if (ct.len != 0) {
 			if (c->state == HLS_PARSEM3U) {
-				if (!ffstr_eqz(&val, "application/vnd.apple.mpegurl")) {
-					errlog(c->trk, "unsupported Content-Type: %S", &val);
+				if (!ffstr_eqz(&ct, "application/vnd.apple.mpegurl")) {
+					errlog(c->trk, "unsupported Content-Type: %S", &ct);
 					c->state = HLS_ERR;
 					goto wake;
 				}
@@ -193,7 +193,8 @@ static int hls_request(struct hls *c, const char *url)
 	if (net->conf.user_agent != 0) {
 		ffstr s;
 		ffstr_setz(&s, http_ua[net->conf.user_agent - 1]);
-		http_iface.header(c->con, &ffhttp_shdr[FFHTTP_USERAGENT], &s, 0);
+		ffstr name = FFSTR_INITZ("User-Agent");
+		http_iface.header(c->con, &name, &s, 0);
 	}
 
 	http_iface.sethandler(c->con, &hls_httpsig, c);

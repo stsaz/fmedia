@@ -116,7 +116,7 @@ static int jack_adev_list(fmed_adev_ent **ents, uint flags)
 
 typedef struct jack_in {
 	audio_in in;
-	fftmrq_entry tmr;
+	fftimerqueue_node tmr;
 } jack_in;
 
 static void* jack_in_open(fmed_filt *d)
@@ -144,8 +144,7 @@ static void* jack_in_open(fmed_filt *d)
 	if (0 != audio_in_open(a, d))
 		goto fail;
 
-	ji->tmr.handler = audio_oncapt;
-	ji->tmr.param = a;
+	fmed_timer_set(&ji->tmr, audio_oncapt, a);
 	if (0 != core->timer(&ji->tmr, a->buffer_length_msec / 3, 0))
 		goto fail;
 

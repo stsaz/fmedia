@@ -2,9 +2,7 @@
 Copyright (c) 2016 Simon Zolin */
 
 #include <net/net.h>
-#include <FF/net/http-client.h>
 #include <FF/net/url.h>
-#include <FF/net/http.h>
 #include <FF/path.h>
 #include <FFOS/asyncio.h>
 #include <FFOS/socket.h>
@@ -152,7 +150,6 @@ static int net_sig(uint signo)
 			return -1;
 		if (NULL == (net = ffmem_tcalloc1(netmod)))
 			return -1;
-		ffhttp_initheaders();
 		return 0;
 
 	case FMED_OPEN:
@@ -171,7 +168,6 @@ static void net_destroy(void)
 	ffhttpcl_deinit();
 	ffmem_free(net->conf.proxy.host);
 	ffmem_free0(net);
-	ffhttp_freeheaders();
 }
 
 
@@ -206,7 +202,7 @@ static int http_conf_proxy(fmed_conf *fc, void *obj, ffstr *val)
 		return FMC_ESYS;
 	net->conf.proxy.port = u.port;
 	if (u.port == 0)
-		net->conf.proxy.port = FFHTTP_PORT;
+		net->conf.proxy.port = 80;
 
 	return 0;
 }
@@ -244,7 +240,7 @@ static void http_if_log(void *udata, uint level, const char *fmt, ...)
 	va_end(va);
 }
 
-static void http_if_timer(fftmrq_entry *tmr, uint value_ms)
+static void http_if_timer(fftimerqueue_node *tmr, uint value_ms)
 {
 	core->timer(tmr, -(int)value_ms, 0);
 }
@@ -453,30 +449,23 @@ static void httpcli_close(void *ctx)
 static int httpcli_resp(struct httpclient *c, ffhttp_response *resp)
 {
 	if (resp->code != 200) {
-		ffstr ln = ffhttp_respstatus(resp);
-		errlog(c->trk, "resource unavailable: %S", &ln);
+		errlog(c->trk, "resource unavailable: %S", &resp->status);
 		return FMED_RERR;
 	}
 
-	ffstr s, ext;
-	if (0 != ffhttp_findihdr(&resp->h, FFHTTP_CONTENT_TYPE, &s)) {
-		if (ffstr_ieqz(&s, "audio/mpeg"))
+	ffstr ext = {}, ct = resp->content_type;
+	if (ct.len != 0) {
+		if (ffstr_ieqz(&ct, "audio/mpeg"))
 			ffstr_setz(&ext, "mp3");
-		else if (ffstr_ieqz(&s, "audio/aac") || ffstr_ieqz(&s, "audio/aacp"))
+		else if (ffstr_ieqz(&ct, "audio/aac") || ffstr_ieqz(&ct, "audio/aacp"))
 			ffstr_setz(&ext, "aac");
-		else if (ffstr_ieqz(&s, "audio/ogg") || ffstr_ieqz(&s, "application/ogg"))
+		else if (ffstr_ieqz(&ct, "audio/ogg") || ffstr_ieqz(&ct, "application/ogg"))
 			ffstr_setz(&ext, "ogg");
-		else {
-			errlog(c->trk, "unsupported Content-Type: %S", &s);
-			return FMED_RERR;
-		}
-	} else {
-		ffstr_setz(&ext, "mp3");
-		dbglog(c->trk, "no Content-Type HTTP header in response, assuming MPEG");
+		else
+			dbglog(c->trk, "Content-Type: %S.  Will detect format from data.", &ct);
 	}
 
 	if (c->next_filt_ext.len != 0) {
-
 		if (!ffstr_eq2(&c->next_filt_ext, &ext)) {
 			errlog(c->trk, "unsupported behaviour: stream is changing audio format from %S to %S"
 				, &c->next_filt_ext, &ext);
@@ -494,17 +483,18 @@ static int httpcli_resp(struct httpclient *c, ffhttp_response *resp)
 		return FMED_RERR;
 	c->next_filt_ext = ext;
 
+	ffstr s, meta;
 	ffstr_setz(&s, ICY_HTTPHDR_META_INT);
-	if (0 != ffhttp_findhdr(&resp->h, s.ptr, s.len, &s)) {
+	if (0 != ffhttp_findhdr(&resp->h, s.ptr, s.len, &meta)) {
 		uint n;
-		if (ffstr_toint(&s, &n, FFS_INT32)) {
+		if (ffstr_toint(&meta, &n, FFS_INT32)) {
 			if (0 == net->track->cmd(c->trk, FMED_TRACK_FILT_ADD, "net.icy"))
 				return FMED_RERR;
 			net->track->setvalstr(c->trk, "icy_format", ext.ptr);
 			net->track->setval(c->trk, "icy_meta_int", n);
 		} else {
 			warnlog(c->trk, "invalid value for HTTP response header %s: %S"
-				, ICY_HTTPHDR_META_INT, &s);
+				, ICY_HTTPHDR_META_INT, &meta);
 		}
 	}
 
@@ -618,7 +608,8 @@ static int httpcli_process(void *ctx, fmed_filt *d)
 		if (net->conf.user_agent != 0) {
 			ffstr s;
 			ffstr_setz(&s, http_ua[net->conf.user_agent - 1]);
-			http_iface.header(c->con, &ffhttp_shdr[FFHTTP_USERAGENT], &s, 0);
+			ffstr name = FFSTR_INITZ("User-Agent");
+			http_iface.header(c->con, &name, &s, 0);
 		}
 
 		http_iface.sethandler(c->con, &httpcli_handler, c);

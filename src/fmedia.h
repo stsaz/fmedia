@@ -16,17 +16,18 @@ mixer                 mixer
 #pragma once
 
 #include <afilter/pcm.h>
+#include <FF/array.h>
 #include <FF/data/conf2-scheme.h>
 #include <FF/sys/taskqueue.h>
-#include <FF/sys/timer-queue.h>
 #include <FFOS/file.h>
 #include <FFOS/error.h>
+#include <FFOS/timerqueue.h>
 
 
 #define FMED_VER_MAJOR  1
 #define FMED_VER_MINOR  26
 #define FMED_VER_FULL  ((FMED_VER_MAJOR << 8) | FMED_VER_MINOR)
-#define FMED_VER  "1.25.3beta"
+#define FMED_VER  "1.25.4beta"
 
 #define FMED_VER_GETMAJ(fullver)  ((fullver) >> 8)
 #define FMED_VER_GETMIN(fullver)  ((fullver) & 0xff)
@@ -35,7 +36,7 @@ mixer                 mixer
 It must be updated when incompatible changes are made to this file,
  then all modules must be rebuilt.
 The core will refuse to load modules built for any other core version. */
-#define FMED_VER_CORE  ((FMED_VER_MAJOR << 8) | 26)
+#define FMED_VER_CORE  ((FMED_VER_MAJOR << 8) | 27)
 
 #define FMED_HOMEPAGE  "https://stsaz.github.io/fmedia/"
 
@@ -209,8 +210,14 @@ struct fmed_core {
 	/** Set timer on the main worker.
 	@interval:  >0: periodic;  <0: one-shot;  0: disable.
 	Return 0 on success. */
-	int (*timer)(fftmrq_entry *tmr, int64 interval, uint flags);
+	int (*timer)(fftimerqueue_node *tmr, int64 interval, uint flags);
 };
+
+static inline void fmed_timer_set(fftimerqueue_node *t, fftimerqueue_func func, void *param)
+{
+	t->func = func;
+	t->param = param;
+}
 
 enum FMED_INSTANCE_MODE {
 	FMED_IM_OFF,
@@ -1035,7 +1042,7 @@ typedef struct fmed_globcmd_iface {
 
 // NET
 
-#include <FF/net/http-client.h>
+#include <util/http-client.h>
 
 typedef struct fmed_net_http {
 	/** Create HTTP request.

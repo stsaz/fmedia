@@ -9,7 +9,7 @@ static const fmed_core *core;
 
 typedef struct wasapi_mod {
 	ffaudio_buf *out;
-	fftmrq_entry tmr;
+	fftimerqueue_node tmr;
 	ffpcm fmt;
 	audio_out *usedby;
 	const fmed_track *track;
@@ -287,8 +287,7 @@ fin:
 		, reused ? "reused" : "opened", w->buffer_length_msec
 		, mod->fmt.sample_rate, excl);
 
-	mod->tmr.handler = audio_out_onplay;
-	mod->tmr.param = w;
+	fmed_timer_set(&mod->tmr, audio_out_onplay, w);
 	if (0 != core->timer(&mod->tmr, w->buffer_length_msec / 3, 0))
 		return FMED_RERR;
 
@@ -364,7 +363,7 @@ static int wasapi_write(void *ctx, fmed_filt *d)
 
 typedef struct was_in {
 	audio_in in;
-	fftmrq_entry tmr;
+	fftimerqueue_node tmr;
 	uint latcorr;
 } was_in;
 
@@ -417,8 +416,7 @@ static void* wasapi_in_open(fmed_filt *d)
 	if (0 != audio_in_open(a, d))
 		goto fail;
 
-	wi->tmr.handler = audio_oncapt;
-	wi->tmr.param = a;
+	fmed_timer_set(&wi->tmr, audio_oncapt, a);
 	if (0 != core->timer(&wi->tmr, a->buffer_length_msec / 3, 0))
 		goto fail;
 

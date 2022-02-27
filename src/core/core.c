@@ -4,7 +4,6 @@ Copyright (c) 2015 Simon Zolin */
 #include <core/core-priv.h>
 
 #include <FF/path.h>
-#include <FF/rbtree.h>
 #include <FF/sys/filemap.h>
 #include <FF/sys/taskqueue.h>
 #ifdef FF_WIN
@@ -56,8 +55,10 @@ struct worker {
 	ffkevpost kqpost;
 	ffkevent evposted;
 
-	fftimer_queue tmrq;
-	uint period;
+	fftimer timer;
+	fftimerqueue timerq;
+	uint timer_period;
+	ffkevent timer_kev;
 
 	ffatomic njobs;
 	uint init :1;

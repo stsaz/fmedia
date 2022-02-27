@@ -8,7 +8,7 @@ Copyright (c) 2017 Simon Zolin */
 static const fmed_core *core;
 
 typedef struct oss_mod {
-	fftmrq_entry tmr;
+	fftimerqueue_node tmr;
 	ffaudio_buf *out;
 	ffpcm fmt;
 	audio_out *usedby;
@@ -246,8 +246,7 @@ fin:
 
 	mod->usedby = a;
 
-	mod->tmr.handler = audio_out_onplay;
-	mod->tmr.param = a;
+	fmed_timer_set(&mod->tmr, audio_out_onplay, a);
 	if (0 != core->timer(&mod->tmr, a->buffer_length_msec / 3, 0))
 		return FMED_RERR;
 
@@ -292,7 +291,7 @@ static int oss_write(void *ctx, fmed_filt *d)
 
 typedef struct oss_in {
 	audio_in in;
-	fftmrq_entry tmr;
+	fftimerqueue_node tmr;
 } oss_in;
 
 static void* oss_in_open(fmed_filt *d)
@@ -320,8 +319,7 @@ static void* oss_in_open(fmed_filt *d)
 	if (0 != audio_in_open(a, d))
 		goto fail;
 
-	pi->tmr.handler = audio_oncapt;
-	pi->tmr.param = a;
+	fmed_timer_set(&pi->tmr, audio_oncapt, a);
 	if (0 != core->timer(&pi->tmr, a->buffer_length_msec / 3, 0))
 		goto fail;
 

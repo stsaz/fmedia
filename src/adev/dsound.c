@@ -127,7 +127,7 @@ static int dsnd_adev_list(fmed_adev_ent **ents, uint flags)
 
 typedef struct dsnd_out {
 	audio_out out;
-	fftmrq_entry tmr;
+	fftimerqueue_node tmr;
 } dsnd_out;
 
 static int dsnd_out_config(fmed_conf_ctx *ctx)
@@ -189,8 +189,7 @@ static int dsnd_create(dsnd_out *ds, fmed_filt *d)
 		, "opened", a->buffer_length_msec
 		, fmt.sample_rate);
 
-	ds->tmr.handler = audio_out_onplay;
-	ds->tmr.param = a;
+	fmed_timer_set(&ds->tmr, audio_out_onplay, a);
 	if (0 != core->timer(&ds->tmr, a->buffer_length_msec / 3, 0))
 		return FMED_RERR;
 
@@ -233,7 +232,7 @@ static int dsnd_write(void *ctx, fmed_filt *d)
 
 typedef struct dsnd_in {
 	audio_in in;
-	fftmrq_entry tmr;
+	fftimerqueue_node tmr;
 } dsnd_in;
 
 static int dsnd_in_config(fmed_conf_ctx *ctx)
@@ -266,8 +265,7 @@ static void* dsnd_in_open(fmed_filt *d)
 	if (0 != audio_in_open(a, d))
 		goto fail;
 
-	ds->tmr.handler = audio_oncapt;
-	ds->tmr.param = a;
+	fmed_timer_set(&ds->tmr, audio_oncapt, a);
 	if (0 != core->timer(&ds->tmr, a->buffer_length_msec / 3, 0))
 		goto fail;
 

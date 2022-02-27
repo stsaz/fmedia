@@ -3,6 +3,7 @@ Copyright (c) 2019 Simon Zolin */
 
 #include <fmedia.h>
 #include <FF/gui-gtk/gtk.h>
+#include <FF/gui-gtk/loader.h>
 #include <FFOS/thread.h>
 #include <FFOS/semaphore.h>
 #include <FFOS/signal.h>
@@ -81,7 +82,7 @@ typedef struct ggui {
 	uint tabs_counter;
 	char *home_dir;
 
-	fftmrq_entry timer;
+	fftimerqueue_node timer;
 	int timer_refcount;
 	uint timer_val;
 

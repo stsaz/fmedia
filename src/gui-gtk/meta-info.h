@@ -47,7 +47,7 @@ void winfo_show(uint show, uint idx)
 	}
 
 	ffstr name, empty = {}, *val;
-	ffarr data = {};
+	ffvec data = {};
 	fmed_que_entry *ent = (fmed_que_entry*)gg->qu->fmed_queue_item_locked(-1, idx);
 	if (ent == NULL)
 		return;
@@ -60,12 +60,12 @@ void winfo_show(uint show, uint idx)
 
 	fffileinfo fi = {};
 	ffbool have_fi = (0 == fffile_infofn(ent->url.ptr, &fi));
-	ffarr_alloc(&data, 255);
+	ffvec_alloc(&data, 255, 1);
 
 	ffstr_setz(&name, "File size");
 	data.len = 0;
 	if (have_fi)
-		ffstr_catfmt(&data, "%U KB", fffile_infosize(&fi) / 1024);
+		ffvec_addfmt(&data, "%U KB", fffile_infosize(&fi) / 1024);
 	winfo_addpair(&name, (ffstr*)&data);
 
 	ffstr_setz(&name, "File date");
@@ -97,5 +97,5 @@ void winfo_show(uint show, uint idx)
 
 	ffui_show(&w->winfo, 1);
 
-	ffarr_free(&data);
+	ffvec_free(&data);
 }

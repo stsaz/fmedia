@@ -9,7 +9,7 @@ static const fmed_core *core;
 
 typedef struct alsa_mod {
 	ffaudio_buf *out;
-	fftmrq_entry tmr;
+	fftimerqueue_node tmr;
 	ffpcm fmt;
 	audio_out *usedby;
 	const fmed_track *track;
@@ -276,8 +276,7 @@ fin:
 
 	// if (alsa_out_conf.nfy_rate != 0)
 	// 	mod->out.nfy_interval = ffpcm_samples(alsa_out_conf.buflen / alsa_out_conf.nfy_rate, fmt.sample_rate);
-	mod->tmr.handler = audio_out_onplay;
-	mod->tmr.param = a;
+	fmed_timer_set(&mod->tmr, audio_out_onplay, a);
 	if (0 != core->timer(&mod->tmr, a->buffer_length_msec / 3, 0))
 		return FMED_RERR;
 
@@ -323,7 +322,7 @@ static int alsa_write(void *ctx, fmed_filt *d)
 
 typedef struct alsa_in {
 	audio_in in;
-	fftmrq_entry tmr;
+	fftimerqueue_node tmr;
 } alsa_in;
 
 static int alsa_in_config(fmed_conf_ctx *ctx)
@@ -359,8 +358,7 @@ static void* alsa_in_open(fmed_filt *d)
 	if (0 != audio_in_open(a, d))
 		goto fail;
 
-	al->tmr.handler = audio_oncapt;
-	al->tmr.param = a;
+	fmed_timer_set(&al->tmr, audio_oncapt, a);
 	if (0 != core->timer(&al->tmr, a->buffer_length_msec / 3, 0))
 		goto fail;
 

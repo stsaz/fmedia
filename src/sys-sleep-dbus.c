@@ -37,7 +37,7 @@ static void allowsleep(void *param);
 
 
 struct dbussleep {
-	fftmrq_entry tmr;
+	fftimerqueue_node tmr;
 	uint ntracks;
 	struct ffps_systimer st;
 };
@@ -82,9 +82,9 @@ static const void* dbussleep_iface(const char *name)
 
 static void allowsleep(void *param)
 {
-	if (g->tmr.handler == NULL)
+	if (g->tmr.func == NULL)
 		return;
-	g->tmr.handler = NULL;
+	g->tmr.func = NULL;
 	dbglog("resume system sleep timer");
 	ffps_systimer(&g->st, 0);
 }
@@ -97,7 +97,7 @@ void* dbussleep_open(fmed_filt *d)
 
 	if (g->ntracks == 0) {
 		core->timer(&g->tmr, 0, 0);
-		if (g->tmr.handler == NULL) {
+		if (g->tmr.func == NULL) {
 			if (0 != ffps_systimer(&g->st, 1)) {
 				errlog("ffps_systimer()");
 				return FMED_FILT_SKIP;
@@ -113,7 +113,7 @@ void* dbussleep_open(fmed_filt *d)
 void dbussleep_close(void *ctx)
 {
 	if (--g->ntracks == 0) {
-		g->tmr.handler = &allowsleep;
+		fmed_timer_set(&g->tmr, allowsleep, NULL);
 		core->timer(&g->tmr, -ALLOWSLEEP_TIMEOUT, 0);
 	}
 }

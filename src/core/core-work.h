@@ -3,12 +3,17 @@
 
 static void wrk_destroy(struct worker *w);
 static int FFTHDCALL work_loop(void *param);
+static void on_timer(void *param);
 
 /** Initialize worker object */
 static int wrk_init(struct worker *w, uint thread)
 {
 	fftask_init(&w->taskmgr);
-	fftmrq_init(&w->tmrq);
+	if (FFTIMER_NULL == (w->timer = fftimer_create(0))) {
+		syserrlog("fftimer_create");
+		return 1;
+	}
+	fftimerqueue_init(&w->timerq);
 
 	if (FF_BADFD == (w->kq = ffkqu_create())) {
 		syserrlog("%s", ffkqu_create_S);
@@ -45,7 +50,7 @@ static void wrk_destroy(struct worker *w)
 		dbglog0("thread %xU exited", (int64)w->id);
 		w->thd = FFTHD_INV;
 	}
-	fftmrq_destroy(&w->tmrq, w->kq);
+	fftimer_close(w->timer, w->kq);
 	if (w->kq != FF_BADFD) {
 		ffkqu_post_detach(&w->kqpost, w->kq);
 		ffkqu_close(w->kq);
@@ -181,54 +186,54 @@ static void core_task(fftask *task, uint cmd)
 	}
 }
 
-static int core_timer(fftmrq_entry *tmr, int64 _interval, uint flags)
+static int core_timer(fftimerqueue_node *t, int64 _interval, uint flags)
 {
 	struct worker *w = (void*)fmed->workers.ptr;
 	int interval = _interval;
 	uint period = ffmin((uint)ffabs(interval), TMR_INT);
 	dbglog0("timer:%p  interval:%d  handler:%p  param:%p"
-		, tmr, interval, tmr->handler, tmr->param);
+		, t, interval, t->func, t->param);
 
 	if (w->kq == FF_BADFD) {
 		dbglog0("timer's not ready", 0);
 		return -1;
 	}
 
-	if (fftmrq_active(&w->tmrq, tmr))
-		fftmrq_rm(&w->tmrq, tmr);
-	else if (interval == 0)
-		return 0;
-
 	if (interval == 0) {
-		/* We should stop system timer only after some time of inactivity,
-		 otherwise the next task may start the timer again.
-		In this case we'd waste context switches.
-		Anyway, we don't really need to stop it at all.
-
-		if (fftmrq_empty(&w->tmrq)) {
-			fftmrq_stop(&w->tmrq, w->kq);
-			dbglog0("stopped kernel timer", 0);
-		}
-		*/
+		fftimerqueue_remove(&w->timerq, t);
 		return 0;
 	}
 
-	if (fftmrq_started(&w->tmrq) && period < w->period) {
-		fftmrq_stop(&w->tmrq, w->kq);
+	if (period < w->timer_period) {
+		fftimer_stop(w->timer, w->kq);
+		w->timer_period = 0;
 		dbglog0("restarting kernel timer", 0);
 	}
 
-	if (!fftmrq_started(&w->tmrq)) {
-		if (0 != fftmrq_start(&w->tmrq, w->kq, period)) {
-			syserrlog("%s", "fftmrq_start()");
+	if (w->timer_period == 0) {
+		w->timer_kev.handler = on_timer;
+		w->timer_kev.udata = w;
+		if (0 != fftimer_start(w->timer, w->kq, &w->timer_kev, period)) {
+			syserrlog("%s", "fftimer_start()");
 			return -1;
 		}
-		w->period = period;
+		w->timer_period = period;
 		dbglog0("started kernel timer  interval:%u", period);
 	}
 
-	fftmrq_add(&w->tmrq, tmr, interval);
+	fftime now = fftime_monotonic();
+	ffuint now_msec = now.sec*1000 + now.nsec/1000000;
+	fftimerqueue_add(&w->timerq, t, now_msec, interval, t->func, t->param);
 	return 0;
+}
+
+static void on_timer(void *param)
+{
+	struct worker *w = param;
+	fftime now = fftime_monotonic();
+	ffuint now_msec = now.sec*1000 + now.nsec/1000000;
+	fftimerqueue_process(&w->timerq, now_msec);
+	fftimer_consume(w->timer);
 }
 
 /** Worker's event loop */
@@ -236,7 +241,7 @@ static int FFTHDCALL work_loop(void *param)
 {
 	struct worker *w = param;
 	w->id = ffthd_curid();
-	ffkqu_entry *ents = ffmem_callocT(FMED_KQ_EVS, ffkqu_entry);
+	ffkq_event *ents = ffmem_callocT(FMED_KQ_EVS, ffkq_event);
 	if (ents == NULL)
 		return -1;
 
@@ -255,7 +260,7 @@ static int FFTHDCALL work_loop(void *param)
 		}
 
 		for (uint i = 0;  i != nevents;  i++) {
-			ffkqu_entry *ev = &ents[i];
+			ffkq_event *ev = &ents[i];
 			ffkev_call(ev);
 
 			fftask_run(&w->taskmgr);

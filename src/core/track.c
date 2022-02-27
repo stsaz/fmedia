@@ -507,6 +507,22 @@ static void trk_fin(fm_trk *t)
 	core->task(&t->tsk_main, FMED_TASK_POST);
 }
 
+typedef void (*ffrbt_free_t)(void*);
+
+/** Call a user's destroy/free function for each node.
+off: offset of a ffrbt_node in user's structure. */
+static void ffrbt_freeall(ffrbtree *tr, void(*func)(void*), size_t off)
+{
+	ffrbt_node *n, *next;
+	FFRBT_FOR(tr, n) {
+		next = ffrbt_node_successor(n, &tr->sentl);
+		ffrbt_rm(tr, n);
+		void *p = FF_PTR(n, -(ssize_t)off);
+		func(p);
+		n = next;
+	}
+}
+
 /** Free memory associated with the track.  Thread: main. */
 static void trk_free(fm_trk *t)
 {
@@ -893,7 +909,7 @@ static dict_ent* dict_findstr(fm_trk *t, const ffstr *name)
 	uint crc = murmurhash3(name->ptr, name->len, 0x12345678);
 	ffrbt_node *nod;
 
-	nod = ffrbt_find(&t->dict, crc, NULL);
+	nod = ffrbt_find(&t->dict, crc);
 	if (nod == NULL)
 		return NULL;
 	ent = (dict_ent*)nod;
@@ -918,7 +934,11 @@ static dict_ent* dict_add(fm_trk *t, const char *name, uint *f)
 	ffrbt_node *nod, *parent;
 	ffrbtree *tree = (*f & FMED_TRK_META) ? &t->meta : &t->dict;
 
-	nod = ffrbt_find(tree, crc, &parent);
+	nod = ffrbt_node_locate(crc, tree->root, &tree->sentl);
+	if (nod != NULL && nod->key != crc) {
+		nod = NULL;
+		parent = nod;
+	}
 	if (nod != NULL) {
 		ent = (dict_ent*)nod;
 		if (0 != ffsz_cmp(name, ent->name)) {
@@ -960,7 +980,7 @@ static dict_ent* meta_find(fm_trk *t, const ffstr *name)
 	uint crc = murmurhash3(name->ptr, name->len, 0x12345678);
 	ffrbt_node *nod;
 
-	nod = ffrbt_find(&t->meta, crc, NULL);
+	nod = ffrbt_find(&t->meta, crc);
 	if (nod == NULL)
 		return NULL;
 	ent = (dict_ent*)nod;
@@ -976,11 +996,11 @@ static int trk_meta_enum(fm_trk *t, fmed_trk_meta *meta)
 	if (meta->trnod != &t->meta.sentl) {
 		if (meta->trnod == NULL) {
 			if (t->meta.root != &t->meta.sentl)
-				meta->trnod = fftree_min((void*)t->meta.root, &t->meta.sentl);
+				meta->trnod = ffrbt_node_min(t->meta.root, &t->meta.sentl);
 			else
 				meta->trnod = &t->meta.sentl;
 		} else
-			meta->trnod = fftree_successor(meta->trnod, &t->meta.sentl);
+			meta->trnod = ffrbt_node_successor(meta->trnod, &t->meta.sentl);
 		if (meta->trnod != &t->meta.sentl) {
 			const dict_ent *e = (dict_ent*)meta->trnod;
 			ffstr_setz(&meta->name, e->name);

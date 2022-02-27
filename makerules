@@ -63,6 +63,9 @@ $(OBJ_DIR)/%.o: $(SRCDIR)/acodec/%.c \
 $(OBJ_DIR)/%.o: $(SRCDIR)/format/%.c $(wildcard $(SRCDIR)/format/*.h) $(GLOBDEPS)
 	$(C)  $(CFLAGS) $<  -o$@
 
+$(OBJ_DIR)/%.o: $(SRCDIR)/util/%.c $(GLOBDEPS)
+	$(C)  $(CFLAGS) $<  -o$@
+
 $(RES): $(PROJDIR)/res/fmedia.rc $(wildcard $(PROJDIR)/res/*.ico)
 	$(WINDRES) -I$(SRCDIR) -I$(FFBASE) -I$(FF) -I$(FFOS) $(PROJDIR)/res/fmedia.rc $@
 
@@ -107,8 +110,6 @@ CORE_O += $(FF_O) \
 	$(FF_OBJ_DIR)/fffilewrite.o \
 	$(FF_OBJ_DIR)/ffthpool.o \
 	$(FF_OBJ_DIR)/ffsys.o \
-	$(FF_OBJ_DIR)/fftmr.o \
-	$(FF_OBJ_DIR)/ffrbtree.o \
 	$(FF_OBJ_DIR)/ffpath.o
 ifeq ($(OS),win)
 CORE_O += $(FF_OBJ_DIR)/ffwohandler.o
@@ -150,8 +151,8 @@ tui.$(SO): $(TUI_O)
 $(OBJ_DIR)/%.o: $(SRCDIR)/net/%.c $(GLOBDEPS) $(SRCDIR)/net/net.h
 	$(C) $(CFLAGS)  $< -o$@
 NET_O := $(OBJ_DIR)/net.o $(OBJ_DIR)/hls.o \
-	$(FF_OBJ_DIR)/ffhttp.o $(FF_OBJ_DIR)/ffhttp-client.o \
-	$(FF_OBJ_DIR)/ffproto.o $(FF_OBJ_DIR)/ffurl.o $(FF_OBJ_DIR)/ffparse.o \
+	$(OBJ_DIR)/ffhttp-client.o \
+	$(FF_OBJ_DIR)/ffproto.o $(FF_OBJ_DIR)/ffurl.o \
 	$(FF_OBJ_DIR)/ffsys.o \
 	$(FF_OBJ_DIR)/ffcrc.o \
 	$(FF_OBJ_DIR)/ffhashtab.o \
@@ -370,7 +371,6 @@ GUI_O := $(OBJ_DIR)/gui.o \
 	$(FF_OBJ_DIR)/ffsys.o \
 	$(FF_OBJ_DIR)/ffpath.o \
 	$(OBJ_DIR)/ffpcm.o \
-	$(FF_OBJ_DIR)/ffpic.o \
 	$(FF_GUI_OBJ)
 LIBS_GUIWAPI := -lshell32 -luxtheme -lcomctl32 -lcomdlg32 -lgdi32 -lole32 -luuid
 gui.$(SO): $(GUI_O)
@@ -411,7 +411,7 @@ GUIGTK_O := $(OBJ_DIR)/gui.o \
 	$(FF_OBJ_DIR)/ffpath.o \
 	$(FF_OBJ_DIR)/ffgui-gtk.o \
 	$(FF_OBJ_DIR)/ffgui-gtk-loader.o \
-	$(FF_OBJ_DIR)/ffurl.o $(FF_OBJ_DIR)/ffparse.o \
+	$(FF_OBJ_DIR)/ffurl.o \
 	$(FF_OBJ_DIR)/ffproto.o \
 	$(FF_OBJ_DIR)/ffsys.o \
 	$(OBJ_DIR)/ffpcm.o \

@@ -1197,7 +1197,7 @@ void gui_timer_start()
 	if (ffint_fetch_add(&gg->timer_refcount, 1) != 0)
 		return;
 	gg->timer_val++;
-	gg->timer.handler = ontimer;
+	fmed_timer_set(&gg->timer, ontimer, gg);
 	core->timer(&gg->timer, 250, 0);
 }
 

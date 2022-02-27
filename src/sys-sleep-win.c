@@ -39,7 +39,7 @@ static void allowsleep(void *param);
 #define ALLOWSLEEP_TIMEOUT  5000
 
 struct winsleep {
-	fftmrq_entry tmr;
+	fftimerqueue_node tmr;
 	uint ntracks;
 };
 
@@ -80,9 +80,9 @@ static const void* winsleep_iface(const char *name)
 
 static void allowsleep(void *param)
 {
-	if (g->tmr.handler == NULL)
+	if (g->tmr.func == NULL)
 		return;
-	g->tmr.handler = NULL;
+	g->tmr.func = NULL;
 	dbglog("resume system sleep timer");
 	ffps_systimer(ES_CONTINUOUS);
 }
@@ -95,7 +95,7 @@ void* winsleep_open(fmed_filt *d)
 
 	if (g->ntracks++ == 0) {
 		core->timer(&g->tmr, 0, 0);
-		if (g->tmr.handler == NULL) {
+		if (g->tmr.func == NULL) {
 			ffps_systimer(ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_AWAYMODE_REQUIRED);
 			dbglog("pause system sleep timer");
 		}
@@ -106,7 +106,7 @@ void* winsleep_open(fmed_filt *d)
 void winsleep_close(void *ctx)
 {
 	if (--g->ntracks == 0) {
-		g->tmr.handler = &allowsleep;
+		fmed_timer_set(&g->tmr, allowsleep, NULL);
 		core->timer(&g->tmr, -ALLOWSLEEP_TIMEOUT, 0);
 	}
 }

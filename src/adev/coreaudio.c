@@ -163,7 +163,7 @@ static int coraud_out_config(fmed_conf_ctx *ctx)
 struct coraud_out {
 	uint state;
 	audio_out out;
-	fftmrq_entry tmr;
+	fftimerqueue_node tmr;
 };
 
 static void* coraud_open(fmed_filt *d)
@@ -220,8 +220,7 @@ static int coraud_create(struct coraud_out *c, fmed_filt *d)
 		, "opened", a->buffer_length_msec
 		, fmt.sample_rate);
 
-	c->tmr.handler = audio_out_onplay;
-	c->tmr.param = a;
+	fmed_timer_set(&c->tmr, audio_out_onplay, a);
 	if (0 != core->timer(&c->tmr, a->buffer_length_msec / 3, 0))
 		return FMED_RERR;
 
@@ -272,7 +271,7 @@ static int coraud_in_config(fmed_conf_ctx *ctx)
 
 struct coraud_in {
 	audio_in in;
-	fftmrq_entry tmr;
+	fftimerqueue_node tmr;
 };
 
 static void* coraud_in_open(fmed_filt *d)
@@ -300,8 +299,7 @@ static void* coraud_in_open(fmed_filt *d)
 	if (0 != audio_in_open(a, d))
 		goto fail;
 
-	c->tmr.handler = audio_oncapt;
-	c->tmr.param = a;
+	fmed_timer_set(&c->tmr, audio_oncapt, a);
 	if (0 != core->timer(&c->tmr, a->buffer_length_msec / 3, 0))
 		goto fail;
 

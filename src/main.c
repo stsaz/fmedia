@@ -4,11 +4,11 @@ Copyright (c) 2015 Simon Zolin */
 #include <fmedia.h>
 #include <cmd.h>
 
-#include <FF/sys/dir.h>
 #include <FF/path.h>
 #include <FFOS/sig.h>
 #include <FFOS/error.h>
 #include <FFOS/process.h>
+#include <FFOS/dirscan.h>
 
 
 #define dbglog0(...)  fmed_dbglog(core, NULL, "main", __VA_ARGS__)
@@ -157,29 +157,38 @@ static void qu_setprops(fmed_cmd *fmed, const fmed_queue *qu, fmed_que_entry *qe
 /** Add to queue filenames expanded by wildcard. */
 static void* open_input_wcard(const fmed_queue *qu, char *src, const fmed_track *track, const fmed_trk *trkinfo)
 {
-	ffdirexp de;
+	ffdirscan de = {};
+	char *dirz = NULL;
 	void *first = NULL;
 
-	ffstr s;
+	ffstr s, dir, name;
 	ffstr_setz(&s, src);
-	if (ffstr_findany(&s, "*?", 2) < 0)
-		return NULL;
+	ffpath_splitpath(s.ptr, s.len, &dir, &name);
+	if (ffstr_findany(&name, "*?", 2) < 0)
+		goto end;
 
-	if (0 != ffdir_expopen(&de, src, 0))
-		return NULL;
+	dirz = ffsz_dupstr(&dir);
+	de.wildcard = name.ptr;
+	if (0 != ffdirscan_open(&de, dirz, FFDIRSCAN_USEWILDCARD))
+		goto end;
 
 	const char *fn;
-	while (NULL != (fn = ffdir_expread(&de))) {
+	while (NULL != (fn = ffdirscan_next(&de))) {
 		fmed_que_entry e, *qe;
 		ffmem_zero_obj(&e);
-		ffstr_setz(&e.url, fn);
+		char *fullname = ffsz_allocfmt("%S/%s", &dir, fn);
+		ffstr_setz(&e.url, fullname);
 		qe = qu->add(&e);
+		ffmem_free(fullname);
 		qu->cmdv(FMED_QUE_SETTRACKPROPS, qe, trkinfo);
 		qu_setprops(g->cmd, qu, qe);
 		if (first == NULL)
 			first = qe;
 	}
-	ffdir_expclose(&de);
+
+end:
+	ffmem_free(dirz);
+	ffdirscan_close(&de);
 	return first;
 }
 #endif

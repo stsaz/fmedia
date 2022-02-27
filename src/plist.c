@@ -3,6 +3,7 @@ Copyright (c) 2015 Simon Zolin */
 
 #include <fmedia.h>
 #include <FF/path.h>
+#include <FF/net/url.h>
 
 const fmed_core *core;
 const fmed_queue *qu;
