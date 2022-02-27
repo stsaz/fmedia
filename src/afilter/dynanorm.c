@@ -2,7 +2,7 @@
 Copyright (c) 2018 Simon Zolin */
 
 #include <fmedia.h>
-#include <dynanorm/DynamicAudioNormalizer-ff.h>
+#include <DynamicAudioNormalizer/DynamicAudioNormalizer-ff.h>
 
 
 #undef dbglog

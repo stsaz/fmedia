@@ -3,7 +3,7 @@ Copyright (c) 2015 Simon Zolin */
 
 #include <fmedia.h>
 
-#include <FF/audio/pcm.h>
+#include <afilter/pcm.h>
 #include <FF/array.h>
 #include <FF/ring.h>
 

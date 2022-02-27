@@ -3,7 +3,7 @@ Copyright (c) 2016 Simon Zolin */
 
 #include <fmedia.h>
 
-#include <FF/audio/vorbis.h>
+#include <acodec/alib3-bridge/vorbis.h>
 #include <format/mmtag.h>
 
 

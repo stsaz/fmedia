@@ -33,9 +33,6 @@ CFLAGS_OS += -DFF_WIN_APIVER=0x0501
 else
 BIN := fmedia
 INSTDIR := fmedia-1
-ifeq ($(OS),linux)
-CFLAGS_OS += -DFF_GLIBCVER=228
-endif
 endif
 
 ALIB3 := $(PROJDIR)/alib3/_$(OSFULL)-$(ARCH)
@@ -82,7 +79,3 @@ package:
 	rm -f $(PROJ)-$(VER)-$(OS)-$(ARCH_OS).$(PACK_EXT)
 	$(PACK) $(PROJ)-$(VER)-$(OS)-$(ARCH_OS).$(PACK_EXT) $(INSTDIR)
 	$(PACK) $(PROJ)-$(VER)-$(OS)-$(ARCH_OS)-debug.$(PACK_EXT) ./*.debug
-
-post-build:
-	# ensure we use no GLIBC_2.29 functions
-	! objdump -T *.so fmedia | grep GLIBC_2.29

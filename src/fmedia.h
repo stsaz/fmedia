@@ -15,7 +15,7 @@ mixer                 mixer
 
 #pragma once
 
-#include <FF/audio/pcm.h>
+#include <afilter/pcm.h>
 #include <FF/data/conf2-scheme.h>
 #include <FF/sys/taskqueue.h>
 #include <FF/sys/timer-queue.h>

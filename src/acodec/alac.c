@@ -3,7 +3,7 @@ Copyright (c) 2016 Simon Zolin */
 
 #include <fmedia.h>
 
-#include <FF/audio/alac.h>
+#include <acodec/alib3-bridge/alac.h>
 
 
 static const fmed_core *core;

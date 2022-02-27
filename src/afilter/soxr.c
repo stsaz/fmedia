@@ -3,7 +3,7 @@ Copyright (c) 2017 Simon Zolin */
 
 #include <fmedia.h>
 
-#include <FF/audio/soxr.h>
+#include <afilter/soxr.h>
 
 
 static const fmed_core *core;

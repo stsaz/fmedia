@@ -3,7 +3,7 @@ Copyright (c) 2016 Simon Zolin */
 
 #include <fmedia.h>
 
-#include <FF/audio/opus.h>
+#include <acodec/alib3-bridge/opus.h>
 #include <format/mmtag.h>
 
 #define dbglog1(trk, ...)  fmed_dbglog(core, trk, NULL, __VA_ARGS__)

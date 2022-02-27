@@ -2,7 +2,7 @@
 Copyright (c) 2017 Simon Zolin */
 
 #include <fmedia.h>
-#include <FF/audio/musepack.h>
+#include <acodec/alib3-bridge/musepack.h>
 
 
 static const fmed_core *core;

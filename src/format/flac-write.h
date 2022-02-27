@@ -4,7 +4,6 @@
 #include <fmedia.h>
 
 #include <avpack/flac-write.h>
-#include <FF/audio/flac.h>
 #include <format/mmtag.h>
 #include <avpack/png-read.h>
 #include <avpack/jpg-read.h>
@@ -98,7 +97,10 @@ static int flac_out_addmeta(flac_out *f, fmed_filt *d)
 {
 	ffstr name, *val;
 
-	ffstr vendor = FFSTR_INITZ(flac_vendor());
+	ffstr vendor = {};
+	const char *vendorz = d->track->getvalstr(d->trk, "flac.vendor");
+	if (vendorz != FMED_PNULL)
+		ffstr_setz(&vendor, vendorz);
 	if (0 != flacwrite_addtag(&f->fl, MMTAG_VENDOR, vendor)) {
 		syserrlog(d->trk, "can't add tag: %S", &name);
 		return -1;

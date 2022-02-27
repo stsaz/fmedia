@@ -2,7 +2,7 @@
 Copyright (c) 2019 Simon Zolin */
 
 #include <fmedia.h>
-#include <FF/audio/pcm.h>
+#include <afilter/pcm.h>
 #include <FF/array.h>
 
 

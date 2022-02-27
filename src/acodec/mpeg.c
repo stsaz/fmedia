@@ -3,8 +3,7 @@ Copyright (c) 2015 Simon Zolin */
 
 #include <fmedia.h>
 
-#include <FF/audio/mpeg.h>
-#include <FF/audio/pcm.h>
+#include <acodec/alib3-bridge/mpeg.h>
 #include <FF/array.h>
 
 

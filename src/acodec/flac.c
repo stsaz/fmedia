@@ -3,7 +3,7 @@ Copyright (c) 2015 Simon Zolin */
 
 #include <fmedia.h>
 
-#include <FF/audio/flac.h>
+#include <acodec/alib3-bridge/flac.h>
 
 
 const fmed_core *core;
@@ -240,6 +240,7 @@ static int flac_enc_encode(void *ctx, fmed_filt *d)
 			errlog(core, d->trk, NULL, "ffflac_create(): %s", ffflac_enc_errstr(&f->fl));
 			return FMED_RERR;
 		}
+		d->track->setvalstr(d->trk, "flac.vendor", flac_vendor());
 		d->datatype = "flac";
 		// break
 

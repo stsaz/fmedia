@@ -54,7 +54,10 @@ $(OBJ_DIR)/main.o: $(SRCDIR)/main.c $(SRCDIR)/cmd.h $(SRCDIR)/cmdline.h $(GLOBDE
 $(OBJ_DIR)/%.o: $(SRCDIR)/adev/%.c $(wildcard $(SRCDIR)/adev/*.h) $(GLOBDEPS)
 	$(C)  $(CFLAGS) $<  -o$@
 
-$(OBJ_DIR)/%.o: $(SRCDIR)/acodec/%.c $(wildcard $(SRCDIR)/acodec/*.h) $(FF_AUDIO_HDR) $(GLOBDEPS)
+$(OBJ_DIR)/%.o: $(SRCDIR)/acodec/%.c \
+		$(wildcard $(SRCDIR)/acodec/*.h) \
+		$(wildcard $(SRCDIR)/acodec/alib3-bridge/*.h) \
+		$(GLOBDEPS)
 	$(C)  $(CFLAGS) $<  -o$@
 
 $(OBJ_DIR)/%.o: $(SRCDIR)/format/%.c $(wildcard $(SRCDIR)/format/*.h) $(GLOBDEPS)
@@ -71,7 +74,7 @@ BIN_O := \
 	$(FFOS_WREG) \
 	$(FF_OBJ_DIR)/ffsys.o \
 	$(FF_OBJ_DIR)/ffpath.o \
-	$(FF_OBJ_DIR)/ffpcm.o
+	$(OBJ_DIR)/ffpcm.o
 
 ifeq ($(OS),win)
 BIN_O += $(RES)
@@ -82,7 +85,7 @@ $(BIN): $(BIN_O)
 
 
 #
-$(OBJ_DIR)/%.o: $(SRCDIR)/core/%.c $(GLOBDEPS) $(wildcard $(SRCDIR)/core/*.h) $(FF_AUDIO_HDR)
+$(OBJ_DIR)/%.o: $(SRCDIR)/core/%.c $(GLOBDEPS) $(wildcard $(SRCDIR)/core/*.h)
 	$(C) $(CFLAGS) $< -o $@
 CORE_O := $(OBJ_DIR)/core.o $(OBJ_DIR)/core-conf.o \
 	$(OBJ_DIR)/track.o \
@@ -91,7 +94,7 @@ CORE_O := $(OBJ_DIR)/core.o $(OBJ_DIR)/core-conf.o \
 	$(OBJ_DIR)/file-std.o \
 	$(OBJ_DIR)/queue.o \
 	$(OBJ_DIR)/globcmd.o \
-	$(FF_OBJ_DIR)/ffpcm.o \
+	$(OBJ_DIR)/ffpcm.o \
 	$(FF_OBJ_DIR)/ffring.o
 
 ifeq ($(OS),win)
@@ -115,17 +118,7 @@ core.$(SO): $(CORE_O)
 
 
 #
-# Note: with -flto it uses pow@GLIBC_2.29 even with -DFF_GLIBCVER=228
-$(OBJ_DIR)/soundmod.o: $(SRCDIR)/afilter/soundmod.c $(FF_AUDIO_HDR) $(GLOBDEPS)
-	$(C)  $(CFLAGS_ALTOPT) $<  -o$@
-
-$(OBJ_DIR)/start-stop-level.o: $(SRCDIR)/afilter/start-stop-level.c $(FF_AUDIO_HDR) $(GLOBDEPS)
-	$(C)  $(CFLAGS_ALTOPT) $<  -o$@
-
-$(OBJ_DIR)/auto-attenuator.o: $(SRCDIR)/afilter/auto-attenuator.c $(FF_AUDIO_HDR) $(GLOBDEPS)
-	$(C)  $(CFLAGS_ALTOPT) $<  -o$@
-
-$(OBJ_DIR)/%.o: $(SRCDIR)/afilter/%.c $(FF_AUDIO_HDR) $(GLOBDEPS)
+$(OBJ_DIR)/%.o: $(SRCDIR)/afilter/%.c $(GLOBDEPS)
 	$(C)  $(CFLAGS) $<  -o$@
 
 afilter.$(SO): $(OBJ_DIR)/soundmod.o \
@@ -139,7 +132,7 @@ afilter.$(SO): $(OBJ_DIR)/soundmod.o \
 		$(FF_OBJ_DIR)/ffring.o \
 		$(FF_OBJ_DIR)/ffcrc.o \
 		$(FF_OBJ_DIR)/crc.o \
-		$(FF_OBJ_DIR)/ffpcm.o
+		$(OBJ_DIR)/ffpcm.o
 	$(LD) -shared $+ $(LDFLAGS) $(LD_LMATH) -o $@
 
 
@@ -147,7 +140,7 @@ afilter.$(SO): $(OBJ_DIR)/soundmod.o \
 TUI_O := \
 	$(OBJ_DIR)/tui.o \
 	$(FF_O) \
-	$(FF_OBJ_DIR)/ffpcm.o
+	$(OBJ_DIR)/ffpcm.o
 tui.$(SO): $(TUI_O)
 	$(LD) -shared $(TUI_O) $(LDFLAGS) $(LD_LMATH) $(LD_LPTHREAD)  -o$@
 
@@ -170,8 +163,7 @@ net.$(SO): $(NET_O)
 
 #
 SOXR_O := $(OBJ_DIR)/soxr.o \
-	$(FF_OBJ_DIR)/ffsoxr.o \
-	$(FF_OBJ_DIR)/ffpcm.o \
+	$(OBJ_DIR)/ffpcm.o \
 	$(FF_O)
 soxr.$(SO): $(SOXR_O)
 	$(LD) -shared $(SOXR_O) $(LDFLAGS) $(LD_RPATH_ORIGIN) -lsoxr-ff  -o$@
@@ -186,18 +178,13 @@ dynanorm.$(SO): $(DYNANORM_O)
 
 #
 MPEG_O := $(OBJ_DIR)/mpeg.o \
-	$(FF_O) \
-	$(FF_OBJ_DIR)/ffpcm.o \
-	$(FF_OBJ_DIR)/ffmpg.o \
-	$(FF_OBJ_DIR)/ffmp3lame.o
+	$(FF_O)
 mpeg.$(SO): $(MPEG_O)
 	$(LD) -shared $(MPEG_O) $(LDFLAGS) $(LD_RPATH_ORIGIN) -lmpg123-ff -lmp3lame-ff  -o$@
 
 
 #
-MPC_O := $(OBJ_DIR)/mpc.o $(FF_O) \
-	$(FF_OBJ_DIR)/ffpcm.o \
-	$(FF_OBJ_DIR)/ffmusepack.o
+MPC_O := $(OBJ_DIR)/mpc.o $(FF_O)
 mpc.$(SO): $(MPC_O)
 	$(LD) -shared $(MPC_O) $(LDFLAGS) $(LD_RPATH_ORIGIN) -lmpc-ff  -o$@
 
@@ -215,71 +202,60 @@ FMT_O := $(OBJ_DIR)/mod-fmt.o \
 	$(OBJ_DIR)/ogg.o \
 	$(OBJ_DIR)/wav.o \
 	$(OBJ_DIR)/wv.o \
-	$(FF_O) \
-	$(FF_OBJ_DIR)/ffpcm.o
+	$(FF_O)
 fmt.$(SO): $(FMT_O)
 	$(LD) -shared $(FMT_O) $(LDFLAGS)  -o$@
 
 
 #
 VORBIS_O := $(OBJ_DIR)/vorbis.o \
-	$(FF_O) \
-	$(FF_OBJ_DIR)/ffvorbis.o
+	$(FF_O)
 vorbis.$(SO): $(VORBIS_O)
 	$(LD) -shared $(VORBIS_O) $(LDFLAGS) $(LD_RPATH_ORIGIN) -logg-ff -lvorbis-ff -lvorbisenc-ff  -o$@
 
 
 #
 OPUS_O := $(OBJ_DIR)/opus.o \
-	$(FF_O) \
-	$(FF_OBJ_DIR)/ffopus.o
+	$(FF_O)
 opus.$(SO): $(OPUS_O)
 	$(LD) -shared $(OPUS_O) $(LDFLAGS) $(LD_RPATH_ORIGIN) -lopus-ff  -o$@
 
 
 #
+# Note: .flac r/w can't be moved to fmt.so because avpack/flac code depents on libFLAC-ff.so::flac_crc8()
 FLAC_O := $(OBJ_DIR)/flac.o \
 	$(OBJ_DIR)/flac-fmt.o \
 	$(OBJ_DIR)/flac-ogg.o \
 	$(FF_O) \
-	$(FF_OBJ_DIR)/ffflac.o \
-	$(FF_OBJ_DIR)/ffpcm.o
+	$(OBJ_DIR)/ffpcm.o
 flac.$(SO): $(FLAC_O)
 	$(LD) -shared $(FLAC_O) $(LDFLAGS) $(LD_RPATH_ORIGIN) -lFLAC-ff  -o$@
 
 
 #
 WAVPACK_O := $(OBJ_DIR)/wavpack.o \
-	$(FF_O) \
-	$(FF_OBJ_DIR)/ffwavpack.o \
-	$(FF_OBJ_DIR)/ffpcm.o
+	$(FF_O)
 wavpack.$(SO): $(WAVPACK_O)
 	$(LD) -shared $(WAVPACK_O) $(LDFLAGS) $(LD_RPATH_ORIGIN) -lwavpack-ff  -o$@
 
 
 #
 APE_O := $(OBJ_DIR)/ape.o \
-	$(FF_O) \
-	$(FF_OBJ_DIR)/ffape.o \
-	$(FF_OBJ_DIR)/ffpcm.o
+	$(FF_O)
 ape.$(SO): $(APE_O)
 	$(LD) -shared $(APE_O) $(LDFLAGS) $(LD_RPATH_ORIGIN) -lMAC-ff  -o$@
 
 
 #
 AAC_O := $(OBJ_DIR)/aac.o \
-	$(FF_O) \
-	$(FF_OBJ_DIR)/ffaac.o \
-	$(FF_OBJ_DIR)/ffpcm.o
+	$(FF_O)
 aac.$(SO): $(AAC_O)
 	$(LD) -shared $(AAC_O) $(LDFLAGS) $(LD_RPATH_ORIGIN) -lfdk-aac-ff  -o$@
 
 
 #
 ALAC_O := $(OBJ_DIR)/alac.o \
-	$(FF_O) \
-	$(FF_OBJ_DIR)/ffalac.o \
-	$(FF_OBJ_DIR)/ffpcm.o
+	$(FF_O)
 alac.$(SO): $(ALAC_O)
 	$(LD) -shared $(ALAC_O) $(LDFLAGS) $(LD_RPATH_ORIGIN) -lALAC-ff  -o$@
 
@@ -291,8 +267,7 @@ PLIST_O := $(OBJ_DIR)/plist.o \
 	$(FF_O) \
 	$(FFOS_WREG) \
 	$(FF_OBJ_DIR)/ffpath.o \
-	$(FF_OBJ_DIR)/ffsys.o \
-	$(FF_OBJ_DIR)/ffpcm.o
+	$(FF_OBJ_DIR)/ffsys.o
 plist.$(SO): $(PLIST_O)
 	$(LD) -shared $(PLIST_O) $(LDFLAGS)  -o$@
 
@@ -304,7 +279,7 @@ $(FF_OBJ_DIR)/ffaudio-dsound.o: $(FFAUDIO)/ffaudio/dsound.c
 DSOUND_O := $(OBJ_DIR)/dsound.o $(FF_O) \
 	$(FF_OBJ_DIR)/ffwohandler.o \
 	$(FF_OBJ_DIR)/ffaudio-dsound.o \
-	$(FF_OBJ_DIR)/ffpcm.o
+	$(OBJ_DIR)/ffpcm.o
 direct-sound.$(SO): $(DSOUND_O)
 	$(LD) -shared $(DSOUND_O) $(LDFLAGS) -ldsound -ldxguid  -o$@
 
@@ -315,7 +290,7 @@ $(FF_OBJ_DIR)/ffaudio-wasapi.o: $(FFAUDIO)/ffaudio/wasapi.c
 
 WASAPI_O := $(OBJ_DIR)/wasapi.o $(FF_O) \
 	$(FF_OBJ_DIR)/ffwohandler.o \
-	$(FF_OBJ_DIR)/ffpcm.o \
+	$(OBJ_DIR)/ffpcm.o \
 	$(FF_OBJ_DIR)/ffaudio-wasapi.o
 wasapi.$(SO): $(WASAPI_O)
 	$(LD) -shared $(WASAPI_O) $(LDFLAGS) -lole32 -o$@
@@ -326,7 +301,6 @@ $(FF_OBJ_DIR)/ffaudio-alsa.o: $(FFAUDIO)/ffaudio/alsa.c
 	$(C) $(FFAUDIO_CFLAGS) $< -o $@
 
 ALSA_O := $(OBJ_DIR)/alsa.o $(FF_O) \
-	$(FF_OBJ_DIR)/ffpcm.o \
 	$(FF_OBJ_DIR)/ffaudio-alsa.o
 alsa.$(SO): $(ALSA_O)
 	$(LD) -shared $(ALSA_O) $(LDFLAGS) -lasound -o$@
@@ -337,7 +311,6 @@ $(FF_OBJ_DIR)/ffaudio-pulse.o: $(FFAUDIO)/ffaudio/pulse.c
 	$(C) $(FFAUDIO_CFLAGS) $< -o $@
 
 PULSE_O := $(OBJ_DIR)/pulse.o $(FF_O) \
-	$(FF_OBJ_DIR)/ffpcm.o \
 	$(FF_OBJ_DIR)/ffaudio-pulse.o
 pulse.$(SO): $(PULSE_O)
 	$(LD) -shared $(PULSE_O) $(LDFLAGS) -lpulse -o$@
@@ -349,7 +322,6 @@ $(FF_OBJ_DIR)/ffaudio-jack.o: $(FFAUDIO)/ffaudio/jack.c
 
 JACK_O := $(OBJ_DIR)/jack.o $(FF_O) \
 	$(FF_OBJ_DIR)/ffring.o \
-	$(FF_OBJ_DIR)/ffpcm.o \
 	$(FF_OBJ_DIR)/ffaudio-jack.o
 jack.$(SO): $(JACK_O)
 	$(LD) -shared $(JACK_O) $(LDFLAGS) -ljack -o$@
@@ -361,7 +333,7 @@ $(FF_OBJ_DIR)/ffaudio-coreaudio.o: $(FFAUDIO)/ffaudio/coreaudio.c
 
 COREAUDIO_O := $(OBJ_DIR)/coreaudio.o $(FF_O) \
 	$(FF_OBJ_DIR)/ffring.o \
-	$(FF_OBJ_DIR)/ffpcm.o \
+	$(OBJ_DIR)/ffpcm.o \
 	$(FF_OBJ_DIR)/ffaudio-coreaudio.o
 coreaudio.$(SO): $(COREAUDIO_O)
 	$(LD) -shared $(COREAUDIO_O) $(LDFLAGS) -framework CoreFoundation -framework CoreAudio -o$@
@@ -372,7 +344,7 @@ $(FF_OBJ_DIR)/ffaudio-oss.o: $(FFAUDIO)/ffaudio/oss.c
 	$(C) $(FFAUDIO_CFLAGS) $< -o $@
 
 OSS_O := $(OBJ_DIR)/oss.o $(FF_O) \
-	$(FF_OBJ_DIR)/ffpcm.o \
+	$(OBJ_DIR)/ffpcm.o \
 	$(FF_OBJ_DIR)/ffaudio-oss.o
 oss.$(SO): $(OSS_O)
 	$(LD) -shared $(OSS_O) $(LDFLAGS) $(LD_LMATH)  -o$@
@@ -396,7 +368,7 @@ GUI_O := $(OBJ_DIR)/gui.o \
 	$(FFOS_WREG) \
 	$(FF_OBJ_DIR)/ffsys.o \
 	$(FF_OBJ_DIR)/ffpath.o \
-	$(FF_OBJ_DIR)/ffpcm.o \
+	$(OBJ_DIR)/ffpcm.o \
 	$(FF_OBJ_DIR)/ffpic.o \
 	$(FF_GUI_OBJ)
 LIBS_GUIWAPI := -lshell32 -luxtheme -lcomctl32 -lcomdlg32 -lgdi32 -lole32 -luuid
@@ -424,7 +396,7 @@ CFLAGS_GTK := -I/usr/include/gtk-3.0 -I/usr/include/pango-1.0 -I/usr/include/gli
 LIBS_GTK := -lgtk-3 -lgdk-3 -lpangocairo-1.0 -lpango-1.0 -lfribidi -latk-1.0 -lcairo-gobject -lcairo -lgdk_pixbuf-2.0 -lgio-2.0 -lgobject-2.0 -lglib-2.0
 
 $(OBJ_DIR)/gui.o: $(SRCDIR)/gui-gtk/gui.c $(SRCDIR)/gui-gtk/gui.h $(GLOBDEPS) $(FF)/FF/gui-gtk/gtk.h
-	$(C)  $(CFLAGS_ALTOPT) $(CFLAGS_GTK) $<  -o$@
+	$(C)  $(CFLAGS) $(CFLAGS_GTK) $<  -o$@
 
 $(OBJ_DIR)/gui-dlgs.o: $(SRCDIR)/gui-gtk/gui-dlgs.c $(wildcard $(SRCDIR)/gui-gtk/*.h) $(GLOBDEPS) $(FF_GUIHDR)
 	$(C) $(CFLAGS) $(CFLAGS_GTK)  $< -o$@
@@ -441,7 +413,7 @@ GUIGTK_O := $(OBJ_DIR)/gui.o \
 	$(FF_OBJ_DIR)/ffurl.o $(FF_OBJ_DIR)/ffparse.o \
 	$(FF_OBJ_DIR)/ffproto.o \
 	$(FF_OBJ_DIR)/ffsys.o \
-	$(FF_OBJ_DIR)/ffpcm.o \
+	$(OBJ_DIR)/ffpcm.o \
 	$(FF_O)
 gui.$(SO): $(GUIGTK_O)
 	$(LD) -shared $(GUIGTK_O) $(LDFLAGS) $(LIBS_GTK) $(LD_LPTHREAD) $(LD_LMATH) -o$@
@@ -452,8 +424,7 @@ endif
 #
 DBUS_O := $(OBJ_DIR)/sys-sleep-dbus.o \
 	$(FF_O) \
-	$(FF_OBJ_DIR)/fflin-dbus.o \
-	$(FF_OBJ_DIR)/ffpcm.o
+	$(FF_OBJ_DIR)/fflin-dbus.o
 dbus.$(SO): $(DBUS_O)
 	$(LD) -shared $(DBUS_O) $(LDFLAGS) -ldbus-1 -o$@
 

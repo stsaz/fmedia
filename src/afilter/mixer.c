@@ -9,7 +9,7 @@ INPUT2 -> mixer-in /
 
 #include <fmedia.h>
 
-#include <FF/audio/pcm.h>
+#include <afilter/pcm.h>
 #include <FF/array.h>
 #include <FFOS/error.h>
 

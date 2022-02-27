@@ -3,7 +3,6 @@ Copyright (c) 2015 Simon Zolin */
 
 #include <fmedia.h>
 
-#include <FF/audio/pcm.h>
 #include <FF/array.h>
 #include <FFOS/error.h>
 

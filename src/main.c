@@ -4,7 +4,6 @@ Copyright (c) 2015 Simon Zolin */
 #include <fmedia.h>
 #include <cmd.h>
 
-#include <FF/audio/pcm.h>
 #include <FF/sys/dir.h>
 #include <FF/path.h>
 #include <FFOS/sig.h>

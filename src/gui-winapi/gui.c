@@ -11,7 +11,6 @@ track: ... -> gui-trk -> ...
 #include <gui-winapi/gui.h>
 #include <gui-winapi/track.h>
 
-#include <FF/audio/pcm.h>
 #include <FF/array.h>
 #include <FF/path.h>
 #include <FF/gui/loader.h>

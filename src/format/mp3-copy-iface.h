@@ -8,7 +8,6 @@ MPEG-HEADER  [CRC16]  ([XING-TAG  LAME-TAG]  |  FRAME-DATA...) ...
 
 #pragma once
 
-#include <FF/audio/pcm.h>
 #include <FF/array.h>
 #include <avpack/mpeg1-read.h>
 #include <avpack/mp3-write.h>

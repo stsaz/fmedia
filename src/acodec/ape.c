@@ -3,7 +3,7 @@ Copyright (c) 2015 Simon Zolin */
 
 #include <fmedia.h>
 
-#include <FF/audio/ape.h>
+#include <acodec/alib3-bridge/ape.h>
 #include <format/mmtag.h>
 
 

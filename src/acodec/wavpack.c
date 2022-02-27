@@ -3,7 +3,7 @@ Copyright (c) 2015 Simon Zolin */
 
 #include <fmedia.h>
 
-#include <FF/audio/wavpack.h>
+#include <acodec/alib3-bridge/wavpack.h>
 #include <format/mmtag.h>
 #include <FF/number.h>
 

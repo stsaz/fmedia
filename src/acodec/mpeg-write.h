@@ -1,7 +1,7 @@
 /** fmedia: MPEG write
 2015, Simon Zolin */
 
-#include <FF/audio/mp3lame.h>
+#include <acodec/alib3-bridge/mp3lame.h>
 
 typedef struct mpeg_enc {
 	uint state;

@@ -3,7 +3,6 @@ Copyright (c) 2020 Simon Zolin */
 
 #include <fmedia.h>
 #include <avpack/caf-read.h>
-#include <FF/audio/pcm.h>
 
 #define dbglog1(trk, ...)  fmed_dbglog(core, trk, NULL, __VA_ARGS__)
 #define errlog1(trk, ...)  fmed_errlog(core, trk, NULL, __VA_ARGS__)

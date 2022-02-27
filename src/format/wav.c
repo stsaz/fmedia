@@ -4,7 +4,6 @@ Copyright (c) 2015 Simon Zolin */
 #include <fmedia.h>
 
 #include <avpack/wav-read.h>
-#include <FF/audio/pcm.h>
 #include <format/mmtag.h>
 
 
