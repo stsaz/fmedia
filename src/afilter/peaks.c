@@ -7,6 +7,9 @@ Copyright (c) 2019 Simon Zolin */
 
 extern const fmed_core *core;
 
+/** Fast CRC32 implementation using 8k table. */
+extern uint crc32(const void *buf, size_t size, uint crc);
+
 // PEAKS
 static void* sndmod_peaks_open(fmed_filt *d);
 static int sndmod_peaks_process(void *ctx, fmed_filt *d);

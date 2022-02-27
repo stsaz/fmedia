@@ -120,6 +120,8 @@ core.$(SO): $(CORE_O)
 #
 $(OBJ_DIR)/%.o: $(SRCDIR)/afilter/%.c $(GLOBDEPS)
 	$(C)  $(CFLAGS) $<  -o$@
+$(OBJ_DIR)/%.o: $(PROJDIR)/3pt/crc/%.c $(GLOBDEPS)
+	$(C)  $(CFLAGS) $<  -o$@
 
 afilter.$(SO): $(OBJ_DIR)/soundmod.o \
 		$(OBJ_DIR)/aconv.o \
@@ -130,8 +132,7 @@ afilter.$(SO): $(OBJ_DIR)/soundmod.o \
 		$(OBJ_DIR)/start-stop-level.o \
 		$(FF_O) \
 		$(FF_OBJ_DIR)/ffring.o \
-		$(FF_OBJ_DIR)/ffcrc.o \
-		$(FF_OBJ_DIR)/crc.o \
+		$(OBJ_DIR)/crc.o \
 		$(OBJ_DIR)/ffpcm.o
 	$(LD) -shared $+ $(LDFLAGS) $(LD_LMATH) -o $@
 
