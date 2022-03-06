@@ -111,11 +111,11 @@ static int que_setmeta(entry *ent, const char *meta, void *trk)
 			ffstr_shift(&val, FFSLEN("@file:"));
 			if (NULL == (fn = ffsz_alcopy(val.ptr, val.len)))
 				goto end;
-			if (0 != fffile_readall(&buf, fn, -1)) {
+			if (0 != fffile_readwhole(fn, &buf, -1)) {
 				syserrlog("%s: %s", fffile_read_S, fn);
 				goto end;
 			}
-			ffstr_acqstr3(&val, &buf);
+			ffstr_acqstr3(&val, (ffarr*)&buf);
 			f |= FMED_QUE_ACQUIRE;
 		}
 
@@ -184,9 +184,10 @@ static void que_meta_set(fmed_que_entry *ent, const ffstr *name, const ffstr *va
 
 		} else if (flags & FMED_QUE_METADEL) {
 			fflk_lock(&qu->plist_lock);
-			ffarr ar;
-			ffarr_set3(&ar, (void*)a->ptr, a->len, a->len);
-			_ffarr_rm(&ar, i, 2, sizeof(ffstr));
+			ffvec ar;
+			ffstr_set((ffstr*)&ar, (void*)a->ptr, a->len);
+			ar.cap = a->len;
+			ffslice_rmT((ffslice*)&ar, i, 2, ffstr);
 			a->len -= 2;
 			fflk_unlock(&qu->plist_lock);
 

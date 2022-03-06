@@ -4,8 +4,8 @@ Copyright (c) 2015 Simon Zolin */
 #include <fmedia.h>
 
 #include <avpack/ogg-read.h>
-#include <FF/array.h>
-#include <FF/path.h>
+#include <util/array.h>
+#include <util/path.h>
 
 #define errlog0(...)  fmed_errlog(core, NULL, "ogg", __VA_ARGS__)
 #define errlog1(trk, ...)  fmed_errlog(core, trk, NULL, __VA_ARGS__)

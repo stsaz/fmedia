@@ -4,8 +4,8 @@
 
 #include <FFOS/types.h>
 #include "http-client.h"
-#include <FF/net/url.h>
-#include <FF/list.h>
+#include "url.h"
+#include "list.h"
 #include <FFOS/asyncio.h>
 #include <ffbase/vector.h>
 
@@ -560,7 +560,7 @@ static void httpcl_process(http *c)
 		}
 		c->data = c->bufs[c->rbuf];
 		c->bufs[c->rbuf].len = 0;
-		c->rbuf = ffint_cycleinc(c->rbuf, c->conf.nbuffers);
+		c->rbuf = (c->rbuf + 1) % c->conf.nbuffers;
 		c->state = I_HTTP_RESPBODY;
 		//fallthrough
 
@@ -878,7 +878,7 @@ static int tcp_recv(http *c)
 
 		c->bufs[c->wbuf].len = c->curtcp_len;
 		c->curtcp_len = 0;
-		c->wbuf = ffint_cycleinc(c->wbuf, c->conf.nbuffers);
+		c->wbuf = (c->wbuf + 1) % c->conf.nbuffers;
 		if (c->preload && c->bufs[c->wbuf].len == 0) {
 			// the next buffer is free, so start filling it
 			continue;

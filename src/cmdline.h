@@ -1,7 +1,7 @@
 /** fmedia: command-line arguments
 2021, Simon Zolin */
 
-#include <FF/data/cmdarg-scheme.h>
+#include <util/cmdarg-scheme.h>
 
 #ifdef FF_WIN
 	#include <versionhelpers.h>
@@ -168,31 +168,17 @@ static int arg_flist(ffcmdarg_scheme *as, void *obj, const char *fn)
 {
 	int r = FFCMDARG_ERROR;
 	uint cnt = 0;
-	ffssize n;
-	fffd f = FF_BADFD;
 	ffarr buf = {0};
-	ffstr line;
-	const char *d, *end, *lf, *ln_end;
+	ffstr line, d;
 
 	dbglog(core, NULL, "core", "opening file %s", fn);
 
-	if (FF_BADFD == (f = fffile_open(fn, FFO_RDONLY | FFO_NOATIME)))
+	if (0 != fffile_readwhole(fn, &buf, -1))
 		goto done;
-	if (NULL == ffarr_alloc(&buf, fffile_size(f)))
-		goto done;
-	if (0 > (n = fffile_read(f, buf.ptr, buf.cap)))
-		goto done;
-	d = buf.ptr;
-	end = buf.ptr + n;
-	while (d != end) {
-		lf = ffs_find(d, end - d, '\n');
-		d = ffs_skipof(d, lf - d, " \t", 2);
-		ln_end = ffs_rskipof(d, lf - d, " \t\r", 3);
-		ffstr_set(&line, d, ln_end - d);
-		if (lf != end)
-			d = lf + 1;
-		else
-			d = lf;
+	ffstr_setstr(&d, &buf);
+	while (d.len != 0) {
+		ffstr_splitby(&d, '\n', &line, &d);
+		ffstr_trimwhite(&line);
 		if (line.len == 0)
 			continue;
 		if (0 != arg_infile(as, obj, &line))
@@ -205,7 +191,6 @@ static int arg_flist(ffcmdarg_scheme *as, void *obj, const char *fn)
 	r = 0;
 
 done:
-	FF_SAFECLOSE(f, FF_BADFD, fffile_close);
 	ffarr_free(&buf);
 	return r;
 }
@@ -250,8 +235,8 @@ static int arg_astoplev(ffcmdarg_scheme *as, void *obj, const ffstr *val)
 	ffstr db, time, mintime;
 	ffdatetime dt;
 	fftime t;
-	ffs_split2by(val->ptr, val->len, ';', &db, &time);
-	ffs_split2by(time.ptr, time.len, ';', &time, &mintime);
+	ffstr_splitby(val, ';', &db, &time);
+	ffstr_splitby(&time, ';', &time, &mintime);
 
 	double f;
 	if (db.len == 0 || db.len != ffs_tofloat(db.ptr, db.len, &f, 0))

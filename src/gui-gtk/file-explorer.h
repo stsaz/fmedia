@@ -329,7 +329,7 @@ static void exp_list_dispinfo(struct ffui_view_disp *disp)
 		}
 
 		ffstr val = FFSTR_INITZ(f->name);
-		disp->text.len = _ffs_copy(disp->text.ptr, disp->text.len, val.ptr, val.len);
+		disp->text.len = ffmem_ncopy(disp->text.ptr, disp->text.len, val.ptr, val.len);
 		return;
 	}
 	}

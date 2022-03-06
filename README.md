@@ -155,12 +155,11 @@ fmedia uses modified versions of these 3rd party libraries: libALAC, libfdk-aac,
 		git clone https://github.com/stsaz/ffbase
 		git clone https://github.com/stsaz/ffaudio
 		git clone https://github.com/stsaz/ffos
-		git clone https://github.com/stsaz/ff
 		git clone https://github.com/stsaz/avpack
 		git clone https://github.com/stsaz/fmedia
 
 Note: builds from the latest `master` branch are not supported and *may not work*!
-To build a working package you should checkout a specific git tag for fmedia (e.g. `v1.19`) and then checkout the corresponding git tags for ff* repos with the same release date (e.g. `v20.08`).
+To build a working package you should checkout a specific git tag for `fmedia` repo (e.g. `v1.26`) and then checkout the corresponding git commits for other repositories with the same commit date.
 
 3. Build alib3 package (3rd-party audio codec libraries) or use pre-built binaries from the previous fmedia release.
 
@@ -171,7 +170,7 @@ To build a working package you should checkout a specific git tag for fmedia (e.
 
 	You can explicitly specify path to each of FF source repositories, e.g.:
 
-		make install FFOS=~/ffos FF=~/ff
+		make install FFOS=~/ffos
 
 	Default architecture is amd64.  You can specify different target architecture like this:
 
@@ -426,9 +425,7 @@ Understanding the top-level source code hierarchy can help you to get involved i
 	------------------------
 	    fmedia
 	------------------------
-	      ff      |
-	--------------| avpack, ffaudio
-	     ffos     |
+	 ffos, avpack, ffaudio
 	------------------------
 	    ffbase
 	------------------------
@@ -438,7 +435,6 @@ Each of them plays its own part:
 * ffbase provides base containers and algorithms
 * ffaudio provides audio I/O
 * ffos provides cross-platform abilities.  Code based on ffos can run on Windows, Linux and FreeBSD.
-* ff contains all low/mid level interfaces that can be reused between different applications.
 * avpack provides API for reading/writing audio-video container formats, e.g. ".mp4".
 * fmedia contains application code, it's largely based on all FF libraries.
 

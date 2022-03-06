@@ -7,21 +7,19 @@ CORE       <-   GUI  <-> QUEUE
 track: ... -> gui-trk -> ...
 */
 
-#include <fmedia.h>
 #include <gui-winapi/gui.h>
 #include <gui-winapi/track.h>
 
-#include <FF/array.h>
-#include <FF/path.h>
-#include <FF/gui/loader.h>
+#include <util/array.h>
+#include <util/path.h>
+#include <util/gui-winapi/loader.h>
 #include <FFOS/process.h>
+#include <FFOS/win/reg.h>
 #include <FFOS/dir.h>
-#include <FF/sys/wreg.h>
 
 
 const fmed_core *core;
 ggui *gg;
-static const fmed_net_http *net;
 
 
 //FMEDIA MODULE
@@ -41,7 +39,6 @@ static FFTHDCALL int gui_worker(void *param);
 static void gui_que_onchange(fmed_que_entry *e, uint flags);
 static void gui_savelists(void);
 static void gui_loadlists(void);
-static void upd_done(void *obj);
 
 static int gtrk_conf(fmed_conf_ctx *ctx);
 
@@ -392,7 +389,7 @@ void gui_corecmd_op(uint cmd, void *udata)
 		break;
 
 	case A_PLAY_REPEAT: {
-		gg->conf.list_repeat = ffint_cycleinc(gg->conf.list_repeat, 3);
+		gg->conf.list_repeat = (gg->conf.list_repeat + 1) % 3;
 		uint rpt = FMED_QUE_REPEAT_NONE;
 		switch (gg->conf.list_repeat) {
 		case 1:
@@ -925,125 +922,38 @@ static int gui_conf(const char *name, fmed_conf_ctx *ctx)
 }
 
 
-/*
-fmedia-ver-os-arch.tar.xz
-...
-*/
-#define UPD_URL  FMED_HOMEPAGE "/latest.txt"
-
-struct httpreq {
-	void *con;
-	ffarr data;
-	int status;
-	ffui_handler ondone;
-};
-
-static void httpreq_free(struct httpreq *h)
+/** Read value to a dynamic buffer.
+Return value type on success;  <0 on error. */
+int ffwreg_readbuf(ffwinreg k, const char *name, ffarr *buf)
 {
-	FF_SAFECLOSE(h->con, NULL, net->close);
-	ffarr_free(&h->data);
-	ffmem_free(h);
-}
+	int r;
+	ffwreg_val val = {0};
+	val.data = buf->ptr;
+	val.datalen = buf->cap;
+	r = ffwreg_read(k, name, &val);
+	if (r == 0) {
+		if (NULL == ffarr_realloc(buf, val.datalen))
+			return -1;
 
-static void http_sig(void *obj)
-{
-	struct httpreq *h = obj;
-	ffhttp_response *resp;
-	ffstr d;
-	int r = net->recv(h->con, &resp, &d);
-	h->status = r;
-	switch (r) {
-	case FFHTTPCL_RESP_RECV:
-		ffarr_append(&h->data, d.ptr, d.len);
-		break;
-	case FFHTTPCL_DONE:
-		ffui_thd_post(h->ondone, h);
-		break;
-	}
-	if (r < 0)
-		ffui_thd_post(h->ondone, h);
-	net->send(h->con, NULL);
-}
+		val.data = buf->ptr;
+		val.datalen = buf->cap;
+		r = ffwreg_read(k, name, &val);
+		if (r == 0)
+			return -1;
 
-#if defined FF_WIN
-#define OS_STR  "win"
-#elif defined FF_BSD
-#define OS_STR  "bsd"
-#else
-#define OS_STR  "linux"
-#endif
-
-#if defined FF_WIN
-	#ifdef FF_64
-	#define CPU_STR  "x64"
-	#else
-	#define CPU_STR  "x86"
-	#endif
-#else
-	#ifdef FF_64
-	#define CPU_STR  "amd64"
-	#else
-	#define CPU_STR  "i686"
-	#endif
-#endif
-
-
-static void upd_done(void *obj)
-{
-	struct httpreq *h = obj;
-
-	switch (h->status) {
-	case FFHTTPCL_DONE: {
-		ffstr s, v;
-		ffstr_set2(&s, &h->data);
-		while (s.len != 0) {
-			ffstr_nextval3(&s, &v, '\n');
-			if (-1 != ffstr_findz(&v, OS_STR "-" CPU_STR)) {
-				ffstr fn = v, pt, ver;
-				ffstr_setz(&ver, core->props->version_str);
-				ffstr_nextval3(&fn, &pt, '-'); //"fmedia"
-				ffstr_nextval3(&fn, &pt, '-'); //"ver"
-				int r = ffstr_vercmp(&ver, &pt);
-				if (r == FFSTR_VERCMP_1LESS2) {
-					ffarr a = {0};
-					ffstr_catfmt(&a, "A new version is available: %S\nDownload it from " FMED_HOMEPAGE
-						, &v);
-					ffui_msgdlg_show("Updates", a.ptr, a.len, FFUI_MSGDLG_INFO);
-					ffarr_free(&a);
-					goto done;
-				}
-			}
+	} else if (r == 1) {
+		if (buf->ptr == NULL) {
+			buf->ptr = val.data;
+			buf->cap = val.datalen;
 		}
-		ffui_msgdlg_showz("Updates", "You have the latest version", FFUI_MSGDLG_INFO);
-		break;
-	}
 	}
 
-	if (h->status < 0)
-		ffui_msgdlg_showz("Updates", "Error while requesting " UPD_URL, FFUI_MSGDLG_ERR);
+	if (r < 0)
+		return -1;
 
-done:
-	httpreq_free(h);
+	buf->len = val.datalen;
+	return val.type;
 }
-
-void gui_upd_check(void)
-{
-	if (net == NULL
-		&& (NULL == core->getmod("net.http")
-			|| NULL == (net = core->getmod("net.httpif"))))
-		return;
-	struct httpreq *h;
-	if (NULL == (h = ffmem_new(struct httpreq)))
-		return;
-	h->ondone = &upd_done;
-	if (NULL == (h->con = net->request("GET", UPD_URL, 0))) {
-		httpreq_free(h);
-		return;
-	}
-	net->sethandler(h->con, &http_sig, h);
-	net->send(h->con, NULL);
-}
-
 
 /**
 1. HKCU\Environment\PATH = [...;] FMEDIA_PATH [;...]
@@ -1101,7 +1011,7 @@ static int gui_install(uint sig)
 			n = path.len; // "\fmedia"
 		else
 			goto end;
-		_ffarr_rm(&buf, pos_path - buf.ptr, n, sizeof(char));
+		ffslice_rm((ffslice*)&buf, pos_path - (char*)buf.ptr, n, sizeof(char));
 	}
 
 	if (0 != ffwreg_writestr(k, "PATH", buf.ptr, buf.len))
@@ -1110,7 +1020,7 @@ static int gui_install(uint sig)
 	ffenv_update();
 
 	if (sig == FMED_SIG_INSTALL) {
-		fffile_fmt(ffstdout, NULL, "Added \"%S\" to user's environment.\n"
+		ffstdout_fmt("Added \"%S\" to user's environment.\n"
 			, path);
 
 		buf.len = 0;
@@ -1121,11 +1031,11 @@ static int gui_install(uint sig)
 			goto end;
 		if (0 != ffui_createlink(buf.ptr, desktop))
 			goto end;
-		fffile_fmt(ffstdout, NULL, "Created desktop shortcut to \"%S\".\n"
+		ffstdout_fmt("Created desktop shortcut to \"%S\".\n"
 			, &buf);
 
 	} else
-		fffile_fmt(ffstdout, NULL, "Removed \"%S\" from user's environment.\n"
+		ffstdout_fmt("Removed \"%S\" from user's environment.\n"
 			, path);
 
 	r = 0;

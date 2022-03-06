@@ -2,7 +2,7 @@
 Copyright (c) 2019 Simon Zolin */
 
 #include <gui-gtk/gui.h>
-#include <FF/path.h>
+#include <util/path.h>
 
 
 struct gui_wmain {
@@ -620,7 +620,7 @@ void list_chooseaddfiles()
 	ffstr *s;
 	for (;;) {
 		s = ffmem_new(ffstr);
-		ffstr_alcopyz(s, fn);
+		ffstr_dupz(s, fn);
 		corecmd_add(A_URL_ADD, s);
 		if (NULL == (fn = ffui_dlg_nextname(&gg->dlg)))
 			break;

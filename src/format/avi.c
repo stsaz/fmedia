@@ -119,7 +119,7 @@ static int avi_process(void *ctx, fmed_filt *d)
 
 		case AVIREAD_HEADER: {
 			const struct avi_audio_info *ai = get_first_audio_track(a);
-			int i = ffint_find2(avi_codecs, FFCNT(avi_codecs), ai->codec);
+			int i = ffarrint16_find(avi_codecs, FFCNT(avi_codecs), ai->codec);
 			if (i == -1) {
 				errlog1(d->trk, "unsupported codec: %xu", ai->codec);
 				return FMED_RERR;

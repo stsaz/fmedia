@@ -2,7 +2,6 @@
 2015 Simon Zolin */
 
 #pragma once
-#include <FF/number.h>
 #include <math.h>
 
 
@@ -20,10 +19,10 @@ enum FFPCM_FMT {
 };
 
 /** Get format name. */
-FF_EXTN const char* ffpcm_fmtstr(uint fmt);
+FF_EXTERN const char* ffpcm_fmtstr(uint fmt);
 
 /** Get format by name. */
-FF_EXTN int ffpcm_fmt(const char *sfmt, size_t len);
+FF_EXTERN int ffpcm_fmt(const char *sfmt, size_t len);
 
 typedef struct ffpcm {
 	uint format; //enum FFPCM_FMT
@@ -67,10 +66,10 @@ enum {
 };
 
 /** Channels as string. */
-FF_EXTN const char* ffpcm_channelstr(uint channels);
+FF_EXTERN const char* ffpcm_channelstr(uint channels);
 
 /** Get channels by name. */
-FF_EXTN int ffpcm_channels(const char *s, size_t len);
+FF_EXTERN int ffpcm_channels(const char *s, size_t len);
 
 /** Get bits per sample for one channel. */
 #define ffpcm_bits(fmt)  ((fmt) & 0xff)
@@ -90,6 +89,10 @@ FF_EXTN int ffpcm_channels(const char *s, size_t len);
 #define ffpcm_bytes2time(pcm, bytes) \
 	ffpcm_time((bytes) / ffpcm_size1(pcm), (pcm)->sample_rate)
 
+/** Protect against division by zero. */
+#define FFINT_DIVSAFE(val, by) \
+	((by) != 0 ? (val) / (by) : 0)
+
 /** Return bits/sec. */
 #define ffpcm_brate(bytes, samples, rate) \
 	FFINT_DIVSAFE((uint64)(bytes) * 8 * (rate), samples)
@@ -98,7 +101,7 @@ FF_EXTN int ffpcm_channels(const char *s, size_t len);
 	FFINT_DIVSAFE((uint64)(bytes) * 8 * 1000, time_ms)
 
 /** Combine two streams together. */
-FF_EXTN void ffpcm_mix(const ffpcmex *pcm, void *stm1, const void *stm2, size_t samples);
+FF_EXTERN void ffpcm_mix(const ffpcmex *pcm, void *stm1, const void *stm2, size_t samples);
 
 
 /** Convert 16LE sample to FLOAT. */
@@ -106,7 +109,7 @@ FF_EXTN void ffpcm_mix(const ffpcmex *pcm, void *stm1, const void *stm2, size_t 
 
 /** Convert PCM data.
 Note: sample rate conversion isn't supported. */
-FF_EXTN int ffpcm_convert(const ffpcmex *outpcm, void *out, const ffpcmex *inpcm, const void *in, size_t samples);
+FF_EXTERN int ffpcm_convert(const ffpcmex *outpcm, void *out, const ffpcmex *inpcm, const void *in, size_t samples);
 
 
 /** Convert volume knob position to dB value. */
@@ -120,11 +123,11 @@ FF_EXTN int ffpcm_convert(const ffpcmex *outpcm, void *out, const ffpcmex *inpcm
 #define ffpcm_db2gain(db)  pow(10, (double)(db) / 20)
 #define ffpcm_gain2db(gain)  (log10(gain) * 20)
 
-FF_EXTN int ffpcm_gain(const ffpcmex *pcm, float gain, const void *in, void *out, uint samples);
+FF_EXTERN int ffpcm_gain(const ffpcmex *pcm, float gain, const void *in, void *out, uint samples);
 
 
 /** Find the highest peak value. */
-FF_EXTN int ffpcm_peak(const ffpcmex *fmt, const void *data, size_t samples, double *maxpeak);
+FF_EXTERN int ffpcm_peak(const ffpcmex *fmt, const void *data, size_t samples, double *maxpeak);
 
 /**
 Return 0 to continue;  !=0 to stop. */
@@ -134,4 +137,21 @@ typedef int (*ffpcm_process_func)(void *udata, double val);
 Return sample number at which user stopped;
  -1: done;
  <0: error. */
-FF_EXTN ssize_t ffpcm_process(const ffpcmex *fmt, const void *data, size_t samples, ffpcm_process_func func, void *udata);
+FF_EXTERN ssize_t ffpcm_process(const ffpcmex *fmt, const void *data, size_t samples, ffpcm_process_func func, void *udata);
+
+static FFINL int ffint_ltoh24s(const void *p)
+{
+	const byte *b = (byte*)p;
+	uint n = ((uint)b[2] << 16) | ((uint)b[1] << 8) | b[0];
+	if (n & 0x00800000)
+		n |= 0xff000000;
+	return n;
+}
+
+static FFINL void ffint_htol24(void *p, uint n)
+{
+	byte *o = (byte*)p;
+	o[0] = (byte)n;
+	o[1] = (byte)(n >> 8);
+	o[2] = (byte)(n >> 16);
+}

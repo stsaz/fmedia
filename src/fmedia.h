@@ -15,10 +15,11 @@ mixer                 mixer
 
 #pragma once
 
+#include <FFOS/types.h>
+#include <util/array.h>
+#include <util/conf2-scheme.h>
+#include <util/taskqueue.h>
 #include <afilter/pcm.h>
-#include <FF/array.h>
-#include <FF/data/conf2-scheme.h>
-#include <FF/sys/taskqueue.h>
 #include <FFOS/file.h>
 #include <FFOS/error.h>
 #include <FFOS/timerqueue.h>
@@ -27,7 +28,7 @@ mixer                 mixer
 #define FMED_VER_MAJOR  1
 #define FMED_VER_MINOR  26
 #define FMED_VER_FULL  ((FMED_VER_MAJOR << 8) | FMED_VER_MINOR)
-#define FMED_VER  "1.25.4beta"
+#define FMED_VER  "1.26"
 
 #define FMED_VER_GETMAJ(fullver)  ((fullver) >> 8)
 #define FMED_VER_GETMIN(fullver)  ((fullver) & 0xff)
@@ -36,7 +37,7 @@ mixer                 mixer
 It must be updated when incompatible changes are made to this file,
  then all modules must be rebuilt.
 The core will refuse to load modules built for any other core version. */
-#define FMED_VER_CORE  ((FMED_VER_MAJOR << 8) | 27)
+#define FMED_VER_CORE  ((FMED_VER_MAJOR << 8) | 26)
 
 #define FMED_HOMEPAGE  "https://stsaz.github.io/fmedia/"
 

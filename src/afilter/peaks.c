@@ -2,7 +2,6 @@
 Copyright (c) 2019 Simon Zolin */
 
 #include <fmedia.h>
-#include <FF/crc.h>
 
 
 extern const fmed_core *core;

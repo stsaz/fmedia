@@ -2,7 +2,7 @@
 Copyright (c) 2016 Simon Zolin */
 
 #include <fmedia.h>
-#include <FF/data/conf2.h>
+#include <util/conf2.h>
 #include <FFOS/asyncio.h>
 
 

@@ -3,7 +3,7 @@
 include ../makeconf
 
 VER := 433
-URL := https://github.com/stsaz/ff-3pt/files/3720271/MAC_SDK_433.zip
+URL := https://github.com/stsaz/fmedia/files/8148606/MAC_SDK_433.zip
 PKG := $(notdir $(URL))
 DIR := mac
 LIB := libMAC-ff.$(SO)

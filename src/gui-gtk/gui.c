@@ -2,7 +2,7 @@
 Copyright (c) 2019 Simon Zolin */
 
 #include <gui-gtk/gui.h>
-#include <FF/path.h>
+#include <util/path.h>
 #include <FFOS/dir.h>
 #include <FFOS/process.h>
 
@@ -513,7 +513,7 @@ static void corecmd_run(uint cmd, void *udata)
 	}
 
 	case A_PLAY_REPEAT:
-		gg->conf.list_repeat = ffint_cycleinc(gg->conf.list_repeat, 3);
+		gg->conf.list_repeat = (gg->conf.list_repeat + 1) % 3;
 		// fallthrough
 	case _A_PLAY_REPEAT: {
 		uint rpt = FMED_QUE_REPEAT_NONE;

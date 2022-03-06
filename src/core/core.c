@@ -3,11 +3,10 @@ Copyright (c) 2015 Simon Zolin */
 
 #include <core/core-priv.h>
 
-#include <FF/path.h>
-#include <FF/sys/filemap.h>
-#include <FF/sys/taskqueue.h>
+#include <util/path.h>
+#include <util/taskqueue.h>
 #ifdef FF_WIN
-#include <FF/sys/wohandler.h>
+#include <util/wohandler.h>
 #endif
 #include <FFOS/error.h>
 #include <FFOS/timer.h>

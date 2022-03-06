@@ -1,10 +1,9 @@
 /** GUI themes.
 Copyright (c) 2018 Simon Zolin */
 
-#include <fmedia.h>
 #include <gui-winapi/gui.h>
-#include <FF/gui/loader.h>
-#include <FF/data/conf-copy.h>
+#include <util/gui-winapi/loader.h>
+#include <util/conf-copy.h>
 #include <FFOS/process.h>
 
 

@@ -2,8 +2,8 @@
 Copyright (c) 2015 Simon Zolin */
 
 #include <fmedia.h>
-#include <FF/path.h>
-#include <FF/net/url.h>
+#include <util/path.h>
+#include <util/url.h>
 
 const fmed_core *core;
 const fmed_queue *qu;
@@ -91,6 +91,16 @@ static void plist_destroy(void)
 {
 }
 
+
+/** Parse URI scheme.
+Return scheme length on success. */
+static inline uint ffuri_scheme(const char *s, size_t len)
+{
+	ffstr scheme;
+	if (0 >= (ssize_t)ffs_fmatch(s, len, "%S://", &scheme))
+		return 0;
+	return scheme.len;
+}
 
 /** Get absolute filename. */
 int plist_fullname(fmed_filt *d, const ffstr *name, ffstr *dst)

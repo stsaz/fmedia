@@ -62,7 +62,7 @@ const char* ogg_enc_mod(const char *fn)
 {
 	ffstr name, ext;
 	ffpath_splitpath(fn, ffsz_len(fn), NULL, &name);
-	ffs_rsplit2by(name.ptr, name.len, '.', NULL, &ext);
+	ffstr_rsplitby(&name, '.', NULL, &ext);
 	if (ffstr_eqcz(&ext, "opus"))
 		return "opus.encode";
 	return "vorbis.encode";

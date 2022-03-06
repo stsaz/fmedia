@@ -1,11 +1,10 @@
 /**
 Copyright (c) 2016 Simon Zolin */
 
-#include <fmedia.h>
 #include <gui-winapi/gui.h>
 
-#include <FF/gui/loader.h>
-#include <FF/path.h>
+#include <util/gui-winapi/loader.h>
+#include <util/path.h>
 #include <FFOS/dir.h>
 #include <FFOS/process.h>
 
@@ -184,8 +183,6 @@ static const struct cmd cmds[] = {
 
 	{ FAV_ADD,	F0 | CMD_FCORE,	&fav_add },
 	{ FAV_SHOW,	F0 | CMD_FCORE,	&fav_show },
-
-	{ CHECKUPDATE,	F0 | CMD_FCORE,	&gui_upd_check },
 
 	{ LIST_DISPINFO,	F0,	&list_setdata },
 };

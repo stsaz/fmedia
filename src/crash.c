@@ -1,7 +1,6 @@
 /** Crash handler.
 Copyright (c) 2018 Simon Zolin */
 
-#include <FF/string.h>
 #include <FFOS/sig.h>
 #include <FFOS/time.h>
 #include <FFOS/file.h>
@@ -34,7 +33,7 @@ void _crash_handler(const char *fullname, const char *version, struct ffsig_info
 #endif
 
 	// open file
-	ffs_fmt(p, fn + sizeof(fn), "fmedia-crashdump-%xU.txt%Z"
+	ffs_format(p, fn + sizeof(fn) - p, "fmedia-crashdump-%xU.txt%Z"
 		, (int64)t.sec);
 	f = fffile_open(fn, FFO_CREATE | FFO_TRUNC | FFO_WRONLY);
 	if (f == FF_BADFD)

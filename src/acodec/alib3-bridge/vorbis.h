@@ -118,13 +118,13 @@ int vorb_info(const char *d, size_t len, uint *channels, uint *rate, uint *br_no
 		return -1;
 
 	const struct vorbis_info *vi = (void*)(d + sizeof(struct vorbis_hdr));
-	if (0 != ffint_ltoh32(vi->ver)
+	if (0 != ffint_le_cpu32_ptr(vi->ver)
 		|| 0 == (*channels = vi->channels)
-		|| 0 == (*rate = ffint_ltoh32(vi->rate))
+		|| 0 == (*rate = ffint_le_cpu32_ptr(vi->rate))
 		|| vi->framing_bit != 1)
 		return -1;
 
-	*br_nominal = ffint_ltoh32(vi->br_nominal);
+	*br_nominal = ffint_le_cpu32_ptr(vi->br_nominal);
 	return 0;
 }
 

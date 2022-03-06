@@ -73,10 +73,11 @@ int ffalac_open(ffalac *a, const char *data, size_t len)
 	const struct alac_conf *conf = (void*)data;
 	a->fmt.format = conf->bit_depth;
 	a->fmt.channels = conf->channels;
-	a->fmt.sample_rate = ffint_ntoh32(conf->sample_rate);
-	a->bitrate = ffint_ntoh32(conf->avg_bitrate);
+	a->fmt.sample_rate = ffint_be_cpu32_ptr(conf->sample_rate);
+	a->bitrate = ffint_be_cpu32_ptr(conf->avg_bitrate);
 
-	if (NULL == ffvec_alloc(&a->buf, ffint_ntoh32(conf->frame_length) * ffpcm_size1(&a->fmt), 1)) {
+	ffuint n = ffint_be_cpu32_ptr(conf->frame_length) * ffpcm_size1(&a->fmt);
+	if (NULL == ffvec_alloc(&a->buf, n, 1)) {
 		a->err = ESYS;
 		return FFALAC_RERR;
 	}

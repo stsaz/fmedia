@@ -84,7 +84,7 @@ void print_tracks(struct mkvin *m, fmed_filt *d)
 		switch (ai->type) {
 		case MKV_TRK_VIDEO: {
 			const struct mkvread_video_info *vi = mkvread_track_info(&m->mkv, i);
-			int i = ffint_find2(mkv_vcodecs, FF_COUNT(mkv_vcodecs), vi->codec);
+			int i = ffarrint16_find(mkv_vcodecs, FF_COUNT(mkv_vcodecs), vi->codec);
 			if (i != -1)
 				d->video.decoder = mkv_vcodecs_str[i];
 
@@ -204,7 +204,7 @@ again:
 				mkvread_seek(&m->mkv, msec);
 			}
 
-			int i = ffint_find2(mkv_codecs, FF_COUNT(mkv_codecs), ai->codec);
+			int i = ffarrint16_find(mkv_codecs, FF_COUNT(mkv_codecs), ai->codec);
 			if (i == -1) {
 				errlog1(d->trk, "unsupported codec: %xu", ai->codec);
 				return FMED_RERR;

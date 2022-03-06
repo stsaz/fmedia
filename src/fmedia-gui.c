@@ -2,10 +2,10 @@
 Copyright (c) 2015 Simon Zolin */
 
 #include <fmedia.h>
-#include <FF/path.h>
-#include <FF/data/conf2-writer.h>
-#include <FF/data/cmdarg-scheme.h>
-#include <FF/gui/winapi.h>
+#include <util/path.h>
+#include <util/conf2-writer.h>
+#include <util/cmdarg-scheme.h>
+#include <util/gui-winapi/winapi.h>
 #include <FFOS/process.h>
 #include <FFOS/mem.h>
 #include <FFOS/sig.h>
@@ -136,10 +136,10 @@ static int loadcore(char *argv0)
 	if (0 == ffstr_catfmt(&a, "%s/../mod/core.%s%Z", path, FFDL_EXT))
 		goto end;
 	a.len = ffpath_normalize(a.ptr, a.cap, a.ptr, a.len - 1, 0);
-	a.ptr[a.len] = '\0';
+	((char*)a.ptr)[a.len] = '\0';
 
 	if (NULL == (dl = ffdl_open(a.ptr, 0))) {
-		fffile_fmt(ffstderr, NULL, "can't load %s: %s\n", a.ptr, ffdl_errstr());
+		ffstderr_fmt("can't load %s: %s\n", a.ptr, ffdl_errstr());
 		goto end;
 	}
 

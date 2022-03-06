@@ -110,7 +110,7 @@ static int caf_process(void *ctx, fmed_filt *d)
 			dbglog1(d->trk, "packets:%U  frames/packet:%u  bytes/packet:%u"
 				, ai->total_packets, ai->packet_frames, ai->packet_bytes);
 
-			int i = ffint_find1(caf_codecs, FFCNT(caf_codecs), ai->codec);
+			int i = ffarrint8_find(caf_codecs, FFCNT(caf_codecs), ai->codec);
 			if (i == -1) {
 				errlog1(d->trk, "unsupported codec: %xu", ai->codec);
 				return FMED_RERR;

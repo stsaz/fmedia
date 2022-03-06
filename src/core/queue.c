@@ -184,12 +184,12 @@ static void plist_remove_entry(entry *e, ffbool from_index, ffbool remove)
 	if (from_index) {
 		ssize_t i = plist_ent_idx(pl, e);
 		if (i >= 0)
-			_ffarr_rmshift_i(&pl->indexes, i, 1, sizeof(entry*));
+			ffslice_rmT((ffslice*)&pl->indexes, i, 1, entry*);
 
 		if (pl->filtered_plist != NULL) {
 			i = plist_ent_idx(pl->filtered_plist, e);
 			if (i >= 0)
-				_ffarr_rmshift_i(&pl->filtered_plist->indexes, i, 1, sizeof(entry*));
+				ffslice_rmT((ffslice*)&pl->filtered_plist->indexes, i, 1, entry*);
 		}
 	}
 
@@ -425,6 +425,9 @@ struct plist_sortdata {
 		, reverse :1;
 };
 
+#define ffint_cmp(a, b) \
+	(((a) == (b)) ? 0 : ((a) < (b)) ? -1 : 1)
+
 /** Compare two entries. */
 static int plist_entcmp(const void *a, const void *b, void *udata)
 {
@@ -475,7 +478,7 @@ static void sort_random(plist *pl)
 	entry **arr = (void*)pl->indexes.ptr;
 	for (size_t i = 0;  i != pl->indexes.len;  i++) {
 		size_t to = ffrnd_get() % pl->indexes.len;
-		_ffarr_swap(&arr[i], &arr[to], 1, sizeof(entry*));
+		*arr[i] = FF_SWAP(arr[i], *arr[to]);
 	}
 }
 
@@ -1001,9 +1004,9 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 	case FMED_QUE_ADD_FILTERED:
 		e = param;
 		pl = qu->curlist->filtered_plist;
-		if (NULL == ffarr_growT(&pl->indexes, 1, 16, entry*))
+		if (NULL == ffvec_growT(&pl->indexes, 16, entry*))
 			return -1;
-		*ffarr_pushT(&pl->indexes, entry*) = e;
+		*ffvec_pushT(&pl->indexes, entry*) = e;
 		break;
 
 	case FMED_QUE_DEL_FILTERED:
@@ -1024,6 +1027,18 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 static fmed_que_entry* _que_add(fmed_que_entry *ent)
 {
 	return (void*)que_cmd2(FMED_QUE_ADD, ent, 0);
+}
+
+/** Shift elements to the right.
+A[0]...  ( A[i]... )  A[i+n]... ->
+A[0]...  ( ... )  A[i]...
+*/
+static inline void _ffvec_shiftr(ffvec *v, size_t i, size_t n, size_t elsz)
+{
+	char *dst = v->ptr + (i + n) * elsz;
+	const char *src = v->ptr + i * elsz;
+	const char *end = v->ptr + v->len * elsz;
+	ffmem_move(dst, src, end - src);
 }
 
 static fmed_que_entry* que_add(plist *pl, fmed_que_entry *ent, entry *prev, uint flags)
@@ -1051,7 +1066,7 @@ static fmed_que_entry* que_add(plist *pl, fmed_que_entry *ent, entry *prev, uint
 
 	ffchain_append(&e->sib, (prev != NULL) ? &prev->sib : fflist_last(&e->plist->ents));
 	e->plist->ents.len++;
-	if (NULL == ffarr_growT(&e->plist->indexes, 1, FFARR_GROWQUARTER | 16, entry*)) {
+	if (NULL == ffvec_growT(&e->plist->indexes, 16, entry*)) {
 		ent_rm(e);
 		fflk_unlock(&qu->plist_lock);
 		return NULL;
@@ -1061,7 +1076,7 @@ static fmed_que_entry* que_add(plist *pl, fmed_que_entry *ent, entry *prev, uint
 		ssize_t i2 = plist_ent_idx(e->plist, prev);
 		if (i2 != -1) {
 			i = i2 + 1;
-			_ffarr_shiftr(&e->plist->indexes, i, 1, sizeof(entry*));
+			_ffvec_shiftr(&e->plist->indexes, i, 1, sizeof(entry*));
 		}
 	}
 	e->list_pos = i;

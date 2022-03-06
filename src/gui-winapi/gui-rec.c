@@ -1,9 +1,8 @@
 /**
 Copyright (c) 2020 Simon Zolin */
 
-#include <fmedia.h>
 #include <gui-winapi/gui.h>
-#include <FF/path.h>
+#include <util/path.h>
 #include <FFOS/process.h>
 
 

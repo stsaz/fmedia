@@ -5,7 +5,6 @@ Copyright (c) 2015 Simon Zolin */
 
 #include <acodec/alib3-bridge/wavpack.h>
 #include <format/mmtag.h>
-#include <FF/number.h>
 
 
 static const fmed_core *core;

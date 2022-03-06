@@ -2,7 +2,7 @@
 Copyright (c) 2019 Simon Zolin */
 
 #include <core/core.h>
-#include <FF/data/conf-copy.h>
+#include <util/conf-copy.h>
 #include <FFOS/process.h>
 #include <ffbase/map.h>
 

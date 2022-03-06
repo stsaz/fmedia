@@ -71,6 +71,17 @@ typedef struct cue {
 static int cue_trackno(cue *c, fmed_filt *d, ffarr *arr);
 
 
+/** Parse the list of numbers, e.g. "1,3,10,20".
+Return 0 on success. */
+int ffs_numlist(ffstr *s, uint *dst)
+{
+	ffstr val;
+	ffstr_splitby(s, ',', &val, s);
+	if (val.len != ffs_toint(val.ptr, val.len, dst, FFS_INT32))
+		return -1;
+	return 0;
+}
+
 /** Convert a list of track numbers to array. */
 static int cue_trackno(cue *c, fmed_filt *d, ffarr *arr)
 {
@@ -82,10 +93,8 @@ static int cue_trackno(cue *c, fmed_filt *d, ffarr *arr)
 	ffstr_setz(&s, val);
 
 	while (s.len != 0) {
-		size_t len = s.len;
 		uint num;
-		int i = ffs_numlist(s.ptr, &len, &num);
-		ffstr_shift(&s, len);
+		int i = ffs_numlist(&s, &num);
 
 		if (i < 0) {
 			errlog(core, d->trk, "cue", "invalid value for --track");
@@ -98,7 +107,7 @@ static int cue_trackno(cue *c, fmed_filt *d, ffarr *arr)
 		*n = num;
 	}
 
-	ffint_sort((uint*)arr->ptr, arr->len, 0);
+	ffarrint32_sort((uint*)arr->ptr, arr->len);
 	return 0;
 }
 
@@ -264,7 +273,7 @@ static int cue_process(void *ctx, fmed_filt *d)
 
 		ffstr *v = &out;
 		if (c->utf8 && ffutf8_valid(v->ptr, v->len))
-			ffarr_copy(&val, v->ptr, v->len);
+			ffvec_addstr(&val, v);
 		else {
 			c->utf8 = 0;
 			size_t n = ffutf8_from_cp(NULL, 0, v->ptr, v->len, codepage);
@@ -332,7 +341,7 @@ add:
 		c->curtrk++;
 		if (c->trackno.len != 0) {
 			size_t n;
-			if (0 > (int)(n = ffint_binfind4((uint*)c->trackno.ptr, c->trackno.len, c->curtrk)))
+			if (0 > (int)(n = ffarrint32_binfind((uint*)c->trackno.ptr, c->trackno.len, c->curtrk)))
 				goto next;
 			if (n == c->trackno.len - 1)
 				done = 1;
@@ -382,7 +391,7 @@ next:
 		for (uint i = 0;  i != c->nmeta;  i++) {
 			ffarr_free(&m[i]);
 		}
-		_ffarr_rm(&c->metas, 0, c->nmeta, sizeof(ffarr));
+		ffslice_rm((ffslice*)&c->metas, 0, c->nmeta, sizeof(ffvec));
 		c->nmeta = c->metas.len;
 	}
 

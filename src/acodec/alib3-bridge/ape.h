@@ -158,7 +158,7 @@ static int _ape_parse_old(ffape_info *info, const char *data, size_t len)
 	if (sizeof(struct ape_hdr_old) > len)
 		return 0;
 
-	uint flags = ffint_ltoh16(h->flags);
+	uint flags = ffint_le_cpu16_ptr(h->flags);
 
 	p = data + sizeof(struct ape_hdr_old);
 
@@ -170,7 +170,7 @@ static int _ape_parse_old(ffape_info *info, const char *data, size_t len)
 	if (sz > len)
 		return 0;
 
-	uint comp_level = ffint_ltoh16(h->comp_level);
+	uint comp_level = ffint_le_cpu16_ptr(h->comp_level);
 	if (!(comp_level % 1000) && comp_level <= 5000)
 		info->comp_level = comp_level / 1000;
 	info->comp_level_orig = comp_level;
@@ -184,8 +184,8 @@ static int _ape_parse_old(ffape_info *info, const char *data, size_t len)
 		frame_blocks = 9216;
 	info->frame_blocks = frame_blocks;
 
-	uint total_frames = ffint_ltoh32(h->total_frames);
-	uint lastframe_blocks = ffint_ltoh32(h->lastframe_blocks);
+	uint total_frames = ffint_le_cpu32_ptr(h->total_frames);
+	uint lastframe_blocks = ffint_le_cpu32_ptr(h->lastframe_blocks);
 	if (total_frames != 0 && lastframe_blocks < frame_blocks)
 		info->total_samples = (total_frames - 1) * frame_blocks + lastframe_blocks;
 
@@ -193,7 +193,7 @@ static int _ape_parse_old(ffape_info *info, const char *data, size_t len)
 		p += 4;
 
 	if (flags & APE_FNSEEKEL) {
-		uint seekpts = ffint_ltoh32(p);
+		uint seekpts = ffint_le_cpu32_ptr(p);
 		p += 4;
 		info->seekpoints = seekpts;
 	} else
@@ -205,11 +205,11 @@ static int _ape_parse_old(ffape_info *info, const char *data, size_t len)
 	else if (flags & APE_F24BIT)
 		info->fmt.format = 24;
 
-	info->fmt.channels = ffint_ltoh16(h->channels);
-	info->fmt.sample_rate = ffint_ltoh32(h->rate);
+	info->fmt.channels = ffint_le_cpu16_ptr(h->channels);
+	info->fmt.sample_rate = ffint_le_cpu32_ptr(h->rate);
 
 	if (!(flags & APE_FNOWAVHDR)) {
-		uint wavhdr_size = ffint_ltoh32(h->wavhdr_size);
+		uint wavhdr_size = ffint_le_cpu32_ptr(h->wavhdr_size);
 		if (sz + wavhdr_size > len)
 			return 0;
 		p += wavhdr_size;
@@ -231,46 +231,46 @@ static int ape_parse(ffape_info *info, const char *data, size_t len)
 	d = (void*)data;
 	if (!ffs_eqcz(d->id, 4, "MAC "))
 		return -APE_EHDR;
-	info->version = ffint_ltoh16(d->ver);
+	info->version = ffint_le_cpu16_ptr(d->ver);
 
 	if (info->version < 3980)
 		return _ape_parse_old(info, data, len);
 
-	uint desc_size = ffmax(sizeof(struct ape_desc), ffint_ltoh32(d->desc_size));
-	uint hdr_size = ffmax(sizeof(struct ape_hdr), ffint_ltoh32(d->hdr_size));
+	uint desc_size = ffmax(sizeof(struct ape_desc), ffint_le_cpu32_ptr(d->desc_size));
+	uint hdr_size = ffmax(sizeof(struct ape_hdr), ffint_le_cpu32_ptr(d->hdr_size));
 	if ((uint64)desc_size + hdr_size > len)
 		return 0;
 
 	h = (void*)(data + desc_size);
 
-	uint comp_level = ffint_ltoh16(h->comp_level);
+	uint comp_level = ffint_le_cpu16_ptr(h->comp_level);
 	if (!(comp_level % 1000) && comp_level <= 5000)
 		info->comp_level = comp_level / 1000;
 	info->comp_level_orig = comp_level;
 
-	info->frame_blocks = ffint_ltoh32(h->frame_blocks);
+	info->frame_blocks = ffint_le_cpu32_ptr(h->frame_blocks);
 
-	uint total_frames = ffint_ltoh32(h->total_frames);
-	uint lastframe_blocks = ffint_ltoh32(h->lastframe_blocks);
+	uint total_frames = ffint_le_cpu32_ptr(h->total_frames);
+	uint lastframe_blocks = ffint_le_cpu32_ptr(h->lastframe_blocks);
 	if (total_frames != 0 && lastframe_blocks < info->frame_blocks)
 		info->total_samples = (total_frames - 1) * info->frame_blocks + lastframe_blocks;
 
-	uint bps = ffint_ltoh16(h->bps);
+	uint bps = ffint_le_cpu16_ptr(h->bps);
 	if (bps > 32)
 		return -APE_EFMT;
 	info->fmt.format = bps;
 
-	info->fmt.channels = ffint_ltoh16(h->channels);
-	info->fmt.sample_rate = ffint_ltoh32(h->rate);
+	info->fmt.channels = ffint_le_cpu16_ptr(h->channels);
+	info->fmt.sample_rate = ffint_le_cpu32_ptr(h->rate);
 
-	uint seektbl_size = ffint_ltoh32(d->seektbl_size);
+	uint seektbl_size = ffint_le_cpu32_ptr(d->seektbl_size);
 	info->seekpoints = seektbl_size / 4;
 
 	ffmemcpy(info->md5, d->md5, sizeof(d->md5));
 
-	uint flags = ffint_ltoh16(h->flags);
+	uint flags = ffint_le_cpu16_ptr(h->flags);
 	if (!(flags & APE_FNOWAVHDR))
-		info->wavhdr_size = ffint_ltoh32(d->wavhdr_size);
+		info->wavhdr_size = ffint_le_cpu32_ptr(d->wavhdr_size);
 
 	return desc_size + hdr_size;
 }

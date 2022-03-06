@@ -2,7 +2,7 @@
 Copyright (c) 2019 Simon Zolin */
 
 #include <net/net.h>
-#include <FF/path.h>
+#include <util/path.h>
 #include <avpack/m3u.h>
 
 
@@ -154,7 +154,7 @@ static int hls_list_add(struct hls *c, const ffstr *name, uint64 seq)
 		return 0;
 	}
 
-	ffstr *ps = ffarr_pushgrowT(&c->qu, 4, ffstr);
+	ffstr *ps = ffvec_pushT(&c->qu, ffstr);
 	if (NULL == ffstr_alcopystr(ps, name))
 		return -1;
 	if (c->qu.len == 1)
@@ -170,8 +170,8 @@ static int hls_list_pop(struct hls *c, ffstr *name)
 {
 	if (c->qu.len == 0)
 		return -1;
-	*name = *ffarr_itemT(&c->qu, 0, ffstr);
-	_ffarr_rmleft(&c->qu, 1, sizeof(ffstr));
+	*name = *ffslice_itemT(&c->qu, 0, ffstr);
+	ffslice_rmT((ffslice*)&c->qu, 0, 1, ffstr);
 	dbglog(c->trk, "playing data file #%U: %S [%L]"
 		, c->seq, name, c->qu.len);
 	c->seq++;
@@ -256,7 +256,7 @@ static int hls_m3u_parse(struct hls *c, const ffstr *data)
 			//get sequence number from "#EXT-X-MEDIA-SEQUENCE:1234"
 			ffstr line, name, val;
 			line = m3uval;
-			ffs_split2by(line.ptr, line.len, ':', &name, &val);
+			ffstr_splitby(&line, ':', &name, &val);
 			if (!ffstr_eqz(&name, "#EXT-X-MEDIA-SEQUENCE"))
 				break;
 			uint64 seq;

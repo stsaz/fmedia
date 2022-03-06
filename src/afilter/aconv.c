@@ -3,7 +3,7 @@ Copyright (c) 2019 Simon Zolin */
 
 #include <fmedia.h>
 #include <afilter/pcm.h>
-#include <FF/array.h>
+#include <util/array.h>
 
 
 extern const fmed_core *core;

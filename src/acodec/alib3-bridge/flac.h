@@ -4,8 +4,6 @@
 #pragma once
 #include <afilter/pcm.h>
 #include <ffbase/vector.h>
-#include <FF/number.h>
-#include <FF/crc.h>
 #include <avpack/flac-fmt.h>
 #include <FLAC/FLAC-ff.h>
 

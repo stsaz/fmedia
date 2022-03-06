@@ -4,7 +4,7 @@ Copyright (c) 2015 Simon Zolin */
 #include <fmedia.h>
 #include <cmd.h>
 
-#include <FF/path.h>
+#include <util/path.h>
 #include <FFOS/sig.h>
 #include <FFOS/error.h>
 #include <FFOS/process.h>
@@ -491,14 +491,14 @@ static int loadcore(char *argv0)
 	((char*)fn.ptr)[fn.len] = '\0';
 
 	if (NULL == (dl = ffdl_open(fn.ptr, 0))) {
-		fffile_fmt(ffstderr, NULL, "can't load %s: %s\n", fn.ptr, ffdl_errstr());
+		ffstderr_fmt("can't load %s: %s\n", fn.ptr, ffdl_errstr());
 		goto end;
 	}
 
 	g->core_init = (void*)ffdl_addr(dl, "core_init");
 	g->core_free = (void*)ffdl_addr(dl, "core_free");
 	if (g->core_init == NULL || g->core_free == NULL) {
-		fffile_fmt(ffstderr, NULL, "can't resolve functions from %s: %s\n"
+		ffstderr_fmt("can't resolve functions from %s: %s\n"
 			, fn.ptr, ffdl_errstr());
 		goto end;
 	}

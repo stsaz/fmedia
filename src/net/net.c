@@ -2,8 +2,8 @@
 Copyright (c) 2016 Simon Zolin */
 
 #include <net/net.h>
-#include <FF/net/url.h>
-#include <FF/path.h>
+#include <util/url.h>
+#include <util/path.h>
 #include <FFOS/asyncio.h>
 #include <FFOS/socket.h>
 #include <FFOS/error.h>
@@ -393,7 +393,7 @@ static int netin_process(void *ctx, fmed_filt *d)
 	n->state = IN_DATANEXT;
 	d->out = n->d[n->idx].ptr,  d->outlen = n->d[n->idx].len;
 	n->d[n->idx].len = 0;
-	n->idx = ffint_cycleinc(n->idx, 2);
+	n->idx = (n->idx + 1) % 2;
 	if (n->fin)
 		return FMED_RDONE;
 

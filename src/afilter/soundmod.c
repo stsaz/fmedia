@@ -4,8 +4,8 @@ Copyright (c) 2015 Simon Zolin */
 #include <fmedia.h>
 
 #include <afilter/pcm.h>
-#include <FF/array.h>
-#include <FF/ring.h>
+#include <util/array.h>
+#include <util/ring.h>
 
 
 #define infolog(trk, ...)  fmed_infolog(core, trk, FILT_NAME, __VA_ARGS__)

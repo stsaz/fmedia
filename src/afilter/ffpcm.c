@@ -2,11 +2,9 @@
 Copyright (c) 2015 Simon Zolin
 */
 
+#include <util/string.h>
 #include <afilter/pcm.h>
-#include <FF/string.h>
-#include <FF/number.h>
 #include <FFOS/mem.h>
-
 #include <math.h>
 
 
@@ -31,7 +29,7 @@ static const ushort pcm_fmt[] = {
 
 const char* ffpcm_fmtstr(uint fmt)
 {
-	int r = ffint_find2(pcm_fmt, FFCNT(pcm_fmt), fmt);
+	int r = ffarrint16_find(pcm_fmt, FFCNT(pcm_fmt), fmt);
 	if (r < 0) {
 		FF_ASSERT(0);
 		return "";
@@ -91,6 +89,31 @@ const char* ffpcm_channelstr(uint channels)
 
 
 #define max8f  (128.0)
+
+#ifdef FF_AMD64
+#include <emmintrin.h> //SSE2
+#endif
+
+/** Convert FP number to integer. */
+static FFINL int ffint_ftoi(double d)
+{
+	int r;
+
+#if defined FF_AMD64
+	r = _mm_cvtsd_si32(_mm_load_sd(&d));
+
+#elif defined FF_X86 && !defined FF_MSVC
+	__asm__ volatile("fistpl %0"
+		: "=m"(r)
+		: "t"(d)
+		: "st");
+
+#else
+	r = (int)((d < 0) ? d - 0.5 : d + 0.5);
+#endif
+
+	return r;
+}
 
 static FFINL short _ffpcm_flt_8(float f)
 {
@@ -687,7 +710,7 @@ int ffpcm_convert(const ffpcmex *outpcm, void *out, const ffpcmex *inpcm, const 
 	case CASE(FFPCM_24, FFPCM_16):
 		for (ich = 0;  ich != nch;  ich++) {
 			for (i = 0;  i != samples;  i++) {
-				to.psh[ich][i * ostep] = ffint_ltoh24(&from.pb[ich][i * istep * 3]) / 0x100;
+				to.psh[ich][i * ostep] = ffint_le_cpu24_ptr(&from.pb[ich][i * istep * 3]) / 0x100;
 			}
 		}
 		break;
@@ -713,7 +736,7 @@ int ffpcm_convert(const ffpcmex *outpcm, void *out, const ffpcmex *inpcm, const 
 	case CASE(FFPCM_24, FFPCM_32):
 		for (ich = 0;  ich != nch;  ich++) {
 			for (i = 0;  i != samples;  i++) {
-				to.pin[ich][i * ostep] = ffint_ltoh24(&from.pb[ich][i * istep * 3]) * 0x100;
+				to.pin[ich][i * ostep] = ffint_le_cpu24_ptr(&from.pb[ich][i * istep * 3]) * 0x100;
 			}
 		}
 		break;
@@ -989,7 +1012,7 @@ int ffpcm_peak(const ffpcmex *fmt, const void *data, size_t samples, double *max
 	case FFPCM_32:
 		for (ich = 0;  ich != nch;  ich++) {
 			for (i = 0;  i != samples;  i++) {
-				int n = ffint_ltoh32(&d.pin[ich][i * step]);
+				int n = ffint_le_cpu32_ptr(&d.pin[ich][i * step]);
 				uint u = ffabs(n);
 				if (max_sh < u)
 					max_sh = u;
@@ -1061,7 +1084,7 @@ ssize_t ffpcm_process(const ffpcmex *fmt, const void *data, size_t samples, ffpc
 	case FFPCM_32:
 		for (ich = 0;  ich != nch;  ich++) {
 			for (i = 0;  i != samples;  i++) {
-				int n = ffint_ltoh32(&d.pin[ich][i * step]);
+				int n = ffint_le_cpu32_ptr(&d.pin[ich][i * step]);
 				u = ffabs(n);
 				f = _ffpcm_32_flt(u);
 				if (0 != func(udata, f))

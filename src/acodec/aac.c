@@ -132,6 +132,10 @@ static void aac_close(void *ctx)
 	ffmem_free(a);
 }
 
+/** Dynamic mean value with weight. */
+#define ffint_mean_dyn(mean, weight, add) \
+	(((mean) * (weight) + (add)) / ((weight) + 1))
+
 /*
 AAC audio format detection:
 . gather decoded frames in cache

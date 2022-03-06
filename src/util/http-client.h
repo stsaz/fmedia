@@ -144,7 +144,7 @@ typedef struct ffhttp_response {
 } ffhttp_response;
 
 /** Initialize response parser. */
-static FFINL void ffhttp_resp_init(ffhttp_response *r) {
+static inline void ffhttp_resp_init(ffhttp_response *r) {
 	memset(r, 0, sizeof(ffhttp_response));
 	r->h.cont_len = -1;
 	// r->h.ce_identity = 1;

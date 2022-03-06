@@ -3,8 +3,7 @@ Copyright (c) 2016 Simon Zolin */
 
 #include <core/core.h>
 
-#include <FF/path.h>
-#include <FF/sys/filemap.h>
+#include <util/path.h>
 #include <FFOS/error.h>
 #include <FFOS/process.h>
 #include <FFOS/timer.h>
@@ -68,6 +67,8 @@ enum TRK_ST {
 	TRK_ST_PAUSED,
 	TRK_ST_ERR,
 };
+
+typedef fflist_item* fflist_cursor;
 
 typedef struct fm_trk {
 	fflist_item sib;
@@ -621,6 +622,15 @@ static const char *const fmed_retstr[] = {
 	"FMED_RDONE_ERR",
 };
 
+/** Set or clear bits. */
+#define ffint_bitmask(pn, mask, set) \
+do { \
+	if (set) \
+		*(pn) |= (mask); \
+	else \
+		*(pn) &= ~(mask); \
+} while (0)
+
 static int filt_call(fm_trk *t, fmed_f *f)
 {
 	int r;
@@ -673,6 +683,27 @@ static int filt_call(fm_trk *t, fmed_f *f)
 		, f->name, ((uint)(r + 1) < FFCNT(fmed_retstr)) ? fmed_retstr[r + 1] : "", t->props.outlen);
 	return r;
 }
+
+enum FFLIST_CUR {
+	FFLIST_CUR_SAME = 0
+	, FFLIST_CUR_NEXT = 1
+	, FFLIST_CUR_PREV = 2
+
+	, FFLIST_CUR_RM = 0x10 //remove this
+	, FFLIST_CUR_RMPREV = 0x20 //remove all previous
+	, FFLIST_CUR_RMNEXT = 0x40 //remove all next
+	, FFLIST_CUR_RMFIRST = 0x80 //remove if the first
+
+	, FFLIST_CUR_BOUNCE = 0x100 //go back if FFLIST_CUR_NEXT is set and it's the last item in chain
+	, FFLIST_CUR_SAMEIFBOUNCE = 0x200 //stay at the same position if a bounce occurs
+
+	//return codes:
+	// FFLIST_CUR_SAME
+	// FFLIST_CUR_NEXT
+	// FFLIST_CUR_PREV
+	, FFLIST_CUR_NONEXT = 3
+	, FFLIST_CUR_NOPREV = 4
+};
 
 /** Shift cursor.
 @cmd: enum FFLIST_CUR

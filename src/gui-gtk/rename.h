@@ -1,7 +1,7 @@
 /** fmedia: gui-gtk: rename file
 2021, Simon Zolin */
 
-#include <FF/path.h>
+#include <util/path.h>
 
 struct gui_wrename {
 	ffui_wnd wnd;

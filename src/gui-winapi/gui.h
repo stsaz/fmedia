@@ -1,8 +1,10 @@
 /**
 Copyright (c) 2016 Simon Zolin */
 
-#include <FF/gui/winapi.h>
-#include <FF/gui/loader.h>
+#define COBJMACROS
+#include <fmedia.h>
+#include <util/gui-winapi/loader.h>
+#include <util/gui-winapi/winapi-shell.h>
 #include <FFOS/thread.h>
 #include <FFOS/semaphore.h>
 
@@ -236,7 +238,6 @@ void gui_media_added(fmed_que_entry *ent);
 void gui_rec(uint cmd);
 char* gui_usrconf_filename(void);
 char* gui_userpath(const char *fn);
-void gui_upd_check(void);
 void usrconf_write(void);
 void fav_save(void);
 void wmain_list_cols_width_write(ffconfw *conf);

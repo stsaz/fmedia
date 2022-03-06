@@ -8,6 +8,11 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.26 - Mar 6, 2022
+
+ Includes all changes from v1.25
+
+
 fmedia v1.25.3beta - Jan 28, 2022
 
  - "-o @stdout.wav"

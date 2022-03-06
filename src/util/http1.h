@@ -76,7 +76,7 @@ static inline int http_req_parse(ffstr req, ffstr *method, ffstr *path, ffstr *p
 		d++;
 	}
 
-	r = ffs_skip_ranges(d, end - d, "\x21\x7e", 2); // printable
+	r = ffs_skip_ranges(d, end - d, "\x21\x7e", 2); // printable ANSI
 	if (r < 0)
 		return 0;
 	if (r == 0 || d[r] != ' ')
@@ -95,7 +95,7 @@ static inline int http_req_parse(ffstr req, ffstr *method, ffstr *path, ffstr *p
 	if (d+8 <= end
 		&& (ffint_be_cpu64(*(ffuint64*)d) & ~1ULL) != 0x485454502f312e30) // "HTTP/1.0|1"
 		return -1;
-	r = ffs_skip_ranges(d, end - d, "\x21\x7e", 2); // printable
+	r = ffs_skip_ranges(d, end - d, "\x21\x7e", 2); // printable ANSI
 	if (r < 0) {
 		if (d+8 < end)
 			return -1;
@@ -135,7 +135,7 @@ static inline int http_resp_parse(ffstr resp, ffstr *proto, ffuint *code, ffstr 
 {
 	const char *d = resp.ptr, *end = resp.ptr + resp.len;
 
-	int r = ffs_skip_ranges(d, end - d, "\x21\x7e", 2); // printable
+	int r = ffs_skip_ranges(d, end - d, "\x21\x7e", 2); // printable ANSI
 	if (r < 0)
 		return 0;
 	if (r == 0 || d[r] != ' ')
@@ -437,7 +437,7 @@ static inline int httpurl_unescape(char *buf, ffsize cap, ffstr url)
 
 	if (buf == NULL) {
 		while (d < end) {
-			ffssize r = ffs_skip_ranges(d, end - d, "\x21\x24\x26\x7e", 4);
+			ffssize r = ffs_skip_ranges(d, end - d, "\x21\x24\x26\x7e\x80\xff", 6);
 			if (r < 0) {
 				r = end - d;
 			} else {
@@ -451,7 +451,7 @@ static inline int httpurl_unescape(char *buf, ffsize cap, ffstr url)
 	}
 
 	while (d != end) {
-		ffssize r = ffs_skip_ranges(d, end - d, "\x21\x24\x26\x7e", 4); // printable except '%'
+		ffssize r = ffs_skip_ranges(d, end - d, "\x21\x24\x26\x7e\x80\xff", 6); // printable except '%'
 		if (r < 0)
 			r = end - d;
 		if (r > ebuf - p)
