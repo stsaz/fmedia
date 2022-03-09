@@ -3,7 +3,6 @@ Copyright (c) 2019 Simon Zolin
 */
 
 #include "gtk.h"
-#include "../http1.h"
 #include <FFOS/atomic.h>
 #include <FFOS/thread.h>
 
@@ -201,6 +200,40 @@ static void _ffui_view_drag_data_received(GtkWidget *wgt, GdkDragContext *contex
 	ffstr_null(&v->drop_data);
 }
 
+/** Replace each "%XX" escape sequence in URL string with a byte value
+Return N of bytes written
+ <0 if not enough space */
+static int url_unescape(char *buf, ffsize cap, ffstr url)
+{
+	char *d = url.ptr, *end = url.ptr + url.len, *p = buf, *ebuf = buf + cap;
+
+	while (d != end) {
+		ffssize r = ffs_findchar(d, end - d, '%');
+		if (r < 0)
+			r = end - d;
+		if (r > ebuf - p)
+			return -1;
+		p = ffmem_copy(p, d, r);
+		d += r;
+
+		if (d == end)
+			break;
+
+		if (d+3 > end || d[0] != '%')
+			return -1;
+		int h = ffchar_tohex(d[1]);
+		int l = ffchar_tohex(d[2]);
+		if (h < 0 || l < 0)
+			return -1;
+		if (p == ebuf)
+			return -1;
+		*p++ = (h<<4) | l;
+		d += 3;
+	}
+
+	return p - buf;
+}
+
 int ffui_fdrop_next(ffvec *fn, ffstr *dropdata)
 {
 	ffstr ln;
@@ -213,7 +246,7 @@ int ffui_fdrop_next(ffvec *fn, ffstr *dropdata)
 
 		if (NULL == ffvec_realloc(fn, ln.len, 1))
 			return -1;
-		int r = httpurl_unescape(fn->ptr, fn->cap, ln);
+		int r = url_unescape(fn->ptr, fn->cap, ln);
 		if (r < 0)
 			return -1;
 		fn->len = r;
