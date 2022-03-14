@@ -42,6 +42,7 @@ typedef struct fmed_f {
 	const fmed_filter *filt;
 	fftime clk;
 	unsigned opened :1
+		, closed :1 // the filter won't be used anymore; its slot may be reused
 
 		/** This filter won't return any more data, it won't be called again.
 		However, it is still in chain while the next filters use its data. */
@@ -662,6 +663,7 @@ static int filt_call(fm_trk *t, fmed_f *f)
 		} else if (f->ctx == FMED_FILT_SKIP) {
 			dbglog(t, "%s is skipped", f->name);
 			f->ctx = NULL; //don't call fmed_filter.close()
+			f->closed = 1;
 			t->props.out = t->props.data,  t->props.outlen = t->props.datalen;
 			return FMED_RDONE;
 		}
@@ -1130,11 +1132,12 @@ static void filt_close(fm_trk *t, fmed_f *f)
 	if (f->ctx != NULL) {
 		f->filt->close(f->ctx);
 		f->ctx = NULL;
+		f->closed = 1;
 	}
 
 	uint n = 0;
 	FFSLICE_RWALK(&t->filters, f) {
-		if (f->ctx != NULL)
+		if (!f->closed)
 			break;
 		n++;
 	}

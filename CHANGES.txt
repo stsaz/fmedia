@@ -8,6 +8,13 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.26.1 - Mar 14, 2022
+
+ - fix complex filter chain use-cases such as "--start-dblevel/--stop-dblevel"
+    and possibly some other cases
+ - GUI/Linux: fix file drop
+
+
 fmedia v1.26 - Mar 6, 2022
 
  Includes all changes from v1.25
