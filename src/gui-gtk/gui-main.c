@@ -240,6 +240,15 @@ static void wmain_action(ffui_wnd *wnd, int id)
 		if (w->exp_tab == ffui_tab_active(&w->tabs))
 			return;
 		break;
+
+	case A_LIST_SHOWCURTRACK:
+		if (w->active_qent != NULL) {
+			int idx = gg->qu->cmdv(FMED_QUE_ID, w->active_qent);
+			if (idx >= 0)
+				ffui_view_scroll_idx(&w->vlist, idx);
+		}
+		return;
+
 	case A_LIST_READMETA:
 	case A_LIST_REMOVE:
 	case A_LIST_RMDEAD:

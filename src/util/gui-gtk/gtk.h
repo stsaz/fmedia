@@ -521,6 +521,13 @@ FF_EXTERN void ffui_view_set(ffui_view *v, int sub, ffui_viewitem *it);
 
 FF_EXTERN void ffui_view_rm(ffui_view *v, ffui_viewitem *it);
 
+static inline void ffui_view_scroll_idx(ffui_view *v, uint idx)
+{
+	GtkTreePath *path = gtk_tree_path_new_from_indices(idx, -1);
+	gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(v->h), path, NULL, 0, 0, 0);
+	gtk_tree_path_free(path);
+}
+
 static inline uint ffui_view_scroll_vert(ffui_view *v)
 {
 	GtkAdjustment *a = gtk_scrollable_get_vadjustment(GTK_SCROLLABLE(v->h));
