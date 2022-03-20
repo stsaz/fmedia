@@ -167,6 +167,8 @@ static void* open_input_wcard(const fmed_queue *qu, char *src, const fmed_track 
 	if (ffstr_findany(&name, "*?", 2) < 0)
 		goto end;
 
+	if (dir.len == 0)
+		ffstr_setz(&dir, ".");
 	dirz = ffsz_dupstr(&dir);
 	de.wildcard = name.ptr;
 	if (0 != ffdirscan_open(&de, dirz, FFDIRSCAN_USEWILDCARD))
