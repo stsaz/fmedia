@@ -92,7 +92,12 @@ static void que_play(entry *e)
 static void que_play2(entry *ent, uint flags)
 {
 	fmed_que_entry *e = &ent->e;
-	void *trk = qu->track->create(FMED_TRK_TYPE_PLAYBACK, e->url.ptr);
+	int type = FMED_TRK_TYPE_PLAYBACK;
+	if (ent->trk != NULL && ent->trk->pcm_peaks)
+		type = FMED_TRK_TYPE_PCMINFO;
+	else if (qu->mixing)
+		type = FMED_TRK_TYPE_MIXIN;
+	void *trk = qu->track->create(type, e->url.ptr);
 	uint i;
 
 	if (trk == NULL)
@@ -114,9 +119,6 @@ static void que_play2(entry *ent, uint flags)
 	fmed_trk *t = qu->track->conf(trk);
 	if (ent->trk != NULL)
 		qu->track->copy_info(t, ent->trk);
-
-	if (qu->mixing)
-		t->type = FMED_TRK_TYPE_MIXIN;
 
 	if (e->dur != 0)
 		qu->track->setval(trk, "track_duration", e->dur);
@@ -152,7 +154,7 @@ static void que_mix(void)
 	void *mxout;
 	entry *e;
 
-	if (NULL == (mxout = qu->track->create(FMED_TRACK_MIX, NULL)))
+	if (NULL == (mxout = qu->track->create(FMED_TRK_TYPE_MIXOUT, NULL)))
 		return;
 	qu->track->setval(mxout, "mix_tracks", ents->len);
 	qu->track->cmd(mxout, FMED_TRACK_START);

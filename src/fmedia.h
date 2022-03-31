@@ -378,11 +378,11 @@ enum FMED_TRK_TYPE {
 	FMED_TRK_TYPE_NETIN,
 	FMED_TRK_TYPE_EXPAND, // get file meta info
 	FMED_TRK_TYPE_PLIST, // write playlist file from queue
+	FMED_TRK_TYPE_PCMINFO, // analyze PCM peaks and CRC
 	_FMED_TRK_TYPE_END,
 
 	//obsolete:
 	FMED_TRACK_REC = FMED_TRK_TYPE_REC,
-	FMED_TRACK_MIX = FMED_TRK_TYPE_MIXOUT,
 };
 
 enum FMED_TRK_FVAL {

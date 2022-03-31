@@ -523,10 +523,8 @@ void gui_media_showpcm(void)
 		ent = (fmed_que_entry*)gg->qu->fmed_queue_item(-1, i);
 
 		void *trk;
-		if (NULL == (trk = gg->track->create(FMED_TRK_TYPE_PLAYBACK, ent->url.ptr)))
+		if (NULL == (trk = gg->track->create(FMED_TRK_TYPE_PCMINFO, ent->url.ptr)))
 			return;
-		fmed_trk *trkconf = gg->track->conf(trk);
-		trkconf->pcm_peaks = 1;
 		gg->track->cmd(trk, FMED_TRACK_XSTART);
 	}
 }

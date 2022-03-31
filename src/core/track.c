@@ -94,7 +94,6 @@ typedef struct fm_trk {
 
 
 static int trk_setout_file(fm_trk *t);
-static int trk_setout(fm_trk *t);
 static int trk_opened(fm_trk *t);
 static int trk_open(fm_trk *t, const char *fn);
 static void trk_open_capt(fm_trk *t);
@@ -238,12 +237,13 @@ static void trk_open_capt(fm_trk *t)
 	addfilter(t, "afilter.rtpeak");
 }
 
-static int trk_setout(fm_trk *t)
+static int trk_addfilters(fm_trk *t)
 {
 	const char *s;
 	ffbool stream_copy = t->props.stream_copy;
 
 	switch (t->props.type) {
+	case FMED_TRK_TYPE_NONE:
 	case FMED_TRK_TYPE_EXPAND:
 		return 0;
 
@@ -251,16 +251,50 @@ static int trk_setout(fm_trk *t)
 		if (0 != trk_setout_file(t))
 			return 1;
 		return 0;
-	}
 
-	if (t->props.type == FMED_TRK_TYPE_NETIN) {
+	case FMED_TRK_TYPE_PCMINFO:
+		addfilter(t, "afilter.until");
 
-	} else if (t->props.type == FMED_TRK_TYPE_NONE) {
+		if (core->props->gui)
+			addfilter(t, "gui.gui");
+		else if (core->props->tui)
+			addfilter(t, "tui.tui");
+
+		addfilter(t, "afilter.gain");
+		if (t->props.use_dynanorm)
+			addfilter(t, "dynanorm.filter");
+		addfilter(t, "afilter.autoconv");
+		addfilter(t, "afilter.peaks");
 		return 0;
 
-	} else if (t->props.type != FMED_TRK_TYPE_MIXIN) {
-		if (t->props.type != FMED_TRK_TYPE_REC)
-			addfilter(t, "afilter.until");
+	case FMED_TRK_TYPE_MIXIN:
+		if (t->props.use_dynanorm)
+			addfilter(t, "dynanorm.filter");
+		addfilter(t, "afilter.autoconv");
+		addfilter(t, "afilter.mixer-in");
+		return 0;
+
+	case FMED_TRK_TYPE_REC:
+		if (core->props->gui)
+			addfilter(t, "gui.gui");
+		else if (core->props->tui)
+			addfilter(t, "tui.tui");
+
+		if (t->props.a_start_level != 0)
+			addfilter(t, "afilter.startlevel");
+		if (t->props.a_stop_level != 0)
+			addfilter(t, "afilter.stoplevel");
+
+		if (t->props.a_prebuffer != 0)
+			addfilter(t, "afilter.membuf");
+
+		addfilter(t, "afilter.gain");
+		addfilter(t, "afilter.autoconv");
+		goto output;
+	}
+
+	if (t->props.type != FMED_TRK_TYPE_NETIN) {
+		addfilter(t, "afilter.until");
 		if (core->props->gui)
 			addfilter(t, "gui.gui");
 		else if (core->props->tui)
@@ -269,13 +303,8 @@ static int trk_setout(fm_trk *t)
 
 	if (t->props.a_start_level != 0)
 		addfilter(t, "afilter.startlevel");
-
 	if (t->props.a_stop_level != 0)
 		addfilter(t, "afilter.stoplevel");
-
-	if (t->props.type == FMED_TRK_TYPE_REC && t->props.a_prebuffer != 0) {
-		addfilter(t, "afilter.membuf");
-	}
 
 	if (t->props.type != FMED_TRK_TYPE_MIXOUT && !stream_copy) {
 		ffbool playback = (t->props.type == FMED_TRK_TYPE_PLAYBACK
@@ -296,13 +325,8 @@ static int trk_setout(fm_trk *t)
 
 	addfilter(t, "afilter.autoconv");
 
-	if (t->props.type == FMED_TRK_TYPE_MIXIN) {
-		addfilter(t, "afilter.mixer-in");
-
-	} else if (t->props.pcm_peaks) {
-		addfilter(t, "afilter.peaks");
-
-	} else if (FMED_PNULL != (s = trk_getvalstr(t, "output"))) {
+output:
+	if (FMED_PNULL != (s = trk_getvalstr(t, "output"))) {
 		if (0 != trk_setout_file(t))
 			return -1;
 
@@ -362,6 +386,8 @@ static void* trk_create(uint cmd, const char *fn)
 		// fallthrough
 
 	case FMED_TRK_TYPE_PLAYBACK:
+	case FMED_TRK_TYPE_MIXIN:
+	case FMED_TRK_TYPE_PCMINFO:
 		if (0 != trk_open(t, fn)) {
 			trk_free(t);
 			return FMED_TRK_EFMT;
@@ -1234,7 +1260,7 @@ static ssize_t trk_cmd(void *trk, uint cmd, ...)
 
 	case FMED_TRACK_START:
 	case FMED_TRACK_XSTART:
-		if (0 != trk_setout(t)) {
+		if (0 != trk_addfilters(t)) {
 			trk_setval(t, "error", 1);
 		}
 		if (0 != trk_opened(t)) {

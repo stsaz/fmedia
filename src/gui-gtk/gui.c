@@ -855,11 +855,8 @@ static void file_showpcm(void)
 	while (-1 != (i = ffui_view_selnext(NULL, sel))) {
 		ent = (fmed_que_entry*)gg->qu->fmed_queue_item(-1, i);
 
-		if (NULL == (trk = gg->track->create(FMED_TRK_TYPE_PLAYBACK, ent->url.ptr)))
+		if (NULL == (trk = gg->track->create(FMED_TRK_TYPE_PCMINFO, ent->url.ptr)))
 			break;
-
-		fmed_trk *trkconf = gg->track->conf(trk);
-		trkconf->pcm_peaks = 1;
 		gg->track->cmd(trk, FMED_TRACK_XSTART);
 	}
 	ffui_view_sel_free(sel);
