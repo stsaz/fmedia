@@ -61,6 +61,13 @@ EINGABE:
                    .flac, .ogg unterstützen jegliche Schlagwörter.
                    Die Werte dazu können aus einer Datei gelesen werden (z. B. album cover picture):
                      "--meta=picture=@file:FILENAME"
+--edit-tags        Don't play files but just modify their meta tags.
+                   Set tags with '--meta'.
+                   Supported formats: .mp3(ID3v2+ID3v1)
+--meta-from-filename=TEMPLATE
+                   Specify template for auto-tagging from input file name.
+                   Use together with --edit-tags.
+                   .mp3 supports: $album, $albumartist, $artist, $comment, $date, $genre, $publisher, $title, $tracknumber, $tracktotal.
 
 FILTER:
 --volume=INT       Setzt Lautstärke (0% .. 125%)

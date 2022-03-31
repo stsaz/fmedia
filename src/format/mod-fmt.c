@@ -25,6 +25,7 @@ extern const fmed_filter raw_input;
 extern const fmed_filter wav_input;
 extern const fmed_filter wav_output;
 extern const fmed_filter wv_input;
+extern const fmed_edittags edittags_filt;
 const void* mod_iface(const char *name)
 {
 	static const char *const names[] = {
@@ -33,6 +34,7 @@ const void* mod_iface(const char *name)
 		"ape",
 		"avi",
 		"caf",
+		"edit-tags",
 		"mkv",
 		"mp3",
 		"mp3-copy",
@@ -53,6 +55,7 @@ const void* mod_iface(const char *name)
 		/*"ape"*/	&ape_input,
 		/*"avi"*/	&avi_input,
 		/*"caf"*/	&caf_input,
+		/*"edit-tags"*/	(fmed_filter*)&edittags_filt,
 		/*"mkv"*/	&mkv_input,
 		/*"mp3"*/	&mp3_input,
 		/*"mp3-copy"*/	&mp3_copy,

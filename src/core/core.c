@@ -2,6 +2,7 @@
 Copyright (c) 2015 Simon Zolin */
 
 #include <core/core-priv.h>
+#include <core/format-detector.h>
 
 #include <util/path.h>
 #include <util/taskqueue.h>
@@ -312,6 +313,9 @@ static const char* const sig_str[] = {
 	"FMED_WORKER_RELEASE",
 	"FMED_WORKER_AVAIL",
 	"FMED_SETLOG",
+	"FMED_TZOFFSET",
+	"FMED_FILETYPE_EXT",
+	"FMED_DATA_FORMAT",
 };
 
 static ssize_t core_cmd(uint signo, ...)
@@ -320,6 +324,7 @@ static ssize_t core_cmd(uint signo, ...)
 	va_list va;
 	va_start(va, signo);
 
+	FF_ASSERT(signo < FF_COUNT(sig_str));
 	dbglog0("received signal: %s"
 		, sig_str[signo]);
 
@@ -430,6 +435,15 @@ static ssize_t core_cmd(uint signo, ...)
 	case FMED_TZOFFSET:
 		r = fmed->tz.real_offset;
 		break;
+
+	case FMED_DATA_FORMAT:
+		ffstr *data = va_arg(va, void*);
+		r = file_format_detect(data->ptr, data->len);
+		if (r == FILE_UNK)
+			r = 0;
+		else
+			r = (ffssize)file_ext[r-1];
+		break;
 	}
 
 	va_end(va);
@@ -507,8 +521,6 @@ static void core_log(uint flags, void *trk, const char *module, const char *fmt,
 	va_end(va);
 }
 
-
-extern const fmed_filter _fmed_format_detector;
 
 static const void* core_iface(const char *name)
 {

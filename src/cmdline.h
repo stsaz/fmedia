@@ -403,8 +403,12 @@ static const ffcmdarg_arg fmed_cmdline_args[] = {
 	{ 0, "stop-dblevel",	TSTR,	F(arg_astoplev) },
 	{ 0, "fseek",	FFCMDARG_TINT64,	O(fseek) },
 	{ 'i', "info",	TSWITCH,	O(info) },
+
+	// TAGS
 	{ 0, "tags",	TSWITCH,	O(tags) },
 	{ 0, "meta",	FFCMDARG_TSTR,	O(meta) },
+	{ 0, "meta-from-filename",	FFCMDARG_TSTR,	O(meta_from_filename) },
+	{ 0, "edit-tags",	TSWITCH,	O(edittags) },
 
 	//FILTERS
 	{ 0, "volume",	FFCMDARG_TINT8,	O(volume) },

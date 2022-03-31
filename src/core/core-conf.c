@@ -2,7 +2,6 @@
 Copyright (c) 2019 Simon Zolin */
 
 #include <core/core-priv.h>
-#include <core/format-detector.h>
 
 
 int conf_init(fmed_config *conf)

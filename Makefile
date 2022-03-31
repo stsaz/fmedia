@@ -270,6 +270,7 @@ FMT_O := $(OBJ_DIR)/mod-fmt.o \
 	$(OBJ_DIR)/ape-read.o \
 	$(OBJ_DIR)/avi.o \
 	$(OBJ_DIR)/caf.o \
+	$(OBJ_DIR)/edit-tags.o \
 	$(OBJ_DIR)/mkv.o \
 	$(OBJ_DIR)/mp3.o \
 	$(OBJ_DIR)/mp4.o \

@@ -154,18 +154,18 @@ static void signal_handler(struct ffsig_info *info)
 static void qu_setprops(fmed_cmd *fmed, const fmed_queue *qu, fmed_que_entry *qe);
 
 #ifdef FF_WIN
-/** Add to queue filenames expanded by wildcard. */
-static void* open_input_wcard(const fmed_queue *qu, char *src, const fmed_track *track, const fmed_trk *trkinfo)
+/** Expand filenames by wildcard. */
+static int expand_input_wcard1(ffvec *arr, const char *wc)
 {
+	int rc = -1;
 	ffdirscan de = {};
 	char *dirz = NULL;
-	void *first = NULL;
 
 	ffstr s, dir, name;
-	ffstr_setz(&s, src);
+	ffstr_setz(&s, wc);
 	ffpath_splitpath(s.ptr, s.len, &dir, &name);
 	if (ffstr_findany(&name, "*?", 2) < 0)
-		goto end;
+		return 0;
 
 	if (dir.len == 0)
 		ffstr_setz(&dir, ".");
@@ -176,24 +176,40 @@ static void* open_input_wcard(const fmed_queue *qu, char *src, const fmed_track 
 
 	const char *fn;
 	while (NULL != (fn = ffdirscan_next(&de))) {
-		fmed_que_entry e, *qe;
-		ffmem_zero_obj(&e);
 		char *fullname = ffsz_allocfmt("%S/%s", &dir, fn);
-		ffstr_setz(&e.url, fullname);
-		qe = qu->add(&e);
-		ffmem_free(fullname);
-		qu->cmdv(FMED_QUE_SETTRACKPROPS, qe, trkinfo);
-		qu_setprops(g->cmd, qu, qe);
-		if (first == NULL)
-			first = qe;
+		*ffvec_pushT(arr, char*) = fullname;
 	}
+	rc = 1;
 
 end:
 	ffmem_free(dirz);
 	ffdirscan_close(&de);
-	return first;
+	return rc;
 }
 #endif
+
+int expand_input_wcard(fmed_cmd *c)
+{
+#ifdef FF_WIN
+	ffvec v = {};
+	ffvec_allocT(&v, c->in_files.len, char*);
+	char **fn;
+	FFSLICE_WALK(&c->in_files, fn) {
+		int r = expand_input_wcard1(&v, *fn);
+		if (r < 0) {
+			ffvec_free(&v);
+			return -1;
+		} else if (r > 0) {
+			ffmem_free(*fn);
+		} else {
+			*ffvec_pushT(&v, char*) = *fn;
+		}
+	}
+	ffvec_free(&c->in_files);
+	c->in_files = v;
+#endif
+	return 0;
+}
 
 static void qu_setval(const fmed_queue *qu, fmed_que_entry *qe, const char *name, int64 val)
 {
@@ -307,20 +323,14 @@ static void open_input(void *udata)
 	void *first = NULL;
 	fmed_cmd *fmed = udata;
 
+	if (0 != expand_input_wcard(fmed))
+		return;
+
 	fmed_trk trkinfo;
 	track->copy_info(&trkinfo, NULL);
 	trk_prep(fmed, &trkinfo);
 
 	FFSLICE_WALK(&fmed->in_files, pfn) {
-
-#ifdef FF_WIN
-		if (NULL != (qe = open_input_wcard(qu, *pfn, track, &trkinfo))) {
-			if (first == NULL)
-				first = qe;
-			continue;
-		}
-#endif
-
 		ffmem_zero_obj(&e);
 		ffstr_setz(&e.url, *pfn);
 		qe = qu->add(&e);
@@ -467,6 +477,35 @@ static void rec_lpback_new_track(fmed_cmd *cmd)
 		return;
 	}
 	track->cmd(trk, FMED_TRACK_START);
+}
+
+void edittags(void *obj)
+{
+	fmed_cmd *c = obj;
+	const struct fmed_edittags *et = core->getmod("fmt.edit-tags");
+	if (et == NULL)
+		goto end;
+
+	if (c->outfn.len != 0) {
+		errlog0("'--edit-tags' doesn't work with '--output'");
+		goto end;
+	}
+
+	if (0 != expand_input_wcard(c))
+		goto end;
+
+	char **fn;
+	FFSLICE_WALK(&c->in_files, fn) {
+		struct fmed_edittags_conf conf = {};
+		conf.fn = *fn;
+		conf.meta = c->meta;
+		conf.meta_from_filename = c->meta_from_filename;
+		conf.preserve_date = c->preserve_date;
+		et->edit(&conf);
+	}
+
+end:
+	core->cmd(FMED_STOP);
 }
 
 static int gcmd_send(const fmed_globcmd_iface *globcmd)
@@ -669,6 +708,8 @@ int main(int argc, char **argv, char **env)
 	}
 
 	fftask_set(&gcmd->tsk_start, &open_input, g->cmd);
+	if (g->cmd->edittags)
+		fftask_set(&gcmd->tsk_start, edittags, g->cmd);
 	core->task(&gcmd->tsk_start, FMED_TASK_POST);
 
 	g->track->fmed_trk_monitor(NULL, &mon_iface);

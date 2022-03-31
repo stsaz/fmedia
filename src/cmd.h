@@ -36,7 +36,7 @@ typedef struct fmed_cmd {
 	uint stop_level_time; //msec
 	uint stop_level_mintime; //msec
 	uint64 fseek;
-	ffstr meta;
+	ffstr meta, meta_from_filename;
 	ffslice include_files; //ffstr[]
 	ffslice exclude_files; //ffstr[]
 	char *include_files_data, *exclude_files_data;
@@ -72,6 +72,7 @@ typedef struct fmed_cmd {
 	byte out_copy;
 	byte preserve_date;
 	byte parallel;
+	byte edittags;
 
 	ffstr dummy;
 
@@ -101,6 +102,7 @@ static inline void cmd_destroy(fmed_cmd *cmd)
 	ffmem_free(cmd->outfnz);
 
 	ffstr_free(&cmd->meta);
+	ffstr_free(&cmd->meta_from_filename);
 	ffmem_safefree(cmd->aac_profile);
 	ffmem_safefree(cmd->trackno);
 	ffmem_safefree(cmd->conf_fn);

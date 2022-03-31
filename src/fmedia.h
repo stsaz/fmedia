@@ -125,6 +125,12 @@ enum FMED_SIG {
 	args: "ffstr *file_extension"
 	Return enum FMED_FT. */
 	FMED_FILETYPE_EXT,
+
+	/** Guess file format by data
+	args: "ffstr *data"
+	Return char* - file extension
+	 NULL: unknown */
+	FMED_DATA_FORMAT,
 };
 
 enum FMED_WORKER_F {
@@ -1075,3 +1081,14 @@ typedef struct fmed_net_http {
 	flags: enum FFHTTPCL_CONF_F */
 	void (*conf)(void *con, struct ffhttpcl_conf *conf, uint flags);
 } fmed_net_http;
+
+
+struct fmed_edittags_conf {
+	const char *fn;
+	ffstr meta, meta_from_filename;
+	uint preserve_date :1;
+};
+
+typedef struct fmed_edittags {
+	void (*edit)(struct fmed_edittags_conf *conf);
+} fmed_edittags;

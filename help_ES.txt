@@ -57,6 +57,13 @@ ENTRADA:
                    .flac, .ogg support tags of any name.
                    Value may be read from file (e.g. album cover picture):
                      "--meta=picture=@file:FILENAME"
+--edit-tags        Don't play files but just modify their meta tags.
+                   Set tags with '--meta'.
+                   Supported formats: .mp3(ID3v2+ID3v1)
+--meta-from-filename=TEMPLATE
+                   Specify template for auto-tagging from input file name.
+                   Use together with --edit-tags.
+                   .mp3 supports: $album, $albumartist, $artist, $comment, $date, $genre, $publisher, $title, $tracknumber, $tracktotal.
 
 FILTROSS:
 --volume=INT       Define el volumen (0% .. 125%)

@@ -353,6 +353,14 @@ Record for 60 seconds then stop
 
 	fmedia --record --out=rec.flac --until=60
 
+Record from playback or "record what you hear" (Windows/WASAPI only)
+
+	fmedia --dev-loopback=1 --record --out=./rec.wav
+
+Record from playback AND record from microphone in parallel into 2 different files (Windows/WASAPI only)
+
+	fmedia --dev-loopback=1 --dev-capture=1 --record --out='./rec-$counter.wav'
+
 Record while playing
 
 	fmedia ./file.ogg --record --out=./rec.wav
@@ -368,6 +376,16 @@ Record audio from Internet radio (without re-encoding)
 Play AND record audio from Internet radio into separate files (without re-encoding)
 
 	fmedia http://radio-stream:80/ --out-copy -o './$time. $artist - $title.mp3' --stream-copy
+
+### EDIT TAGS
+
+Modify file's meta tags in-place
+
+	fmedia --edit-tags --meta='artist=ARTIST;title=TITLE' ./file.mp3
+
+Set artist, track number and title meta tags from file name
+
+	fmedia --edit-tags --meta-from-filename='$artist - $tracknumber. $title' './Cool Artist - 04. Best Song.mp3'
 
 ### OTHER FUNCTIONS
 
