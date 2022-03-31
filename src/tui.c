@@ -1,8 +1,10 @@
 /** Terminal UI.
 Copyright (c) 2015 Simon Zolin */
 
+#ifdef _WIN32
+#include <util/gui-winapi/winapi-shell.h>
+#endif
 #include <fmedia.h>
-
 #include <util/array.h>
 #include <FFOS/error.h>
 
@@ -49,6 +51,7 @@ typedef struct tui {
 
 static struct tui_conf_t {
 	byte echo_off;
+	byte file_delete_method;
 } tui_conf;
 
 enum {
@@ -130,8 +133,19 @@ static void tui_corecmd(void *param);
 static void tui_corecmd_add(const struct key *k, void *udata);
 
 
+static int conf_file_delete_method(fmed_conf *c, void *obj, ffstr *val)
+{
+	if (ffstr_eqz(val, "default"))
+	{}
+	else if (ffstr_eqz(val, "rename"))
+		tui_conf.file_delete_method = 1;
+	else
+		return FMC_EBADVAL;
+	return 0;
+}
 static const fmed_conf_arg tui_conf_args[] = {
 	{ "echo_off",	FMC_BOOL8,  FMC_O(struct tui_conf_t, echo_off) },
+	{ "file_delete_method",	FMC_STR,  FMC_F(conf_file_delete_method) },
 	{}
 };
 
@@ -432,19 +446,75 @@ static int tui_setvol(tui *t, uint vol)
 	return db;
 }
 
+#ifdef FF_LINUX
+/** Exec and wait
+Return exit code or -1 on error */
+static inline int _ffui_ps_exec_wait(const char *filename, const char **argv, const char **env)
+{
+	ffps_execinfo info = {};
+	info.argv = argv;
+	info.env = env;
+	ffps ps = ffps_exec_info(filename, &info);
+	if (ps == FFPS_NULL)
+		return -1;
+
+	int code;
+	if (0 != ffps_wait(ps, -1, &code))
+		return -1;
+
+	return code;
+}
+
+/** Move files to Trash */
+static inline int ffui_glib_trash(const char **names, ffsize n)
+{
+	ffvec v = {};
+	if (NULL == ffvec_allocT(&v, 3 + n, char*))
+		return -1;
+	char **p = (char**)v.ptr;
+	*p++ = "/usr/bin/gio";
+	*p++ = "trash";
+	for (ffsize i = 0;  i != n;  i++) {
+		*p++ = (char*)names[i];
+	}
+	*p++ = NULL;
+	int r = _ffui_ps_exec_wait(((char**)v.ptr)[0], (const char**)v.ptr, (const char**)environ);
+	ffvec_free(&v);
+	return r;
+}
+#endif
+
 static void tui_rmfile(tui *t, uint cmd)
 {
+	ffvec fn = {};
 	fmed_que_entry *qtrk = t->qent;
 	if ((cmd & CMD_MASK) == CMD_DELFILE) {
-		ffarr fn = {0};
-		if (0 != ffstr_catfmt(&fn, "%S.deleted%Z", &qtrk->url)
-			&& 0 == fffile_rename(qtrk->url.ptr, fn.ptr))
-			gt->qu->cmd(FMED_QUE_RM, qtrk);
-		else
-			syserrlog(core, t->trk, "tui", "%s", "can't rename file");
-		ffarr_free(&fn);
-	} else
-		gt->qu->cmd(FMED_QUE_RM, qtrk);
+		if (tui_conf.file_delete_method == 0) {
+			const char *url = qtrk->url.ptr;
+#ifdef FF_LINUX
+			if (0 != ffui_glib_trash(&url, 1)) {
+				syserrlog(core, t->trk, "tui", "can't move file to trash: %s", url);
+				goto end;
+			}
+#elif defined FF_WIN
+			if (0 != ffui_fop_del(&url, 1, FOF_ALLOWUNDO)) {
+				syserrlog(core, t->trk, "tui", "can't move file to trash: %s", url);
+				goto end;
+			}
+#endif
+
+		} else if (tui_conf.file_delete_method == 1) {
+			ffstr_catfmt(&fn, "%S.deleted%Z", &qtrk->url);
+			if (0 != fffile_rename(qtrk->url.ptr, fn.ptr)) {
+				syserrlog(core, t->trk, "tui", "can't rename file: %S", &qtrk->url);
+				goto end;
+			}
+		}
+	}
+
+	gt->qu->cmd(FMED_QUE_RM, qtrk);
+end:
+	ffvec_free(&fn);
 }
 
 static int tui_process(void *ctx, fmed_filt *d)

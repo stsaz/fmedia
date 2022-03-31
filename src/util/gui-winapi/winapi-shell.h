@@ -3,6 +3,7 @@ Copyright (c) 2020 Simon Zolin
 */
 
 /*
+ffui_fop_del
 ffui_openfolder
 ffui_createlink
 ffui_shellexec
