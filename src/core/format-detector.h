@@ -110,7 +110,7 @@ static inline int file_format_detect(const void *data, ffsize len)
 	if (len >= 2) {
 		// byte sync1; // 0xff
 		// byte sync2_ver_layer_noprotect; // [3]=0x7 [2]=0x3 [2]=0x1 [1]
-		if (d[0] == 0x0f && (d[1] & 0xe0) == 0xe0
+		if (d[0] == 0xff && (d[1] & 0xe0) == 0xe0
 			&& (d[1] & 0x18) == 0x18
 			&& (d[1] & 0x06) == 2)
 			return FILE_MP3;
