@@ -79,7 +79,7 @@ void ffmpg_close(ffmpg *m)
 void ffmpg_seek(ffmpg *m, uint64 sample)
 {
 	mpg123_decode(m->m123, (void*)-1, (size_t)-1, NULL); //reset bufferred data
-	m->seek = sample + m->delay_start;
+	m->seek = sample + 1152;
 	m->delay_dec = 0;
 }
 
