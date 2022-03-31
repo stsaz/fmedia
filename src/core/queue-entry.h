@@ -148,11 +148,17 @@ static void _que_meta_set(fmed_que_entry *ent, const char *name, size_t name_len
 	que_meta_set(ent, &pair[0], &pair[1], flags);
 }
 
+void que_meta_set2(fmed_que_entry *ent, ffstr name, ffstr val, uint flags)
+{
+	que_meta_set(ent, &name, &val, flags);
+}
+
 static void que_meta_set(fmed_que_entry *ent, const ffstr *name, const ffstr *val, uint flags)
 {
 	entry *e = FF_GETPTR(entry, e, ent);
 	char *sname, *sval;
 	ffslice *a;
+	int ok = 0;
 
 	if (!(flags & FMED_QUE_NUM)) {
 		dbglog0("meta #%u: %S: %S f:%xu"
@@ -183,23 +189,27 @@ static void que_meta_set(fmed_que_entry *ent, const ffstr *name, const ffstr *va
 		if (i == -1) {
 
 		} else if (flags & FMED_QUE_METADEL) {
-			fflk_lock(&qu->plist_lock);
+			if (!(flags & FMED_QUE_NOLOCK))
+				fflk_lock(&qu->plist_lock);
 			ffvec ar;
 			ffstr_set((ffstr*)&ar, (void*)a->ptr, a->len);
 			ar.cap = a->len;
 			ffslice_rmT((ffslice*)&ar, i, 2, ffstr);
 			a->len -= 2;
-			fflk_unlock(&qu->plist_lock);
+			if (!(flags & FMED_QUE_NOLOCK))
+				fflk_unlock(&qu->plist_lock);
 
 		} else {
 			if (NULL == (sval = ffsz_alcopy(val->ptr, val->len)))
 				goto err;
 
-			fflk_lock(&qu->plist_lock);
+			if (!(flags & FMED_QUE_NOLOCK))
+				fflk_lock(&qu->plist_lock);
 			ffstr *arr = a->ptr;
 			ffstr_free(&arr[i + 1]);
 			ffstr_set(&arr[i + 1], sval, val->len);
-			fflk_unlock(&qu->plist_lock);
+			if (!(flags & FMED_QUE_NOLOCK))
+				fflk_unlock(&qu->plist_lock);
 		}
 
 		if (a == &e->meta) {
@@ -224,10 +234,10 @@ static void que_meta_set(fmed_que_entry *ent, const ffstr *name, const ffstr *va
 			goto err;
 	}
 
-	fflk_lock(&qu->plist_lock);
+	if (!(flags & FMED_QUE_NOLOCK))
+		fflk_lock(&qu->plist_lock);
 	if (NULL == ffslice_growT(a, 2, ffstr)) {
-		fflk_unlock(&qu->plist_lock);
-		goto err;
+		goto end;
 	}
 
 	ffstr *arr = a->ptr;
@@ -236,8 +246,13 @@ static void que_meta_set(fmed_que_entry *ent, const ffstr *name, const ffstr *va
 	if ((flags & (FMED_QUE_TRKDICT | FMED_QUE_NUM)) == (FMED_QUE_TRKDICT | FMED_QUE_NUM))
 		arr[a->len + 1].len = -(ssize_t)arr[a->len + 1].len;
 	a->len += 2;
-	fflk_unlock(&qu->plist_lock);
-	return;
+	ok = 1;
+
+end:
+	if (!(flags & FMED_QUE_NOLOCK))
+		fflk_unlock(&qu->plist_lock);
+	if (ok)
+		return;
 
 err:
 	if (flags & FMED_QUE_ACQUIRE)

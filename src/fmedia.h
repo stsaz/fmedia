@@ -872,10 +872,13 @@ enum FMED_QUE {
 	size_t get_id(fmed_que_entry *ent)
 	Return -1 on error. */
 	FMED_QUE_ID,
-	/** fmed_que_entry* item(size_t plid, size_t id) */
+	/**
+	plid: -1: current list
+	fmed_que_entry* item(size_t plid, size_t id) */
 	FMED_QUE_ITEM,
 
 	/** Get an item and protect it from change.  Thread-safe.
+	plid: -1: current list
 	fmed_que_entry* item_getlocked(size_t plid, size_t id) */
 	FMED_QUE_ITEMLOCKED,
 
@@ -987,6 +990,7 @@ enum FMED_QUE_META_F {
 	FMED_QUE_NO_TMETA = 0x40, //don't include transient meta
 	FMED_QUE_PRIV = 0x80, //private meta data
 	FMED_QUE_ACQUIRE = 0x0100, //don't copy data, acquire value buffer
+	FMED_QUE_NOLOCK = 0x0200, // don't try to lock playlist
 };
 
 #define FMED_QUE_SKIP  ((void*)-1)
@@ -1014,8 +1018,12 @@ typedef struct fmed_queue {
 
 	/** Get meta.
 	@flags: enum FMED_QUE_META_F.
-	Return meta value;  NULL: no more entries;  FMED_QUE_SKIP: skip this entry. */
+	Return meta value
+	 NULL: no more entries
+	 FMED_QUE_SKIP: skip this entry */
 	ffstr* (*meta)(fmed_que_entry *ent, size_t n, ffstr *name, uint flags);
+
+	void (*meta_set2)(fmed_que_entry *ent, ffstr name, ffstr val, uint flags);
 } fmed_queue;
 
 /** Get playlist entry.

@@ -87,10 +87,11 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2);
 static fmed_que_entry* _que_add(fmed_que_entry *ent);
 static void que_cmd(uint cmd, void *param);
 static void _que_meta_set(fmed_que_entry *ent, const char *name, size_t name_len, const char *val, size_t val_len, uint flags);
+void que_meta_set2(fmed_que_entry *ent, ffstr name, ffstr val, uint flags);
 static ffstr* que_meta_find(fmed_que_entry *ent, const char *name, size_t name_len);
 static ffstr* que_meta(fmed_que_entry *ent, size_t n, ffstr *name, uint flags);
 static const fmed_queue fmed_que_mgr = {
-	&que_cmdv, &que_cmd, &que_cmd2, &_que_add, &_que_meta_set, &que_meta_find, &que_meta
+	&que_cmdv, &que_cmd, &que_cmd2, &_que_add, &_que_meta_set, &que_meta_find, &que_meta, que_meta_set2
 };
 
 static fmed_que_entry* que_add(plist *pl, fmed_que_entry *ent, entry *prev, uint flags);
