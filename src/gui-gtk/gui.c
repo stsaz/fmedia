@@ -206,6 +206,7 @@ static const ffui_ldr_ctl top_ctls[] = {
 	FFUI_LDR_CTL(ggui, mhelp),
 	FFUI_LDR_CTL(ggui, mexplorer),
 	FFUI_LDR_CTL(ggui, mpopup),
+	FFUI_LDR_CTL(ggui, mminfo_addtag),
 	FFUI_LDR_CTL(ggui, dlg),
 	FFUI_LDR_CTL3_PTR(ggui, wmain, wmain_ctls),
 	FFUI_LDR_CTL3_PTR(ggui, wabout, wabout_ctls),
@@ -240,9 +241,9 @@ void dlgs_destroy()
 	wdload_destroy();
 	wlog_destroy();
 	wmain_destroy();
+	winfo_destroy();
 	ffmem_free(gg->wabout);
 	ffmem_free(gg->wcmd);
-	ffmem_free(gg->winfo);
 	ffmem_free(gg->wplayprops);
 	ffmem_free(gg->wrename);
 	ffmem_free(gg->wuri);

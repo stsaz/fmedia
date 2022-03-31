@@ -108,6 +108,7 @@ typedef struct ggui {
 	ffui_menu mhelp;
 	ffui_menu mexplorer;
 	ffui_menu mpopup;
+	ffui_menu mminfo_addtag;
 } ggui;
 
 extern const fmed_core *core;
@@ -180,6 +181,7 @@ void wuri_init();
 void wuri_show(uint show);
 
 void winfo_init();
+void winfo_destroy();
 void winfo_show(uint show, uint idx);
 
 void wcmd_init();

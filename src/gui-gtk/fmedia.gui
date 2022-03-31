@@ -9,28 +9,30 @@ menu mfile {
 		action A_LIST_ADDURL
 		hotkey "Ctrl+U"
 	}
-	item "Download from YouTube..." {
-		action A_DLOAD_SHOW
-	}
 	item "-" {
 	}
 	item "Analyze & Show PCM Info" {
 		action A_FILE_SHOWPCM
 	}
-	item "Show Media Info" {
+	item "Edit Meta Data" {
 		action A_FILE_SHOWINFO
 		hotkey "I"
 	}
-	item "Show Fi_le in Explorer" {
+	item "Show In Fi_le Manager App" {
 		action A_FILE_SHOWDIR
 	}
-	item "Rename File..." {
+	item "Rename..." {
 		action A_SHOW_RENAME
 		hotkey "Shift+F6"
 	}
 	item "_Delete From Disk" {
 		action A_FILE_DELFILE
 		hotkey "Shift+Delete"
+	}
+	item "-" {
+	}
+	item "Download from YouTube..." {
+		action A_DLOAD_SHOW
 	}
 	item "-" {
 	}
@@ -67,7 +69,7 @@ menu mlist {
 	item "Select _All" {
 		action A_LIST_SELECTALL
 	}
-	item "To Ne_xt Playlist" {
+	item "Add To Ne_xt Playlist" {
 		action A_LIST_TO_NEXT
 	}
 	item "-" {
@@ -217,11 +219,11 @@ menu mpopup {
 	item "Analyze & Show PCM Info" {
 		action A_FILE_SHOWPCM
 	}
-	item "Show Media Info" {
+	item "Edit Meta Data" {
 		action A_FILE_SHOWINFO
 		hotkey "I"
 	}
-	item "Show Fi_le in Explorer" {
+	item "Show In Fi_le Manager App" {
 		action A_FILE_SHOWDIR
 	}
 	item "Rename File..." {
@@ -232,8 +234,7 @@ menu mpopup {
 		action A_FILE_DELFILE
 		hotkey "Shift+Delete"
 	}
-	item "Read _Meta Tags" {
-		action A_LIST_READMETA
+	item "-" {
 	}
 	item "To Ne_xt Playlist" {
 		action A_LIST_TO_NEXT
@@ -418,9 +419,26 @@ window wuri {
 	}
 }
 
+menu mminfo_addtag {
+	item "Add Artist" {
+		action A_INFO_ADD_ARTIST
+	}
+	item "Add Title" {
+		action A_INFO_ADD_TITLE
+	}
+}
+
 window winfo {
 	position 300 100 300 500
 	popupfor wmain
+	mainmenu mminfo {
+		item "Add Tag" {
+			submenu mminfo_addtag
+		}
+		item "Write Tags to File!" {
+			action A_INFO_WRITE
+		}
+	}
 
 	listview vinfo {
 		style editable

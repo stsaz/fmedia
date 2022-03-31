@@ -519,6 +519,14 @@ FF_EXTERN void ffui_view_ins(ffui_view *v, int pos, ffui_viewitem *it);
 
 FF_EXTERN void ffui_view_set(ffui_view *v, int sub, ffui_viewitem *it);
 
+static inline void ffui_view_set_i_textz(ffui_view *v, int idx, int sub, const char *sz)
+{
+	ffui_viewitem it = {};
+	it.idx = idx;
+	it.text = (char*)sz;
+	ffui_view_set(v, sub, &it);
+}
+
 FF_EXTERN void ffui_view_rm(ffui_view *v, ffui_viewitem *it);
 
 static inline void ffui_view_scroll_idx(ffui_view *v, uint idx)
