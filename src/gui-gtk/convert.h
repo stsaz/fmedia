@@ -273,10 +273,10 @@ static void conv_disp(ffui_view *v)
 }
 
 /** Modify conversion properties after edit */
-static void conv_edit(ffui_view *v)
+static void conv_edit(ffui_view *v, int idx, const char *new_text)
 {
-	const struct conv_prop_ent *c = &conv_props[v->edited.idx];
-	ffstr text = FFSTR_INITZ(v->edited.new_text);
+	const struct conv_prop_ent *c = &conv_props[idx];
+	ffstr text = FFSTR_INITZ(new_text);
 	int i;
 	double fl;
 	int k = 0;
@@ -381,17 +381,18 @@ static void conv_edit(ffui_view *v)
 	}
 
 	if (k)
-		ffui_view_setdata(v, gg->wconvert->vconfig.edited.idx, 0);
+		ffui_view_setdata(v, idx, 0);
 }
 
-static void convert(void *param);
+static void convert__tcore(void *param);
 
 static void wconvert_action(ffui_wnd *wnd, int id)
 {
+	struct gui_wconvert *w = gg->wconvert;
 	switch (id) {
 
 	case A_CONVERT:
-		corecmd_addfunc(convert, NULL);
+		corecmd_addfunc(convert__tcore, NULL);
 		break;
 
 	case A_CONV_MOVE_UNTIL:
@@ -401,19 +402,19 @@ static void wconvert_action(ffui_wnd *wnd, int id)
 	case A_CONVOUTBROWSE: {
 		char *fn;
 		ffstr name = {};
-		ffui_edit_textstr(&gg->wconvert->eout, &name);
-		if (NULL != (fn = ffui_dlg_save(&gg->dlg, &gg->wconvert->wnd, name.ptr, name.len)))
-			ffui_edit_settextz(&gg->wconvert->eout, fn);
+		ffui_edit_textstr(&w->eout, &name);
+		if (NULL != (fn = ffui_dlg_save(&gg->dlg, &w->wnd, name.ptr, name.len)))
+			ffui_edit_settextz(&w->eout, fn);
 		ffstr_free(&name);
 		break;
 	}
 
 	case A_CONV_EDIT:
-		conv_edit(&gg->wconvert->vconfig);
+		conv_edit(&w->vconfig, w->vconfig.edited.idx, w->vconfig.edited.new_text);
 		break;
 
 	case A_CONV_DISP:
-		conv_disp(&gg->wconvert->vconfig);
+		conv_disp(&w->vconfig);
 		break;
 	}
 }
@@ -543,7 +544,7 @@ static void trkinfo_set(fmed_trk *ti)
 }
 
 /** Begin conversion of all selected files using the current settings */
-static void convert(void *param)
+static void convert__tcore(void *param)
 {
 	struct gui_wconvert *c = gg->wconvert;
 	ffstr fn = {};

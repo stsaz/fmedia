@@ -16,7 +16,7 @@ const ffui_ldr_ctl wuri_ctls[] = {
 	FFUI_LDR_CTL_END
 };
 
-void url_add(void *param)
+void url_add__tcore(void *param)
 {
 	struct gui_wuri *w = gg->wuri;
 	ffstr s;
@@ -33,7 +33,7 @@ void wuri_action(ffui_wnd *wnd, int id)
 
 	switch (id) {
 	case URL_ADD:
-		corecmd_addfunc(url_add, NULL);
+		corecmd_addfunc(url_add__tcore, NULL);
 		break;
 	case URL_CLOSE:
 		ffui_show(&w->wuri, 0);

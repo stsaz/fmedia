@@ -26,9 +26,9 @@ mixer                 mixer
 
 
 #define FMED_VER_MAJOR  1
-#define FMED_VER_MINOR  26
+#define FMED_VER_MINOR  27
 #define FMED_VER_FULL  ((FMED_VER_MAJOR << 8) | FMED_VER_MINOR)
-#define FMED_VER  "1.26.1"
+#define FMED_VER  "1.27"
 
 #define FMED_VER_GETMAJ(fullver)  ((fullver) >> 8)
 #define FMED_VER_GETMIN(fullver)  ((fullver) & 0xff)
@@ -63,7 +63,7 @@ typedef struct fmed_filter fmed_filter;
 #define FMED_MODFUNCNAME  "fmed_getmod" //name of the function which is exported by a module
 typedef const fmed_mod* (*fmed_getmod_t)(const fmed_core *core);
 
-enum FMED_SIG {
+enum FMED_CMD {
 	FMED_SIG_INIT, //initialize module data
 	FMED_CONF, // Read config.  args: "char *filename" (optional)
 	FMED_OPEN,
@@ -192,12 +192,10 @@ struct fmed_core {
 
 	char* (*env_expand)(char *dst, size_t cap, const char *src);
 
-	/**
-	@signo: enum FMED_SIG. */
-	int (*sig)(uint signo);
+	int (*sig)(uint signo); // obsolete
 
 	/**
-	@cmd: enum FMED_SIG. */
+	cmd: enum FMED_CMD. */
 	ssize_t (*cmd)(uint cmd, ...);
 
 	/** Get module interface. */
@@ -301,7 +299,7 @@ struct fmed_mod {
 	const void* (*iface)(const char *name);
 
 	/**
-	@signo: enum FMED_SIG. */
+	signo: enum FMED_CMD. */
 	int (*sig)(uint signo);
 
 	void (*destroy)(void);
@@ -393,7 +391,6 @@ enum FMED_TRK_TYPE {
 
 enum FMED_TRK_FVAL {
 	FMED_TRK_FACQUIRE = 2, //acquire pointer (value will be deleted with ffmem_free())
-	FMED_TRK_FNO_OVWRITE = 4, //don't overwrite if already exists
 	FMED_TRK_NAMESTR = 8,
 	FMED_TRK_VALSTR = 0x10,
 	FMED_TRK_META = 0x20,
@@ -451,7 +448,6 @@ typedef struct fmed_track {
 #define fmed_getval(name)  (d)->track->getval((d)->trk, name)
 #define fmed_popval(name)  (d)->track->popval((d)->trk, name)
 #define fmed_setval(name, val)  (d)->track->setval((d)->trk, name, val)
-#define fmed_trk_filt_prev(d, ptr)  (d)->track->cmd2((d)->trk, FMED_TRACK_FILT_GETPREV, ptr)
 
 typedef struct fmed_trk_meta {
 	ffstr name, val;

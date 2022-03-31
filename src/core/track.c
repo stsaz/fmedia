@@ -1503,9 +1503,6 @@ static int64 trk_setval4(void *trk, const char *name, int64 val, uint flags)
 	if (ent == NULL)
 		return FMED_NULL;
 
-	if ((flags & FMED_TRK_FNO_OVWRITE) && st == 1)
-		return ent->val;
-
 	if (ent->acq) {
 		ffmem_free(ent->pval);
 		ent->acq = 0;
@@ -1546,9 +1543,7 @@ static char* trk_setvalstr4(void *trk, const char *name, const char *val, uint f
 	} else
 		ent = dict_add(t, name, &st);
 
-	if (ent == NULL
-		|| ((flags & FMED_TRK_FNO_OVWRITE) && st == 1)) {
-
+	if (ent == NULL) {
 		if (flags & FMED_TRK_FACQUIRE)
 			ffmem_free((char*)val);
 		return (ent != NULL) ? ent->pval : NULL;

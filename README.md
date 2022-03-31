@@ -30,7 +30,12 @@ fmedia is free and open-source project, and you can use it as a standalone appli
 * [Terminal UI](#terminal-ui)
 * [Graphical UI](#graphical-ui)
 * [Extract Tracks From flac.cue](#extract-tracks-from-flac.cue)
-* [Use-Cases](#Use-Cases)
+* [Use-Cases](#use-cases)
+	* [Play](#play)
+	* [Convert](#convert)
+	* [Record](#record)
+	* [Edit Tags](#edit-tags)
+	* [Other Functions](#other-functions)
 * [For Developers](#for-developers)
 * [Bug Report](#bug-report)
 

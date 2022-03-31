@@ -242,7 +242,9 @@ static void wmain_action(ffui_wnd *wnd, int id)
 		break;
 
 	case A_LIST_SHOWCURTRACK:
-		if (w->active_qent != NULL) {
+		if (w->active_qent != NULL
+			&& gg->qu->cmdv(FMED_QUE_ISCURLIST, w->active_qent)) {
+
 			int idx = gg->qu->cmdv(FMED_QUE_ID, w->active_qent);
 			if (idx >= 0)
 				ffui_view_scroll_idx(&w->vlist, idx);

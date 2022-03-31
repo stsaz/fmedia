@@ -4,6 +4,7 @@ Copyright (c) 2019 Simon Zolin */
 #include <fmedia.h>
 #include <util/filewrite.h>
 #include <util/path.h>
+#include <util/svar.h>
 #include <FFOS/file.h>
 #include <FFOS/dir.h>
 
@@ -90,38 +91,6 @@ static const char* const vars[] = {
 	"year",
 };
 
-typedef struct ffsvar {
-	ffstr val;
-} ffsvar;
-
-enum FFSVAR {
-	FFSVAR_TEXT,
-	FFSVAR_S,
-};
-
-/** Process input string of the format "...text $var text...".
-Return enum FFSVAR. */
-static inline int ffsvar_parse(ffsvar *p, const char *data, size_t *plen)
-{
-	if (*data != '$') {
-		const char *s = ffs_find(data, *plen, '$');
-		p->val.ptr = (char*)data;
-		p->val.len = s - data;
-		*plen = p->val.len;
-		return FFSVAR_TEXT;
-	}
-
-	size_t i;
-	for (i = 1 /*skip $*/;  i != *plen;  i++) {
-		if (!ffchar_isname(data[i]))
-			break;
-	}
-	p->val.ptr = (char*)&data[1];
-	p->val.len = i - 1;
-	*plen = i;
-	return FFSVAR_S;
-}
-
 /** All printable except *, ?, /, \\, :, \", <, >, |. */
 static const uint _ffpath_charmask_filename[] = {
 	0,
@@ -158,7 +127,6 @@ size_t ffpath_makefn(char *dst, size_t dstcap, const char *src, size_t len, int 
 
 static FFINL char* fileout_getname(fmed_fileout *f, fmed_filt *d)
 {
-	ffsvar p = {};
 	ffstr fn, val, fdir, fname, ext;
 	char *tstr;
 	const char *in;
@@ -180,14 +148,12 @@ static FFINL char* fileout_getname(fmed_fileout *f, fmed_filt *d)
 	}
 
 	while (fn.len != 0) {
-		size_t n = fn.len;
-		r = ffsvar_parse(&p, fn.ptr, &n);
-		ffstr_shift(&fn, n);
+		r = svar_split(&fn, &val);
 
 		switch (r) {
 		case FFSVAR_S:
-			if (0 > (ivar = ffszarr_findsorted(vars, FFCNT(vars), p.val.ptr, p.val.len))) {
-				if (FMED_PNULL == (tstr = d->track->getvalstr3(d->trk, &p.val, FMED_TRK_META | FMED_TRK_NAMESTR)))
+			if (0 > (ivar = ffszarr_findsorted(vars, FFCNT(vars), val.ptr, val.len))) {
+				if (FMED_PNULL == (tstr = d->track->getvalstr3(d->trk, &val, FMED_TRK_META | FMED_TRK_NAMESTR)))
 					continue;
 				ffstr_setz(&val, tstr);
 				goto data;
@@ -261,7 +227,6 @@ static FFINL char* fileout_getname(fmed_fileout *f, fmed_filt *d)
 			continue;
 
 		case FFSVAR_TEXT:
-			val = p.val;
 			break;
 
 		default:

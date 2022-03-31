@@ -8,6 +8,26 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.27 - Mar 31, 2022
+
+ + '--edit-tags': Add/Modify file's meta tags in-place
+   Supported formats and tags: .mp3(ID3v2+ID3v1)
+   Example:
+     fmedia --edit-tags --meta='artist=ARTIST;title=TITLE' ./file.mp3
+
+ + '--meta-from-filename=TEMPLATE': Specify template for auto-tagging from input file name
+   Example how to set artist, track number and title meta tags from file name:
+     fmedia --edit-tags --meta-from-filename='$artist - $tracknumber. $title' './Cool Artist - 04. Best Song.mp3'
+
+ + GUI/Linux: edit .mp3 tags via "File"->"Edit Meta Data"
+ + GUI/Linux: "List"->"Scroll To Current"
+ * TUI: "delete file": move to Trash by default
+   New configuration setting: "tui.file_delete_method"
+ - Windows: fix wildcard input
+ - fix .mp3 format detection in files without ID3v2 tag
+ - MPEG/Layer3: fix audio glitches on seek
+
+
 fmedia v1.26.1 - Mar 14, 2022
 
  - fix complex filter chain use-cases such as "--start-dblevel/--stop-dblevel"
