@@ -8,6 +8,11 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.27.1 - Apr 2, 2022
+
+ - fix crash on file conversion
+
+
 fmedia v1.27 - Mar 31, 2022
 
  + '--edit-tags': Add/Modify file's meta tags in-place

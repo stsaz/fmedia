@@ -11,6 +11,8 @@ static inline int svar_split(ffstr *in, ffstr *out)
 {
 	if (in->ptr[0] != '$') {
 		ffssize pos = ffstr_findchar(in, '$');
+		if (pos < 0)
+			pos = in->len;
 		ffstr_set(out, in->ptr, pos);
 		ffstr_shift(in, pos);
 		return FFSVAR_TEXT;
