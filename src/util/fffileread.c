@@ -4,7 +4,7 @@ Copyright (c) 2019 Simon Zolin
 
 #include "fileread.h"
 #include <FFOS/timer.h>
-#include <FFOS/asyncio.h>
+#include "ffos-compat/asyncio.h"
 #include <ffbase/slice.h>
 
 

@@ -5,10 +5,10 @@ Copyright (c) 2015 Simon Zolin */
 #include <cmd.h>
 
 #include <util/path.h>
-#include <FFOS/sig.h>
 #include <FFOS/error.h>
 #include <FFOS/process.h>
 #include <FFOS/dirscan.h>
+#include <FFOS/signal.h>
 
 
 #define dbglog0(...)  fmed_dbglog(core, NULL, "main", __VA_ARGS__)

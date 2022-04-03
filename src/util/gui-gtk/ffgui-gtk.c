@@ -3,7 +3,8 @@ Copyright (c) 2019 Simon Zolin
 */
 
 #include "gtk.h"
-#include <FFOS/atomic.h>
+#include <ffbase/atomic.h>
+#include <ffbase/lock.h>
 #include <FFOS/thread.h>
 
 
@@ -793,7 +794,7 @@ static gboolean _ffui_thd_func(gpointer data)
 	FFDBG_PRINTLN(10, "func:%p  udata:%p", c->func, c->udata);
 	c->func(c->udata);
 	if (c->ref != 0) {
-		ffatom_fence_acq_rel();
+		ffcpu_fence_release();
 		FF_WRITEONCE(c->ref, 0);
 	} else
 		ffmem_free(c);
@@ -809,10 +810,10 @@ void ffui_thd_post(ffui_handler func, void *udata, uint id)
 		c.func = func;
 		c.udata = udata;
 		c.ref = 1;
-		ffatom_fence_rel();
+		ffcpu_fence_release();
 
 		if (0 != gdk_threads_add_idle(&_ffui_thd_func, &c)) {
-			ffatom_waitchange(&c.ref, 1);
+			ffint_wait_until_equal(&c.ref, 0);
 		}
 		return;
 	}
@@ -918,7 +919,7 @@ static gboolean _ffui_send_handler(gpointer data)
 	}
 
 	if (c->ref != 0) {
-		ffatom_fence_acq_rel();
+		ffcpu_fence_release();
 		FF_WRITEONCE(c->ref, 0);
 	} else {
 		ffmem_free(c);
@@ -932,10 +933,10 @@ static fflock quit_lk;
 static int post_locked(gboolean (*func)(gpointer), void *udata)
 {
 	int r = 0;
-	fflk_lock(&quit_lk);
+	fflock_lock(&quit_lk);
 	if (!quit)
 		r = gdk_threads_add_idle(func, udata);
-	fflk_unlock(&quit_lk);
+	fflock_unlock(&quit_lk);
 	return r;
 }
 
@@ -947,14 +948,14 @@ size_t ffui_send(void *ctl, uint id, void *udata)
 	c.id = id;
 	c.udata = udata;
 	c.ref = 1;
-	ffatom_fence_rel();
+	ffcpu_fence_release();
 
 	if (ffthread_curid() == _ffui_thd_id) {
 		return _ffui_send_handler(&c);
 	}
 
 	if (0 != post_locked(&_ffui_send_handler, &c)) {
-		ffatom_waitchange(&c.ref, 1);
+		ffint_wait_until_equal(&c.ref, 0);
 		return (size_t)c.udata;
 	}
 	return 0;
@@ -967,14 +968,14 @@ void ffui_post(void *ctl, uint id, void *udata)
 	c->ctl = ctl;
 	c->id = id;
 	c->udata = udata;
-	ffatom_fence_rel();
+	ffcpu_fence_release();
 
 	if (id == FFUI_QUITLOOP) {
-		fflk_lock(&quit_lk);
+		fflock_lock(&quit_lk);
 		if (0 == gdk_threads_add_idle(&_ffui_send_handler, c))
 			ffmem_free(c);
 		quit = 1;
-		fflk_unlock(&quit_lk);
+		fflock_unlock(&quit_lk);
 		return;
 	}
 

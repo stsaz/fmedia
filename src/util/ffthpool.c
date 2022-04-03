@@ -38,7 +38,7 @@ ffthpool* ffthpool_create(ffthpoolconf *conf)
 	if (NULL == ffslice_allocT(&p->threads, p->conf.maxthreads, ffthd))
 		goto end;
 
-	if (0 != ffring_create(&p->queue, p->conf.maxqueue, FFCPU_CACHELINE))
+	if (0 != ffring_create(&p->queue, p->conf.maxqueue, 64))
 		goto end;
 
 	return p;

@@ -1,11 +1,12 @@
 /** Crash handler.
 Copyright (c) 2018 Simon Zolin */
 
-#include <FFOS/sig.h>
+#include <fmedia.h>
 #include <FFOS/time.h>
 #include <FFOS/file.h>
 #include <FFOS/process.h>
 #include <FFOS/backtrace.h>
+#include <FFOS/signal.h>
 #include <FFOS/thread.h>
 // #include <FFOS/cpuid.h>
 

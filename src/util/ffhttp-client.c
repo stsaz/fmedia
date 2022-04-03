@@ -2,11 +2,10 @@
 2019, Simon Zolin
 */
 
-#include <FFOS/types.h>
 #include "http-client.h"
 #include "url.h"
 #include "list.h"
-#include <FFOS/asyncio.h>
+#include "ffos-compat/asyncio.h"
 #include <ffbase/vector.h>
 
 

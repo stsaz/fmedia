@@ -2,7 +2,6 @@
 Copyright (c) 2015 Simon Zolin */
 
 #include <afilter/pcm.h>
-#include <FFOS/mem.h>
 #include <soxr/soxr.h>
 
 typedef struct ffsoxr {

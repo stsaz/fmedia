@@ -7,8 +7,6 @@ Copyright (c) 2015 Simon Zolin */
 #include <util/cmdarg-scheme.h>
 #include <util/gui-winapi/winapi.h>
 #include <FFOS/process.h>
-#include <FFOS/mem.h>
-#include <FFOS/sig.h>
 
 
 struct gctx {

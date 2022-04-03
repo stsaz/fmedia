@@ -14,7 +14,6 @@ ffui_clipbd_set ffui_clipbd_setfile
 #ifndef COBJMACROS
 #define COBJMACROS
 #endif
-#include <FFOS/types.h>
 #include <FFOS/path.h>
 #include <FFOS/dir.h>
 #include <FFOS/error.h>
@@ -42,7 +41,7 @@ static ffsize _ff_arrzz_copy(ffsyschar *dst, ffsize cap, const char *const *arr,
 		k += ffsz_utow(&dst[k], cap - k, arr[i]);
 	}
 	dst[k] = '\0';
-	return 0;
+	return k+1;
 }
 
 enum FFUI_FOP_F {
@@ -64,7 +63,7 @@ static inline int ffui_fop_del(const char *const *names, ffsize cnt, ffuint flag
 
 	SHFILEOPSTRUCT fs = {};
 	ffsize cap = _ff_arrzz_copy(NULL, 0, names, cnt);
-	if (NULL == (fs.pFrom = ffq_alloc(cap)))
+	if (NULL == (fs.pFrom = ffws_alloc(cap)))
 		return -1;
 	_ff_arrzz_copy((void*)fs.pFrom, cap, names, cnt);
 
@@ -115,10 +114,10 @@ end:
 
 /**
 @flags: SW_* */
-static inline int ffui_shellexec(const char *filename, uint flags)
+static inline int ffui_shellexec(const char *filename, ffuint flags)
 {
 	int r;
-	ffsyschar *w, ws[FF_MAXFN];
+	ffsyschar *w, ws[4096];
 	size_t n = FF_COUNT(ws);
 	if (NULL == (w = ffs_utow(ws, &n, filename, -1)))
 		return -1;
@@ -200,7 +199,7 @@ fail:
 /** Convert '/' -> '\\' */
 static void path_backslash(ffsyschar *path)
 {
-	uint n;
+	ffuint n;
 	for (n = 0;  path[n] != '\0';  n++) {
 		if (path[n] == '/')
 			path[n] = '\\';

@@ -4,7 +4,6 @@ Copyright (c) 2016 Simon Zolin */
 #include <net/net.h>
 #include <util/url.h>
 #include <util/path.h>
-#include <FFOS/asyncio.h>
 #include <FFOS/socket.h>
 #include <FFOS/error.h>
 

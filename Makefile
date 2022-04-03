@@ -123,7 +123,10 @@ else
 	FF_O +=	$(OBJ_DIR)/ffunix.o $(OBJ_DIR)/fflinux.o
 endif
 
-GLOBDEPS := $(SRCDIR)/fmedia.h
+GLOBDEPS := $(SRCDIR)/fmedia.h \
+	$(wildcard $(SRCDIR)/util/*.h) \
+	$(wildcard $(SRCDIR)/util/ffos-compat/*.h) \
+	$(wildcard $(FFBASE)/ffbase/*.h) $(wildcard $(FFOS)/FFOS/*.h)
 
 $(OBJ_DIR)/%.o: $(SRCDIR)/%.c $(wildcard $(SRCDIR)/*.h) $(GLOBDEPS)
 	$(C) $(CFLAGS) $< -o $@
@@ -146,7 +149,7 @@ $(OBJ_DIR)/%.o: $(SRCDIR)/format/%.c $(wildcard $(SRCDIR)/format/*.h) $(GLOBDEPS
 $(OBJ_DIR)/%.o: $(SRCDIR)/util/%.c
 	$(C) $(CFLAGS) $< -o $@
 
-$(OBJ_DIR)/%.o: $(FFOS)/FFOS/%.c
+$(OBJ_DIR)/%.o: $(SRCDIR)/util/ffos-compat/%.c
 	$(C) $(CFLAGS) $< -o $@
 
 $(RES): $(PROJDIR)/res/fmedia.rc $(wildcard $(PROJDIR)/res/*.ico)
@@ -492,7 +495,7 @@ endif
 
 
 #
-$(OBJ_DIR)/fflin-dbus.o: $(FFOS)/FFOS/fflin-dbus.c $(FFOS_HDR)
+$(OBJ_DIR)/fflin-dbus.o: $(SRCDIR)/util/ffos-compat/fflin-dbus.c $(GLOBDEPS)
 	$(C) $(CFLAGS) -I/usr/include/dbus-1.0 -I/usr/lib64/dbus-1.0/include  $< -o$@
 # pkg-config --cflags dbus-1
 

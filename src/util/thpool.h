@@ -4,7 +4,7 @@ Copyright (c) 2020 Simon Zolin
 
 #pragma once
 
-#include <FFOS/atomic.h>
+#include <util/ffos-compat/atomic.h>
 
 
 /** Configuration. */

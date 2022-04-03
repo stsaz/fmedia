@@ -3,7 +3,6 @@ Copyright (c) 2015 Simon Zolin */
 
 #include <core/core-priv.h>
 #include <core/format-detector.h>
-
 #include <util/path.h>
 #include <util/taskqueue.h>
 #ifdef FF_WIN
@@ -13,7 +12,6 @@ Copyright (c) 2015 Simon Zolin */
 #include <FFOS/timer.h>
 #include <FFOS/dir.h>
 #include <FFOS/thread.h>
-#include <FFOS/asyncio.h>
 #include <FFOS/file.h>
 
 

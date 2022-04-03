@@ -7,6 +7,8 @@
 * The functionality that's not used by fmedia is either removed or disabled; fmedia doesn't use the official include files.
 * The resulting binaries aren't compatible with any applications that use the official builds, so to eliminate ambiguity the file names have "-ff" suffix, e.g. "libNAME-ff.so".
 
+## Libs
+
 * alac-rev2
 * DynamicAudioNormalizer-2.10
 * fdk-aac-0.1.6

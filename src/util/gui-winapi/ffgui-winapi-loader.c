@@ -142,7 +142,7 @@ static int ico_size(ffconf_scheme *cs, _ffui_ldr_icon_t *ico, int64 val)
 }
 static int ico_done(ffconf_scheme *cs, _ffui_ldr_icon_t *ico)
 {
-	char *p, fn[FF_MAXPATH];
+	char *p, fn[4096];
 
 	if (ico->resource != 0) {
 		ffsyschar wname[256];
@@ -1487,7 +1487,7 @@ static int wnd_done(ffconf_scheme *cs, ffui_loader *g)
 	}
 
 	g->wnd = NULL;
-	ffmem_free0(g->wndname);
+	ffmem_free(g->wndname);  g->wndname = NULL;
 	return 0;
 }
 static const ffconf_arg wnd_args[] = {
@@ -1528,7 +1528,7 @@ static int new_wnd(ffconf_scheme *cs, ffui_loader *g)
 
 	if (NULL == (wnd = g->getctl(g->udata, &cs->objval)))
 		return FFCONF_EBADVAL;
-	ffmem_zero((byte*)g + FFOFF(ffui_loader, wnd), sizeof(ffui_loader) - FFOFF(ffui_loader, wnd));
+	ffmem_zero((byte*)g + FF_OFF(ffui_loader, wnd), sizeof(ffui_loader) - FF_OFF(ffui_loader, wnd));
 	g->wnd = wnd;
 	if (NULL == (g->wndname = ffsz_dupn(cs->objval.ptr, cs->objval.len)))
 		return FFCONF_ESYS;
@@ -1566,8 +1566,8 @@ void ffui_ldr_fin(ffui_loader *g)
 {
 	// g->paned_array
 	ffvec_free(&g->accels);
-	ffmem_free(g->errstr);
-	ffmem_free0(g->wndname);
+	ffmem_free(g->errstr);  g->errstr = NULL;
+	ffmem_free(g->wndname);  g->wndname = NULL;
 }
 
 static void* ldr_getctl(ffui_loader *g, const ffstr *name)
@@ -1576,7 +1576,6 @@ static void* ldr_getctl(ffui_loader *g, const ffstr *name)
 	ffstr s;
 	s.ptr = buf;
 	s.len = ffs_format_r0(buf, sizeof(buf), "%s.%S", g->wndname, name);
-	FFDBG_PRINTLN(10, "%S", &s);
 	return g->getctl(g->udata, &s);
 }
 

@@ -3,7 +3,6 @@ Copyright (c) 2016 Simon Zolin */
 
 #include <fmedia.h>
 #include <util/conf2.h>
-#include <FFOS/asyncio.h>
 
 
 static const fmed_core *core;

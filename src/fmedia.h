@@ -15,10 +15,11 @@ mixer                 mixer
 
 #pragma once
 
-#include <FFOS/types.h>
+#include <util/ffos-compat/types.h>
 #include <util/array.h>
 #include <util/conf2-scheme.h>
 #include <util/taskqueue.h>
+#include <util/ffos-compat/asyncio.h>
 #include <afilter/pcm.h>
 #include <FFOS/file.h>
 #include <FFOS/error.h>

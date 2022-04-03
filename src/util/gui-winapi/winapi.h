@@ -3,7 +3,7 @@ Copyright (c) 2014 Simon Zolin
 */
 
 #pragma once
-#include <FFOS/types.h>
+#include <FFOS/error.h>
 #include <FFOS/path.h>
 #include <ffbase/vector.h>
 #include <commctrl.h>
@@ -37,6 +37,7 @@ Copyright (c) 2014 Simon Zolin
 // WINDOW
 // MESSAGE LOOP
 
+typedef unsigned int uint;
 typedef struct ffui_wnd ffui_wnd;
 
 FF_EXTERN int ffui_init(void);

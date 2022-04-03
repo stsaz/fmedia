@@ -5,6 +5,7 @@ This interface provides an easy way to retrieve a document via HTTP.
 
 #pragma once
 
+#include <FFOS/string.h>
 #include "http1.h"
 #include <FFOS/timerqueue.h>
 

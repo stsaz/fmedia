@@ -4,7 +4,6 @@ Copyright (c) 2015 Simon Zolin */
 #include <fmedia.h>
 #include <util/fileread.h>
 #include <util/array.h>
-#include <FFOS/asyncio.h>
 
 
 #undef dbglog

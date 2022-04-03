@@ -4,8 +4,8 @@ Copyright (c) 2015 Simon Zolin
 
 #include "wohandler.h"
 #include "string.h"
-#include <FFOS/mem.h>
 #include <FFOS/error.h>
+#include "ffos-compat/atomic.h"
 
 
 enum {
@@ -34,7 +34,6 @@ ffwoh* ffwoh_create(void)
 	if (oh->thd == NULL)
 		goto fail;
 
-	fflk_setup();
 	fflk_init(&oh->lk);
 	return oh;
 

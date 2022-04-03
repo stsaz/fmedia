@@ -5,7 +5,7 @@ Copyright (c) 2013 Simon Zolin
 #pragma once
 
 #include "list.h"
-#include <FFOS/atomic.h>
+#include <util/ffos-compat/atomic.h>
 
 
 typedef void (*fftask_handler)(void *param);

@@ -2,6 +2,7 @@
 2015 Simon Zolin */
 
 #pragma once
+#include <util/ffos-compat/types.h>
 #include <math.h>
 
 

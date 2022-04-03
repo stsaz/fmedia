@@ -4,6 +4,7 @@ Copyright (c) 2020 Simon Zolin */
 
 #include <fmedia.h>
 #include <FFOS/process.h>
+#include <util/ffos-compat/linux-systimer.h>
 
 
 #undef dbglog

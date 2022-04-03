@@ -7,7 +7,6 @@ Copyright (c) 2020 Simon Zolin
 #include "thpool.h"
 #include "string.h"
 #include <FFOS/file.h>
-#include <FFOS/mem.h>
 
 
 typedef struct fffilewrite fffilewrite;

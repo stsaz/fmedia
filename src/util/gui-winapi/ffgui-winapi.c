@@ -32,6 +32,8 @@ static LRESULT __stdcall wnd_proc(HWND h, uint msg, WPARAM w, LPARAM l);
 
 static int process_accels(MSG *m);
 
+#define _ffui_log(...)
+
 
 struct ctlinfo {
 	const char *stype;
@@ -67,7 +69,7 @@ static const struct ctlinfo ctls[] = {
 
 int ffui_init(void)
 {
-	_curthd_id = ffthd_curid();
+	_curthd_id = ffthread_curid();
 	HDC hdc = GetDC(NULL);
 	if (hdc != NULL) {
 		_ffui_dpi = GetDeviceCaps(hdc, LOGPIXELSX);
@@ -387,7 +389,7 @@ int ffui_textstr(void *_c, ffstr *dst)
 	if (len < FF_COUNT(ws)) {
 		w = ws;
 	} else {
-		if (NULL == (w = ffq_alloc(len + 1)))
+		if (NULL == (w = ffws_alloc(len + 1)))
 			goto fail;
 	}
 	ffui_text_q(c->h, w, len + 1);
@@ -476,7 +478,7 @@ const char* ffui_fdrop_next(ffui_fdrop *df)
 
 	if (nbuf < FF_COUNT(ws))
 		w = ws;
-	else if (NULL == (w = ffq_alloc(nbuf)))
+	else if (NULL == (w = ffws_alloc(nbuf)))
 		return NULL;
 
 	DragQueryFileW(df->hdrop, df->idx++, w, nbuf);
@@ -649,7 +651,7 @@ int ffui_combx_textstr(ffui_ctl *c, uint idx, ffstr *dst)
 	if (len < FF_COUNT(ws)) {
 		w = ws;
 	} else {
-		if (NULL == (w = ffq_alloc(len + 1)))
+		if (NULL == (w = ffws_alloc(len + 1)))
 			goto fail;
 	}
 	ffui_combx_text_q(c, idx, w);
@@ -844,8 +846,8 @@ int ffui_view_ins(ffui_view *v, int pos, ffui_viewitem *it)
 
 int ffui_view_set(ffui_view *v, int sub, ffui_viewitem *it)
 {
-	uint check_id = FF_SWAP(&v->check_id, 0);
-	uint chsel_id = FF_SWAP(&v->chsel_id, 0);
+	uint check_id = v->check_id, chsel_id = v->chsel_id;
+	v->check_id = 0;  v->chsel_id = 0;
 	int r;
 	it->item.iSubItem = sub;
 	r = (0 == ListView_SetItem(v->h, it));
@@ -1198,7 +1200,7 @@ char* ffui_dlg_open(ffui_dialog *d, ffui_wnd *parent)
 {
 	ffsyschar *w;
 	size_t cap = ((d->of.Flags & OFN_ALLOWMULTISELECT) ? 64 * 1024 : 4096);
-	if (NULL == (w = ffq_alloc(cap)))
+	if (NULL == (w = ffws_alloc(cap)))
 		return NULL;
 	w[0] = '\0';
 
@@ -1496,9 +1498,13 @@ int ffui_wnd_hotkeys(ffui_wnd *w, const struct ffui_wnd_hotkey *hotkeys, size_t 
 	ACCEL *accels;
 	int r = -1;
 
-	FF_SAFECLOSE(w->acceltbl, NULL, DestroyAcceleratorTable);
+	if (w->acceltbl == NULL) {
+		DestroyAcceleratorTable(w->acceltbl);
+		w->acceltbl = NULL;
+	}
 
-	if (NULL == (accels = ffmem_alloc(n * sizeof(ACCEL))))
+	if (n > (uint)-1
+		|| NULL == (accels = ffmem_alloc(n * sizeof(ACCEL))))
 		return -1;
 
 	for (size_t i = 0;  i != n;  i++) {
@@ -1508,7 +1514,7 @@ int ffui_wnd_hotkeys(ffui_wnd *w, const struct ffui_wnd_hotkey *hotkeys, size_t 
 		a->cmd = hotkeys[i].cmd;
 	}
 
-	if (NULL == (w->acceltbl = CreateAcceleratorTable(accels, FF_TOINT(n))))
+	if (NULL == (w->acceltbl = CreateAcceleratorTable(accels, n)))
 		r = -1;
 	r = 0;
 
@@ -1652,15 +1658,10 @@ void ffui_thd_post(ffui_handler func, void *udata)
 
 #define dpi_scale(x)  (((x) * _ffui_dpi) / 96)
 
-#ifdef _DEBUG
 static void print(const char *cmd, HWND h, size_t w, size_t l) {
-	ffstdout_fmt("%s:\th: %8xL,  w: %8xL,  l: %8xL\n"
+	_ffui_log("%s:\th: %8xL,  w: %8xL,  l: %8xL\n"
 		, cmd, (void*)h, (size_t)w, (size_t)l);
 }
-
-#else
-#define print(cmd, h, w, l)
-#endif
 
 
 static void tray_nfy(ffui_wnd *wnd, ffui_trayicon *t, size_t l)
@@ -1690,14 +1691,14 @@ static void tray_nfy(ffui_wnd *wnd, ffui_trayicon *t, size_t l)
 static void wnd_bordstick(uint stick, WINDOWPOS *ws)
 {
 	RECT r = _ffui_screen_area;
-	if (stick >= (uint)ffabs(r.left - ws->x))
+	if (stick >= (uint)ffint_abs(r.left - ws->x))
 		ws->x = r.left;
-	else if (stick >= (uint)ffabs(r.right - (ws->x + ws->cx)))
+	else if (stick >= (uint)ffint_abs(r.right - (ws->x + ws->cx)))
 		ws->x = r.right - ws->cx;
 
-	if (stick >= (uint)ffabs(r.top - ws->y))
+	if (stick >= (uint)ffint_abs(r.top - ws->y))
 		ws->y = r.top;
-	else if (stick >= (uint)ffabs(r.bottom - (ws->y + ws->cy)))
+	else if (stick >= (uint)ffint_abs(r.bottom - (ws->y + ws->cy)))
 		ws->y = r.bottom - ws->cy;
 }
 
@@ -1785,7 +1786,7 @@ static int wnd_nfy(ffui_wnd *wnd, NMHDR *n, size_t *code)
 	uint id = 0;
 	union ffui_anyctl ctl;
 
-	FFDBG_PRINTLN(10, "WM_NOTIFY:\th: %8xL,  code: %8xL"
+	_ffui_log("WM_NOTIFY:\th: %8xL,  code: %8xL"
 		, (void*)n->hwndFrom, (size_t)n->code);
 
 	if (NULL == (ctl.ctl = ffui_getctl(n->hwndFrom)))
@@ -1798,7 +1799,7 @@ static int wnd_nfy(ffui_wnd *wnd, NMHDR *n, size_t *code)
 
 	case LVN_ITEMCHANGED: {
 		NM_LISTVIEW *it = (NM_LISTVIEW*)n;
-		FFDBG_PRINTLN(10, "LVN_ITEMCHANGED: item:%u.%u, state:%xu->%xu"
+		_ffui_log("LVN_ITEMCHANGED: item:%u.%u, state:%xu->%xu"
 			, it->iItem, it->iSubItem, it->uOldState, it->uNewState);
 		ctl.view->idx = it->iItem;
 		if (0x3000 == ((it->uOldState & LVIS_STATEIMAGEMASK) ^ (it->uNewState & LVIS_STATEIMAGEMASK)))
@@ -1816,12 +1817,12 @@ static int wnd_nfy(ffui_wnd *wnd, NMHDR *n, size_t *code)
 	case LVN_ENDLABELEDIT:
 		{
 		const LVITEM *it = &((NMLVDISPINFO*)n)->item;
-		FFDBG_PRINT(10, "LVN_ENDLABELEDIT: item:%u, text:%q\n"
+		_ffui_log("LVN_ENDLABELEDIT: item:%u, text:%q"
 			, it->iItem, (it->pszText == NULL) ? L"" : it->pszText);
 		if (it->pszText != NULL && ctl.view->edit_id != 0) {
 			ctl.view->text = ffsz_alloc_wtou(it->pszText);
 			wnd->on_action(wnd, ctl.view->edit_id);
-			ffmem_free0(ctl.view->text);
+			ffmem_free(ctl.view->text);  ctl.view->text = NULL;
 		}
 		}
 		break;
@@ -1830,7 +1831,7 @@ static int wnd_nfy(ffui_wnd *wnd, NMHDR *n, size_t *code)
 		if (ctl.ctl->uid == FFUI_UID_LISTVIEW
 			&& ctl.view->dispinfo_id != 0) {
 			NMLVDISPINFO *di = (NMLVDISPINFO*)n;
-			FFDBG_PRINTLN(10, "LVN_GETDISPINFO: mask:%xu  item:%L, subitem:%L"
+			_ffui_log("LVN_GETDISPINFO: mask:%xu  item:%L, subitem:%L"
 				, (int)di->item.mask, (size_t)di->item.iItem, (size_t)di->item.iSubItem);
 			ctl.view->dispinfo_item = &di->item;
 			if ((di->item.mask & LVIF_TEXT) && di->item.cchTextMax != 0)
@@ -1845,7 +1846,7 @@ static int wnd_nfy(ffui_wnd *wnd, NMHDR *n, size_t *code)
 		if (ctl.ctl->uid == FFUI_UID_LISTVIEW) {
 			if (ctl.view->dispinfo_id != 0 && ctl.view->check_id != 0) {
 				NMLVKEYDOWN *kd = (void*)n;
-				FFDBG_PRINTLN(10, "LVN_KEYDOWN: vkey:%xu  flags:%xu"
+				_ffui_log("LVN_KEYDOWN: vkey:%xu  flags:%xu"
 					, (int)kd->wVKey, (int)kd->flags);
 				if (kd->wVKey == VK_SPACE) {
 					ctl.view->idx = ffui_view_focused(ctl.view);
@@ -1864,7 +1865,7 @@ static int wnd_nfy(ffui_wnd *wnd, NMHDR *n, size_t *code)
 				ffui_cur_pos(&pt);
 				uint f = LVHT_ONITEMSTATEICON;
 				int i = ffui_view_hittest2(ctl.view, &pt, NULL, &f);
-				FFDBG_PRINTLN(10, "NM_CLICK: i:%xu  f:%xu"
+				_ffui_log("NM_CLICK: i:%xu  f:%xu"
 					, i, f);
 				if (i != -1) {
 					ctl.view->idx = i;
@@ -1884,13 +1885,13 @@ static int wnd_nfy(ffui_wnd *wnd, NMHDR *n, size_t *code)
 		break;
 
 	case TVN_SELCHANGED:
-		FFDBG_PRINTLN(10, "TVN_SELCHANGED", 0);
+		_ffui_log("TVN_SELCHANGED", 0);
 		id = ctl.view->chsel_id;
 		break;
 
 
 	case TCN_SELCHANGING:
-		FFDBG_PRINTLN(10, "TCN_SELCHANGING", 0);
+		_ffui_log("TCN_SELCHANGING", 0);
 		if (ctl.tab->changing_sel_id != 0) {
 			wnd->on_action(wnd, ctl.tab->changing_sel_id);
 			*code = ctl.tab->changing_sel_keep;

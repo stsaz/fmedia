@@ -14,7 +14,7 @@ track: ... -> gui-trk -> ...
 #include <util/path.h>
 #include <util/gui-winapi/loader.h>
 #include <FFOS/process.h>
-#include <FFOS/win/reg.h>
+#include <FFOS/winreg.h>
 #include <FFOS/dir.h>
 
 

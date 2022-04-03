@@ -1,7 +1,6 @@
 #pragma once
 #include "string.h"
-#include <FFOS/atomic.h>
-#include <FFOS/mem.h>
+#include "ffos-compat/atomic.h"
 
 /** Circular array of pointers with fixed number of elements.
 Readers and writers can run in parallel.
@@ -139,7 +138,7 @@ static inline int _ffring_write(ffring *r, void *p, uint single)
 		}
 	}
 
-	ffatom_fence_rel(); // the element is complete when reader sees it
+	ffcpu_fence_release(); // the element is complete when reader sees it
 	ffatom_set(&r->wtail, head_new);
 	return 0;
 }
@@ -153,7 +152,7 @@ static inline int ffring_read(ffring *r, void **p)
 		rr = ffatom_get(&r->r);
 		if (rr == ffatom_get(&r->wtail))
 			return -1;
-		ffatom_fence_acq(); // if we see an unread element, it's complete
+		ffcpu_fence_acquire(); // if we see an unread element, it's complete
 		rc = r->d[rr];
 		rnew = ffint_increset2(rr, r->cap);
 		if (ffatom_cmpset(&r->r, rr, rnew))

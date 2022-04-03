@@ -9,8 +9,10 @@ KERNEL -------> WOH-thread -> user_function()
 
 #pragma once
 
+#include "ffos-compat/types.h"
 #include <FFOS/thread.h>
-#include <FFOS/atomic.h>
+#include <ffbase/lock.h>
+#include <ffbase/atomic.h>
 
 
 typedef void (*ffwoh_handler_t)(void *udata);

@@ -92,7 +92,7 @@ static uint work_assign(uint flags)
 
 done:
 	if (flags & FMED_WORKER_FPARALLEL)
-		ffatom_inc(&w->njobs);
+		(void)ffatom_incret(&w->njobs);
 	return id;
 }
 

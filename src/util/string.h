@@ -1,6 +1,6 @@
 #pragma once
+#include "ffos-compat/types.h"
 #include <FFOS/string.h>
-#include <FFOS/mem.h>
 #include <FFOS/error.h>
 #include <ffbase/string.h>
 #include <ffbase/stringz.h>
@@ -9,6 +9,7 @@
 #include <stdarg.h> // for va_arg
 #endif
 
+#define FFSLEN(s)  FFS_LEN(s)
 
 /** a-zA-Z0-9_ */
 FF_EXTERN const uint ffcharmask_name[8];
