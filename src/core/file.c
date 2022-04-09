@@ -212,7 +212,7 @@ static void* file_open(fmed_filt *d)
 		conf.thpool = thpool_create();
 	conf.directio = mod->in_conf.directio;
 	conf.kq = (fffd)d->track->cmd(d->trk, FMED_TRACK_KQ);
-	conf.oflags = FFO_RDONLY | FFO_NOATIME | FFO_NONBLOCK | FFO_NODOSNAME;
+	conf.oflags = FFO_RDONLY | FFO_NOATIME | FFO_NODOSNAME;
 	conf.bufsize = mod->in_conf.bsize;
 	conf.nbufs = mod->in_conf.nbufs;
 	conf.bufalign = mod->in_conf.align;

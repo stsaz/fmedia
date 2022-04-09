@@ -15,7 +15,7 @@ menu mfile {
 	}
 	item "-" {
 	}
-	item "Show Media Info" {
+	item "Show Meta Data" {
 		action A_FILE_SHOWINFO
 		hotkey "I"
 	}

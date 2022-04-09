@@ -3,6 +3,8 @@ Copyright (c) 2014 Simon Zolin
 */
 
 #pragma once
+#define UNICODE
+#define _UNICODE
 #include <FFOS/error.h>
 #include <FFOS/path.h>
 #include <ffbase/vector.h>
@@ -146,12 +148,12 @@ enum FFUI_ICON_FLAGS {
 	FFUI_ICON_SMALL = 2,
 };
 
-FF_EXTERN int ffui_icon_load_q(ffui_icon *ico, const ffsyschar *filename, uint index, uint flags);
+FF_EXTERN int ffui_icon_load_q(ffui_icon *ico, const wchar_t *filename, uint index, uint flags);
 FF_EXTERN int ffui_icon_load(ffui_icon *ico, const char *filename, uint index, uint flags);
 
 /** Load icon with the specified dimensions (resize if needed).
 @flags: enum FFUI_ICON_FLAGS */
-FF_EXTERN int ffui_icon_loadimg_q(ffui_icon *ico, const ffsyschar *filename, uint cx, uint cy, uint flags);
+FF_EXTERN int ffui_icon_loadimg_q(ffui_icon *ico, const wchar_t *filename, uint cx, uint cy, uint flags);
 FF_EXTERN int ffui_icon_loadimg(ffui_icon *ico, const char *filename, uint cx, uint cy, uint flags);
 
 enum FFUI_ICON {
@@ -175,7 +177,7 @@ enum FFUI_ICON {
 FF_EXTERN int ffui_icon_loadstd(ffui_icon *ico, uint tag);
 
 /** Load icon from resource. */
-FF_EXTERN int ffui_icon_loadres(ffui_icon *ico, const ffsyschar *name, uint cx, uint cy);
+FF_EXTERN int ffui_icon_loadres(ffui_icon *ico, const wchar_t *name, uint cx, uint cy);
 
 
 // ICON LIST
@@ -198,7 +200,7 @@ static inline void ffui_iconlist_addstd(ffui_iconlist *il, uint tag)
 // DIALOG
 typedef struct ffui_dialog {
 	OPENFILENAMEW of;
-	ffsyschar *names
+	wchar_t *names
 		, *pname;
 	char *name;
 } ffui_dialog;
@@ -259,11 +261,11 @@ static inline void ffui_bitblt(HDC dst, const ffui_pos *r, HDC src, const ffui_p
 }
 
 /** Draw text */
-static inline void ffui_drawtext_q(HDC dc, const ffui_pos *r, uint fmt, const ffsyschar *text, uint len)
+static inline void ffui_drawtext_q(HDC dc, const ffui_pos *r, uint fmt, const wchar_t *text, uint len)
 {
 	RECT rr;
 	ffui_pos_torect(r, &rr);
-	DrawTextExW(dc, (ffsyschar*)text, len, &rr, fmt, NULL);
+	DrawTextExW(dc, (wchar_t*)text, len, &rr, fmt, NULL);
 }
 
 
@@ -298,11 +300,11 @@ typedef struct ffui_ctl {
 	HFONT font;
 } ffui_ctl;
 
-#define ffui_getctl(h)  ((void*)GetWindowLongPtr(h, GWLP_USERDATA))
-#define ffui_setctl(h, udata)  SetWindowLongPtr(h, GWLP_USERDATA, (LONG_PTR)(udata))
+#define ffui_getctl(h)  ((void*)GetWindowLongPtrW(h, GWLP_USERDATA))
+#define ffui_setctl(h, udata)  SetWindowLongPtrW(h, GWLP_USERDATA, (LONG_PTR)(udata))
 
-#define ffui_send(h, msg, w, l)  SendMessage(h, msg, (size_t)(w), (size_t)(l))
-#define ffui_post(h, msg, w, l)  PostMessage(h, msg, (size_t)(w), (size_t)(l))
+#define ffui_send(h, msg, w, l)  SendMessageW(h, msg, (size_t)(w), (size_t)(l))
+#define ffui_post(h, msg, w, l)  PostMessageW(h, msg, (size_t)(w), (size_t)(l))
 #define ffui_ctl_send(c, msg, w, l)  ffui_send((c)->h, msg, w, l)
 #define ffui_ctl_post(c, msg, w, l)  ffui_post((c)->h, msg, w, l)
 
@@ -351,10 +353,10 @@ static inline void ffui_ctl_invalidate(void *ctl)
 FF_EXTERN int ffui_ctl_destroy(void *c);
 
 #define ffui_styleset(h, style_bit) \
-	SetWindowLong(h, GWL_STYLE, GetWindowLong(h, GWL_STYLE) | (style_bit))
+	SetWindowLongW(h, GWL_STYLE, GetWindowLongW(h, GWL_STYLE) | (style_bit))
 
 #define ffui_styleclear(h, style_bit) \
-	SetWindowLong(h, GWL_STYLE, GetWindowLong(h, GWL_STYLE) & ~(style_bit))
+	SetWindowLongW(h, GWL_STYLE, GetWindowLongW(h, GWL_STYLE) & ~(style_bit))
 
 /** Get parent control object. */
 FF_EXTERN void* ffui_ctl_parent(void *c);
@@ -428,7 +430,7 @@ FF_EXTERN int ffui_combx_create(ffui_ctl *c, ffui_wnd *parent);
 
 /** Insert an item
 idx: -1: insert to end */
-static inline void ffui_combx_ins_q(ffui_combx *c, int idx, const ffsyschar *txt)
+static inline void ffui_combx_ins_q(ffui_combx *c, int idx, const wchar_t *txt)
 {
 	uint msg = CB_INSERTSTRING;
 	if (idx == -1) {
@@ -733,7 +735,7 @@ do { \
 
 static inline int ffui_tray_set(ffui_trayicon *t, uint show)
 {
-	return 0 == Shell_NotifyIcon(NIM_MODIFY, &t->nid);
+	return 0 == Shell_NotifyIconW(NIM_MODIFY, &t->nid);
 }
 
 FF_EXTERN int ffui_tray_show(ffui_trayicon *t, uint show);
@@ -835,8 +837,8 @@ FF_EXTERN int ffui_tab_create(ffui_tab *t, ffui_wnd *parent);
 
 typedef struct ffui_tabitem {
 	TCITEMW item;
-	ffsyschar wtext[255];
-	ffsyschar *w;
+	wchar_t wtext[255];
+	wchar_t *w;
 } ffui_tabitem;
 
 static inline void ffui_tab_reset(ffui_tabitem *it)
@@ -955,7 +957,7 @@ FF_EXTERN int ffui_view_itempos(ffui_view *v, uint idx, ffui_pos *pos);
 
 typedef struct ffui_viewcol {
 	LVCOLUMNW col;
-	ffsyschar text[255];
+	wchar_t text[255];
 } ffui_viewcol;
 
 static inline void ffui_viewcol_reset(ffui_viewcol *vc)
@@ -1039,7 +1041,7 @@ static inline uint ffui_view_col_width(ffui_view *v, int i)
 // LISTVIEW GROUP
 typedef struct ffui_viewgrp {
 	LVGROUP grp;
-	ffsyschar text[255];
+	wchar_t text[255];
 } ffui_viewgrp;
 
 static inline void ffui_viewgrp_reset(ffui_viewgrp *vg)
@@ -1116,8 +1118,8 @@ static inline void ffui_view_grp(ffui_view *v, int i, ffui_viewgrp *vg)
 
 typedef struct ffui_viewitem {
 	LVITEMW item;
-	ffsyschar wtext[255];
-	ffsyschar *w;
+	wchar_t wtext[255];
+	wchar_t *w;
 } ffui_viewitem;
 
 static inline void ffui_view_iteminit(ffui_viewitem *it)
@@ -1199,7 +1201,7 @@ do { \
 #define ffui_view_settext_q(it, sz) \
 do { \
 	(it)->item.mask |= LVIF_TEXT; \
-	(it)->item.pszText = (ffsyschar*)(sz); \
+	(it)->item.pszText = (wchar_t*)(sz); \
 } while (0)
 
 FF_EXTERN void ffui_view_settext(ffui_viewitem *it, const char *text, size_t len);
@@ -1284,8 +1286,8 @@ FF_EXTERN int ffui_tree_create(ffui_ctl *c, void *parent);
 
 typedef struct ffui_tvitem {
 	TVITEMW ti;
-	ffsyschar wtext[255];
-	ffsyschar *w;
+	wchar_t wtext[255];
+	wchar_t *w;
 } ffui_tvitem;
 
 FF_EXTERN void ffui_tree_reset(ffui_tvitem *it);
@@ -1293,7 +1295,7 @@ FF_EXTERN void ffui_tree_reset(ffui_tvitem *it);
 #define ffui_tree_settext_q(it, textz) \
 do { \
 	(it)->ti.mask |= TVIF_TEXT; \
-	(it)->ti.pszText = (ffsyschar*)textz; \
+	(it)->ti.pszText = (wchar_t*)textz; \
 } while (0)
 
 FF_EXTERN void ffui_tree_settext(ffui_tvitem *it, const char *text, size_t len);

@@ -210,7 +210,6 @@ static int tui_sig(uint signo)
 			return 0;
 		}
 #else
-		fffile_nblock(ffstdin, 1);
 		ffkev_init(&gt->kev);
 		gt->kev.oneshot = 0;
 		gt->kev.fd = ffstdin;
@@ -356,7 +355,7 @@ static void tui_info(tui *t, fmed_filt *d)
 	size_t trkid = (qtrk != FMED_PNULL) ? gt->qu->cmdv(FMED_QUE_ID, qtrk) + 1 : 1;
 
 	t->buf.len = 0;
-	ffstr_catfmt(&t->buf, "\n#%L \"%S - %S\" %s %.02F MB, %u:%02u.%03u (%,U samples), %u kbps, %s, %u Hz, %s, %s"
+	ffstr_catfmt(&t->buf, "\n#%L \"%S - %S\" \"%s\" %.02FMB %u:%02u.%03u (%,U samples) %ukbps %s %s %uHz %s"
 		, trkid
 		, &artist, &title
 		, input
@@ -365,8 +364,8 @@ static void tui_info(tui *t, fmed_filt *d)
 		, t->total_samples
 		, (d->audio.bitrate + 500) / 1000
 		, d->audio.decoder
-		, fmt.sample_rate
 		, ffpcm_fmtstr(fmt.format)
+		, fmt.sample_rate
 		, ffpcm_channelstr(fmt.channels));
 
 	if (d->video.width != 0) {
@@ -510,9 +509,12 @@ static void tui_rmfile(tui *t, uint cmd)
 				goto end;
 			}
 		}
+		fmed_infolog(core, NULL, "tui", "File deleted");
 	}
 
 	gt->qu->cmd(FMED_QUE_RM, qtrk);
+	if ((cmd & CMD_MASK) != CMD_DELFILE)
+		fmed_infolog(core, NULL, "tui", "Track removed");
 end:
 	ffvec_free(&fn);
 }
@@ -823,6 +825,11 @@ static void tui_cmdread(void *param)
 	ffstd_ev ev = {};
 	ffstr data = {};
 
+#ifdef FF_UNIX
+	// Setting it in FMED_OPEN signal handler sometimes causes problems with --debug in Konsole
+	fffile_nonblock(ffstdin, 1);
+#endif
+
 	for (;;) {
 		if (data.len == 0) {
 			int r = ffstd_keyread(ffstdin, &ev, &data);
@@ -858,4 +865,8 @@ static void tui_cmdread(void *param)
 			func1(k->cmd & ~_CMD_F1);
 		}
 	}
+
+#ifdef FF_UNIX
+	fffile_nonblock(ffstdin, 0);
+#endif
 }

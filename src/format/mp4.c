@@ -227,7 +227,7 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 			m->state = I_DATA1;
 
 			if (d->input_info)
-				return FMED_ROK;
+				return FMED_RDONE;
 			continue;
 		}
 

@@ -146,10 +146,13 @@ $(OBJ_DIR)/%.o: $(SRCDIR)/acodec/%.c \
 $(OBJ_DIR)/%.o: $(SRCDIR)/format/%.c $(wildcard $(SRCDIR)/format/*.h) $(GLOBDEPS)
 	$(C) $(CFLAGS) $< -o $@
 
-$(OBJ_DIR)/%.o: $(SRCDIR)/util/%.c
+$(OBJ_DIR)/%.o: $(SRCDIR)/util/%.c \
+		$(wildcard $(SRCDIR)/util/*.h) \
+		$(wildcard $(SRCDIR)/util/ffos-compat/*.h)
 	$(C) $(CFLAGS) $< -o $@
 
-$(OBJ_DIR)/%.o: $(SRCDIR)/util/ffos-compat/%.c
+$(OBJ_DIR)/%.o: $(SRCDIR)/util/ffos-compat/%.c \
+		$(wildcard $(SRCDIR)/util/ffos-compat/*.h)
 	$(C) $(CFLAGS) $< -o $@
 
 $(RES): $(PROJDIR)/res/fmedia.rc $(wildcard $(PROJDIR)/res/*.ico)
@@ -495,15 +498,12 @@ endif
 
 
 #
-$(OBJ_DIR)/fflin-dbus.o: $(SRCDIR)/util/ffos-compat/fflin-dbus.c $(GLOBDEPS)
+$(OBJ_DIR)/sys-sleep-dbus.o: $(SRCDIR)/sys-sleep-dbus.c $(GLOBDEPS)
 	$(C) $(CFLAGS) -I/usr/include/dbus-1.0 -I/usr/lib64/dbus-1.0/include  $< -o$@
 # pkg-config --cflags dbus-1
 
-DBUS_O := $(OBJ_DIR)/sys-sleep-dbus.o \
-	$(FF_O) \
-	$(OBJ_DIR)/fflin-dbus.o
-dbus.$(SO): $(DBUS_O)
-	$(LINK) -shared $(DBUS_O) $(LINKFLAGS) -ldbus-1 -o$@
+dbus.$(SO): $(OBJ_DIR)/sys-sleep-dbus.o $(FF_O)
+	$(LINK) -shared $+ $(LINKFLAGS) -ldbus-1 -o$@
 
 
 clean:

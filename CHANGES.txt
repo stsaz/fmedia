@@ -8,6 +8,15 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.27.2 - Apr 20, 2022
+
+ - .cue read: fix
+ - mp3 read: couldn't parse Xing tag sometimes
+ - mp3 decode: fix audio glitches after seek
+ - mp3 with --stream-copy: improve accuracy
+ *! disable ".mp3 --stream-copy --meta=..."
+
+
 fmedia v1.27.1 - Apr 2, 2022
 
  - fix crash on file conversion

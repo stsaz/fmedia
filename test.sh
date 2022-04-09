@@ -204,14 +204,6 @@ if test "$1" = "convert_streamcopy" ; then
 	$BIN rec.opus -o copyseek.opus $OPTS
 	$BIN rec.m4a -o copyseek.m4a $OPTS
 	$BIN copyseek.* --pcm-peaks
-
-	# convert with stream-copy and new meta
-	OPTS="-y --stream-copy --meta=artist=SomeArtist;title=SomeTitle"
-	$BIN rec.mp3 -o copymeta.mp3 $OPTS
-	$BIN rec.ogg -o copymeta.ogg $OPTS # TODO meta not applied
-	$BIN rec.opus -o copymeta.opus $OPTS # TODO meta not applied
-	$BIN rec.m4a -o copymeta.m4a $OPTS
-	$BIN copymeta.* --pcm-peaks
 fi
 
 if test "$1" = "filters" ; then

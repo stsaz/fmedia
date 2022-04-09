@@ -83,13 +83,6 @@ This is the list of the things that need to be done.
 		>fmedia "06 - Name.mp3" --stream-copy -o $artist.mp3 --seek=4:0
 		saved file .mp3
 
-* the audio is corrupt if saved as "mono"
-
-		--out=Stream.mp3 --mpeg-quality=64 --rate=44100 --channels=mono
-
-		>fmedia --record --channels=mono -o 1.wav -y
-		>fmedia ./1.wav -o 1.mp3 -y --channels=mono
-
 * AAC unsync on reconnect
 
 		"http://...": I/O timeout

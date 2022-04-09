@@ -425,14 +425,14 @@ void* ffui_ctl_parent(void *c)
 {
 	ffui_ctl *ctl = c;
 	HWND h;
-	if (NULL == (h = (HWND)GetWindowLongPtr(ctl->h, GWLP_HWNDPARENT)))
+	if (NULL == (h = (HWND)GetWindowLongPtrW(ctl->h, GWLP_HWNDPARENT)))
 		return NULL;
 	return ffui_getctl(h);
 }
 
 static void _ffui_ctl_subclass(ffui_label *c)
 {
-	c->oldwndproc = (WNDPROC)SetWindowLongPtr(c->h, GWLP_WNDPROC, (LONG_PTR)&_ffui_ctl_proc);
+	c->oldwndproc = (WNDPROC)SetWindowLongPtrW(c->h, GWLP_WNDPROC, (LONG_PTR)&_ffui_ctl_proc);
 }
 
 static int ffui_ctl_wndproc(ffui_ctl *c, size_t *code, uint msg, size_t w, size_t l)
@@ -1312,7 +1312,7 @@ int ffui_tray_show(ffui_trayicon *t, uint show)
 	uint action = show ? NIM_ADD : NIM_DELETE;
 	if (show && t->visible)
 		action = NIM_MODIFY;
-	if (!Shell_NotifyIcon(action, &t->nid))
+	if (!Shell_NotifyIconW(action, &t->nid))
 		return -1;
 	t->visible = show;
 	return 0;
@@ -1444,22 +1444,22 @@ void ffui_wnd_setplacement(ffui_wnd *w, uint showcmd, const ffui_pos *pos)
 
 void ffui_wnd_setpopup(ffui_wnd *w)
 {
-	LONG st = GetWindowLong(w->h, GWL_STYLE) & ~WS_OVERLAPPEDWINDOW;
-	SetWindowLong(w->h, GWL_STYLE, st | WS_POPUPWINDOW | WS_CAPTION | WS_THICKFRAME);
+	LONG st = GetWindowLongW(w->h, GWL_STYLE) & ~WS_OVERLAPPEDWINDOW;
+	SetWindowLongW(w->h, GWL_STYLE, st | WS_POPUPWINDOW | WS_CAPTION | WS_THICKFRAME);
 	w->popup = 1;
 }
 
 void ffui_wnd_opacity(ffui_wnd *w, uint percent)
 {
-	LONG_PTR L = GetWindowLongPtr(w->h, GWL_EXSTYLE);
+	LONG_PTR L = GetWindowLongPtrW(w->h, GWL_EXSTYLE);
 
 	if (percent >= 100) {
-		SetWindowLongPtr(w->h, GWL_EXSTYLE, L & ~WS_EX_LAYERED);
+		SetWindowLongPtrW(w->h, GWL_EXSTYLE, L & ~WS_EX_LAYERED);
 		return;
 	}
 
 	if (!(L & WS_EX_LAYERED))
-		SetWindowLongPtr(w->h, GWL_EXSTYLE, L | WS_EX_LAYERED);
+		SetWindowLongPtrW(w->h, GWL_EXSTYLE, L | WS_EX_LAYERED);
 
 	SetLayeredWindowAttributes(w->h, 0, 255 * percent / 100, LWA_ALPHA);
 }
@@ -1816,7 +1816,7 @@ static int wnd_nfy(ffui_wnd *wnd, NMHDR *n, size_t *code)
 
 	case LVN_ENDLABELEDIT:
 		{
-		const LVITEM *it = &((NMLVDISPINFO*)n)->item;
+		const LVITEMW *it = &((NMLVDISPINFOW*)n)->item;
 		_ffui_log("LVN_ENDLABELEDIT: item:%u, text:%q"
 			, it->iItem, (it->pszText == NULL) ? L"" : it->pszText);
 		if (it->pszText != NULL && ctl.view->edit_id != 0) {
@@ -1830,7 +1830,7 @@ static int wnd_nfy(ffui_wnd *wnd, NMHDR *n, size_t *code)
 	case LVN_GETDISPINFO:
 		if (ctl.ctl->uid == FFUI_UID_LISTVIEW
 			&& ctl.view->dispinfo_id != 0) {
-			NMLVDISPINFO *di = (NMLVDISPINFO*)n;
+			NMLVDISPINFOW *di = (NMLVDISPINFOW*)n;
 			_ffui_log("LVN_GETDISPINFO: mask:%xu  item:%L, subitem:%L"
 				, (int)di->item.mask, (size_t)di->item.iItem, (size_t)di->item.iSubItem);
 			ctl.view->dispinfo_item = &di->item;
@@ -2128,14 +2128,16 @@ int ffui_wndproc(ffui_wnd *wnd, size_t *code, HWND h, uint msg, size_t w, size_t
 		wnd->on_action(wnd, wnd->onclose_id);
 		break;
 
-	case WM_DESTROY:
+	case WM_DESTROY: {
 		print("WM_DESTROY", h, w, l);
+		int top = wnd->top;
 		if (wnd->on_destroy != NULL)
 			wnd->on_destroy(wnd);
 
-		if (wnd->top)
+		if (top)
 			ffui_quitloop();
 		break;
+	}
 	}
 
 	return 0;

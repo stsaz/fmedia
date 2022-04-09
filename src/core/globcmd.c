@@ -33,6 +33,8 @@ enum {
 
 typedef struct globcmd {
 	ffkevent kev;
+	fffd lpipe;
+	ffkq_task accept_task;
 	fffd opened_fd;
 	ffarr pipename_full;
 	char *pipe_name;
@@ -154,7 +156,8 @@ static int globcmd_init(void)
 {
 	if (NULL == (g = ffmem_tcalloc1(globcmd)))
 		return -1;
-	g->opened_fd = FF_BADFD;
+	g->opened_fd = FFPIPE_NULL;
+	g->lpipe = FFPIPE_NULL;
 	ffkev_init(&g->kev);
 	return 0;
 }
@@ -179,8 +182,8 @@ static int globcmd_prep(const char *pipename)
 
 static void globcmd_free(void)
 {
-	if (g->kev.fd != FF_BADFD) {
-		ffpipe_close(g->kev.fd);
+	if (g->lpipe != FFPIPE_NULL) {
+		ffpipe_close(g->lpipe);
 #ifdef FF_UNIX
 		fffile_rm(g->pipename_full.ptr);
 #endif
@@ -193,7 +196,7 @@ static void globcmd_free(void)
 
 static int globcmd_listen(void)
 {
-	if (FF_BADFD == (g->kev.fd = ffpipe_create_named(g->pipename_full.ptr, FFPIPE_NONBLOCK))) {
+	if (FFPIPE_NULL == (g->lpipe = ffpipe_create_named(g->pipename_full.ptr, FFPIPE_ASYNC))) {
 		syserrlog(core, NULL, "globcmd", "pipe create: %s", g->pipename_full.ptr);
 		goto end;
 	}
@@ -201,7 +204,8 @@ static int globcmd_listen(void)
 
 	g->kev.udata = g;
 	g->kev.oneshot = 0;
-	if (0 != ffkev_attach(&g->kev, core->kq, FFKQU_READ)) {
+	if (0 != ffkq_attach(core->kq, g->lpipe, ffkev_ptr(&g->kev), FFKQ_READ)) {
+		syserrlog(core, NULL, "globcmd", "%s", "pipe kq attach");
 		goto end;
 	}
 
@@ -209,8 +213,7 @@ static int globcmd_listen(void)
 	return 0;
 
 end:
-	syserrlog(core, NULL, "core", "%s", "pipe create");
-	FF_SAFECLOSE(g->kev.fd, FF_BADFD, ffpipe_close);
+	FF_SAFECLOSE(g->lpipe, FFPIPE_NULL, ffpipe_close);
 	return -1;
 }
 
@@ -224,12 +227,14 @@ static void globcmd_accept(void *udata)
 
 static int globcmd_accept1(void)
 {
-	fffd peer;
-	peer = ffaio_pipe_accept(&g->kev, &globcmd_accept);
-	if (peer == FF_BADFD) {
-		if (!fferr_again(fferr_last()))
+	fffd peer = ffpipe_accept_async(g->lpipe, &g->accept_task);
+	if (peer == FFPIPE_NULL) {
+		if (fferr_last() == FFPIPE_EINPROGRESS) {
+			dbglog(core, NULL, "globcmd", "listening");
+			g->kev.handler = globcmd_accept;
+		} else {
 			syserrlog(core, NULL, "globcmd", "pipe accept: %s", g->pipename_full.ptr);
-		dbglog(core, NULL, "globcmd", "listening");
+		}
 		return -1;
 	}
 	globcmd_onaccept(peer);

@@ -29,7 +29,7 @@ mixer                 mixer
 #define FMED_VER_MAJOR  1
 #define FMED_VER_MINOR  27
 #define FMED_VER_FULL  ((FMED_VER_MAJOR << 8) | FMED_VER_MINOR)
-#define FMED_VER  "1.27.1"
+#define FMED_VER  "1.27.2"
 
 #define FMED_VER_GETMAJ(fullver)  ((fullver) >> 8)
 #define FMED_VER_GETMIN(fullver)  ((fullver) & 0xff)
@@ -1035,7 +1035,7 @@ Return fmed_que_entry*. */
 #define fmed_queue_item_locked(plid, id)  cmdv(FMED_QUE_ITEMLOCKED, (ssize_t)(plid), (size_t)(id))
 
 #define fmed_queue_save(qid, filename) \
-	cmdv(FMED_QUE_SAVE, (size_t)(qid), (void*)(filename))
+	cmdv(FMED_QUE_SAVE, (ffssize)(qid), (void*)(filename))
 
 #define fmed_queue_add(flags, plid, ent)  cmdv(FMED_QUE_ADD2 | (flags), (int)(plid), ent)
 
