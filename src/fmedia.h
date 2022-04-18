@@ -614,6 +614,9 @@ struct fmed_trk {
 			};
 		};
 	};
+
+	ushort mpeg1_delay;
+	ushort mpeg1_padding;
 };
 
 enum FMED_R {

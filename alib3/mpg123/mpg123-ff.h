@@ -32,13 +32,16 @@ _EXPORT int mpg123_open(mpg123 **m, unsigned int flags);
 
 _EXPORT void mpg123_free(mpg123 *m);
 
-/**
+/** Decode 1 MPEG frame.
+Doesn't parse Xing tag.
 audio: interleaved audio buffer
-If data==-1 and size==-1, reset internal input buffer.
 Return the number of bytes in audio buffer
  0 if more data is needed
  <0 on error */
 _EXPORT int mpg123_decode(mpg123 *m, const char *data, size_t size, unsigned char **audio);
+
+/** Clear bufferred data */
+_EXPORT void mpg123_reset(mpg123 *m);
 
 #ifdef __cplusplus
 }

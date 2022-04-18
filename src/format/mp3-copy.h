@@ -7,6 +7,7 @@ typedef struct mpeg_copy {
 	ffmpgcopy mpgcpy;
 	ffstr in;
 	uint64 until;
+	uint iframe;
 } mpeg_copy;
 
 void* mpeg_copy_open(fmed_filt *d)
@@ -91,7 +92,7 @@ int mpeg_copy_process(void *ctx, fmed_filt *d)
 	case FFMPG_RFRAME:
 		d->audio.pos = mpeg1read_cursample(&m->mpgcpy.rdr);
 		if (ffpcm_time(d->audio.pos, d->audio.fmt.sample_rate) >= m->until) {
-			dbglog(core, d->trk, NULL, "reached time %Ums", d->audio.until);
+			dbglog(core, d->trk, NULL, "reached time %Ums", m->until);
 			ffmpg_copy_fin(&m->mpgcpy);
 			m->until = (uint64)-1;
 			continue;
@@ -124,8 +125,8 @@ int mpeg_copy_process(void *ctx, fmed_filt *d)
 
 data:
 	d->out = out.ptr,  d->outlen = out.len;
-	dbglog(core, d->trk, "mpeg", "output: %L bytes"
-		, out.len);
+	dbglog(core, d->trk, "mpeg", "output: frame#%u  size:%L"
+		, m->iframe++, out.len);
 	return FMED_RDATA;
 }
 

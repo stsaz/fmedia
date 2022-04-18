@@ -2,9 +2,23 @@
 2015 Simon Zolin */
 
 #pragma once
-#include <acodec/alib3-bridge/mpeg.h>
 #include <ffbase/vector.h>
 #include <mp3lame/lame-ff.h>
+
+enum FFMPG_E {
+	FFMPG_EOK,
+	FFMPG_ESYS,
+	FFMPG_EFMT,
+};
+
+enum FFMPG_R {
+	FFMPG_RWARN = -2
+	, FFMPG_RERR
+	, FFMPG_RHDR
+	, FFMPG_RDATA
+	, FFMPG_RMORE
+	, FFMPG_RDONE
+};
 
 typedef struct ffmpg_enc {
 	uint state;

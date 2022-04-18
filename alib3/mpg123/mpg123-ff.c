@@ -34,7 +34,7 @@ int mpg123_open(mpg123 **pm, unsigned int flags)
 		return ERR(r);
 	}
 
-	mpg123_param(m->h, MPG123_ADD_FLAGS, MPG123_QUIET | flags, .0);
+	mpg123_param(m->h, MPG123_ADD_FLAGS, MPG123_QUIET | MPG123_IGNORE_INFOFRAME | flags, .0);
 
 	if (MPG123_OK != (r = mpg123_open_feed(m->h))) {
 		mpg123_free(m);
@@ -53,15 +53,17 @@ void mpg123_free(mpg123 *m)
 	free(m);
 }
 
+void mpg123_reset(mpg123 *m)
+{
+	m->h->rdat.buffer.fileoff = 1;
+	m->h->rdat.filepos = 0;
+	feed_set_pos(m->h, 0);
+	frame_buffers_reset(m->h);
+}
+
 int mpg123_decode(mpg123 *m, const char *data, size_t size, unsigned char **audio)
 {
 	int r;
-
-	if (data == (void*)-1 && size == (size_t)-1) {
-		m->h->rdat.buffer.fileoff = 1;
-		feed_set_pos(m->h, 0);
-		return 0;
-	}
 
 	if (size != 0
 		&& MPG123_OK != (r = mpg123_feed(m->h, (void*)data, size)))

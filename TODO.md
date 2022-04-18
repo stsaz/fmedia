@@ -98,55 +98,6 @@ This is the list of the things that need to be done.
 		aac.decode: *1:    "http://...": ffaac_decode(): (400a) AAC_DEC_UNSUPPORTED_GAIN_CONTROL_DATA: Gain control data found but not supported. Most probably the bitstream is corrupt, or has a wrong format.
 		aac: *1:   "http://...": ffaac_adts_read(): lost synchronization.  Offset: ...
 
-* mp3 unsync
-
-		./fmedia 1.mp3 -o 1.wav --until=5
-		./fmedia 1.wav --pcm-peaks
-			0:04.998 (220,453 samples)
-
-* mp3 stream-copy produces inaccurate results (02.469 instead of 02.500)
-  "--meta" affects audio length!
-
-		>fmedia classic.mp3  --stream-copy --seek=2.500 -y -o classic-copy.mp3
-
-		" - " classic.mp3 0.11 MB, 0:05.000 (220,500 samples), 191 kbps, MPEG, 44100 Hz, int16, stereo
-
-		[========================================================..............] 0:04 / 0:0510:49:28.875 info mpeg.copy: *1:
-		MPEG: frames:95
-
-		saved file classic-copy.mp3, 58 kbytes
-
-		>fmedia classic-copy.mp3 --pcm-peaks
-
-		"Antonio Vivaldi - Sinfonia in C major - Allegro molto" classic-copy.mp3 0.06 MB, 0:02.469 (108,911 samples), 189 kbps,
-		MPEG, 44100 Hz, float32, stereo
-
-		[=========================================================.............] 0:02 / 0:02
-
-		PCM peaks (108,911 total samples):
-		Channel #1: highest peak:-7.76dB, avg peak:-22.63dB.  Clipped: 0 (0.0000%).  CRC:00000000
-		Channel #2: highest peak:-4.52dB, avg peak:-20.49dB.  Clipped: 0 (0.0000%).  CRC:00000000
-
-		>fmedia classic.mp3  --stream-copy --seek=2.500 -y --meta=artist=A;title=T -o classic-copy.mp3
-
-		"A - T" classic.mp3 0.11 MB, 0:05.000 (220,500 samples), 190 kbps, MPEG, 44100 Hz, int16, stereo
-
-		[========================================================..............] 0:04 / 0:05
-		saved file classic-copy.mp3, 59 kbytes
-
-		>fmedia classic-copy.mp3 --pcm-peaks
-
-		"A - T" classic-copy.mp3 0.06 MB, 0:02.480 (109,368 samples), 192 kbps, MPEG, 44100 Hz, float32, stereo
-
-		[========================================================..............] 0:02 / 0:02
-
-		PCM peaks (111,744 total samples):
-		Channel #1: highest peak:-7.76dB, avg peak:-22.70dB.  Clipped: 0 (0.0000%).  CRC:00000000
-		Channel #2: highest peak:-4.52dB, avg peak:-20.59dB.  Clipped: 0 (0.0000%).  CRC:00000000
-
-		>./fmedia 1.mp3 --stream-copy -o 2.mp3 --until=2
-			0:01.999 (88,175 samples)
-
 * net.icy: can't stop while "precaching data..."
 * can't stop running convert with ctrl+C in sync file IO mode
 

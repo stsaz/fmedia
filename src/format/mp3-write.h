@@ -19,15 +19,6 @@ int mpeg_out_config(fmed_conf_ctx *ctx)
 	return 0;
 }
 
-int mpeg_have_trkmeta(fmed_filt *d)
-{
-	fmed_trk_meta meta;
-	ffmem_zero_obj(&meta);
-	if (0 == d->track->cmd2(d->trk, FMED_TRACK_META_ENUM, &meta))
-		return 1;
-	return 0;
-}
-
 typedef struct mpeg_out {
 	uint state;
 	uint nframe;
@@ -38,7 +29,7 @@ typedef struct mpeg_out {
 
 void* mpeg_out_open(fmed_filt *d)
 {
-	if (ffsz_eq(d->datatype, "mpeg") && !mpeg_have_trkmeta(d))
+	if (ffsz_eq(d->datatype, "mpeg"))
 		return FMED_FILT_SKIP; // mpeg.copy is used in this case
 
 	mpeg_out *m = ffmem_new(mpeg_out);

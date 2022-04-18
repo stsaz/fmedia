@@ -23,6 +23,7 @@ typedef struct mp3_in {
 	uint sample_rate;
 	uint state;
 	uint nframe;
+	char codec_name[9];
 	uint have_id32tag :1
 		, seeking :1
 		;
@@ -133,9 +134,11 @@ again:
 			d->audio.fmt.channels = info->channels;
 			d->audio.bitrate = info->bitrate;
 			d->audio.total = info->total_samples;
-			d->audio.decoder = "MPEG";
+			ffs_format(m->codec_name, sizeof(m->codec_name), "MPEG1-L%u%Z", info->layer);
+			d->audio.decoder = m->codec_name;
 			d->datatype = "mpeg";
-			fmed_setval("mpeg_delay", info->delay);
+			d->mpeg1_delay = info->delay;
+			d->mpeg1_padding = info->padding;
 
 			if (d->input_info)
 				return FMED_RDONE;
