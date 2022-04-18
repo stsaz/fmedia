@@ -272,9 +272,10 @@ static int cue_process(void *ctx, fmed_filt *d)
 		}
 
 		ffstr *v = &out;
-		if (c->utf8 && ffutf8_valid(v->ptr, v->len))
+		if (c->utf8 && ffutf8_valid(v->ptr, v->len)) {
+			val.len = 0;
 			ffvec_addstr(&val, v);
-		else {
+		} else {
 			c->utf8 = 0;
 			size_t n = ffutf8_from_cp(NULL, 0, v->ptr, v->len, codepage);
 			if (NULL == ffarr_realloc(&val, n))
@@ -313,13 +314,15 @@ add_metaname:
 		case CUEREAD_REM_VAL:
 			if (NULL == (meta = ffarr_pushT(&c->metas, ffarr)))
 				goto err;
-			ffarr_acq(meta, &val);
+			*meta = val;
+			ffarr_null(&val);
 			break;
 
 		case CUEREAD_REM_NAME:
 			if (NULL == (meta = ffarr_pushT(&c->metas, ffarr)))
 				goto err;
-			ffarr_acq(meta, &val);
+			*meta = val;
+			ffarr_null(&val);
 			break;
 
 		case CUEREAD_FILE:
