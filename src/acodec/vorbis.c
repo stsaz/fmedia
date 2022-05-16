@@ -139,7 +139,7 @@ static int vorbis_in_decode(void *ctx, fmed_filt *d)
 		if (d->input_info)
 			return FMED_RDONE;
 
-		if ((int64)d->audio.total != FMED_NULL)
+		if ((int64)d->audio.total != FMED_NULL && d->audio.total != 0)
 			v->vorbis.total_samples = d->audio.total;
 		v->state = R_DATA;
 		// break
