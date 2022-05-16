@@ -127,8 +127,10 @@ static int mpeg_dec_process(void *ctx, fmed_filt *d)
 
 	uint samples = r / m->fr_size;
 	if (m->seek != (uint64)-1) {
-		if (m->pos + samples <= m->seek)
+		if (m->pos + samples <= m->seek) {
+			m->pos += samples;
 			goto end;
+		}
 		int64 skip_samples = (int64)m->seek - m->pos;
 		FF_ASSERT(skip_samples >= 0);
 		d->audio.pos += skip_samples;
