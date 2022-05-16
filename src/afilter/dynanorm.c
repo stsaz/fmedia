@@ -104,6 +104,7 @@ struct danorm {
 	ffarr buf;
 	uint off;
 	ffpcm fmt;
+	uint clear :1;
 };
 
 static void* danorm_f_open(fmed_filt *d)
@@ -190,9 +191,14 @@ static int danorm_f_process(void *ctx, fmed_filt *d)
 		break;
 	}
 
-	if (d->flags & FMED_FSTOP) {
-		d->outlen = 0;
-		return FMED_RDONE;
+	// Reset buffer when we first see the 'snd_output_clear' flag
+	if (d->snd_output_clear) {
+		if (!c->clear) {
+			c->clear = 1;
+			dynanorm_reset(c->ctx);
+		}
+	} else if (c->clear) {
+		c->clear = 0;
 	}
 
 	if (d->flags & FMED_FFWD)

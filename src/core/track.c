@@ -260,9 +260,9 @@ static int trk_addfilters(fm_trk *t)
 		else if (core->props->tui)
 			addfilter(t, "tui.tui");
 
-		addfilter(t, "afilter.gain");
 		if (t->props.use_dynanorm)
 			addfilter(t, "dynanorm.filter");
+		addfilter(t, "afilter.gain");
 		addfilter(t, "afilter.autoconv");
 		addfilter(t, "afilter.peaks");
 		return 0;
@@ -306,6 +306,9 @@ static int trk_addfilters(fm_trk *t)
 	if (t->props.a_stop_level != 0)
 		addfilter(t, "afilter.stoplevel");
 
+	if (t->props.use_dynanorm)
+		addfilter(t, "dynanorm.filter");
+
 	if (t->props.type != FMED_TRK_TYPE_MIXOUT && !stream_copy) {
 		ffbool playback = (t->props.type == FMED_TRK_TYPE_PLAYBACK
 			&& FMED_PNULL == (s = trk_getvalstr(t, "output"))
@@ -314,9 +317,6 @@ static int trk_addfilters(fm_trk *t)
 		if (!(playback && t->props.audio.auto_attenuate_ceiling != 0.0))
 			addfilter(t, "afilter.gain");
 	}
-
-	if (t->props.use_dynanorm)
-		addfilter(t, "dynanorm.filter");
 
 	if ((int64)t->props.audio.split != FMED_NULL) {
 		addfilter(t, "afilter.split");

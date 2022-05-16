@@ -37,7 +37,12 @@ _EXPORT int dynanorm_open(void **c, struct dynanorm_conf *conf);
 
 _EXPORT void dynanorm_close(void *c);
 
+/** Reset buffer */
+_EXPORT void dynanorm_reset(void *c);
+
 /** Process audio data.
+in: input audio data
+ NULL: Input data is complete, start flushing the bufferred audio
 samples: input samples;  on return contains number of samples processed.
 Return the number of output samples
  <0 on error. */

@@ -50,6 +50,12 @@ void dynanorm_close(void *cc)
 	delete c;
 }
 
+void dynanorm_reset(void *cc)
+{
+	MDynamicAudioNormalizer *c = (MDynamicAudioNormalizer*)cc;
+	c->reset();
+}
+
 static size_t ffmin(size_t a, size_t b)
 {
 	return (a < b) ? a : b;

@@ -957,6 +957,14 @@ int ffpcm_gain(const ffpcmex *pcm, float gain, const void *in, void *out, uint s
 		}
 		break;
 
+	case FFPCM_FLOAT64:
+		for (ich = 0;  ich != nch;  ich++) {
+			for (i = 0;  i != samples;  i++) {
+				to.pd[ich][i * step] = from.pd[ich][i * step] * gain;
+			}
+		}
+		break;
+
 	default:
 		return -1;
 	}
