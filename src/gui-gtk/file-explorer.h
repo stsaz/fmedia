@@ -8,7 +8,8 @@ static struct exp_file* _exp_names_idx(ffsize idx);
 static int _exp_conf_path(fmed_conf *fc, void *obj, char *val)
 {
 	struct gui_wmain *w = obj;
-	ffstr_dupz(&w->exp_path, val);
+	w->exp_path.ptr = ffsz_dup(val);
+	w->exp_path.len = ffsz_len(val);
 	return 0;
 }
 static const fmed_conf_arg _exp_conf[] = {
@@ -251,14 +252,8 @@ static void exp_list_action(int idx)
 
 	if (!f->dir) {
 		struct params_urls_add_play *p = ffmem_new(struct params_urls_add_play);
-		struct exp_file *it;
-		FFSLICE_WALK(&w->exp_files, it) {
-			if (!it->dir) {
-				if (f == it)
-					p->play = p->v.len;
-				*ffvec_pushT(&p->v, char*) = ffsz_allocfmt("%s%s", w->exp_path.ptr, it->name);
-			}
-		}
+		p->play = 0;
+		*ffvec_pushT(&p->v, char*) = ffsz_allocfmt("%s%s", w->exp_path.ptr, f->name);
 		corecmd_add(_A_URLS_ADD_PLAY, p);
 		return;
 	}
