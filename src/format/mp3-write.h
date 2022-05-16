@@ -19,6 +19,15 @@ int mpeg_out_config(fmed_conf_ctx *ctx)
 	return 0;
 }
 
+int mpeg_have_trkmeta(fmed_filt *d)
+{
+	fmed_trk_meta meta;
+	ffmem_zero_obj(&meta);
+	if (0 == d->track->cmd2(d->trk, FMED_TRACK_META_ENUM, &meta))
+		return 1;
+	return 0;
+}
+
 typedef struct mpeg_out {
 	uint state;
 	uint nframe;
@@ -29,13 +38,17 @@ typedef struct mpeg_out {
 
 void* mpeg_out_open(fmed_filt *d)
 {
-	if (ffsz_eq(d->datatype, "mpeg"))
+	if (ffsz_eq(d->datatype, "mpeg") && !mpeg_have_trkmeta(d))
 		return FMED_FILT_SKIP; // mpeg.copy is used in this case
 
 	mpeg_out *m = ffmem_new(mpeg_out);
 	if (m == NULL)
 		return NULL;
 	mp3write_create(&m->mpgw);
+	if (d->stream_copy) {
+		m->mpgw.options |= MP3WRITE_XINGTAG;
+		m->mpgw.vbr_scale = fmed_getval("mpeg.vbr_scale");
+	}
 	m->mpgw.id3v2_min_size = mpeg_out_conf.min_meta_size;
 	return m;
 }

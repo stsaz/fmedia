@@ -139,6 +139,7 @@ again:
 			d->datatype = "mpeg";
 			d->mpeg1_delay = info->delay;
 			d->mpeg1_padding = info->padding;
+			fmed_setval("mpeg.vbr_scale", info->vbr_scale);
 
 			if (d->input_info)
 				return FMED_RDONE;

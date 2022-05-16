@@ -189,6 +189,9 @@ if test "$1" = "convert_parallel" ; then
 fi
 
 if test "$1" = "convert_streamcopy" ; then
+	./fmedia --record --until=1 -o streamcopy.mp3 -y
+	./fmedia streamcopy.mp3 -o streamcopy.m4a -y
+
 	# convert with stream-copy
 	OPTS="-y --stream-copy"
 	$BIN rec.mp3 -o copy.mp3 $OPTS
@@ -204,6 +207,13 @@ if test "$1" = "convert_streamcopy" ; then
 	$BIN rec.opus -o copyseek.opus $OPTS
 	$BIN rec.m4a -o copyseek.m4a $OPTS
 	$BIN copyseek.* --pcm-peaks
+
+	# convert with stream-copy and new meta
+	./fmedia streamcopy.mp3 -o streamcopy_meta.mp3 -y --stream-copy --meta='artist=SomeArtist;title=SomeTitle'
+	./fmedia streamcopy_meta.mp3 --info 2>&1 | grep 'SomeArtist - SomeTitle'
+
+	./fmedia streamcopy.m4a -o streamcopy_meta.m4a -y --stream-copy --meta='artist=SomeArtist;title=SomeTitle'
+	./fmedia streamcopy_meta.m4a --info 2>&1 | grep 'SomeArtist - SomeTitle'
 fi
 
 if test "$1" = "filters" ; then
