@@ -247,6 +247,9 @@ static int que_trk_process(void *ctx, fmed_filt *d)
 Thread: main */
 static void que_ontrkfin(entry *e)
 {
+	if (!e->trk_err && e->plist->nerrors != 0)
+		e->plist->nerrors = 0;
+
 	if (qu->mixing) {
 		qu->track->cmd(NULL, FMED_TRACK_LAST);
 	} else if (e->stop_after)
@@ -262,14 +265,10 @@ static void que_ontrkfin(entry *e)
 			. filters: format or codec isn't supported, decoding error, etc.
 			. output: audio system is failing */
 
-			if (!e->trk_err && e->plist->nerrors != 0)
+			if (e->trk_err && ++e->plist->nerrors == MAX_N_ERRORS) {
+				infolog("Stopping playback: too many consecutive errors");
 				e->plist->nerrors = 0;
-			else if (e->trk_err) {
-				if (++e->plist->nerrors == MAX_N_ERRORS) {
-					infolog("Stopping playback: too many consecutive errors");
-					e->plist->nerrors = 0;
-					goto end;
-				}
+				goto end;
 			}
 		}
 		que_cmd(FMED_QUE_NEXT2, &e->e);
