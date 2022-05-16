@@ -414,7 +414,7 @@ void gui_corecmd_op(uint cmd, void *udata)
 			gui_savelists();
 		if (gg->fav_pl != -1)
 			fav_save();
-		core->sig(FMED_STOP);
+		gg->track->cmd(NULL, FMED_TRACK_STOPALL_EXIT);
 		break;
 
 	case A_LIST_SORTRANDOM: {

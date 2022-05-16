@@ -163,9 +163,9 @@ static FFINL int _ffpcm_flt_24(double f)
 
 #define max32f  (2147483648.0)
 
-static FFINL int _ffpcm_flt_32(float f)
+static FFINL int _ffpcm_flt_32(double d)
 {
-	double d = f * max32f;
+	d *= max32f;
 	if (d < -max32f)
 		return -0x80000000;
 	else if (d > max32f - 1)
@@ -173,7 +173,7 @@ static FFINL int _ffpcm_flt_32(float f)
 	return ffint_ftoi(d);
 }
 
-#define _ffpcm_32_flt(n)  ((float)(n) * (1 / max32f))
+#define _ffpcm_32_flt(n)  ((double)(n) * (1 / max32f))
 
 static FFINL double _ffpcm_limf(double d)
 {
@@ -861,6 +861,14 @@ int ffpcm_convert(const ffpcmex *outpcm, void *out, const ffpcmex *inpcm, const 
 		for (ich = 0;  ich != nch;  ich++) {
 			for (i = 0;  i != samples;  i++) {
 				ffint_htol24(&to.pb[ich][i * ostep * 3], _ffpcm_flt_24(from.pd[ich][i * istep]));
+			}
+		}
+		break;
+
+	case CASE(FFPCM_FLOAT64, FFPCM_32):
+		for (ich = 0;  ich != nch;  ich++) {
+			for (i = 0;  i != samples;  i++) {
+				to.pin[ich][i * ostep] = _ffpcm_flt_32(from.pd[ich][i * istep]);
 			}
 		}
 		break;

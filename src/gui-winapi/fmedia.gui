@@ -261,7 +261,7 @@ menu mlist_popup {
 	item "&Remove" {
 		action A_LIST_REMOVE
 	}
-	item "Show Media Info" {
+	item "Show Meta Data" {
 		action A_FILE_SHOWINFO
 	}
 	item "To Ne&xt Playlist" {

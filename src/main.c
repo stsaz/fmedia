@@ -624,7 +624,7 @@ int main(int argc, char **argv, char **env)
 	gcmd = g->cmd;
 
 	if (argc == 1) {
-		arg_usage(NULL, NULL);
+		arg_usage_short();
 		rc = 0;
 		goto end;
 	}
@@ -659,11 +659,11 @@ int main(int argc, char **argv, char **env)
 		else {
 			ffps ps = ffps_createself_bg("--background-child");
 			if (ps == FFPS_INV) {
-				syserrlog(core, NULL, "core", "failed to spawn background process");
+				syserrlog(core, NULL, "main", "failed to spawn background process");
 				goto end;
 
 			} else if (ps != 0) {
-				core->log(FMED_LOG_INFO, NULL, "core", "spawned background process: PID %u", ffps_id(ps));
+				core->log(FMED_LOG_INFO, NULL, "main", "spawned background process: PID %u", ffps_id(ps));
 				ffps_close(ps);
 				rc = 0;
 				goto end;
@@ -709,7 +709,7 @@ int main(int argc, char **argv, char **env)
 	}
 
 	if (0 != ffsig_subscribe(signal_handler, signals, FF_COUNT(signals))) {
-		syserrlog(core, NULL, "core", "%s", "ffsig_subscribe()");
+		syserrlog(core, NULL, "main", "%s", "ffsig_subscribe()");
 		goto end;
 	}
 
@@ -722,7 +722,7 @@ int main(int argc, char **argv, char **env)
 
 	core->sig(FMED_START);
 	rc = g->psexit;
-	dbglog(core, NULL, "core", "exit code: %d", rc);
+	dbglog(core, NULL, "main", "exit code: %d", rc);
 
 end:
 	if (core != NULL) {

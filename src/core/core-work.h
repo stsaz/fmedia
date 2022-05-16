@@ -102,7 +102,7 @@ static void work_release(uint wid, uint flags)
 	struct worker *w = ffslice_itemT(&fmed->workers, wid, struct worker);
 	if (flags & FMED_WORKER_FPARALLEL) {
 		ssize_t n = ffatom_decret(&w->njobs);
-		FMED_ASSERT(n >= 0);
+		FF_ASSERT(n >= 0);
 	}
 }
 
@@ -268,5 +268,6 @@ static int FFTHDCALL work_loop(void *param)
 	}
 
 	ffmem_free(ents);
+	dbglog0("leaving kqueue loop", 0);
 	return 0;
 }

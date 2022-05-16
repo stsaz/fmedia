@@ -166,11 +166,6 @@ static int sndmod_conv_process(void *ctx, fmed_filt *d)
 	uint samples;
 	int r;
 
-	if (d->flags & FMED_FSTOP) {
-		d->outlen = 0;
-		return FMED_RDONE;
-	}
-
 	switch (c->state) {
 	case 0:
 		return FMED_RERR; // settings are empty
@@ -281,7 +276,7 @@ static int autoconv_process(void *ctx, fmed_filt *d)
 	if ((in->format != c->outpcm.format && c->outpcm.format != out->format)
 		|| (in->channels != c->outpcm.channels && (c->outpcm.channels & FFPCM_CHMASK) != out->channels)
 		|| (in->sample_rate != c->outpcm.sample_rate && c->outpcm.sample_rate != out->sample_rate))
-		warnlog(core, d->trk, NULL, "conversion format was overwritten by output filters: %s/%u/%u"
+		dbglog(core, d->trk, NULL, "conversion format was overwritten by output filters: %s/%u/%u"
 			, ffpcm_fmtstr(out->format), out->channels, out->sample_rate);
 
 	if (in->format == out->format

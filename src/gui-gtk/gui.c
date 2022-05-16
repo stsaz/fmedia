@@ -644,7 +644,7 @@ static void corecmd_run(uint cmd, void *udata)
 	case A_ONCLOSE:
 		if (gg->conf.autosave_playlists)
 			lists_save();
-		core->sig(FMED_STOP);
+		gg->track->cmd(NULL, FMED_TRACK_STOPALL_EXIT);
 		break;
 
 	case LOADLISTS:

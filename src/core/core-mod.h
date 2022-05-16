@@ -387,8 +387,12 @@ static const void* core_getmod2(uint flags, const char *name, ssize_t name_len)
 
 	case FMED_MOD_OUTEXT:
 		mod = modbyext(&fmed->conf.out_ext_map, &s);
-		if (mod == NULL)
-			errlog0("unknown output file format: %S", &s);
+		if (mod == NULL) {
+			if (s.len == 0)
+				errlog0("Please specify output file extension");
+			else
+				errlog0("output file extension not supported: '%S'", &s);
+		}
 		flags |= FMED_MOD_NOLOG;
 		break;
 

@@ -3,15 +3,7 @@ Copyright (c) 2013 Simon Zolin
 */
 
 #include "types.h"
-#include <FFOS/dir.h>
-#include <FFOS/socket.h>
-#include <FFOS/process.h>
-#include "sig.h"
-#include <FFOS/timer.h>
-
-#include <sys/wait.h>
-#include <sys/sysctl.h>
-
+#include "asyncio.h"
 
 static ssize_t _ffaio_fresult(ffaio_filetask *ft)
 {

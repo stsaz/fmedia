@@ -29,7 +29,7 @@ mixer                 mixer
 #define FMED_VER_MAJOR  1
 #define FMED_VER_MINOR  27
 #define FMED_VER_FULL  ((FMED_VER_MAJOR << 8) | FMED_VER_MINOR)
-#define FMED_VER  "1.27.2"
+#define FMED_VER  "1.27.3"
 
 #define FMED_VER_GETMAJ(fullver)  ((fullver) >> 8)
 #define FMED_VER_GETMIN(fullver)  ((fullver) & 0xff)
@@ -388,6 +388,11 @@ enum FMED_TRK_TYPE {
 	FMED_TRK_TYPE_EXPAND, // get file meta info
 	FMED_TRK_TYPE_PLIST, // write playlist file from queue
 	FMED_TRK_TYPE_PCMINFO, // analyze PCM peaks and CRC
+
+	/** Write output to a file.
+	Set file name via setvalstr("output"). */
+	FMED_TRK_TYPE_CONVERT,
+
 	_FMED_TRK_TYPE_END,
 
 	//obsolete:
@@ -504,8 +509,19 @@ struct fmed_trk {
 	uint type; //enum FMED_TRK_TYPE
 	const char *datatype;
 	struct {
+		/** Current audio format.
+		Initially set from fmedia.conf::record_format{} (for recording tracks).
+		Updated by command line: --format/--rate/--channels.
+		Audio capture modules update it according to the actually used format.
+		Demuxers/decoders set it according to the file format.
+		*/
 		ffpcmex fmt;
-		ffpcmex convfmt; //format of audio data produced by converter filter
+
+		/** Audio format produced by converter filter.
+		Initially a copy of 'fmt'.
+		Encoders and audio playback modules use it and update it when they request for audio conversion. */
+		ffpcmex convfmt;
+
 		uint64 pos; //samples
 		uint64 total; //total track length (samples); -1:unset;  0:streaming
 		uint64 seek; //msec
@@ -818,6 +834,8 @@ enum FMED_QUE {
 	/** Start playing track.
 	@param: fmed_que_entry* */
 	FMED_QUE_PLAY,
+	/**
+	Stop all active playback tracks */
 	FMED_QUE_PLAY_EXCL,
 
 	FMED_QUE_MIX,
@@ -845,7 +863,10 @@ enum FMED_QUE {
 	@param: fmed_que_entry* */
 	FMED_QUE_RM,
 
+	/** Remove "dead" items from the current playlist.
+	Return N of removed items */
 	FMED_QUE_RMDEAD,
+
 	FMED_QUE_METASET, // @param2: ffstr name_val_pair[2]
 	FMED_QUE_SETONCHANGE, // @param: fmed_que_onchange_t
 

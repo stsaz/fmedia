@@ -6,8 +6,8 @@ Copyright (c) 2017 Simon Zolin
 #include <FFOS/dir.h>
 #include <FFOS/socket.h>
 #include <FFOS/process.h>
-#include "sig.h"
 #include <FFOS/timer.h>
+#include "asyncio.h"
 
 #include <sys/wait.h>
 #include <mach-o/dyld.h>

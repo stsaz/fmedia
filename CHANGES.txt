@@ -8,6 +8,23 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.27.3 - May 15, 2022
+
+ * playback: faster audio device open (reuse) on track switch
+    with Next/Previous commands for ALSA, PulseAudio, WASAPI
+ * support playback with '--dynanorm'
+ - ALSA playback: some data could be skipped when seeking or starting next track
+ * PulseAudio: don't hang after broken connection with server
+ - PulseAudio playback: fix crash after Stop/Next/Previous commands
+ - mp3 seek didn't work sometimes
+ - mp3 with --stream-copy: fix;  enable ".mp3 --stream-copy --meta=..."
+ - vorbis playback: skipped some data for network stream input
+ - playback with --random: playback could be incorrectly stopped by "too many consecutive errors" protection
+ - recording: try to open audio device with the user-specified format
+    (--format/--rate/--channels options) and apply audio conversion only if it fails
+ * GUI/GTK: Explorer tab: add and play only 1 selected file on double-click
+
+
 fmedia v1.27.2 - Apr 20, 2022
 
  - .cue read: fix

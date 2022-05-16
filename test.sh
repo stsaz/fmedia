@@ -51,14 +51,6 @@ if test "$1" = "play" ; then
 	./fmedia rec.* --seek=0.500 --until=1.500
 fi
 
-if test "$1" = "convert_channels" ; then
-	./fmedia rec.wav -o encchan-mono.wav -y --channels=mono
-	./fmedia encchan-mono.wav --pcm-peaks
-
-	./fmedia encchan-mono.wav -o encchan-stereo.wav -y --channels=stereo
-	./fmedia encchan-stereo.wav --pcm-peaks
-fi
-
 if test "$1" = "convert" ; then
 	# convert .wav -> .*
 	OPTS="-y"
@@ -217,12 +209,33 @@ if test "$1" = "convert_streamcopy" ; then
 fi
 
 if test "$1" = "filters" ; then
+	sh $0 filters_aconv
 	sh $0 filters_gain
 	sh $0 filters_dynanorm
 	OPTS="-y"
 	$BIN rec.wav -o 'split-$counter.wav' --split=0.100 $OPTS
 	$BIN rec.wav -o 'split-$counter.mp3' --split=0.100 $OPTS
 	$BIN split-* --pcm-peaks
+fi
+
+if test "$1" = "filters_aconv" ; then
+	./fmedia --record --format=int16 --rate=48000 --channels=2 --until=1 -o aconv_rec.wav -y
+
+	# int16 -> int32
+	./fmedia aconv_rec.wav --format=int32 -o aconv32.wav -y -D | grep 'PCM conv'
+	./fmedia aconv32.wav --pcm-peaks
+
+	# stereo -> mono
+	./fmedia aconv_rec.wav --channels=mono -o aconv_mono.wav -y -D | grep 'PCM conv'
+	./fmedia aconv_mono.wav --pcm-peaks
+
+	# mono -> stereo
+	./fmedia aconv_mono.wav --channels=stereo -o aconv_stereo.wav -y -D | grep 'PCM conv'
+	./fmedia aconv_stereo.wav --pcm-peaks
+
+	# int16/48000 -> int32/192000
+	./fmedia aconv_rec.wav --format=int32 --rate=192000 -o aconv32-192.wav -y -D | grep 'PCM conv'
+	./fmedia aconv32-192.wav --pcm-peaks
 fi
 
 if test "$1" = "filters_gain" ; then
@@ -234,9 +247,13 @@ if test "$1" = "filters_gain" ; then
 fi
 
 if test "$1" = "filters_dynanorm" ; then
-	OPTS="-y"
-	$BIN rec.wav -o dynanorm.wav --dynanorm $OPTS
-	$BIN dynanorm.wav --pcm-peaks
+	./fmedia --record --until=2 --dynanorm -o rec-dynanorm.wav -y
+	./fmedia rec-dynanorm.wav --pcm-peaks
+
+	./fmedia rec-dynanorm.wav --dynanorm
+
+	./fmedia rec-dynanorm.wav -o dynanorm.wav --dynanorm -y
+	./fmedia dynanorm.wav --pcm-peaks
 fi
 
 if test "$1" = "all" ; then
@@ -244,7 +261,6 @@ if test "$1" = "all" ; then
 	sh $0 record
 	sh $0 info
 	sh $0 play
-	sh $0 convert_channels
 	sh $0 convert
 	sh $0 convert_meta
 	sh $0 convert_streamcopy

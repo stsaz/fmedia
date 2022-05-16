@@ -39,6 +39,15 @@ static const char* loc_sfx()
 	return langstr[ilang];
 }
 
+void arg_usage_short()
+{
+	const char *usage =
+"Usage:\n"
+"    fmedia [OPTIONS] [INPUT...]\n"
+"Use '-h' option for complete help info.\n";
+	ffstd_write(ffstdout, usage, ffsz_len(usage));
+}
+
 #define FMED_CMDHELP_FILE_FMT  "help%s.txt"
 #define CMD_LAST  100
 

@@ -24,9 +24,7 @@ This is the list of the things that need to be done.
 * GUI: read tags on load
 * GUI: remember conversion settings
 * show tray icon when recording from console (#39)
-* translate help.txt (#15)
 * Set to Play Next
-* build for ARM (#3)
 * open http://....m3u (application/x-mpegURL)
 
 ## Second priority features
@@ -34,7 +32,6 @@ This is the list of the things that need to be done.
 * .mkv, .avi: support MPEG delay
 * join several files into one
 * ALSA: Add fallback path (using fmedia timer) in case "snd_async_add_pcm_handler(): (-38) Function not implemented"
-* docker build (#42)
 
 
 ## Doubtful features or "need more info"
@@ -99,11 +96,6 @@ This is the list of the things that need to be done.
 * fmedia a.wav --mono=0
 	doesn't work in wasapi shared mode because it requires 2 channel input, therefore, conversion is 2ch -> 2ch, i.e. the same sound.
 
-* when seeking, wasapi module returns RMORE after snd_output_clear flag is tested and cleared
-	the sound will stop until the next block is found(!) by demuxer, decoded and only then pass to wasapi again
-	a better approach will be to do this stuff while playing the old buffers (those that are already in wasapi buffers)
-	furthermore, if the control is within file module (aio reading) while we issue the SEEK command from tui, the first time we pass new valid data to wasapi, it will just skip it, returning RMORE on snd_output_clear flag!
-
 * GUI: stop keyboard arrows acting on a focused track bar
 
 * gui: starting fmedia with input file adds this file into beginning of the list (before auto-saved list1.m3u)
@@ -122,8 +114,17 @@ This is the list of the things that need to be done.
 	'Stop' pressed by user sends STOP_ALL, but it does nothing useful
 	 because the start of the next track is already scheduled by 'queue'.
 
+* fix ALSA/WASAPI buffer reuse algorithm
 
 ## Refactoring
 
 * "mpeg.copy" can be replaced by "mpeg.in" -> "mpeg.out" chain?
 * move GUI icons from *.exe to gui.dll
+
+* FMED_FLAST check requirement for the most filters is strange
+
+		if (d->flags & FMED_FLAST)
+			return FMED_RDONE;
+		return FMED_RDATA;
+
+	core should handle FMED_RDATA for the last-in-chain filter automatically?

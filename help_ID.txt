@@ -1,20 +1,15 @@
 Manual penggunaan:
-fmedia [OPSI] [INPUT ...]
+    fmedia [OPSI] [INPUT ...]
 
-Secara default akan memutar file input satu per satu.
-Urutan track secara umum: QUEUE -> INPUT -> FILTER -> ENCODING -> OUTPUT
-
-INPUT Input file, direktori/folder, URL atau wildcard
+INPUT              Input file, direktori/folder, URL atau wildcard
                    @ stdin.EXT: membaca dari input standar pada terminal.
 
 PILIHAN:
 
-QUEUE / Antrian:
---track = N1 [, N2 ...] Pilih urutan nomor track tertentu dalam playlist
---repeat-all            Akan mengulang semua
---random                Akan memilih track berikutnya secara acak
+Urutan track secara umum: QUEUE -> INPUT -> FILTER -> ENCODING -> OUTPUT
 
 PERANGKAT AUDIO:
+
 --list-dev              Daftar perangkat suara yang tersedia dan keluar
 --dev = DEVNO           Penggunaan perangkat pemutaran (lihat berdasarkan nomor perangkat)
 --dev-capture = DEVNO   Penggunaan perangkat penangkap (lihat berdasarkan nomor perangkat)
@@ -22,6 +17,7 @@ PERANGKAT AUDIO:
                         Penggunaan perangkat pemutaran dalam mode loopback (merekam dari pemutaran) (hanya WASAPI)
 
 FORMAT AUDIO:
+
 Secara default pengaturan ini digunakan untuk output. Saat merekam, akan menset berdasarkan input.
 --format = STR          Pengaturan tipe format audio (int8 | int16 | int24 | int32 | float32)
 --rate = INT            Pengaturan sample rate
@@ -32,58 +28,68 @@ Secara default pengaturan ini digunakan untuk output. Saat merekam, akan menset 
                          --channels = left: menggunakan saluran/channel kiri saja
                          --channels = right: gunakan saluran/channel kanan saja
 
+QUEUE / Antrian:
+
+--track = N1 [, N2 ...] Pilih urutan nomor track tertentu dalam playlist
+--repeat-all            Akan mengulang semua
+--random                Akan memilih track berikutnya secara acak
+
 INPUT:
+
 --record                Untuk merekam audio. Untuk pengaturan format audio default dapat diatur pada file fmedia.conf :: record_format.
 --capture-buffer        "Length" (dalam msec) dari capture buffer (Lihat juga file fmedia.conf :: *. in.buffer_length)
---mix                   Putar file input secara bersamaan. Untuk pengaturan format audio pada file fmedia.conf :: mod_conf "mixer.out".
-                        Catatan: semua masukan harus memiliki nomor saluran/channel dan sample rate yang sama dengan keluaran/output.
+
 --flist = FILE          Membaca nama file dari parameter <FILE>
 --include = 'WILDCARD [; WILDCARD]'
                         Akan menyertakan file yang cocok dengan karakter wildcard (tidak berpengaruh huruf besar/kecil - case insensitive)
 --exclude = 'WILDCARD [; WILDCARD]'
                         Akan mengecualikan file & direktori yang cocok dengan wildcard (tidak berpengaruh huruf besar/kecil - case insensitive)
+-i, --info              Tidak memutar file tapi menampilkan informasi media file tersebut
+--tags                  Menampilkan semua tag meta
+--fseek = BYTE          Pengaturan offset file masukan
 --seek = TIME           Pengaturan untuk melaju pada setingan TIME: [[HH:] MM:] SS [: MSC]
 --until = TIME          Pengaturan untuk stop/berhenti tepat pada setingan TIME
                         Parameter khusus:
                          'playback-end': pengaturan untuk stop perekaman saat trek pemutaran terakhir selesai
---fseek = BYTE          Pengaturan offset file masukan
--i, --info              Tidak memutar file tapi menampilkan informasi media file tersebut
---tags                  Menampilkan semua tag meta
---meta = '[clear;]NAMA = STR; ...'
-                        Menset meta data
-                        Jika "clear;" digunakan, akan melewatkan semua meta dari file masukan.
-                        mendukung format .mp3: album, albumartist, artis, komentar, tanggal, genre, gambar, penerbit, judul, nomor trek, jumlah trek.
-                        mendukung format .mp4 : album, albumartist, artis, komentar, komposer, hak cipta, tanggal, discnumber, genre, lirik, judul, tracknumber.
-                       .flac, .ogg mendukung tag dengan nama apa pun.
-                       Dapat dibaca dari file (misalnya gambar sampul album):
-                       "--meta = gambar = @ file: FILENAME"
---edit-tags        Don't play files but just modify their meta tags.
-                   Set tags with '--meta'.
-                   Supported formats: .mp3(ID3v2+ID3v1)
---meta-from-filename=TEMPLATE
-                   Specify template for auto-tagging from input file name.
-                   Use together with --edit-tags.
-                   .mp3 supports: $album, $albumartist, $artist, $comment, $date, $genre, $publisher, $title, $tracknumber, $tracktotal.
+
+--cue-gaps = INT   Mengontrol track pregaps
+                   0: lewati pregaps:
+                     track01.index01 .. track02.index00
+                   1: (default), celah ditambahkan ke trek sebelumnya:
+                     track01.index01 .. track02.index01
+                   2: celah ditambahkan ke trek sebelumnya (tapi celah awal trek01 tetap digunakan):
+                     track01.index00 .. track02.index01
+                     track02.index01 .. track03.index01
+                   3: celah ditambahkan ke awal trek saat ini:
+                     track01.index00 .. track02.index00
 
 FILTER:
+
 --volume = INT         Pengaturan volume (0% .. 125%)
 --gain = FLOAT         Pengaturan penguatan / redaman dalam dB
+--dynanorm             Penggunaan filter Dynamic Audio Normalizer.
+                       Pengaturan parameter di bagian `mod_conf dynanorm.filter` di file fmedia.conf.
 --auto-attenuate=FLOAT
                    Set ceiling audio level in dB (always negative value) for loud tracks
---prebuffer = TIME     Memulai menyimpan audio yang direkam ke file dengan perintah pengguna, menyimpan beberapa data yang direkam sebelumnya (sebelum perintah dijalankan)
+
 --start-dblevel = DB   Melewati audio awal sampai level sinyal input melebihi DB (-100dB..0dB)
 --stop-dblevel = DB [; TIME] [; MINTIME]
                        Menghentikan proses jika level sinyal input turun di bawah DB untuk waktu TIME (default: 5 detik).
                        Jika MINTIME ditentukan, akan berhenti hanya setelah waktu MINTIME telah berlalu.
---split = TIME         Membagi audio dengan interval waktu yang sama
---dynanorm             Penggunaan filter Dynamic Audio Normalizer.
-                       Pengaturan parameter di bagian `mod_conf dynanorm.filter` di file fmedia.conf.
 
 --pcm-peaks            Menganalisis PCM dan menampilkan beberapa detail
 --pcm-crc              Menampilkan CRC data PCM (harus digunakan dengan --pcm-peaks)
                        Berguna untuk memeriksa hasil konversi audio lossless.
 
+--prebuffer = TIME     Memulai menyimpan audio yang direkam ke file dengan perintah pengguna, menyimpan beberapa data yang direkam sebelumnya (sebelum perintah dijalankan)
+--split = TIME         Membagi audio dengan interval waktu yang sama
+
+--mix                   Putar file input secara bersamaan.
+                        Untuk pengaturan format audio pada file fmedia.conf :: mod_conf "mixer.out".
+                        Catatan: semua masukan harus memiliki nomor saluran/channel dan sample rate yang sama dengan keluaran/output.
+
 ENCODING:
+
 --vorbis.quality = FLOAT
                        Kualitas encoding format Vorbis: -1.0 .. 10.0
 --opus.bitrate = INT   Opus encoding bitrate: 6..510 (VBR)
@@ -92,9 +98,10 @@ ENCODING:
 --aac-profile = STR    Pengaturan profil AAC: LC | DIA | HEv2
 --flac-compression = INT
                        Pengaturan tingkat kompresi FLAC: 0..8
---stream-copy          Menyalin data audio tanpa pengkodean ulang. Format yang didukung: OGG, MPEG.
+--stream-copy          Menyalin data audio tanpa pengkodean ulang. Format yang didukung: .ogg, .mp3.
 
 OUTPUT:
+
 -o, --out = [NAME] .EXT
                    Tidak memutar tetapi akan menyimpan OUTPUT menjadi file (sebagai konversi audio)
                    Jika NAME adalah "@stdout", akan menyimpan ke OUTPUT standar.
@@ -115,7 +122,24 @@ OUTPUT:
 --out-copy-cmd     Memutar dan Menyalin data ke file keluaran yang ditentukan oleh tombol "--out",
                      simpan setiap lagu berdasarkan perintah pengguna
 
+--meta = '[clear;]NAMA = STR; ...'
+                    Menset meta data
+                    Jika "clear;" digunakan, akan melewatkan semua meta dari file masukan.
+                    mendukung format .mp3: album, albumartist, artis, komentar, tanggal, genre, gambar, penerbit, judul, nomor trek, jumlah trek.
+                    mendukung format .mp4 : album, albumartist, artis, komentar, komposer, hak cipta, tanggal, discnumber, genre, lirik, judul, tracknumber.
+                    .flac, .ogg mendukung tag dengan nama apa pun.
+                    Dapat dibaca dari file (misalnya gambar sampul album):
+                       "--meta = gambar = @ file: FILENAME"
+--edit-tags         Don't play files but just modify their meta tags.
+                    Set tags with '--meta'.
+                    Supported formats: .mp3(ID3v2+ID3v1)
+--meta-from-filename=TEMPLATE
+                    Specify template for auto-tagging from input file name.
+                    Use together with --edit-tags.
+                    .mp3 supports: $album, $albumartist, $artist, $comment, $date, $genre, $publisher, $title, $tracknumber, $tracktotal.
+
 OPSI LAIN:
+
 --parallel           Proses file input secara paralel (lihat pada file bagian, fmedia.conf::workers).
                      Harus digunakan dengan parameter '--out'.
 --background         Membuat proses baru yang akan berjalan pada background proses
@@ -140,17 +164,18 @@ OPSI LAIN:
 --debug                Menampilkan info debug ke stdout
 -h, --help             Menampilkan informasi bantuan dan keluar
 
---cue-gaps = INT       Mengontrol track pregaps
-                       0: lewati pregaps:
-                         track01.index01 .. track02.index00
-                       1: (default), celah ditambahkan ke trek sebelumnya:
-                         track01.index01 .. track02.index01
-                       2: celah ditambahkan ke trek sebelumnya (tapi celah awal trek01 tetap digunakan):
-                         track01.index00 .. track02.index01
-                         track02.index01 .. track03.index01
-                       3: celah ditambahkan ke awal trek saat ini:
-                         track01.index00 .. track02.index00
-
 INSTALL:
-- install              Untuk sistem operasi Windows: Menambahkan direktori fmedia pada perangkat pengguna dan membuat shortcut di desktop
+
+--install              Untuk sistem operasi Windows: Menambahkan direktori fmedia pada perangkat pengguna dan membuat shortcut di desktop
 --uninstall            Menghapus perubahan yang dibuat dari parameter '--install'
+
+SOME EXAMPLES:
+
+Play:
+    fmedia play.mp3
+Record:
+    fmedia --record -o rec.flac
+Convert:
+    fmedia input.wav -o output.ogg
+Edit tags:
+    fmedia --edit-tags --meta='artist=ARTIST;title=TITLE' file.mp3

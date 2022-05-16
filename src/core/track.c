@@ -224,13 +224,13 @@ static void trk_open_capt(fm_trk *t)
 {
 	filt_add_optional(t, "#winsleep.sleep");
 	filt_add_optional(t, "dbus.sleep");
-	ffpcm_fmtcopy(&t->props.audio.fmt, &core->props->record_format);
 
-	if (core->props->record_format.channels & ~FFPCM_CHMASK) {
-		t->props.audio.convfmt.channels = core->props->record_format.channels;
-		t->props.audio.fmt.channels = core->props->record_format.channels & FFPCM_CHMASK;
+	const ffpcm *rec = &core->props->record_format;
+	ffpcm_fmtcopy(&t->props.audio.fmt, rec);
+	if (rec->channels & ~FFPCM_CHMASK) {
+		t->props.audio.convfmt.channels = rec->channels;
+		t->props.audio.fmt.channels = rec->channels & FFPCM_CHMASK;
 	}
-
 	addfilter1(t, core->props->record_module);
 
 	addfilter(t, "afilter.until");
@@ -246,6 +246,10 @@ static int trk_addfilters(fm_trk *t)
 	case FMED_TRK_TYPE_NONE:
 	case FMED_TRK_TYPE_EXPAND:
 		return 0;
+
+	case FMED_TRK_TYPE_PLAYBACK:
+	case FMED_TRK_TYPE_CONVERT:
+		break;
 
 	case FMED_TRK_TYPE_PLIST:
 		if (0 != trk_setout_file(t))
@@ -311,7 +315,6 @@ static int trk_addfilters(fm_trk *t)
 
 	if (t->props.type != FMED_TRK_TYPE_MIXOUT && !stream_copy) {
 		ffbool playback = (t->props.type == FMED_TRK_TYPE_PLAYBACK
-			&& FMED_PNULL == (s = trk_getvalstr(t, "output"))
 			&& core->props->playback_module != NULL);
 
 		if (!(playback && t->props.audio.auto_attenuate_ceiling != 0.0))
@@ -376,6 +379,8 @@ static void* trk_create(uint cmd, const char *fn)
 	t->id.len = ffs_fmt(t->sid, t->sid + sizeof(t->sid), "*%L", ffatom_incret(&g->trkid));
 	t->id.ptr = t->sid;
 
+	dbglog(t, "new track:%p  cmd:%u", t, cmd);
+
 	if (NULL == ffvec_allocT(&t->filters, N_FILTERS, fmed_f))
 		goto err;
 
@@ -386,6 +391,7 @@ static void* trk_create(uint cmd, const char *fn)
 		// fallthrough
 
 	case FMED_TRK_TYPE_PLAYBACK:
+	case FMED_TRK_TYPE_CONVERT:
 	case FMED_TRK_TYPE_MIXIN:
 	case FMED_TRK_TYPE_PCMINFO:
 		if (0 != trk_open(t, fn)) {
@@ -795,6 +801,12 @@ static void trk_process(void *udata)
 			if (t->state == TRK_ST_ERR)
 				goto fin;
 			return;
+		}
+
+		if ((t->props.flags & FMED_FSTOP)
+			&& t->props.type == FMED_TRK_TYPE_PLAYBACK) {
+			dbglog(t, "closing stopped playback track");
+			goto fin;
 		}
 
 		if (core_job_shouldyield(t->wid, &jobdata)) {
@@ -1266,6 +1278,9 @@ static ssize_t trk_cmd(void *trk, uint cmd, ...)
 	case FMED_TRACK_XSTART:
 		if (0 != trk_addfilters(t)) {
 			trk_setval(t, "error", 1);
+			trk_free(t);
+			r = -1;
+			break;
 		}
 		if (0 != trk_opened(t)) {
 			trk_free(t);

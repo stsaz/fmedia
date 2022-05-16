@@ -14,13 +14,6 @@ Copyright (c) 2015 Simon Zolin */
 #include <FFOS/thread.h>
 #include <FFOS/file.h>
 
-
-#define FMED_ASSERT(expr) \
-while (!(expr)) { \
-	FF_ASSERT(0); \
-	ffps_exit(1); \
-}
-
 typedef struct fmedia {
 	ffvec workers; //worker[]
 	ffkqu_time kqutime;
@@ -353,6 +346,8 @@ static ssize_t core_cmd(uint signo, ...)
 
 	case FMED_STOP: {
 		FF_ASSERT(core_ismainthr());
+		if (fmed->stopped)
+			break;
 		core_sigmods(signo);
 		FF_WRITEONCE(fmed->stopped, 1);
 		struct worker *w;
@@ -434,7 +429,7 @@ static ssize_t core_cmd(uint signo, ...)
 		r = fmed->tz.real_offset;
 		break;
 
-	case FMED_DATA_FORMAT:
+	case FMED_DATA_FORMAT: {
 		ffstr *data = va_arg(va, void*);
 		r = file_format_detect(data->ptr, data->len);
 		if (r == FILE_UNK)
@@ -442,6 +437,7 @@ static ssize_t core_cmd(uint signo, ...)
 		else
 			r = (ffssize)file_ext[r-1];
 		break;
+	}
 	}
 
 	va_end(va);

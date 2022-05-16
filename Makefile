@@ -116,9 +116,9 @@ ifeq "$(OSFULL)" "windows"
 	FF_O +=	$(OBJ_DIR)/ffwin.o
 	FFOS_SKT := $(OBJ_DIR)/ffwin-skt.o
 else ifeq "$(OSFULL)" "macos"
-	FF_O +=	$(OBJ_DIR)/ffapple.o
-else ifeq "$(OSFULL)" "freebsd"
-	FF_O +=	$(OBJ_DIR)/ffbsd.o
+	FF_O +=	$(OBJ_DIR)/ffunix.o $(OBJ_DIR)/ffapple.o
+else ifeq "$(OSFULL)" "bsd"
+	FF_O +=	$(OBJ_DIR)/ffunix.o $(OBJ_DIR)/ffbsd.o
 else
 	FF_O +=	$(OBJ_DIR)/ffunix.o $(OBJ_DIR)/fflinux.o
 endif
@@ -204,6 +204,9 @@ core.$(SO): $(CORE_O)
 
 #
 $(OBJ_DIR)/%.o: $(SRCDIR)/afilter/%.c $(GLOBDEPS)
+	$(C) $(CFLAGS) $< -o $@
+$(OBJ_DIR)/soundmod.o: $(SRCDIR)/afilter/soundmod.c $(GLOBDEPS) \
+		$(wildcard $(SRCDIR)/afilter/gain.h)
 	$(C) $(CFLAGS) $< -o $@
 $(OBJ_DIR)/%.o: $(PROJDIR)/3pt/crc/%.c $(GLOBDEPS)
 	$(C) $(CFLAGS) $< -o $@

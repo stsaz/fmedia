@@ -35,14 +35,6 @@ static const fmed_mod fmed_sndmod_mod = {
 	&sndmod_iface, &sndmod_sig, &sndmod_destroy, sndmod_conf
 };
 
-//GAIN
-static void* sndmod_gain_open(fmed_filt *d);
-static int sndmod_gain_process(void *ctx, fmed_filt *d);
-static void sndmod_gain_close(void *ctx);
-static const fmed_filter fmed_sndmod_gain = {
-	&sndmod_gain_open, &sndmod_gain_process, &sndmod_gain_close
-};
-
 //UNTIL-TIME
 static void* sndmod_untl_open(fmed_filt *d);
 static int sndmod_untl_process(void *ctx, fmed_filt *d);
@@ -73,6 +65,7 @@ static const struct fmed_filter sndmod_membuf = {
 	&membuf_open, &membuf_write, &membuf_close
 };
 
+#include <afilter/gain.h>
 
 FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 {
@@ -138,37 +131,6 @@ static void sndmod_destroy(void)
 }
 
 
-static void* sndmod_gain_open(fmed_filt *d)
-{
-	ffpcmex *pcm = ffmem_tcalloc1(ffpcmex);
-	if (pcm == NULL)
-		return NULL;
-	*pcm = d->audio.fmt;
-	return pcm;
-}
-
-static void sndmod_gain_close(void *ctx)
-{
-	ffpcmex *pcm = ctx;
-	ffmem_free(pcm);
-}
-
-static int sndmod_gain_process(void *ctx, fmed_filt *d)
-{
-	ffpcmex *pcm = ctx;
-	int db = d->audio.gain;
-	if (db != FMED_NULL) {
-		double gain = ffpcm_db2gain((double)db / 100);
-		ffpcm_gain(pcm, gain, d->data, (void*)d->data, d->datalen / ffpcm_size1(pcm));
-	}
-
-	d->out = d->data;
-	d->outlen = d->datalen;
-	d->datalen = 0;
-	if (d->flags & FMED_FLAST)
-		return FMED_RDONE;
-	return FMED_ROK;
-}
 
 
 typedef struct sndmod_untl {

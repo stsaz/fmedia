@@ -1,20 +1,15 @@
 Anwendung:
-fmedia [OPTIONEN] [EINGABE...]
-
-Standardmäßig werden die angegeben Dateien nacheinander abgespielt.
-Typische Aufnahmekette: WARTESCHLANGE -> EINGABE -> FILTER -> KODIERUNG -> AUSGABE
+    fmedia [OPTIONEN] [EINGABE...]
 
 EINGABE            Datei, Verzeichnis, URL oder ein Platzhalter (WILDCARD)
                    @stdin.EXT: Lese von der Standard Eingabe
 
 OPTIONEN:
 
-WARTESCHLANGE:
---track=N1[,N2...] Wähle ein spezifisches Stück aus der Wiedergabeliste
---repeat-all       Wiederhole alles
---random           Wähle das nächste Stück zufällig
+Typische Aufnahmekette: WARTESCHLANGE -> EINGABE -> FILTER -> KODIERUNG -> AUSGABE
 
 AUDIO GERÄTE:
+
 --list-dev          Liste alle verfügbaren Audio Geräte auf und beende
 --dev=DEVNO         Benutze Gerät zum abspielen
 --dev-capture=DEVNO Benutze Gerät zum aufnehmen
@@ -22,7 +17,7 @@ AUDIO GERÄTE:
                     Benutze Gerät zum abspielen im loopback Modus (Aufnahme erfolgt über playback) (nur WASAPI)
 
 AUDIO FORMAT:
-Standardmäßig werden diese Einstellungen für die Ausgabe genutzt. Beim Aufnehmen gelten sie ebenfalls für die Eingabe.
+
 --format=STR       Setzt das Audio Format (int8 | int16 | int24 | int32 | float32)
 --rate=INT         Setzt die Abtastrate (sample rate)
                    Hinweis: Manche Einstellungen könnten zusammen mit der Anpassung der Abtastrate nicht funktionieren
@@ -32,57 +27,68 @@ Standardmäßig werden diese Einstellungen für die Ausgabe genutzt. Beim Aufneh
                     --channels=left: Benutze nur den linken Kanal
                     --channels=right: Benutze nur den rechten Kanal
 
+WARTESCHLANGE:
+
+--track=N1[,N2...] Wähle ein spezifisches Stück aus der Wiedergabeliste
+--repeat-all       Wiederhole alles
+--random           Wähle das nächste Stück zufällig
+
 EINGABE:
+
 --record           Audio aufnehmen. Das Standard Audio Format ist in fmedia.conf::record_format hinterlegt.
---mix              Spiele alle eingegebenen Dateien gleichzeitig. Das Audio Format kann in fmedia.conf::mod_conf "mixer.out" angepasst werden.
-                   Hinweis: alle Eingaben müssen die gleiche Anzahl an Kanälen und Abtastrate wie die Ausgabe haben.
+--capture-buffer   Length (in msec) of the capture buffer (See also fmedia.conf::*.in.buffer_length)
+
 --flist=FILE       Lese alle Dateinamen von FILE
 --include='WILDCARD[;WILDCARD]'
                    Binde nur die Dateien ein, die dem Platzhalter (WILDCARD) entsprechen. Es wird nicht zwischen Groß- und Kleinschreibung unterschieden (case-insensitive)
 --exclude='WILDCARD[;WILDCARD]'
                    Schließe die Dateien und Ordner aus, die dem Platzhalter (WILDCARD) entsprechen. Es wird nicht zwischen Groß- und Kleinschreibung unterschieden (case-insensitive)
+-i, --info         Zeige Informationen zum Medium
+--tags             Zeige alle Meta Schlagwörter (meta tags)
+--fseek=BYTE       Setzt ein Offset für die Eingabedatei
 --seek=TIME        Suche den angegebenen Zeitpunkt: [[HH:]MM:]SS[:MSC]
 --until=TIME       Stoppe zum angegebenen Zeitpunkt
                    Besondere Werte:
                      'playback-end': Beende die Aufnahme sobald das letzte Stück beendet wurde
---prebuffer=TIME   Start recording by a command from user, saving the previously bufferred seconds of audio
+
+--cue-gaps=INT     Fügt Vorlücken (pregaps) zur Aufnahme hinzu
+                   0: überspringe Vorlücke:
+                     track01.index01 .. track02.index00
+                   1: (Standard), Lücke wird zum vorherigen Stück addiert:
+                     track01.index01 .. track02.index01
+                   2: Lücke wird zum vorherigen Stück addiert (aber die Vorlücke von track01 bleibt erhalten):
+                     track01.index00 .. track02.index01
+                     track02.index01 .. track03.index01
+                   3: Lücke wird zum Anfang des aktuellen Stücks hinzugefügt:
+                     track01.index00 .. track02.index00
+
+FILTER:
+
+--volume=INT       Setzt Lautstärke (0% .. 125%)
+--gain=FLOAT       Setzt Verstärkung (gain) bzw. Abschwächung in dB
+--dynanorm         Benutze den Filter Dynamic Audio Normalizer.
+                   Parameter hierfür können in Abschnitt `mod_conf dynanorm.filter` in der Datei fmedia.conf gesetzt werden.
+--auto-attenuate=FLOAT
+                   Set ceiling audio level in dB (always negative value) for loud tracks
+
 --start-dblevel=DB Überspringe das initiale Audio solange bis das Eingabesignal über das Level DB geht (-100dB..0dB)
 --stop-dblevel=DB[;TIME][;MINTIME]
                    Stoppe den Prozess wenn das Eingangssignal unter das Level DB für TIME Zeiteinheiten geht (Standard: 5 sek).
                    Wenn MINTIME spezifiziert ist, stoppe erst wenn MINTIME Zeiteinheiten vorbei sind.
---fseek=BYTE       Setzt ein Offset für die Eingabedatei
--i, --info         Zeige Informationen zum Medium
---tags             Zeige alle Meta Schlagwörter (meta tags)
---meta='[clear;]NAME=STR;...'
-                   Setzt Metadaten
-                   Wenn "clear;" spezifiziert ist, überspringe all Metadaten der Eingabedatei.
-                   .mp3 unterstützt: album, albumartist, artist, comment, date, genre, picture, publisher, title, tracknumber, tracktotal.
-                   .mp4 unterstützt: album, albumartist, artist, comment, composer, copyright, date, discnumber, genre, lyrics, title, tracknumber.
-                   .flac, .ogg unterstützen jegliche Schlagwörter.
-                   Die Werte dazu können aus einer Datei gelesen werden (z. B. album cover picture):
-                     "--meta=picture=@file:FILENAME"
---edit-tags        Don't play files but just modify their meta tags.
-                   Set tags with '--meta'.
-                   Supported formats: .mp3(ID3v2+ID3v1)
---meta-from-filename=TEMPLATE
-                   Specify template for auto-tagging from input file name.
-                   Use together with --edit-tags.
-                   .mp3 supports: $album, $albumartist, $artist, $comment, $date, $genre, $publisher, $title, $tracknumber, $tracktotal.
-
-FILTER:
---volume=INT       Setzt Lautstärke (0% .. 125%)
---gain=FLOAT       Setzt Verstärkung (gain) bzw. Abschwächung in dB
---auto-attenuate=FLOAT
-                   Set ceiling audio level in dB (always negative value) for loud tracks
---split=TIME       Split audio by equal time intervals
---dynanorm         Benutze den Filter Dynamic Audio Normalizer.
-                   Parameter hierfür können in Abschnitt `mod_conf dynanorm.filter` in der Datei fmedia.conf gesetzt werden.
 
 --pcm-peaks        Analysiere PCM and gebe Details dazu aus
 --pcm-crc          Gibt CRC der PCM Daten aus (muss mit --pcm-peaks genutzt werden)
                    Nützlich um die Ergebnisse einer verlustfreien Audio Konvertierung zu überprüfen
 
+--prebuffer=TIME   Start recording by a command from user, saving the previously bufferred seconds of audio
+--split=TIME       Split audio by equal time intervals
+
+--mix              Spiele alle eingegebenen Dateien gleichzeitig.
+                   Das Audio Format kann in fmedia.conf::mod_conf "mixer.out" angepasst werden.
+                   Hinweis: alle Eingaben müssen die gleiche Anzahl an Kanälen und Abtastrate wie die Ausgabe haben.
+
 KODIERUNG:
+
 --vorbis.quality=FLOAT
                    Vorbis Kodierungsqualität: -1.0 .. 10.0
 --opus.bitrate=INT Opus Kodierungs Bitrate: 6..510 (VBR)
@@ -91,9 +97,10 @@ KODIERUNG:
 --aac-profile=STR  Setzt AAC Profil: LC | HE | HEv2
 --flac-compression=INT
                    FLAC Kompressionslevel: 0..8
---stream-copy      Kopiert Audiodaten ohne diese erneut zu kodieren. Unterstützte Formate: OGG, MPEG.
+--stream-copy      Kopiert Audiodaten ohne diese erneut zu kodieren. Unterstützte Formate: .ogg, .mp3.
 
 AUSGABE:
+
 -o, --out=[NAME].EXT
                    Keine Wiedergabe, sondern Ausgabe in eine Datei schreiben (d.h. konvertiere Audio)
                    Wenn der NAME "@stdout" ist, schreibe auf die Standardausgabe.
@@ -114,7 +121,24 @@ AUSGABE:
 --out-copy-cmd     Spiele Daten ab UND kopiere sie in die Ausgabedatei welche mit "--out" festgelegt wurde,
                      speichere jedes Stück nur auf Befehl des Anwenders/der Anwenderin
 
+--meta='[clear;]NAME=STR;...'
+                   Setzt Metadaten
+                   Wenn "clear;" spezifiziert ist, überspringe all Metadaten der Eingabedatei.
+                   .mp3 unterstützt: album, albumartist, artist, comment, date, genre, picture, publisher, title, tracknumber, tracktotal.
+                   .mp4 unterstützt: album, albumartist, artist, comment, composer, copyright, date, discnumber, genre, lyrics, title, tracknumber.
+                   .flac, .ogg unterstützen jegliche Schlagwörter.
+                   Die Werte dazu können aus einer Datei gelesen werden (z. B. album cover picture):
+                     "--meta=picture=@file:FILENAME"
+--edit-tags        Don't play files but just modify their meta tags.
+                   Set tags with '--meta'.
+                   Supported formats: .mp3(ID3v2+ID3v1)
+--meta-from-filename=TEMPLATE
+                   Specify template for auto-tagging from input file name.
+                   Use together with --edit-tags.
+                   .mp3 supports: $album, $albumartist, $artist, $comment, $date, $genre, $publisher, $title, $tracknumber, $tracktotal.
+
 ANDERE OPTIONEN:
+
 --parallel         Verarbeite Eingabedateien parallel (fmedia.conf::workers).
                    Muss mit '--out' genutzt werden.
 --background       Lauf im Hintergrund
@@ -139,17 +163,18 @@ ANDERE OPTIONEN:
 --debug            Zeige Debug-Informationen in der Standardausgabe (stdout) an
 -h, --help         Zeige Hilfe and und beende
 
---cue-gaps=INT     Fügt Vorlücken (pregaps) zur Aufnahme hinzu
-                   0: überspringe Vorlücke:
-                     track01.index01 .. track02.index00
-                   1: (Standard), Lücke wird zum vorherigen Stück addiert:
-                     track01.index01 .. track02.index01
-                   2: Lücke wird zum vorherigen Stück addiert (aber die Vorlücke von track01 bleibt erhalten):
-                     track01.index00 .. track02.index01
-                     track02.index01 .. track03.index01
-                   3: Lücke wird zum Anfang des aktuellen Stücks hinzugefügt:
-                     track01.index00 .. track02.index00
-
 INSTALLIEREN:
+
 --install          Windows: Fügt das Verzeichnis "fmedia" zur Benutzungsumgebung hinzu und erzeugt ein Shortcut auf dem Desktop
 --uninstall        Deinstalliere alle Änderungen, die durch '--install' erzeugt wurden
+
+SOME EXAMPLES:
+
+Play:
+    fmedia play.mp3
+Record:
+    fmedia --record -o rec.flac
+Convert:
+    fmedia input.wav -o output.ogg
+Edit tags:
+    fmedia --edit-tags --meta='artist=ARTIST;title=TITLE' file.mp3

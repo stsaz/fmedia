@@ -1,87 +1,93 @@
 Usage:
-fmedia [OPTIONS] [INPUT...]
-
-Par défaut, les fichiers sont joués un par un.
-Enchainement typique d'une piste : QUEUE -> INPUT -> FILTERS -> ENCODING -> OUTPUT
+    fmedia [OPTIONS] [INPUT...]
 
 INPUT              fichier, dossier, URL ou wildcard
                    @stdin.EXT: Lecture à partir de l'entrée standard.
 
 OPTIONS:
 
-QUEUE:
---track=N1[,N2...] Sélectionne le numéro d'une piste spécifique dans la playlist.
---repeat-all       Répète la totalité.
---random           Choisit la prochaine piste aléatoirement.
+Enchainement typique d'une piste : QUEUE -> INPUT -> FILTERS -> ENCODING -> OUTPUT
 
 AUDIO DEVICES:
+
 --list-dev          Liste les périphériques audio et quitte.
 --dev=DEVNO         Utilise le périphérique de lecture.
 --dev-capture=DEVNO Utilise le périphérique de capture.
 --dev-loopback=DEVNO
-		    Utilise le périphérique de lecture en mode boucle (enregistrement à partir de la lecture) (WASAPI seulement).
+                    Utilise le périphérique de lecture en mode boucle (enregistrement à partir de la lecture) (WASAPI seulement).
 
 AUDIO FORMAT:
-Par défaut, ces paramètres sont utilisés pour la sortie. Lors de l'enregistrement, ils sont appliqués pour l'entrée.
+
 --format=STR       Détermine le format audio (int8 | int16 | int24 | int32 | float32)
 --rate=INT         Détermine le taux d'échantillonnage.
-		   Note : Certains paramètres peuvent ne pas fonctionner avec certains taux d'échantillonnage.
+                   Note : Certains paramètres peuvent ne pas fonctionner avec certains taux d'échantillonnage.
 --channels=STR     Détermine le numéro du canal.
                    Conversion de la stéréo en mono :
                     --channels=mono: convertit tous les canaux en un seul
                     --channels=left: utilise uniquement le canal gauche
                     --channels=right: utilise uniquement le canal droit
+QUEUE:
+
+--track=N1[,N2...] Sélectionne le numéro d'une piste spécifique dans la playlist.
+--repeat-all       Répète la totalité.
+--random           Choisit la prochaine piste aléatoirement.
+
 INPUT:
+
 --record           Enregistrement audio. Déterminer le format audio par défaut dans fmedia.conf::record_format.
---mix              Joue les fichiers audio simultanément. Déterminer le format audio dans fmedia.conf::mod_conf "mixer.out".
-                   Note: Toutes les entrées doivent avoir un numéro de canal et une fréquence d'échantillonnage égaux à la sortie.
+--capture-buffer   Length (in msec) of the capture buffer (See also fmedia.conf::*.in.buffer_length)
+
 --flist=FILE       Lit les noms de fichier à partir de FILE.
 --include='WILDCARD[;WILDCARD]'
-		   Ne prend en compte que les fichiers correspondant à une wildcard (sensible à la casse)
+                   Ne prend en compte que les fichiers correspondant à une wildcard (sensible à la casse)
 --exclude='WILDCARD[;WILDCARD]'
-		   Exclue les fichiers et dossiers correspondant à une wildcard (sensible à la casse)
+                   Exclue les fichiers et dossiers correspondant à une wildcard (sensible à la casse)
+-i, --info         Ne joue pas mais montre les infomations du média
+--tags             Imprime tous les meta tags
+--fseek=BYTE       Set input file offset                                                        (need translation)
 --seek=TIME        Cherche une référence temporelle : [[HH:]MM:]SS[:MSC]
 --until=TIME       Stoppe à l'instant T
                    Valeurs speciales :
                      'playback-end': arrête l'enregistrement quand la dernière piste est finie.
---prebuffer=TIME   Démarre l'enregistrement suite à une commande issue par l'utilisateur en sauvegardant les données audio préalablement stockées dans le buffer.
---start-dblevel=DB Ignore le signal audio initial tant qu'il n'atteint pas un niveau en décibels (DB) donné.(-100dB..0dB)
---stop-dblevel=DB[;TIME][;MINTIME]
-	           Arrête le traitement si le signal d'entrée descend sous un niveau de décibels donné DB pour une durée TIME (défaut : 5 sec).
-		   Si MINTIME est spécifié, arrête seulement après qu'un temps MINTIME se soit écoulé.
---fseek=BYTE       Set input file offset														(need translation)
--i, --info         Ne joue pas mais montre les infomations du média
---tags             Imprime tous les meta tags
---meta='[clear;]NAME=STR;...'
-                   Détermine les meta data (données de référence)
-                   Si "clear;" est spécifié, ignorer toutes les références du fichier d'entrée.
-                   .mp3 supports: album, albumartist, artist, comment, date, genre, picture, publisher, title, tracknumber, tracktotal.
-                   .mp4 supports: album, albumartist, artist, comment, composer, copyright, date, discnumber, genre, lyrics, title, tracknumber.
-                   .flac, .ogg supporte les tags quelque soit leur nom.
-                   Donnée pouvant être lue à partir du fichier (e.g. image de la couverture de l'album):
-                     "--meta=picture=@file:FILENAME"
---edit-tags        Don't play files but just modify their meta tags.
-                   Set tags with '--meta'.
-                   Supported formats: .mp3(ID3v2+ID3v1)
---meta-from-filename=TEMPLATE
-                   Specify template for auto-tagging from input file name.
-                   Use together with --edit-tags.
-                   .mp3 supports: $album, $albumartist, $artist, $comment, $date, $genre, $publisher, $title, $tracknumber, $tracktotal.
 
-FILTRES	:
+--cue-gaps=INT     Controle les pregaps de la piste
+                   0: Ne joue pas les pregaps:
+                     track01.index01 .. track02.index00
+                   1: (défaut), un gap (espace) est ajouté à la piste précédente :
+                     track01.index01 .. track02.index01
+                   2: un gap est ajouté à la piste précédente (mais le prégap de la track01 est préservé) :
+                     track01.index00 .. track02.index01
+                     track02.index01 .. track03.index01
+                   3: un espace est ajouté au début de la piste utilisée :
+                     track01.index00 .. track02.index00
+
+FILTRES:
+
 --volume=INT       Détermine le volume (0% .. 125%)
 --gain=FLOAT       Détermine le gain/attenuation en dB
---auto-attenuate=FLOAT
-                   Set ceiling audio level in dB (always negative value) for loud tracks
---split=TIME       Tronçonne l'audio par intervals de temps égaux
 --dynanorm         Utilise Dynamic Audio Normalizer filter.
                    Détermine les paramêtres dans la section `mod_conf dynanorm.filter` dans fmedia.conf.
+--auto-attenuate=FLOAT
+                   Set ceiling audio level in dB (always negative value) for loud tracks
+
+--start-dblevel=DB Ignore le signal audio initial tant qu'il n'atteint pas un niveau en décibels (DB) donné.(-100dB..0dB)
+--stop-dblevel=DB[;TIME][;MINTIME]
+                   Arrête le traitement si le signal d'entrée descend sous un niveau de décibels donné DB pour une durée TIME (défaut : 5 sec).
+                   Si MINTIME est spécifié, arrête seulement après qu'un temps MINTIME se soit écoulé.
 
 --pcm-peaks        Analyse PCM et imprime certains détails
 --pcm-crc          Imprime CRC des données PCM (doit être utilisé avec--pcm-peaks)
-		   Utile afin de vérifier les résutats d'une conversion audio sans perte (lossless)
+                   Utile afin de vérifier les résutats d'une conversion audio sans perte (lossless)
 
-ENCODAGE :
+--prebuffer=TIME   Démarre l'enregistrement suite à une commande issue par l'utilisateur en sauvegardant les données audio préalablement stockées dans le buffer.
+--split=TIME       Tronçonne l'audio par intervals de temps égaux
+
+--mix              Joue les fichiers audio simultanément.
+                   Déterminer le format audio dans fmedia.conf::mod_conf "mixer.out".
+                   Note: Toutes les entrées doivent avoir un numéro de canal et une fréquence d'échantillonnage égaux à la sortie.
+
+ENCODAGE:
+
 --vorbis.quality=FLOAT
                    Qualité de l'encodage Vorbis : -1.0 .. 10.0
 --opus.bitrate=INT Taux d'encodage Opus : 6..510 (VBR)
@@ -90,11 +96,12 @@ ENCODAGE :
 --aac-profile=STR  Détermine le profil AAC : LC | HE | HEv2
 --flac-compression=INT
                    Niveau de compression FLAC : 0..8
---stream-copy      Copie les données audio sans re-encodage. Formats supportés: OGG, MPEG.
+--stream-copy      Copie les données audio sans re-encodage. Formats supportés: .ogg, .mp3.
 
-SORTIE :
+SORTIE:
+
 -o, --out=[NAME].EXT
-		   Ne joue pas mais écrit la sortie dans un fichier (i.e. conversion audio)
+                   Ne joue pas mais écrit la sortie dans un fichier (i.e. conversion audio)
                    Si NAME est "@stdout", écrit vers la sortie standard.
                    Le format de sortie est choisi par "EXT" (voir fmedia.conf::output_ext).
                    Variables supportées :
@@ -113,7 +120,24 @@ SORTIE :
 --out-copy-cmd     Joue ET copy des données vers le fichier de sortie spécifié par le switch "--out",
                      sauve chaque piste en respectant les commandes de l'utilisateur
 
-AUTRES OPTIONS :
+--meta='[clear;]NAME=STR;...'
+                   Détermine les meta data (données de référence)
+                   Si "clear;" est spécifié, ignorer toutes les références du fichier d'entrée.
+                   .mp3 supports: album, albumartist, artist, comment, date, genre, picture, publisher, title, tracknumber, tracktotal.
+                   .mp4 supports: album, albumartist, artist, comment, composer, copyright, date, discnumber, genre, lyrics, title, tracknumber.
+                   .flac, .ogg supporte les tags quelque soit leur nom.
+                   Donnée pouvant être lue à partir du fichier (e.g. image de la couverture de l'album):
+                     "--meta=picture=@file:FILENAME"
+--edit-tags        Don't play files but just modify their meta tags.
+                   Set tags with '--meta'.
+                   Supported formats: .mp3(ID3v2+ID3v1)
+--meta-from-filename=TEMPLATE
+                   Specify template for auto-tagging from input file name.
+                   Use together with --edit-tags.
+                   .mp3 supports: $album, $albumartist, $artist, $comment, $date, $genre, $publisher, $title, $tracknumber, $tracktotal.
+
+AUTRES OPTIONS:
+
 --parallel         Traite les fichiers entrée en parallèle (fmedia.conf::workers).
                    Doit être utilisé avec '--out'.
 --background       Crée un nouveau processus qui jouera en arrière plan.
@@ -138,17 +162,18 @@ AUTRES OPTIONS :
 --debug            Imprime les infos de débuggage vers stdout
 -h, --help         Imprime les infos d'aide et quitte
 
---cue-gaps=INT     Controle les pregaps de la piste
-                   0: Ne joue pas les pregaps:
-                     track01.index01 .. track02.index00
-                   1: (défaut), un gap (espace) est ajouté à la piste précédente :
-                     track01.index01 .. track02.index01
-                   2: un gap est ajouté à la piste précédente (mais le prégap de la track01 est préservé) :
-                     track01.index00 .. track02.index01
-                     track02.index01 .. track03.index01
-                   3: un espace est ajouté au début de la piste utilisée :
-                     track01.index00 .. track02.index00
-
 INSTALL:
+
 --install          Windows: ajoute un dossier fmedia dans l'environnement de l'utilisateur et crée un raccourcis sur le bureau
 --uninstall        Annule les changements effectués par '--install'
+
+SOME EXAMPLES:
+
+Play:
+    fmedia play.mp3
+Record:
+    fmedia --record -o rec.flac
+Convert:
+    fmedia input.wav -o output.ogg
+Edit tags:
+    fmedia --edit-tags --meta='artist=ARTIST;title=TITLE' file.mp3

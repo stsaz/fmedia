@@ -89,6 +89,18 @@ static void que_play(entry *e)
 	que_play2(e, 0);
 }
 
+static int have_output(entry *ent)
+{
+	const ffstr *dict = ent->dict.ptr;
+	for (uint i = 0;  i != ent->dict.len;  i += 2) {
+		ffstr k = dict[i], v = dict[i + 1];
+		if ((ffssize)v.len >= 0)
+			if (ffstr_eqz(&k, "output"))
+				return 1;
+	}
+	return 0;
+}
+
 static void que_play2(entry *ent, uint flags)
 {
 	fmed_que_entry *e = &ent->e;
@@ -97,6 +109,8 @@ static void que_play2(entry *ent, uint flags)
 		type = FMED_TRK_TYPE_PCMINFO;
 	else if (qu->mixing)
 		type = FMED_TRK_TYPE_MIXIN;
+	else if ((flags & 1) || have_output(ent))
+		type = FMED_TRK_TYPE_CONVERT;
 	void *trk = qu->track->create(type, e->url.ptr);
 	uint i;
 
@@ -127,7 +141,7 @@ static void que_play2(entry *ent, uint flags)
 	if (e->to != 0 && FMED_NULL == t->audio.until)
 		t->audio.until = e->to - e->from;
 
-	ffstr *dict = ent->dict.ptr;
+	const ffstr *dict = ent->dict.ptr;
 	for (i = 0;  i != ent->dict.len;  i += 2) {
 		if ((ssize_t)dict[i + 1].len >= 0)
 			qu->track->setvalstr(trk, dict[i].ptr, dict[i + 1].ptr);
@@ -213,13 +227,11 @@ static void que_trk_close(void *ctx)
 	t->e->trk_err = (err != FMED_NULL);
 
 	struct quetask *qt = ffmem_new(struct quetask);
-	if (qt != NULL) {
-		qt->cmd = CMD_TRKFIN;
-		if (t->d->type == FMED_TRK_TYPE_EXPAND && e->plist->expand_all)
-			qt->cmd = CMD_TRKFIN_EXPAND;
-		qt->param = (size_t)t->e;
-		que_task_add(qt);
-	}
+	qt->cmd = CMD_TRKFIN;
+	if (t->d->type == FMED_TRK_TYPE_EXPAND && e->plist->expand_all)
+		qt->cmd = CMD_TRKFIN_EXPAND;
+	qt->param = (size_t)t->e;
+	que_task_add(qt);
 
 	if (t->d->type == FMED_TRK_TYPE_EXPAND && qu->onchange != NULL)
 		qu->onchange(&e->e, FMED_QUE_ONUPDATE);
@@ -276,3 +288,7 @@ static void que_ontrkfin(entry *e)
 end:
 	ent_unref(e);
 }
+
+static const fmed_filter fmed_que_trk = {
+	que_trk_open, que_trk_process, que_trk_close
+};

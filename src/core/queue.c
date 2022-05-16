@@ -107,13 +107,6 @@ static void pl_expand_next(plist *pl, entry *e);
 #include <core/queue-entry.h>
 #include <core/queue-track.h>
 
-//QUEUE-TRACK
-static void* que_trk_open(fmed_filt *d);
-static int que_trk_process(void *ctx, fmed_filt *d);
-static void que_trk_close(void *ctx);
-static const fmed_filter fmed_que_trk = {
-	&que_trk_open, &que_trk_process, &que_trk_close
-};
 static const fmed_conf_arg que_conf_args[] = {
 	{ "next_if_error",	FMC_BOOL8,  FMC_O(struct que_conf, next_if_err) },
 	{}
@@ -863,16 +856,18 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 		break;
 
 	case FMED_QUE_RMDEAD: {
+		int n = 0;
 		fflist_item *it;
 		FFLIST_FOR(ents, it) {
 			e = FF_GETPTR(entry, sib, it);
 			it = it->next;
 			if (!fffile_exists(e->e.url.ptr)) {
 				que_cmd(FMED_QUE_RM, e);
+				n++;
 			}
 		}
-		}
-		break;
+		return n;
+	}
 
 	case FMED_QUE_METASET:
 		{

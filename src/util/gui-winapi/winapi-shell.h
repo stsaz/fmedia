@@ -61,7 +61,7 @@ static inline int ffui_fop_del(const char *const *names, ffsize cnt, ffuint flag
 		}
 	}
 
-	SHFILEOPSTRUCT fs = {};
+	SHFILEOPSTRUCTW fs = {};
 	ffsize cap = _ff_arrzz_copy(NULL, 0, names, cnt);
 	if (NULL == (fs.pFrom = ffws_alloc(cap)))
 		return -1;
@@ -69,7 +69,7 @@ static inline int ffui_fop_del(const char *const *names, ffsize cnt, ffuint flag
 
 	fs.wFunc = FO_DELETE;
 	fs.fFlags = flags;
-	int r = SHFileOperation(&fs);
+	int r = SHFileOperationW(&fs);
 
 	ffmem_free((void*)fs.pFrom);
 	return r;
