@@ -67,31 +67,10 @@ static int audio_in_open(audio_in *a, fmed_filt *d)
 		if (r == FFAUDIO_EFORMAT) {
 			if (first_try) {
 				first_try = 0;
-				int new_format = 0;
-
-				if (conf.format != in_conf.format) {
-					if (d->audio.convfmt.format == 0)
-						d->audio.convfmt.format = d->audio.fmt.format;
-					d->audio.fmt.format = ffaudio_to_ffpcm(conf.format);
-					new_format = 1;
-				}
-
-				if (conf.sample_rate != in_conf.sample_rate) {
-					if (d->audio.convfmt.sample_rate == 0)
-						d->audio.convfmt.sample_rate = d->audio.fmt.sample_rate;
-					d->audio.fmt.sample_rate = conf.sample_rate;
-					new_format = 1;
-				}
-
-				if (conf.channels != in_conf.channels) {
-					if (d->audio.convfmt.channels == 0)
-						d->audio.convfmt.channels = d->audio.fmt.channels;
-					d->audio.fmt.channels = conf.channels;
-					new_format = 1;
-				}
-
-				if (new_format)
-					continue;
+				d->audio.fmt.format = ffaudio_to_ffpcm(conf.format);
+				d->audio.fmt.sample_rate = conf.sample_rate;
+				d->audio.fmt.channels = conf.channels;
+				continue;
 			}
 
 			if (aflags & FFAUDIO_O_HWDEV) {

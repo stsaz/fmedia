@@ -265,12 +265,10 @@ static void trk_prep(fmed_cmd *fmed, fmed_trk *trk)
 	trk->out_overwrite = fmed->overwrite;
 	trk->out_preserve_date = fmed->preserve_date;
 
-	if (fmed->out_format != 0)
-		trk->audio.convfmt.format = fmed->out_format;
-	if (fmed->out_channels != 0)
-		trk->audio.convfmt.channels = fmed->out_channels;
-	if (fmed->out_rate != 0)
-		trk->audio.convfmt.sample_rate = fmed->out_rate;
+	trk->audio.fmt.format = fmed->out_format;
+	trk->audio.fmt.channels = fmed->out_channels;
+	trk->audio.fmt.sample_rate = fmed->out_rate;
+	trk->audio.convfmt = trk->audio.fmt;
 
 	trk->pcm_peaks = fmed->pcm_peaks;
 	trk->pcm_peaks_crc = fmed->pcm_crc;
@@ -390,9 +388,17 @@ static void* rec_track_start(fmed_cmd *cmd, fmed_trk *trkinfo, uint flags)
 		return NULL;
 
 	fmed_trk *ti = track->conf(trk);
-	ffpcmex fmt = ti->audio.fmt;
+	ffpcmex def_fmt = ti->audio.fmt;
 	track->copy_info(ti, trkinfo);
-	ti->audio.fmt = fmt;
+
+	// update audio format
+	ti->audio.fmt = def_fmt;
+	if (cmd->out_format != 0)
+		ti->audio.fmt.format = cmd->out_format;
+	if (cmd->out_channels != 0)
+		ti->audio.fmt.channels = cmd->out_channels;
+	if (cmd->out_rate != 0)
+		ti->audio.fmt.sample_rate = cmd->out_rate;
 
 	if (flags & 1)
 		track->setval(trk, "capture_device", cmd->captdev_name);
