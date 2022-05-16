@@ -4,6 +4,8 @@ Copyright (c) 2015 Simon Zolin */
 #include <fmedia.h>
 #include <adev/audio.h>
 
+#undef dbglog1
+#define dbglog1(t, fmt, ...)  fmed_dbglog(core, t, "wasapi", fmt, ##__VA_ARGS__)
 
 static const fmed_core *core;
 
@@ -11,6 +13,7 @@ typedef struct wasapi_mod {
 	ffaudio_buf *out;
 	fftimerqueue_node tmr;
 	ffpcm fmt;
+	ffvec fmts; // struct fmt_pair[]
 	audio_out *usedby;
 	const fmed_track *track;
 	uint dev_idx;
@@ -135,8 +138,11 @@ static int wasapi_sig(uint signo)
 	return 0;
 }
 
-static void wasapi_stream_close(void)
+static void wasapi_buf_close()
 {
+	if (mod->out == NULL)
+		return;
+	dbglog1(NULL, "free buffer");
 	ffwasapi.free(mod->out);
 	mod->out = NULL;
 }
@@ -146,7 +152,8 @@ static void wasapi_destroy(void)
 	if (mod == NULL)
 		return;
 
-	ffwasapi.free(mod->out);
+	wasapi_buf_close();
+	ffvec_free(&mod->fmts);
 	ffwasapi.uninit();
 	ffmem_free(mod);
 	mod = NULL;
@@ -206,6 +213,7 @@ static void* wasapi_open(fmed_filt *d)
 	w->audio = &ffwasapi;
 	w->track = mod->track;
 	w->trk = d->trk;
+	w->fx = d;
 	return w;
 }
 
@@ -223,6 +231,7 @@ static int wasapi_create(audio_out *w, fmed_filt *d)
 
 	ffpcm_fmtcopy(&fmt, &d->audio.convfmt);
 	w->buffer_length_msec = wasapi_out_conf.buflen;
+	w->try_open = (w->state == I_TRYOPEN);
 
 	int excl = 0;
 	int64 lowlat;
@@ -233,45 +242,53 @@ static int wasapi_create(audio_out *w, fmed_filt *d)
 
 	if (mod->out != NULL) {
 
+		core->timer(&mod->tmr, 0, 0); // stop 'wasapi_close_tmr' timer
+
 		audio_out *cur = mod->usedby;
 		if (cur != NULL) {
 			mod->usedby = NULL;
-			core->timer(&mod->tmr, 0, 0);
 			audio_out_onplay(cur);
 		}
 
-		if (fmt.channels == mod->fmt.channels
-			&& fmt.format == mod->fmt.format
-			&& (!excl || fmt.sample_rate == mod->fmt.sample_rate)
-			&& mod->dev_idx == w->dev_idx && mod->excl == excl) {
+		// Note: we don't support cases when devices are switched
+		if (mod->dev_idx == w->dev_idx && mod->excl == excl) {
+			if (ffpcm_eq(&fmt, &mod->fmt)) {
+				dbglog1(NULL, "stop/clear");
+				ffwasapi.stop(mod->out);
+				ffwasapi.clear(mod->out);
+				w->stream = mod->out;
 
-			if (!excl && fmt.sample_rate != mod->fmt.sample_rate) {
-				d->audio.convfmt.sample_rate = mod->fmt.sample_rate;
+				ffwasapi.dev_free(w->dev);
+				w->dev = NULL;
+
+				reused = 1;
+				goto fin;
 			}
 
-			ffwasapi.stop(mod->out);
-			ffwasapi.clear(mod->out);
-			w->stream = mod->out;
-
-			ffwasapi.dev_free(w->dev);
-			w->dev = NULL;
-
-			reused = 1;
-			goto fin;
+			const ffpcm *good_fmt;
+			if (w->try_open && NULL != (good_fmt = fmt_conv_find(&mod->fmts, &fmt))
+				&& ffpcm_eq(good_fmt, &mod->fmt)) {
+				// Don't try to reopen the buffer, because it's likely to fail again.
+				// Instead, just use the format ffaudio set for us previously.
+				ffpcm_fmtcopy(&d->audio.convfmt, good_fmt);
+				w->state = I_OPEN;
+				return FMED_RMORE;
+			}
 		}
 
-		wasapi_stream_close();
+		wasapi_buf_close();
 	}
 
 	if (excl)
 		w->aflags = FFAUDIO_O_EXCLUSIVE;
-	w->try_open = (w->state == I_TRYOPEN);
+	w->aflags |= FFAUDIO_O_UNSYNC_NOTIFY;
 	r = audio_out_open(w, d, &fmt);
-	if (r == FMED_RMORE) {
+	if (r == FFAUDIO_EFORMAT) {
+		fmt_conv_add(&mod->fmts, &fmt, &d->audio.convfmt);
 		w->state = I_OPEN;
 		return FMED_RMORE;
-	} else if (r != FMED_ROK)
-		return r;
+	} else if (r != 0)
+		return FMED_RERR;
 
 	ffwasapi.dev_free(w->dev);
 	w->dev = NULL;
@@ -283,9 +300,10 @@ static int wasapi_create(audio_out *w, fmed_filt *d)
 
 fin:
 	mod->usedby = w;
-	dbglog(core, d->trk, "wasapi", "%s buffer %ums, %uHz, excl:%u"
+	dbglog1(d->trk, "%s buffer %ums, %s/%uHz/%u, excl:%u"
 		, reused ? "reused" : "opened", w->buffer_length_msec
-		, mod->fmt.sample_rate, excl);
+		, ffpcm_format_str(mod->fmt.format), mod->fmt.sample_rate, mod->fmt.channels
+		, excl);
 
 	fmed_timer_set(&mod->tmr, audio_out_onplay, w);
 	if (0 != core->timer(&mod->tmr, w->buffer_length_msec / 3, 0))
@@ -294,20 +312,24 @@ fin:
 	return 0;
 }
 
+void wasapi_close_tmr(void *param)
+{
+	wasapi_buf_close();
+}
+
 static void wasapi_close(void *ctx)
 {
 	audio_out *w = ctx;
 	if (mod->usedby == w) {
-		if (FMED_NULL != mod->track->getval(w->trk, "stopped")) {
-			wasapi_stream_close();
-
+		if (0 != ffwasapi.stop(mod->out))
+			errlog(core, w->trk, "wasapi", "stop: %s", ffwasapi.error(mod->out));
+		if (w->fx->flags & FMED_FSTOP) {
+			fmed_timer_set(&mod->tmr, wasapi_close_tmr, NULL);
+			core->timer(&mod->tmr, -ABUF_CLOSE_WAIT, 0);
 		} else {
-			if (0 != ffwasapi.stop(mod->out))
-				errlog(core, w->trk, "wasapi", "stop: %s", ffwasapi.error(mod->out));
-			ffwasapi.clear(mod->out);
+			core->timer(&mod->tmr, 0, 0);
 		}
 
-		core->timer(&mod->tmr, 0, 0);
 		mod->usedby = NULL;
 	}
 
@@ -335,15 +357,14 @@ static int wasapi_write(void *ctx, fmed_filt *d)
 		break;
 	}
 
-	if (mod->usedby != w || (d->flags & FMED_FSTOP)) {
-		d->outlen = 0;
-		return FMED_RDONE;
+	if (mod->usedby != w) {
+		w->track->cmd(w->trk, FMED_TRACK_STOPPED);
+		return FMED_RFIN;
 	}
 
 	r = audio_out_write(w, d);
 	if (r == FMED_RERR) {
-		ffwasapi.free(mod->out);
-		mod->out = NULL;
+		wasapi_buf_close();
 		core->timer(&mod->tmr, 0, 0);
 		mod->usedby = NULL;
 		if (w->err_code == FFAUDIO_EDEV_OFFLINE && w->dev_idx == 0) {
@@ -413,6 +434,7 @@ static void* wasapi_in_open(fmed_filt *d)
 	if (excl)
 		a->aflags = FFAUDIO_O_EXCLUSIVE;
 
+	a->aflags |= FFAUDIO_O_UNSYNC_NOTIFY;
 	if (0 != audio_in_open(a, d))
 		goto fail;
 

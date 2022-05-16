@@ -19,9 +19,10 @@ typedef struct audio_in {
 	uint async;
 } audio_in;
 
+/** Return FFAUDIO_E* */
 static int audio_in_open(audio_in *a, fmed_filt *d)
 {
-	int r;
+	int rc = FFAUDIO_ERROR, r;
 	ffbool first_try = 1;
 	ffaudio_dev *dev = NULL;
 	ffaudio_conf conf = {};
@@ -51,15 +52,17 @@ static int audio_in_open(audio_in *a, fmed_filt *d)
 	int aflags = (a->loopback) ? FFAUDIO_LOOPBACK : FFAUDIO_CAPTURE;
 	aflags |= a->aflags;
 
-	if (NULL == (a->stream = a->audio->alloc()))
+	if (NULL == (a->stream = a->audio->alloc())) {
+		errlog1(d->trk, "create audio buffer");
 		goto err;
+	}
 
 	for (;;) {
 		dbglog1(d->trk, "opening device #%d, %s/%u/%u, flags:%xu"
 			, a->dev_idx
 			, ffaudio_format_str(conf.format), conf.sample_rate, conf.channels
 			, aflags);
-		r = a->audio->open(a->stream, &conf, aflags | FFAUDIO_O_NONBLOCK | FFAUDIO_O_UNSYNC_NOTIFY);
+		r = a->audio->open(a->stream, &conf, aflags | FFAUDIO_O_NONBLOCK);
 
 		if (r == FFAUDIO_EFORMAT) {
 			if (first_try) {
@@ -106,6 +109,7 @@ static int audio_in_open(audio_in *a, fmed_filt *d)
 				, a->dev_idx
 				, a->audio->error(a->stream)
 				, ffaudio_format_str(in_conf.format), in_conf.sample_rate, in_conf.channels);
+			rc = r;
 			goto err;
 		}
 
@@ -126,12 +130,13 @@ err:
 	a->audio->dev_free(dev);
 	a->audio->free(a->stream);
 	a->stream = NULL;
-	return -1;
+	return rc;
 }
 
 static void audio_in_close(audio_in *a)
 {
 	a->audio->free(a->stream);
+	a->stream = NULL;
 }
 
 static void audio_oncapt(void *udata)

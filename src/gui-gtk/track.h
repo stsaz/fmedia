@@ -146,8 +146,14 @@ static int gtrk_process(void *ctx, fmed_filt *d)
 	if (t->time_seek != -1) {
 		d->audio.seek = t->time_seek * 1000;
 		d->snd_output_clear = 1;
+		d->snd_output_clear_wait = 1;
 		t->time_seek = -1;
 		return FMED_RMORE;
+	}
+	if (d->snd_output_clear_wait) {
+		if ((int64)d->audio.seek != FMED_NULL)
+			return FMED_RMORE; // decoder must complete our seek request
+		d->snd_output_clear_wait = 0;
 	}
 
 	uint playtime = (uint)(ffpcm_time(d->audio.pos, t->sample_rate) / 1000);

@@ -315,7 +315,6 @@ static void exec_cmd(cmd_parser *c, int cmd, ffstr *val)
 		break;
 
 	case CMD_NEXT:
-		g->track->cmd((void*)-1, FMED_TRACK_STOPALL);
 		c->qu->cmd(FMED_QUE_NEXT2, NULL);
 		break;
 

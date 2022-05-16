@@ -799,6 +799,8 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 		if (param != NULL) {
 			e = FF_GETPTR(entry, e, param);
 			pl = e->plist;
+		} else {
+			qu->track->cmd(NULL, FMED_TRACK_STOPALL);
 		}
 		if (NULL != (e = que_getnext(e))) {
 			pl->cur = e;

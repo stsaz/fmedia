@@ -206,9 +206,8 @@ static void que_trk_close(void *ctx)
 	if ((int64)t->d->audio.total != FMED_NULL && t->d->audio.fmt.sample_rate != 0)
 		t->e->e.dur = ffpcm_time(t->d->audio.total, t->d->audio.fmt.sample_rate);
 
-	int stopped = t->track->getval(t->trk, "stopped");
 	int err = t->track->getval(t->trk, "error");
-	t->e->trk_stopped = (stopped != FMED_NULL) || t->d->err_fatal;
+	t->e->trk_stopped = !!(t->d->flags & FMED_FSTOP);
 	if (t->d->type == FMED_TRK_TYPE_EXPAND && !e->plist->expand_all)
 		e->trk_stopped = 1;
 	t->e->trk_err = (err != FMED_NULL);

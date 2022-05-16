@@ -326,9 +326,7 @@ void gui_corecmd_op(uint cmd, void *udata)
 		 and this function always runs within main thread,
 		 nothing will break here without the lock.
 		*/
-		if (gg->curtrk != NULL)
-			gg->track->cmd(gg->curtrk->trk, FMED_TRACK_STOP);
-		gg->qu->cmd(FMED_QUE_PLAY, (void*)gg->qu->fmed_queue_item(-1, focused));
+		gg->qu->cmd(FMED_QUE_PLAY_EXCL, (void*)gg->qu->fmed_queue_item(-1, focused));
 		break;
 	}
 
@@ -362,15 +360,11 @@ void gui_corecmd_op(uint cmd, void *udata)
 		break;
 
 	case A_PLAY_NEXT:
-		if (gg->curtrk != NULL)
-			gg->track->cmd(gg->curtrk->trk, FMED_TRACK_STOP);
-		gg->qu->cmd(FMED_QUE_NEXT2, (gg->curtrk != NULL) ? gg->curtrk->qent : NULL);
+		gg->qu->cmd(FMED_QUE_NEXT2, NULL);
 		break;
 
 	case A_PLAY_PREV:
-		if (gg->curtrk != NULL)
-			gg->track->cmd(gg->curtrk->trk, FMED_TRACK_STOP);
-		gg->qu->cmd(FMED_QUE_PREV2, (gg->curtrk != NULL) ? gg->curtrk->qent : NULL);
+		gg->qu->cmd(FMED_QUE_PREV2, NULL);
 		break;
 
 
@@ -379,6 +373,7 @@ void gui_corecmd_op(uint cmd, void *udata)
 			break;
 		gg->curtrk->d->audio.seek = (size_t)udata * 1000;
 		gg->curtrk->d->snd_output_clear = 1;
+		gg->curtrk->d->snd_output_clear_wait = 1;
 		gg->curtrk->goback = 1;
 		break;
 

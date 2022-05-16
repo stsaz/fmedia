@@ -372,6 +372,10 @@ enum FMED_TRACK_CMD {
 
 	/** Start a track in any worker. */
 	FMED_TRACK_XSTART,
+
+	/** Mark the track as stopped (as if user has pressed Stop button).
+	'queue' module won't start the next track. */
+	FMED_TRACK_STOPPED,
 };
 
 enum FMED_TRK_TYPE {
@@ -589,7 +593,12 @@ struct fmed_trk {
 		uint print_time :1;
 		uint duration_accurate :1;
 		uint ogg_flush :1;
-		uint err_fatal :1; // fatal error (e.g. audio device failed), playlist continuation isn't possible
+		uint err_fatal :1; // obsolete
+
+		/**
+		UI sets it along with 'snd_output_clear', resets when new data arrives.
+		Audio output module stops and clears audio buffer, then waits for new data. */
+		uint snd_output_clear_wait :1;
 	};
 	};
 
@@ -816,7 +825,7 @@ enum FMED_QUE {
 
 	/** Start playing next/previous track.
 	@param: fmed_que_entry*: base (current) track
-	  NULL: base is the current track */
+	  NULL: base is the current track.  Stop the currently playing track automatically. */
 	FMED_QUE_NEXT2,
 	FMED_QUE_PREV2,
 

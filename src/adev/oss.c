@@ -158,6 +158,7 @@ static void* oss_open(fmed_filt *d)
 	a->audio = &ffoss;
 	a->track = mod->track;
 	a->trk = d->trk;
+	a->fx = d;
 	return a;
 }
 
@@ -166,7 +167,7 @@ static void oss_close(void *ctx)
 	audio_out *a = ctx;
 
 	if (mod->usedby == a) {
-		if (FMED_NULL != mod->track->getval(a->trk, "stopped")) {
+		if (a->fx->flags & FMED_FSTOP) {
 			ffoss.free(mod->out);
 			mod->out = NULL;
 
@@ -226,11 +227,11 @@ static int oss_create(audio_out *a, fmed_filt *d)
 
 	a->try_open = (a->state == I_TRYOPEN);
 	r = audio_out_open(a, d, &fmt);
-	if (r == FMED_RMORE) {
+	if (r == FFAUDIO_EFORMAT) {
 		a->state = I_OPEN;
 		return FMED_RMORE;
-	} else if (r != FMED_ROK)
-		return r;
+	} else if (r != 0)
+		return FMED_RERR;
 
 	ffoss.dev_free(a->dev);
 	a->dev = NULL;
@@ -272,9 +273,9 @@ static int oss_write(void *ctx, fmed_filt *d)
 		break;
 	}
 
-	if (mod->usedby != a || (d->flags & FMED_FSTOP)) {
-		d->outlen = 0;
-		return FMED_RDONE;
+	if (mod->usedby != a) {
+		a->track->cmd(a->trk, FMED_TRACK_STOPPED);
+		return FMED_RFIN;
 	}
 
 	r = audio_out_write(a, d);

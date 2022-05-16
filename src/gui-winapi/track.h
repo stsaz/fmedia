@@ -88,6 +88,11 @@ int gtrk_process(void *ctx, fmed_filt *d)
 		g->goback = 0;
 		return FMED_RMORE;
 	}
+	if (g->d->snd_output_clear_wait) {
+		if ((int64)d->audio.seek != FMED_NULL)
+			return FMED_RMORE; // decoder must complete our seek request
+		g->d->snd_output_clear_wait = 0;
+	}
 
 	if (d->flags & FMED_FSTOP) {
 		d->outlen = 0;

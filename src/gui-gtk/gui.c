@@ -460,9 +460,7 @@ static void corecmd_run(uint cmd, void *udata)
 		break;
 
 	case A_PLAY:
-		if (gg->curtrk != NULL)
-			gg->track->cmd(gg->curtrk->trk, FMED_TRACK_STOP);
-		gg->qu->cmd(FMED_QUE_PLAY, (void*)gg->qu->fmed_queue_item(-1, gg->focused));
+		gg->qu->cmd(FMED_QUE_PLAY_EXCL, (void*)gg->qu->fmed_queue_item(-1, gg->focused));
 		break;
 
 	case A_PLAYPAUSE:
@@ -505,13 +503,11 @@ static void corecmd_run(uint cmd, void *udata)
 		break;
 
 	case A_NEXT:
-	case A_PREV: {
-		if (gg->curtrk != NULL)
-			gg->track->cmd(gg->curtrk->trk, FMED_TRACK_STOP);
-		uint id = (cmd == A_NEXT) ? FMED_QUE_NEXT2 : FMED_QUE_PREV2;
-		gg->qu->cmd(id, (gg->curtrk != NULL) ? gg->curtrk->qent : NULL);
+		gg->qu->cmd(FMED_QUE_NEXT2, NULL);
 		break;
-	}
+	case A_PREV:
+		gg->qu->cmd(FMED_QUE_PREV2, NULL);
+		break;
 
 	case A_PLAY_REPEAT:
 		gg->conf.list_repeat = (gg->conf.list_repeat + 1) % 3;

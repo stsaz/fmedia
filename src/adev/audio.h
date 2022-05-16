@@ -9,6 +9,33 @@ Copyright (c) 2020 Simon Zolin */
 #define errlog1(trk, ...)  fmed_errlog(a->core, trk, NULL, __VA_ARGS__)
 #define dbglog1(trk, ...)  fmed_dbglog(a->core, trk, NULL, __VA_ARGS__)
 
+#define ABUF_CLOSE_WAIT  3000
+
+
+struct fmt_pair {
+	ffpcm bad, good;
+};
+
+static inline ffpcm* fmt_conv_find(ffvec *fmts, const ffpcm *fmt)
+{
+	struct fmt_pair *it;
+	FFSLICE_WALK(fmts, it) {
+		if (ffpcm_eq(fmt, &it->bad))
+			return &it->good;
+	}
+	return NULL;
+}
+
+static inline void fmt_conv_add(ffvec *fmts, const ffpcm *bad, const ffpcmex *good)
+{
+	ffpcm *g = fmt_conv_find(fmts, bad);
+	if (g == NULL) {
+		struct fmt_pair *p = ffvec_pushT(fmts, struct fmt_pair);
+		p->bad = *bad;
+		g = &p->good;
+	}
+	ffpcm_fmtcopy(g, good);
+}
 
 static const ushort ffaudio_formats[] = {
 	FFAUDIO_F_INT8, FFAUDIO_F_INT16, FFAUDIO_F_INT24, FFAUDIO_F_INT32, FFAUDIO_F_INT24_4, FFAUDIO_F_FLOAT32,
@@ -39,6 +66,12 @@ static inline int ffaudio_to_ffpcm(uint f)
 static inline const char* ffaudio_format_str(uint f)
 {
 	int i = ffarrint16_find(ffaudio_formats, FF_COUNT(ffaudio_formats), f);
+	return ffaudio_formats_str[i];
+}
+
+static inline const char* ffpcm_format_str(uint f)
+{
+	int i = ffarrint16_find(ffpcm_formats, FF_COUNT(ffpcm_formats), f);
 	return ffaudio_formats_str[i];
 }
 
@@ -144,6 +177,7 @@ typedef struct audio_out {
 	uint dev_idx; // 0:default
 	const fmed_track *track;
 	void *trk;
+	fmed_filt *fx;
 	uint aflags;
 	int err_code; // enum FFAUDIO_E
 	int handle_dev_offline;
@@ -152,26 +186,29 @@ typedef struct audio_out {
 	ffaudio_buf *stream;
 	ffaudio_dev *dev;
 	uint async;
+	uint clear :1;
 
 	// user's
 	uint state;
+	uint reconnect :1;
 } audio_out;
 
+/**
+Return FFAUDIO_E* */
 static inline int audio_out_open(audio_out *a, fmed_filt *d, const ffpcm *fmt)
 {
 	if (!ffsz_eq(d->datatype, "pcm")) {
 		errlog1(d->trk, "unsupported input data type: %s", d->datatype);
-		return FMED_RERR;
+		return FFAUDIO_ERROR;
 	}
 
-	int rc, r;
+	int rc = FFAUDIO_ERROR, r;
 	ffaudio_conf conf = {};
 
 	if (a->dev == NULL
 		&& a->dev_idx != 0) {
 		if (0 != audio_devbyidx(a->audio, &a->dev, a->dev_idx, FFAUDIO_DEV_PLAYBACK)) {
 			errlog1(d->trk, "no audio device by index #%u", a->dev_idx);
-			rc = FMED_RERR;
 			goto end;
 		}
 	}
@@ -179,12 +216,14 @@ static inline int audio_out_open(audio_out *a, fmed_filt *d, const ffpcm *fmt)
 	if (a->dev != NULL)
 		conf.device_id = a->audio->dev_info(a->dev, FFAUDIO_DEV_ID);
 
-	a->stream = a->audio->alloc();
+	if (NULL == (a->stream = a->audio->alloc())) {
+		errlog1(d->trk, "audio buffer alloc");
+		goto end;
+	}
 
 	int afmt = ffpcm_to_ffaudio(fmt->format);
 	if (afmt < 0) {
 		errlog1(d->trk, "format not supported", 0);
-		rc = FMED_RERR;
 		goto end;
 	}
 	conf.format = afmt;
@@ -199,7 +238,7 @@ static inline int audio_out_open(audio_out *a, fmed_filt *d, const ffpcm *fmt)
 		, a->dev_idx
 		, ffaudio_format_str(conf.format), conf.sample_rate, conf.channels
 		, aflags);
-	r = a->audio->open(a->stream, &conf, FFAUDIO_PLAYBACK | FFAUDIO_O_NONBLOCK | FFAUDIO_O_UNSYNC_NOTIFY | aflags);
+	r = a->audio->open(a->stream, &conf, FFAUDIO_PLAYBACK | FFAUDIO_O_NONBLOCK | aflags);
 
 	if (r == FFAUDIO_EFORMAT) {
 		if (a->try_open) {
@@ -220,13 +259,17 @@ static inline int audio_out_open(audio_out *a, fmed_filt *d, const ffpcm *fmt)
 			}
 
 			if (new_format) {
-				rc = FMED_RMORE;
+				rc = FFAUDIO_EFORMAT;
 				goto end;
 			}
 		}
 
 		errlog1(d->trk, "open(): unsupported format", 0);
-		rc = FMED_RERR;
+		goto end;
+
+	} else if (r == FFAUDIO_ECONNECTION) {
+		warnlog1(d->trk, "lost connection to audio server: %s", a->audio->error(a->stream));
+		rc = FFAUDIO_ECONNECTION;
 		goto end;
 
 	} else if (r != 0) {
@@ -234,20 +277,20 @@ static inline int audio_out_open(audio_out *a, fmed_filt *d, const ffpcm *fmt)
 			, a->dev_idx
 			, a->audio->error(a->stream)
 			, ffaudio_format_str(conf.format), conf.sample_rate, conf.channels);
-		rc = FMED_RERR;
+		rc = FFAUDIO_ERROR;
 		goto end;
 	}
 
 	a->buffer_length_msec = conf.buffer_length_msec;
-	rc = FMED_ROK;
+	rc = 0;
 
 end:
-	if (rc != FMED_ROK) {
+	if (rc != 0) {
 		a->audio->free(a->stream);
 		a->stream = NULL;
 	}
-	if (rc == FMED_RERR)
-		d->err_fatal = 1;
+	if (rc == FFAUDIO_ERROR)
+		a->track->cmd(a->trk, FMED_TRACK_STOPPED);
 	return rc;
 }
 
@@ -264,17 +307,30 @@ static inline int audio_out_write(audio_out *a, fmed_filt *d)
 {
 	int r;
 
-	if (d->snd_output_clear) {
+	// handle seeking
+	if (a->clear) {
+		a->clear = 0;
 		d->snd_output_clear = 0;
-		a->audio->stop(a->stream);
-		a->audio->clear(a->stream);
-		return FMED_RMORE;
+
+	} else if (d->snd_output_clear) {
+		dbglog1(d->trk, "seek: stop/clear");
+		if (0 != a->audio->stop(a->stream))
+			warnlog1(d->trk, "seek: audio.stop: %s", a->audio->error(a->stream));
+		if (0 != a->audio->clear(a->stream))
+			warnlog1(d->trk, "seek: audio.clear: %s", a->audio->error(a->stream));
+
+		if (d->snd_output_clear_wait) {
+			a->clear = 1;
+			return FMED_RMORE;
+		}
+		d->snd_output_clear = 0;
 	}
 
 	if (d->snd_output_pause) {
 		d->snd_output_pause = 0;
 		d->track->cmd(d->trk, FMED_TRACK_PAUSE);
-		a->audio->stop(a->stream);
+		if (0 != a->audio->stop(a->stream))
+			warnlog1(d->trk, "pause: audio.stop: %s", a->audio->error(a->stream));
 		return FMED_RASYNC;
 	}
 
@@ -302,7 +358,7 @@ static inline int audio_out_write(audio_out *a, fmed_filt *d)
 				ffstr_setz(&extra, "device disconnected: ");
 			errlog1(d->trk, "audio device write: %S%s", &extra, a->audio->error(a->stream));
 			a->err_code = -r;
-			d->err_fatal = 1;
+			a->track->cmd(a->trk, FMED_TRACK_STOPPED);
 			return FMED_RERR;
 		}
 

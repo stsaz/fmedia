@@ -478,7 +478,6 @@ static void trk_copy_info(fmed_trk *dst, const fmed_trk *src)
 static void trk_onstop(void *p)
 {
 	fm_trk *t = p;
-	trk_setval(t, "stopped", 1);
 	t->props.flags |= FMED_FSTOP;
 	if (t->state != TRK_ST_ACTIVE)
 		trk_fin(t);
@@ -1220,6 +1219,7 @@ static const char* const cmd_str[] = {
 	"FMED_TRACK_MONITOR",
 	"FMED_TRACK_KQ",
 	"FMED_TRACK_XSTART",
+	"FMED_TRACK_STOPPED",
 };
 
 static ssize_t trk_cmd(void *trk, uint cmd, ...)
@@ -1256,6 +1256,10 @@ static ssize_t trk_cmd(void *trk, uint cmd, ...)
 	case FMED_TRACK_STOP:
 		FF_ASSERT(core_ismainthr());
 		trk_stop(t, FMED_TRACK_STOP);
+		break;
+
+	case FMED_TRACK_STOPPED:
+		t->props.flags |= FMED_FSTOP;
 		break;
 
 	case FMED_TRACK_START:

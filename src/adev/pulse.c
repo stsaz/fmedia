@@ -48,15 +48,7 @@ static const fmed_mod fmed_pulse_mod = {
 
 static int mod_init(fmed_trk *trk);
 static int pulse_create(audio_out *a, fmed_filt *d);
-
-//OUTPUT
-static void* pulse_open(fmed_filt *d);
-static int pulse_write(void *ctx, fmed_filt *d);
-static void pulse_close(void *ctx);
 static int pulse_out_config(fmed_conf_ctx *ctx);
-static const fmed_filter fmed_pulse_out = {
-	&pulse_open, &pulse_write, &pulse_close
-};
 
 static const fmed_conf_arg pulse_out_conf_args[] = {
 	{ "device_index",	FMC_INT32,  FMC_O(struct pulse_out_conf_t, idev) },
@@ -65,13 +57,8 @@ static const fmed_conf_arg pulse_out_conf_args[] = {
 	{}
 };
 
-//INPUT
-static void* pulse_in_open(fmed_filt *d);
-static void pulse_in_close(void *ctx);
-static int pulse_in_read(void *ctx, fmed_filt *d);
-static const fmed_filter fmed_pulse_in = {
-	&pulse_in_open, &pulse_in_read, &pulse_in_close
-};
+static const fmed_filter fmed_pulse_out;
+static const fmed_filter fmed_pulse_in;
 
 //ADEV
 static int pulse_adev_list(fmed_adev_ent **ents, uint flags);
@@ -120,12 +107,22 @@ static int pulse_sig(uint signo)
 	return 0;
 }
 
+void pulse_buf_close()
+{
+	if (mod->out == NULL)
+		return;
+	dbglog(NULL, "free");
+	ffpulse.free(mod->out);
+	mod->out = NULL;
+}
+
 static void pulse_destroy(void)
 {
 	if (mod == NULL)
 		return;
 
-	ffpulse.free(mod->out);
+	pulse_buf_close();
+	dbglog(NULL, "uninit");
 	ffpulse.uninit();
 	ffmem_free(mod);
 	mod = NULL;
@@ -136,6 +133,7 @@ static int mod_init(fmed_trk *trk)
 	if (mod->init_ok)
 		return 0;
 
+	dbglog(NULL, "init");
 	ffaudio_init_conf conf = {};
 	conf.app_name = "fmedia";
 	if (0 != ffpulse.init(&conf)) {
@@ -181,7 +179,13 @@ static void* pulse_open(fmed_filt *d)
 	a->audio = &ffpulse;
 	a->track = mod->track;
 	a->trk = d->trk;
+	a->fx = d;
 	return a;
+}
+
+void pulse_close_tmr(void *param)
+{
+	pulse_buf_close();
 }
 
 static void pulse_close(void *ctx)
@@ -189,17 +193,14 @@ static void pulse_close(void *ctx)
 	audio_out *a = ctx;
 
 	if (mod->usedby == a) {
-		if (FMED_NULL != mod->track->getval(a->trk, "stopped")) {
-			ffpulse.free(mod->out);
-			mod->out = NULL;
-
+		if (0 != ffpulse.stop(mod->out))
+			errlog(a->trk, "stop: %s", ffpulse.error(mod->out));
+		if (a->fx->flags & FMED_FSTOP) {
+			fmed_timer_set(&mod->tmr, pulse_close_tmr, NULL);
+			core->timer(&mod->tmr, -ABUF_CLOSE_WAIT, 0);
 		} else {
-			if (0 != ffpulse.stop(mod->out))
-				errlog(a->trk, "stop: %s", ffpulse.error(mod->out));
-			ffpulse.clear(mod->out);
+			core->timer(&mod->tmr, 0, 0);
 		}
-
-		core->timer(&mod->tmr, 0, 0);
 		mod->usedby = NULL;
 	}
 
@@ -217,13 +218,15 @@ static int pulse_create(audio_out *a, fmed_filt *d)
 
 	ffpcm_fmtcopy(&fmt, &d->audio.convfmt);
 	a->buffer_length_msec = pulse_out_conf.buflen;
+	a->try_open = (a->state == I_TRYOPEN);
 
 	if (mod->out != NULL) {
+
+		core->timer(&mod->tmr, 0, 0); // stop 'pulse_close_tmr' timer
 
 		audio_out *cur = mod->usedby;
 		if (cur != NULL) {
 			mod->usedby = NULL;
-			core->timer(&mod->tmr, 0, 0);
 			audio_out_onplay(cur);
 		}
 
@@ -232,6 +235,7 @@ static int pulse_create(audio_out *a, fmed_filt *d)
 			&& fmt.sample_rate == mod->fmt.sample_rate
 			&& a->dev_idx == mod->dev_idx) {
 
+			dbglog(a->trk, "reuse buffer: ffpulse.stop/clear");
 			ffpulse.stop(mod->out);
 			ffpulse.clear(mod->out);
 			a->stream = mod->out;
@@ -243,17 +247,31 @@ static int pulse_create(audio_out *a, fmed_filt *d)
 			goto fin;
 		}
 
-		ffpulse.free(mod->out);
-		mod->out = NULL;
+		pulse_buf_close();
 	}
 
-	a->try_open = (a->state == I_TRYOPEN);
-	r = audio_out_open(a, d, &fmt);
-	if (r == FMED_RMORE) {
-		a->state = I_OPEN;
-		return FMED_RMORE;
-	} else if (r != FMED_ROK)
-		return r;
+	while (0 != (r = audio_out_open(a, d, &fmt))) {
+		if (r == FFAUDIO_EFORMAT) {
+			a->state = I_OPEN;
+			return FMED_RMORE;
+
+		} else if (r == FFAUDIO_ECONNECTION) {
+			if (!a->reconnect) {
+				dbglog1(d->trk, "reconnecting...");
+				a->reconnect = 1;
+
+				ffpulse.uninit();
+				mod->init_ok = 0;
+
+				if (0 != mod_init(d->trk))
+					return FMED_RERR;
+				continue;
+			}
+
+			a->track->cmd(a->trk, FMED_TRACK_STOPPED);
+		}
+		return FMED_RERR;
+	}
 
 	ffpulse.dev_free(a->dev);
 	a->dev = NULL;
@@ -295,19 +313,14 @@ static int pulse_write(void *ctx, fmed_filt *d)
 		break;
 	}
 
-	if (d->flags & FMED_FSTOP) {
-		d->outlen = 0;
-		return FMED_RDONE;
-	}
 	if (mod->usedby != a) {
-		errlog(d->trk, "another track has taken the audio playback device", 0);
-		return FMED_RERR;
+		a->track->cmd(a->trk, FMED_TRACK_STOPPED);
+		return FMED_RFIN;
 	}
 
 	r = audio_out_write(a, d);
 	if (r == FMED_RERR) {
-		ffpulse.free(mod->out);
-		mod->out = NULL;
+		pulse_buf_close();
 		core->timer(&mod->tmr, 0, 0);
 		mod->usedby = NULL;
 		return FMED_RERR;
@@ -315,11 +328,17 @@ static int pulse_write(void *ctx, fmed_filt *d)
 	return r;
 }
 
+static const fmed_filter fmed_pulse_out = {
+	pulse_open, pulse_write, pulse_close
+};
+
 
 typedef struct pulse_in {
 	audio_in in;
 	fftimerqueue_node tmr;
 } pulse_in;
+
+static void pulse_in_close(void *ctx);
 
 static void* pulse_in_open(fmed_filt *d)
 {
@@ -343,8 +362,26 @@ static void* pulse_in_open(fmed_filt *d)
 
 	a->buffer_length_msec = 0;
 
-	if (0 != audio_in_open(a, d))
+	int r;
+	int retry = 0;
+	while (0 != (r = audio_in_open(a, d))) {
+		if (!retry && r == FFAUDIO_ECONNECTION) {
+			retry = 1;
+			dbglog1(d->trk, "lost connection to audio server, reconnecting...");
+			audio_in_close(&pi->in);
+
+			a->audio->uninit();
+			mod->init_ok = 0;
+
+			if (0 != mod_init(d->trk)) {
+				pulse_in_close(pi);
+				return NULL;
+			}
+			continue;
+		}
+
 		goto fail;
+	}
 
 	fmed_timer_set(&pi->tmr, audio_oncapt, a);
 	if (0 != core->timer(&pi->tmr, a->buffer_length_msec / 3, 0))
@@ -370,3 +407,7 @@ static int pulse_in_read(void *ctx, fmed_filt *d)
 	pulse_in *pi = ctx;
 	return audio_in_read(&pi->in, d);
 }
+
+static const fmed_filter fmed_pulse_in = {
+	pulse_in_open, pulse_in_read, pulse_in_close
+};

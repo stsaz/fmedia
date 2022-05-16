@@ -42,8 +42,7 @@ typedef struct tui {
 	double maxdb;
 	uint nback;
 
-	uint goback :1
-		, rec :1
+	uint rec :1
 		, conversion :1
 		, paused :1
 		;
@@ -406,7 +405,7 @@ static void tui_seek(tui *t, uint cmd, void *udata)
 		pos = ffmax(pos - by, 0);
 	t->d->audio.seek = pos;
 	t->d->snd_output_clear = 1;
-	t->goback = 1;
+	t->d->snd_output_clear_wait = 1;
 }
 
 static void tui_vol(tui *t, uint cmd)
@@ -555,11 +554,6 @@ static int tui_process(void *ctx, fmed_filt *d)
 		goto print;
 	}
 
-	if (t->goback) {
-		t->goback = 0;
-		return FMED_RMORE;
-	}
-
 	if (d->meta_changed) {
 		d->meta_changed = 0;
 
@@ -573,6 +567,12 @@ static int tui_process(void *ctx, fmed_filt *d)
 		tui_info(t, d);
 		if (d->input_info)
 			return FMED_RFIN;
+	}
+
+	if (d->snd_output_clear_wait) {
+		if ((int64)d->audio.seek != FMED_NULL)
+			return FMED_RMORE; // decoder must complete our seek request
+		d->snd_output_clear_wait = 0;
 	}
 
 	if (core->props->parallel) {
@@ -692,15 +692,11 @@ static void tui_op(uint cmd)
 		break;
 
 	case CMD_NEXT:
-		if (gt->curtrk != NULL)
-			gt->track->cmd(gt->curtrk->trk, FMED_TRACK_STOP);
-		gt->qu->cmd(FMED_QUE_NEXT2, (gt->curtrk != NULL) ? gt->curtrk->qent : NULL);
+		gt->qu->cmdv(FMED_QUE_NEXT2, NULL);
 		break;
 
 	case CMD_PREV:
-		if (gt->curtrk != NULL)
-			gt->track->cmd(gt->curtrk->trk, FMED_TRACK_STOP);
-		gt->qu->cmd(FMED_QUE_PREV2, (gt->curtrk != NULL) ? gt->curtrk->qent : NULL);
+		gt->qu->cmdv(FMED_QUE_PREV2, NULL);
 		break;
 
 	case CMD_QUIT:

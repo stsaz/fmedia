@@ -176,11 +176,11 @@ static int dsnd_create(dsnd_out *ds, fmed_filt *d)
 
 	a->try_open = (a->state == I_TRYOPEN);
 	r = audio_out_open(a, d, &fmt);
-	if (r == FMED_RMORE) {
+	if (r == FFAUDIO_EFORMAT) {
 		a->state = I_OPEN;
 		return FMED_RMORE;
-	} else if (r != FMED_ROK)
-		return r;
+	} else if (r != 0)
+		return FMED_RERR;
 
 	ffdsound.dev_free(a->dev);
 	a->dev = NULL;
@@ -214,11 +214,6 @@ static int dsnd_write(void *ctx, fmed_filt *d)
 
 	case I_DATA:
 		break;
-	}
-
-	if (d->flags & FMED_FSTOP) {
-		d->outlen = 0;
-		return FMED_RDONE;
 	}
 
 	r = audio_out_write(a, d);
