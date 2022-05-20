@@ -277,6 +277,7 @@ static int load_ui()
 	char *fn, *fnconf = NULL;
 	ffui_loader ldr;
 	ffui_ldr_init2(&ldr, &gui_getctl, &gui_getcmd, gg);
+	ffmem_copy(ldr.language, core->props->language, 2);
 
 	if (NULL == (fn = core->getpath(FFSTR("./fmedia.gui"))))
 		goto done;

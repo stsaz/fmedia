@@ -17,6 +17,7 @@ static void* ldr_getctl(ffui_loader *g, const ffstr *name);
 #define T_INTLIST  (FFCONF_TINT32 | FFCONF_FLIST)
 #define T_INTLIST_S  (FFCONF_TINT32 | FFCONF_FSIGN | FFCONF_FLIST)
 #define T_STR  FFCONF_TSTR
+#define T_STRMULTI  (FFCONF_TSTR | FFCONF_FMULTI)
 #define T_STRLIST  (FFCONF_TSTR | FFCONF_FLIST)
 #define FF_XSPACE  2
 #define FF_YSPACE  2
@@ -275,8 +276,10 @@ static int new_menuitem(ffconf_scheme *cs, ffui_loader *g)
 
 	if (ffstr_eqcz(&cs->objval, "-"))
 		ffui_menu_settype(&g->menuitem.mi, FFUI_MENU_SEPARATOR);
-	else
-		ffui_menu_settextstr(&g->menuitem.mi, &cs->objval);
+	else {
+		ffstr s = vars_val(&g->vars, cs->objval);
+		ffui_menu_settextstr(&g->menuitem.mi, &s);
+	}
 
 	state_reset(g);
 	ffconf_scheme_addctx(cs, menuitem_args, g);
@@ -1185,7 +1188,8 @@ static int view_column(ffconf_scheme *cs, ffui_loader *g)
 	ffstr *name = ffconf_scheme_objval(cs);
 	ffui_viewcol_reset(&g->vicol);
 	ffui_viewcol_setwidth(&g->vicol, 100);
-	ffui_viewcol_settext(&g->vicol, name->ptr, name->len);
+	ffstr s = vars_val(&g->vars, *name);
+	ffui_viewcol_settext(&g->vicol, s.ptr, s.len);
 	state_reset(g);
 	ffconf_scheme_addctx(cs, viewcol_args, g);
 	return 0;
@@ -1346,7 +1350,8 @@ static int new_dlg(ffconf_scheme *cs, ffui_loader *g)
 
 static int wnd_title(ffconf_scheme *cs, ffui_loader *g, const ffstr *val)
 {
-	ffui_settextstr(g->wnd, val);
+	ffstr s = vars_val(&g->vars, *val);
+	ffui_settextstr(g->wnd, &s);
 	return 0;
 }
 
@@ -1540,10 +1545,54 @@ static int new_wnd(ffconf_scheme *cs, ffui_loader *g)
 	return 0;
 }
 
+
+// LANGUAGE
+static int inc_lang_entry(ffconf_scheme *cs, ffui_loader *g, ffstr *fn)
+{
+	const ffstr *lang = ffconf_scheme_keyname(cs);
+	if (!(ffstr_eqz(lang, "default")
+		|| ffstr_eq(lang, g->language, 2)))
+		return 0;
+	if (g->lang_data.len != 0)
+		return FFCONF_EBADVAL;
+
+	if (ffstr_findanyz(fn, "/\\") >= 0)
+		return FFCONF_EBADVAL;
+
+	int rc = FFCONF_EBADVAL;
+	char *ffn = ffsz_allocfmt("%S/%S", &g->path, fn);
+	ffvec d = {};
+	if (0 != fffile_readwhole(ffn, &d, 64*1024))
+		goto end;
+
+	rc = vars_load(&g->vars, (ffstr*)&d);
+
+end:
+	if (rc == 0) {
+		if (ffstr_eqz(lang, "default"))
+			g->lang_data_def = d;
+		else
+			g->lang_data = d;
+	}
+	ffmem_free(ffn);
+	return rc;
+}
+static const ffconf_arg inc_lang_args[] = {
+	{ "*", T_STRMULTI, (ffsize)inc_lang_entry },
+	{}
+};
+static int inc_lang(ffconf_scheme *cs, ffui_loader *g)
+{
+	ffconf_scheme_addctx(cs, inc_lang_args, g);
+	return 0;
+}
+
+
 static const ffconf_arg top_args[] = {
 	{ "window",	T_OBJMULTI, _F(new_wnd) },
 	{ "menu",	T_OBJMULTI, _F(new_menu) },
 	{ "dialog",	T_OBJMULTI, _F(new_dlg) },
+	{ "include_language",	T_OBJ, _F(inc_lang) },
 	{}
 };
 
@@ -1552,6 +1601,7 @@ void ffui_ldr_init(ffui_loader *g)
 {
 	ffmem_zero_obj(g);
 	ffui_screenarea(&g->screen);
+	vars_init(&g->vars);
 }
 
 void ffui_ldr_init2(ffui_loader *g, ffui_ldr_getctl_t getctl, ffui_ldr_getcmd_t getcmd, void *udata)
@@ -1560,10 +1610,14 @@ void ffui_ldr_init2(ffui_loader *g, ffui_ldr_getctl_t getctl, ffui_ldr_getcmd_t 
 	g->getctl = getctl;
 	g->getcmd = getcmd;
 	g->udata = udata;
+	vars_init(&g->vars);
 }
 
 void ffui_ldr_fin(ffui_loader *g)
 {
+	vars_free(&g->vars);
+	ffvec_free(&g->lang_data);
+	ffvec_free(&g->lang_data_def);
 	// g->paned_array
 	ffvec_free(&g->accels);
 	ffmem_free(g->errstr);  g->errstr = NULL;

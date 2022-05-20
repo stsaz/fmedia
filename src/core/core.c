@@ -184,6 +184,7 @@ fmed_core* core_init(char **argv, char **env)
 
 	core->loglev = FMED_LOG_INFO;
 	fmed->props.version_str = FMED_VER;
+	ffenv_locale(fmed->props.language, sizeof(fmed->props.language), FFENV_LANGUAGE);
 	core->props = &fmed->props;
 	return core;
 

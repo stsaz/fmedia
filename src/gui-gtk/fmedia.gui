@@ -1,245 +1,250 @@
-# fmedia v1.26 GUI
+# fmedia v1.28 GUI/GTK
+
+include_language {
+	# <LANG> "gui_lang_<LANG>.txt"
+	default "gui_lang_en.txt"
+}
 
 menu mfile {
-	item "_Add..." {
+	item $MFAdd {
 		action A_LIST_ADDFILE
 		hotkey "Insert"
 	}
-	item "Add _URL..." {
+	item $MFAddURL {
 		action A_LIST_ADDURL
 		hotkey "Ctrl+U"
 	}
 	item "-" {
 	}
-	item "Analyze & Show PCM Info" {
+	item $MFAnalyzeShowPCMInfo {
 		action A_FILE_SHOWPCM
 	}
-	item "Edit Meta Data" {
+	item $MFEditMetaData {
 		action A_FILE_SHOWINFO
 		hotkey "I"
 	}
-	item "Show In Fi_le Manager App" {
+	item $MFShowInFileManagerApp {
 		action A_FILE_SHOWDIR
 	}
-	item "Rename..." {
+	item $MFRename {
 		action A_SHOW_RENAME
 		hotkey "Shift+F6"
 	}
-	item "_Delete From Disk" {
+	item $MFDeleteFromDisk {
 		action A_FILE_DELFILE
 		hotkey "Shift+Delete"
 	}
 	item "-" {
 	}
-	item "Download from YouTube..." {
+	item $MFDownloadfromYouTube {
 		action A_DLOAD_SHOW
 	}
 	item "-" {
 	}
-	item "_Minimize to Tray" {
+	item $MFMinimizetoTray {
 		action A_HIDE
 		hotkey "Ctrl+M"
 	}
-	item "E_xit" {
+	item $MFExit {
 		action A_QUIT
 	}
 }
 
 menu mlist {
-	item "_New Tab" {
+	item $MLNewTab {
 		action A_LIST_NEW
 		hotkey "Ctrl+N"
 	}
-	item "Close Tab" {
+	item $MLCloseTab {
 		action A_LIST_DEL
 		hotkey "Ctrl+W"
 	}
-	item "_Save Playlist..." {
+	item $MLSavePlaylist {
 		action A_LIST_SAVE
 		hotkey "Ctrl+S"
 	}
-	item "Read _Meta Tags" {
+	item $MLReadMetaTags {
 		action A_LIST_READMETA
 	}
 	item "-" {
 	}
-	item "Scroll To _Current" {
+	item $MLScrollToCurrent {
 		action A_LIST_SHOWCURTRACK
 	}
-	item "Select _All" {
+	item $MLSelectAll {
 		action A_LIST_SELECTALL
 	}
-	item "Add To Ne_xt Playlist" {
+	item $MLAddToNextPlaylist {
 		action A_LIST_TO_NEXT
 	}
 	item "-" {
 	}
-	item "_Remove" {
+	item $MLRemove {
 		action A_LIST_REMOVE
 		hotkey "Delete"
 	}
-	item "Remove _Dead Items" {
+	item $MLRemoveDeadItems {
 		action A_LIST_RMDEAD
 	}
-	item "_Clear" {
+	item $MLClear {
 		action A_LIST_CLEAR
 	}
 	item "-" {
 	}
-	item "Random" {
+	item $MLRandom {
 		action A_LIST_RANDOM
 	}
-	item "Sort: Random" {
+	item $MLSortRandom {
 		action A_LIST_SORTRANDOM
 	}
 }
 
 menu mplay {
-	item "_Play/Pause" {
+	item $MPPlayPause {
 		action A_PLAYPAUSE
 		hotkey "Space"
 	}
-	item "_Stop" {
+	item $MPStop {
 		action A_STOP
 		hotkey "S"
 	}
-	item "Stop After Current" {
+	item $MPStopAfterCurrent {
 		action A_STOP_AFTER
 		hotkey "Shift+S"
 	}
-	item "_Next" {
+	item $MPNext {
 		action A_NEXT
 		hotkey "N"
 	}
-	item "P_revious" {
+	item $MPPrevious {
 		action A_PREV
 		hotkey "P"
 	}
-	item "Repeat: None/Track/All" {
+	item $MPRepeatNoneTrackAll {
 		action A_PLAY_REPEAT
 	}
 	item "-" {
 	}
-	item "Seek _Forward" {
+	item $MPSeekForward {
 		action A_FFWD
 		hotkey "Alt+Right"
 	}
-	item "Seek _Back" {
+	item $MPSeekBack {
 		action A_RWND
 		hotkey "Alt+Left"
 	}
-	item "Leap Forward" {
+	item $MPLeapForward {
 		action A_LEAP_FWD
 		hotkey "Ctrl+Right"
 	}
-	item "Leap Back" {
+	item $MPLeapBack {
 		action A_LEAP_BACK
 		hotkey "Ctrl+Left"
 	}
-	item "Set Marker" {
+	item $MPSetMarker {
 		action A_SETGOPOS
 		hotkey "Shift+G"
 	}
-	item "Jump To Marker" {
+	item $MPJumpToMarker {
 		action A_GOPOS
 		hotkey "G"
 	}
 	item "-" {
 	}
-	item "Volume _Up" {
+	item $MPVolumeUp {
 		action A_VOLUP
 		hotkey "Ctrl+Up"
 	}
-	item "Volume _Down" {
+	item $MPVolumeDown {
 		action A_VOLDOWN
 		hotkey "Ctrl+Down"
 	}
-	item "Reset Volume" {
+	item $MPResetVolume {
 		action A_VOLRESET
 	}
 	item "-" {
 	}
-	item "Properties..." {
+	item $MPProperties {
 		action A_SHOW_PROPS
 	}
 }
 
 menu mconvert {
-	item "_Convert..." {
+	item $MCConvert {
 		action A_SHOWCONVERT
 		hotkey "Ctrl+T"
 	}
-	item "Set Seek Position" {
+	item $MCSetSeekPosition {
 		action A_CONV_SET_SEEK
 		hotkey "["
 	}
-	item "Set Until Position" {
+	item $MCSetUntilPosition {
 		action A_CONV_SET_UNTIL
 		hotkey "]"
 	}
 }
 
 menu mhelp {
-	item "Quick Command..." {
+	item $MHQuickCommand {
 		action A_CMD_SHOW
 		hotkey "Ctrl+`"
 	}
-	item "Edit Default Settings" {
+	item $MHEditDefaultSettings {
 		action A_CONF_EDIT
 	}
-	item "Edit User Settings..." {
+	item $MHEditUserSettings {
 		action A_USRCONF_EDIT
 	}
-	item "Edit GUI" {
+	item $MHEditGUI {
 		action A_FMEDGUI_EDIT
 	}
 	item "-" {
 	}
-	item "Show Readme File" {
+	item $MHShowReadmeFile {
 		action A_README_SHOW
 	}
-	item "Show Changelog" {
+	item $MHShowChangelog {
 		action A_CHANGES_SHOW
 	}
-	item "_About" {
+	item $MHAbout {
 		action A_ABOUT
 	}
 }
 
 menu mexplorer {
-	item "Add and Play" {
+	item $MEAddandPlay {
 		action A_EXPL_ADDPLAY
 	}
-	item "Add to Playlist" {
+	item $MEAddtoPlaylist {
 		action A_EXPL_ADD
 	}
 }
 
 menu mpopup {
-	item "Analyze & Show PCM Info" {
+	item $MFAnalyzeShowPCMInfo {
 		action A_FILE_SHOWPCM
 	}
-	item "Edit Meta Data" {
+	item $MFEditMetaData {
 		action A_FILE_SHOWINFO
 		hotkey "I"
 	}
-	item "Show In Fi_le Manager App" {
+	item $MFShowInFileManagerApp {
 		action A_FILE_SHOWDIR
 	}
-	item "Rename File..." {
+	item $MFRename {
 		action A_SHOW_RENAME
 		hotkey "Shift+F6"
 	}
-	item "_Delete From Disk" {
+	item $MFDeleteFromDisk {
 		action A_FILE_DELFILE
 		hotkey "Shift+Delete"
 	}
 	item "-" {
 	}
-	item "To Ne_xt Playlist" {
+	item $MLAddToNextPlaylist {
 		action A_LIST_TO_NEXT
 	}
-	item "_Remove" {
+	item $MLRemove {
 		action A_LIST_REMOVE
 		hotkey "Delete"
 	}
@@ -256,19 +261,19 @@ window wmain {
 	}
 
 	mainmenu mm {
-		item "_File" {
+		item $MMFile {
 			submenu mfile
 		}
-		item "_List" {
+		item $MMList {
 			submenu mlist
 		}
-		item "_Playback" {
+		item $MMPlayback {
 			submenu mplay
 		}
-		item "_Convert" {
+		item $MMConvert {
 			submenu mconvert
 		}
-		item "_Help" {
+		item $MMHelp {
 			submenu mhelp
 		}
 	}
@@ -332,21 +337,21 @@ window wmain {
 		column "#" {
 			width 35
 		}
-		column Artist {
+		column $LCArtist {
 		}
-		column Title {
+		column $LCTitle {
 			width 200
 		}
-		column Duration {
+		column $LCDuration {
 			width 50
 		}
-		column Info {
+		column $LCInfo {
 		}
-		column Date {
+		column $LCDate {
 		}
-		column Album {
+		column $LCAlbum {
 		}
-		column Filename {
+		column $LCFilename {
 		}
 	}
 	statusbar stbar {
@@ -358,14 +363,14 @@ window wmain {
 
 window wconvert {
 	position 300 100 500 500
-	title "Convert"
+	title $WTConvert
 	popupfor wmain
 
 	mainmenu mmconv {
-		item "_Convert!" {
+		item $CMMConvert {
 			action A_CONVERT
 		}
-		item "Move Until Position -> Seek" {
+		item $CMMMoveUntilPositionSeek {
 			action A_CONV_MOVE_UNTIL
 		}
 	}
@@ -395,7 +400,7 @@ window wconvert {
 }
 
 window wabout {
-	title "About fmedia"
+	title $WTAboutfmedia
 	popupfor wmain
 
 	label labout {
@@ -406,7 +411,7 @@ window wabout {
 }
 
 window wuri {
-	title "Add URL"
+	title $WTAddURL
 	position 300 300 400 100
 	popupfor wmain
 
@@ -420,10 +425,10 @@ window wuri {
 }
 
 menu mminfo_addtag {
-	item "Add Artist" {
+	item $IMTAddArtist {
 		action A_INFO_ADD_ARTIST
 	}
-	item "Add Title" {
+	item $IMTAddTitle {
 		action A_INFO_ADD_TITLE
 	}
 }
@@ -432,10 +437,10 @@ window winfo {
 	position 300 100 300 500
 	popupfor wmain
 	mainmenu mminfo {
-		item "Add Tag" {
+		item $IMMAddTag {
 			submenu mminfo_addtag
 		}
-		item "Write Tags to File!" {
+		item $IMMWriteTagstoFile {
 			action A_INFO_WRITE
 		}
 	}
@@ -451,7 +456,7 @@ window winfo {
 }
 
 window wplayprops {
-	title "Playback Properties"
+	title $WTPlaybackProperties
 	position 300 100 300 500
 	popupfor wmain
 
@@ -470,7 +475,7 @@ window wplayprops {
 }
 
 window wdload {
-	title "Download from YouTube"
+	title $WTDownloadfromYouTube
 	position 300 100 300 500
 	label lurl {
 		text "URL:"
@@ -511,7 +516,7 @@ window wdload {
 }
 
 window wlog {
-	title "Log Messages"
+	title $WTLogMessages
 	position 300 100 600 200
 	popupfor wmain
 	text tlog {
@@ -519,7 +524,7 @@ window wlog {
 }
 
 window wcmd {
-	title "Quick Command"
+	title $WTQuickCommand
 	position 300 100 300 500
 	popupfor wmain
 
@@ -536,7 +541,7 @@ window wcmd {
 }
 
 window wrename {
-	title "Rename File"
+	title $WTRenameFile
 	position 300 100 500 300
 	popupfor wmain
 	editbox tname {

@@ -4,6 +4,7 @@
 #pragma once
 #include "gtk.h"
 #include "../conf2-writer.h"
+#include "../gui-vars.h"
 
 typedef void* (*ffui_ldr_getctl_t)(void *udata, const ffstr *name);
 
@@ -21,6 +22,10 @@ typedef struct ffui_loader {
 	void *udata;
 	ffstr path;
 	ffvec accels; //ffui_wnd_hotkey[]
+
+	char language[2];
+	ffvec lang_data_def, lang_data;
+	ffmap vars; // hash(name) -> struct var*
 
 	_ffui_ldr_icon ico;
 	_ffui_ldr_icon ico_ctl;
@@ -65,14 +70,7 @@ getcmd: get command ID by its name
 udata: user data */
 FF_EXTERN void ffui_ldr_init2(ffui_loader *g, ffui_ldr_getctl_t getctl, ffui_ldr_getcmd_t getcmd, void *udata);
 
-static inline void ffui_ldr_fin(ffui_loader *g)
-{
-	ffmem_free(g->ico_ctl.fn);
-	ffmem_free(g->ico.fn);
-	ffvec_free(&g->accels);
-	ffmem_free(g->errstr);
-	ffmem_free0(g->wndname);
-}
+FF_EXTERN void ffui_ldr_fin(ffui_loader *g);
 
 #define ffui_ldr_errstr(g)  ((g)->errstr)
 

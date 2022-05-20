@@ -1,38 +1,43 @@
-# fmedia v1.24 GUI
+# fmedia v1.28 GUI/winapi
+
+include_language {
+	# <LANG> "gui_lang_<LANG>.txt"
+	default "gui_lang_en.txt"
+}
 
 menu mfile {
-	item "&Open..." {
+	item $MFOpen {
 		action OPEN
 		hotkey "Ctrl+O"
 	}
-	item "&Add..." {
+	item $MFAdd {
 		action ADD
 		hotkey "Insert"
 	}
-	item "Add &URL..." {
+	item $MFAddURL {
 		action ADDURL
 		hotkey "Ctrl+U"
 	}
 	item "-" {
 	}
-	item "Show Meta Data" {
+	item $MFShowMetaData {
 		action A_FILE_SHOWINFO
 		hotkey "I"
 	}
-	item "Analyze && Show PCM Info" {
+	item $MFAnalyzeShowPCMInfo {
 		action A_FILE_SHOWPCM
 	}
-	item "C&opy to Clipboard" {
+	item $MFCopytoClipboard {
 		action A_FILE_COPYFILE
 		hotkey "Ctrl+C"
 	}
-	item "Copy File&name to Clipboard" {
+	item $MFCopyFilenametoClipboard {
 		action A_FILE_COPYFN
 	}
-	item "Show Fi&le in Explorer" {
+	item $MFShowFileinExplorer {
 		action A_FILE_SHOWDIR
 	}
-	item "&Delete From Disk" {
+	item $MFDeleteFromDisk {
 		action A_FILE_DELFILE
 		hotkey "Shift+Delete"
 	}
@@ -43,240 +48,240 @@ menu mfile {
 	}
 	item "-" {
 	}
-	item "&Minimize to Tray" {
+	item $MFMinimizetoTray {
 		action HIDE
 		hotkey "Ctrl+M"
 	}
-	item "E&xit" {
+	item $MFExit {
 		action QUIT
 	}
 }
 
 menu mlist {
-	item "&New Tab" {
+	item $MLNewTab {
 		action A_LIST_NEW
 		hotkey "Ctrl+N"
 	}
-	item "Close Tab" {
+	item $MLCloseTab {
 		action A_LIST_CLOSE
 		hotkey "Ctrl+W"
 	}
-	item "&Save Playlist..." {
+	item $MLSavePlaylist {
 		action A_LIST_SAVELIST
 		hotkey "Ctrl+S"
 	}
-	item "Read &Meta Tags" {
+	item $MLReadMetaTags {
 		action A_LIST_READMETA
 	}
 	item "-" {
 	}
-	item "Select &All" {
+	item $MLSelectAll {
 		action A_LIST_SELALL
 		hotkey "Ctrl+A"
 	}
-	item "In&vert Selection" {
+	item $MLInvertSelection {
 		action A_LIST_SELINVERT
 	}
-	item "Selection Follows Cursor" {
+	item $MLSelectionFollowsCursor {
 		action A_LIST_SEL_AFTER_CUR
 	}
 	item "-" {
 	}
-	item "&Remove" {
+	item $MLRemove {
 		action A_LIST_REMOVE
 		hotkey "Delete"
 	}
-	item "Remove &Dead Items" {
+	item $MLRemoveDeadItems {
 		action A_LIST_RMDEAD
 		hotkey "Alt+Delete"
 	}
-	item "&Clear" {
+	item $MLClear {
 		action A_LIST_CLEAR
 	}
 	item "-" {
 	}
-	item "&Filter..." {
+	item $MLFilter {
 		action FILTER_SHOW
 		hotkey "Ctrl+F"
 	}
-	item "Random" {
+	item $MLRandom {
 		action A_LIST_RANDOM
 	}
-	item "Sort: Random" {
+	item $MLSortRandom {
 		action A_LIST_SORTRANDOM
 	}
 	item "-" {
 	}
-	item "Show Favorites" {
+	item $MLShowFavorites {
 		action FAV_SHOW
 	}
-	item "Add to Favorites" {
+	item $MLAddtoFavorites {
 		action FAV_ADD
 	}
 }
 
 menu mplay {
-	item "&Play/Pause" {
+	item $MPPlayPause {
 		action A_PLAY_PAUSE
 		hotkey "Space"
 	}
-	item "&Stop" {
+	item $MPStop {
 		action A_PLAY_STOP
 		hotkey "S"
 	}
-	item "Stop After Current" {
+	item $MPStopAfterCurrent {
 		action A_PLAY_STOP_AFTER
 		hotkey "Shift+S"
 	}
-	item "&Next" {
+	item $MPNext {
 		action A_PLAY_NEXT
 		hotkey "N"
 	}
-	item "P&revious" {
+	item $MPPrevious {
 		action A_PLAY_PREV
 		hotkey "P"
 	}
-	item "Repeat: None/Track/All" {
+	item $MPRepeatNoneTrackAll {
 		action A_PLAY_REPEAT
 	}
 	item "-" {
 	}
-	item "Seek &Forward" {
+	item $MPSeekForward {
 		action A_PLAY_FFWD
 		hotkey "Right"
 	}
-	item "Seek &Back" {
+	item $MPSeekBack {
 		action A_PLAY_RWND
 		hotkey "Left"
 	}
-	item "Leap Forward" {
+	item $MPLeapForward {
 		action A_PLAY_LEAP_FWD
 		hotkey "Ctrl+Right"
 	}
-	item "Leap Back" {
+	item $MPLeapBack {
 		action A_PLAY_LEAP_BACK
 		hotkey "Ctrl+Left"
 	}
-	item "Go To..." {
+	item $MPGoTo {
 		action GOTO_SHOW
 		hotkey "Ctrl+G"
 	}
-	item "Set Marker" {
+	item $MPSetMarker {
 		action A_PLAY_SETGOPOS
 		hotkey "Shift+G"
 	}
-	item "Jump To Marker" {
+	item $MPJumpToMarker {
 		action A_PLAY_GOPOS
 		hotkey "G"
 	}
 	item "-" {
 	}
-	item "Volume &Up" {
+	item $MPVolumeUp {
 		action A_PLAY_VOLUP
 		hotkey "Up"
 	}
-	item "Volume &Down" {
+	item $MPVolumeDown {
 		action A_PLAY_VOLDOWN
 		hotkey "Down"
 	}
-	item "Reset Volume" {
+	item $MPResetVolume {
 		action A_PLAY_VOLRESET
 	}
 	item "-" {
 	}
-	item "Select Audio Device..." {
+	item $MPSelectAudioDevice {
 		action DEVLIST_SHOW
 	}
-	item "Properties..." {
+	item $MPProperties {
 		action A_SHOW_PROPS
 	}
 }
 
 menu mrec {
-	item "&Record..." {
+	item $MRRecord {
 		action REC_SETS
 		hotkey "Ctrl+Shift+R"
 	}
-	item "&Quick Start/Stop" {
+	item $MRQuickStartStop {
 		action REC
 		hotkey "Ctrl+R"
 	}
-	item "&Play and Record" {
+	item $MRPlayandRecord {
 		action PLAYREC
 	}
-	item "Open Recordings Fo&lder" {
+	item $MROpenRecordingsFolder {
 		action SHOWRECS
 	}
-	item "Select Audio Device..." {
+	item $MRSelectAudioDevice {
 		action DEVLIST_SHOWREC
 	}
 }
 
 menu mconvert {
-	item "&Convert..." {
+	item $MCConvert {
 		action SHOWCONVERT
 		hotkey "Ctrl+T"
 	}
-	item "Set Seek Position" {
+	item $MCSetSeekPosition {
 		action SETCONVPOS_SEEK
 		hotkey "["
 	}
-	item "Set Until Position" {
+	item $MCSetUntilPosition {
 		action SETCONVPOS_UNTIL
 		hotkey "]"
 	}
 }
 
 menu mhelp {
-	item "Edit Default Settings..." {
+	item $MHEditDefaultSettings {
 		action CONF_EDIT
 	}
-	item "Edit User Settings..." {
+	item $MHEditUserSettings {
 		action USRCONF_EDIT
 	}
-	item "Edit GUI..." {
+	item $MHEditGUI {
 		action FMEDGUI_EDIT
 	}
-	item "Edit GUI Themes..." {
+	item $MHEditGUIThemes {
 		action THEMES_EDIT
 	}
 	item "-" {
 	}
-	item "Show Readme File..." {
+	item $MHShowReadmeFile {
 		action README_SHOW
 	}
-	item "Show Changelog..." {
+	item $MHShowChangelog {
 		action CHANGES_SHOW
 	}
-	item "&About" {
+	item $MHAbout {
 		action ABOUT
 	}
 }
 
 menu mlist_popup {
-	item "Play" {
+	item $MUPlay {
 		style default
 		action PLAY
 	}
-	item "&Remove" {
+	item $MLRemove {
 		action A_LIST_REMOVE
 	}
-	item "Show Meta Data" {
+	item $MFShowMetaData {
 		action A_FILE_SHOWINFO
 	}
-	item "To Ne&xt Playlist" {
+	item $MUToNextPlaylist {
 		action TO_NXTLIST
 	}
-	item "C&opy to Clipboard" {
+	item $MFCopytoClipboard {
 		action A_FILE_COPYFILE
 	}
-	item "Copy File&name to Clipboard" {
+	item $MFCopyFilenametoClipboard {
 		action A_FILE_COPYFN
 	}
-	item "Show Fi&le in Explorer" {
+	item $MFShowFileinExplorer {
 		action A_FILE_SHOWDIR
 	}
-	item "&Delete From Disk" {
+	item $MFDeleteFromDisk {
 		action A_FILE_DELFILE
 	}
 }
@@ -286,10 +291,10 @@ menu mtray {
 		style default
 		action SHOW
 	}
-	item "Playback" {
+	item $MTPlayback {
 		submenu mplay
 	}
-	item "Exit" {
+	item $MTExit {
 		action QUIT
 	}
 }
@@ -311,22 +316,22 @@ window wmain {
 	}
 
 	mainmenu mm {
-		item "&File" {
+		item $MMFile {
 			submenu mfile
 		}
-		item "&List" {
+		item $MMList {
 			submenu mlist
 		}
-		item "&Playback" {
+		item $MMPlayback {
 			submenu mplay
 		}
-		item "&Record" {
+		item $MMRecord {
 			submenu mrec
 		}
-		item "&Convert" {
+		item $MMConvert {
 			submenu mconvert
 		}
-		item "&Help" {
+		item $MMHelp {
 			submenu mhelp
 		}
 	}
@@ -419,22 +424,22 @@ window wmain {
 			width 35
 			align right
 		}
-		column Artist {
+		column $LCArtist {
 		}
-		column Title {
+		column $LCTitle {
 			width 200
 		}
-		column Duration {
+		column $LCDuration {
 			width 50
 			align right
 		}
-		column Info {
+		column $LCInfo {
 		}
-		column Date {
+		column $LCDate {
 		}
-		column Album {
+		column $LCAlbum {
 		}
-		column Filename {
+		column $LCFilename {
 		}
 	}
 
@@ -458,7 +463,7 @@ window wconvert {
 	parent wmain
 	position 300 100 300 200
 	style popup
-	title "Convert"
+	title $WTConvert
 
 	font {
 		name Arial
@@ -466,7 +471,7 @@ window wconvert {
 	}
 
 	mainmenu mmconv {
-		item "&Convert!" {
+		item $CMMConvert {
 			action CONVERT
 		}
 	}
@@ -522,7 +527,7 @@ window wrec {
 	parent wmain
 	position 300 100 300 200
 	style popup
-	title "Record"
+	title $WTRecord
 
 	font {
 		name Arial
@@ -530,7 +535,7 @@ window wrec {
 	}
 
 	mainmenu mmrec {
-		item "&Start/Stop" {
+		item $RMMStartStop {
 			action REC
 		}
 	}
@@ -583,7 +588,7 @@ window wrec {
 
 window wdev {
 	parent wmain
-	title "Choose an Audio Device"
+	title $WTChooseanAudioDevice
 	position 300 300 400 200
 	style popup
 	opacity 90
@@ -633,7 +638,7 @@ window winfo {
 
 window wgoto {
 	parent wmain
-	title "Go To"
+	title $WTGoTo
 	position 300 300 100 120
 	style popup
 	opacity 90
@@ -655,7 +660,7 @@ window wgoto {
 
 window wabout {
 	parent wmain
-	title "About fmedia"
+	title $WTAboutfmedia
 	position 300 300 425 175
 	style popup
 	opacity 90
@@ -691,7 +696,7 @@ window wabout {
 
 window wlog {
 	parent wmain
-	title "Log"
+	title $WTLog
 	position 300 300 400 200
 	style popup
 
@@ -707,7 +712,7 @@ window wlog {
 
 window wuri {
 	parent wmain
-	title "Add URL"
+	title $WTAddURL
 	position 300 300 400 100
 	style popup
 	opacity 90
@@ -737,7 +742,7 @@ window wuri {
 
 window wfilter {
 	parent wmain
-	title "Filter Tracks"
+	title $WTFilterTracks
 	position 300 300 300 100
 	style popup
 	opacity 90
@@ -775,7 +780,7 @@ window wfilter {
 }
 
 window wplayprops {
-	title "Playback Properties"
+	title $WTPlaybackProperties
 	position 300 100 300 500
 
 	# editbox tfilter {
