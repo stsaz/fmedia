@@ -62,7 +62,7 @@ void mkv_meta(struct mkvin *m, fmed_filt *d)
 }
 
 const ushort mkv_codecs[] = {
-	MKV_A_AAC, MKV_A_ALAC, MKV_A_MPEG, MKV_A_OPUS, MKV_A_VORBIS, MKV_A_PCM,
+	MKV_A_AAC, MKV_A_ALAC, MKV_A_MPEGL3, MKV_A_OPUS, MKV_A_VORBIS, MKV_A_PCM,
 };
 const char* const mkv_codecs_str[] = {
 	"aac.decode", "alac.decode", "mpeg.decode", "opus.decode", "vorbis.decode", "",
@@ -159,6 +159,8 @@ again:
 		if ((int64)d->audio.seek != FMED_NULL && !m->seeking) {
 			m->seeking = 1;
 			mkvread_seek(&m->mkv, d->audio.seek);
+		} else if ((int64)d->audio.seek != FMED_NULL && m->seeking) {
+			d->audio.seek = FMED_NULL;
 		}
 		if (m->seeking && (int64)d->audio.seek == FMED_NULL) {
 			m->seeking = 0;
@@ -236,7 +238,7 @@ again:
 				ffstr_set2(&m->vorb_in, &ai->codec_conf);
 				m->state = I_VORBIS_HDR;
 				goto again;
-			} else if (ai->codec == MKV_A_MPEG) {
+			} else if (ai->codec == MKV_A_MPEGL3) {
 				//
 			} else if (ai->codec == MKV_A_OPUS) {
 				if (d->stream_copy) {
