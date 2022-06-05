@@ -137,12 +137,10 @@ static int core_conf(const char *filename)
 	fmed->props.record_format = fmed->conf.inp_pcm;
 	fmed->props.prevent_sleep = fmed->conf.prevent_sleep;
 
-	if (fn != filename)
-		ffmem_free0(fn);
-
 	r = 0;
 end:
-	ffmem_safefree(fn);
+	if (fn != filename)
+		ffmem_free(fn);
 	return r;
 }
 

@@ -8,6 +8,17 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.27.4 - May 31, 2022
+
+ * support "--include/--exclude" when creating playlist from directory
+ - .avi(AAC, PCM), .mkv(MP3) read didn't work
+ - .ogg read: some packets could be skipped
+ - .ogg(Opus, Vorbis) write: correct output data and granule position for the first packets
+ * .ogg(FLAC): support seeking
+ * .caf(PCM) read: faster processing
+ - FLAC decode: fix crash after seek on bad .flac files
+
+
 fmedia v1.27.3 - May 15, 2022
 
  * playback: faster audio device open (reuse) on track switch

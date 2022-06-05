@@ -16,10 +16,10 @@ typedef struct fmed_caf {
 	uint state;
 } fmed_caf;
 
-void caf_log(void *udata, ffstr msg)
+void caf_log(void *udata, const char *fmt, va_list va)
 {
 	fmed_caf *c = udata;
-	dbglog1(c->trk, "%S", &msg);
+	fmed_dbglogv(core, c->trk, NULL, fmt, va);
 }
 
 static void* caf_open(fmed_filt *d)
@@ -162,6 +162,7 @@ static int caf_process(void *ctx, fmed_filt *d)
 
 data:
 	d->audio.pos = cafread_cursample(&c->caf);
+	dbglog1(c->trk, "packet size:%L @%U", d->data_out.len, d->audio.pos);
 	return FMED_RDATA;
 }
 

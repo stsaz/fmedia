@@ -31,10 +31,10 @@ struct flac {
 	uint seek_ready :1;
 };
 
-static void flac_in_log(void *udata, ffstr msg)
+void flac_in_log(void *udata, const char *fmt, va_list va)
 {
 	struct flac *f = udata;
-	dbglog(f->trk, "%S", &msg);
+	fmed_dbglogv(core, f->trk, NULL, fmt, va);
 }
 
 static void* flac_in_create(fmed_filt *d)

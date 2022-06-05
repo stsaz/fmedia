@@ -40,18 +40,57 @@ if test "$1" = "info" ; then
 fi
 
 if test "$1" = "play" ; then
-	ffmpeg -i rec.wav -c:a flac -y rec.flac.ogg
-	ffmpeg -i rec.wav -y rec.aac
-	ffmpeg -i rec.wav -c:a wavpack -y rec.wv
-	#mpcenc-bin rec.wav rec.mpc
-	# TODO rec.ape
+	if ! test -f "rec4.wav" ; then
+		./fmedia --record --format=int16 --rate=48000 --channels=2 --until=4 -o rec4.wav -y
+	fi
+	if ! test -f "play_wv.wv" ; then
+		ffmpeg -i rec4.wav -c:a aac -y play_aac.aac
+		ffmpeg -i rec4.wav -c:a aac -y play_aac.avi
+		ffmpeg -i rec4.wav -c:a aac -y play_aac.mkv
+		ffmpeg -i rec4.wav -c:a aac -y play_aac.mp4
+		ffmpeg -i rec4.wav -c:a alac -y play_alac.mkv
+		ffmpeg -i rec4.wav -c:a alac -y play_alac.mp4
+		ffmpeg -i rec4.wav -c:a flac -y play_flac.flac
+		ffmpeg -i rec4.wav -c:a flac -y play_flac.ogg
+		ffmpeg -i rec4.wav -c:a libmp3lame -y play_mp3.avi
+		ffmpeg -i rec4.wav -c:a libmp3lame -y play_mp3.mkv
+		ffmpeg -i rec4.wav -c:a libmp3lame -y play_mp3.mp3
+		ffmpeg -i rec4.wav -c:a libopus -y play_opus.mkv
+		ffmpeg -i rec4.wav -c:a libopus -y play_opus.ogg
+		ffmpeg -i rec4.wav -c:a libvorbis -y play_vorbis.mkv
+		ffmpeg -i rec4.wav -c:a libvorbis -y play_vorbis.ogg
+		ffmpeg -i rec4.wav -c:a pcm_s16le -y play_pcm.avi
+		ffmpeg -i rec4.wav -c:a pcm_s16le -y play_pcm.caf
+		ffmpeg -i rec4.wav -c:a pcm_s16le -y play_pcm.mkv
+		ffmpeg -i rec4.wav -c:a pcm_s16le -y play_pcm.wav
+		ffmpeg -i rec4.wav -c:a wavpack -y play_wv.wv
+		# mpcenc rec4.wav play_mpc.mpc
+		# TODO play_ape.ape
+	fi
 
-	./fmedia rec.*
-	./fmedia rec.* --seek=0.500
-	./fmedia rec.* --seek=0.500 --until=1.500
+	./fmedia play_* --seek=2 --pcm-peaks
+	./fmedia play_*
+	./fmedia play_* --seek=2
+fi
+
+if test "$1" = "cue" ; then
+	if ! test -f "rec4.flac" ; then
+		./fmedia --record --format=int16 --rate=48000 --channels=2 --until=4 -o rec4.flac -y
+	fi
+	echo 'FILE "rec4.flac" WAVE
+TRACK 01 AUDIO
+ TITLE T1
+ INDEX 01 00:00:00
+TRACK 02 AUDIO
+ TITLE T2
+ INDEX 01 00:02:00' >cue.cue
+	./fmedia cue.cue
 fi
 
 if test "$1" = "convert" ; then
+	if ! test -f "rec.wav" ; then
+		./fmedia --record --format=int16 --rate=48000 --channels=2 --until=2 -o rec.wav -y
+	fi
 	# convert .wav -> .*
 	OPTS="-y"
 	$BIN rec.wav -o enc.wav $OPTS
@@ -125,7 +164,9 @@ if test "$1" = "convert" ; then
 fi
 
 if test "$1" = "convert_meta" ; then
-	./fmedia --record -o rec.wav -y --until=2 --rate=44100 --format=int16
+	if ! test -f "rec.wav" ; then
+		./fmedia --record -o rec.wav -y --until=2 --rate=44100 --format=int16
+	fi
 
 	# convert with meta
 	./fmedia rec.wav -o enc_meta.flac -y --meta='artist=SomeArtist;title=SomeTitle'
@@ -181,31 +222,28 @@ if test "$1" = "convert_parallel" ; then
 fi
 
 if test "$1" = "convert_streamcopy" ; then
-	./fmedia --record --until=1 -o streamcopy.mp3 -y
-	./fmedia streamcopy.mp3 -o streamcopy.m4a -y
-
 	# convert with stream-copy
-	OPTS="-y --stream-copy"
-	$BIN rec.mp3 -o copy.mp3 $OPTS
-	$BIN rec.ogg -o copy.ogg $OPTS
-	$BIN rec.opus -o copy.opus $OPTS
-	$BIN rec.m4a -o copy.m4a $OPTS
-	$BIN copy.* --pcm-peaks
+	./fmedia play_aac.mp4 -o copy_aac.m4a -y --stream-copy
+	./fmedia play_mp3.mp3 -o copy_mp3.mp3 -y --stream-copy
+	./fmedia play_opus.mkv -o copy_opus_mkv.ogg -y --stream-copy
+	./fmedia play_opus.ogg -o copy_opus.ogg -y --stream-copy
+	./fmedia play_vorbis.ogg -o copy_vorbis.ogg -y --stream-copy
+	./fmedia copy_* --pcm-peaks
 
 	# convert with stream-copy and seek
-	OPTS="-y --stream-copy --seek=0.500"
-	$BIN rec.mp3 -o copyseek.mp3 $OPTS
-	$BIN rec.ogg -o copyseek.ogg $OPTS
-	$BIN rec.opus -o copyseek.opus $OPTS
-	$BIN rec.m4a -o copyseek.m4a $OPTS
-	$BIN copyseek.* --pcm-peaks
+	./fmedia play_aac.mp4 -o copy_seek_aac.m4a -y --stream-copy --seek=2
+	./fmedia play_mp3.mp3 -o copy_seek_mp3.mp3 -y --stream-copy --seek=2
+	./fmedia play_opus.ogg -o copy_seek_opus.ogg -y --stream-copy --seek=2
+	./fmedia play_opus.mkv -o copy_seek_opus_mkv.ogg -y --stream-copy --seek=2
+	./fmedia play_vorbis.ogg -o copy_seek_vorbis.ogg -y --stream-copy --seek=2
+	./fmedia copy_seek_* --pcm-peaks
 
 	# convert with stream-copy and new meta
-	./fmedia streamcopy.mp3 -o streamcopy_meta.mp3 -y --stream-copy --meta='artist=SomeArtist;title=SomeTitle'
-	./fmedia streamcopy_meta.mp3 --info 2>&1 | grep 'SomeArtist - SomeTitle'
+	./fmedia play_mp3.mp3 -o copy_meta.mp3 -y --stream-copy --meta='artist=SomeArtist;title=SomeTitle'
+	./fmedia copy_meta.mp3 --info 2>&1 | grep 'SomeArtist - SomeTitle'
 
-	./fmedia streamcopy.m4a -o streamcopy_meta.m4a -y --stream-copy --meta='artist=SomeArtist;title=SomeTitle'
-	./fmedia streamcopy_meta.m4a --info 2>&1 | grep 'SomeArtist - SomeTitle'
+	./fmedia play_aac.mp4 -o copy_meta.m4a -y --stream-copy --meta='artist=SomeArtist;title=SomeTitle'
+	./fmedia copy_meta.m4a --info 2>&1 | grep 'SomeArtist - SomeTitle'
 fi
 
 if test "$1" = "filters" ; then
@@ -261,6 +299,7 @@ if test "$1" = "all" ; then
 	sh $0 record
 	sh $0 info
 	sh $0 play
+	sh $0 cue
 	sh $0 convert
 	sh $0 convert_meta
 	sh $0 convert_streamcopy

@@ -115,7 +115,6 @@ int main(int argc, char **argv)
 
 	// Load configuration file
 	assert(0 == core->cmd(FMED_CONF, fmedia_conf));
-	fmedia_conf = NULL;
 
 	// Initialize core
 	assert(0 == core->sig(FMED_OPEN));

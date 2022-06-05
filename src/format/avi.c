@@ -164,6 +164,7 @@ static int avi_process(void *ctx, fmed_filt *d)
 
 data:
 	d->audio.pos = aviread_cursample(&a->avi);
+	dbglog1(a->trk, "frame size:%L @%U", d->data_out.len, d->audio.pos);
 	return FMED_RDATA;
 }
 

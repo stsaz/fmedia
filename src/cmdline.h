@@ -3,42 +3,6 @@
 
 #include <util/cmdarg-scheme.h>
 
-#ifdef FF_WIN
-	#include <versionhelpers.h>
-#endif
-
-/** Get locale suffix. */
-static const char* loc_sfx()
-{
-	uint ilang = 0;
-	static const char langstr[][4] = {
-		"", "" /*EN*/, "_RU", "_DE", "_FR", "_ES", "_ID",
-	};
-	uint lang = fflang_info(FFLANG_FLANG);
-	dbglog(core, NULL, "core", "language:%xu", lang);
-	switch (lang) {
-	case FFLANG_ENG:
-		ilang = 1; break;
-	case FFLANG_RUS:
-		ilang = 2; break;
-	case FFLANG_GER:
-		ilang = 3; break;
-	case FFLANG_FRA:
-		ilang = 4; break;
-	case FFLANG_ESP:
-		ilang = 5; break;
-	case FFLANG_IND:
-		ilang = 6; break;
-	}
-
-#ifdef FF_WIN
-	if (ilang > 1 && !IsWindows7OrGreater()) // does printing non-latin characters work on old Windows?
-		ilang = 1;
-#endif
-
-	return langstr[ilang];
-}
-
 void arg_usage_short()
 {
 	const char *usage =
@@ -48,31 +12,43 @@ void arg_usage_short()
 	ffstd_write(ffstdout, usage, ffsz_len(usage));
 }
 
-#define FMED_CMDHELP_FILE_FMT  "help%s.txt"
 #define CMD_LAST  100
 
 static int arg_usage(ffcmdarg_scheme *as, void *obj)
 {
-	ffarr buf = {0};
-	ffssize n;
+	ffvec buf = {};
 	char *fn = NULL, *name = NULL;
-	fffd f = FF_BADFD;
 	int r = FFCMDARG_ERROR;
 
-	name = ffsz_alfmt(FMED_CMDHELP_FILE_FMT, loc_sfx());
-	if (NULL == (fn = core->getpath(name, ffsz_len(name))))
-		goto done;
+	// try language file, then use default file
+	char lang[8];
+	int n = ffenv_locale(lang, sizeof(lang), FFENV_LANGUAGE);
+	ffstr loc = {};
+	if (n > 0) {
+		ffstr_set(&loc, lang, n);
+		ffstr_splitby(&loc, '_', &loc, NULL);
+	}
+	int def_file = 0;
+	if (loc.len != 0)
+		name = ffsz_allocfmt("help_%S.txt", &loc);
+	else {
+		def_file = 1;
+		name = ffsz_dup("help.txt");
+	}
+	fn = core->getpath(name, ffsz_len(name));
 
-	if (FF_BADFD == (f = fffile_open(fn, FFO_RDONLY | FFO_NOATIME)))
-		goto done;
-
-	if (NULL == ffarr_alloc(&buf, fffile_size(f)))
-		goto done;
-
-	n = fffile_read(f, buf.ptr, buf.cap);
-	if (n <= 0)
-		goto done;
-	buf.len = n;
+	for (;;) {
+		if (0 != fffile_readwhole(fn, &buf, 64*1024)) {
+			if (!def_file && fferr_nofile(fferr_last())) {
+				ffmem_free(fn);
+				fn = core->getpath("help.txt", ffsz_len("help.txt"));
+				def_file = 1;
+				continue;
+			}
+			goto done;
+		}
+		break;
+	}
 
 	ffstd_write(ffstdout, buf.ptr, buf.len);
 	r = CMD_LAST;
@@ -80,9 +56,8 @@ static int arg_usage(ffcmdarg_scheme *as, void *obj)
 done:
 	if (r != CMD_LAST)
 		syserrlog0("trying to read help.txt");
-	ffmem_safefree(fn);
-	FF_SAFECLOSE(f, FF_BADFD, fffile_close);
-	ffarr_free(&buf);
+	ffvec_free(&buf);
+	ffmem_free(fn);
 	ffmem_free(name);
 	return r;
 }

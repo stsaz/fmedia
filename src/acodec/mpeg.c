@@ -79,6 +79,7 @@ static void* mpeg_dec_open(fmed_filt *d)
 	d->audio.fmt.channels = d->audio.fmt.channels;
 	d->audio.fmt.format = FFPCM_FLOAT;
 	d->audio.fmt.ileaved = 1;
+	d->audio.decoder = "MPEG1-L3";
 	m->fr_size = ffpcm_size1(&d->audio.fmt);
 	m->sample_rate = d->audio.fmt.sample_rate;
 	d->datatype = "pcm";
@@ -154,8 +155,8 @@ static int mpeg_dec_process(void *ctx, fmed_filt *d)
 		d->data_out.len -= n * m->fr_size;
 	}
 
-	dbglog(core, d->trk, "mpeg", "output: %u PCM samples"
-		, samples);
+	dbglog(core, d->trk, "mpeg", "decoded %u samples @%U"
+		, samples, d->audio.pos);
 	return FMED_RDATA;
 
 end:

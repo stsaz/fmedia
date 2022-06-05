@@ -23,10 +23,10 @@ struct mkvin {
 	uint seeking :1;
 };
 
-void mkv_log(void *udata, ffstr msg)
+void mkv_log(void *udata, const char *fmt, va_list va)
 {
 	struct mkvin *m = udata;
-	dbglog1(m->trk, "%S", &msg);
+	fmed_dbglogv(core, m->trk, NULL, fmt, va);
 }
 
 void* mkv_open(fmed_filt *d)
@@ -227,7 +227,8 @@ again:
 			d->audio.fmt.sample_rate = ai->sample_rate;
 			m->sample_rate = ai->sample_rate;
 			d->audio.total = ffpcm_samples(ai->duration_msec, ai->sample_rate);
-			// d->audio.bitrate = ;
+			if ((ffint64)d->input.size != FMED_NULL && ai->duration_msec != 0)
+				d->audio.bitrate = (d->input.size * 8 * 1000) / ai->duration_msec;
 
 			if ((int64)d->audio.seek != FMED_NULL && !m->seeking) {
 				m->seeking = 1;

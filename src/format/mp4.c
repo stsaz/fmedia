@@ -25,10 +25,10 @@ typedef struct mp4 {
 	uint seeking :1;
 } mp4;
 
-static void mp4_log(void *udata, ffstr msg)
+void mp4_log(void *udata, const char *fmt, va_list va)
 {
 	mp4 *m = udata;
-	dbglog1(m->trk, "%S", &msg);
+	fmed_dbglogv(core, m->trk, NULL, fmt, va);
 }
 
 static void* mp4_in_create(fmed_filt *d)

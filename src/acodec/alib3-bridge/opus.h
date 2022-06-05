@@ -36,7 +36,6 @@ typedef struct ffopus {
 		uint preskip;
 	} info;
 	uint64 pos;
-	ffuint64 dec_pos;
 	uint last_decoded;
 	ffvec pcmbuf;
 	uint64 seek_sample;
@@ -53,7 +52,6 @@ typedef struct ffopus {
 static inline void ffopus_seek(ffopus *o, uint64 sample)
 {
 	o->seek_sample = sample + o->info.preskip;
-	o->dec_pos = (ffuint64)-1;
 	o->pos = 0;
 	o->last_decoded = 0;
 }
@@ -68,7 +66,7 @@ static inline int ffopus_tag(ffopus *o, ffstr *name, ffstr *val)
 /** Get starting position (sample number) of the last decoded data */
 static inline ffuint64 ffopus_startpos(ffopus *o)
 {
-	return o->dec_pos - o->last_decoded;
+	return o->pos - o->last_decoded;
 }
 
 static inline void ffopus_setpos(ffopus *o, ffuint64 val, int reset)
@@ -76,8 +74,6 @@ static inline void ffopus_setpos(ffopus *o, ffuint64 val, int reset)
 	if (reset) {
 		opus_decode_reset(o->dec);
 	}
-	if (o->dec_pos == (uint64)-1)
-		o->dec_pos = val;
 	o->pos = val;
 	o->last_decoded = 0;
 }
@@ -126,7 +122,6 @@ const char* _ffopus_errstr(int e)
 
 int ffopus_open(ffopus *o)
 {
-	o->dec_pos = (ffuint64)-1;
 	return 0;
 }
 
@@ -225,7 +220,7 @@ int ffopus_decode(ffopus *o, ffstr *input, ffstr *output)
 		r = o->total_samples - o->pos;
 	}
 
-	o->dec_pos += r;
+	o->pos += r;
 	o->last_decoded = r;
 
 	ffstr_set(output, pcm, r * o->info.channels * sizeof(float));

@@ -29,7 +29,7 @@ mixer                 mixer
 #define FMED_VER_MAJOR  1
 #define FMED_VER_MINOR  27
 #define FMED_VER_FULL  ((FMED_VER_MAJOR << 8) | FMED_VER_MINOR)
-#define FMED_VER  "1.27.3"
+#define FMED_VER  "1.27.4"
 
 #define FMED_VER_GETMAJ(fullver)  ((fullver) >> 8)
 #define FMED_VER_GETMIN(fullver)  ((fullver) & 0xff)
@@ -737,6 +737,11 @@ enum FMED_LOG {
 do { \
 	if ((core)->loglev == FMED_LOG_DEBUG) \
 		(core)->log(FMED_LOG_DEBUG, trk, mod, __VA_ARGS__); \
+} while (0)
+#define fmed_dbglogv(core, trk, mod, fmt, va) \
+do { \
+	if ((core)->loglev == FMED_LOG_DEBUG) \
+		(core)->logv(FMED_LOG_DEBUG, trk, mod, fmt, va); \
 } while (0)
 
 #define fmed_infolog(core, trk, mod, ...) \
