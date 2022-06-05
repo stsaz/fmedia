@@ -119,15 +119,23 @@ static int avi_process(void *ctx, fmed_filt *d)
 
 		case AVIREAD_HEADER: {
 			const struct avi_audio_info *ai = get_first_audio_track(a);
-			int i = ffarrint16_find(avi_codecs, FFCNT(avi_codecs), ai->codec);
-			if (i == -1) {
-				errlog1(d->trk, "unsupported codec: %xu", ai->codec);
-				return FMED_RERR;
-			}
+			dbglog1(d->trk, "codec:%u  conf:%*xb"
+				, ai->codec, ai->codec_conf.len, ai->codec_conf.ptr);
+			if (ai->codec == AVI_A_PCM) {
+				d->audio.fmt.format = ai->bits;
+				d->audio.fmt.ileaved = 1;
+				d->datatype = "pcm";
+			} else {
+				int i = ffarrint16_find(avi_codecs, FFCNT(avi_codecs), ai->codec);
+				if (i == -1) {
+					errlog1(d->trk, "unsupported codec: %xu", ai->codec);
+					return FMED_RERR;
+				}
 
-			const char *codec = avi_codecs_str[i];
-			if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, (void*)codec)) {
-				return FMED_RERR;
+				const char *codec = avi_codecs_str[i];
+				if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, (void*)codec)) {
+					return FMED_RERR;
+				}
 			}
 			d->audio.fmt.channels = ai->channels;
 			d->audio.fmt.sample_rate = ai->sample_rate;
