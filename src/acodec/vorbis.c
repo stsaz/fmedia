@@ -229,6 +229,7 @@ typedef struct vorbis_out {
 	ffpcm fmt;
 	ffvorbis_enc vorbis;
 	uint64 npkt;
+	ffuint64 endpos;
 } vorbis_out;
 
 static int vorbis_out_config(fmed_conf_ctx *ctx)
@@ -278,7 +279,7 @@ static int vorbis_out_encode(void *ctx, fmed_filt *d)
 {
 	vorbis_out *v = ctx;
 	int r;
-	enum { W_CONV, W_CREATE, W_DATA };
+	enum { W_CONV, W_CREATE, W_DATA, W_FIN };
 
 	switch (v->state) {
 	case W_CONV:
@@ -311,6 +312,10 @@ static int vorbis_out_encode(void *ctx, fmed_filt *d)
 
 		v->state = W_DATA;
 		break;
+
+	case W_FIN:
+		d->audio.pos = v->endpos;
+		return FMED_RDONE;
 	}
 
 	if (d->flags & FMED_FLAST)
@@ -324,6 +329,8 @@ static int vorbis_out_encode(void *ctx, fmed_filt *d)
 		return FMED_RMORE;
 
 	case FFVORBIS_RDONE:
+		v->state = W_FIN;
+		break;
 	case FFVORBIS_RDATA:
 		break;
 
@@ -333,12 +340,12 @@ static int vorbis_out_encode(void *ctx, fmed_filt *d)
 	}
 
 	v->npkt++;
-
-	fmed_setval("ogg_granpos", ffvorbis_enc_pos(&v->vorbis));
-
-	dbglog(core, d->trk, NULL, "encoded %L samples into %L bytes"
-		, (d->datalen - v->vorbis.pcmlen) / ffpcm_size1(&v->fmt), v->vorbis.data.len);
+	d->audio.pos = v->endpos;
+	v->endpos = ffvorbis_enc_pos(&v->vorbis);
+	dbglog(core, d->trk, NULL, "encoded %L samples into %L bytes @%U [%U]"
+		, (d->datalen - v->vorbis.pcmlen) / ffpcm_size1(&v->fmt), v->vorbis.data.len
+		, d->audio.pos, v->endpos);
 	d->data = (void*)v->vorbis.pcm,  d->datalen = v->vorbis.pcmlen;
 	d->out = v->vorbis.data.ptr,  d->outlen = v->vorbis.data.len;
-	return (r == FFVORBIS_RDONE) ? FMED_RDONE : FMED_RDATA;
+	return FMED_RDATA;
 }

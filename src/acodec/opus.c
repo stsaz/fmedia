@@ -254,6 +254,7 @@ typedef struct opus_out {
 	ffpcm fmt;
 	ffopus_enc opus;
 	uint64 npkt;
+	uint64 endpos;
 } opus_out;
 
 static int opus_out_config(fmed_conf_ctx *ctx)
@@ -360,6 +361,7 @@ static int opus_out_encode(void *ctx, fmed_filt *d)
 
 	case FFOPUS_RDONE:
 		d->outlen = 0;
+		d->audio.pos = ffopus_enc_pos(&o->opus);
 		return FMED_RDONE;
 
 	case FFOPUS_RDATA:
@@ -370,10 +372,9 @@ static int opus_out_encode(void *ctx, fmed_filt *d)
 		return FMED_RERR;
 	}
 
+	d->audio.pos = o->endpos;
+	o->endpos = ffopus_enc_pos(&o->opus);
 	o->npkt++;
-
-	fmed_setval("ogg_granpos", ffopus_enc_pos(&o->opus));
-
 	dbglog(core, d->trk, NULL, "encoded %L samples into %L bytes"
 		, (d->datalen - o->opus.pcmlen) / ffpcm_size1(&o->fmt), o->opus.data.len);
 	d->out = o->opus.data.ptr,  d->outlen = o->opus.data.len;

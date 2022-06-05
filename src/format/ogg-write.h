@@ -68,10 +68,41 @@ const char* ogg_enc_mod(const char *fn)
 	return "vorbis.encode";
 }
 
+int pkt_write(struct ogg_out *o, fmed_filt *d, ffstr *in, ffstr *out, uint64 endpos, uint flags)
+{
+	dbglog1(d->trk, "oggwrite_process(): size:%L  endpos:%U flags:%u", in->len, endpos, flags);
+	int r = oggwrite_process(&o->og, in, out, endpos, flags);
+
+	switch (r) {
+
+	case OGGWRITE_DONE:
+		infolog1(d->trk, "OGG: packets:%U, pages:%U, overhead: %.2F%%"
+			, (int64)o->og.stat.npkts, (int64)o->og.stat.npages
+			, (double)o->og.stat.total_ogg * 100 / (o->og.stat.total_payload + o->og.stat.total_ogg));
+		return FMED_RLASTOUT;
+
+	case OGGWRITE_DATA:
+		break;
+
+	case OGGWRITE_MORE:
+		return FMED_RMORE;
+
+	default:
+		errlog1(d->trk, "oggwrite_process() failed");
+		return FMED_RERR;
+	}
+
+	o->total += out->len;
+	dbglog1(d->trk, "output: %L bytes (%U), page:%U, end-pos:%U"
+		, out->len, o->total, (int64)o->og.stat.npages-1, o->og.page_startpos);
+	return FMED_RDATA;
+}
+
 /*
 Per-packet writing ("end-pos" value is optional):
 . while "start-pos" == 0: write packet and flush
-. write the cached packet with "end-pos" = "input start-pos"
+. if add_opus_tags==1: write packet #2 with Opus tags
+. write the cached packet with "end-pos" = "current start-pos"
 . store the input packet in temp. buffer
 . ask for more data; if no more data:
   . write the input packet with "end-pos" = "input start-pos" +1; flush and exit
@@ -83,10 +114,9 @@ int ogg_out_encode(void *ctx, fmed_filt *d)
 	enum { I_CONF, I_PKT, I_PAGE_EXACT };
 	struct ogg_out *o = ctx;
 	int r;
-	ffstr in = d->data_in, out;
+	ffstr in;
 	uint flags = 0;
-	int64 gp;
-	uint64 endpos = d->audio.pos; // end-pos = start-pos of the next packet
+	uint64 endpos;
 
 	for (;;) {
 		switch (o->state) {
@@ -113,33 +143,36 @@ int ogg_out_encode(void *ctx, fmed_filt *d)
 					return FMED_RERR;
 			}
 
+			if (o->state == I_PKT && !(d->flags & FMED_FLAST)) {
+				ffvec_add2(&o->pkt, &d->data_in, 1); // store the first packet
+				return FMED_RMORE;
+			}
+
 			continue;
 		}
 
 		case I_PKT:
-			if (endpos == 0) {
+			if (o->add_opus_tags && o->og.stat.npkts == 1) {
+				static const char opus_tags[] = "OpusTags\x08\x00\x00\x00" "datacopy\x00\x00\x00\x00";
+				ffstr_set(&in, opus_tags, sizeof(opus_tags)-1);
+				return pkt_write(o, d, &in, &d->data_out, 0, OGGWRITE_FFLUSH);
+			}
+
+			ffstr_set2(&in, &o->pkt); // gonna write the previous packet
+			endpos = d->audio.pos; // end-pos (for previous packet) = start-pos of this packet
+			if (o->og.stat.npkts == 0)
+				endpos = 0;
+			if (endpos == 0)
 				flags = OGGWRITE_FFLUSH;
-
-			} else if (o->pkt.len == 0) {
-				if (!(d->flags & FMED_FLAST)) {
-					ffvec_add2(&o->pkt, &d->data_in, 1); // cache the first data packet
-					return FMED_RMORE;
-				}
-
-			} else {
-				ffstr_set2(&in, &o->pkt); // gonna write the cached packet
-			}
-
-			if (d->flags & FMED_FLAST) {
+			if (d->flags & FMED_FLAST)
 				flags = OGGWRITE_FLAST;
-				if ((gp = fmed_getval("ogg_granpos")) > 0) {
-					endpos = gp; // encoder set end-pos value
-				} else {
-					// don't know the packet's audio length -> can't set the real end-pos value
-					endpos = endpos+1;
-				}
+			r = pkt_write(o, d, &in, &d->data_out, endpos, flags);
+			if ((r == FMED_RDATA && in.len == 0) || r == FMED_RMORE) {
+				o->pkt.len = 0;
+				ffvec_add2(&o->pkt, &d->data_in, 1); // store the current data packet
+				d->data_in.len = 0;
 			}
-			goto write;
+			return r;
 
 		case I_PAGE_EXACT:
 			if (d->ogg_flush) {
@@ -151,57 +184,10 @@ int ogg_out_encode(void *ctx, fmed_filt *d)
 				flags |= OGGWRITE_FLAST;
 
 			endpos = fmed_getval("ogg_granpos");
-			goto write;
+			r = pkt_write(o, d, &d->data_in, &d->data_out, endpos, flags);
+			return r;
 		}
 	}
-
-write:
-	if (o->add_opus_tags && o->og.stat.npkts == 1) {
-		static const char opus_tags[] = "OpusTags\x08\x00\x00\x00" "datacopy\x00\x00\x00\x00";
-		ffstr_set(&in, opus_tags, sizeof(opus_tags)-1);
-		r = oggwrite_process(&o->og, &in, &out, 0, OGGWRITE_FFLUSH);
-		if (r != OGGWRITE_DATA) {
-			errlog1(d->trk, "oggwrite_process(opus_tags)");
-			return FMED_RERR;
-		}
-		goto data;
-	}
-
-	r = oggwrite_process(&o->og, &in, &out, endpos, flags);
-
-	switch (r) {
-
-	case OGGWRITE_DONE:
-		infolog1(d->trk, "OGG: packets:%U, pages:%U, overhead: %.2F%%"
-			, (int64)o->og.stat.npkts, (int64)o->og.stat.npages
-			, (double)o->og.stat.total_ogg * 100 / (o->og.stat.total_payload + o->og.stat.total_ogg));
-		return FMED_RLASTOUT;
-
-	case OGGWRITE_DATA:
-		break;
-
-	case OGGWRITE_MORE:
-		o->pkt.len = 0;
-		ffvec_add2(&o->pkt, &d->data_in, 1); // cache the current data packet
-		return FMED_RMORE;
-
-	default:
-		errlog1(d->trk, "oggwrite_process() failed");
-		return FMED_RERR;
-	}
-
-	if (in.len == 0) {
-		o->pkt.len = 0;
-		ffvec_add2(&o->pkt, &d->data_in, 1); // cache the current data packet
-		d->data_in.len = 0;
-	}
-
-data:
-	o->total += out.len;
-	dbglog1(d->trk, "output: %L bytes (%U), page:%U, end-pos:%U"
-		, out.len, o->total, (int64)o->og.stat.npages-1, endpos);
-	d->data_out = out;
-	return FMED_RDATA;
 }
 
 const fmed_filter ogg_output = {
