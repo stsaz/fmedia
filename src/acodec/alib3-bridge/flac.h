@@ -201,11 +201,11 @@ int ffflac_decode(ffflac_dec *f)
 	f->pcm = (void**)f->out;
 	isrc = 0;
 	if (f->seeksample != 0) {
-		FF_ASSERT(f->seeksample >= f->frsample);
-		FF_ASSERT(f->seeksample < f->frsample + f->pcmlen);
-		isrc = f->seeksample - f->frsample;
-		f->pcmlen -= isrc;
-		f->frsample = f->seeksample;
+		if (f->frsample < f->seeksample && f->seeksample < f->frsample + f->pcmlen) {
+			isrc = f->seeksample - f->frsample;
+			f->pcmlen -= isrc;
+			f->frsample = f->seeksample;
+		}
 		f->seeksample = 0;
 	}
 
