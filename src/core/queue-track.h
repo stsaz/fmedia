@@ -52,6 +52,9 @@ static void* que_expand2(entry *e, void *ondone, void *ctx)
 	if (trk == NULL || trk == FMED_TRK_EFMT) {
 		return trk;
 	}
+	fmed_trk *t = qu->track->conf(trk);
+	if (e->trk != NULL)
+		qu->track->copy_info(t, e->trk);
 	qu->track->setval(trk, "queue-ondone", (int64)(size_t)ondone);
 	qu->track->setval(trk, "queue-ondone-ctx", (int64)(size_t)ctx);
 	ent_ref(e); // for user to be able to get the next element in the list
