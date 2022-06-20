@@ -838,6 +838,7 @@ static FFTHDCALL int gui_worker(void *param)
 	ffui_init();
 	ffui_wnd_initstyle();
 	ffui_ldr_init2(&ldr, gui_getctl, gui_getcmd, gg);
+	ffmem_copy(ldr.language, core->props->language, 2);
 
 	if (NULL == (fn = core->getpath(FFSTR("./fmedia.gui"))))
 		goto err;

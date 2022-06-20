@@ -6,6 +6,7 @@ Copyright (c) 2014 Simon Zolin
 #include "winapi.h"
 #include "../conf2-scheme.h"
 #include "../conf2-writer.h"
+#include "../gui-vars.h"
 
 
 typedef struct ffui_loader ffui_loader;
@@ -33,6 +34,10 @@ struct ffui_loader {
 	ffui_ldr_getcmd_t getcmd;
 	void *udata;
 	uint list_idx;
+
+	char language[2];
+	ffvec lang_data_def, lang_data;
+	ffmap vars; // hash(name) -> struct var*
 
 	ffvec paned_array; // ffui_paned*[].  User must free the controls and vector manually.
 	ffvec accels; //ffui_wnd_hotkey[]

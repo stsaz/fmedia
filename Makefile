@@ -29,7 +29,7 @@ LINKFLAGS := $(LDFLAGS)
 ifeq ($(OS),win)
 BIN := fmedia.exe
 INSTDIR := fmedia
-CFLAGS_OS += -DFF_WIN_APIVER=0x0501
+CFLAGS_OS += -DFF_WIN_APIVER=0x0600
 
 else
 BIN := fmedia
@@ -530,12 +530,14 @@ install-only:
 ifeq ($(OS),win)
 	$(CP) ./fmedia-gui.exe \
 		$(PROJDIR)/src/gui-winapi/fmedia.gui \
+		$(PROJDIR)/src/gui-winapi/gui_lang_*.txt \
 		$(PROJDIR)/src/gui-winapi/theme.conf \
 		$(INSTDIR)/
 	unix2dos $(INSTDIR)/*.txt $(INSTDIR)/*.conf $(INSTDIR)/*.gui $(INSTDIR)/LICENSE
 
 else ifeq ($(OS),linux)
 	$(CP) $(PROJDIR)/src/gui-gtk/fmedia.gui \
+		$(PROJDIR)/src/gui-gtk/gui_lang_*.txt \
 		$(PROJDIR)/src/gui-gtk/fmedia.desktop \
 		$(PROJDIR)/res/fmedia.ico \
 		$(PROJDIR)/res/play.ico \

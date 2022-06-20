@@ -251,6 +251,8 @@ struct fmed_props {
 	uint playback_dev_index;
 	const fmed_modinfo *record_module;
 	ffpcm record_format;
+
+	char language[8];
 };
 
 typedef ffconf_arg fmed_conf_arg;
