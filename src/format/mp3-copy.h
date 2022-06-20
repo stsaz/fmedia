@@ -75,10 +75,10 @@ int mpeg_copy_process(void *ctx, fmed_filt *d)
 		d->audio.decoder = "MPEG";
 		d->meta_block = 0;
 
-		if ((int64)d->audio.seek != FMED_NULL) {
+		if (d->seek_req && (int64)d->audio.seek != FMED_NULL) {
+			d->seek_req = 0;
 			int64 samples = ffpcm_samples(d->audio.seek, d->audio.fmt.sample_rate);
 			ffmpg_copy_seek(&m->mpgcpy, samples);
-			d->audio.seek = FMED_NULL;
 			continue;
 		}
 		continue;

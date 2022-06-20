@@ -14,7 +14,6 @@ extern const fmed_core *core;
 
 struct aac {
 	aacread adts;
-	int64 seek_pos;
 	uint64 pos;
 	int sample_rate;
 	int frno;
@@ -33,7 +32,6 @@ static void* aac_adts_open(fmed_filt *d)
 			a->adts.options = AACREAD_WHOLEFRAME;
 	}
 	aacread_open(&a->adts);
-	a->seek_pos = -1;
 	return a;
 }
 
@@ -57,17 +55,6 @@ static int aac_adts_process(void *ctx, fmed_filt *d)
 	if (d->flags & FMED_FFWD) {
 		a->in = d->data_in;
 		d->data_in.len = 0;
-	}
-
-	if ((int64)d->audio.seek != FMED_NULL && a->seek_pos == -1) {
-		a->seek_pos = d->audio.seek;
-		if (d->stream_copy)
-			d->audio.seek = FMED_NULL;
-		if ((uint64)a->seek_pos < a->pos) {
-			a->pos = 0;
-			d->input.seek = 0;
-			return FMED_RMORE;
-		}
 	}
 
 	ffstr out = {};
@@ -102,13 +89,13 @@ static int aac_adts_process(void *ctx, fmed_filt *d)
 		case AACREAD_DATA:
 		case AACREAD_FRAME:
 			a->pos += aacread_frame_samples(&a->adts);
-			if (a->seek_pos != -1) {
-				uint64 seek_samps = ffpcm_samples(a->seek_pos, a->sample_rate);
+			if (d->seek_req && (int64)d->audio.seek != FMED_NULL) {
+				uint64 seek_samps = ffpcm_samples(d->audio.seek, a->sample_rate);
+				dbglog1(d->trk, "seek: tgt:%U  @%U", seek_samps, a->pos);
 				if (a->pos < seek_samps)
 					continue;
-				a->seek_pos = -1;
+				d->seek_req = 0;
 			}
-
 			goto data;
 
 		case AACREAD_MORE:
@@ -136,7 +123,7 @@ static int aac_adts_process(void *ctx, fmed_filt *d)
 
 data:
 	d->audio.pos = a->pos;
-	dbglog1(d->trk, "passing frame #%u  samples:%u[%U]  size:%u"
+	dbglog1(d->trk, "passing frame #%u  samples:%u @%U  size:%u"
 		, a->frno++, aacread_frame_samples(&a->adts), d->audio.pos
 		, out.len);
 	d->data_out = out;

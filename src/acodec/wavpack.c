@@ -48,6 +48,7 @@ typedef struct wvpk_dec {
 	ffwvpack_dec wv;
 	uint frsize;
 	uint sample_rate;
+	uint outdata_delayed :1;
 } wvpk_dec;
 
 static void* wvpk_dec_create(fmed_filt *d)
@@ -68,9 +69,15 @@ static int wvpk_dec_decode(void *ctx, fmed_filt *d)
 {
 	wvpk_dec *w = ctx;
 
-	if (d->audio.decoder_seek_msec != 0) {
-		ffwvpk_dec_seek(&w->wv, ffpcm_samples(d->audio.decoder_seek_msec, w->sample_rate));
-		d->audio.decoder_seek_msec = 0;
+	if (w->outdata_delayed) {
+		w->outdata_delayed = 0;
+		if ((int64)d->audio.seek != FMED_NULL) {
+			return FMED_RMORE;
+		}
+	}
+
+	if ((d->flags & FMED_FFWD) && (int64)d->audio.seek != FMED_NULL) {
+		ffwvpk_dec_seek(&w->wv, ffpcm_samples(d->audio.seek, w->sample_rate));
 	}
 
 	int r = ffwvpk_decode(&w->wv, &d->data_in, &d->data_out, d->audio.pos);
@@ -90,12 +97,10 @@ static int wvpk_dec_decode(void *ctx, fmed_filt *d)
 		w->sample_rate = info->sample_rate;
 		d->audio.bitrate = ffpcm_brate(d->input.size, d->audio.total, info->sample_rate);
 		d->datatype = "pcm";
-
-		if (d->input_info)
-			return FMED_RDONE;
-
 		w->frsize = ffpcm_size(info->format, info->channels);
-		return FMED_RMORE;
+		w->outdata_delayed = 1;
+		d->data_out.len = 0;
+		return FMED_RDATA;
 	}
 
 	case FFWVPK_RDATA:

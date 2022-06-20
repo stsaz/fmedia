@@ -13,7 +13,6 @@ typedef struct wvpk {
 	uint state;
 	uint sample_rate;
 	uint hdr_done;
-	ffstr hdrblock;
 } wvpk;
 
 static void* wv_in_create(fmed_filt *d)
@@ -48,7 +47,6 @@ static int wv_in_process(void *ctx, fmed_filt *d)
 	enum { I_HDR, I_HDR_PARSED, I_DATA };
 	wvpk *w = ctx;
 	int r;
-	uint64 sk = 0;
 
 	if (d->flags & FMED_FSTOP) {
 		d->outlen = 0;
@@ -67,24 +65,13 @@ static int wv_in_process(void *ctx, fmed_filt *d)
 	case I_HDR_PARSED:
 		w->sample_rate = d->audio.fmt.sample_rate;
 		w->state = I_DATA;
-		if ((int64)d->audio.seek == FMED_NULL && d->audio.abs_seek == 0) {
-			d->data_out = w->hdrblock;
-			return FMED_RDATA;
-		}
-		if (d->audio.abs_seek != 0) {
-			d->track->cmd(d->trk, FMED_TRACK_FILT_ADD, "plist.cuehook");
-			sk += fmed_apos_samples(d->audio.abs_seek, w->sample_rate);
-		}
 		// fallthrough
 
 	case I_DATA:
-		if ((int64)d->audio.seek != FMED_NULL) {
-			sk += ffpcm_samples(d->audio.seek, w->sample_rate);
-			d->audio.seek = FMED_NULL;
-		}
-		if (sk != 0) {
-			d->audio.decoder_seek_msec = ffpcm_time(sk, w->sample_rate);
-			wvread_seek(&w->wv, sk);
+		if (d->seek_req && (int64)d->audio.seek != FMED_NULL) {
+			d->seek_req = 0;
+			wvread_seek(&w->wv, ffpcm_samples(d->audio.seek, w->sample_rate));
+			fmed_dbglog(core, d->trk, "wvpk", "seek: %Ums", d->audio.seek);
 		}
 		break;
 	}
@@ -105,7 +92,6 @@ static int wv_in_process(void *ctx, fmed_filt *d)
 				if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, "wavpack.decode"))
 					return FMED_RERR;
 				w->state = I_HDR_PARSED;
-				w->hdrblock = d->data_out;
 			}
 			goto data;
 

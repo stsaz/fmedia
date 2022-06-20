@@ -72,9 +72,8 @@ static int ape_dec_decode(void *ctx, fmed_filt *d)
 	ffuint block_samples = fmed_getval("ape_block_samples");
 	ffuint align4 = fmed_getval("ape_align4");
 
-	if (d->audio.decoder_seek_msec != 0) {
-		ffape_seek(&a->ap, ffpcm_samples(d->audio.decoder_seek_msec, a->sample_rate));
-		d->audio.decoder_seek_msec = 0;
+	if ((d->flags & FMED_FFWD) && (int64)d->audio.seek != FMED_NULL) {
+		ffape_seek(&a->ap, ffpcm_samples(d->audio.seek, a->sample_rate));
 	}
 
 	r = ffape_decode(&a->ap, &d->data_in, &d->data_out, d->audio.pos, block_samples, align4);
@@ -97,12 +96,7 @@ static int ape_dec_decode(void *ctx, fmed_filt *d)
 		d->audio.bitrate = ffpcm_brate(d->input.size, d->audio.total, info->fmt.sample_rate);
 		d->audio.total = ffape_totalsamples(&a->ap);
 		a->sample_rate = info->fmt.sample_rate;
-
-		if (d->input_info) {
-			d->data_out.len = 0;
-			return FMED_RDATA;
-		}
-		return FMED_RMORE;
+		return FMED_RDATA;
 	}
 
 	case FFAPE_RDATA:

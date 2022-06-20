@@ -160,14 +160,16 @@ struct gui_trk {
 	uint lastpos;
 	uint sample_rate;
 	uint total_time_sec;
+	int64 seek_msec;
 
 	fmed_filt *d;
 	void *trk;
 	fmed_que_entry *qent;
 
-	uint goback :1
-		, conversion :1;
+	uint conversion :1;
 };
+
+void gtrk_seek(uint pos_sec);
 
 
 enum CMDS {

@@ -225,8 +225,27 @@ static void trk_open_capt(fm_trk *t)
 
 static int trk_addfilters(fm_trk *t)
 {
-	const char *s;
-	ffbool stream_copy = t->props.stream_copy;
+	switch (t->props.type) {
+	case FMED_TRK_TYPE_PLAYBACK:
+	case FMED_TRK_TYPE_CONVERT:
+	case FMED_TRK_TYPE_PCMINFO:
+	case FMED_TRK_TYPE_MIXIN:
+		if (t->props.audio.abs_seek != 0) {
+			// Initial request to seek to .cue track audio position
+			uint64 ms = t->props.audio.abs_seek;
+			if (t->props.audio.abs_seek < 0)
+				ms = -(int64)t->props.audio.abs_seek * 1000 / 75;
+
+			if ((int64)t->props.audio.seek == FMED_NULL)
+				t->props.audio.seek = 0;
+			t->props.audio.seek += ms;
+
+			addfilter(t, "plist.cuehook");
+		}
+		if ((int64)t->props.audio.seek != FMED_NULL)
+			t->props.seek_req = 1;
+		break;
+	}
 
 	switch (t->props.type) {
 	case FMED_TRK_TYPE_NONE:
@@ -299,7 +318,7 @@ static int trk_addfilters(fm_trk *t)
 	if (t->props.use_dynanorm)
 		addfilter(t, "dynanorm.filter");
 
-	if (t->props.type != FMED_TRK_TYPE_MIXOUT && !stream_copy) {
+	if (t->props.type != FMED_TRK_TYPE_MIXOUT && !t->props.stream_copy) {
 		ffbool playback = (t->props.type == FMED_TRK_TYPE_PLAYBACK
 			&& core->props->playback_module != NULL);
 
@@ -445,6 +464,7 @@ static void trk_copy_info(fmed_trk *dst, const fmed_trk *src)
 	if (src == NULL) {
 		ffmem_zero_obj(dst);
 		dst->datatype = "";
+		dst->audio.pos = FMED_NULL;
 		dst->audio.total = FMED_NULL;
 		dst->audio.seek = FMED_NULL;
 		dst->audio.until = FMED_NULL;

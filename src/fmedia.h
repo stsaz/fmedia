@@ -500,6 +500,7 @@ static FFINL uint64 fmed_apos_samples(fmed_apos val, uint rate)
 		return -val * rate / 75;
 }
 
+struct fmed_adev;
 struct fmed_track_info {
 	const fmed_track *track;
 	fmed_handler handler;
@@ -524,7 +525,8 @@ struct fmed_track_info {
 
 		uint64 pos; //samples
 		uint64 total; //total track length (samples); -1:unset;  0:streaming
-		uint64 seek; //msec
+		/** Seek position (msec).  See tech.md::Seeking.  -1:unset. */
+		uint64 seek;
 		fmed_apos until;
 		uint64 split;
 		fmed_apos abs_seek; //seek position from the beginning of file
@@ -535,7 +537,6 @@ struct fmed_track_info {
 		float maxpeak; //dB
 		uint bitrate; //bit/s
 		const char *decoder;
-		uint64 decoder_seek_msec; // default:0
 	} audio;
 	struct {
 		uint width, height;
@@ -598,7 +599,9 @@ struct fmed_track_info {
 		/** net.in -> file.out: delete file on close */
 		uint out_file_del :1;
 		uint out_seekable :1;
-		uint snd_output_clear :1;
+		/** Seek request is received.
+		Demuxer clears it. */
+		uint seek_req :1;
 		uint snd_output_pause :1;
 		uint meta_changed :1;
 		uint meta_block :1; //data block isn't audio
@@ -620,15 +623,21 @@ struct fmed_track_info {
 		/** mpeg.enc -> mp3.write: this packet is LAME frame */
 		uint mpg_lametag :1;
 		uint ogg_flush :1;
+		uint ogg_gen_opus_tag :1; // ogg.write must generate Opus-tag packet
 	};
 	};
 
 	ushort mpeg1_delay;
 	ushort mpeg1_padding;
+
 	// flac.read -> flac.dec:
 	uint flac_samples;
 	uint flac_minblock, flac_maxblock;
 	const char *flac_vendor; // flac.enc -> flac.write
+
+	/** UI -> adev.out fast signal delivery (e.g. for fast reaction to seek command). */
+	const struct fmed_adev *adev;
+	void *adev_ctx;
 
 	union {
 		struct {
@@ -796,6 +805,11 @@ enum FMED_ADEV_F {
 	FMED_ADEV_CAPTURE,
 };
 
+enum FMED_ADEV_CMD {
+	/** Force stop() and clear() on playback audio buffer. */
+	FMED_ADEV_CMD_CLEAR = 1,
+};
+
 typedef struct fmed_adev_ent {
 	char *name;
 	ffpcm default_format;
@@ -808,6 +822,9 @@ typedef struct fmed_adev {
 	*/
 	int (*list)(fmed_adev_ent **ents, uint flags);
 	void (*listfree)(fmed_adev_ent *ents);
+	/**
+	cmd: FMED_ADEV_CMD */
+	int (*cmd)(int cmd, void *adev_ctx);
 } fmed_adev;
 
 

@@ -60,14 +60,6 @@ static const fmed_conf_arg pulse_out_conf_args[] = {
 static const fmed_filter fmed_pulse_out;
 static const fmed_filter fmed_pulse_in;
 
-//ADEV
-static int pulse_adev_list(fmed_adev_ent **ents, uint flags);
-static const fmed_adev fmed_pulse_adev = {
-	.list = &pulse_adev_list,
-	.listfree = audio_dev_listfree,
-};
-
-
 FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 {
 	core = _core;
@@ -75,6 +67,7 @@ FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 }
 
 
+const fmed_adev fmed_pulse_adev;
 static const void* pulse_iface(const char *name)
 {
 	if (ffsz_eq(name, "in")) {
@@ -156,6 +149,10 @@ static int pulse_adev_list(fmed_adev_ent **ents, uint flags)
 	return r;
 }
 
+const fmed_adev fmed_pulse_adev = {
+	pulse_adev_list, audio_dev_listfree, audio_dev_cmd,
+};
+
 
 static int pulse_out_config(fmed_conf_ctx *ctx)
 {
@@ -180,6 +177,8 @@ static void* pulse_open(fmed_filt *d)
 	a->track = mod->track;
 	a->trk = d->trk;
 	a->fx = d;
+	d->adev = &fmed_pulse_adev;
+	d->adev_ctx = a;
 	return a;
 }
 

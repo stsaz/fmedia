@@ -369,12 +369,7 @@ void gui_corecmd_op(uint cmd, void *udata)
 
 
 	case A_PLAY_SEEK:
-		if (gg->curtrk == NULL)
-			break;
-		gg->curtrk->d->audio.seek = (size_t)udata * 1000;
-		gg->curtrk->d->snd_output_clear = 1;
-		gg->curtrk->d->snd_output_clear_wait = 1;
-		gg->curtrk->goback = 1;
+		gtrk_seek((size_t)udata);
 		break;
 
 	case A_PLAY_VOL:

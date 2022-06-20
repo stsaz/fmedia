@@ -80,19 +80,14 @@ static int alac_in_decode(void *ctx, fmed_filt *d)
 {
 	alac_in *a = ctx;
 
-	if (d->input_info)
-		return FMED_RDONE;
-
 	if (d->flags & FMED_FFWD) {
 		a->alac.data = d->data,  a->alac.datalen = d->datalen;
 		d->datalen = 0;
 		a->alac.cursample = d->audio.pos;
-	}
-
-	if ((d->flags & FMED_FFWD) && (int64)d->audio.seek != FMED_NULL) {
-		uint64 seek = ffpcm_samples(d->audio.seek, a->alac.fmt.sample_rate);
-		ffalac_seek(&a->alac, seek);
-		d->audio.seek = FMED_NULL;
+		if ((int64)d->audio.seek != FMED_NULL) {
+			uint64 seek = ffpcm_samples(d->audio.seek, a->alac.fmt.sample_rate);
+			ffalac_seek(&a->alac, seek);
+		}
 	}
 
 	int r;

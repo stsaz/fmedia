@@ -122,14 +122,11 @@ static int flac_dec_decode(void *ctx, fmed_filt *d)
 		return FMED_RDONE;
 	}
 
-	int64 sk = fmed_popval("flac.in.seeksample");
-	if (sk != FMED_NULL)
-		ffflac_dec_seek(&f->fl, sk);
-	uint samples = fmed_getval("flac.in.frsamples");
-	uint64 pos = fmed_getval("flac.in.frpos");
-	ffstr s;
-	ffstr_set(&s, d->data, d->datalen);
-	ffflac_dec_input(&f->fl, &s, samples, pos);
+	if ((int64)d->audio.seek != FMED_NULL) {
+		ffflac_dec_seek(&f->fl, ffpcm_samples(d->audio.seek, f->fmt.sample_rate));
+	}
+	ffflac_dec_input(&f->fl, &d->data_in, d->flac_samples, d->audio.pos);
+	d->data_in.len = 0;
 
 	r = ffflac_decode(&f->fl);
 	switch (r) {
@@ -143,10 +140,6 @@ static int flac_dec_decode(void *ctx, fmed_filt *d)
 	}
 
 	d->audio.pos = ffflac_dec_cursample(&f->fl);
-	if (d->audio.abs_seek != 0)
-		d->audio.pos -= fmed_apos_samples(d->audio.abs_seek, f->fmt.sample_rate);
-
-	d->datalen = 0;
 	d->outlen = ffflac_dec_output(&f->fl, &d->outni);
 	dbglog(core, d->trk, "flac", "decoded %L samples (%U)"
 		, d->outlen / ffpcm_size1(&f->fmt), ffflac_dec_cursample(&f->fl));

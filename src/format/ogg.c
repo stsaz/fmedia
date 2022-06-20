@@ -38,7 +38,6 @@ struct ogg_in {
 	void *trk;
 	uint sample_rate;
 	uint state;
-	uint seek_pending :1;
 	uint stmcopy :1;
 };
 
@@ -51,8 +50,6 @@ void ogg_log(void *udata, ffstr msg)
 void* ogg_open(fmed_filt *d)
 {
 	struct ogg_in *o = ffmem_new(struct ogg_in);
-	if (o == NULL)
-		return NULL;
 	o->trk = d->trk;
 
 	ffuint64 total_size = 0;
@@ -136,11 +133,10 @@ int ogg_decode(void *ctx, fmed_filt *d)
 
 	for (;;) {
 
-		if (o->state == I_DATA && (int64)d->audio.seek != FMED_NULL && !o->seek_pending) {
-			o->seek_pending = 1;
+		if (d->seek_req && (int64)d->audio.seek != FMED_NULL && o->sample_rate != 0) {
+			d->seek_req = 0;
 			oggread_seek(&o->og, ffpcm_samples(d->audio.seek, o->sample_rate));
-			if (o->stmcopy)
-				d->audio.seek = FMED_NULL;
+			dbglog1(d->trk, "seek: %Ums", d->audio.seek);
 		}
 
 		r = oggread_process(&o->og, &o->in, &d->data_out);
@@ -184,7 +180,6 @@ int ogg_decode(void *ctx, fmed_filt *d)
 	}
 
 data:
-	o->seek_pending = 0;
 	d->audio.pos = oggread_page_pos(&o->og);
 	dbglog1(d->trk, "packet#%u.%u  length:%L  page-start-pos:%U"
 		, (int)oggread_page_num(&o->og), (int)oggread_pkt_num(&o->og)
@@ -192,21 +187,20 @@ data:
 		, d->audio.pos);
 
 	if (o->stmcopy) {
-		uint64 set_gpos = (uint64)-1;
+		int64 set_gpos = -1;
 		const struct ogg_hdr *h = (struct ogg_hdr*)o->og.chunk.ptr;
 		int page_is_last_pkt = (o->og.seg_off == h->nsegments);
 		if (page_is_last_pkt) {
 			d->ogg_flush = 1;
 			set_gpos = o->og.page_endpos;
+			fmed_setval("ogg_granpos", set_gpos);
 		}
-		fmed_setval("ogg_granpos", set_gpos);
 
 		if (o->sample_rate != 0
 			&& d->audio.until != FMED_NULL && d->audio.until > 0
-			&& ffpcm_time(d->audio.pos, o->sample_rate) >= (uint64)d->audio.until) {
+			&& set_gpos > 0 && (uint64)set_gpos >= (uint64)d->audio.until) {
 
 			dbglog1(d->trk, "reached time %Ums", d->audio.until);
-			d->data_out.len = 0;
 			d->audio.until = FMED_NULL;
 			return FMED_RLASTOUT;
 		}

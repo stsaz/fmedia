@@ -144,6 +144,18 @@ static void audio_dev_listfree(fmed_adev_ent *ents)
 	ffmem_free(ents);
 }
 
+typedef struct audio_out audio_out;
+void audio_dev_clear(audio_out *a);
+int audio_dev_cmd(int cmd, void *adev_ctx)
+{
+	switch (cmd) {
+	case FMED_ADEV_CMD_CLEAR:
+		audio_dev_clear(adev_ctx);
+		break;
+	}
+	return 0;
+}
+
 /** Get device by index */
 static int audio_devbyidx(const ffaudio_interface *audio, ffaudio_dev **d, uint idev, uint flags)
 {
@@ -168,7 +180,7 @@ static int audio_devbyidx(const ffaudio_interface *audio, ffaudio_dev **d, uint 
 #include <adev/audio-capture.h>
 
 
-typedef struct audio_out {
+struct audio_out {
 	// input
 	const fmed_core *core;
 	const ffaudio_interface *audio;
@@ -176,7 +188,7 @@ typedef struct audio_out {
 	uint try_open;
 	uint dev_idx; // 0:default
 	const fmed_track *track;
-	void *trk;
+	fmed_track_obj *trk;
 	fmed_filt *fx;
 	uint aflags;
 	int err_code; // enum FFAUDIO_E
@@ -191,7 +203,7 @@ typedef struct audio_out {
 	// user's
 	uint state;
 	uint reconnect :1;
-} audio_out;
+};
 
 /**
 Return FFAUDIO_E* */
@@ -303,27 +315,28 @@ static inline void audio_out_onplay(void *param)
 	a->track->cmd(a->trk, FMED_TRACK_WAKE);
 }
 
+void audio_dev_clear(audio_out *a)
+{
+	dbglog1(a->trk, "stop");
+	if (0 != a->audio->stop(a->stream))
+		warnlog1(a->trk, "audio.stop: %s", a->audio->error(a->stream));
+	a->clear = 1;
+	audio_out_onplay(a);
+}
+
 static inline int audio_out_write(audio_out *a, fmed_filt *d)
 {
 	int r;
 
-	// handle seeking
 	if (a->clear) {
 		a->clear = 0;
-		d->snd_output_clear = 0;
-
-	} else if (d->snd_output_clear) {
-		dbglog1(d->trk, "seek: stop/clear");
+		dbglog1(d->trk, "stop/clear");
 		if (0 != a->audio->stop(a->stream))
-			warnlog1(d->trk, "seek: audio.stop: %s", a->audio->error(a->stream));
+			warnlog1(a->trk, "audio.stop: %s", a->audio->error(a->stream));
 		if (0 != a->audio->clear(a->stream))
-			warnlog1(d->trk, "seek: audio.clear: %s", a->audio->error(a->stream));
-
-		if (d->snd_output_clear_wait) {
-			a->clear = 1;
+			warnlog1(d->trk, "audio.clear: %s", a->audio->error(a->stream));
+		if (d->seek_req)
 			return FMED_RMORE;
-		}
-		d->snd_output_clear = 0;
 	}
 
 	if (d->snd_output_pause) {

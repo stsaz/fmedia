@@ -89,14 +89,6 @@ static const fmed_conf_arg wasapi_in_conf_args[] = {
 	{}
 };
 
-//ADEV
-static int wasapi_adev_list(fmed_adev_ent **ents, uint flags);
-static const fmed_adev fmed_wasapi_adev = {
-	.list = &wasapi_adev_list,
-	.listfree = audio_dev_listfree,
-};
-
-
 FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 {
 	core = _core;
@@ -104,6 +96,7 @@ FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 }
 
 
+const fmed_adev fmed_wasapi_adev;
 static const void* wasapi_iface(const char *name)
 {
 	if (!ffsz_cmp(name, "out")) {
@@ -186,6 +179,10 @@ static int wasapi_adev_list(fmed_adev_ent **ents, uint flags)
 	return r;
 }
 
+const fmed_adev fmed_wasapi_adev = {
+	wasapi_adev_list, audio_dev_listfree, audio_dev_cmd
+};
+
 static int wasapi_out_config(fmed_conf_ctx *ctx)
 {
 	wasapi_out_conf.idev = 0;
@@ -214,6 +211,8 @@ static void* wasapi_open(fmed_filt *d)
 	w->track = mod->track;
 	w->trk = d->trk;
 	w->fx = d;
+	d->adev = &fmed_wasapi_adev;
+	d->adev_ctx = w;
 	return w;
 }
 

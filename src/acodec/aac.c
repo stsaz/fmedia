@@ -114,19 +114,15 @@ static int aac_decode(void *ctx, fmed_filt *d)
 	uint fr_len = 0;
 	enum { R_CACHE, R_CACHE_DATA, R_CACHE_DONE, R_PASS };
 
-	if (d->input_info)
-		return FMED_RDONE;
-
 	if (d->flags & FMED_FFWD) {
 		ffaac_input(&a->aac, d->data, d->datalen, d->audio.pos);
 		d->datalen = 0;
+		if ((int64)d->audio.seek != FMED_NULL) {
+			uint64 seek = ffpcm_samples(d->audio.seek, a->sample_rate);
+			ffaac_seek(&a->aac, seek);
+		}
 	}
 
-	if ((d->flags & FMED_FFWD) && (int64)d->audio.seek != FMED_NULL) {
-		uint64 seek = ffpcm_samples(d->audio.seek, a->sample_rate);
-		ffaac_seek(&a->aac, seek);
-		d->audio.seek = FMED_NULL;
-	}
 
 	for (;;) {
 

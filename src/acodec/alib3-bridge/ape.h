@@ -332,11 +332,12 @@ int ffape_decode(ffape *a, ffstr *input, ffstr *output, ffuint block_start, ffui
 	a->cursample = block_start;
 	void *o = a->pcm;
 	if (a->seek_sample != 0) {
-		uint n = a->seek_sample - a->cursample;
-		FF_ASSERT(n < pcmlen);
-		a->cursample += n;
-		o = (char*)a->pcm + n * ffpcm_size1(&a->info.fmt);
-		pcmlen -= n;
+		if (a->cursample < a->seek_sample && a->seek_sample < a->cursample + pcmlen) {
+			uint n = a->seek_sample - a->cursample;
+			a->cursample += n;
+			o = (char*)a->pcm + n * ffpcm_size1(&a->info.fmt);
+			pcmlen -= n;
+		}
 		a->seek_sample = 0;
 	}
 

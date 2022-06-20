@@ -170,12 +170,12 @@ int ffwvpk_decode(ffwvpack_dec *w, ffstr *in, ffstr *out, ffuint block_index)
 	w->samp_idx = block_index;
 	ffuint isrc = 0;
 	if (w->seek_sample != (ffuint64)-1) {
-		FF_ASSERT(w->seek_sample >= block_index);
-		FF_ASSERT(w->seek_sample < block_index + n);
-		isrc = w->seek_sample - block_index;
-		w->samp_idx += isrc;
-		n -= isrc;
-		isrc *= w->info.channels;
+		if (block_index < w->seek_sample && w->seek_sample < block_index + n) {
+			isrc = w->seek_sample - block_index;
+			w->samp_idx += isrc;
+			n -= isrc;
+			isrc *= w->info.channels;
+		}
 		w->seek_sample = (ffuint64)-1;
 	}
 

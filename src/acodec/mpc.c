@@ -96,7 +96,6 @@ static int mpc_dec_process(void *ctx, fmed_filt *d)
 		if (d->flags & FMED_FFWD) {
 			uint64 seek = ffpcm_samples(d->audio.seek, m->fmt.sample_rate);
 			ffmpc_seek(&m->mpcdec, seek);
-			d->audio.seek = FMED_NULL;
 		} else {
 			m->mpcdec.need_data = 1;
 			return FMED_RMORE;

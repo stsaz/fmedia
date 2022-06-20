@@ -34,6 +34,7 @@ typedef struct tui {
 	fmed_que_entry *qent;
 	uint64 total_samples;
 	uint64 played_samples;
+	int64 seek_msec;
 	uint lastpos;
 	uint sample_rate;
 	uint sampsize;
@@ -242,6 +243,7 @@ static void* tui_open(fmed_filt *d)
 	tui *t = ffmem_tcalloc1(tui);
 	if (t == NULL)
 		return NULL;
+	t->seek_msec = -1;
 	t->lastpos = (uint)-1;
 	t->d = d;
 
@@ -387,9 +389,12 @@ static void tui_seek(tui *t, uint cmd, void *udata)
 		pos += by;
 	else
 		pos = ffmax(pos - by, 0);
-	t->d->audio.seek = pos;
-	t->d->snd_output_clear = 1;
-	t->d->snd_output_clear_wait = 1;
+
+	fmed_dbglog(core, t->d->trk, "tui", "seek: %U", pos);
+	t->seek_msec = pos;
+	t->d->seek_req = 1;
+	if (t->d->adev_ctx != NULL)
+		t->d->adev->cmd(FMED_ADEV_CMD_CLEAR, t->d->adev_ctx);
 }
 
 static void tui_vol(tui *t, uint cmd)
@@ -511,10 +516,6 @@ static int tui_process(void *ctx, fmed_filt *d)
 	int64 playpos;
 	uint playtime;
 
-	if (d->meta_block) {
-		goto pass;
-	}
-
 	if (t->rec) {
 		double db = d->audio.maxpeak;
 		if (t->maxdb < db)
@@ -541,6 +542,21 @@ static int tui_process(void *ctx, fmed_filt *d)
 		goto print;
 	}
 
+	/*
+	v fwd meta !seek:	rdata
+	v fwd meta seek:	rdata
+	v fwd data !seek:	seek='',rdata
+	v back meta !seek:	rmore
+	v back data !seek:	rmore
+	v back meta seek:	seek=N,rmore
+	v fwd data seek:	seek=N,rmore
+	v back data seek:	seek=N,rmore
+	*/
+
+	if (d->meta_block && (d->flags & FMED_FFWD)) {
+		goto pass;
+	}
+
 	if (d->meta_changed) {
 		d->meta_changed = 0;
 
@@ -556,10 +572,17 @@ static int tui_process(void *ctx, fmed_filt *d)
 			return FMED_RFIN;
 	}
 
-	if (d->snd_output_clear_wait) {
-		if ((int64)d->audio.seek != FMED_NULL)
-			return FMED_RMORE; // decoder must complete our seek request
-		d->snd_output_clear_wait = 0;
+	if (t->seek_msec != -1) {
+		d->audio.seek = t->seek_msec;
+		t->seek_msec = -1;
+		return FMED_RMORE; // new seek request
+	} else if (!(d->flags & FMED_FFWD)) {
+		return FMED_RMORE; // going back without seeking
+	} else if (d->data_in.len == 0 && !(d->flags & FMED_FLAST)) {
+		return FMED_RMORE; // waiting for audio data
+	} else if ((int64)d->audio.seek != FMED_NULL && !d->seek_req) {
+		fmed_dbglog(core, d->trk, NULL, "seek: done");
+		d->audio.seek = FMED_NULL; // prev. seek is complete
 	}
 
 	if (core->props->parallel) {
@@ -621,7 +644,7 @@ pass:
 		fffile_write(ffstderr, "\n", 1);
 		return FMED_RDONE;
 	}
-	return FMED_ROK;
+	return (d->type == FMED_TRK_TYPE_PLAYBACK) ? FMED_RDATA : FMED_ROK;
 }
 
 static const fmed_filter fmed_tui = { tui_open, tui_process, tui_close };

@@ -12,9 +12,9 @@ typedef struct gtrk {
 	fmed_filt *d;
 	uint sample_rate;
 
+	int64 seek_msec;
 	uint time_cur;
 	uint time_total;
-	int time_seek;
 	uint last_timer_val;
 
 	uint paused :1;
@@ -46,14 +46,13 @@ static void gtrk_vol(uint pos)
 /** Set seek position. */
 static void gtrk_seek(uint cmd, uint val)
 {
-	gtrk *t = gg->curtrk;
-	int delta;
-	if (t == NULL)
+	if (gg->curtrk == NULL)
 		return;
-
+	gtrk *t = gg->curtrk;
+	int delta, seek = -1;
 	switch (cmd) {
 	case A_SEEK:
-		t->time_seek = val;
+		seek = val;
 		break;
 
 	case A_FFWD:
@@ -71,9 +70,18 @@ static void gtrk_seek(uint cmd, uint val)
 		goto use_delta;
 
 use_delta:
-		t->time_seek = ffmax((int)t->time_cur + delta, 0);
+		seek = ffmax((int)t->time_cur + delta, 0);
 		break;
 	}
+
+	if (seek < 0)
+		return;
+
+	t->seek_msec = seek * 1000;
+	t->d->seek_req = 1;
+	fmed_dbglog(core, t->d->trk, "gui", "seek: %U", t->seek_msec);
+	if (t->d->adev_ctx != NULL)
+		t->d->adev->cmd(FMED_ADEV_CMD_CLEAR, t->d->adev_ctx);
 }
 
 static void* gtrk_open(fmed_filt *d)
@@ -86,9 +94,9 @@ static void* gtrk_open(fmed_filt *d)
 	if (t == NULL)
 		return NULL;
 	t->time_cur = -1;
-	t->time_seek = -1;
 	t->qent = ent;
 	t->d = d;
+	t->seek_msec = -1;
 
 	if (d->type == FMED_TRK_TYPE_CONVERT) {
 		t->conversion = 1;
@@ -124,7 +132,7 @@ static int gtrk_process(void *ctx, fmed_filt *d)
 {
 	gtrk *t = ctx;
 
-	if (d->meta_block)
+	if (d->meta_block && (d->flags & FMED_FFWD))
 		goto done;
 
 	if (!t->have_fmt) {
@@ -143,17 +151,17 @@ static int gtrk_process(void *ctx, fmed_filt *d)
 	if ((int64)d->audio.pos == FMED_NULL)
 		goto done;
 
-	if (t->time_seek != -1) {
-		d->audio.seek = t->time_seek * 1000;
-		d->snd_output_clear = 1;
-		d->snd_output_clear_wait = 1;
-		t->time_seek = -1;
-		return FMED_RMORE;
-	}
-	if (d->snd_output_clear_wait) {
-		if ((int64)d->audio.seek != FMED_NULL)
-			return FMED_RMORE; // decoder must complete our seek request
-		d->snd_output_clear_wait = 0;
+	if (t->seek_msec != -1) {
+		d->audio.seek = t->seek_msec;
+		t->seek_msec = -1;
+		return FMED_RMORE; // new seek request
+	} else if (!(d->flags & FMED_FFWD)) {
+		return FMED_RMORE; // going back without seeking
+	} else if (d->data_in.len == 0 && !(d->flags & FMED_FLAST)) {
+		return FMED_RMORE; // waiting for audio data before resetting seek position
+	} else if ((int64)d->audio.seek != FMED_NULL && !d->seek_req) {
+		fmed_dbglog(core, d->trk, NULL, "seek: done");
+		d->audio.seek = FMED_NULL; // prev. seek is complete
 	}
 
 	uint playtime = (uint)(ffpcm_time(d->audio.pos, t->sample_rate) / 1000);
@@ -186,7 +194,7 @@ done:
 	d->datalen = 0;
 	if (d->flags & FMED_FLAST)
 		return FMED_RDONE;
-	return FMED_ROK;
+	return (d->type == FMED_TRK_TYPE_PLAYBACK) ? FMED_RDATA : FMED_ROK;
 }
 
 // GUI-TRACK

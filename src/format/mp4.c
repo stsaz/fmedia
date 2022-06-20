@@ -22,7 +22,6 @@ typedef struct mp4 {
 	void *trk;
 	uint srate;
 	uint state;
-	uint seeking :1;
 } mp4;
 
 void mp4_log(void *udata, const char *fmt, va_list va)
@@ -34,8 +33,6 @@ void mp4_log(void *udata, const char *fmt, va_list va)
 static void* mp4_in_create(fmed_filt *d)
 {
 	mp4 *m = ffmem_tcalloc1(mp4);
-	if (m == NULL)
-		return NULL;
 	m->trk = d->trk;
 
 	mp4read_open(&m->mp);
@@ -135,17 +132,15 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 	ffstr out;
 
 	for (;;) {
-
 	switch (m->state) {
 
 	case I_DATA1:
 	case I_DATA:
-		if ((int64)d->audio.seek != FMED_NULL && !m->seeking) {
-			m->seeking = 1;
+		if (d->seek_req && (int64)d->audio.seek != FMED_NULL) {
+			d->seek_req = 0;
 			uint64 seek = ffpcm_samples(d->audio.seek, m->srate);
 			mp4read_seek(&m->mp, seek);
-			if (d->stream_copy)
-				d->audio.seek = FMED_NULL;
+			dbglog1(d->trk, "seek: %Ums", d->audio.seek);
 		}
 		if (m->state == I_DATA1) {
 			m->state = I_DATA;
@@ -177,15 +172,6 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 			}
 			ffpcm_set((ffpcm*)&d->audio.fmt, ai->format.bits, ai->format.channels, ai->format.rate);
 			d->audio.total = ai->total_samples;
-
-			if (d->audio.abs_seek != 0) {
-				d->track->cmd(d->trk, FMED_TRACK_FILT_ADD, "plist.cuehook");
-				m->seeking = 1;
-				uint64 samples = fmed_apos_samples(d->audio.abs_seek, d->audio.fmt.sample_rate);
-				if ((int64)d->audio.seek != FMED_NULL)
-					samples += ffpcm_samples(d->audio.seek, ai->format.rate);
-				mp4read_seek(&m->mp, samples);
-			}
 
 			const char *filt;
 			switch (ai->codec) {
@@ -241,7 +227,6 @@ static int mp4_in_decode(void *ctx, fmed_filt *d)
 				, out.len, d->audio.pos);
 			d->data_in = m->in;
 			d->data_out = out;
-			m->seeking = 0;
 			return FMED_RDATA;
 
 		case MP4READ_DONE:

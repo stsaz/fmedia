@@ -21,11 +21,9 @@ typedef struct mp3_in {
 	mp3read mpg;
 	ffstr in;
 	uint sample_rate;
-	uint state;
 	uint nframe;
 	char codec_name[9];
 	uint have_id32tag :1
-		, seeking :1
 		;
 } mp3_in;
 
@@ -39,8 +37,6 @@ void* mp3_open(fmed_filt *d)
 	}
 
 	mp3_in *m = ffmem_new(mp3_in);
-	if (m == NULL)
-		return NULL;
 	ffuint64 total_size = 0;
 	if ((int64)d->input.size != FMED_NULL) {
 		total_size = d->input.size;
@@ -78,7 +74,6 @@ void mp3_meta(mp3_in *m, fmed_filt *d, uint type)
 
 int mp3_process(void *ctx, fmed_filt *d)
 {
-	enum { I_HDR, I_DATA };
 	mp3_in *m = ctx;
 	int r;
 
@@ -92,23 +87,15 @@ int mp3_process(void *ctx, fmed_filt *d)
 		d->datalen = 0;
 	}
 
-again:
-	switch (m->state) {
-	case I_HDR:
-		break;
-
-	case I_DATA:
-		if ((int64)d->audio.seek != FMED_NULL && !m->seeking) {
-			m->seeking = 1;
-			mp3read_seek(&m->mpg, ffpcm_samples(d->audio.seek, m->sample_rate));
-			if (d->stream_copy)
-				d->audio.seek = FMED_NULL;
-		}
-		break;
-	}
-
 	ffstr out;
 	for (;;) {
+
+		if (d->seek_req && (int64)d->audio.seek != FMED_NULL && m->sample_rate != 0) {
+			d->seek_req = 0;
+			mp3read_seek(&m->mpg, ffpcm_samples(d->audio.seek, m->sample_rate));
+			dbglog1(d->trk, "seek: %Ums", d->audio.seek);
+		}
+
 		r = mp3read_process(&m->mpg, &m->in, &out);
 
 		switch (r) {
@@ -144,25 +131,11 @@ again:
 			if (d->input_info)
 				return FMED_RDONE;
 
-			m->state = I_DATA;
-
-			if (d->audio.abs_seek != 0) {
-				d->track->cmd(d->trk, FMED_TRACK_FILT_ADD, "plist.cuehook");
-				m->seeking = 1;
-				uint64 samples = fmed_apos_samples(d->audio.abs_seek, m->sample_rate);
-				mp3read_seek(&m->mpg, samples);
-			}
-
 			if (!d->stream_copy
 				&& 0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, "mpeg.decode"))
 				return FMED_RERR;
 
-			if ((int64)d->audio.seek != FMED_NULL && !m->seeking) {
-				m->seeking = 1;
-				mp3read_seek(&m->mpg, ffpcm_samples(d->audio.seek, m->sample_rate));
-			}
-
-			goto again;
+			break;
 		}
 
 		case MP3READ_ID31:
@@ -189,8 +162,6 @@ again:
 	}
 
 data:
-	if (m->seeking)
-		m->seeking = 0;
 	d->audio.pos = mp3read_cursample(&m->mpg);
 	dbglog1(d->trk, "passing frame #%u  samples:%u[%U]  size:%u  br:%u  off:%xU"
 		, ++m->nframe, mpeg1_samples(out.ptr), d->audio.pos, (uint)out.len

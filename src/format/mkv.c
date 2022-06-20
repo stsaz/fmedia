@@ -20,7 +20,6 @@ struct mkvin {
 	uint64 atrack;
 	uint state;
 	uint sample_rate;
-	uint seeking :1;
 };
 
 void mkv_log(void *udata, const char *fmt, va_list va)
@@ -32,11 +31,6 @@ void mkv_log(void *udata, const char *fmt, va_list va)
 void* mkv_open(fmed_filt *d)
 {
 	struct mkvin *m = ffmem_new(struct mkvin);
-	if (m == NULL) {
-		errlog1(d->trk, "%s", ffmem_alloc_S);
-		return NULL;
-	}
-
 	ffuint64 total_size = 0;
 	if ((ffint64)d->input.size != FMED_NULL)
 		total_size = d->input.size;
@@ -156,14 +150,10 @@ again:
 		break;
 
 	case I_DATA:
-		if ((int64)d->audio.seek != FMED_NULL && !m->seeking) {
-			m->seeking = 1;
+		if (d->seek_req && (int64)d->audio.seek != FMED_NULL) {
+			d->seek_req = 0;
 			mkvread_seek(&m->mkv, d->audio.seek);
-		} else if ((int64)d->audio.seek != FMED_NULL && m->seeking) {
-			d->audio.seek = FMED_NULL;
-		}
-		if (m->seeking && (int64)d->audio.seek == FMED_NULL) {
-			m->seeking = 0;
+			dbglog1(d->trk, "seek: %Ums", d->audio.seek);
 		}
 		break;
 	}
@@ -195,17 +185,6 @@ again:
 				return FMED_RERR;
 			}
 
-			if (d->audio.abs_seek != 0) {
-				d->track->cmd(d->trk, FMED_TRACK_FILT_ADD, "plist.cuehook");
-				m->seeking = 1;
-				uint64 msec = d->audio.abs_seek;
-				if (d->audio.abs_seek < 0)
-					msec = -d->audio.abs_seek * 1000 / 75;
-				if ((int64)d->audio.seek != FMED_NULL)
-					msec += d->audio.seek;
-				mkvread_seek(&m->mkv, msec);
-			}
-
 			int i = ffarrint16_find(mkv_codecs, FF_COUNT(mkv_codecs), ai->codec);
 			if (i == -1) {
 				errlog1(d->trk, "unsupported codec: %xu", ai->codec);
@@ -230,11 +209,6 @@ again:
 			if ((ffint64)d->input.size != FMED_NULL && ai->duration_msec != 0)
 				d->audio.bitrate = (d->input.size * 8 * 1000) / ai->duration_msec;
 
-			if ((int64)d->audio.seek != FMED_NULL && !m->seeking) {
-				m->seeking = 1;
-				mkvread_seek(&m->mkv, d->audio.seek);
-			}
-
 			if (ai->codec == MKV_A_VORBIS) {
 				ffstr_set2(&m->vorb_in, &ai->codec_conf);
 				m->state = I_VORBIS_HDR;
@@ -245,12 +219,11 @@ again:
 				if (d->stream_copy) {
 					d->datatype = "Opus";
 					d->audio.fmt.format = FFPCM_FLOAT;
-					fmed_setval("opus_no_tags", 1);
+					d->ogg_gen_opus_tag = 1;
 				}
 				d->data_out = ai->codec_conf;
 			} else
 				d->data_out = ai->codec_conf;
-
 
 			m->state = I_DATA;
 			return FMED_RDATA;

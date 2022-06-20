@@ -28,13 +28,11 @@ struct flacogg_in {
 	ffstr in;
 	uint fr_samples;
 	uint sample_rate;
-	uint64 seek_ms;
 };
 
 static void* flacogg_in_create(fmed_filt *d)
 {
 	struct flacogg_in *f = ffmem_new(struct flacogg_in);
-	f->seek_ms = (uint64)-1;
 	flacoggread_open(&f->fo);
 	return f;
 }
@@ -73,11 +71,6 @@ static int flacogg_in_read(void *ctx, fmed_filt *d)
 			f->apos = d->audio.pos;
 			f->page_start_pos = d->audio.pos;
 		}
-	}
-
-	if ((int64)d->audio.seek != FMED_NULL) {
-		f->seek_ms = d->audio.seek;
-		d->audio.seek = FMED_NULL;
 	}
 
 	ffstr out = {};
@@ -140,14 +133,14 @@ static int flacogg_in_read(void *ctx, fmed_filt *d)
 	}
 
 data:
-	if (f->seek_ms != (uint64)-1) {
-		uint64 seek = ffpcm_samples(f->seek_ms, f->sample_rate);
+	if (d->seek_req && (int64)d->audio.seek != FMED_NULL) {
+		uint64 seek = ffpcm_samples(d->audio.seek, f->sample_rate);
 		dbglog(d->trk, "seek: %U @%U", seek, f->apos);
 		if (seek >= f->apos + f->fr_samples) {
 			f->apos += f->fr_samples;
 			return FMED_RMORE;
 		}
-		f->seek_ms = (uint64)-1;
+		d->seek_req = 0;
 	}
 
 	dbglog(d->trk, "frame size:%L  @%U", out.len, f->apos);

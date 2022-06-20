@@ -541,8 +541,8 @@ static void corecmd_run(uint cmd, void *udata)
 		}
 		break;
 	case A_GOPOS:
-		if (gg->curtrk != NULL && gg->go_pos != (uint)-1)
-			gg->curtrk->time_seek = gg->go_pos;
+		if (gg->go_pos != (uint)-1)
+			gtrk_seek(A_SEEK, gg->go_pos);
 		break;
 
 	case A_VOL:

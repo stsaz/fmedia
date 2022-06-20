@@ -135,7 +135,6 @@ again:
 			uint64 seek = ffpcm_samples(d->audio.seek, o->opus.info.rate);
 			ffopus_seek(&o->opus, seek);
 			reset = 1;
-			d->audio.seek = FMED_NULL;
 		}
 		if (d->flags & FMED_FFWD) {
 			if (o->pagepos != d->audio.pos) {

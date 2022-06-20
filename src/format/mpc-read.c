@@ -11,11 +11,9 @@ extern const fmed_core *core;
 struct mpc {
 	mpcread mpc;
 	ffstr in;
-	int64 aseek;
 	uint64 frno;
 	void *trk;
 	uint sample_rate;
-	uint seeking :1;
 };
 
 static void mpc_log(void *udata, ffstr msg)
@@ -30,7 +28,6 @@ static void* mpc_open(fmed_filt *d)
 	if (NULL == (m = ffmem_new(struct mpc)))
 		return NULL;
 	m->trk = d->trk;
-	m->aseek = -1;
 	uint64 tsize = 0;
 	if ((int64)d->input.size != FMED_NULL)
 		tsize = d->input.size;
@@ -58,20 +55,15 @@ static int mpc_process(void *ctx, fmed_filt *d)
 		return FMED_RLASTOUT;
 	}
 
-	if (d->codec_err) {
-		d->codec_err = 0;
-	}
-
 	if (d->datalen != 0) {
 		ffstr_set(&m->in, d->data, d->datalen);
 		d->datalen = 0;
 	}
 
-	if ((int64)d->audio.seek >= 0)
-		m->aseek = d->audio.seek;
-	if (m->aseek >= 0 && !m->seeking && m->sample_rate != 0) {
-		mpcread_seek(&m->mpc, ffpcm_samples(m->aseek, m->sample_rate));
-		m->seeking = 1;
+	if (d->seek_req && (int64)d->audio.seek != FMED_NULL && m->sample_rate != 0) {
+		d->seek_req = 0;
+		mpcread_seek(&m->mpc, ffpcm_samples(d->audio.seek, m->sample_rate));
+		dbglog1(d->trk, "seek: %Ums", d->audio.seek);
 	}
 
 	for (;;) {
@@ -134,10 +126,6 @@ static int mpc_process(void *ctx, fmed_filt *d)
 	}
 
 data:
-	if (m->seeking) {
-		m->seeking = 0;
-		m->aseek = -1;
-	}
 	d->audio.pos = mpcread_cursample(&m->mpc);
 	dbglog(core, d->trk, NULL, "frame#%U passing %L bytes at position #%U"
 		, ++m->frno, blk.len, d->audio.pos);

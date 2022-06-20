@@ -27,7 +27,6 @@ struct ogg_out {
 	ffstr in;
 	uint state;
 	uint64 total;
-	uint add_opus_tags;
 };
 
 void* ogg_out_open(fmed_filt *d)
@@ -43,9 +42,6 @@ void* ogg_out_open(fmed_filt *d)
 		fftime_now(&t);
 		ffrnd_seed(fftime_sec(&t));
 	}
-
-	if (fmed_getval("opus_no_tags") == 1)
-		o->add_opus_tags = 1;
 
 	return o;
 }
@@ -111,7 +107,7 @@ OGG->OGG copying doesn't require temp. buffer.
 */
 int ogg_out_encode(void *ctx, fmed_filt *d)
 {
-	enum { I_CONF, I_PKT, I_PAGE_EXACT };
+	enum { I_CONF, I_PKT, I_OPUS_TAGS, I_PAGE_EXACT };
 	struct ogg_out *o = ctx;
 	int r;
 	ffstr in;
@@ -151,27 +147,40 @@ int ogg_out_encode(void *ctx, fmed_filt *d)
 		}
 
 		case I_PKT:
-			if (o->add_opus_tags && o->og.stat.npkts == 1) {
-				static const char opus_tags[] = "OpusTags\x08\x00\x00\x00" "datacopy\x00\x00\x00\x00";
-				ffstr_set(&in, opus_tags, sizeof(opus_tags)-1);
-				return pkt_write(o, d, &in, &d->data_out, 0, OGGWRITE_FFLUSH);
-			}
-
 			ffstr_set2(&in, &o->pkt); // gonna write the previous packet
+			o->pkt.len = 0;
+
 			endpos = d->audio.pos; // end-pos (for previous packet) = start-pos of this packet
-			if (o->og.stat.npkts == 0)
+			if (o->og.stat.npkts == 0) {
 				endpos = 0;
+				if (d->ogg_gen_opus_tag)
+					o->state = I_OPUS_TAGS;
+			}
 			if (endpos == 0)
 				flags = OGGWRITE_FFLUSH;
-			if (d->flags & FMED_FLAST)
+			if ((d->flags & FMED_FLAST) && d->data_in.len == 0)
 				flags = OGGWRITE_FLAST;
+
 			r = pkt_write(o, d, &in, &d->data_out, endpos, flags);
-			if ((r == FMED_RDATA && in.len == 0) || r == FMED_RMORE) {
-				o->pkt.len = 0;
+			if (r == FMED_RMORE) {
+				if (d->flags & FMED_FLAST) {
+					if ((int64)d->audio.total != FMED_NULL && endpos < d->audio.total)
+						endpos = d->audio.total;
+					else
+						endpos++; // we don't know the packet's audio length -> can't set the real end-pos value
+					return pkt_write(o, d, &d->data_in, &d->data_out, endpos, OGGWRITE_FLAST);
+				}
 				ffvec_add2(&o->pkt, &d->data_in, 1); // store the current data packet
 				d->data_in.len = 0;
 			}
 			return r;
+
+		case I_OPUS_TAGS: {
+			o->state = I_PKT;
+			static const char opus_tags[] = "OpusTags\x08\x00\x00\x00" "datacopy\x00\x00\x00\x00";
+			ffstr_set(&in, opus_tags, sizeof(opus_tags)-1);
+			return pkt_write(o, d, &in, &d->data_out, 0, OGGWRITE_FFLUSH);
+		}
 
 		case I_PAGE_EXACT:
 			if (d->ogg_flush) {
@@ -180,7 +189,7 @@ int ogg_out_encode(void *ctx, fmed_filt *d)
 			}
 
 			if (d->flags & FMED_FLAST)
-				flags |= OGGWRITE_FLAST;
+				flags = OGGWRITE_FLAST;
 
 			endpos = fmed_getval("ogg_granpos");
 			r = pkt_write(o, d, &d->data_in, &d->data_out, endpos, flags);

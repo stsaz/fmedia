@@ -1,6 +1,19 @@
 /** fmedia: gui-winapi: track filter - a bridge between GUI and Core
 2021, Simon Zolin */
 
+void gtrk_seek(uint pos_sec)
+{
+	if (gg->curtrk == NULL)
+		return;
+	gui_trk *t = gg->curtrk;
+
+	t->seek_msec = pos_sec * 1000;
+	t->d->seek_req = 1;
+	fmed_dbglog(core, t->d->trk, "gui", "seek: %U", t->seek_msec);
+	if (t->d->adev_ctx != NULL)
+		t->d->adev->cmd(FMED_ADEV_CMD_CLEAR, t->d->adev_ctx);
+}
+
 void* gtrk_open(fmed_filt *d)
 {
 	gui_trk *g = ffmem_tcalloc1(gui_trk);
@@ -9,6 +22,7 @@ void* gtrk_open(fmed_filt *d)
 	g->lastpos = (uint)-1;
 	g->d = d;
 	g->trk = d->trk;
+	g->seek_msec = -1;
 
 	g->qent = (void*)fmed_getval("queue_item");
 	if (g->qent == FMED_PNULL) {
@@ -54,7 +68,7 @@ int gtrk_process(void *ctx, fmed_filt *d)
 	int64 playpos;
 	uint playtime, first = 0;
 
-	if (d->meta_block)
+	if (d->meta_block && (d->flags & FMED_FFWD))
 		goto done;
 
 	if (g->sample_rate == 0) {
@@ -84,14 +98,17 @@ int gtrk_process(void *ctx, fmed_filt *d)
 		d->meta_changed = 0;
 	}
 
-	if (g->goback) {
-		g->goback = 0;
-		return FMED_RMORE;
-	}
-	if (g->d->snd_output_clear_wait) {
-		if ((int64)d->audio.seek != FMED_NULL)
-			return FMED_RMORE; // decoder must complete our seek request
-		g->d->snd_output_clear_wait = 0;
+	if (g->seek_msec != -1) {
+		d->audio.seek = g->seek_msec;
+		g->seek_msec = -1;
+		return FMED_RMORE; // new seek request
+	} else if (!(d->flags & FMED_FFWD)) {
+		return FMED_RMORE; // going back without seeking
+	} else if (d->data_in.len == 0 && !(d->flags & FMED_FLAST)) {
+		return FMED_RMORE; // waiting for audio data before resetting seek position
+	} else if ((int64)d->audio.seek != FMED_NULL && !d->seek_req) {
+		fmed_dbglog(core, d->trk, NULL, "seek: done");
+		d->audio.seek = FMED_NULL; // prev. seek is complete
 	}
 
 	if (d->flags & FMED_FSTOP) {
@@ -122,7 +139,7 @@ done:
 	d->datalen = 0;
 	if (d->flags & FMED_FLAST)
 		return FMED_RDONE;
-	return FMED_ROK;
+	return (d->type == FMED_TRK_TYPE_PLAYBACK) ? FMED_RDATA : FMED_ROK;
 }
 
 //GUI-TRACK

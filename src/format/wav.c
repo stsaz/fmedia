@@ -82,9 +82,9 @@ again:
 		break;
 
 	case I_DATA:
-		if ((int64)d->audio.seek != FMED_NULL) {
+		if (d->seek_req && (int64)d->audio.seek != FMED_NULL) {
+			d->seek_req = 0;
 			wavread_seek(&w->wav, ffpcm_samples(d->audio.seek, w->srate));
-			d->audio.seek = FMED_NULL;
 		}
 		break;
 	}

@@ -52,6 +52,7 @@ typedef struct mpeg_dec {
 	mpg123 *m123;
 	uint64 pos;
 	uint64 seek;
+	uint64 seek_curr;
 	uint fr_size;
 	uint sample_rate;
 } mpeg_dec;
@@ -100,15 +101,23 @@ static int mpeg_dec_process(void *ctx, fmed_filt *d)
 	int r = 0;
 	ffstr in = {}, out = {};
 
+	if (d->seek_req) {
+		// a new seek request is received, pass control to UI module
+		m->seek = (uint64)-1;
+		m->seek_curr = FMED_NULL;
+		d->data_in.len = 0;
+		return (d->flags & FMED_FLAST) ? FMED_RDONE : FMED_ROK;
+	}
+
 	if (d->flags & FMED_FFWD) {
 		in = d->data_in;
 		d->data_in.len = 0;
 		m->pos = d->audio.pos;
 
-		if ((int64)d->audio.seek != FMED_NULL) {
+		if ((int64)d->audio.seek != FMED_NULL && m->seek_curr != d->audio.seek) {
+			m->seek_curr = d->audio.seek;
 			mpg123_reset(m->m123);
 			m->seek = ffpcm_samples(d->audio.seek, m->sample_rate) + d->mpeg1_delay;
-			d->audio.seek = FMED_NULL;
 		}
 	}
 
@@ -140,6 +149,7 @@ static int mpeg_dec_process(void *ctx, fmed_filt *d)
 			dbglog(core, d->trk, "mpeg", "skip %L samples", skip_samples);
 		}
 		m->seek = (uint64)-1;
+		m->seek_curr = FMED_NULL;
 	}
 
 	m->pos += samples;

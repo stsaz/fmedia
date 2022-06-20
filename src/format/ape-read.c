@@ -46,7 +46,6 @@ static int ape_in_process(void *ctx, fmed_filt *d)
 	enum { I_HDR, I_HDR_PARSED, I_DATA };
 	ape *a = ctx;
 	int r;
-	uint64 sk = 0;
 
 	if (d->flags & FMED_FSTOP) {
 		d->outlen = 0;
@@ -65,20 +64,13 @@ static int ape_in_process(void *ctx, fmed_filt *d)
 	case I_HDR_PARSED:
 		a->sample_rate = d->audio.fmt.sample_rate;
 		a->state = I_DATA;
-		if (d->audio.abs_seek != 0) {
-			d->track->cmd(d->trk, FMED_TRACK_FILT_ADD, "plist.cuehook");
-			sk += fmed_apos_samples(d->audio.abs_seek, a->sample_rate);
-		}
 		// fallthrough
 
 	case I_DATA:
-		if ((int64)d->audio.seek != FMED_NULL) {
-			sk += ffpcm_samples(d->audio.seek, a->sample_rate);
-			d->audio.seek = FMED_NULL;
-		}
-		if (sk != 0) {
-			d->audio.decoder_seek_msec = ffpcm_time(sk, a->sample_rate);
-			aperead_seek(&a->ape, sk);
+		if (d->seek_req && (int64)d->audio.seek != FMED_NULL) {
+			d->seek_req = 0;
+			aperead_seek(&a->ape, ffpcm_samples(d->audio.seek, a->sample_rate));
+			fmed_dbglog(core, d->trk, "ape", "seek: %Ums", d->audio.seek);
 		}
 		break;
 	}
