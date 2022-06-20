@@ -48,9 +48,9 @@ extern const fmed_filter cuehook_iface;
 extern const fmed_filter fmed_dir_input;
 extern int dir_conf(fmed_conf_ctx *ctx);
 
-#include <format/m3u-read.h>
-#include <format/pls-read.h>
-#include <format/m3u-write.h>
+#include <plist/m3u-read.h>
+#include <plist/pls-read.h>
+#include <plist/m3u-write.h>
 
 static const void* plist_iface(const char *name)
 {

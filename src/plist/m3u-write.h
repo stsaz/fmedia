@@ -80,6 +80,4 @@ static int m3uw_process(void *ctx, fmed_filt *d)
 	return FMED_RLASTOUT;
 }
 
-static const fmed_filter m3u_output = {
-	m3uw_open, m3uw_process, m3uw_close
-};
+static const fmed_filter m3u_output = { m3uw_open, m3uw_process, m3uw_close };

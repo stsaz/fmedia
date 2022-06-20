@@ -11,14 +11,6 @@ extern const fmed_core *core;
 extern const fmed_queue *qu;
 extern int plist_fullname(fmed_filt *d, const ffstr *name, ffstr *dst);
 
-//CUE INPUT
-static void* cue_open(fmed_filt *d);
-static void cue_close(void *ctx);
-static int cue_process(void *ctx, fmed_filt *d);
-const fmed_filter fmed_cue_input = {
-	&cue_open, &cue_process, &cue_close
-};
-
 enum FFCUE_GAP {
 	/* Gap is added to the end of the previous track:
 	track01.index01 .. track02.index01 */
@@ -114,6 +106,8 @@ static int cue_trackno(cue *c, fmed_filt *d, ffarr *arr)
 static const uint cue_opts[] = {
 	FFCUE_GAPSKIP, FFCUE_GAPPREV, FFCUE_GAPPREV1, FFCUE_GAPCURR
 };
+
+static void cue_close(void *ctx);
 
 static void* cue_open(fmed_filt *d)
 {
@@ -406,6 +400,8 @@ err:
 	ffarr_free(&val);
 	return rc;
 }
+
+const fmed_filter fmed_cue_input = { cue_open, cue_process, cue_close };
 
 
 struct cuehook {

@@ -350,13 +350,14 @@ alac.$(SO): $(ALAC_O)
 
 
 #
+$(OBJ_DIR)/%.o: $(SRCDIR)/plist/%.c $(wildcard $(SRCDIR)/plist/*.h) $(GLOBDEPS)
+	$(C) $(CFLAGS) $< -o $@
 PLIST_O := $(OBJ_DIR)/plist.o \
 	$(OBJ_DIR)/cue.o \
 	$(OBJ_DIR)/dir.o \
-	$(FF_O) \
-	$(FFOS_WREG)
+	$(FF_O)
 plist.$(SO): $(PLIST_O)
-	$(LINK) -shared $(PLIST_O) $(LINKFLAGS) -o $@
+	$(LINK) -shared $+ $(LINKFLAGS) -o $@
 
 
 #

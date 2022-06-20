@@ -131,6 +131,4 @@ static int pls_process(void *ctx, fmed_filt *d)
 	}
 }
 
-static const fmed_filter fmed_pls_input = {
-	pls_open, pls_process, pls_close
-};
+static const fmed_filter fmed_pls_input = { pls_open, pls_process, pls_close };

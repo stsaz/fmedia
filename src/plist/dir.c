@@ -11,14 +11,6 @@ extern const fmed_core *core;
 extern const fmed_queue *qu;
 extern int plist_fullname(fmed_filt *d, const ffstr *name, ffstr *dst);
 
-//DIR INPUT
-static void* dir_open(fmed_filt *d);
-static void dir_close(void *ctx);
-static int dir_process(void *ctx, fmed_filt *d);
-const fmed_filter fmed_dir_input = {
-	&dir_open, &dir_process, &dir_close
-};
-
 int dir_conf(fmed_conf_ctx *ctx);
 static int dir_open_r(const char *dirname, fmed_filt *d);
 
@@ -241,3 +233,5 @@ static int dir_process(void *ctx, fmed_filt *d)
 {
 	return FMED_RFIN;
 }
+
+const fmed_filter fmed_dir_input = { dir_open, dir_process, dir_close };

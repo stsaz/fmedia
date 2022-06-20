@@ -129,6 +129,4 @@ static int m3u_process(void *ctx, fmed_filt *d)
 	}
 }
 
-static const fmed_filter fmed_m3u_input = {
-	&m3u_open, &m3u_process, &m3u_close
-};
+static const fmed_filter fmed_m3u_input = { m3u_open, m3u_process, m3u_close };
