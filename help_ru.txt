@@ -45,8 +45,8 @@
 -i, --info         Don't play but show media information
 --tags             Print all meta tags
 --fseek=BYTE       Set input file offset
---seek=TIME        Seek to time: [[HH:]MM:]SS[:MSC]
---until=TIME       Stop at time
+-s, --seek=TIME    Seek to time: [[HH:]MM:]SS[:MSC]
+-u, --until=TIME   Stop at time
                    Special values:
                      'playback-end': stop recording when the last playback track is finished
 
@@ -75,7 +75,7 @@
                    Stop processing if input signal level goes below DB for TIME time (default: 5 sec).
                    If MINTIME is specified, stop only after MINTIME time has passed.
 
---pcm-peaks        Analyze PCM and print some details
+-P, --pcm-peaks    Analyze PCM and print some details
 --pcm-crc          Print CRC of PCM data (must be used with --pcm-peaks)
                    Useful for checking the results of lossless audio conversion.
 
@@ -88,9 +88,9 @@
 
 КОДИРОВАНИЕ:
 
---vorbis.quality=FLOAT
+--vorbis-quality=FLOAT
                    Vorbis encoding quality: -1.0 .. 10.0
---opus.bitrate=INT Opus encoding bitrate: 6..510 (VBR)
+--opus-bitrate=INT Opus encoding bitrate: 6..510 (VBR)
 --mpeg-quality=INT MPEG encoding quality: 9..0 (VBR) or 64..320 (CBR)
 --aac-quality=INT  AAC encoding quality: 1..5 (VBR) or 8..800 (CBR, kbit/s)
 --aac-profile=STR  Set AAC profile: LC | HE | HEv2

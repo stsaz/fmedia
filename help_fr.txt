@@ -45,8 +45,8 @@ INPUT:
 -i, --info         Ne joue pas mais montre les infomations du média
 --tags             Imprime tous les meta tags
 --fseek=BYTE       Set input file offset                                                        (need translation)
---seek=TIME        Cherche une référence temporelle : [[HH:]MM:]SS[:MSC]
---until=TIME       Stoppe à l'instant T
+-s, --seek=TIME    Cherche une référence temporelle : [[HH:]MM:]SS[:MSC]
+-u, --until=TIME   Stoppe à l'instant T
                    Valeurs speciales :
                      'playback-end': arrête l'enregistrement quand la dernière piste est finie.
 
@@ -75,7 +75,7 @@ FILTRES:
                    Arrête le traitement si le signal d'entrée descend sous un niveau de décibels donné DB pour une durée TIME (défaut : 5 sec).
                    Si MINTIME est spécifié, arrête seulement après qu'un temps MINTIME se soit écoulé.
 
---pcm-peaks        Analyse PCM et imprime certains détails
+-P, --pcm-peaks    Analyse PCM et imprime certains détails
 --pcm-crc          Imprime CRC des données PCM (doit être utilisé avec--pcm-peaks)
                    Utile afin de vérifier les résutats d'une conversion audio sans perte (lossless)
 
@@ -88,9 +88,9 @@ FILTRES:
 
 ENCODAGE:
 
---vorbis.quality=FLOAT
+--vorbis-quality=FLOAT
                    Qualité de l'encodage Vorbis : -1.0 .. 10.0
---opus.bitrate=INT Taux d'encodage Opus : 6..510 (VBR)
+--opus-bitrate=INT Taux d'encodage Opus : 6..510 (VBR)
 --mpeg-quality=INT Qualité de l'encodage MPEG : 9..0 (VBR) or 64..320 (CBR)
 --aac-quality=INT  Qualité de l'encodage AAC : 1..5 (VBR) or 8..800 (CBR, kbit/s)
 --aac-profile=STR  Détermine le profil AAC : LC | HE | HEv2

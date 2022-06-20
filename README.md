@@ -312,7 +312,7 @@ Play wav file with a corrupted header
 Convert with parameters
 
 	fmedia ./file.ogg --out=./file.wav --format=int16
-	fmedia ./file.wav --out=./file.ogg --vorbis.quality=7.0
+	fmedia ./file.wav --out=./file.ogg --vorbis-quality=7.0
 	fmedia ./file.wav --out=./file.mp3 --mpeg-quality=0 --rate=48000
 
 Convert all .wav files from the current directory to .ogg

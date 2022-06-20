@@ -46,8 +46,8 @@ EINGABE:
 -i, --info         Zeige Informationen zum Medium
 --tags             Zeige alle Meta Schlagwörter (meta tags)
 --fseek=BYTE       Setzt ein Offset für die Eingabedatei
---seek=TIME        Suche den angegebenen Zeitpunkt: [[HH:]MM:]SS[:MSC]
---until=TIME       Stoppe zum angegebenen Zeitpunkt
+-s, --seek=TIME    Suche den angegebenen Zeitpunkt: [[HH:]MM:]SS[:MSC]
+-u, --until=TIME   Stoppe zum angegebenen Zeitpunkt
                    Besondere Werte:
                      'playback-end': Beende die Aufnahme sobald das letzte Stück beendet wurde
 
@@ -76,7 +76,7 @@ FILTER:
                    Stoppe den Prozess wenn das Eingangssignal unter das Level DB für TIME Zeiteinheiten geht (Standard: 5 sek).
                    Wenn MINTIME spezifiziert ist, stoppe erst wenn MINTIME Zeiteinheiten vorbei sind.
 
---pcm-peaks        Analysiere PCM and gebe Details dazu aus
+-P, --pcm-peaks    Analysiere PCM and gebe Details dazu aus
 --pcm-crc          Gibt CRC der PCM Daten aus (muss mit --pcm-peaks genutzt werden)
                    Nützlich um die Ergebnisse einer verlustfreien Audio Konvertierung zu überprüfen
 
@@ -89,9 +89,9 @@ FILTER:
 
 KODIERUNG:
 
---vorbis.quality=FLOAT
+--vorbis-quality=FLOAT
                    Vorbis Kodierungsqualität: -1.0 .. 10.0
---opus.bitrate=INT Opus Kodierungs Bitrate: 6..510 (VBR)
+--opus-bitrate=INT Opus Kodierungs Bitrate: 6..510 (VBR)
 --mpeg-quality=INT MPEG Kodierungsqualität: 9..0 (VBR) or 64..320 (CBR)
 --aac-quality=INT  AAC Kodierungsqualität: 1..5 (VBR) or 8..800 (CBR, kbit/s)
 --aac-profile=STR  Setzt AAC Profil: LC | HE | HEv2

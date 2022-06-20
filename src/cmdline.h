@@ -380,8 +380,8 @@ static const ffcmdarg_arg fmed_cmdline_args[] = {
 	{ 0, "flist",	TSTRZ | FFCMDARG_FMULTI,	F(arg_flist) },
 	{ 0, "include",	TSTR,	F(arg_finclude) },
 	{ 0, "exclude",	TSTR,	F(arg_finclude) },
-	{ 0, "seek",	TSTR,	F(arg_seek) },
-	{ 0, "until",	TSTR,	F(arg_until) },
+	{ 's', "seek",	TSTR,	F(arg_seek) },
+	{ 'u', "until",	TSTR,	F(arg_until) },
 	{ 0, "prebuffer",	TSTR,	F(arg_seek) },
 	{ 0, "start-dblevel",	TFLOAT32,	O(start_level) },
 	{ 0, "stop-dblevel",	TSTR,	F(arg_astoplev) },
@@ -400,12 +400,14 @@ static const ffcmdarg_arg fmed_cmdline_args[] = {
 	{ 0, "auto-attenuate",	TFLOAT32,	F(arg_auto_attenuate) },
 	{ 0, "split",	TSTR,	F(arg_split) },
 	{ 0, "dynanorm",	TSWITCH,	O(dynanorm) },
-	{ 0, "pcm-peaks",	TSWITCH,	O(pcm_peaks) },
+	{ 'P', "pcm-peaks",	TSWITCH,	O(pcm_peaks) },
 	{ 0, "pcm-crc",	TSWITCH,	O(pcm_crc) },
 
 	//ENCODING
-	{ 0, "vorbis.quality",	TFLOAT32,	O(vorbis_qual) },
-	{ 0, "opus.bitrate",	TINT32,	O(opus_brate) },
+	{ 0, "vorbis.quality",	TFLOAT32,	O(vorbis_qual) }, // obsolete
+	{ 0, "opus.bitrate",	TINT32,	O(opus_brate) }, // obsolete
+	{ 0, "vorbis-quality",	TFLOAT32,	O(vorbis_qual) },
+	{ 0, "opus-bitrate",	TINT32,	O(opus_brate) },
 	{ 0, "mpeg-quality",	FFCMDARG_TINT16,	O(mpeg_qual) },
 	{ 0, "aac-quality",	TINT32,	O(aac_qual) },
 	{ 0, "aac-profile",	TSTRZ,	O(aac_profile) },

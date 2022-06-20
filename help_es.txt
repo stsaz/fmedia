@@ -46,8 +46,8 @@ ENTRADA:
 -i, --info         Muestra información sin reproducir
 --tags             Imprime todos los meta tags
 --fseek=BYTE       Set input file offset
---seek=TIME        Seek to time: [[HH:]MM:]SS[:MSC]
---until=TIME       Stop at time
+-s, --seek=TIME    Seek to time: [[HH:]MM:]SS[:MSC]
+-u, --until=TIME   Stop at time
                    Valores especiales:
                      'playback-end': detiene la grabación cuando el último tema reproducido termina
 
@@ -76,7 +76,7 @@ FILTROSS:
                    Stop processing if input signal level goes below DB for TIME time (default: 5 sec).
                    If MINTIME is specified, stop only after MINTIME time has passed.
 
---pcm-peaks        Analiza PCM y muestra algunos detalles
+-P, --pcm-peaks    Analiza PCM y muestra algunos detalles
 --pcm-crc          Muestra CRC de datos PCM (se debe usar con --pcm-peaks)
                    Útil para chequer los resultados de la conversión sin pérdida.
 
@@ -89,9 +89,9 @@ FILTROSS:
 
 CODIFICACIÓN:
 
---vorbis.quality=FLOAT
+--vorbis-quality=FLOAT
                    Calidad de codificación Vorbis: -1.0 .. 10.0
---opus.bitrate=INT Calidad de codificación Opus: 6..510 (VBR)
+--opus-bitrate=INT Calidad de codificación Opus: 6..510 (VBR)
 --mpeg-quality=INT Calidad de codificación MPEG: 9..0 (VBR) or 64..320 (CBR)
 --aac-quality=INT  Calidad de codificación AAC: 1..5 (VBR) or 8..800 (CBR, kbit/s)
 --aac-profile=STR  Define el perfil AAC: LC | HE | HEv2
