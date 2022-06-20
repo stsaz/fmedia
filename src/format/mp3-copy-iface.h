@@ -186,9 +186,13 @@ static inline int ffmpg_copy(ffmpgcopy *m, ffstr *input, ffstr *output)
 		}
 		continue;
 
-	case CPY_FR1:
-		mpeg1read_open(&m->rdr, m->total_size);
+	case CPY_FR1: {
+		ffuint64 frames_size = m->total_size;
+		if (m->total_size != 0)
+			frames_size -= m->wdataoff;
+		mpeg1read_open(&m->rdr, frames_size);
 		m->state = CPY_FR;
+	}
 		// fallhrough
 	case CPY_FR:
 		if (m->rinput.len == 0) {
