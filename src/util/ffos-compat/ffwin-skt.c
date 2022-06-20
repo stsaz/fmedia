@@ -39,17 +39,6 @@ int ffaddr_info(ffaddrinfo **a, const char *host, const char *svc, int flags)
 	return ffaddr_infoq(a, phost, psvc, flags);
 }
 
-int ffaddr_name(struct sockaddr *a, size_t addrlen, char *host, size_t hostcap, char *svc, size_t svccap, uint flags)
-{
-	int r;
-	ffsyschar whost[NI_MAXHOST], wsvc[NI_MAXSERV];
-	if (0 != (r = ffaddr_nameq(a, addrlen, whost, FF_TOINT(hostcap), wsvc, FF_TOINT(svccap), flags)))
-		return r;
-	ffsz_wtou(host, hostcap, whost);
-	ffsz_wtou(svc, svccap, wsvc);
-	return 0;
-}
-
 int ffaio_connect(ffaio_task *t, ffaio_handler handler, const struct sockaddr *addr, socklen_t addr_size)
 {
 	BOOL b;

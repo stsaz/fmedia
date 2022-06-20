@@ -107,7 +107,8 @@ static int caf_process(void *ctx, fmed_filt *d)
 
 		case CAFREAD_HEADER: {
 			const caf_info *ai = cafread_info(&c->caf);
-			dbglog1(d->trk, "packets:%U  frames/packet:%u  bytes/packet:%u"
+			dbglog1(d->trk, "codec:%u  conf:%*xb  packets:%U  frames/packet:%u  bytes/packet:%u"
+				, ai->codec, ai->codec_conf.len, ai->codec_conf.ptr
 				, ai->total_packets, ai->packet_frames, ai->packet_bytes);
 
 			int i = ffarrint8_find(caf_codecs, FFCNT(caf_codecs), ai->codec);

@@ -457,6 +457,15 @@ static const ffcmdarg_arg fmed_cmdline_main_args[] = {
 #undef O
 #undef F
 
+int cmdline_validate(fmed_cmd *cmd)
+{
+	if (cmd->out_copy != 0 && cmd->outfn.len == 0) {
+		errlog0("cmd line: --out-copy requires --out");
+		return 1;
+	}
+	return 0;
+}
+
 /**
 Return 0: success
  -1: success, exit
@@ -498,5 +507,8 @@ static int fmed_cmdline(int argc, char **argv, uint main_only)
 
 	if (g->cmd->outfnz != NULL)
 		ffstr_setz(&g->cmd->outfn, g->cmd->outfnz);
+	if (r == 0 && !main_only) {
+		r = cmdline_validate(g->cmd);
+	}
 	return r;
 }

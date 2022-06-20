@@ -8,6 +8,22 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.28 - Jun 18, 2022
+
+ + TUI: new commands:
+    E: Remove "dead" items from playlist
+    L: Save current playlist to the system's temporary directory
+    r: "Choose random track" setting: on/off
+    x: Remove the track from playlist and play next track
+ * UI: react faster to seek requests
+ * GUI: use separate language files
+ + GUI: Italian language
+ - GUI: "List->Read Meta Tags" didn't work
+ * Windows: minimum required version is now Vista
+ * .mp3 --stream-copy: improve seeking accuracy
+ * .cue: support for all containers (except .avi and .caf)
+
+
 fmedia v1.27.4 - May 31, 2022
 
  * support "--include/--exclude" when creating playlist from directory

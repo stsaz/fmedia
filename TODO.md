@@ -5,7 +5,10 @@ This is the list of the things that need to be done.
 ## Features
 
 * .ts
-* .avi seeking
+* .mkv(FLAC)
+* accurate .mkv seeking
+* seeking: .avi .caf .mpc
+* vorbis.mkv --stream-copy
 * 24-bit conversion via soxr
 * gapless playback of the next track in queue
 * noise gate filter
@@ -16,16 +19,18 @@ This is the list of the things that need to be done.
 
 * ICY: detect real bitrate from data (not HTTP header)
 * support --meta with --stream-copy (.ogg, .m4a, .mp3)
-* GUI: Open directory from disk
-* GUI: Ctrl+Tab
-* GUI theme: listview entry selection color (#13)
-* GUI for macOS
-* GUI: remove meta associated with the track after file is renamed
-* GUI: read tags on load
-* GUI: remember conversion settings
-* show tray icon when recording from console (#39)
-* Set to Play Next
 * open http://....m3u (application/x-mpegURL)
+
+* GUI:
+	* Open directory from disk
+	* Ctrl+Tab
+	* theme: listview entry selection color (#13)
+	* for macOS
+	* remove meta associated with the track after file is renamed
+	* read tags on load
+	* remember conversion settings
+	* show tray icon when recording from console (#39)
+	* Set to Play Next
 
 ## Second priority features
 
@@ -115,6 +120,10 @@ This is the list of the things that need to be done.
 	 because the start of the next track is already scheduled by 'queue'.
 
 * fix ALSA/WASAPI buffer reuse algorithm
+* .caf 'data'...'pakt' (alac.caf)
+* "play_vorbis.ogg --seek=2": PCM peaks (94,976 total samples)
+* "play_mp3.mp3 --seek=2": PCM peaks (94,511 total samples)
+* 3kbps AAC-LC
 
 ## Refactoring
 
@@ -128,3 +137,6 @@ This is the list of the things that need to be done.
 		return FMED_RDATA;
 
 	core should handle FMED_RDATA for the last-in-chain filter automatically?
+
+* opus & vorbis still use `input_info`
+* setvalstr() leftovers

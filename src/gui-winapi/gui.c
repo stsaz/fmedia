@@ -828,6 +828,10 @@ done:
 */
 static FFTHDCALL int gui_worker(void *param)
 {
+	fftime tstart;
+	if (core->loglev == FMED_LOG_DEBUG)
+		tstart = fftime_monotonic();
+
 	char *fn = NULL, *fnconf = NULL;
 	ffui_loader ldr;
 	ffui_init();
@@ -870,6 +874,12 @@ static FFTHDCALL int gui_worker(void *param)
 
 	gui_themes_read();
 	gui_themes_add(gg->theme_startup);
+
+	if (core->loglev == FMED_LOG_DEBUG) {
+		fftime tend = fftime_monotonic();
+		fftime_sub(&tend, &tstart);
+		dbglog0("loaded GUI in %Ums", (int64)fftime_to_msec(&tend));
+	}
 
 	dbglog0("entering UI loop");
 	ffui_run();

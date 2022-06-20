@@ -279,6 +279,10 @@ static int load_ui()
 	ffui_ldr_init2(&ldr, &gui_getctl, &gui_getcmd, gg);
 	ffmem_copy(ldr.language, core->props->language, 2);
 
+	fftime tstart;
+	if (core->loglev == FMED_LOG_DEBUG)
+		tstart = fftime_monotonic();
+
 	if (NULL == (fn = core->getpath(FFSTR("./fmedia.gui"))))
 		goto done;
 	if (NULL == (fnconf = ffsz_alfmt("%s%s", core->props->user_path, CTL_CONF_FN)))
@@ -295,6 +299,12 @@ static int load_ui()
 	r = 0;
 
 done:
+	if (core->loglev == FMED_LOG_DEBUG) {
+		fftime tend = fftime_monotonic();
+		fftime_sub(&tend, &tstart);
+		dbglog("loaded GUI in %Ums", (int64)fftime_to_msec(&tend));
+	}
+
 	ffui_ldr_fin(&ldr);
 	ffmem_free(fn);
 	ffmem_free(fnconf);

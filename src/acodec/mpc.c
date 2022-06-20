@@ -82,11 +82,6 @@ static int mpc_dec_process(void *ctx, fmed_filt *d)
 	int r;
 	ffstr s;
 
-	if (d->flags & FMED_FSTOP) {
-		d->outlen = 0;
-		return FMED_RLASTOUT;
-	}
-
 	if ((d->flags & FMED_FFWD) && d->datalen != 0) {
 		ffmpc_inputblock(&m->mpcdec, d->data, d->datalen, d->audio.pos);
 		d->datalen = 0;

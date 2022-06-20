@@ -340,13 +340,14 @@ static void fileout_close(void *ctx)
 			if (f->d->out_file_del) {
 				if (0 == fffile_rm(f->fname.ptr))
 					dbglog(NULL, "removed file %S", &f->fname);
+			} else {
+				if (fftime_sec(&f->modtime) != 0)
+					fffile_settimefn(f->fname.ptr, &f->modtime);
+
+				core->log(FMED_LOG_USER, NULL, "file", "saved file %S, %U kbytes"
+					, &f->fname, f->wr / 1024);
 			}
 
-			if (fftime_sec(&f->modtime) != 0)
-				fffile_settimefn(f->fname.ptr, &f->modtime);
-
-			core->log(FMED_LOG_USER, NULL, "file", "saved file %S, %U kbytes"
-				, &f->fname, f->wr / 1024);
 			dbglog(NULL, "%S: mem write#:%u  file write#:%u  prealloc#:%u"
 				, &f->fname, st.nmwrite, st.nfwrite, st.nprealloc);
 		}

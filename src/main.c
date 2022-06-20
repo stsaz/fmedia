@@ -370,8 +370,6 @@ static void open_input(void *udata)
 	if (first == NULL && !fmed->rec && !fmed->gui)
 		core->sig(FMED_STOP);
 
-	return;
-
 end:
 	return;
 }
@@ -641,7 +639,7 @@ int main(int argc, char **argv, char **env)
 	if (0 != core->cmd(FMED_CONF, gcmd->conf_fn))
 		goto end;
 
-	ffmem_safefree(gcmd->conf_fn);
+	ffmem_safefree(gcmd->conf_fn);  gcmd->conf_fn = NULL;
 
 	if (0 != (r = fmed_cmdline(argc, argv, 0))) {
 		if (r == -1)

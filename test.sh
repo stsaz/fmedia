@@ -9,7 +9,7 @@ set -e
 BIN=./fmedia
 
 if test "$1" = "clean" ; then
-	rm *.aac *.wav *.flac *.mp3 *.m4a *.ogg *.opus *.mpc *.wv
+	rm *.aac *.wav *.flac *.mp3 *.m4a *.ogg *.opus *.mpc *.wv *.mp4 *.mkv *.avi *.caf *.cue
 	exit
 fi
 

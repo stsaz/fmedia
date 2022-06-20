@@ -89,6 +89,7 @@ static FFINL const char * ffaddr_errstr(int code, char *buf, size_t bufcap) {
 
 enum {
 	FF_MAXIP4 = INET_ADDRSTRLEN
+	, FF_MAXIP6 = 65 // "[addr]:port"
 
 	, SOCK_NONBLOCK = 0x100
 };
@@ -121,7 +122,7 @@ static FFINL int ffaddr_infoq(ffaddrinfo **a, const ffsyschar *host, const ffsys
 
 FF_EXTN int ffaddr_info(ffaddrinfo **a, const char *host, const char *svc, int flags);
 
-#define ffaddr_free  FreeAddrInfo
+#define ffaddr_free  FreeAddrInfoW
 
 static FFINL const char * ffaddr_errstr(int code, char *buf, size_t bufcap) {
 	fferr_str(code, buf, bufcap);
