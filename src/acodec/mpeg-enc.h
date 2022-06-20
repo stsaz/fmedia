@@ -1,4 +1,4 @@
-/** fmedia: MPEG write
+/** fmedia: MPEG1 encode
 2015, Simon Zolin */
 
 #include <acodec/alib3-bridge/mp3lame.h>
@@ -125,6 +125,4 @@ data:
 	return (r == FFMPG_RDONE) ? FMED_RDONE : FMED_RDATA;
 }
 
-const fmed_filter fmed_mpeg_enc = {
-	mpeg_enc_open, mpeg_enc_process, mpeg_enc_close
-};
+const fmed_filter fmed_mpeg_enc = { mpeg_enc_open, mpeg_enc_process, mpeg_enc_close };

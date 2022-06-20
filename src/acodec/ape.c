@@ -124,6 +124,4 @@ data:
 	return FMED_RDATA;
 }
 
-static const fmed_filter ape_dec = {
-	ape_dec_create, ape_dec_decode, ape_dec_free
-};
+static const fmed_filter ape_dec = { ape_dec_create, ape_dec_decode, ape_dec_free };

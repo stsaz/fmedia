@@ -17,15 +17,6 @@ static const fmed_mod fmed_alac_mod = {
 	&alac_iface, &alac_sig, &alac_destroy
 };
 
-//DECODE
-static void* alac_open(fmed_filt *d);
-static void alac_close(void *ctx);
-static int alac_in_decode(void *ctx, fmed_filt *d);
-static const fmed_filter alac_input = {
-	&alac_open, &alac_in_decode, &alac_close
-};
-
-
 FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 {
 	core = _core;
@@ -33,6 +24,7 @@ FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 }
 
 
+static const fmed_filter alac_input;
 static const void* alac_iface(const char *name)
 {
 	if (!ffsz_cmp(name, "decode"))
@@ -124,3 +116,5 @@ static int alac_in_decode(void *ctx, fmed_filt *d)
 	d->out = a->alac.pcm,  d->outlen = a->alac.pcmlen;
 	return FMED_RDATA;
 }
+
+static const fmed_filter alac_input = { alac_open, alac_in_decode, alac_close };

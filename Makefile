@@ -131,9 +131,6 @@ GLOBDEPS := $(SRCDIR)/fmedia.h \
 $(OBJ_DIR)/%.o: $(SRCDIR)/%.c $(wildcard $(SRCDIR)/*.h) $(GLOBDEPS)
 	$(C) $(CFLAGS) $< -o $@
 
-$(OBJ_DIR)/main.o: $(SRCDIR)/main.c $(SRCDIR)/cmd.h $(SRCDIR)/cmdline.h $(GLOBDEPS)
-	$(C) $(CFLAGS) $< -o $@
-
 $(OBJ_DIR)/%.o: $(SRCDIR)/adev/%.c $(wildcard $(SRCDIR)/adev/*.h) $(GLOBDEPS)
 	$(C) $(CFLAGS) $< -o $@
 
@@ -141,9 +138,6 @@ $(OBJ_DIR)/%.o: $(SRCDIR)/acodec/%.c \
 		$(wildcard $(SRCDIR)/acodec/*.h) \
 		$(wildcard $(SRCDIR)/acodec/alib3-bridge/*.h) \
 		$(GLOBDEPS)
-	$(C) $(CFLAGS) $< -o $@
-
-$(OBJ_DIR)/%.o: $(SRCDIR)/format/%.c $(wildcard $(SRCDIR)/format/*.h) $(GLOBDEPS)
 	$(C) $(CFLAGS) $< -o $@
 
 $(OBJ_DIR)/%.o: $(SRCDIR)/util/%.c \
@@ -159,6 +153,8 @@ $(RES): $(PROJDIR)/res/fmedia.rc $(wildcard $(PROJDIR)/res/*.ico)
 	$(WINDRES) -I$(SRCDIR) -I$(FFBASE) -I$(FFOS) $(PROJDIR)/res/fmedia.rc $@
 
 
+$(OBJ_DIR)/main.o: $(SRCDIR)/main.c $(SRCDIR)/cmd.h $(SRCDIR)/cmdline.h $(GLOBDEPS)
+	$(C) $(CFLAGS) $< -o $@
 BIN_O := \
 	$(OBJ_DIR)/crash.o \
 	$(OBJ_DIR)/main.o \
@@ -274,6 +270,10 @@ mpc.$(SO): $(MPC_O)
 
 
 #
+$(OBJ_DIR)/ogg.o: $(SRCDIR)/format/ogg.c $(SRCDIR)/format/ogg-write.h $(GLOBDEPS)
+	$(C) $(CFLAGS) $< -o $@
+$(OBJ_DIR)/%.o: $(SRCDIR)/format/%.c $(wildcard $(SRCDIR)/format/*.h) $(GLOBDEPS)
+	$(C) $(CFLAGS) $< -o $@
 FMT_O := $(OBJ_DIR)/mod-fmt.o \
 	$(OBJ_DIR)/aac-adts.o \
 	$(OBJ_DIR)/ape-read.o \
@@ -293,17 +293,21 @@ fmt.$(SO): $(FMT_O)
 
 
 #
-VORBIS_O := $(OBJ_DIR)/vorbis.o \
-	$(FF_O)
-vorbis.$(SO): $(VORBIS_O)
-	$(LINK) -shared $(VORBIS_O) $(LINKFLAGS) $(LD_RPATH_ORIGIN) -logg-ff -lvorbis-ff -lvorbisenc-ff -o $@
+$(OBJ_DIR)/vorbis.o: $(SRCDIR)/acodec/vorbis.c \
+		$(SRCDIR)/acodec/vorbis-enc.h $(SRCDIR)/acodec/alib3-bridge/vorbis.h \
+		$(GLOBDEPS)
+	$(C) $(CFLAGS) $< -o $@
+vorbis.$(SO): $(OBJ_DIR)/vorbis.o $(FF_O)
+	$(LINK) -shared $+ $(LINKFLAGS) $(LD_RPATH_ORIGIN) -logg-ff -lvorbis-ff -lvorbisenc-ff -o $@
 
 
 #
-OPUS_O := $(OBJ_DIR)/opus.o \
-	$(FF_O)
-opus.$(SO): $(OPUS_O)
-	$(LINK) -shared $(OPUS_O) $(LINKFLAGS) $(LD_RPATH_ORIGIN) -lopus-ff -o $@
+$(OBJ_DIR)/opus.o: $(SRCDIR)/acodec/opus.c \
+		$(SRCDIR)/acodec/opus-enc.h $(SRCDIR)/acodec/alib3-bridge/opus.h \
+		$(GLOBDEPS)
+	$(C) $(CFLAGS) $< -o $@
+opus.$(SO): $(OBJ_DIR)/opus.o $(FF_O)
+	$(LINK) -shared $+ $(LINKFLAGS) $(LD_RPATH_ORIGIN) -lopus-ff -o $@
 
 
 #
@@ -475,7 +479,10 @@ FF_GUIHDR := $(wildcard $(SRCDIR)/util/gui-gtk/*.h)
 CFLAGS_GTK := -I/usr/include/gtk-3.0 -I/usr/include/pango-1.0 -I/usr/include/glib-2.0 -I/usr/lib64/glib-2.0/include -I/usr/include/fribidi -I/usr/include/cairo -I/usr/include/pixman-1 -I/usr/include/freetype2 -I/usr/include/libpng16 -I/usr/include/uuid -I/usr/include/harfbuzz -I/usr/include/gdk-pixbuf-2.0 -I/usr/include/gio-unix-2.0/ -I/usr/include/libdrm -I/usr/include/valgrind -I/usr/include/atk-1.0 -I/usr/include/at-spi2-atk/2.0 -I/usr/include/at-spi-2.0 -I/usr/include/dbus-1.0 -I/usr/lib64/dbus-1.0/include
 LIBS_GTK := -lgtk-3 -lgdk-3 -lpangocairo-1.0 -lpango-1.0 -lfribidi -latk-1.0 -lcairo-gobject -lcairo -lgdk_pixbuf-2.0 -lgio-2.0 -lgobject-2.0 -lglib-2.0
 
-$(OBJ_DIR)/gui.o: $(SRCDIR)/gui-gtk/gui.c $(SRCDIR)/gui-gtk/gui.h $(GLOBDEPS) $(FF_GUIHDR)
+$(OBJ_DIR)/gui.o: $(SRCDIR)/gui-gtk/gui.c \
+		$(SRCDIR)/gui-gtk/gui.h \
+		$(SRCDIR)/gui-gtk/track.h \
+		$(GLOBDEPS) $(FF_GUIHDR)
 	$(C) $(CFLAGS) $(CFLAGS_GTK) $< -o $@
 
 $(OBJ_DIR)/gui-dlgs.o: $(SRCDIR)/gui-gtk/gui-dlgs.c $(wildcard $(SRCDIR)/gui-gtk/*.h) $(GLOBDEPS) $(FF_GUIHDR)

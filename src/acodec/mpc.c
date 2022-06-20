@@ -17,14 +17,6 @@ static const fmed_mod fmed_mpc_mod = {
 	&mpc_iface, &mpc_sig, &mpc_destroy, &mpc_mod_conf
 };
 
-//DECODE
-static void* mpc_dec_open(fmed_filt *d);
-static void mpc_dec_close(void *ctx);
-static int mpc_dec_process(void *ctx, fmed_filt *d);
-static const fmed_filter mpc_decoder = {
-	&mpc_dec_open, &mpc_dec_process, &mpc_dec_close
-};
-
 typedef struct mpcdec {
 	ffmpc mpcdec;
 	ffpcm fmt;
@@ -38,6 +30,7 @@ FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 }
 
 
+static const fmed_filter mpc_decoder;
 static const void* mpc_iface(const char *name)
 {
 	if (!ffsz_cmp(name, "decode"))
@@ -125,7 +118,6 @@ static int mpc_dec_process(void *ctx, fmed_filt *d)
 
 	case FFMPC_RERR:
 		warnlog(core, d->trk, "mpc", "ffmpc_decode(): %s", ffmpc_errstr(&m->mpcdec));
-		d->codec_err = 1;
 		return FMED_RMORE;
 	}
 
@@ -136,3 +128,5 @@ static int mpc_dec_process(void *ctx, fmed_filt *d)
 	d->audio.pos = ffmpc_cursample(&m->mpcdec);
 	return FMED_RDATA;
 }
+
+static const fmed_filter mpc_decoder = { mpc_dec_open, mpc_dec_process, mpc_dec_close };

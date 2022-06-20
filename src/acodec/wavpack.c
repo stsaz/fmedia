@@ -123,6 +123,4 @@ static int wvpk_dec_decode(void *ctx, fmed_filt *d)
 	return FMED_RDATA;
 }
 
-static const fmed_filter wvpk_dec_iface = {
-	wvpk_dec_create, wvpk_dec_decode, wvpk_dec_free
-};
+static const fmed_filter wvpk_dec_iface = { wvpk_dec_create, wvpk_dec_decode, wvpk_dec_free };

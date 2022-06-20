@@ -7,7 +7,7 @@ Copyright (c) 2015 Simon Zolin */
 
 const fmed_core *core;
 
-#include <acodec/mpeg-write.h>
+#include <acodec/mpeg-enc.h>
 
 const fmed_filter mpeg_decode_filt;
 
@@ -164,6 +164,4 @@ end:
 	return (d->flags & FMED_FLAST) ? FMED_RDONE : FMED_RMORE;
 }
 
-const fmed_filter mpeg_decode_filt = {
-	mpeg_dec_open, mpeg_dec_process, mpeg_dec_close
-};
+const fmed_filter mpeg_decode_filt = { mpeg_dec_open, mpeg_dec_process, mpeg_dec_close };
