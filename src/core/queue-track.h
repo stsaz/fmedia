@@ -98,6 +98,8 @@ static void que_play2(entry *ent, uint flags)
 	int type = FMED_TRK_TYPE_PLAYBACK;
 	if (ent->trk != NULL && ent->trk->pcm_peaks)
 		type = FMED_TRK_TYPE_PCMINFO;
+	else if (ent->trk != NULL && ent->trk->input_info)
+		type = FMED_TRK_TYPE_METAINFO;
 	else if (qu->mixing)
 		type = FMED_TRK_TYPE_MIXIN;
 	else if ((flags & 1) || (ent->trk != NULL && ent->trk->out_filename != NULL))

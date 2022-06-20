@@ -34,9 +34,9 @@ void* gtrk_open(fmed_filt *d)
 		d->audio.auto_attenuate_ceiling = gg->conf.auto_attenuate_ceiling;
 	}
 
-	if (d->type == FMED_TRK_TYPE_CONVERT)
+	if (d->type == FMED_TRK_TYPE_CONVERT) {
 		g->conversion = 1;
-	else {
+	} else if (d->type == FMED_TRK_TYPE_PLAYBACK) {
 		fflk_lock(&gg->lktrk);
 		gg->curtrk = g;
 		fflk_unlock(&gg->lktrk);
@@ -67,6 +67,9 @@ int gtrk_process(void *ctx, fmed_filt *d)
 	gui_trk *g = ctx;
 	int64 playpos;
 	uint playtime, first = 0;
+
+	if (d->input_info)
+		return FMED_RFIN;
 
 	if (d->meta_block && (d->flags & FMED_FFWD))
 		goto done;

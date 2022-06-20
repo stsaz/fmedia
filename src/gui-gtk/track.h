@@ -101,7 +101,7 @@ static void* gtrk_open(fmed_filt *d)
 	if (d->type == FMED_TRK_TYPE_CONVERT) {
 		t->conversion = 1;
 		gui_timer_start();
-	} else {
+	} else if (d->type == FMED_TRK_TYPE_PLAYBACK) {
 		if (gg->vol != 100)
 			gtrk_vol2(t, gg->vol);
 
@@ -131,6 +131,9 @@ static void gtrk_close(void *ctx)
 static int gtrk_process(void *ctx, fmed_filt *d)
 {
 	gtrk *t = ctx;
+
+	if (d->input_info)
+		return FMED_RFIN;
 
 	if (d->meta_block && (d->flags & FMED_FFWD))
 		goto done;

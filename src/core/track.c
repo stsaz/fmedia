@@ -249,7 +249,6 @@ static int trk_addfilters(fm_trk *t)
 
 	switch (t->props.type) {
 	case FMED_TRK_TYPE_NONE:
-	case FMED_TRK_TYPE_EXPAND:
 		return 0;
 
 	case FMED_TRK_TYPE_PLAYBACK:
@@ -259,6 +258,15 @@ static int trk_addfilters(fm_trk *t)
 	case FMED_TRK_TYPE_PLIST:
 		if (0 != trk_setout_file(t))
 			return 1;
+		return 0;
+
+	case FMED_TRK_TYPE_METAINFO:
+	case FMED_TRK_TYPE_EXPAND:
+		t->props.input_info = 1;
+		if (core->props->gui)
+			addfilter(t, "gui.gui");
+		else if (core->props->tui)
+			addfilter(t, "tui.tui");
 		return 0;
 
 	case FMED_TRK_TYPE_PCMINFO:
@@ -392,13 +400,11 @@ static void* trk_create(uint cmd, const char *fn)
 	switch (cmd) {
 
 	case FMED_TRK_TYPE_EXPAND:
-		t->props.input_info = 1;
-		// fallthrough
-
 	case FMED_TRK_TYPE_PLAYBACK:
 	case FMED_TRK_TYPE_CONVERT:
 	case FMED_TRK_TYPE_MIXIN:
 	case FMED_TRK_TYPE_PCMINFO:
+	case FMED_TRK_TYPE_METAINFO:
 		if (0 != trk_open(t, fn)) {
 			trk_free(t);
 			return FMED_TRK_EFMT;

@@ -394,6 +394,8 @@ enum FMED_TRK_TYPE {
 	/** Write output to a file.
 	Set file name with 'fmed_track_info.out_filename'. */
 	FMED_TRK_TYPE_CONVERT,
+	/** Just print meta data */
+	FMED_TRK_TYPE_METAINFO,
 
 	_FMED_TRK_TYPE_END,
 };
