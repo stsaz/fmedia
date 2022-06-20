@@ -994,6 +994,10 @@ enum FMED_QUE {
 	/** Get N of lists */
 	FMED_QUE_N_LISTS,
 
+	/**
+	random_enabled = cmdv(FMED_QUE_FLIP_RANDOM) */
+	FMED_QUE_FLIP_RANDOM,
+
 	_FMED_QUE_LAST
 };
 

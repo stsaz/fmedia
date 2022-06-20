@@ -22,5 +22,10 @@ Down   Volume down
 m      Mute
 
 i      Show tags
-d      Remove the track from playlist
 D      Delete file from disk
+
+d      Remove the track from playlist
+x      Remove the track from playlist and play next track
+E      Remove "dead" items from playlist
+L      Save current playlist to the system's temporary directory
+r      "Choose random track" setting: on/off

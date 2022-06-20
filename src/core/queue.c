@@ -551,6 +551,7 @@ static const char *const scmds[] = {
 	"FMED_QUE_CURID",
 	"FMED_QUE_SETCURID",
 	"FMED_QUE_N_LISTS",
+	"FMED_QUE_FLIP_RANDOM",
 };
 
 static ssize_t que_cmdv(uint cmd, ...)
@@ -702,6 +703,12 @@ static ssize_t que_cmdv(uint cmd, ...)
 		qu->random = val;
 		goto end;
 	}
+
+	case FMED_QUE_FLIP_RANDOM:
+		qu->random = !qu->random;
+		r = qu->random;
+		goto end;
+
 	case FMED_QUE_SET_NEXTIFERROR: {
 		uint val = va_arg(va, uint);
 		qu->next_if_err = val;

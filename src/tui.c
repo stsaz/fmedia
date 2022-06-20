@@ -78,10 +78,9 @@ enum CMDS {
 	CMD_VOLDOWN,
 	CMD_MUTE,
 
-	CMD_RM,
-	CMD_DELFILE,
 	CMD_SHOWTAGS,
 	CMD_SAVETRK,
+	CMD_LIST_RANDOM,
 
 	CMD_QUIT,
 
@@ -89,9 +88,9 @@ enum CMDS {
 
 	_CMD_CURTRK_REC = 1 << 26,
 	_CMD_F3 = 1 << 27, //use 'cmdfunc3'
-	_CMD_CURTRK = 1 << 28,
+	_CMD_CURTRK = 1 << 28, // use 'cmdfunc'.  Call handler only if there's an active track
 	_CMD_CORE = 1 << 29,
-	_CMD_F1 = 1 << 31, //use 'cmdfunc1'
+	_CMD_F1 = 1 << 31, //use 'cmdfunc1'. Can't be used with _CMD_CURTRK.
 };
 
 typedef void (*cmdfunc)(tui *t, uint cmd);
@@ -110,22 +109,10 @@ static const fmed_mod fmed_tui_mod = {
 	&tui_iface, &tui_sig, &tui_destroy, &tui_mod_conf
 };
 
-static void* tui_open(fmed_filt *d);
-static int tui_process(void *ctx, fmed_filt *d);
-static void tui_close(void *ctx);
 static int tui_config(fmed_conf_ctx *conf);
-static const fmed_filter fmed_tui = {
-	&tui_open, &tui_process, &tui_close
-};
-
-static void tui_info(tui *t, fmed_filt *d);
 static void tui_cmdread(void *param);
 static void tui_help(uint cmd);
-static void tui_rmfile(tui *t, uint cmd);
 static int tui_setvol(tui *t, uint vol);
-static void tui_vol(tui *t, uint cmd);
-static void tui_seek(tui *t, uint cmd, void *udata);
-static void tui_op_trk(struct tui *t, uint cmd);
 
 struct key;
 static void tui_corecmd(void *param);
@@ -155,7 +142,7 @@ FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 	return &fmed_tui_mod;
 }
 
-
+static const fmed_filter fmed_tui;
 static const void* tui_iface(const char *name)
 {
 	if (!ffsz_cmp(name, "tui")) {
@@ -484,36 +471,39 @@ static inline int ffui_glib_trash(const char **names, ffsize n)
 
 static void tui_rmfile(tui *t, uint cmd)
 {
+	fmed_que_entry *qtrk = t->qent;
+	gt->qu->cmd(FMED_QUE_RM, qtrk);
+	fmed_infolog(core, NULL, "tui", "Track removed");
+}
+
+void file_del(tui *t)
+{
 	ffvec fn = {};
 	fmed_que_entry *qtrk = t->qent;
-	if ((cmd & CMD_MASK) == CMD_DELFILE) {
-		if (tui_conf.file_delete_method == 0) {
-			const char *url = qtrk->url.ptr;
+	const char *url = qtrk->url.ptr;
+	if (tui_conf.file_delete_method == 0) {
 #ifdef FF_LINUX
-			if (0 != ffui_glib_trash(&url, 1)) {
-				syserrlog(core, t->trk, "tui", "can't move file to trash: %s", url);
-				goto end;
-			}
+		if (0 != ffui_glib_trash(&url, 1)) {
+			fmed_syserrlog(core, t->trk, "tui", "can't move file to trash: %s", url);
+			goto end;
+		}
 #elif defined FF_WIN
-			if (0 != ffui_fop_del(&url, 1, FOF_ALLOWUNDO)) {
-				syserrlog(core, t->trk, "tui", "can't move file to trash: %s", url);
-				goto end;
-			}
+		if (0 != ffui_fop_del(&url, 1, FOF_ALLOWUNDO)) {
+			fmed_syserrlog(core, t->trk, "tui", "can't move file to trash: %s", url);
+			goto end;
+		}
 #endif
 
-		} else if (tui_conf.file_delete_method == 1) {
-			ffstr_catfmt(&fn, "%S.deleted%Z", &qtrk->url);
-			if (0 != fffile_rename(qtrk->url.ptr, fn.ptr)) {
-				syserrlog(core, t->trk, "tui", "can't rename file: %S", &qtrk->url);
-				goto end;
-			}
+	} else if (tui_conf.file_delete_method == 1) {
+		ffstr_catfmt(&fn, "%S.deleted%Z", &qtrk->url);
+		if (0 != fffile_rename(url, fn.ptr)) {
+			fmed_syserrlog(core, t->trk, "tui", "can't rename file: %S", &qtrk->url);
+			goto end;
 		}
-		fmed_infolog(core, NULL, "tui", "File deleted");
 	}
+	fmed_infolog(core, NULL, "tui", "File deleted");
 
 	gt->qu->cmd(FMED_QUE_RM, qtrk);
-	if ((cmd & CMD_MASK) != CMD_DELFILE)
-		fmed_infolog(core, NULL, "tui", "Track removed");
 end:
 	ffvec_free(&fn);
 }
@@ -637,6 +627,8 @@ pass:
 	return FMED_ROK;
 }
 
+static const fmed_filter fmed_tui = { tui_open, tui_process, tui_close };
+
 static void tui_op_trk(struct tui *t, uint cmd)
 {
 	switch (cmd) {
@@ -702,9 +694,49 @@ static void tui_op(uint cmd)
 	case CMD_QUIT:
 		gt->track->cmd(NULL, FMED_TRACK_STOPALL_EXIT);
 		break;
+
+	case CMD_LIST_RANDOM: {
+		int val = gt->qu->cmdv(FMED_QUE_FLIP_RANDOM);
+		fmed_infolog(core, NULL, "tui", "Random: %u", val);
+		break;
+	}
 	}
 }
 
+void list_save()
+{
+	char *fn = NULL, *tmpdir = NULL;
+	fftime t;
+	fftime_now(&t);
+
+#ifdef FF_WIN
+	if (NULL == (tmpdir = core->env_expand(NULL, 0, "%TMP%")))
+		return;
+	fn = ffsz_allocfmt("%s\\fmedia-%U.m3u8", tmpdir, t.sec);
+#else
+	fn = ffsz_allocfmt("/tmp/fmedia-%U.m3u8", t.sec);
+#endif
+
+	gt->qu->fmed_queue_save(-1, fn);
+	fmed_infolog(core, NULL, "tui", "Saved playlist to %s", fn);
+
+	ffmem_free(fn);
+	ffmem_free(tmpdir);
+}
+
+void list_rm_dead()
+{
+	int r = gt->qu->cmdv(FMED_QUE_RMDEAD, NULL);
+	fmed_infolog(core, NULL, "tui", "Removed %u \"dead\" items", r);
+}
+
+void trk_rm_playnext()
+{
+	if (gt->curtrk == NULL)
+		return;
+	tui_rmfile(gt->curtrk, 0);
+	tui_op(CMD_NEXT);
+}
 
 struct key {
 	uint key;
@@ -714,16 +746,22 @@ struct key {
 
 static struct key hotkeys[] = {
 	{ ' ',	CMD_PLAY | _CMD_F1 | _CMD_CORE,	&tui_op },
-	{ 'D',	CMD_DELFILE | _CMD_CURTRK | _CMD_CORE,	&tui_rmfile },
+	{ 'D',	_CMD_CURTRK | _CMD_CORE,	file_del },
+	{ 'E',	_CMD_F1 | _CMD_CORE,	list_rm_dead },
+	{ 'L',	_CMD_F1 | _CMD_CORE,	list_save },
 	{ 'T',	CMD_SAVETRK | _CMD_CURTRK | _CMD_CURTRK_REC | _CMD_CORE,	&tui_op_trk },
-	{ 'd',	CMD_RM | _CMD_CURTRK | _CMD_CORE,	&tui_rmfile },
+
+	{ 'd',	_CMD_CURTRK | _CMD_CORE,	&tui_rmfile },
 	{ 'h',	_CMD_F1,	&tui_help },
 	{ 'i',	CMD_SHOWTAGS | _CMD_CURTRK | _CMD_CORE,	&tui_op_trk },
 	{ 'm',	CMD_MUTE | _CMD_CURTRK | _CMD_CORE,	&tui_vol },
 	{ 'n',	CMD_NEXT | _CMD_F1 | _CMD_CORE,	&tui_op },
 	{ 'p',	CMD_PREV | _CMD_F1 | _CMD_CORE,	&tui_op },
 	{ 'q',	CMD_QUIT | _CMD_F1 | _CMD_CORE,	&tui_op },
+	{ 'r',	CMD_LIST_RANDOM | _CMD_F1 | _CMD_CORE,	tui_op },
 	{ 's',	CMD_STOP | _CMD_F1 | _CMD_CORE,	&tui_op },
+	{ 'x',	_CMD_F1 | _CMD_CORE,	trk_rm_playnext },
+
 	{ FFKEY_UP,	CMD_VOLUP | _CMD_CURTRK | _CMD_CORE,	&tui_vol },
 	{ FFKEY_DOWN,	CMD_VOLDOWN | _CMD_CURTRK | _CMD_CORE,	&tui_vol },
 	{ FFKEY_RIGHT,	CMD_SEEKRIGHT | _CMD_F3 | _CMD_CORE,	&tui_seek },
