@@ -296,7 +296,7 @@ enum { IN_WAIT = 1, IN_DATANEXT };
 static void* netin_create(icy *c, fmed_filt *d)
 {
 	netin *n;
-	void *trk;
+	fmed_track_obj *trk;
 	fmed_trk *trkconf;
 	if (NULL == (n = ffmem_tcalloc1(netin)))
 		goto fail;
@@ -316,10 +316,9 @@ static void* netin_create(icy *c, fmed_filt *d)
 	trkconf = net->track->conf(trk);
 	trkconf->out_overwrite = d->out_overwrite;
 
-	const char *output;
-	output = net->track->getvalstr(d->trk, "out_filename");
-	n->fn_dyn = (NULL != ffsz_findc(output, '$'));
-	net->track->setvalstr(trk, "output", output);
+	n->fn_dyn = (NULL != ffsz_findc(d->net_out_filename, '$'));
+	fmed_track_info *ti = net->track->conf(trk);
+	ti->out_filename = ffsz_dup(d->net_out_filename);
 
 	net->track->setval(trk, "netin_ptr", (size_t)n);
 	n->c = c;
@@ -329,7 +328,7 @@ static void* netin_create(icy *c, fmed_filt *d)
 		trkconf->out_file_del = 1;
 	}
 
-	if (1 == net->track->getval(d->trk, "out_stream_copy"))
+	if (d->net_stream_copy)
 		trkconf->stream_copy = 1;
 
 	net->track->setvalstr4(trk, "artist", (void*)&c->artist, FMED_TRK_META | FMED_TRK_VALSTR);

@@ -333,7 +333,9 @@ int gui_rec_addsetts(void *trk)
 	char *exp;
 	if (NULL == (exp = core->env_expand(NULL, 0, w->rec_sets.output)))
 		return -1;
-	gg->track->setvalstr4(trk, "output", exp, FMED_TRK_FACQUIRE);
+	fmed_track_info *ti = gg->track->conf(trk);
+	ti->out_filename = exp;
+	exp = NULL;
 
 	fmed_trk *trkconf = gg->track->conf(trk);
 

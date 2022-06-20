@@ -27,8 +27,7 @@ static void* aac_adts_open(fmed_filt *d)
 	if (NULL == (a = ffmem_new(struct aac)))
 		return NULL;
 	if (d->stream_copy) {
-		const char *ofn = d->track->getvalstr(d->trk, "output");
-		ffstr fn = FFSTR_INITZ(ofn), ext;
+		ffstr fn = FFSTR_INITZ(d->out_filename), ext;
 		ffstr_rsplitby(&fn, '.', NULL, &ext);
 		if (ffstr_ieqz(&ext, "aac")) // return the whole adts frames only if the output is .aac file
 			a->adts.options = AACREAD_WHOLEFRAME;

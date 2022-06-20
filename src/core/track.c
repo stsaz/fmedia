@@ -116,28 +116,14 @@ static void filt_close(fm_trk *t, fmed_f *f);
 static dict_ent* dict_add(fm_trk *t, const char *name, uint *f);
 static void dict_ent_free(dict_ent *e);
 
-// TRACK
-static void* trk_create(uint cmd, const char *url);
-static fmed_trk* trk_conf(void *trk);
 static void trk_copy_info(fmed_trk *dst, const fmed_trk *src);
 static ssize_t trk_cmd(void *trk, uint cmd, ...);
-static int trk_cmd2(void *trk, uint cmd, void *param);
-static void trk_loginfo(void *trk, const ffstr **id, const char **module);
-static int64 trk_popval(void *trk, const char *name);
 static int64 trk_getval(void *trk, const char *name);
 static const char* trk_getvalstr(void *trk, const char *name);
 static int trk_setval(void *trk, const char *name, int64 val);
 static int trk_setvalstr(void *trk, const char *name, const char *val);
 static int64 trk_setval4(void *trk, const char *name, int64 val, uint flags);
 static char* trk_setvalstr4(void *trk, const char *name, const char *val, uint flags);
-static char* trk_getvalstr3(void *trk, const void *name, uint flags);
-static void trk_meta_set(void *trk, const ffstr *name, const ffstr *val, uint flags);
-const fmed_track _fmed_track = {
-	&trk_create, &trk_conf, &trk_copy_info, &trk_cmd, &trk_cmd2,
-	&trk_popval, &trk_getval, &trk_getvalstr, &trk_setval, &trk_setvalstr, &trk_setval4, &trk_setvalstr4, &trk_getvalstr3,
-	&trk_loginfo,
-	&trk_meta_set,
-};
 
 
 int tracks_init(void)
@@ -329,7 +315,7 @@ static int trk_addfilters(fm_trk *t)
 	addfilter(t, "afilter.autoconv");
 
 output:
-	if (FMED_PNULL != (s = trk_getvalstr(t, "output"))) {
+	if (t->props.out_filename != NULL) {
 		if (0 != trk_setout_file(t))
 			return -1;
 
@@ -431,7 +417,7 @@ err:
 /** Set output module and file. */
 static int trk_setout_file(fm_trk *t)
 {
-	const char *ofn = trk_getvalstr(t, "output");
+	const char *ofn = t->props.out_filename;
 	ffstr name, ext;
 	ffbool have_path = (NULL != ffpath_split2(ofn, ffsz_len(ofn), NULL, &name));
 	ffstr_rsplitby(&name, '.', &name, &ext);
@@ -469,6 +455,7 @@ static void trk_copy_info(fmed_trk *dst, const fmed_trk *src)
 		fftime_null(&dst->mtime);
 		return;
 	}
+	ffmem_free(dst->out_filename);
 	ffmemcpy(&dst->audio, &src->audio, FFOFF(fmed_trk, bits) - FFOFF(fmed_trk, audio));
 	dst->a_prebuffer = src->a_prebuffer;
 	dst->a_start_level = src->a_start_level;
@@ -477,6 +464,9 @@ static void trk_copy_info(fmed_trk *dst, const fmed_trk *src)
 	dst->a_stop_level_mintime = src->a_stop_level_mintime;
 	dst->include_files = src->include_files;
 	dst->exclude_files = src->exclude_files;
+	if (src->out_filename != NULL)
+		dst->out_filename = ffsz_dup(src->out_filename);
+	dst->net_out_filename = src->net_out_filename;
 	dst->bits = src->bits;
 }
 
@@ -610,6 +600,7 @@ static void trk_free(fm_trk *t)
 			g->mon->onsig(t, FMED_TRK_ONLAST);
 	}
 
+	ffmem_free(t->props.out_filename);
 	dbglog(t, "closed");
 	ffmem_free(t);
 
@@ -1583,3 +1574,10 @@ static int trk_setvalstr(void *trk, const char *name, const char *val)
 	trk_setvalstr4(trk, name, val, 0);
 	return 0;
 }
+
+const fmed_track _fmed_track = {
+	trk_create, trk_conf, trk_copy_info, trk_cmd, trk_cmd2,
+	trk_popval, trk_getval, trk_getvalstr, trk_setval, trk_setvalstr, trk_setval4, trk_setvalstr4, trk_getvalstr3,
+	trk_loginfo,
+	trk_meta_set,
+};

@@ -48,7 +48,7 @@ static void que_task_add(struct quetask *qt)
 
 static void* que_expand2(entry *e, void *ondone, void *ctx)
 {
-	void *trk = qu->track->create(FMED_TRK_TYPE_EXPAND, e->e.url.ptr);
+	fmed_track_obj *trk = qu->track->create(FMED_TRK_TYPE_EXPAND, e->e.url.ptr);
 	if (trk == NULL || trk == FMED_TRK_EFMT) {
 		return trk;
 	}
@@ -92,18 +92,6 @@ static void que_play(entry *e)
 	que_play2(e, 0);
 }
 
-static int have_output(entry *ent)
-{
-	const ffstr *dict = ent->dict.ptr;
-	for (uint i = 0;  i != ent->dict.len;  i += 2) {
-		ffstr k = dict[i], v = dict[i + 1];
-		if ((ffssize)v.len >= 0)
-			if (ffstr_eqz(&k, "output"))
-				return 1;
-	}
-	return 0;
-}
-
 static void que_play2(entry *ent, uint flags)
 {
 	fmed_que_entry *e = &ent->e;
@@ -112,9 +100,9 @@ static void que_play2(entry *ent, uint flags)
 		type = FMED_TRK_TYPE_PCMINFO;
 	else if (qu->mixing)
 		type = FMED_TRK_TYPE_MIXIN;
-	else if ((flags & 1) || have_output(ent))
+	else if ((flags & 1) || (ent->trk != NULL && ent->trk->out_filename != NULL))
 		type = FMED_TRK_TYPE_CONVERT;
-	void *trk = qu->track->create(type, e->url.ptr);
+	fmed_track_obj *trk = qu->track->create(type, e->url.ptr);
 	uint i;
 
 	if (trk == NULL)
@@ -168,7 +156,7 @@ static void que_play2(entry *ent, uint flags)
 static void que_mix(void)
 {
 	fflist *ents = &qu->curlist->ents;
-	void *mxout;
+	fmed_track_obj *mxout;
 	entry *e;
 
 	if (NULL == (mxout = qu->track->create(FMED_TRK_TYPE_MIXOUT, NULL)))

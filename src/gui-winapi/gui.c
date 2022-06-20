@@ -517,7 +517,7 @@ void gui_media_showpcm(void)
 	while (-1 != (i = wmain_list_next_selected(i))) {
 		ent = (fmed_que_entry*)gg->qu->fmed_queue_item(-1, i);
 
-		void *trk;
+		fmed_track_obj *trk;
 		if (NULL == (trk = gg->track->create(FMED_TRK_TYPE_PCMINFO, ent->url.ptr)))
 			return;
 		gg->track->cmd(trk, FMED_TRACK_XSTART);
@@ -548,7 +548,7 @@ static int rec_process(void *ctx, fmed_filt *d)
 
 void gui_rec(uint cmd)
 {
-	void *t;
+	fmed_track_obj *t;
 
 	if (gg->rec_trk != NULL) {
 		const char *fn = gg->track->getvalstr(gg->rec_trk, "output_expanded");
@@ -558,7 +558,7 @@ void gui_rec(uint cmd)
 		return;
 	}
 
-	if (NULL == (t = gg->track->create(FMED_TRACK_REC, NULL)))
+	if (NULL == (t = gg->track->create(FMED_TRK_TYPE_REC, NULL)))
 		return;
 
 	gg->track->cmd2(t, FMED_TRACK_ADDFILT_BEGIN, "gui.rec-nfy");

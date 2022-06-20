@@ -60,6 +60,7 @@ typedef struct fmed_core fmed_core;
 typedef struct fmed_props fmed_props;
 typedef struct fmed_mod fmed_mod;
 typedef struct fmed_filter fmed_filter;
+typedef void fmed_track_obj;
 
 #define FMED_MODFUNCNAME  "fmed_getmod" //name of the function which is exported by a module
 typedef const fmed_mod* (*fmed_getmod_t)(const fmed_core *core);
@@ -185,8 +186,8 @@ struct fmed_core {
 	/**
 	@flags: enum FMED_LOG.
 	*/
-	void (*log)(uint flags, void *trk, const char *module, const char *fmt, ...);
-	void (*logv)(uint flags, void *trk, const char *module, const char *fmt, va_list va);
+	void (*log)(uint flags, fmed_track_obj *trk, const char *module, const char *fmt, ...);
+	void (*logv)(uint flags, fmed_track_obj *trk, const char *module, const char *fmt, va_list va);
 
 	/** Return NULL on error. */
 	char* (*getpath)(const char *name, size_t len);
@@ -321,7 +322,6 @@ enum FMED_TRACK_CMD {
 	FMED_TRACK_STOP,
 
 	/** Pause/unpause tracks
-	void (un)pause(void *trk)
 	trk: -1: (un)pause all */
 	FMED_TRACK_PAUSE,
 	FMED_TRACK_UNPAUSE,
@@ -392,13 +392,10 @@ enum FMED_TRK_TYPE {
 	FMED_TRK_TYPE_PCMINFO, // analyze PCM peaks and CRC
 
 	/** Write output to a file.
-	Set file name via setvalstr("output"). */
+	Set file name with 'fmed_track_info.out_filename'. */
 	FMED_TRK_TYPE_CONVERT,
 
 	_FMED_TRK_TYPE_END,
-
-	//obsolete:
-	FMED_TRACK_REC = FMED_TRK_TYPE_REC,
 };
 
 enum FMED_TRK_FVAL {
@@ -411,50 +408,51 @@ enum FMED_TRK_FVAL {
 #define FMED_TRK_ETMP  NULL // transient/system error
 #define FMED_TRK_EFMT  ((void*)-1) // format is unsupported
 
-typedef struct fmed_trk fmed_trk;
-typedef fmed_trk fmed_filt;
+typedef struct fmed_track_info fmed_track_info;
+typedef struct fmed_track_info fmed_trk; // obsolete
+typedef struct fmed_track_info fmed_filt; // obsolete
 
 typedef struct fmed_track {
 	/**
 	@cmd: enum FMED_TRK_TYPE.
 	Return track ID;  FMED_TRK_E* on error. */
-	void* (*create)(uint cmd, const char *url);
+	fmed_track_obj* (*create)(uint cmd, const char *url);
 
-	fmed_trk* (*conf)(void *trk);
+	fmed_track_info* (*conf)(fmed_track_obj *trk);
 
-	void (*copy_info)(fmed_trk *dst, const fmed_trk *src);
+	void (*copy_info)(fmed_track_info *dst, const fmed_track_info *src);
 
 	/**
 	@cmd: enum FMED_TRACK_CMD. */
-	ssize_t (*cmd)(void *trk, uint cmd, ...);
+	ssize_t (*cmd)(fmed_track_obj *trk, uint cmd, ...);
 
 	// obsolete
-	int (*cmd2)(void *trk, uint cmd, void *param);
+	int (*cmd2)(fmed_track_obj *trk, uint cmd, void *param);
 
-	int64 (*popval)(void *trk, const char *name);
+	int64 (*popval)(fmed_track_obj *trk, const char *name);
 
 	/** Return FMED_NULL on error. */
-	int64 (*getval)(void *trk, const char *name);
+	int64 (*getval)(fmed_track_obj *trk, const char *name);
 
 	/** Return FMED_PNULL on error. */
-	const char* (*getvalstr)(void *trk, const char *name);
+	const char* (*getvalstr)(fmed_track_obj *trk, const char *name);
 
-	int (*setval)(void *trk, const char *name, int64 val);
+	int (*setval)(fmed_track_obj *trk, const char *name, int64 val);
 
-	int (*setvalstr)(void *trk, const char *name, const char *val);
+	int (*setvalstr)(fmed_track_obj *trk, const char *name, const char *val);
 
 	/**
 	@flags: enum FMED_TRK_FVAL */
-	int64 (*setval4)(void *trk, const char *name, int64 val, uint flags);
-	char* (*setvalstr4)(void *trk, const char *name, const char *val, uint flags);
+	int64 (*setval4)(fmed_track_obj *trk, const char *name, int64 val, uint flags);
+	char* (*setvalstr4)(fmed_track_obj *trk, const char *name, const char *val, uint flags);
 
-	char* (*getvalstr3)(void *trk, const void *name, uint flags);
+	char* (*getvalstr3)(fmed_track_obj *trk, const void *name, uint flags);
 
-	void (*loginfo)(void *trk, const ffstr **id, const char **module);
+	void (*loginfo)(fmed_track_obj *trk, const ffstr **id, const char **module);
 
 	/**
 	@flags: enum FMED_QUE_META_F */
-	void (*meta_set)(void *trk, const ffstr *name, const ffstr *val, uint flags);
+	void (*meta_set)(fmed_track_obj *trk, const ffstr *name, const ffstr *val, uint flags);
 } fmed_track;
 
 #define fmed_getval(name)  (d)->track->getval((d)->trk, name)
@@ -475,7 +473,7 @@ enum FMED_TRK_MON {
 };
 struct fmed_trk_mon {
 	/** Called within the worker thread when track object is about to be destroyed. */
-	void (*onsig)(void *trk, uint sig);
+	void (*onsig)(fmed_track_obj *trk, uint sig);
 };
 /** Associate monitor interface with tracks. */
 #define fmed_trk_monitor(trk, mon)  cmd(NULL, FMED_TRACK_MONITOR, mon)
@@ -502,10 +500,10 @@ static FFINL uint64 fmed_apos_samples(fmed_apos val, uint rate)
 		return -val * rate / 75;
 }
 
-struct fmed_trk {
+struct fmed_track_info {
 	const fmed_track *track;
 	fmed_handler handler;
-	void *trk;
+	fmed_track_obj *trk;
 
 	uint flags; //enum FMED_F
 	uint type; //enum FMED_TRK_TYPE
@@ -549,7 +547,14 @@ struct fmed_trk {
 	uint a_stop_level_time; //msec
 	uint a_stop_level_mintime; //msec
 	ushort a_in_buf_time; // buffer size for audio input (msec)  0:default
+	/** Output file name.
+	core free()s it automatically when track is destroyed.
+	fmed_track.copy_info() frees the current pointer and copies the data from source into a new region. */
+	char *out_filename;
+	/** net.in sets out_filename from this. */
+	const char *net_out_filename;
 
+	// the region is initially filled with 0xff until '_bar_end'
 	byte _bar_start;
 	struct {
 		ffstr profile;
@@ -590,37 +595,41 @@ struct fmed_trk {
 		uint input_info :1;
 		uint out_preserve_date :1;
 		uint out_overwrite :1;
+		/** net.in -> file.out: delete file on close */
+		uint out_file_del :1;
+		uint out_seekable :1;
 		uint snd_output_clear :1;
 		uint snd_output_pause :1;
 		uint meta_changed :1;
+		uint meta_block :1; //data block isn't audio
 		uint pcm_peaks :1;
 		uint pcm_peaks_crc :1;
-		uint out_seekable :1;
-		uint meta_block :1; //data block isn't audio
 		uint stream_copy :1;
-		uint codec_err :1;
-		uint mpg_lametag :1;
-		uint out_file_del :1;
+		/** net.in sets 'stream_copy' */
+		uint net_stream_copy :1;
+		/** net.icy creates a new track for net.in.  enum FMED_OUTCP. */
+		uint net_out_copy :2;
 		uint save_trk :1;
 		uint net_reconnect :1;
 		uint use_dynanorm :1;
-		uint _unused :1;
 		uint e_no_source :1; // error: no media source
 		uint err :1;
 		uint show_tags :1;
 		uint print_time :1;
 		uint duration_accurate :1;
+		/** mpeg.enc -> mp3.write: this packet is LAME frame */
+		uint mpg_lametag :1;
 		uint ogg_flush :1;
-		uint err_fatal :1; // obsolete
-
-		/**
-		UI sets it along with 'snd_output_clear', resets when new data arrives.
-		Audio output module stops and clears audio buffer, then waits for new data. */
-		uint snd_output_clear_wait :1;
 	};
 	};
 
-//fmed_filt only:
+	ushort mpeg1_delay;
+	ushort mpeg1_padding;
+	// flac.read -> flac.dec:
+	uint flac_samples;
+	uint flac_minblock, flac_maxblock;
+	const char *flac_vendor; // flac.enc -> flac.write
+
 	union {
 		struct {
 			ffstr data_in;
@@ -641,9 +650,6 @@ struct fmed_trk {
 			};
 		};
 	};
-
-	ushort mpeg1_delay;
-	ushort mpeg1_padding;
 };
 
 enum FMED_R {
@@ -717,8 +723,8 @@ static FFINL int64 fmed_popval_def(fmed_filt *d, const char *name, int64 def)
 }
 
 enum FMED_OUTCP {
-	FMED_OUTCP_ALL = 1,
-	FMED_OUTCP_CMD,
+	FMED_OUTCP_ALL = 1, // --out-copy
+	FMED_OUTCP_CMD, // --out-copy-cmd
 };
 
 
@@ -775,7 +781,7 @@ typedef struct fmed_logdata {
 	const ffstr *ctx;
 	const char *fmt;
 	va_list va;
-	void *trk;
+	fmed_track_obj *trk;
 } fmed_logdata;
 
 typedef struct fmed_log {

@@ -484,7 +484,7 @@ void wconv_setdata(int id, uint pos)
 }
 
 /** Add 1 item to the conversion queue. */
-static fmed_que_entry* convert1(fmed_que_entry *input, const ffstr *fn, fmed_trk *trkinfo)
+static fmed_que_entry* convert1(fmed_que_entry *input, fmed_trk *trkinfo)
 {
 	struct gui_wconvert *c = gg->wconvert;
 	fmed_que_entry e = {}, *qent;
@@ -493,7 +493,6 @@ static fmed_que_entry* convert1(fmed_que_entry *input, const ffstr *fn, fmed_trk
 	e.to = input->to;
 	if (NULL == (qent = (void*)gg->qu->fmed_queue_add(FMED_QUE_NO_ONCHANGE, c->itab-1, &e)))
 		return NULL;
-	gg->qu->meta_set(qent, FFSTR("output"), fn->ptr, fn->len, FMED_QUE_TRKDICT);
 
 	// copy meta from source
 	ffstr sname, *sval;
@@ -541,6 +540,7 @@ static void trkinfo_set(fmed_trk *ti)
 		ti->out_overwrite = 1;
 	if (c->out_preservedate != 0)
 		ti->out_preserve_date = 1;
+	ti->out_filename = c->output;
 }
 
 /** Begin conversion of all selected files using the current settings */
@@ -573,7 +573,7 @@ static void convert__tcore(void *param)
 	ffui_sel *sel = wmain_list_getsel();
 	while (-1 != (i = ffui_view_selnext(NULL, sel))) {
 		fmed_que_entry *ent = (fmed_que_entry*)gg->qu->fmed_queue_item(curtab, i);
-		ent = convert1(ent, &fn, &trkinfo);
+		ent = convert1(ent, &trkinfo);
 		if (first == NULL)
 			first = ent;
 	}

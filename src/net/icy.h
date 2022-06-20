@@ -39,10 +39,8 @@ void* icy_open(fmed_filt *d)
 	if (NULL == (c = ffmem_new(icy)))
 		return NULL;
 	c->d = d;
-
-	int v = net->track->getval(d->trk, "out-copy");
-	c->out_copy = (v != FMED_NULL);
-	c->save_oncmd = (v == FMED_OUTCP_CMD);
+	c->out_copy = (d->net_out_copy != 0);
+	c->save_oncmd = (d->net_out_copy == FMED_OUTCP_CMD);
 
 	const char *s = net->track->getvalstr(d->trk, "icy_format");
 	ffstr_setz(&c->next_filt_ext, s);

@@ -90,7 +90,7 @@ static void* gtrk_open(fmed_filt *d)
 	t->qent = ent;
 	t->d = d;
 
-	if (FMED_PNULL != d->track->getvalstr(d->trk, "output")) {
+	if (d->type == FMED_TRK_TYPE_CONVERT) {
 		t->conversion = 1;
 		gui_timer_start();
 	} else {

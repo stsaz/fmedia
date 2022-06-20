@@ -112,8 +112,8 @@ static int flacogg_in_read(void *ctx, fmed_filt *d)
 				return FMED_RERR;
 			}
 
-			fmed_setval("flac.in.minblock", info->minblock);
-			fmed_setval("flac.in.maxblock", info->maxblock);
+			d->flac_minblock = info->minblock;
+			d->flac_maxblock = info->maxblock;
 			f->fr_samples = info->minblock;
 
 			if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, "flac.decode"))
@@ -152,8 +152,7 @@ data:
 
 	dbglog(d->trk, "frame size:%L  @%U", out.len, f->apos);
 	d->audio.pos = f->apos;
-	fmed_setval("flac.in.frsamples", f->fr_samples);
-	fmed_setval("flac.in.frpos", f->apos);
+	d->flac_samples = f->fr_samples;
 	f->apos += f->fr_samples;
 	d->out = out.ptr,  d->outlen = out.len;
 	return FMED_RDATA;

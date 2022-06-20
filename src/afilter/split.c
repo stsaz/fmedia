@@ -35,8 +35,8 @@ static void* sndmod_split_open(fmed_filt *d)
 	if (d->audio.split == (uint64)FMED_NULL)
 		return FMED_FILT_SKIP;
 
-	const char *ofn = d->track->getvalstr(d->trk, "output");
-	if (ofn == FMED_PNULL) {
+	const char *ofn = d->out_filename;
+	if (ofn == NULL) {
 		errlog("output file isn't specified");
 		return NULL;
 	}

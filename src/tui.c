@@ -43,7 +43,6 @@ typedef struct tui {
 	uint nback;
 
 	uint rec :1
-		, conversion :1
 		, paused :1
 		;
 } tui;
@@ -247,6 +246,7 @@ static void* tui_open(fmed_filt *d)
 	t->d = d;
 
 	t->qent = (void*)fmed_getval("queue_item");
+	t->trk = d->trk;
 
 	if (d->type == FMED_TRK_TYPE_REC) {
 		t->rec = 1;
@@ -261,21 +261,18 @@ static void* tui_open(fmed_filt *d)
 		core->log(FMED_LOG_USER, d->trk, NULL, "Recording...  Source: %s %uHz %s.  %sPress \"s\" to stop."
 			, ffpcm_fmtstr(fmt.format), fmt.sample_rate, ffpcm_channelstr(fmt.channels)
 			, (d->a_prebuffer != 0) ? "Press \"T\" to start writing to a file.  " : "");
+
+	} else if (d->type == FMED_TRK_TYPE_PLAYBACK) {
+		if (t->qent != FMED_PNULL) {
+			fflk_lock(&gt->lktrk);
+			gt->curtrk = t;
+			fflk_unlock(&gt->lktrk);
+		}
+
+		uint vol = (gt->mute) ? 0 : gt->vol;
+		if (vol != 100)
+			tui_setvol(t, vol);
 	}
-
-	t->trk = d->trk;
-
-	if (FMED_PNULL != d->track->getvalstr(d->trk, "output"))
-		t->conversion = 1;
-	else if (t->qent != FMED_PNULL) {
-		fflk_lock(&gt->lktrk);
-		gt->curtrk = t;
-		fflk_unlock(&gt->lktrk);
-	}
-
-	uint vol = (gt->mute) ? 0 : gt->vol;
-	if (vol != 100 && !t->conversion)
-		tui_setvol(t, vol);
 
 	d->meta_changed = 1;
 	return t;

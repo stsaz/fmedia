@@ -137,8 +137,7 @@ int ogg_out_encode(void *ctx, fmed_filt *d)
 			}
 
 			if (ffsz_eq(d->datatype, "pcm")) {
-				const char *ofn = d->track->getvalstr(d->trk, "output");
-				const char *enc = ogg_enc_mod(ofn);
+				const char *enc = ogg_enc_mod(d->out_filename);
 				if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT_PREV, (void*)enc))
 					return FMED_RERR;
 			}

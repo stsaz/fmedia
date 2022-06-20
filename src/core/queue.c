@@ -681,9 +681,9 @@ static ssize_t que_cmdv(uint cmd, ...)
 		fmed_que_entry *qent = va_arg(va, void*);
 		fmed_trk *trk = va_arg(va, void*);
 		entry *e = FF_GETPTR(entry, e, qent);
-		if (e->trk == NULL && NULL == (e->trk = ffmem_allocT(1, fmed_trk))) {
-			r = -1;
-			goto end;
+		if (e->trk == NULL) {
+			e->trk = ffmem_alloc(sizeof(fmed_trk));
+			qu->track->copy_info(e->trk, NULL);
 		}
 		qu->track->copy_info(e->trk, trk);
 		goto end;
@@ -830,7 +830,7 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 	case FMED_QUE_EXPAND: {
 		void *r = param;
 		e = FF_GETPTR(entry, e, r);
-		void *trk = qu->track->create(FMED_TRK_TYPE_EXPAND, e->e.url.ptr);
+		fmed_track_obj *trk = qu->track->create(FMED_TRK_TYPE_EXPAND, e->e.url.ptr);
 		if (trk == NULL || trk == FMED_TRK_EFMT)
 			return (size_t)trk;
 		ent_start_prepare(e, trk);

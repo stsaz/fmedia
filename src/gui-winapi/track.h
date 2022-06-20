@@ -20,7 +20,7 @@ void* gtrk_open(fmed_filt *d)
 		d->audio.auto_attenuate_ceiling = gg->conf.auto_attenuate_ceiling;
 	}
 
-	if (FMED_PNULL != d->track->getvalstr(d->trk, "output"))
+	if (d->type == FMED_TRK_TYPE_CONVERT)
 		g->conversion = 1;
 	else {
 		fflk_lock(&gg->lktrk);

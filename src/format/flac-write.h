@@ -98,9 +98,8 @@ static int flac_out_addmeta(flac_out *f, fmed_filt *d)
 	ffstr name, *val;
 
 	ffstr vendor = {};
-	const char *vendorz = d->track->getvalstr(d->trk, "flac.vendor");
-	if (vendorz != FMED_PNULL)
-		ffstr_setz(&vendor, vendorz);
+	if (d->flac_vendor != NULL)
+		ffstr_setz(&vendor, d->flac_vendor);
 	if (0 != flacwrite_addtag(&f->fl, MMTAG_VENDOR, vendor)) {
 		syserrlog(d->trk, "can't add tag: %S", &name);
 		return -1;

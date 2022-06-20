@@ -25,7 +25,7 @@ const fmed_track *track;
 fftask tsk_stop;
 const char *out_file_path = "rec.wav";
 
-// Called every time when fmedia has something to print to log.
+// Called every time fmedia has something to print to log.
 // The function is called from a core worker thread.
 void std_log(uint flags, fmed_logdata *ld)
 {
@@ -52,11 +52,12 @@ void start_jobs(void *udata)
 
 	// Create a new recording track
 	// We don't need to free or unref our 'trk' pointer
-	void *trk;
-	assert(NULL != (trk = track->create(FMED_TRACK_REC, NULL)));
+	fmed_track_obj *trk;
+	assert(NULL != (trk = track->create(FMED_TRK_TYPE_REC, NULL)));
 
 	//Set output file path
-	track->setvalstr(trk, "output", out_file_path);
+	fmed_track_info *ti = track->conf(trk);
+	ti->out_filename = ffsz_dup(out_file_path);
 
 	// Issue the command to start recording
 	assert(0 == track->cmd(trk, FMED_TRACK_START));
@@ -68,7 +69,7 @@ void start_jobs(void *udata)
 // The function is called from a core worker thread.
 void stop_tracks(void *param)
 {
-	// FMED_TRACK_STOPALL_EXIT command correctly stop all active tracks
+	// FMED_TRACK_STOPALL_EXIT command correctly stops all active tracks
 	//  (giving them enough time to finalize their work),
 	//  then sends FMED_STOP to fmedia core.
 	// After some time our "core->sig(FMED_START)" will return.

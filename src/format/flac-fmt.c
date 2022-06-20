@@ -141,8 +141,8 @@ static int flac_in_read(void *ctx, fmed_filt *d)
 			if (d->input_info)
 				return FMED_RDONE;
 
-			fmed_setval("flac.in.minblock", i->minblock);
-			fmed_setval("flac.in.maxblock", i->maxblock);
+			d->flac_minblock = i->minblock;
+			d->flac_maxblock = i->maxblock;
 
 			if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT, "flac.decode"))
 				return FMED_RERR;

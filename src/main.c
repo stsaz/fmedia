@@ -226,18 +226,6 @@ static void qu_setprops(fmed_cmd *fmed, const fmed_queue *qu, fmed_que_entry *qe
 	if (fmed->playdev_name != 0)
 		qu_setval(qu, qe, "playdev_name", fmed->playdev_name);
 
-	if (fmed->out_copy) {
-		qu_setval(qu, qe, "out-copy", fmed->out_copy);
-		if (fmed->stream_copy)
-			qu_setval(qu, qe, "out_stream_copy", 1);
-		if (fmed->outfn.len != 0)
-			qu->meta_set(qe, FFSTR("out_filename"), fmed->outfn.ptr, fmed->outfn.len, FMED_QUE_TRKDICT);
-
-	} else {
-		if (fmed->outfn.len != 0 && !fmed->rec)
-			qu->meta_set(qe, FFSTR("output"), fmed->outfn.ptr, fmed->outfn.len, FMED_QUE_TRKDICT);
-	}
-
 	if (fmed->rec)
 		qu_setval(qu, qe, "low_latency", 1);
 
@@ -264,6 +252,8 @@ static void trk_prep(fmed_cmd *fmed, fmed_trk *trk)
 
 	trk->out_overwrite = fmed->overwrite;
 	trk->out_preserve_date = fmed->preserve_date;
+	if (fmed->outfn.len != 0 && !fmed->rec && fmed->out_copy == 0)
+		trk->out_filename = fmed->outfnz;
 
 	trk->audio.fmt.format = fmed->out_format;
 	trk->audio.fmt.channels = fmed->out_channels;
@@ -306,8 +296,16 @@ static void trk_prep(fmed_cmd *fmed, fmed_trk *trk)
 	if (fmed->cue_gaps != 0xff)
 		trk->cue.gaps = fmed->cue_gaps;
 
-	if (fmed->stream_copy && !fmed->out_copy)
+	if (fmed->stream_copy && fmed->out_copy == 0)
 		trk->stream_copy = 1;
+
+	if (fmed->out_copy != 0) {
+		trk->net_out_copy = fmed->out_copy;
+		if (fmed->stream_copy)
+			trk->net_stream_copy = 1;
+		if (fmed->outfn.len != 0)
+			trk->net_out_filename = fmed->outfnz;
+	}
 
 	trk->print_time = fmed->print_time;
 }
@@ -343,14 +341,13 @@ static void open_input(void *udata)
 	ffstr ext;
 	ffpath_split3(fmed->outfn.ptr, fmed->outfn.len, NULL, NULL, &ext);
 	if (ffstr_eqz(&ext, "m3u8") || ffstr_eqz(&ext, "m3u")) {
-		void *trk;
+		fmed_track_obj *trk;
 		if (NULL == (trk = track->create(FMED_TRK_TYPE_PLIST, NULL)))
 			goto end;
 
 		fmed_trk *ti = track->conf(trk);
 		track->copy_info(ti, &trkinfo);
 
-		track->setvalstr(trk, "output", fmed->outfnz);
 		track->cmd(trk, FMED_TRACK_START);
 		goto end;
 	}
@@ -383,8 +380,8 @@ end:
 static void* rec_track_start(fmed_cmd *cmd, fmed_trk *trkinfo, uint flags)
 {
 	const fmed_track *track = g->track;
-	void *trk;
-	if (NULL == (trk = track->create(FMED_TRACK_REC, NULL)))
+	fmed_track_obj *trk;
+	if (NULL == (trk = track->create(FMED_TRK_TYPE_REC, NULL)))
 		return NULL;
 
 	fmed_trk *ti = track->conf(trk);
@@ -407,9 +404,6 @@ static void* rec_track_start(fmed_cmd *cmd, fmed_trk *trkinfo, uint flags)
 		rec_lpback_new_track(cmd);
 	}
 
-	if (cmd->outfn.len != 0)
-		track->setvalstr(trk, "output", cmd->outfnz);
-
 	track->setval(trk, "low_latency", 1);
 	ti->a_in_buf_time = cmd->capture_buf_len;
 
@@ -426,6 +420,8 @@ static void* rec_track_start(fmed_cmd *cmd, fmed_trk *trkinfo, uint flags)
 static int rec_tracks_start(fmed_cmd *cmd, fmed_trk *trkinfo)
 {
 	void *trk0 = NULL, *trk1 = NULL;
+
+	trkinfo->out_filename = cmd->outfnz;
 
 	if (cmd->captdev_name == (uint)-1
 		&& cmd->lbdev_name == (uint)-1) {
@@ -463,7 +459,7 @@ It generates silence and plays it via an audio device,
 static void rec_lpback_new_track(fmed_cmd *cmd)
 {
 	const fmed_track *track = g->track;
-	void *trk;
+	fmed_track_obj *trk;
 	int r = 0;
 
 	if (NULL == (trk = track->create(FMED_TRK_TYPE_NONE, NULL)))

@@ -847,7 +847,7 @@ static void file_showpcm(void)
 {
 	int i;
 	fmed_que_entry *ent;
-	void *trk;
+	fmed_track_obj *trk;
 
 	ffui_sel *sel = wmain_list_getsel_send();
 	while (-1 != (i = ffui_view_selnext(NULL, sel))) {

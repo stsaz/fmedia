@@ -575,7 +575,7 @@ static void gui_convert(void)
 	struct gui_wconvert *w = gg->wconvert;
 	int i;
 	fmed_que_entry e, *qent, *inp;
-	ffstr fn, name;
+	ffstr fn = {}, name;
 	uint k;
 	ffarr ar = {0};
 
@@ -584,7 +584,6 @@ static void gui_convert(void)
 	ffui_textstr(&w->eout, &fn);
 	if (fn.len == 0 || 0 == wmain_list_n_selected()) {
 		errlog(core, NULL, "gui", "convert: no files selected");
-		ffstr_free(&fn);
 		goto end;
 	}
 
@@ -631,10 +630,9 @@ static void gui_convert(void)
 			gg->qu->meta_set(qent, sname.ptr, sname.len, sval->ptr, sval->len, 0);
 		}
 
-		gg->qu->meta_set(qent, FFSTR("output"), fn.ptr, fn.len, FMED_QUE_TRKDICT);
-
 		fmed_trk trkprops;
 		gg->track->copy_info(&trkprops, NULL);
+		trkprops.out_filename = fn.ptr;
 		for (k = 0;  k != FFCNT(cvt_sets);  k++) {
 
 			void *p = (char*)&w->conv_sets + (cvt_sets[k].flags & 0xffff);
@@ -668,6 +666,7 @@ static void gui_convert(void)
 	}
 
 end:
+	ffstr_free(&fn);
 	ffarr_free(&ar);
 }
 

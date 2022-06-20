@@ -48,6 +48,7 @@ if test "$1" = "play" ; then
 		ffmpeg -i rec4.wav -c:a aac -y play_aac.avi
 		ffmpeg -i rec4.wav -c:a aac -y play_aac.mkv
 		ffmpeg -i rec4.wav -c:a aac -y play_aac.mp4
+		# ffmpeg -i rec4.wav -c:a alac -y play_alac.caf
 		ffmpeg -i rec4.wav -c:a alac -y play_alac.mkv
 		ffmpeg -i rec4.wav -c:a alac -y play_alac.mp4
 		ffmpeg -i rec4.wav -c:a flac -y play_flac.flac

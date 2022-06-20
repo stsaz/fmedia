@@ -127,15 +127,12 @@ size_t ffpath_makefn(char *dst, size_t dstcap, const char *src, size_t len, int 
 
 static FFINL char* fileout_getname(fmed_fileout *f, fmed_filt *d)
 {
-	ffstr fn, val, fdir, fname, ext;
+	ffstr fn = FFSTR_INITZ(d->out_filename), val, fdir, fname, ext;
 	char *tstr;
 	const char *in;
 	ffarr buf = {0}, outfn = {0};
 	int r, have_dt = 0, ivar;
 	ffdatetime dt;
-
-	const char *fnz = d->track->getvalstr(d->trk, "output");
-	ffstr_setz(&fn, fnz);
 
 	// "PATH/.EXT" -> "PATH/$filename.EXT"
 	if (NULL == ffpath_split2(fn.ptr, fn.len, &fdir, &fname))

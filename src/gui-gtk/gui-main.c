@@ -434,7 +434,6 @@ void wmain_ent_removed(uint idx)
 void wmain_newtrack(fmed_que_entry *ent, uint time_total, fmed_filt *d)
 {
 	struct gui_wmain *w = gg->wmain;
-	int conversion = (FMED_PNULL != d->track->getvalstr(d->trk, "output"));
 
 	char buf[1024];
 	size_t n;
@@ -446,7 +445,7 @@ void wmain_newtrack(fmed_que_entry *ent, uint time_total, fmed_filt *d)
 		, ffpcm_channelstr(d->audio.fmt.channels));
 	gg->qu->meta_set(ent, FFSTR("__info"), buf, n, FMED_QUE_PRIV | FMED_QUE_OVWRITE);
 
-	if (conversion) {
+	if (d->type == FMED_TRK_TYPE_CONVERT) {
 		int idx = gg->qu->cmdv(FMED_QUE_ID, ent);
 		if (idx != -1)
 			ffui_send_view_setdata(&w->vlist, idx, 0);
