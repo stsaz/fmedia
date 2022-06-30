@@ -1,0 +1,61 @@
+version: 1
+script:
+ - rm -rf AppDir || true
+ - mkdir -p AppDir
+ - cp -r fmedia-1/* AppDir/ 
+ - mkdir -p AppDir/usr/share/icons/fmedia/256x256/
+ - cp fmedia/res/fmedia.png AppDir/usr/share/icons/fmedia/256x256/
+ - mkdir -p /usr/share/icons/fmedia/256x256/ || true
+ - cp fmedia/res/fmedia.png /usr/share/icons/fmedia/256x256/ || true
+ - ls -l AppDir/usr/share/icons/fmedia/256x256/
+ - sed -i 's@Icon=~/bin/fmedia-1/fmedia.ico@Icon=/usr/share/icons/fmedia.png@' AppDir/fmedia.desktop
+AppDir:
+  path: AppDir
+  app_info:
+    id: fmedia
+    name: fmedia
+    icon: fmedia
+    version: latest
+    exec: fmedia
+    exec_args: $@
+  apt:
+    arch: amd64
+    sources:
+      - sourceline: 'deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ bionic main restricted universe multiverse'
+        key_url: 'http://keyserver.ubuntu.com/pks/lookup?op=get&search=0x3b4fe6acc0b21f32'
+      - sourceline: 'deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ bionic-updates main restricted universe multiverse'
+    include:
+      - libc6
+    exclude: []
+  files:
+    exclude:
+    - usr/share/man
+    - usr/share/doc/*/README.*
+    - usr/share/doc/*/changelog.*
+    - usr/share/doc/*/NEWS.*
+    - usr/share/doc/*/TODO.*
+  test:
+    fedora:
+      image: appimagecrafters/tests-env:fedora-30
+      command: ./AppRun
+      use_host_x: true
+    debian:
+      image: appimagecrafters/tests-env:debian-stable
+      command: ./AppRun
+      use_host_x: true
+    arch:
+      image: appimagecrafters/tests-env:archlinux-latest
+      command: ./AppRun
+      use_host_x: true
+    centos:
+      image: appimagecrafters/tests-env:centos-7
+      command: ./AppRun
+      use_host_x: true
+    ubuntu:
+      image: appimagecrafters/tests-env:ubuntu-xenial
+      command: ./AppRun
+      use_host_x: true
+AppImage:
+  arch: x86_64
+  update-information: !ENV ${UPDATE_INFO}
+  sign-key: None
