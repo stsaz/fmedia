@@ -9,7 +9,7 @@ DIR := fdk-aac-$(VER)
 LIB := libfdk-aac-ff.$(SO)
 
 all: $(DIR)
-	cd $(DIR) && cat ../*.patch | patch -p1
+	cd $(DIR) && cat ../*.patch | patch -p1 || true
 	$(MAKE) -rR $(LIB)
 
 # download
