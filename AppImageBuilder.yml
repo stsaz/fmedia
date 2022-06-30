@@ -5,9 +5,6 @@ script:
  - cp -r fmedia-1/* AppDir/ 
  - mkdir -p AppDir/usr/share/icons/fmedia/256x256/
  - cp fmedia/res/fmedia.png AppDir/usr/share/icons/fmedia/256x256/
- - mkdir -p /usr/share/icons/fmedia/256x256/ || true
- - cp fmedia/res/fmedia.png /usr/share/icons/fmedia/256x256/ || true
- - ls -l AppDir/usr/share/icons/fmedia/256x256/
  - sed -i 's@Icon=~/bin/fmedia-1/fmedia.ico@Icon=/usr/share/icons/fmedia.png@' AppDir/fmedia.desktop
 AppDir:
   path: AppDir
