@@ -3,8 +3,8 @@
 include ../makeconf
 
 VER := 0.1.3
-URL := https://sourceforge.net/projects/soxr/files/
-PKG := soxr-$(VER)-Source.tar.xz
+URL := https://jztkft.dl.sourceforge.net/project/soxr/soxr-$(VER)-Source.tar.xz
+PKG := $(notdir $(URL))
 DIR := soxr-$(VER)-Source
 LIB := libsoxr-ff.$(SO)
 
@@ -14,8 +14,7 @@ all: $(DIR)
 
 # download
 $(PKG):
-	echo "Please download $(PKG) from $(URL)"
-	exit 1
+	$(CURL) -o $(PKG) $(URL)
 
 # unpack
 $(DIR): $(PKG)

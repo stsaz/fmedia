@@ -3,8 +3,8 @@
 include ../makeconf
 
 VER := 3.100
-URL := https://sourceforge.net/projects/lame/files/lame/
-PKG := lame-$(VER).tar.gz
+URL := https://jztkft.dl.sourceforge.net/project/lame/lame/$(VER)/lame-$(VER).tar.gz
+PKG := $(notdir $(URL))
 DIR := lame-$(VER)
 LIB := libmp3lame-ff.$(SO)
 
@@ -14,8 +14,7 @@ all: $(DIR)
 
 # download
 $(PKG):
-	echo "Please download $(PKG) from $(URL)"
-	exit 1
+	$(CURL) -o $(PKG) $(URL)
 
 # unpack
 $(DIR): $(PKG)
