@@ -64,6 +64,10 @@ jobs:
         with:
           name: AppImage
           path: './*.AppImage*'
+      - uses: actions/upload-artifact@v2
+        with:
+          name: fmedia
+          path: './fmedia-1'
       - run: ls -l
 
 
