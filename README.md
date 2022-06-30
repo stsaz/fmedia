@@ -5,6 +5,8 @@ I feel like I need to clearly define my position about the current Russia-Ukrain
 
 ## OVERVIEW
 
+<img align="right" src="res/fmedia.png" width="128" height="128">
+
 fmedia is a fast media player/recorder/converter for Windows, macOS, Linux and FreeBSD.
 It provides smooth playback and recording even if devices are very slow.
 It's highly customizable and can be easily extended with additional plugins.
@@ -176,6 +178,11 @@ Note: builds from the latest `master` branch are not supported and *may not work
 To build a working package you should checkout a specific git tag for `fmedia` repo (e.g. `v1.26`) and then checkout the corresponding git commits for other repositories with the same commit date.
 
 3. Build alib3 package (3rd-party audio codec libraries) or use pre-built binaries from the previous fmedia release.
+
+		cd fmedia/alib3
+		make
+		make install
+		cd ../../
 
 4. Build fmedia:
 
