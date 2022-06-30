@@ -58,8 +58,16 @@ endif
 CFLAGS_APP := \
 	-Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -Wno-implicit-fallthrough \
 	-Wno-stringop-overflow \
-	-I$(SRCDIR) -I$(PROJDIR)/alib3 -I$(FFBASE) -I$(FFAUDIO) -I$(AVPACK) -I$(FFOS)
-CFLAGS := $(CFLAGS_STD) $(CFLAGS_DEBUG) $(CFLAGS_OPT) $(CFLAGS_OS) $(CFLAGS_CPU) $(CFLAGS_APP)
+	-I$(SRCDIR) -I$(PROJDIR)/alib3 -I$(FFBASE) -I$(FFAUDIO) -I$(AVPACK) -I$(FFOS) \
+	$(pkg-config --cflags dbus-1) \
+	-I/usr/lib/x86_64-linux-gnu/glib-2.0/include \
+	-I/usr/include/dbus-1.0 -I/usr/lib/x86_64-linux-gnu/dbus-1.0/include
+CFLAGS := $(CFLAGS_STD) $(CFLAGS_DEBUG) $(CFLAGS_OPT) $(CFLAGS_OS) $(CFLAGS_CPU) $(CFLAGS_APP) \
+	  $(pkg-config --cflags dbus-1) \
+	  -I/usr/lib/x86_64-linux-gnu/glib-2.0/include \
+	  -I/usr/include/dbus-1.0 -I/usr/lib/x86_64-linux-gnu/dbus-1.0/include
+# why pkg-config --cflags glib-2 didn't work in ubuntu 22.04?
+ 
 ifneq ($(OPT),0)
 	CFLAGS_OPT := -O3
 endif
