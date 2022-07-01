@@ -1,7 +1,7 @@
 # fmedia makefile
 
 # Requirements:
-# make gcc cp objcopy strip touch rm mkdir chmod
+# make gcc cp objcopy strip touch rm mkdir chmod sed
 # Linux: tar
 # Windows: zip unix2dos
 # macOS: zip
@@ -477,23 +477,20 @@ else ifeq ($(OS),linux)
 
 #
 FF_GUIHDR := $(wildcard $(SRCDIR)/util/gui-gtk/*.h)
-CFLAGS_GTK := -I/usr/include/gtk-3.0 -I/usr/include/pango-1.0 -I/usr/include/glib-2.0 -I/usr/lib64/glib-2.0/include -I/usr/include/fribidi -I/usr/include/cairo -I/usr/include/pixman-1 -I/usr/include/freetype2 -I/usr/include/libpng16 -I/usr/include/uuid -I/usr/include/harfbuzz -I/usr/include/gdk-pixbuf-2.0 -I/usr/include/gio-unix-2.0/ -I/usr/include/libdrm -I/usr/include/valgrind -I/usr/include/atk-1.0 -I/usr/include/at-spi2-atk/2.0 -I/usr/include/at-spi-2.0 -I/usr/include/dbus-1.0 -I/usr/lib64/dbus-1.0/include
-LIBS_GTK := -lgtk-3 -lgdk-3 -lpangocairo-1.0 -lpango-1.0 -lfribidi -latk-1.0 -lcairo-gobject -lcairo -lgdk_pixbuf-2.0 -lgio-2.0 -lgobject-2.0 -lglib-2.0
-
 $(OBJ_DIR)/gui.o: $(SRCDIR)/gui-gtk/gui.c \
 		$(SRCDIR)/gui-gtk/gui.h \
 		$(SRCDIR)/gui-gtk/track.h \
 		$(GLOBDEPS) $(FF_GUIHDR)
-	$(C) $(CFLAGS) $(CFLAGS_GTK) $< -o $@
+	$(C) $(CFLAGS) `pkg-config --cflags gtk+-3.0` $< -o $@
 
 $(OBJ_DIR)/gui-dlgs.o: $(SRCDIR)/gui-gtk/gui-dlgs.c $(wildcard $(SRCDIR)/gui-gtk/*.h) $(GLOBDEPS) $(FF_GUIHDR)
-	$(C) $(CFLAGS) $(CFLAGS_GTK)  $< -o$@
+	$(C) $(CFLAGS) `pkg-config --cflags gtk+-3.0` $< -o $@
 
 $(OBJ_DIR)/gui-main.o: $(SRCDIR)/gui-gtk/gui-main.c $(SRCDIR)/gui-gtk/gui.h $(SRCDIR)/gui-gtk/file-explorer.h $(GLOBDEPS) $(FF_GUIHDR)
-	$(C) $(CFLAGS) $(CFLAGS_GTK)  $< -o$@
+	$(C) $(CFLAGS) `pkg-config --cflags gtk+-3.0` $< -o $@
 
 $(OBJ_DIR)/%.o: $(SRCDIR)/util/gui-gtk/%.c $(FF_GUIHDR) $(GLOBDEPS)
-	$(C) $(CFLAGS) $(CFLAGS_GTK)  $< -o$@
+	$(C) $(CFLAGS) `pkg-config --cflags gtk+-3.0` $< -o $@
 
 GUIGTK_O := $(OBJ_DIR)/gui.o \
 	$(OBJ_DIR)/gui-main.o \
@@ -503,15 +500,14 @@ GUIGTK_O := $(OBJ_DIR)/gui.o \
 	$(OBJ_DIR)/ffpcm.o \
 	$(FF_O)
 gui.$(SO): $(GUIGTK_O)
-	$(LINK) -shared $(GUIGTK_O) $(LINKFLAGS) $(LIBS_GTK) $(LD_LPTHREAD) $(LD_LMATH) -o$@
+	$(LINK) -shared $(GUIGTK_O) $(LINKFLAGS) `pkg-config --libs gtk+-3.0` $(LD_LPTHREAD) $(LD_LMATH) -o $@
 
 endif
 
 
 #
 $(OBJ_DIR)/sys-sleep-dbus.o: $(SRCDIR)/sys-sleep-dbus.c $(GLOBDEPS)
-	$(C) $(CFLAGS) -I/usr/include/dbus-1.0 -I/usr/lib64/dbus-1.0/include  $< -o$@
-# pkg-config --cflags dbus-1
+	$(C) $(CFLAGS) `pkg-config --cflags dbus-1` $< -o $@
 
 dbus.$(SO): $(OBJ_DIR)/sys-sleep-dbus.o $(FF_O)
 	$(LINK) -shared $+ $(LINKFLAGS) -ldbus-1 -o$@
@@ -534,6 +530,7 @@ install-only:
 		$(PROJDIR)/LICENSE \
 		$(INSTDIR)/
 	$(CP) $(PROJDIR)/README.md $(INSTDIR)/README.txt
+	sed -i '1,5d' $(INSTDIR)/README.txt
 
 ifeq ($(OS),win)
 	$(CP) ./fmedia-gui.exe \

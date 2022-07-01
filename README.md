@@ -156,17 +156,21 @@ fmedia uses modified versions of these 3rd party libraries: libALAC, libfdk-aac,
 
 		dnf install make gcc alsa-lib-devel pulseaudio-libs-devel pipewire-jack-audio-connection-kit-devel gtk3-devel dbus-devel
 
+	For Debian:
+
+		apt-get install make gcc libasound2-dev libpulse-dev libjack-dev libgtk-3-dev libdbus-1-dev
+
 1. Create a directory for all needed sources:
 
 		mkdir fmedia-src && cd fmedia-src
 
 2. Download all needed source repositories:
 
-		git clone https://github.com/stsaz/ffbase
-		git clone https://github.com/stsaz/ffaudio
-		git clone https://github.com/stsaz/ffos
-		git clone https://github.com/stsaz/avpack
-		git clone https://github.com/stsaz/fmedia
+		git clone --depth=1 https://github.com/stsaz/ffbase
+		git clone --depth=1 https://github.com/stsaz/ffaudio
+		git clone --depth=1 https://github.com/stsaz/ffos
+		git clone --depth=1 https://github.com/stsaz/avpack
+		git clone --depth=1 https://github.com/stsaz/fmedia
 
 Note: builds from the latest `master` branch are not supported and *may not work*!
 To build a working package you should checkout a specific git tag for `fmedia` repo (e.g. `v1.26`) and then checkout the corresponding git commits for other repositories with the same commit date.
