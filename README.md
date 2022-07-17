@@ -179,10 +179,19 @@ To build a working package you should checkout a specific git tag for `fmedia` r
 
 3. Build alib3 package (3rd-party audio codec libraries) or use pre-built binaries from the previous fmedia release.
 
+Option 1. Build anew:
+
 		cd fmedia/alib3
 		make
+		make md5check
 		make install
 		cd ../../
+
+Option 2. Use pre-built binaries (copy to `alib3/_{OS}-{CPU}/` directory), e.g. for Linux/AMD64:
+
+		tar Jxf fmedia-1.28-linux-amd64.tar.xz -C /tmp
+		mkdir -p fmedia/alib3/_linux-amd64
+		cp -v /tmp/fmedia-1/mod/lib*-ff.so fmedia/alib3/_linux-amd64
 
 4. Build fmedia:
 
