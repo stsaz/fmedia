@@ -242,6 +242,59 @@ You can build fmedia without dependencies on 3rd-party libraries.  This will be 
 
 5. Ready!
 
+### BUILD ON WINDOWS
+#### With pictures since you Windows folk are so difficult
+(Requirements)
+1. If you haven't installed GIT, get the download [here](https://git-scm.com/download/win).
+![image](https://user-images.githubusercontent.com/32961763/179779556-c811dde6-9033-4bdc-a476-a3fa858a5091.png)
+
+2. Install Msys2 from https://www.msys2.org/ and follow all the instructions, including the `pacman -S --needed base-devel mingw-w64-x86_64-toolchain` command.
+![image](https://user-images.githubusercontent.com/32961763/179779827-ba53a61a-1cc0-4748-a8aa-b0e7552e5ab3.png)
+![image](https://user-images.githubusercontent.com/32961763/179780111-97e21b2e-4442-409c-91a9-434fbff330d4.png)
+
+4. Open "Edit environment variables for your account" from the start menu.
+![image](https://user-images.githubusercontent.com/32961763/179780133-cd2b1e49-ad68-4df5-bf20-d28b7b4c1836.png)
+
+5. Add "C:\msys64\mingw64\bin" to the PATH variable
+![image](https://user-images.githubusercontent.com/32961763/179780384-bb4be3e4-a719-424e-90e2-fb6671ee5cbc.png)
+Hit OK and OK to close out the window.
+
+(Downloads)
+Now we must download fmedia and its dependencies. To do this, open git in the folder you wish to build in.
+6. Right click the empty folder you wish to download and build fmedia in, and select "GIT bash here"
+![image](https://user-images.githubusercontent.com/32961763/179780922-b1584391-796a-40cc-af2e-42b76f2c0999.png)
+
+7. Copy and paste the following text into the git bash window and hit enter:
+ ```git clone --depth=1 https://github.com/stsaz/ffbase
+ git clone --depth=1 https://github.com/stsaz/ffaudio
+ git clone --depth=1 https://github.com/stsaz/ffos
+ git clone --depth=1 https://github.com/stsaz/avpack
+ git clone --depth=1 https://github.com/stsaz/fmedia
+ ```
+ 
+You should have all 5 folders downloaded.
+
+![image](https://user-images.githubusercontent.com/32961763/179781524-2620393c-9565-453d-b8b6-6076c561fc1e.png)
+
+8. Download the windows makefile patch from here: [ffos-makeconf.patch.txt](https://github.com/ITCMD/fmedia/files/9142245/ffos-makeconf.patch.txt) and save it into the ffoss directory.
+![image](https://user-images.githubusercontent.com/32961763/179781851-e5fddad6-cc75-47a3-8d61-08280dd383f4.png)
+
+9. Open a command prompt window **in the ffos directory** and run the following command:
+`"C:\Program Files\Git\usr\bin\patch.exe" -p1 < ffos-makeconf.patch.txt`
+![image](https://user-images.githubusercontent.com/32961763/179782224-44e906c1-c8e2-45d6-a95e-69dbe8009312.png)
+
+Now, make any changes you wish to the code, and we're all set to compile it!
+10. To compile the code into an executable, open a command prompt window **in the fmedia directory** and run the following command:
+`mingw32-make.exe OS=win fmedia.exe`
+![image](https://user-images.githubusercontent.com/32961763/179782625-81aa4997-2fbd-4fd4-aa68-8a10dede706a.png)
+
+You will now have the fmedia.exe file compiled and ready to go! Make sure you include the following files for fmedia to work properly:
+```
+mod (folder which includes conversion files)
+fmedia.conf
+help.txt (and help_**.exe for any other languages)
+readme.txt
+```
 
 ## CONFIG
 
