@@ -20,7 +20,7 @@ FFAUDIO := $(ROOT)/ffaudio
 AVPACK := $(ROOT)/avpack
 FFOS := $(ROOT)/ffos
 
-include $(FFOS)/makeconf
+include $(PROJDIR)/makeconf
 LINK := $(LD)
 LINKFLAGS := $(LDFLAGS)
 

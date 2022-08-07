@@ -355,7 +355,7 @@ CMD [PARAMS] \n
 static int globcmd_parse(cmd_parser *c, const ffstr *in)
 {
 	ffstr data = *in;
-	int r, cmd;
+	int r, cmd = 0;
 
 	for (;;) {
 

@@ -125,11 +125,12 @@ fmedia uses modified versions of these 3rd party libraries: libALAC, libfdk-aac,
 
 1. Unpack archive to the directory of your choice, e.g. to your home directory (`~/bin/fmedia-1`):
 
+		mkdir -p ~/bin
 		tar Jxf ./fmedia-1.0-linux-amd64.tar.xz -C ~/bin
 
 2. Optionally, create a symbolic link:
 
-		ln -s ~/bin/fmedia-1/fmedia /usr/local/bin/fmedia
+		ln -s ~/bin/fmedia-1/fmedia ~/bin/fmedia
 
 3. Optionally, add fmedia GUI icon to KDE Applications:
 

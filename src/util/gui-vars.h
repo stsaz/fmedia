@@ -68,7 +68,7 @@ static inline int vars_load(ffmap *vs, const ffstr *data)
 	ffconf conf = {};
 	ffconf_init(&conf);
 
-	ffstr in = FFSTR_INITSTR(data), out, key, val;
+	ffstr in = FFSTR_INITSTR(data), out, key = {}, val;
 	while (in.len != 0) {
 		int r = ffconf_parse3(&conf, &in, &out);
 		switch (r) {

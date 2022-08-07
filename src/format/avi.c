@@ -16,10 +16,10 @@ typedef struct fmed_avi {
 	uint state;
 } fmed_avi;
 
-void avi_log(void *udata, ffstr msg)
+void avi_log(void *udata, const char *fmt, va_list va)
 {
 	fmed_avi *a = udata;
-	dbglog1(a->trk, "%S", &msg);
+	fmed_dbglogv(core, a->trk, NULL, fmt, va);
 }
 
 static void* avi_open(fmed_filt *d)

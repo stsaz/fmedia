@@ -22,10 +22,10 @@ typedef struct fmed_wav {
 	uint state;
 } fmed_wav;
 
-void wav_log(void *udata, ffstr msg)
+void wav_log(void *udata, const char *fmt, va_list va)
 {
 	fmed_wav *w = udata;
-	dbglog1(w->trk, "%S", &msg);
+	fmed_dbglogv(core, w->trk, NULL, fmt, va);
 }
 
 static void* wav_open(fmed_filt *d)

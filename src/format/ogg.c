@@ -41,10 +41,10 @@ struct ogg_in {
 	uint stmcopy :1;
 };
 
-void ogg_log(void *udata, ffstr msg)
+void ogg_log(void *udata, const char *fmt, va_list va)
 {
 	struct ogg_in *o = udata;
-	dbglog1(o->trk, "%S", &msg);
+	fmed_dbglogv(core, o->trk, NULL, fmt, va);
 }
 
 void* ogg_open(fmed_filt *d)

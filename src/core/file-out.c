@@ -132,7 +132,7 @@ static FFINL char* fileout_getname(fmed_fileout *f, fmed_filt *d)
 	const char *in;
 	ffarr buf = {0}, outfn = {0};
 	int r, have_dt = 0, ivar;
-	ffdatetime dt;
+	ffdatetime dt = {};
 
 	// "PATH/.EXT" -> "PATH/$filename.EXT"
 	if (NULL == ffpath_split2(fn.ptr, fn.len, &fdir, &fname))

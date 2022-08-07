@@ -16,10 +16,10 @@ struct mpc {
 	uint sample_rate;
 };
 
-static void mpc_log(void *udata, ffstr msg)
+static void mpc_log(void *udata, const char *fmt, va_list va)
 {
 	struct mpc *m = udata;
-	dbglog1(m->trk, "%S", &msg);
+	fmed_dbglogv(core, m->trk, NULL, fmt, va);
 }
 
 static void* mpc_open(fmed_filt *d)

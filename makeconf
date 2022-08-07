@@ -1,0 +1,203 @@
+# multi-platform build configuration for GNU make
+# Simon Zolin, 2016
+
+# set initial values for:
+# . CPU: IA-32/AMD64
+# . OS: linux/bsd/macos/windows
+# . compiler: gcc/clang
+# . packaging: tar.xz/zip
+
+
+# set OS
+ifndef OS
+uname := $(shell uname)
+ifeq ($(uname),Linux)
+OS := linux
+else ifeq ($(uname),FreeBSD)
+OS := bsd
+else ifeq ($(uname),Darwin)
+OS := apple
+endif
+endif
+
+
+OSFULL := $(OS)
+ifeq "$(OSFULL)" "win"
+	OSFULL := windows
+endif
+
+
+# set OS-specific values
+ifeq ($(OS),win)
+SO := dll
+CP := cp -u -v -p
+PACK := zip -9 -r -v
+PACK_EXT := zip
+
+else ifeq ($(OS),linux)
+SO := so
+CP := cp -u -v -p
+PACK := tar --owner=0 --group=0 --numeric-owner -cJv -f
+PACK_EXT := tar.xz
+
+else ifeq ($(OS),bsd)
+SO := so
+CP := cp -v
+PACK := tar -cJv -f
+PACK_EXT := tar.xz
+
+else ifeq ($(OS),apple)
+SO := dylib
+CP := cp -v
+PACK := zip -9 -r -v
+PACK_EXT := zip
+
+endif #OS
+
+CPREFIX :=
+ifeq ($(OS),win)
+	CPREFIX := x86_64-w64-mingw32-
+endif
+C := $(CPREFIX)gcc
+LD := $(C)
+CXX := $(CPREFIX)g++
+LDXX := $(CXX)
+CFLAGS_STD := -pipe -std=gnu99 -fno-strict-aliasing -fvisibility=hidden -Wno-deprecated-declarations
+CXXFLAGS := -pipe -fno-strict-aliasing -fvisibility=hidden -Wno-deprecated-declarations
+LDFLAGS_STD := -pipe
+AR := $(CPREFIX)ar
+OBJCOPY := $(CPREFIX)objcopy
+STRIP := $(CPREFIX)strip
+OPT ?= LTO
+DEBUG ?= 1
+
+# set debug options
+ifeq ($(DEBUG),1)
+CFLAGS_DEBUG := -g
+LDFLAGS_DEBUG := -g
+else
+CFLAGS_DEBUG :=
+LDFLAGS_DEBUG := -s
+endif
+
+# set optimization options
+ifeq ($(OPT),0)
+	CFLAGS_OPT := -D_DEBUG
+
+else ifeq ($(OPT),SECTIONS)
+	CFLAGS_OPT := -O2
+	ifneq ($(OS),win)
+		CFLAGS_OPT += -ffunction-sections -fdata-sections
+		LDFLAGS_OPT := -Wl,-gc-sections
+	endif
+
+else ifeq ($(OPT),3)
+	CFLAGS_OPT := -O3
+	ifneq ($(OS),win)
+		CFLAGS_OPT += -ffunction-sections -fdata-sections
+		LDFLAGS_OPT := -Wl,-gc-sections
+	endif
+
+else ifeq ($(OPT),LTO)
+	CFLAGS_OPT := -O2 -flto
+	LDFLAGS_OPT := -O2 -flto
+
+else ifeq ($(OPT),LTO3)
+	CFLAGS_OPT := -O3 -flto
+	LDFLAGS_OPT := -O3 -flto
+
+endif #OPT
+
+
+# set OS-specific values
+ifeq ($(OS),win)
+LD_LWS2_32 := -lws2_32 -liphlpapi
+WINDRES := $(CPREFIX)windres
+
+else #OS
+
+CFLAGS_OS := -fpic
+LDFLAGS_OS := -fpic
+LD_LPTHREAD := -pthread
+LD_LMATH := -lm
+
+ifeq ($(OS),linux)
+LD_LDL := -ldl
+LDFLAGS_OS := -Wl,-no-undefined
+LD_RPATH_ORIGIN := '-Wl,-rpath,$$ORIGIN' -Wl,--disable-new-dtags
+
+else ifeq ($(OS),bsd)
+C := clang
+LD := $(C)
+CXX := clang++
+LDXX := $(CXX)
+LDFLAGS_OS := -Wl,-no-undefined
+LD_RPATH_ORIGIN := '-Wl,-rpath,$$ORIGIN'
+
+else ifeq ($(OS),apple)
+C := clang
+LD := $(C)
+CXX := clang++
+LDXX := $(CXX)
+
+endif
+
+endif #OS
+
+CNAME := gcc
+ifeq ($(C),clang)
+CNAME := clang
+endif
+override C += -c
+override CXX += -c
+
+
+# Set target architecture
+ARCH := amd64
+ARCH_OS := $(ARCH)
+CPU := $(ARCH)
+
+# Windows: architecture name is "x86" or "x64"
+ifeq ($(OS),win)
+ARCH_OS := x64
+ifeq ($(ARCH),i686)
+ARCH_OS := x86
+endif #ARCH
+endif #OS
+
+
+# CPU-specific options
+ifeq ($(CPU),amd64)
+CFLAGS_CPU := -m64 -march=x86-64
+LDFLAGS_CPU := -m64 -march=x86-64
+
+else ifeq ($(CPU),i686)
+CFLAGS_CPU := -m32 -march=i686
+LDFLAGS_CPU := -m32 -march=i686
+
+endif #CPU
+
+
+ifeq ($(CNAME),gcc)
+# Remove dependency on libgcc_s_sjlj-1.dll (Windows), libgcc_s.so.1 (Linux)
+LDFLAGS_COMP := -static-libgcc
+endif
+
+CFLAGS := $(CFLAGS_STD) $(CFLAGS_DEBUG) $(CFLAGS_OPT) $(CFLAGS_OS) $(CFLAGS_CPU)
+LDFLAGS := $(LDFLAGS_STD) $(LDFLAGS_OPT) $(LDFLAGS_DEBUG) $(LDFLAGS_OS) $(LDFLAGS_CPU) $(LDFLAGS_COMP)
+
+
+# rule for separate .debug files
+%.debug: %
+ifeq ($(OS),apple)
+	# dsymutil $< -o $@
+	$(STRIP) -u -r $<
+
+else
+
+	$(OBJCOPY) --only-keep-debug $< $@
+	$(STRIP) $<
+	$(OBJCOPY) --add-gnu-debuglink=$@ $<
+endif
+
+	touch $@

@@ -174,7 +174,7 @@ static fmed_f* trk_modbyext(fm_trk *t, uint flags, const ffstr *ext)
 
 static int trk_open(fm_trk *t, const char *fn)
 {
-	ffstr name, ext;
+	ffstr name, ext = {};
 	fffileinfo fi;
 
 	trk_setvalstr(t, "input", fn);
