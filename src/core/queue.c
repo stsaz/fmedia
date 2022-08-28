@@ -54,6 +54,7 @@ struct que_conf {
 typedef struct que {
 	fflist plists; //plist[]
 	plist *curlist;
+	plist *pl_playing;
 	const fmed_track *track;
 	fmed_que_onchange_t onchange;
 	fflock plist_lock;
@@ -66,6 +67,7 @@ typedef struct que {
 		, fmeta_lowprio :1 //meta from file has lower priority
 		, rnd_ready :1
 		, random :1
+		, random_split :1 // random: logically split playlist into 2 chunks for better UXP
 		, mixing :1;
 } que;
 
@@ -339,17 +341,47 @@ static entry* pl_next(entry *from)
 	return FF_GETPTR(entry, sib, it);
 }
 
+/** Get previous playlist entry */
+static entry* pl_prev(plist *pl, entry *e)
+{
+	if (e == NULL || e->sib.prev == fflist_sentl(&pl->ents))
+		return NULL;
+	return FF_GETPTR(entry, sib, e->sib.prev);
+}
+
+/** Get random playlist index */
+static ffsize pl_random(plist *pl)
+{
+	rnd_init();
+	ffsize i = ffrnd_get();
+	ffsize n = pl->indexes.len;
+	if (!qu->random_split)
+		i %= n / 2;
+	else
+		i = n / 2 + (i % (n - (n / 2)));
+	qu->random_split = !qu->random_split;
+	dbglog0("rnd: %L", i);
+	return i;
+}
+
+/** Get default playlist: the currently playing or currently shown */
+static plist* pl_default()
+{
+	return (qu->pl_playing != NULL) ? qu->pl_playing : qu->curlist;
+}
+
 /** Get the next (or the first) item; apply "random" and "repeat" settings.
 from: previous item
  NULL: get the first item
 Return NULL if there's no next item */
 static entry* que_getnext(entry *from)
 {
-	plist *pl = (from == NULL) ? qu->curlist : from->plist;
+	plist *pl = pl_default();
+	if (from != NULL)
+		pl = from->plist;
 
 	if (pl->allow_random && qu->random && pl->indexes.len != 0) {
-		rnd_init();
-		uint i = ffrnd_get() % pl->indexes.len;
+		ffsize i = pl_random(pl);
 		entry *e = ((entry**)pl->indexes.ptr) [i];
 		return e;
 	}
@@ -646,6 +678,8 @@ static ssize_t que_cmdv(uint cmd, ...)
 			plist_free(pl);
 			if (qu->curlist == pl)
 				qu->curlist = NULL;
+			if (qu->pl_playing == pl)
+				qu->pl_playing = NULL;
 		} else
 			pl->rm = 1;
 		break;
@@ -769,7 +803,7 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 		// break
 
 	case FMED_QUE_PLAY:
-		pl = qu->curlist;
+		pl = pl_default();
 		if (param != NULL) {
 			e = param;
 			pl = e->plist;
@@ -788,13 +822,14 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 		break;
 
 	case FMED_QUE_STOP_AFTER:
-		pl = qu->curlist;
+		pl = pl_default();
 		if (pl->cur != NULL && pl->cur->refcount != 0)
 			pl->cur->stop_after = 1;
 		break;
 
 	case FMED_QUE_NEXT2:
-		pl = qu->curlist;
+	case FMED_QUE_PREV2:
+		pl = pl_default();
 		e = pl->cur;
 		if (param != NULL) {
 			e = FF_GETPTR(entry, e, param);
@@ -802,25 +837,17 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 		} else {
 			qu->track->cmd(NULL, FMED_TRACK_STOPALL);
 		}
-		if (NULL != (e = que_getnext(e))) {
-			pl->cur = e;
-			que_play(pl->cur);
-		}
-		break;
 
-	case FMED_QUE_PREV2:
-		pl = qu->curlist;
-		e = pl->cur;
-		if (param != NULL) {
-			e = FF_GETPTR(entry, e, param);
-			pl = e->plist;
+		if (cmd == FMED_QUE_NEXT2) {
+			if (NULL == (pl->cur = que_getnext(e)))
+				break;
+		} else {
+			if (NULL == (pl->cur = pl_prev(pl, e))) {
+				dbglog(core, NULL, "que", "no previous file in playlist");
+				break;
+			}
 		}
-		if (pl->cur == NULL || pl->cur->sib.prev == fflist_sentl(&pl->cur->plist->ents)) {
-			pl->cur = NULL;
-			dbglog(core, NULL, "que", "no previous file in playlist");
-			break;
-		}
-		pl->cur = FF_GETPTR(entry, sib, pl->cur->sib.prev);
+
 		que_play(pl->cur);
 		break;
 

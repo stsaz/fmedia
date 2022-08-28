@@ -871,6 +871,8 @@ enum FMED_QUE {
 	FMED_QUE_PLAY_EXCL,
 
 	FMED_QUE_MIX,
+
+	/** Don't autostart next entry in the playlist */
 	FMED_QUE_STOP_AFTER,
 
 	/** Start playing next/previous track.

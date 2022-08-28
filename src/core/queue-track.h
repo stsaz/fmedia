@@ -149,10 +149,14 @@ static void que_play2(entry *ent, uint flags)
 	}
 
 	ent_start_prepare(ent, trk);
-	if (flags & 1)
+	if (flags & 1) {
 		qu->track->cmd(trk, FMED_TRACK_XSTART);
-	else
+	} else {
+		if (type == FMED_TRK_TYPE_PLAYBACK)
+			qu->pl_playing = ent->plist;
+
 		qu->track->cmd(trk, FMED_TRACK_START);
+	}
 }
 
 static void que_mix(void)
