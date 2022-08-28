@@ -131,6 +131,7 @@ static int fdetcr_process(void *ctx, fmed_filt *d)
 {
 	int r = file_format_detect(d->data_in.ptr, d->data_in.len);
 	if (r == FILE_UNK) {
+		d->flags |= FMED_E_UNKIFMT;
 		errlog1(d->trk, "unknown file format");
 		return FMED_RERR;
 	}

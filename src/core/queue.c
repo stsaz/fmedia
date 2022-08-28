@@ -49,6 +49,8 @@ static struct entry* plist_ent(struct plist *pl, size_t idx);
 
 struct que_conf {
 	byte next_if_err;
+	byte rm_nosrc;
+	byte rm_unkifmt;
 };
 
 typedef struct que {
@@ -111,11 +113,14 @@ static void pl_expand_next(plist *pl, entry *e);
 
 static const fmed_conf_arg que_conf_args[] = {
 	{ "next_if_error",	FMC_BOOL8,  FMC_O(struct que_conf, next_if_err) },
+	{ "remove_if_no_source",	FMC_BOOL8,  FMC_O(struct que_conf, rm_nosrc) },
+	{ "remove_if_unknown_format",	FMC_BOOL8,  FMC_O(struct que_conf, rm_unkifmt) },
 	{}
 };
 static int que_config(fmed_conf_ctx *ctx)
 {
 	qu->conf.next_if_err = 1;
+	qu->conf.rm_unkifmt = 1;
 	fmed_conf_addctx(ctx, &qu->conf, que_conf_args);
 	return 0;
 }

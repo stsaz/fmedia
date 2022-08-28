@@ -491,6 +491,11 @@ enum FMED_F {
 	FMED_FFWD = 4,
 };
 
+enum FMED_E {
+	FMED_E_NOSRC = 0x0100, // no source
+	FMED_E_UNKIFMT = 0x0200, // unknown input format
+};
+
 /** >0: msec;  <0: CD frames (1/75 sec) */
 typedef int64 fmed_apos;
 
@@ -508,7 +513,7 @@ struct fmed_track_info {
 	fmed_handler handler;
 	fmed_track_obj *trk;
 
-	uint flags; //enum FMED_F
+	uint flags; //enum FMED_F | enum FMED_E
 	uint type; //enum FMED_TRK_TYPE
 	const char *datatype;
 	struct {
@@ -617,7 +622,7 @@ struct fmed_track_info {
 		uint save_trk :1;
 		uint net_reconnect :1;
 		uint use_dynanorm :1;
-		uint e_no_source :1; // error: no media source
+		uint _obsolete :1;
 		uint err :1;
 		uint show_tags :1;
 		uint print_time :1;
@@ -626,6 +631,8 @@ struct fmed_track_info {
 		uint mpg_lametag :1;
 		uint ogg_flush :1;
 		uint ogg_gen_opus_tag :1; // ogg.write must generate Opus-tag packet
+
+		uint reserve :6;
 	};
 	};
 

@@ -218,7 +218,8 @@ static void* file_open(fmed_filt *d)
 	conf.bufalign = mod->in_conf.align;
 	f->fr = fffileread_create(f->fn, &conf);
 	if (f->fr == NULL) {
-		d->e_no_source = fferr_notexist(fferr_last());
+		if (fferr_notexist(fferr_last()))
+			d->flags |= FMED_E_NOSRC;
 		goto done;
 	}
 

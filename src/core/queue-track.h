@@ -1,7 +1,7 @@
 /** fmedia: entry-track relations
 2020, Simon Zolin */
 
-static void que_ontrkfin(entry *e);
+static void que_ontrkfin(entry *e, uint flags);
 static void que_trk_close(void *ctx);
 
 enum CMD {
@@ -11,6 +11,7 @@ enum CMD {
 
 struct quetask {
 	uint cmd; //enum FMED_QUE or enum CMD
+	uint flags;
 	size_t param;
 	fftask tsk;
 	ffchain_item sib;
@@ -22,7 +23,7 @@ static void que_taskfunc(void *udata)
 	qt->tsk.handler = NULL;
 	switch ((enum CMD)qt->cmd) {
 	case CMD_TRKFIN:
-		que_ontrkfin((void*)qt->param);
+		que_ontrkfin((void*)qt->param, qt->flags);
 		break;
 
 	case CMD_TRKFIN_EXPAND: {
@@ -109,19 +110,6 @@ static void que_play2(entry *ent, uint flags)
 
 	if (trk == NULL)
 		return;
-	else if (trk == FMED_TRK_EFMT) {
-		entry *next;
-		if (NULL != (next = que_getnext(ent))) {
-			struct quetask *qt = ffmem_new(struct quetask);
-			FF_ASSERT(qt != NULL);
-			qt->cmd = FMED_QUE_PLAY;
-			qt->param = (size_t)next;
-			que_task_add(qt);
-		}
-
-		que_cmd(FMED_QUE_RM, e);
-		return;
-	}
 
 	fmed_trk *t = qu->track->conf(trk);
 	if (ent->trk != NULL)
@@ -227,6 +215,7 @@ static void que_trk_close(void *ctx)
 	qt->cmd = CMD_TRKFIN;
 	if (t->d->type == FMED_TRK_TYPE_EXPAND && e->plist->expand_all)
 		qt->cmd = CMD_TRKFIN_EXPAND;
+	qt->flags = t->d->flags;
 	qt->param = (size_t)t->e;
 	que_task_add(qt);
 
@@ -253,7 +242,7 @@ static int que_trk_process(void *ctx, fmed_filt *d)
 
 /** Called after a track has been finished.
 Thread: main */
-static void que_ontrkfin(entry *e)
+static void que_ontrkfin(entry *e, uint flags)
 {
 	if (!e->trk_err && e->plist->nerrors != 0)
 		e->plist->nerrors = 0;
@@ -281,6 +270,10 @@ static void que_ontrkfin(entry *e)
 		}
 		que_cmd(FMED_QUE_NEXT2, &e->e);
 	}
+
+	if (((flags & FMED_E_NOSRC) && qu->conf.rm_nosrc)
+		|| ((flags & FMED_E_UNKIFMT) && qu->conf.rm_unkifmt))
+		que_cmd(FMED_QUE_RM, e);
 
 end:
 	ent_unref(e);

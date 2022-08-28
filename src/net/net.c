@@ -628,7 +628,7 @@ static int httpcli_process(void *ctx, fmed_filt *d)
 			return FMED_RDONE;
 
 		case FFHTTPCL_ENOADDR:
-			c->d->e_no_source = 1;
+			c->d->flags |= FMED_E_NOSRC;
 			break;
 		}
 		return FMED_RERR;
