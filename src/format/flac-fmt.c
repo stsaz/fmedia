@@ -89,7 +89,7 @@ static int flac_in_read(void *ctx, fmed_filt *d)
 
 	for (;;) {
 
-		if (d->seek_req && f->sample_rate != 0) {
+		if (d->seek_req && (int64)d->audio.seek != FMED_NULL && f->sample_rate != 0) {
 			d->seek_req = 0;
 			flacread_seek(&f->fl, ffpcm_samples(d->audio.seek, f->sample_rate));
 			dbglog(d->trk, "seek: %Ums", d->audio.seek);
