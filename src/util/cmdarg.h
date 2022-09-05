@@ -4,7 +4,6 @@
 
 /*
 ffcmdarg_from_line ffcmdarg_from_linew
-ffcmdarg_errstr
 ffcmdarg_init
 ffcmdarg_fin
 ffcmdarg_parse
@@ -108,36 +107,12 @@ typedef struct ffcmdarg {
 } ffcmdarg;
 
 enum FFCMDARG_R {
-	FFCMDARG_RVAL = 1, // any stand-alone value
+	FFCMDARG_DONE,
+	FFCMDARG_RVAL, // any stand-alone value
 	FFCMDARG_RKEYSHORT, // -s
 	FFCMDARG_RKEYLONG, // --long
 	FFCMDARG_RKEYVAL, // --long=VAL
 };
-
-enum FFCMDARG_E {
-	FFCMDARG_DONE,
-	FFCMDARG_ERROR,
-	FFCMDARG_ESHORT,
-	FFCMDARG_ENOVAL,
-	FFCMDARG_ESCHEME,
-	FFCMDARG_FIN,
-};
-
-/** Get error string from code (<0) */
-static inline const char* ffcmdarg_errstr(int err)
-{
-	static const char* const cmdarg_err[] = {
-		"FFCMDARG_DONE",
-		"FFCMDARG_ERROR",
-		"FFCMDARG_ESHORT",
-		"FFCMDARG_ENOVAL",
-		"FFCMDARG_ESCHEME",
-		"FFCMDARG_FIN",
-	};
-	if ((ffuint)-err >= FF_COUNT(cmdarg_err))
-		return "";
-	return cmdarg_err[-err];
-}
 
 /** Initialize reader, skipping the first argument (program name) */
 static inline void ffcmdarg_init(ffcmdarg *p, const char **argv, ffuint argc)
@@ -149,17 +124,14 @@ static inline void ffcmdarg_init(ffcmdarg *p, const char **argv, ffuint argc)
 
 static inline int ffcmdarg_fin(ffcmdarg *p)
 {
-	if (p->state != 0)
-		return -FFCMDARG_ENOVAL;
 	return 0;
 }
 
 /** Get next argument
-Return enum FFCMDARG_R
-  <0: enum FFCMDARG_E */
+Return enum FFCMDARG_R */
 static inline int ffcmdarg_parse(ffcmdarg *p, ffstr *dst)
 {
-	enum { I_KV = 0, I_VAL, };
+	enum { I_KV, I_VAL, };
 	ffstr s;
 	switch (p->state) {
 	case I_KV:
@@ -176,16 +148,13 @@ static inline int ffcmdarg_parse(ffcmdarg *p, ffstr *dst)
 					p->state = I_VAL;
 				else
 					p->iarg++;
-				ffstr_set(&p->val, &s.ptr[2], s.len - 2);
+				p->val = s;
 				*dst = p->val;
 				return FFCMDARG_RKEYLONG;
 			}
 
-			if (s.len != 2)
-				return -FFCMDARG_ESHORT;
-
 			p->iarg++;
-			ffstr_set(&p->val, &s.ptr[1], 1);
+			p->val = s;
 			*dst = p->val;
 			return FFCMDARG_RKEYSHORT;
 		}
@@ -204,5 +173,5 @@ static inline int ffcmdarg_parse(ffcmdarg *p, ffstr *dst)
 		return FFCMDARG_RKEYVAL;
 	}
 
-	return -FFCMDARG_ERROR;
+	return -1;
 }

@@ -3,6 +3,8 @@
 
 #include <util/cmdarg-scheme.h>
 
+#define cl_errlog(fmt, ...)  errlog0("incorrect command-line: " fmt, ##__VA_ARGS__)
+
 void arg_usage_short()
 {
 	const char *usage =
@@ -13,6 +15,7 @@ void arg_usage_short()
 }
 
 #define CMD_LAST  100
+#define FFCMDARG_ERROR  1
 
 static int arg_usage(ffcmdarg_scheme *as, void *obj)
 {
@@ -334,7 +337,7 @@ static int arg_auto_attenuate(ffcmdarg_scheme *as, void *obj, double val)
 {
 	fmed_cmd *cmd = obj;
 	if (val > 0) {
-		errlog0("must be <0", 0);
+		cl_errlog("must be <0", 0);
 		return FFCMDARG_ERROR;
 	}
 	cmd->auto_attenuate = val;
@@ -460,7 +463,7 @@ static const ffcmdarg_arg fmed_cmdline_main_args[] = {
 int cmdline_validate(fmed_cmd *cmd)
 {
 	if (cmd->out_copy != 0 && cmd->outfn.len == 0) {
-		errlog0("cmd line: --out-copy requires --out");
+		cl_errlog("--out-copy requires --out");
 		return 1;
 	}
 	return 0;
@@ -478,7 +481,8 @@ static int fmed_cmdline(int argc, char **argv, uint main_only)
 
 	ffcmdarg_scheme as;
 	const ffcmdarg_arg *args = (main_only) ? fmed_cmdline_main_args : fmed_cmdline_args;
-	ffcmdarg_scheme_init(&as, args, g->cmd, &a, 0);
+	uint flags = (main_only) ? FFCMDARG_SCF_SKIP_UNKNOWN : 0;
+	ffcmdarg_scheme_init(&as, args, g->cmd, &a, flags);
 
 	for (;;) {
 		ffstr val;
@@ -488,8 +492,6 @@ static int fmed_cmdline(int argc, char **argv, uint main_only)
 
 		r = ffcmdarg_scheme_process(&as, r);
 		if (r <= 0) {
-			if (r == -FFCMDARG_ESCHEME && main_only)
-				continue;
 			break;
 		}
 	}
@@ -497,10 +499,10 @@ static int fmed_cmdline(int argc, char **argv, uint main_only)
 	if (r == -CMD_LAST) {
 		r = -1;
 	} else if (r != 0) {
-		const char *err = ffcmdarg_errstr(r);
+		const char *err = "bad value";
 		if (r == -FFCMDARG_ESCHEME)
 			err = as.errmsg;
-		errlog0("cmd line parser: near '%S': %s"
+		cl_errlog("near '%S': %s"
 			, &a.val, err);
 		r = 1;
 	}
