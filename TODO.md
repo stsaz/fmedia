@@ -13,13 +13,27 @@ This is the list of the things that need to be done.
 * gapless playback of the next track in queue
 * noise gate filter
 * JACK playback
-* ICY: detect audio format in case of unknown content type
-
-		"unsupported Content-Type: application/octet-stream"
-
-* ICY: detect real bitrate from data (not HTTP header)
 * support --meta with --stream-copy (.ogg, .m4a, .mp3)
-* open http://....m3u (application/x-mpegURL)
+
+* net:
+	* ICY: detect audio format in case of unknown content type
+
+			"unsupported Content-Type: application/octet-stream"
+
+	* ICY: detect real bitrate from data (not HTTP header)
+	* open http://....m3u (application/x-mpegURL)
+	* HTTPS URLs
+	* http client: set Cookie:
+
+			http://stream.site.com/...
+
+			HTTP/1.0 302 Found
+			Location: http://***.site.com/...
+			Set-Cookie: key=val; Domain=site.com
+
+			GET /... HTTP/1.1
+			Host: ***.site.com
+			Cookie: ...
 
 * GUI:
 	* Open directory from disk
@@ -37,7 +51,6 @@ This is the list of the things that need to be done.
 * .mkv, .avi: support MPEG delay
 * join several files into one
 * ALSA: Add fallback path (using fmedia timer) in case "snd_async_add_pcm_handler(): (-38) Function not implemented"
-
 
 ## Doubtful features or "need more info"
 
@@ -124,6 +137,10 @@ This is the list of the things that need to be done.
 * "play_vorbis.ogg --seek=2": PCM peaks (94,976 total samples)
 * "play_mp3.mp3 --seek=2": PCM peaks (94,511 total samples)
 * 3kbps AAC-LC
+* fix "seek offset 5293016 is bigger than file size 5292032"
+* mkv(MP3) seek artifacts (probably because pos > seek and thus mpeg doesnt skip first samples)
+* "play_pcm.caf" 0.73MB 0:00.000 (0 samples) 0kbps  int16 48000Hz stereo
+* play_aac.avi: always "0:00 / 1:00"
 
 ## Refactoring
 

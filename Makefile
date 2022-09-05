@@ -625,3 +625,6 @@ package:
 
 install-package: install
 	$(MAKE) -f $(firstword $(MAKEFILE_LIST)) package
+
+test: test.o
+	$(LINK) $< -o $@

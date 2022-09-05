@@ -145,8 +145,9 @@ static int opus_out_encode(void *ctx, fmed_filt *d)
 	d->audio.pos = o->endpos;
 	o->endpos = ffopus_enc_pos(&o->opus);
 	o->npkt++;
-	dbglog(core, d->trk, NULL, "encoded %L samples into %L bytes"
-		, (d->datalen - o->opus.pcmlen) / ffpcm_size1(&o->fmt), o->opus.data.len);
+	dbglog(core, d->trk, NULL, "encoded %L samples into %L bytes @%U [%U]"
+		, (d->datalen - o->opus.pcmlen) / ffpcm_size1(&o->fmt), o->opus.data.len
+		, d->audio.pos, o->endpos);
 	d->out = o->opus.data.ptr,  d->outlen = o->opus.data.len;
 	return FMED_RDATA;
 }

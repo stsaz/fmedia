@@ -8,6 +8,25 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.29 - Sep 5, 2022
+
+ + new "fmedia.conf" settings:
+   + "remove_if_unknown_format":
+     Auto-remove playlist item if the file format is not supported
+   + "remove_if_no_source":
+     Auto-remove playlist item if source doesn't exist
+ * --random: logically split playlist into 2 chunks for better UXP
+   (now the next song is likely further from the current one in playlist)
+ - HTTP: couldn't play some radio streams
+   (previously we relied at least on "Connection:close")
+ - "--mix" didn't work
+ - .flac read: couldn't complete seek request in some cases
+ - .ogg --stream-copy: fix incorrect positioning
+ - .ogg/.opus write: corrupted data (v1.28 bug)
+   (some packets were being skipped)
+ - GUI: fix Next/Prev on inactive playlist
+
+
 fmedia v1.28 - Jun 18, 2022
 
  + TUI: new commands:
