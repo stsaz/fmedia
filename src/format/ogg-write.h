@@ -148,7 +148,6 @@ int ogg_out_encode(void *ctx, fmed_filt *d)
 
 		case I_PKT:
 			ffstr_set2(&in, &o->pkt); // gonna write the previous packet
-			o->pkt.len = 0;
 
 			endpos = d->audio.pos; // end-pos (for previous packet) = start-pos of this packet
 			if (o->og.stat.npkts == 0) {
@@ -162,6 +161,8 @@ int ogg_out_encode(void *ctx, fmed_filt *d)
 				flags = OGGWRITE_FLAST;
 
 			r = pkt_write(o, d, &in, &d->data_out, endpos, flags);
+			if (in.len == 0)
+				o->pkt.len = 0;
 			if (r == FMED_RMORE) {
 				if (d->flags & FMED_FLAST) {
 					if ((int64)d->audio.total != FMED_NULL && endpos < d->audio.total)
