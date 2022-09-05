@@ -167,6 +167,13 @@ static int vorbis_in_decode(void *ctx, fmed_filt *d)
 		d->audio.fmt.sample_rate = ffvorbis_rate(&v->vorbis);
 		d->audio.fmt.ileaved = 0;
 		d->audio.bitrate = ffvorbis_bitrate(&v->vorbis);
+
+		if (d->stream_copy) {
+			d->meta_block = 1;
+			d->data_out = in;
+			return FMED_RDATA; //HDR packet
+		}
+
 		d->datatype = "pcm";
 		return FMED_RMORE;
 
@@ -181,6 +188,10 @@ static int vorbis_in_decode(void *ctx, fmed_filt *d)
 	}
 
 	case FFVORBIS_RHDRFIN:
+		if (d->stream_copy) {
+			d->data_out = in;
+			return FMED_RDONE; //TAGS packet
+		}
 		return FMED_RMORE;
 	}
 	}

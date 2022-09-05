@@ -102,9 +102,10 @@ static int opus_in_decode(void *ctx, fmed_filt *d)
 	int reset = 0;
 	int r;
 
-	ffstr in = {};
+	ffstr in = {}, in2 = {};
 	if (d->flags & FMED_FFWD) {
 		ffstr_set(&in, d->data, d->datalen);
+		in2 = in;
 		d->datalen = 0;
 	}
 
@@ -185,6 +186,12 @@ again:
 		d->audio.fmt.sample_rate = o->opus.info.rate;
 		d->audio.fmt.ileaved = 1;
 		o->sampsize = ffpcm_size1(&d->audio.fmt);
+
+		if (d->stream_copy) {
+			d->data_out = in2;
+			return FMED_RDONE; //HDR packet
+		}
+
 		d->datatype = "pcm";
 		break;
 
@@ -200,6 +207,10 @@ again:
 	}
 
 	case FFOPUS_RHDRFIN:
+		if (d->stream_copy) {
+			d->data_out = in2;
+			return FMED_RDONE; //TAGS packet
+		}
 		if (!have_tags)
 			goto again; // this packet wasn't a Tags packet but audio data
 		break;

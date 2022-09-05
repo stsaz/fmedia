@@ -154,12 +154,7 @@ int ogg_decode(void *ctx, fmed_filt *d)
 			if (o->state == I_HDR) {
 				o->state = I_INFO;
 				d->audio.total = oggread_info(&o->og)->total_samples;
-				if (d->stream_copy) {
-					d->audio.decoder = "";
-					d->audio.fmt.format = FFPCM_FLOAT;
-					d->audio.fmt.channels = 2;
-					d->audio.fmt.sample_rate = 48000;
-				} else if (0 != add_decoder(o, d, d->data_out))
+				if (0 != add_decoder(o, d, d->data_out))
 					return FMED_RERR;
 			}
 			goto data;
@@ -194,10 +189,11 @@ data:
 			d->ogg_flush = 1;
 			set_gpos = o->og.page_endpos;
 			fmed_setval("ogg_granpos", set_gpos);
+			if (o->sample_rate != 0)
+				set_gpos = ffpcm_time(set_gpos, o->sample_rate);
 		}
 
-		if (o->sample_rate != 0
-			&& d->audio.until != FMED_NULL && d->audio.until > 0
+		if (d->audio.until != FMED_NULL && d->audio.until > 0
 			&& set_gpos > 0 && (uint64)set_gpos >= (uint64)d->audio.until) {
 
 			dbglog1(d->trk, "reached time %Ums", d->audio.until);
