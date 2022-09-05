@@ -183,8 +183,6 @@ static int http_contlen_process(void *p, ffstr *in, ffstr *out)
 
 static void* http_connclose_open(ffhttp_headers *h)
 {
-	if (!h->body_conn_close)
-		return NULL;
 	return (void*)1;
 }
 static void http_connclose_close(void *p)
@@ -1007,6 +1005,7 @@ static int http_parse(http *c)
 		}
 	}
 
+	c->resp.h.len = data.ptr - c->bufs[0].ptr;
 	dbglog("HTTP response: %*s", c->resp.h.len, c->bufs[0].ptr);
 
 	if ((code == 301 || code == 302)
@@ -1041,7 +1040,6 @@ static int http_parse(http *c)
 		|| ffsz_eq(c->method, "HEAD"));
 	if (c->resp.h.has_body && c->resp.h.cont_len == -1 && !c->resp.h.chunked && c->resp.h.conn_close)
 		c->resp.h.body_conn_close = 1;
-	c->resp.h.len = data.ptr - c->bufs[0].ptr;
 	c->resp.h.raw_headers.len = data.ptr - c->resp.h.raw_headers.ptr;
 	return 0;
 }
