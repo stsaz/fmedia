@@ -50,7 +50,7 @@ ifeq "$(COMPILER)" "clang"
 	C := clang -c
 	CXX := clang++ -c
 	LINK := clang
-	LINKXX := clang
+	LINKXX := clang++
 endif
 
 LINK_RPATH_ORIGIN :=
