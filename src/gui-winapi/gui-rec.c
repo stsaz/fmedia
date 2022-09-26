@@ -463,6 +463,7 @@ int gui_rec_addsetts(void *trk)
 
 	fmed_trk *trkconf = gg->track->conf(trk);
 	track_props_set(trk, trkconf);
+	ti->audio.convfmt = ti->audio.fmt;
 	return 0;
 }
 
