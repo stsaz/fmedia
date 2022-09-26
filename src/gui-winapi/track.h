@@ -85,6 +85,19 @@ int gtrk_process(void *ctx, fmed_filt *d)
 		first = 1;
 	}
 
+	if (g->seek_msec != -1) {
+		d->audio.seek = g->seek_msec;
+		g->seek_msec = -1;
+		return FMED_RMORE; // new seek request
+	} else if (!(d->flags & FMED_FFWD)) {
+		return FMED_RMORE; // going back without seeking
+	} else if (d->data_in.len == 0 && !(d->flags & FMED_FLAST)) {
+		return FMED_RMORE; // waiting for audio data before resetting seek position
+	} else if ((int64)d->audio.seek != FMED_NULL && !d->seek_req) {
+		fmed_dbglog(core, d->trk, NULL, "seek: done");
+		d->audio.seek = FMED_NULL; // prev. seek is complete
+	}
+
 	if (g->conversion) {
 		playtime = (uint)(ffpcm_time(d->audio.pos, g->sample_rate) / 1000);
 		if (playtime == g->lastpos && !(d->flags & FMED_FLAST))
@@ -99,19 +112,6 @@ int gtrk_process(void *ctx, fmed_filt *d)
 	if (first) {
 		gui_newtrack(g, d, g->qent);
 		d->meta_changed = 0;
-	}
-
-	if (g->seek_msec != -1) {
-		d->audio.seek = g->seek_msec;
-		g->seek_msec = -1;
-		return FMED_RMORE; // new seek request
-	} else if (!(d->flags & FMED_FFWD)) {
-		return FMED_RMORE; // going back without seeking
-	} else if (d->data_in.len == 0 && !(d->flags & FMED_FLAST)) {
-		return FMED_RMORE; // waiting for audio data before resetting seek position
-	} else if ((int64)d->audio.seek != FMED_NULL && !d->seek_req) {
-		fmed_dbglog(core, d->trk, NULL, "seek: done");
-		d->audio.seek = FMED_NULL; // prev. seek is complete
 	}
 
 	if (d->flags & FMED_FSTOP) {

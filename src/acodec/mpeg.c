@@ -118,6 +118,8 @@ static int mpeg_dec_process(void *ctx, fmed_filt *d)
 			m->seek_curr = d->audio.seek;
 			mpg123_reset(m->m123);
 			m->seek = ffpcm_samples(d->audio.seek, m->sample_rate) + d->mpeg1_delay;
+		} else if ((int64)d->audio.seek == FMED_NULL && (int64)m->seek_curr != FMED_NULL) {
+			m->seek_curr = FMED_NULL;
 		}
 	}
 
@@ -149,7 +151,6 @@ static int mpeg_dec_process(void *ctx, fmed_filt *d)
 			dbglog(core, d->trk, "mpeg", "skip %L samples", skip_samples);
 		}
 		m->seek = (uint64)-1;
-		m->seek_curr = FMED_NULL;
 	}
 
 	m->pos += samples;
