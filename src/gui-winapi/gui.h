@@ -320,7 +320,6 @@ void wlog_show(uint show);
 
 
 enum CVTF {
-	CVTF_EMPTY = 0x010000, //allow empty value
 	CVTF_FLT = 0x020000,
 	CVTF_STR = 0x040000,
 	CVTF_MSEC = 0x080000,
@@ -332,14 +331,15 @@ enum CVTF {
 #define SETT_EMPTY_INT  ((int)0x80000000)
 
 struct cvt_set {
-	uint settname;
+	uint id;
+	uint field_off;
 	const char *name;
 	const char *desc;
 	uint flags; //enum CVTF
 };
 
 int sett_tostr(const void *sets, const struct cvt_set *sett, ffarr *dst);
-int gui_cvt_getsettings(const struct cvt_set *psets, uint nsets, void *sets, ffui_view *vlist);
+int sett_fromstr(const struct cvt_set *st, void *obj, ffstr *data);
 
 extern const char* const repeat_str[3];
 

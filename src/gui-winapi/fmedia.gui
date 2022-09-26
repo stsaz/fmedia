@@ -567,7 +567,7 @@ window wrec {
 		resize cx cy
 		style edit_labels explorer_theme grid_lines
 
-		lclick CVT_SETS_EDIT
+		lclick REC_SETT_EDIT
 
 		column Setting {
 		}
