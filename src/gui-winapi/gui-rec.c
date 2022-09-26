@@ -18,6 +18,7 @@ typedef struct rec_sets_t {
 
 	int gain;
 	float gain_f;
+	int use_dynanorm;
 	int until;
 	float until_f;
 
@@ -137,6 +138,7 @@ enum {
 	SETT_CHAN,
 
 	SETT_GAIN,
+	SETT_DYNANORM,
 	SETT_UNTIL,
 
 	SETT_AAC_QUAL,
@@ -158,6 +160,7 @@ static const struct cvt_set settings[] = {
 	{ SETT_CHAN,	O(channels),	"Channels", "2 (stereo) | 1 (mono) | left | right", 0 },
 
 	{ SETT_GAIN,	O(gain),	"Gain (dB)", "", CVTF_FLT | CVTF_FLT100 | CVTF_NEWGRP },
+	{ SETT_DYNANORM,	O(use_dynanorm),	"Enable Dynamic Audio Normalizer", "0 or 1", 0 },
 	{ SETT_UNTIL,	O(until),	"Stop after", "[MM:]SS[.MSC]", CVTF_MSEC },
 
 	{ SETT_AAC_QUAL,	O(aac_quality),	"AAC Quality", "VBR quality: 1..5 or CBR bitrate: 8..800", CVTF_NEWGRP },
@@ -179,6 +182,7 @@ static const fmed_conf_arg rec_sets_conf[] = {
 	{ "channels",	FMC_STR, FMC_F(conf_channels) },
 
 	{ "gain",	FMC_FLOAT32S, O(gain_f) },
+	{ "dynanorm",	FMC_INT32, O(use_dynanorm) },
 	{ "until",	FMC_STR, FMC_F(conf_until) },
 
 	{ "aac_quality",	FMC_INT32, O(aac_quality) },
@@ -201,6 +205,7 @@ void rec_sets_init(rec_sets_t *sets)
 
 	sets->format = sets->sample_rate = sets->channels = SETT_EMPTY_INT;
 	sets->gain_f = 0.0;
+	sets->use_dynanorm = 0;
 	sets->until = SETT_EMPTY_INT;
 
 	sets->aac_quality = SETT_EMPTY_INT;
@@ -288,6 +293,8 @@ static void track_props_set(void *trk, fmed_track_info *ti)
 
 	if (rs->gain != SETT_EMPTY_INT)
 		ti->audio.gain = rs->gain;
+	if (rs->use_dynanorm != SETT_EMPTY_INT)
+		ti->use_dynanorm = rs->use_dynanorm;
 	if (rs->until != SETT_EMPTY_INT)
 		ti->audio.until = rs->until;
 
