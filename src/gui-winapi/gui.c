@@ -515,6 +515,11 @@ void gui_media_showpcm(void)
 		fmed_track_obj *trk;
 		if (NULL == (trk = gg->track->create(FMED_TRK_TYPE_PCMINFO, ent->url.ptr)))
 			return;
+		fmed_track_info *ti = gg->track->conf(trk);
+		if (ent->from != 0)
+			ti->audio.abs_seek = ent->from;
+		if (ent->to != 0)
+			ti->audio.until = ent->to - ent->from;
 		gg->track->cmd(trk, FMED_TRACK_XSTART);
 	}
 }

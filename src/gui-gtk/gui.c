@@ -857,14 +857,19 @@ static void file_showpcm(void)
 {
 	int i;
 	fmed_que_entry *ent;
-	fmed_track_obj *trk;
 
 	ffui_sel *sel = wmain_list_getsel_send();
 	while (-1 != (i = ffui_view_selnext(NULL, sel))) {
 		ent = (fmed_que_entry*)gg->qu->fmed_queue_item(-1, i);
 
+		fmed_track_obj *trk;
 		if (NULL == (trk = gg->track->create(FMED_TRK_TYPE_PCMINFO, ent->url.ptr)))
 			break;
+		fmed_track_info *ti = gg->track->conf(trk);
+		if (ent->from != 0)
+			ti->audio.abs_seek = ent->from;
+		if (ent->to != 0)
+			ti->audio.until = ent->to - ent->from;
 		gg->track->cmd(trk, FMED_TRACK_XSTART);
 	}
 	ffui_view_sel_free(sel);
