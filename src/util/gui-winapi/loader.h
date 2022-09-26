@@ -4,6 +4,15 @@ Copyright (c) 2014 Simon Zolin
 
 #pragma once
 #include "winapi.h"
+#include "combobox.h"
+#include "dialog.h"
+#include "edit.h"
+#include "menu.h"
+#include "tab.h"
+#include "tray.h"
+#include "tree.h"
+#include "view.h"
+#include "window.h"
 #include "../conf2-scheme.h"
 #include "../conf2-writer.h"
 #include "../gui-vars.h"

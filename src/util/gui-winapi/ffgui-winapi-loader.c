@@ -233,6 +233,23 @@ static int mi_action(ffconf_scheme *cs, ffui_loader *g, const ffstr *val)
 	return 0;
 }
 
+/** Append hotkey to menu item text */
+static void ffui_menu_sethotkey(ffui_menuitem *mi, const char *s, size_t len)
+{
+	ffsyschar *w = mi->dwTypeData;
+	size_t textlen = ffq_len(w);
+	size_t cap = textlen + FFS_LEN("\t") + len + 1;
+	if (mi->dwTypeData == NULL)
+		return;
+
+	if (NULL == (w = ffmem_realloc(w, cap * sizeof(ffsyschar))))
+		return;
+	mi->dwTypeData = w;
+	w += textlen;
+	*w++ = '\t';
+	ffsz_utow_n(w, cap, s, len);
+}
+
 static int mi_hotkey(ffconf_scheme *cs, ffui_loader *g, const ffstr *val)
 {
 	ffui_wnd_hotkey *a;

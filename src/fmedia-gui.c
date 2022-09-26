@@ -5,7 +5,7 @@ Copyright (c) 2015 Simon Zolin */
 #include <util/path.h>
 #include <util/conf2-writer.h>
 #include <util/cmdarg-scheme.h>
-#include <util/gui-winapi/winapi.h>
+#include <util/gui-winapi/dialog.h>
 #include <FFOS/process.h>
 #include <FFOS/signal.h>
 

@@ -39,7 +39,7 @@ void wfilter_action(ffui_wnd *wnd, int id)
 		corecmd_addfunc(filt_apply, NULL);
 		break;
 	case FILTER_RESET:
-		ffui_cleartext(&w->ttext);
+		ffui_settextz(&w->ttext, "");
 		break;
 	}
 }
