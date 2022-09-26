@@ -166,7 +166,14 @@ Core configuration settings start with "core.", e.g. set codepage for non-Unicod
 
 ## TERMINAL UI
 
-By default fmedia runs with a terminal UI, which shows information about the currently playing audio track and the currently playing audio position.  User commands such as seeking are also supported, all supported commands are described in file "help-tui.txt".
+By default fmedia runs with a terminal UI, which shows information about the currently playing audio track and the currently playing audio position.  Hot keys are also supported, the most commonly used are:
+
+* `Space` for "Play/Pause"
+* `Right Arrow`/`Alt+Right Arrow`/`Ctrl+Right Arrow` to seek forward
+* `n` to play the next track
+* `s` to stop playback
+* `q` to quit fmedia
+* `h` to show all supported commands
 
 
 ## GRAPHICAL UI
