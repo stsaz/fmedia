@@ -4,33 +4,12 @@ Copyright (c) 2018 Simon Zolin */
 #include <fmedia.h>
 #include <DynamicAudioNormalizer/DynamicAudioNormalizer-ff.h>
 
-
 #undef dbglog
 #undef errlog
 #define dbglog(trk, ...)  fmed_dbglog(core, trk, "dynanorm", __VA_ARGS__)
 #define errlog(trk, ...)  fmed_errlog(core, trk, "dynanorm", __VA_ARGS__)
 
-
 static const fmed_core *core;
-
-//FMEDIA MODULE
-static const void* danorm_iface(const char *name);
-static int danorm_sig(uint signo);
-static void danorm_destroy(void);
-static int danorm_conf(const char *name, fmed_conf_ctx *ctx);
-static const fmed_mod fmed_danorm_mod = {
-	.ver = FMED_VER_FULL, .ver_core = FMED_VER_CORE,
-	&danorm_iface, &danorm_sig, &danorm_destroy, &danorm_conf
-};
-
-//FILTER
-static int danorm_f_conf(fmed_conf_ctx *ctx);
-static void* danorm_f_open(fmed_filt *d);
-static void danorm_f_close(void *ctx);
-static int danorm_f_process(void *ctx, fmed_filt *d);
-static const fmed_filter fmed_danorm_f = {
-	&danorm_f_open, &danorm_f_process, &danorm_f_close
-};
 
 struct danconf {
 	struct dynanorm_conf conf;
@@ -55,11 +34,18 @@ static const fmed_conf_arg danorm_conf_args[] = {
 };
 #undef OFF
 
-FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
+static int danorm_f_conf(fmed_conf_ctx *ctx)
 {
-	core = _core;
-	return &fmed_danorm_mod;
+	sconf = ffmem_new(struct danconf);
+	sconf->channels_coupled = 255;
+	sconf->enable_dc_correction = 255;
+	sconf->alt_boundary_mode = 255;
+	dynanorm_init(&sconf->conf);
+	fmed_conf_addctx(ctx, sconf, danorm_conf_args);
+	return 0;
 }
+
+static const fmed_filter fmed_danorm_f;
 
 static const void* danorm_iface(const char *name)
 {
@@ -67,6 +53,7 @@ static const void* danorm_iface(const char *name)
 		return &fmed_danorm_f;
 	return NULL;
 }
+
 static int danorm_sig(uint signo)
 {
 	switch (signo) {
@@ -75,6 +62,7 @@ static int danorm_sig(uint signo)
 	}
 	return 0;
 }
+
 static void danorm_destroy(void)
 {
 }
@@ -86,17 +74,17 @@ static int danorm_conf(const char *name, fmed_conf_ctx *ctx)
 	return -1;
 }
 
+static const fmed_mod fmed_danorm_mod = {
+	.ver = FMED_VER_FULL, .ver_core = FMED_VER_CORE,
+	danorm_iface, danorm_sig, danorm_destroy, danorm_conf
+};
 
-static int danorm_f_conf(fmed_conf_ctx *ctx)
+FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 {
-	sconf = ffmem_new(struct danconf);
-	sconf->channels_coupled = 255;
-	sconf->enable_dc_correction = 255;
-	sconf->alt_boundary_mode = 255;
-	dynanorm_init(&sconf->conf);
-	fmed_conf_addctx(ctx, sconf, danorm_conf_args);
-	return 0;
+	core = _core;
+	return &fmed_danorm_mod;
 }
+
 
 struct danorm {
 	uint state;
@@ -235,3 +223,5 @@ data:
 	d->outlen = r * sampsize;
 	return (done) ? FMED_RDONE : FMED_RDATA;
 }
+
+static const fmed_filter fmed_danorm_f = { danorm_f_open, danorm_f_process, danorm_f_close };

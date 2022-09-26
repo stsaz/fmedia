@@ -5,59 +5,40 @@ Copyright (c) 2019 Simon Zolin */
 #include <afilter/pcm.h>
 #include <util/array.h>
 
-
 extern const fmed_core *core;
-
-//CONVERTER
-static void* sndmod_conv_open(fmed_filt *d);
-static int sndmod_conv_process(void *ctx, fmed_filt *d);
-static void sndmod_conv_close(void *ctx);
-static ssize_t sndmod_conv_cmd(void *ctx, uint cmd, ...);
-const struct fmed_filter2 fmed_sndmod_conv = {
-	&sndmod_conv_open, &sndmod_conv_process, &sndmod_conv_close, &sndmod_conv_cmd
-};
-
-//AUTO-CONVERTER
-static void* autoconv_open(fmed_filt *d);
-static void autoconv_close(void *ctx);
-static int autoconv_process(void *ctx, fmed_filt *d);
-const fmed_filter fmed_sndmod_autoconv = {
-	&autoconv_open, &autoconv_process, &autoconv_close
-};
-
 
 enum {
 	CONV_OUTBUF_MSEC = 500,
 };
 
-typedef struct sndmod_conv {
+typedef struct aconv {
 	uint state;
 	uint out_samp_size;
 	ffpcmex inpcm
 		, outpcm;
 	ffstr3 buf;
 	uint off;
-} sndmod_conv;
+} aconv;
 
-static void* sndmod_conv_open(fmed_filt *d)
+static void* aconv_open(fmed_filt *d)
 {
-	sndmod_conv *c = ffmem_tcalloc1(sndmod_conv);
+	aconv *c = ffmem_tcalloc1(aconv);
 
 	if (c == NULL)
 		return NULL;
 	return c;
 }
 
-static void sndmod_conv_close(void *ctx)
+static void aconv_close(void *ctx)
 {
-	sndmod_conv *c = ctx;
+	aconv *c = ctx;
 	ffarr_free(&c->buf);
 	ffmem_free(c);
 }
 
-static ssize_t sndmod_conv_cmd(void *ctx, uint cmd, ...)
+static ssize_t aconv_cmd(void *ctx, uint cmd, ...)
 {
-	sndmod_conv *c = ctx;
+	aconv *c = ctx;
 	va_list va;
 	va_start(va, cmd);
 	ssize_t r = -1;
@@ -91,7 +72,7 @@ static void log_pcmconv(const char *module, int r, const ffpcmex *in, const ffpc
 		, ffpcm_fmtstr(out->format), out->sample_rate, (out->channels & FFPCM_CHMASK), (out->ileaved) ? "i" : "ni");
 }
 
-static int sndmod_conv_prepare(sndmod_conv *c, fmed_filt *d)
+static int aconv_prepare(aconv *c, fmed_filt *d)
 {
 	size_t cap;
 	const ffpcmex *in = &c->inpcm;
@@ -160,9 +141,9 @@ static int sndmod_conv_prepare(sndmod_conv *c, fmed_filt *d)
 	return FMED_ROK;
 }
 
-static int sndmod_conv_process(void *ctx, fmed_filt *d)
+static int aconv_process(void *ctx, fmed_filt *d)
 {
-	sndmod_conv *c = ctx;
+	aconv *c = ctx;
 	uint samples;
 	int r;
 
@@ -170,7 +151,7 @@ static int sndmod_conv_process(void *ctx, fmed_filt *d)
 	case 0:
 		return FMED_RERR; // settings are empty
 	case 1:
-		r = sndmod_conv_prepare(c, d);
+		r = aconv_prepare(c, d);
 		if (r != FMED_ROK)
 			return r;
 		c->state = 2;
@@ -211,6 +192,10 @@ static int sndmod_conv_process(void *ctx, fmed_filt *d)
 	c->off += samples * ffpcm_size(c->inpcm.format, 1);
 	return FMED_RDATA;
 }
+
+const struct fmed_filter2 fmed_sndmod_conv = {
+	aconv_open, aconv_process, aconv_close, aconv_cmd
+};
 
 
 /* Audio converter that is automatically added into chain when track is created.
@@ -308,3 +293,5 @@ static int autoconv_process(void *ctx, fmed_filt *d)
 	d->out = d->data,  d->outlen = d->datalen;
 	return FMED_RDONE;
 }
+
+const fmed_filter fmed_sndmod_autoconv = { autoconv_open, autoconv_process, autoconv_close };

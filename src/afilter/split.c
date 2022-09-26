@@ -12,16 +12,7 @@ extern const fmed_core *core;
 #define errlog(...)  fmed_errlog(core, NULL, "split", __VA_ARGS__)
 #define dbglog(...)  fmed_dbglog(core, NULL, "split", __VA_ARGS__)
 
-// SPLIT
-static void* sndmod_split_open(fmed_filt *d);
-static int sndmod_split_process(void *ctx, fmed_filt *d);
-static void sndmod_split_close(void *ctx);
-const fmed_filter fmed_sndmod_split = {
-	&sndmod_split_open, &sndmod_split_process, &sndmod_split_close
-};
-
-
-struct sndmod_split {
+struct split {
 	uint state;
 	uint64 until;
 	uint64 splitby;
@@ -30,7 +21,13 @@ struct sndmod_split {
 	const char *datatype;
 };
 
-static void* sndmod_split_open(fmed_filt *d)
+static void split_close(void *ctx)
+{
+	struct split *s = ctx;
+	ffmem_free(s);
+}
+
+static void* split_open(fmed_filt *d)
 {
 	if (d->audio.split == (uint64)FMED_NULL)
 		return FMED_FILT_SKIP;
@@ -48,8 +45,8 @@ static void* sndmod_split_open(fmed_filt *d)
 		return NULL;
 	}
 
-	struct sndmod_split *s;
-	if (NULL == (s = ffmem_new(struct sndmod_split)))
+	struct split *s;
+	if (NULL == (s = ffmem_new(struct split)))
 		return NULL;
 
 	s->mi = mi;
@@ -57,7 +54,7 @@ static void* sndmod_split_open(fmed_filt *d)
 	s->until = s->splitby;
 	if (s->splitby == 0) {
 		errlog("split value is 0", 0);
-		sndmod_split_close(s);
+		split_close(s);
 		return NULL;
 	}
 	s->sampsize = ffpcm_size(d->audio.fmt.format, d->audio.fmt.channels);
@@ -65,15 +62,9 @@ static void* sndmod_split_open(fmed_filt *d)
 	return s;
 }
 
-static void sndmod_split_close(void *ctx)
+static int split_process(void *ctx, fmed_filt *d)
 {
-	struct sndmod_split *s = ctx;
-	ffmem_free(s);
-}
-
-static int sndmod_split_process(void *ctx, fmed_filt *d)
-{
-	struct sndmod_split *s = ctx;
+	struct split *s = ctx;
 	uint64 pos;
 
 	switch (s->state) {
@@ -135,3 +126,5 @@ static int sndmod_split_process(void *ctx, fmed_filt *d)
 	d->datalen = 0;
 	return FMED_RDATA;
 }
+
+const fmed_filter fmed_sndmod_split = { split_open, split_process, split_close };

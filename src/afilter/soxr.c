@@ -8,31 +8,7 @@ Copyright (c) 2017 Simon Zolin */
 
 static const fmed_core *core;
 
-//FMEDIA MODULE
-static const void* soxr_mod_iface(const char *name);
-static int soxr_mod_sig(uint signo);
-static void soxr_mod_destroy(void);
-static const fmed_mod soxr_mod = {
-	.ver = FMED_VER_FULL, .ver_core = FMED_VER_CORE,
-	&soxr_mod_iface, &soxr_mod_sig, &soxr_mod_destroy
-};
-
-//CONVERTER-SOXR
-static void* soxr_open(fmed_filt *d);
-static int soxr_conv(void *ctx, fmed_filt *d);
-static void soxr_close(void *ctx);
-static ssize_t soxr_cmd(void *ctx, uint cmd, ...);
-static const struct fmed_filter2 fmed_soxr = {
-	&soxr_open, &soxr_conv, &soxr_close, &soxr_cmd
-};
-
-
-FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
-{
-	core = _core;
-	return &soxr_mod;
-}
-
+static const struct fmed_filter2 fmed_soxr;
 
 static const void* soxr_mod_iface(const char *name)
 {
@@ -48,6 +24,17 @@ static int soxr_mod_sig(uint signo)
 
 static void soxr_mod_destroy(void)
 {
+}
+
+static const fmed_mod soxr_mod = {
+	.ver = FMED_VER_FULL, .ver_core = FMED_VER_CORE,
+	soxr_mod_iface, soxr_mod_sig, soxr_mod_destroy
+};
+
+FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
+{
+	core = _core;
+	return &soxr_mod;
 }
 
 
@@ -159,3 +146,5 @@ static int soxr_conv(void *ctx, fmed_filt *d)
 	d->datalen = c->soxr.inlen;
 	return FMED_ROK;
 }
+
+static const struct fmed_filter2 fmed_soxr = { soxr_open, soxr_conv, soxr_close, soxr_cmd };

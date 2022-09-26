@@ -7,23 +7,6 @@ extern const fmed_core *core;
 
 #define infolog(trk, ...)  fmed_infolog(core, trk, FILT_NAME, __VA_ARGS__)
 
-//START-LEVEL
-static void* startlev_open(fmed_filt *d);
-static void startlev_close(void *ctx);
-static int startlev_process(void *ctx, fmed_filt *d);
-const struct fmed_filter sndmod_startlev = {
-	&startlev_open, &startlev_process, &startlev_close
-};
-
-//STOP-LEVEL
-static void* stoplev_open(fmed_filt *d);
-static void stoplev_close(void *ctx);
-static int stoplev_process(void *ctx, fmed_filt *d);
-const struct fmed_filter sndmod_stoplev = {
-	&stoplev_open, &stoplev_process, &stoplev_close
-};
-
-
 #define FILT_NAME "soundmod.startlevel"
 
 struct startlev {
@@ -92,6 +75,8 @@ static int startlev_process(void *ctx, fmed_filt *d)
 	d->outlen = d->datalen - r * ffpcm_size1(&c->fmt);
 	return FMED_RDONE;
 }
+
+const struct fmed_filter sndmod_startlev = { startlev_open, startlev_process, startlev_close };
 
 #undef FILT_NAME
 
@@ -194,5 +179,7 @@ static int stoplev_process(void *ctx, fmed_filt *d)
 	d->outlen = r * ffpcm_size1(&c->fmt);
 	return FMED_RLASTOUT;
 }
+
+const struct fmed_filter sndmod_stoplev = { stoplev_open, stoplev_process, stoplev_close };
 
 #undef FILT_NAME

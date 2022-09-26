@@ -8,15 +8,12 @@ INPUT2 -> mixer-in /
 */
 
 #include <fmedia.h>
-
 #include <afilter/pcm.h>
 #include <util/array.h>
 #include <FFOS/error.h>
 
-
 #undef dbglog
 #define dbglog(trk, ...)  fmed_dbglog(core, trk, "mixer", __VA_ARGS__)
-
 
 typedef struct mxr {
 	ffstr data;
@@ -50,23 +47,6 @@ static struct mix_conf_t {
 static mxr *mx;
 extern const fmed_core *core;
 extern const fmed_track *track;
-
-//INPUT
-static void* mix_in_open(fmed_filt *d);
-static int mix_in_write(void *ctx, fmed_filt *d);
-static void mix_in_close(void *ctx);
-const fmed_filter fmed_mix_in = {
-	&mix_in_open, &mix_in_write, &mix_in_close
-};
-
-//OUTPUT
-static void* mix_open(fmed_filt *d);
-static int mix_read(void *ctx, fmed_filt *d);
-static void mix_close(void *ctx);
-int mix_out_conf(fmed_conf_ctx *ctx);
-const fmed_filter fmed_mix_out = {
-	&mix_open, &mix_read, &mix_close
-};
 
 static uint mix_write(mxr *m, uint off, const fmed_filt *d);
 static ffbool mix_input_opened(mxr *m, mix_in *mi);
@@ -181,6 +161,8 @@ static int mix_in_write(void *ctx, fmed_filt *d)
 	}
 	return FMED_ROK;
 }
+
+const fmed_filter fmed_mix_in = { mix_in_open, mix_in_write, mix_in_close };
 
 
 static void* mix_open(fmed_filt *d)
@@ -335,3 +317,5 @@ static int mix_read(void *ctx, fmed_filt *d)
 
 	return FMED_RASYNC;
 }
+
+const fmed_filter fmed_mix_out = { mix_open, mix_read, mix_close };
