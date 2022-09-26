@@ -686,7 +686,7 @@ static int filt_call(fm_trk *t, fmed_f *f)
 	fftime t1 = {}, t2;
 
 	if (core->loglev == FMED_LOG_DEBUG) {
-		ffclk_get(&t1);
+		t1 = fftime_monotonic();
 	}
 
 	ffint_bitmask(&t->props.flags, FMED_FFWD, f->newdata);
@@ -724,8 +724,8 @@ static int filt_call(fm_trk *t, fmed_f *f)
 	f->d.data = t->props.data,  f->d.datalen = t->props.datalen;
 
 	if (core->loglev == FMED_LOG_DEBUG) {
-		ffclk_get(&t2);
-		ffclk_diff(&t1, &t2);
+		t2 = fftime_monotonic();
+		fftime_sub(&t2, &t1);
 		fftime_add(&f->clk, &t2);
 	}
 

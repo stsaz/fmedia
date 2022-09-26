@@ -230,11 +230,11 @@ static void fr_aio(ffthpool_task *t)
 	struct fr_task *ext = (void*)t->ext;
 	fftime t1 = {}, t2;
 	if (f->conf.log_debug)
-		ffclk_gettime(&t1);
+		t1 = fftime_monotonic();
 	ext->result = fffile_pread(ext->fd, ext->buf.ptr, ext->buf.len, ext->off);
 	ext->error = fferr_last();
 	if (f->conf.log_debug) {
-		ffclk_gettime(&t2);
+		t2 = fftime_monotonic();
 		fftime_sub(&t2, &t1);
 		if (ext->result < 0) {
 			dbglog(f, "read error:%d  offset:%xU  (%uus)"

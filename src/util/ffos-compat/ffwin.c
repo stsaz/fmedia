@@ -93,17 +93,3 @@ ssize_t ffaio_fread(ffaio_filetask *ft, void *data, size_t len, uint64 off, ffai
 	fferr_set(EAGAIN);
 	return -1;
 }
-
-
-static LARGE_INTEGER _ffclk_freq;
-
-void ffclk_totime(fftime *t)
-{
-	if (_ffclk_freq.QuadPart == 0)
-		QueryPerformanceFrequency(&_ffclk_freq); //no threads race because the result is always the same
-
-	uint64 clk = t->sec;
-	t->sec = clk / _ffclk_freq.QuadPart;
-	uint ns = (clk % _ffclk_freq.QuadPart) * 1000000000 / _ffclk_freq.QuadPart;
-	fftime_setnsec(t, ns);
-}

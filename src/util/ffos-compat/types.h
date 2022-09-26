@@ -136,8 +136,6 @@ static inline void fftime_fromtimespec(fftime *t, const struct timespec *ts)
 #define fftime_mcs  fftime_to_usec
 #define fftime_ms  fftime_to_msec
 
-#include "timer-compat.h"
-
 #define ffwreg  ffwinreg
 #define ffwreg_val  ffwinreg_val
 #define ffwreg_info  ffwinreg_info

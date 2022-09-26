@@ -44,7 +44,7 @@ ifeq ($(OPT),0)
 	CFLAGS_OPT += -DFF_DEBUG
 endif
 FFAUDIO_CFLAGS := $(CFLAGS_STD) $(CFLAGS_DEBUG) $(CFLAGS_OPT) $(CFLAGS_OS) $(CFLAGS_CPU) -I$(FFBASE) -I$(FFAUDIO)
-CFLAGS_STD += -DFFBASE_HAVE_FFERR_STR
+CFLAGS_STD += -DFFBASE_HAVE_FFERR_STR -DFFBASE_MEM_ASSERT
 
 
 # CPU-specific options
@@ -439,6 +439,11 @@ oss.$(SO): $(OSS_O)
 ifeq ($(OS),win)
 #
 FF_GUIHDR := $(wildcard $(SRCDIR)/util/gui-winapi/*.h)
+$(OBJ_DIR)/gui.o: $(SRCDIR)/gui-winapi/gui.c \
+		$(SRCDIR)/gui-winapi/gui.h \
+		$(SRCDIR)/gui-winapi/track.h \
+		$(GLOBDEPS) $(FF_GUIHDR)
+	$(C) $(CFLAGS)  $< -o$@
 $(OBJ_DIR)/gui-dlgs.o: $(SRCDIR)/gui-winapi/gui-dlgs.c $(SRCDIR)/gui-winapi/*.h $(GLOBDEPS) $(FF_GUIHDR)
 	$(C) $(CFLAGS)  $< -o$@
 $(OBJ_DIR)/%.o: $(SRCDIR)/gui-winapi/%.c $(SRCDIR)/gui-winapi/gui.h $(GLOBDEPS) $(FF_GUIHDR)
@@ -525,7 +530,8 @@ strip: $(BINS:.$(SO)=.$(SO).debug) $(BIN).debug $(BINS:.exe=.exe.debug)
 
 install-only:
 	mkdir -vp $(INSTDIR)
-	$(CP) $(BIN) \
+	$(CP) $(BIN) $(INSTDIR)/ || true
+	$(CP) \
 		$(PROJDIR)/fmedia.conf $(PROJDIR)/help*.txt $(PROJDIR)/CHANGES.txt \
 		$(PROJDIR)/LICENSE \
 		$(INSTDIR)/
@@ -533,7 +539,8 @@ install-only:
 	sed -i '1,5d' $(INSTDIR)/README.txt
 
 ifeq ($(OS),win)
-	$(CP) ./fmedia-gui.exe \
+	$(CP) fmedia-gui.exe $(INSTDIR)/ || true
+	$(CP) \
 		$(PROJDIR)/src/gui-winapi/fmedia.gui \
 		$(PROJDIR)/src/gui-winapi/gui_lang_*.txt \
 		$(PROJDIR)/src/gui-winapi/theme.conf \

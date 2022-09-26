@@ -294,12 +294,12 @@ static int fw_write(fffilewrite *f, struct buf_s d)
 {
 	fftime t1 = {}, t2;
 	if (f->conf.log_debug)
-		ffclk_gettime(&t1);
+		t1 = fftime_monotonic();
 
 	ssize_t n = fffile_pwrite(f->fd, d.ptr, d.len, d.off);
 
 	if (f->conf.log_debug) {
-		ffclk_gettime(&t2);
+		t2 = fftime_monotonic();
 		fftime_sub(&t2, &t1);
 		dbglog(f, "write result:%D  offset:%xU  (%uus)"
 			, (int64)n, d.off, fftime_mcs(&t2));
@@ -338,13 +338,13 @@ static void fw_aio(ffthpool_task *t)
 
 	fftime t1 = {}, t2;
 	if (f->conf.log_debug)
-		ffclk_gettime(&t1);
+		t1 = fftime_monotonic();
 
 	ext->result = fffile_pwrite(ext->fd, ext->buf.ptr, ext->buf.len, ext->off);
 	ext->error = fferr_last();
 
 	if (f->conf.log_debug) {
-		ffclk_gettime(&t2);
+		t2 = fftime_monotonic();
 		fftime_sub(&t2, &t1);
 		dbglog(f, "write result:%D  offset:%xU  error:%d  (%uus)"
 			, (int64)ext->result, ext->off, ext->error, fftime_mcs(&t2));

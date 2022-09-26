@@ -306,6 +306,13 @@ if test "$1" = "all" ; then
 	sh $0 convert_streamcopy
 	sh $0 convert_parallel
 	sh $0 filters
+
+elif test "$1" = "perf" ; then
+	for i in $(seq 1 3) ; do
+		./fmedia afile --print-time --pcm-peaks
+		./fmedia afile --print-time -o fmedia-test.wav -y --rate=96000 --format=int32
+	done
+
 fi
 
 echo DONE

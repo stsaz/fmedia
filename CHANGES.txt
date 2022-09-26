@@ -8,6 +8,19 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.29.1 - Sep 25, 2022
+
+ * GUI: "Analyze & Show PCM Info" supports .cue tracks
+ + GUI/Windows: Record dialog: "Enable Dynamic Audio Normalizer" setting
+ - GUI/Windows: Record dialog: audio format settings didn't work
+ * GUI/Windows: save/restore the settings for Record & Convert dialogs
+ - GUI/Windows: couldn't set an empty setting value in Record & Convert dialogs
+ - GUI/Windows: Convert: seeking on .mp3 didn't work (v1.28 bug)
+ - core: user config settings from fmedia-user.conf didn't work (v1.25.3beta bug)
+ * "--until" now works with radio stream sources
+ - .aac read: fix crash
+
+
 fmedia v1.29 - Sep 5, 2022
 
  + new "fmedia.conf" settings:
