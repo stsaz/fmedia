@@ -1819,8 +1819,8 @@ static int wnd_nfy(ffui_wnd *wnd, NMHDR *n, size_t *code)
 		const LVITEMW *it = &((NMLVDISPINFOW*)n)->item;
 		_ffui_log("LVN_ENDLABELEDIT: item:%u, text:%q"
 			, it->iItem, (it->pszText == NULL) ? L"" : it->pszText);
-		if (it->pszText != NULL && ctl.view->edit_id != 0) {
-			ctl.view->text = ffsz_alloc_wtou(it->pszText);
+		if (ctl.view->edit_id != 0) {
+			ctl.view->text = (it->pszText != NULL) ? ffsz_alloc_wtou(it->pszText) : ffsz_dup("");
 			wnd->on_action(wnd, ctl.view->edit_id);
 			ffmem_free(ctl.view->text);  ctl.view->text = NULL;
 		}
