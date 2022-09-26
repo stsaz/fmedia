@@ -40,6 +40,7 @@ typedef struct core_mod {
 	fflock lock;
 	fmed_conf_ctx conf_ctx;
 	ffstr conf_data;
+	ffvec usrconf_data;
 	fflist_item sib;
 	uint have_conf :1; // whether a module has configuration context
 	char name_s[0];

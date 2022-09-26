@@ -1,6 +1,8 @@
 /** fmedia: core: modules
 2015,2021, Simon Zolin */
 
+void usrconf_read(ffconf_scheme *sc, ffstr key, ffstr val);
+
 static void core_posted(void *udata)
 {
 }
@@ -141,6 +143,7 @@ static core_mod* mod_createiface(ffstr name)
 static void mod_freeiface(core_mod *m)
 {
 	ffstr_free(&m->conf_data);
+	ffvec_free(&m->usrconf_data);
 	ffmem_free(m);
 }
 
@@ -264,6 +267,31 @@ const fmed_modinfo* core_getmodinfo(ffstr name)
 	return NULL;
 }
 
+/** Process user config settings stored previously for this module */
+static int mod_usrconf_read(core_mod *mod)
+{
+	ffconf c = {};
+	ffconf_init(&c);
+	ffconf_scheme sc = {};
+	ffconf_scheme_init(&sc, &c);
+	ffconf_scheme_addctx(&sc, mod->conf_ctx.args, mod->conf_ctx.obj);
+
+	ffstr d = FFSTR_INITSTR(&mod->usrconf_data);
+	while (d.len != 0) {
+		ffstr ln, key, val;
+		ffstr_splitby(&d, '\n', &ln, &d);
+		ffstr_splitby(&ln, ' ', &key, &val);
+		if (key.len == 0 || val.len == 0)
+			continue;
+		usrconf_read(&sc, key, val);
+	}
+
+	ffconf_fin(&c);
+	ffconf_scheme_destroy(&sc);
+	ffvec_free(&mod->usrconf_data);
+	return 0;
+}
+
 /** Read module's configuration parameters. */
 static int mod_readconf(core_mod *mod, const char *name)
 {
@@ -296,7 +324,8 @@ static int mod_readconf(core_mod *mod, const char *name)
 		goto done;
 
 	ffstr_free(&mod->conf_data);
-	rc = 0;
+
+	rc = mod_usrconf_read(mod);
 
 done:
 	if (rc != 0) {
@@ -331,7 +360,6 @@ static int mod_load_delayed(core_mod *mod)
 	if (mod->have_conf) {
 		if (0 != mod_readconf(mod, modname.ptr))
 			goto end;
-		mod->have_conf = 0;
 	}
 
 	if (!bmod->opened) {

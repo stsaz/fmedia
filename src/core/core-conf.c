@@ -3,6 +3,7 @@ Copyright (c) 2019 Simon Zolin */
 
 #include <core/core-priv.h>
 
+void usrconf_read(ffconf_scheme *sc, ffstr key, ffstr val);
 
 int conf_init(fmed_config *conf)
 {
@@ -114,6 +115,7 @@ static int conf_modconf(fmed_conf *fc, fmed_config *conf)
 		return FMC_ESYS;
 	}
 
+	((core_mod*)m)->have_conf = 1;
 	return !delayed ? 0 : CONF_DELAYED;
 }
 
@@ -290,20 +292,18 @@ static const fmed_conf_arg conf_args[] = {
 static int confusr_mod(fmed_conf *fc, fmed_config *conf, ffstr *val)
 {
 	const ffstr *keyname = ffconf_scheme_keyname(fc);
-	ffstr modname, ctx, key;
+	ffstr modname, key;
 	if (ffstr_splitby(keyname, '.', &modname, &key) < 0) {
 		infolog0("user config: bad key %S", keyname);
 		return 0;
 	}
 
-	int r;
-	ffconf c2;
-	ffconf_init(&c2);
-	ffconf_scheme sc;
-	ffconf_scheme_init(&sc, &c2);
+	const void *args;
+	void *obj;
 
 	if (ffstr_eqz(&modname, "core")) {
-		ffconf_scheme_addctx(&sc, conf_args, conf);
+		args = conf_args;
+		obj = conf;
 
 	} else {
 		if (ffstr_splitby(&key, '.', &modname, &key) < 0) {
@@ -315,48 +315,68 @@ static int confusr_mod(fmed_conf *fc, fmed_config *conf, ffstr *val)
 		if (!allowed_mod(&modname))
 			return 0;
 
-		const core_mod *mod;
+		core_mod *mod;
 		if (NULL == (mod = (void*)core_getmodinfo(modname))) {
 			infolog0("user config: unknown module: %S", &modname);
 			return 0;
 		}
 
-		if (mod->conf_ctx.args == NULL) {
+		if (!mod->have_conf) {
 			infolog0("user config: module doesn't support configuration: %S", &modname);
 			return 0;
 		}
 
-		ffconf_scheme_addctx(&sc, mod->conf_ctx.args, mod->conf_ctx.obj);
+		if (mod->conf_ctx.args == NULL) {
+			// the module isn't yet loaded - just store all its user settings
+			ffvec_addfmt(&mod->usrconf_data, "%S %S\n", &key, val);
+			return 0;
+		}
+
+		args = mod->conf_ctx.args;
+		obj = mod->conf_ctx.obj;
 	}
 
+	ffconf c2;
+	ffconf_init(&c2);
+	ffconf_scheme sc;
+	ffconf_scheme_init(&sc, &c2);
+	ffconf_scheme_addctx(&sc, args, obj);
+	usrconf_read(&sc, key, *val);
+	ffconf_fin(&c2);
+	ffconf_scheme_destroy(&sc);
+	return 0;
+}
+
+/** Process one key-value pair from user config */
+void usrconf_read(ffconf_scheme *sc, ffstr key, ffstr val)
+{
+	int r;
+	ffstr ctx;
+
 	if (ffstr_splitby(&key, '.', &ctx, &key) >= 0) {
-		c2.val = ctx;
-		r = ffconf_scheme_process(&sc, FFCONF_RKEY);
+		sc->parser->val = ctx;
+		r = ffconf_scheme_process(sc, FFCONF_RKEY);
 		if (r < 0)
 			goto end;
 
-		r = ffconf_scheme_process(&sc, FFCONF_ROBJ_OPEN);
+		r = ffconf_scheme_process(sc, FFCONF_ROBJ_OPEN);
 		if (r < 0)
 			goto end;
 	} else {
 		key = ctx;
 	}
 
-	c2.val = key;
-	r = ffconf_scheme_process(&sc, FFCONF_RKEY);
+	sc->parser->val = key;
+	r = ffconf_scheme_process(sc, FFCONF_RKEY);
 	if (r < 0)
 		goto end;
 
-	c2.val = *val;
-	r = ffconf_scheme_process(&sc, FFCONF_RVAL);
+	sc->parser->val = val;
+	r = ffconf_scheme_process(sc, FFCONF_RVAL);
 
 end:
 	if (r < 0)
-		infolog0("user config: key %S: %s", keyname, sc.errmsg);
-
-	ffconf_fin(&c2);
-	ffconf_scheme_destroy(&sc);
-	return 0;
+		infolog0("user config: key %S: %s", &key, sc->errmsg);
 }
 
 static const fmed_conf_arg confusr_args[] = {
@@ -454,7 +474,6 @@ int core_conf_parse(fmed_config *conf, const char *filename, uint flags)
 				} else if (r2 > 0) {
 					core_mod *m = (void*)conf->conf_copy_mod;
 					m->conf_data = ffconf_ctxcopy_acquire(&conf->conf_copy);
-					m->have_conf = 1;
 					conf->conf_copy_mod = NULL;
 				}
 				continue;
