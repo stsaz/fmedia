@@ -6,6 +6,7 @@
 
 struct until {
 	uint64 until;
+	uint64 total;
 	uint sampsize;
 };
 
@@ -49,11 +50,13 @@ static int until_process(void *ctx, fmed_filt *d)
 	if (d->flags & FMED_FLAST)
 		return FMED_RDONE;
 
-	if (FMED_NULL == (int64)(pos = d->audio.pos))
-		return FMED_RDONE;
+	if (FMED_NULL == (int64)(pos = d->audio.pos)) {
+		pos = u->total;
+		u->total += d->datalen / u->sampsize;
+	}
 
 	if (d->stream_copy) {
-		if (d->audio.pos >= u->until) {
+		if (pos >= u->until) {
 			dbglog(core, d->trk, "until", "reached sample #%U", u->until);
 			d->outlen = 0;
 			return FMED_RLASTOUT;
