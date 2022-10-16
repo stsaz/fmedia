@@ -1,2 +1,2 @@
-include ':app'
+include ':fmedia'
 rootProject.name='fmedia'

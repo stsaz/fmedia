@@ -8,6 +8,20 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia/Android v0.4 - Oct 16, 2022
+
+ * Normalize all graphical elements
+ + File Explorer supports all SD-cards available on the system
+ + "List Save" menu command - save current playlist to a file
+ + "List Load" menu command - load playlist from file
+ + New settings:
+   + "Disable Lock-Screen Notification"
+   + "Trash directory"
+   + "Encoder bitrate"
+ * "File Delete" moves files to Trash directory by default
+ * Update the current playback progress on notification
+
+
 fmedia v1.29.1 - Sep 25, 2022
 
  * GUI: "Analyze & Show PCM Info" supports .cue tracks
