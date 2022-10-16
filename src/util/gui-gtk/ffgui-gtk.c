@@ -3,6 +3,9 @@ Copyright (c) 2019 Simon Zolin
 */
 
 #include "gtk.h"
+#include "dialog.h"
+#include "view.h"
+#include "window.h"
 #include <ffbase/atomic.h>
 #include <ffbase/lock.h>
 #include <FFOS/thread.h>
@@ -181,7 +184,7 @@ void ffui_tab_setactive(ffui_tab *t, int idx)
 // LISTVIEW
 static void _ffui_view_row_activated(void *a, GtkTreePath *path, void *c, gpointer udata)
 {
-	FFDBG_PRINTLN(10, "udata: %p", udata);
+	_ffui_log("udata: %p", udata);
 	ffui_view *v = udata;
 	v->path = path;
 	v->wnd->on_action(v->wnd, v->dblclick_id);
@@ -193,7 +196,7 @@ static void _ffui_view_drag_data_received(GtkWidget *wgt, GdkDragContext *contex
 {
 	gint len;
 	const void *ptr = gtk_selection_data_get_data_with_length(seldata, &len);
-	FFDBG_PRINTLN(10, "seldata:[%u] %*s", len, (size_t)len, ptr);
+	_ffui_log("seldata:[%u] %*s", len, (size_t)len, ptr);
 
 	ffui_view *v = userdata;
 	ffstr_set(&v->drop_data, ptr, len);
@@ -305,66 +308,6 @@ int ffui_view_create(ffui_view *v, ffui_wnd *parent)
 	return 0;
 }
 
-void ffui_view_style(ffui_view *v, uint flags, uint set)
-{
-	uint val;
-
-	if (flags & FFUI_VIEW_GRIDLINES) {
-		val = (set & FFUI_VIEW_GRIDLINES)
-			? GTK_TREE_VIEW_GRID_LINES_BOTH
-			: GTK_TREE_VIEW_GRID_LINES_NONE;
-		gtk_tree_view_set_grid_lines(GTK_TREE_VIEW(v->h), val);
-	}
-
-	if (flags & FFUI_VIEW_MULTI_SELECT) {
-		val = (set & FFUI_VIEW_MULTI_SELECT)
-			? GTK_SELECTION_MULTIPLE
-			: GTK_SELECTION_SINGLE;
-		gtk_tree_selection_set_mode(gtk_tree_view_get_selection(GTK_TREE_VIEW(v->h)), val);
-	}
-
-	if (flags & FFUI_VIEW_EDITABLE) {
-		val = !!(set & FFUI_VIEW_EDITABLE);
-		g_object_set(v->rend, "editable", val, NULL);
-	}
-}
-
-void ffui_view_inscol(ffui_view *v, int pos, ffui_viewcol *vc)
-{
-	FFDBG_PRINTLN(10, "pos:%d", pos);
-	FF_ASSERT(v->store == NULL);
-
-	if (pos == -1)
-		pos = gtk_tree_view_get_n_columns(GTK_TREE_VIEW(v->h));
-
-	GtkTreeViewColumn *col = gtk_tree_view_column_new();
-	gtk_tree_view_column_set_title(col, vc->text);
-	gtk_tree_view_column_set_resizable(col, 1);
-	if (vc->width != 0)
-		gtk_tree_view_column_set_fixed_width(col, vc->width);
-
-	gtk_tree_view_column_pack_start(col, v->rend, 1);
-	gtk_tree_view_column_add_attribute(col, v->rend, "text", pos);
-
-	gtk_tree_view_insert_column(GTK_TREE_VIEW(v->h), col, pos);
-	ffui_viewcol_reset(vc);
-}
-
-void ffui_view_setcol(ffui_view *v, int pos, ffui_viewcol *vc)
-{
-	GtkTreeViewColumn *col = gtk_tree_view_get_column(GTK_TREE_VIEW(v->h), pos);
-	if (vc->text != NULL)
-		gtk_tree_view_column_set_title(col, vc->text);
-	if (vc->width != 0)
-		gtk_tree_view_column_set_fixed_width(col, vc->width);
-}
-
-void ffui_view_col(ffui_view *v, int pos, ffui_viewcol *vc)
-{
-	GtkTreeViewColumn *col = gtk_tree_view_get_column(GTK_TREE_VIEW(v->h), pos);
-	vc->width = gtk_tree_view_column_get_width(col);
-}
-
 static void view_prepare(ffui_view *v)
 {
 	uint ncol = gtk_tree_view_get_n_columns(GTK_TREE_VIEW(v->h));
@@ -376,30 +319,6 @@ static void view_prepare(ffui_view *v)
 	ffmem_free(types);
 	gtk_tree_view_set_model(GTK_TREE_VIEW(v->h), v->store);
 	g_object_unref(v->store);
-}
-
-ffui_sel* ffui_view_getsel(ffui_view *v)
-{
-	void *tvsel = gtk_tree_view_get_selection(GTK_TREE_VIEW(v->h));
-	GList *rows = gtk_tree_selection_get_selected_rows(tvsel, NULL);
-	uint n = gtk_tree_selection_count_selected_rows(tvsel);
-
-	ffvec a = {};
-	if (NULL == ffvec_allocT(&a, n, uint))
-		return NULL;
-
-	for (GList *l = rows;  l != NULL;  l = l->next) {
-		GtkTreePath *path = l->data;
-		int *ii = gtk_tree_path_get_indices(path);
-		*ffvec_pushT(&a, uint) = ii[0];
-	}
-	g_list_free_full(rows, (GDestroyNotify)gtk_tree_path_free);
-
-	ffui_sel *sel = ffmem_new(ffui_sel);
-	sel->ptr = a.ptr;
-	sel->len = a.len;
-	sel->off = 0;
-	return sel;
 }
 
 void ffui_view_dragdrop(ffui_view *v, uint action_id)
@@ -417,7 +336,7 @@ void ffui_view_dragdrop(ffui_view *v, uint action_id)
 
 void ffui_view_ins(ffui_view *v, int pos, ffui_viewitem *it)
 {
-	FFDBG_PRINTLN(10, "pos:%d", pos);
+	_ffui_log("pos:%d", pos);
 	if (v->store == NULL)
 		view_prepare(v);
 
@@ -431,23 +350,6 @@ void ffui_view_ins(ffui_view *v, int pos, ffui_viewitem *it)
 	}
 	gtk_list_store_set(GTK_LIST_STORE(v->store), &iter, 0, it->text, -1);
 	ffui_view_itemreset(it);
-}
-
-void ffui_view_set(ffui_view *v, int sub, ffui_viewitem *it)
-{
-	FFDBG_PRINTLN(10, "sub:%d", sub);
-	GtkTreeIter iter;
-	if (gtk_tree_model_iter_nth_child(GTK_TREE_MODEL(v->store), &iter, NULL, it->idx))
-		gtk_list_store_set(GTK_LIST_STORE(v->store), &iter, sub, it->text, -1);
-	ffui_view_itemreset(it);
-}
-
-void ffui_view_rm(ffui_view *v, ffui_viewitem *it)
-{
-	FFDBG_PRINTLN(10, "idx:%d", it->idx);
-	GtkTreeIter iter;
-	if (gtk_tree_model_iter_nth_child(GTK_TREE_MODEL(v->store), &iter, NULL, it->idx))
-		gtk_list_store_remove(GTK_LIST_STORE(v->store), &iter);
 }
 
 void ffui_view_setdata(ffui_view *v, uint first, int delta)
@@ -465,7 +367,7 @@ void ffui_view_setdata(ffui_view *v, uint first, int delta)
 	if (delta == 0 && rows != 0)
 		n++; // redraw the item
 
-	FFDBG_PRINTLN(10, "first:%u  delta:%d  rows:%u", first, delta, rows);
+	_ffui_log("first:%u  delta:%d  rows:%u", first, delta, rows);
 
 	if (first > rows)
 		return;
@@ -548,70 +450,6 @@ int ffui_tray_create(ffui_trayicon *t, ffui_wnd *wnd)
 	g_signal_connect(t->h, "activate", G_CALLBACK(&_ffui_tray_activate), t);
 	ffui_tray_show(t, 0);
 	return 0;
-}
-
-
-// DIALOG
-char* ffui_dlg_open(ffui_dialog *d, ffui_wnd *parent)
-{
-	g_free(d->name);  d->name = NULL;
-
-	GtkWidget *dlg;
-	dlg = gtk_file_chooser_dialog_new(d->title, parent->h, GTK_FILE_CHOOSER_ACTION_OPEN
-		, "_Cancel", GTK_RESPONSE_CANCEL
-		, "_Open", GTK_RESPONSE_ACCEPT
-		, NULL);
-	GtkFileChooser *chooser = GTK_FILE_CHOOSER(dlg);
-
-	if (d->multisel)
-		gtk_file_chooser_set_select_multiple(chooser, 1);
-
-	int r = gtk_dialog_run(GTK_DIALOG(dlg));
-	if (r == GTK_RESPONSE_ACCEPT) {
-		if (d->multisel)
-			d->curname = d->names = gtk_file_chooser_get_filenames(chooser);
-		else
-			d->name = gtk_file_chooser_get_filename(chooser);
-	}
-
-	gtk_widget_destroy(dlg);
-	if (d->names != NULL)
-		return ffui_dlg_nextname(d);
-	return d->name;
-}
-
-char* ffui_dlg_nextname(ffui_dialog *d)
-{
-	if (d->curname == NULL)
-		return NULL;
-	char *name = d->curname->data;
-	d->curname = d->curname->next;
-	return name;
-}
-
-char* ffui_dlg_save(ffui_dialog *d, ffui_wnd *parent, const char *fn, size_t fnlen)
-{
-	ffmem_free0(d->name);
-	GtkWidget *dlg;
-	dlg = gtk_file_chooser_dialog_new(d->title, parent->h, GTK_FILE_CHOOSER_ACTION_SAVE
-		, "_Cancel", GTK_RESPONSE_CANCEL
-		, "_Save", GTK_RESPONSE_ACCEPT
-		, NULL);
-	GtkFileChooser *chooser = GTK_FILE_CHOOSER(dlg);
-
-	gtk_file_chooser_set_do_overwrite_confirmation(chooser, TRUE);
-
-	char *sz = ffsz_dupn(fn, fnlen);
-	// gtk_file_chooser_set_filename (chooser, sz);
-	gtk_file_chooser_set_current_name(chooser, sz);
-
-	int r = gtk_dialog_run(GTK_DIALOG(dlg));
-	if (r == GTK_RESPONSE_ACCEPT) {
-		d->name = gtk_file_chooser_get_filename(chooser);
-	}
-
-	gtk_widget_destroy(dlg);
-	return d->name;
 }
 
 
@@ -791,7 +629,7 @@ struct cmd {
 static gboolean _ffui_thd_func(gpointer data)
 {
 	struct cmd *c = data;
-	FFDBG_PRINTLN(10, "func:%p  udata:%p", c->func, c->udata);
+	_ffui_log("func:%p  udata:%p", c->func, c->udata);
 	c->func(c->udata);
 	if (c->ref != 0) {
 		ffcpu_fence_release();
@@ -803,7 +641,7 @@ static gboolean _ffui_thd_func(gpointer data)
 
 void ffui_thd_post(ffui_handler func, void *udata, uint id)
 {
-	FFDBG_PRINTLN(10, "func:%p  udata:%p  id:%xu", func, udata, id);
+	_ffui_log("func:%p  udata:%p  id:%xu", func, udata, id);
 
 	if (id & FFUI_POST_WAIT) {
 		struct cmd c;
@@ -942,7 +780,7 @@ static int post_locked(gboolean (*func)(gpointer), void *udata)
 
 size_t ffui_send(void *ctl, uint id, void *udata)
 {
-	FFDBG_PRINTLN(10, "ctl:%p  udata:%p  id:%xu", ctl, udata, id);
+	_ffui_log("ctl:%p  udata:%p  id:%xu", ctl, udata, id);
 	struct cmd_send c;
 	c.ctl = ctl;
 	c.id = id;
@@ -963,7 +801,7 @@ size_t ffui_send(void *ctl, uint id, void *udata)
 
 void ffui_post(void *ctl, uint id, void *udata)
 {
-	FFDBG_PRINTLN(10, "ctl:%p  udata:%p  id:%xu", ctl, udata, id);
+	_ffui_log("ctl:%p  udata:%p  id:%xu", ctl, udata, id);
 	struct cmd_send *c = ffmem_new(struct cmd_send);
 	c->ctl = ctl;
 	c->id = id;

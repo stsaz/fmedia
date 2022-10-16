@@ -7,6 +7,12 @@ Copyright (c) 2019 Simon Zolin
 #include "../string.h"
 #include <gtk/gtk.h>
 
+#if 0
+	#include <FFOS/std.h>
+	#define _ffui_log fflog
+#else
+	#define _ffui_log(...)
+#endif
 
 static inline void ffui_init()
 {
@@ -29,13 +35,8 @@ static inline void ffui_init()
 // TEXT
 // TRACKBAR
 // TAB
-// LISTVIEW COLUMN
-// LISTVIEW ITEM
-// LISTVIEW
 // STATUSBAR
 // TRAYICON
-// DIALOG
-// WINDOW
 // MESSAGE LOOP
 
 
@@ -81,6 +82,8 @@ typedef struct ffui_wnd ffui_wnd;
 typedef struct ffui_ctl {
 	_FFUI_CTL_MEMBERS
 } ffui_ctl;
+
+typedef struct ffui_view ffui_view;
 
 static inline void ffui_show(void *c, uint show)
 {
@@ -344,222 +347,6 @@ FF_EXTERN void ffui_tab_ins(ffui_tab *t, int idx, const char *textz);
 FF_EXTERN void ffui_tab_setactive(ffui_tab *t, int idx);
 
 
-// LISTVIEW COLUMN
-typedef struct ffui_view ffui_view;
-typedef struct ffui_viewcol {
-	char *text;
-	uint width;
-} ffui_viewcol;
-
-#define ffui_viewcol_reset(vc)  ffmem_free0((vc)->text)
-
-static inline void ffui_viewcol_settext(ffui_viewcol *vc, const char *text, size_t len)
-{
-	vc->text = ffsz_dupn(text, len);
-}
-
-#define ffui_viewcol_setwidth(vc, w)  (vc)->width = (w)
-#define ffui_viewcol_width(vc)  ((vc)->width)
-
-FF_EXTERN void ffui_view_inscol(ffui_view *v, int pos, ffui_viewcol *vc);
-FF_EXTERN void ffui_view_setcol(ffui_view *v, int pos, ffui_viewcol *vc);
-
-/** Set column width */
-static inline void ffui_view_setcol_width(ffui_view *v, int pos, uint width)
-{
-	ffui_viewcol vc = { .width = width };
-	ffui_view_setcol(v, pos, &vc);
-}
-
-FF_EXTERN void ffui_view_col(ffui_view *v, int pos, ffui_viewcol *vc);
-
-/** Get column width */
-static inline uint ffui_view_col_width(ffui_view *v, int pos)
-{
-	ffui_viewcol vc = {};
-	ffui_view_col(v, pos, &vc);
-	return vc.width;
-}
-
-/** Get the number of columns. */
-#define ffui_view_ncols(v) \
-	gtk_tree_model_get_n_columns(GTK_TREE_MODEL((v)->store))
-
-
-// LISTVIEW ITEM
-typedef struct ffui_viewitem {
-	char *text;
-	int idx;
-	uint text_alloc :1;
-} ffui_viewitem;
-
-static inline void ffui_view_iteminit(ffui_viewitem *it)
-{
-	ffmem_tzero(it);
-}
-
-static inline void ffui_view_itemreset(ffui_viewitem *it)
-{
-	if (it->text_alloc) {
-		ffmem_free0(it->text);
-		it->text_alloc = 0;
-	}
-}
-
-#define ffui_view_setindex(it, i)  (it)->idx = (i)
-
-#define ffui_view_settextz(it, sz)  (it)->text = (char*)(sz)
-static inline void ffui_view_settext(ffui_viewitem *it, const char *text, size_t len)
-{
-	it->text = ffsz_dupn(text, len);
-	it->text_alloc = 1;
-}
-#define ffui_view_settextstr(it, str)  ffui_view_settext(it, (str)->ptr, (str)->len)
-
-
-// LISTVIEW
-struct ffui_view_disp {
-	uint idx;
-	uint sub;
-	ffstr text;
-};
-
-struct ffui_view {
-	_FFUI_CTL_MEMBERS
-	GtkTreeModel *store;
-	GtkCellRenderer *rend;
-	uint dblclick_id;
-	uint dropfile_id;
-	uint dispinfo_id;
-	uint edit_id;
-	ffui_menu *popup_menu;
-
-	union {
-	GtkTreePath *path; // dblclick_id
-	struct { // edit_id
-		ffuint idx;
-		const char *new_text;
-	} edited;
-	ffstr drop_data;
-	struct ffui_view_disp disp;
-	};
-};
-
-FF_EXTERN int ffui_view_create(ffui_view *v, ffui_wnd *parent);
-
-enum FFUI_VIEW_STYLE {
-	FFUI_VIEW_GRIDLINES = 1,
-	FFUI_VIEW_MULTI_SELECT = 2,
-	FFUI_VIEW_EDITABLE = 4,
-};
-FF_EXTERN void ffui_view_style(ffui_view *v, uint flags, uint set);
-
-#define ffui_view_nitems(v)  gtk_tree_model_iter_n_children((void*)(v)->store, NULL)
-
-/**
-first: first index to add or redraw
-delta: 0:redraw row */
-FF_EXTERN void ffui_view_setdata(ffui_view *v, uint first, int delta);
-
-static inline void ffui_view_clear(ffui_view *v)
-{
-	if (v->store != NULL)
-		gtk_list_store_clear(GTK_LIST_STORE(v->store));
-}
-
-#define ffui_view_selall(v)  gtk_tree_selection_select_all(gtk_tree_view_get_selection(GTK_TREE_VIEW((v)->h)))
-#define ffui_view_unselall(v)  gtk_tree_selection_unselect_all(gtk_tree_view_get_selection(GTK_TREE_VIEW((v)->h)))
-
-typedef struct ffui_sel {
-	ffsize len;
-	char *ptr;
-	ffsize off;
-} ffui_sel;
-
-/** Get array of selected items.
-Return ffui_sel*.  Free with ffui_view_sel_free(). */
-FF_EXTERN ffui_sel* ffui_view_getsel(ffui_view *v);
-
-static inline void ffui_view_sel_free(ffui_sel *sel)
-{
-	if (sel == NULL)
-		return;
-	ffmem_free(sel->ptr);
-	ffmem_free(sel);
-}
-
-/** Get next selected item. */
-static inline int ffui_view_selnext(ffui_view *v, ffui_sel *sel)
-{
-	if (sel->off == sel->len)
-		return -1;
-	return *ffslice_itemT(sel, sel->off++, uint);
-}
-
-FF_EXTERN void ffui_view_dragdrop(ffui_view *v, uint action_id);
-
-/** Get next drag'n'drop file name.
-Return -1 if no more. */
-FF_EXTERN int ffui_fdrop_next(ffvec *fn, ffstr *dropdata);
-
-
-/**
-Note: must be called only from wnd.on_action(). */
-static inline int ffui_view_focused(ffui_view *v)
-{
-	FF_ASSERT(v->path != NULL);
-	int *i = gtk_tree_path_get_indices(v->path);
-	return i[0];
-}
-
-FF_EXTERN void ffui_view_ins(ffui_view *v, int pos, ffui_viewitem *it);
-
-#define ffui_view_append(v, it)  ffui_view_ins(v, -1, it)
-
-FF_EXTERN void ffui_view_set(ffui_view *v, int sub, ffui_viewitem *it);
-
-/** Set cell text */
-static inline void ffui_view_set_i_textz(ffui_view *v, int idx, int sub, const char *sz)
-{
-	ffui_viewitem it = {};
-	it.idx = idx;
-	it.text = (char*)sz;
-	ffui_view_set(v, sub, &it);
-}
-
-FF_EXTERN void ffui_view_rm(ffui_view *v, ffui_viewitem *it);
-
-/** Scroll view so that the row is visible */
-static inline void ffui_view_scroll_idx(ffui_view *v, uint idx)
-{
-	GtkTreePath *path = gtk_tree_path_new_from_indices(idx, -1);
-	gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(v->h), path, NULL, 0, 0, 0);
-	gtk_tree_path_free(path);
-}
-
-static inline uint ffui_view_scroll_vert(ffui_view *v)
-{
-	GtkAdjustment *a = gtk_scrollable_get_vadjustment(GTK_SCROLLABLE(v->h));
-	double d = gtk_adjustment_get_value(a);
-	return d * 100;
-}
-
-static inline void ffui_view_scroll_setvert(ffui_view *v, uint val)
-{
-	GtkAdjustment *a = gtk_scrollable_get_vadjustment(GTK_SCROLLABLE(v->h));
-	gtk_adjustment_set_value(a, (double)val / 100);
-}
-
-static inline void ffui_view_popupmenu(ffui_view *v, ffui_menu *m)
-{
-	v->popup_menu = m;
-	if (m != NULL) {
-		g_object_set_data(G_OBJECT(m->h), "ffdata", v->wnd);
-		gtk_widget_show_all(m->h);
-	}
-}
-
-
 // STATUSBAR
 
 FF_EXTERN int ffui_stbar_create(ffui_ctl *sb, ffui_wnd *parent);
@@ -587,122 +374,6 @@ static inline void ffui_tray_seticon(ffui_trayicon *t, ffui_icon *ico)
 }
 
 #define ffui_tray_show(t, show)  gtk_status_icon_set_visible(GTK_STATUS_ICON((t)->h), show)
-
-
-// DIALOG
-
-typedef struct ffui_dialog {
-	char *title;
-	char *name;
-	GSList *names;
-	GSList *curname;
-	uint multisel :1;
-} ffui_dialog;
-
-static inline void ffui_dlg_init(ffui_dialog *d)
-{
-}
-
-static inline void ffui_dlg_destroy(ffui_dialog *d)
-{
-	g_slist_free_full(d->names, g_free);  d->names = NULL;
-	ffmem_free0(d->title);
-	g_free(d->name); d->name = NULL;
-}
-
-static inline void ffui_dlg_titlez(ffui_dialog *d, const char *sz)
-{
-	d->title = ffsz_dup(sz);
-}
-
-#define ffui_dlg_multisel(d, val)  ((d)->multisel = (val))
-
-/** Get the next file name (for a dialog with multiselect). */
-FF_EXTERN char* ffui_dlg_nextname(ffui_dialog *d);
-
-FF_EXTERN char* ffui_dlg_open(ffui_dialog *d, ffui_wnd *parent);
-
-FF_EXTERN char* ffui_dlg_save(ffui_dialog *d, ffui_wnd *parent, const char *fn, size_t fnlen);
-
-
-// WINDOW
-struct ffui_wnd {
-	GtkWindow *h;
-	enum FFUI_UID uid;
-	GtkWidget *vbox;
-
-	void (*on_create)(ffui_wnd *wnd);
-	void (*on_destroy)(ffui_wnd *wnd);
-	void (*on_action)(ffui_wnd *wnd, int id);
-
-	uint onclose_id;
-	uint hide_on_close :1;
-};
-
-static inline int ffui_wnd_initstyle()
-{
-	return 0;
-}
-
-FF_EXTERN int ffui_wnd_create(ffui_wnd *w);
-
-#define ffui_wnd_close(w)  gtk_window_close((w)->h)
-
-#define ffui_wnd_destroy(w)  gtk_widget_destroy(GTK_WIDGET((w)->h))
-
-FF_EXTERN void ffui_wnd_setpopup(ffui_wnd *w, ffui_wnd *parent);
-
-#define ffui_wnd_present(w)  gtk_window_present((w)->h)
-
-static inline void ffui_wnd_setmenu(ffui_wnd *w, ffui_menu *m)
-{
-	m->wnd = w;
-	gtk_box_pack_start(GTK_BOX(w->vbox), m->h, /*expand=*/0, /*fill=*/0, /*padding=*/0);
-}
-
-typedef uint ffui_hotkey;
-
-#define ffui_hotkey_mod(hk)  ((hk) >> 16)
-#define ffui_hotkey_key(hk)  ((hk) & 0xffff)
-
-/** Parse hotkey string, e.g. "Ctrl+Alt+Shift+Q".
-Return: low-word: char key or vkey, hi-word: control flags;  0 on error. */
-FF_EXTERN ffui_hotkey ffui_hotkey_parse(const char *s, size_t len);
-
-typedef struct ffui_wnd_hotkey {
-	ffui_hotkey hk;
-	GtkWidget *h;
-} ffui_wnd_hotkey;
-
-/** Set hotkey table. */
-FF_EXTERN int ffui_wnd_hotkeys(ffui_wnd *w, const ffui_wnd_hotkey *hotkeys, size_t n);
-
-#define ffui_wnd_settextz(w, text)  gtk_window_set_title((w)->h, text)
-static inline void ffui_wnd_settextstr(ffui_wnd *w, const ffstr *str)
-{
-	char *sz = ffsz_dupstr(str);
-	ffui_wnd_settextz(w, sz);
-	ffmem_free(sz);
-}
-
-#define ffui_wnd_seticon(w, icon)  gtk_window_set_icon((w)->h, (icon)->ico)
-
-static inline void ffui_wnd_pos(ffui_wnd *w, ffui_pos *pos)
-{
-	int x, y, ww, h;
-	gtk_window_get_position(w->h, &x, &y);
-	gtk_window_get_size(w->h, &ww, &h);
-	pos->x = x;
-	pos->y = y;
-	pos->cx = ww;
-	pos->cy = h;
-}
-
-static inline void ffui_wnd_setplacement(ffui_wnd *w, uint showcmd, const ffui_pos *pos)
-{
-	gtk_window_move(w->h, pos->x, pos->y);
-	gtk_window_set_default_size(w->h, pos->cx, pos->cy);
-}
 
 
 // MESSAGE LOOP

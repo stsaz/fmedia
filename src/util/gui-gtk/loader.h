@@ -3,6 +3,9 @@
 
 #pragma once
 #include "gtk.h"
+#include "dialog.h"
+#include "view.h"
+#include "window.h"
 #include "../conf2-writer.h"
 #include "../gui-vars.h"
 

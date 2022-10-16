@@ -3,6 +3,9 @@ Copyright (c) 2019 Simon Zolin
 */
 
 #include "loader.h"
+#include "dialog.h"
+#include "view.h"
+#include "window.h"
 #include <FFOS/path.h>
 #include <FFOS/file.h>
 
