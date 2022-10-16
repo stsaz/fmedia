@@ -1,16 +1,16 @@
 # Architecture of fmedia
 
-<div class="author">by Simon Zolin, Apr 14 2018</div>
-
 This article explains several key aspects of fmedia architecture.
 
-## Contents:
-* [ff-3pt](#ff-3pt)
-* [ffos](#ffos)
-* [ff](#ff)
-* [fmedia](#fmedia)
+## Top-level diagram
 
-## Overview
+The latest (Oct 2022) top-level diagram:
+
+![](fmedia-arch.svg)
+
+## Old diagram
+
+Here's a little bit outdated (Apr 2018) diagram and its description.
 
 Representation of the code structure at high-level:
 
@@ -19,6 +19,13 @@ Representation of the code structure at high-level:
 This is a simplified diagram that shows several fmedia modules, their dependencies on third-party libraries and software interfaces that connect them to each other.  I chose not to include all modules here because this will overwhelm the picture.  Instead, I focus on several distinct modules and key aspects.  Everything else works exactly the same way.
 
 fmedia is built from 4 source code repositories (fmedia, ff, ff-3pt, ffos) and also has many dependencies on third-party libraries.  Splitting by separate repositories is better because "ff" libraries can be reused by any other application, thus leaving "fmedia" the only repository that contains application-specific details and business logic.
+
+Contents:
+
+* [ff-3pt](#ff-3pt)
+* [ffos](#ffos)
+* [ff](#ff)
+* [fmedia](#fmedia)
 
 <a name="ff-3pt"></a>
 ## ff-3pt repo
