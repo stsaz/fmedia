@@ -7,7 +7,7 @@ I feel like I need to clearly define my position about the current Russia-Ukrain
 
 <img align="right" src="res/fmedia.png" width="128" height="128">
 
-fmedia is a fast media player/recorder/converter for Windows, macOS, Linux and FreeBSD.
+fmedia is a fast audio player/recorder/converter for Windows, macOS, Linux and FreeBSD.
 It provides smooth playback and recording even if devices are very slow.
 It's highly customizable and can be easily extended with additional plugins.
 Its low CPU & memory consumption saves energy when running on a notebook's battery.
