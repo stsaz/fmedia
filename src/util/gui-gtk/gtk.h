@@ -3,7 +3,6 @@ Copyright (c) 2019 Simon Zolin
 */
 
 #pragma once
-#include <FFOS/process.h>
 #include "../string.h"
 #include <gtk/gtk.h>
 
@@ -465,40 +464,3 @@ static inline int ffui_send_tab_count(ffui_tab *ctl)
 }
 
 #define ffui_send_stbar_settextz(sb, sz)  ffui_send(sb, FFUI_STBAR_SETTEXT, (void*)sz)
-
-
-/** Exec and wait
-Return exit code or -1 on error */
-static inline int _ffui_ps_exec_wait(const char *filename, const char **argv, const char **env)
-{
-	ffps_execinfo info = {};
-	info.argv = argv;
-	info.env = env;
-	ffps ps = ffps_exec_info(filename, &info);
-	if (ps == FFPS_NULL)
-		return -1;
-
-	int code;
-	if (0 != ffps_wait(ps, -1, &code))
-		return -1;
-
-	return code;
-}
-
-/** Move files to Trash */
-static inline int ffui_glib_trash(const char **names, ffsize n)
-{
-	ffvec v = {};
-	if (NULL == ffvec_allocT(&v, 3 + n, char*))
-		return -1;
-	char **p = (char**)v.ptr;
-	*p++ = "/usr/bin/gio";
-	*p++ = "trash";
-	for (ffsize i = 0;  i != n;  i++) {
-		*p++ = (char*)names[i];
-	}
-	*p++ = NULL;
-	int r = _ffui_ps_exec_wait(((char**)v.ptr)[0], (const char**)v.ptr, (const char**)environ);
-	ffvec_free(&v);
-	return r;
-}

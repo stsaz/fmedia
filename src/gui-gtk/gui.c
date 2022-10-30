@@ -2,6 +2,7 @@
 Copyright (c) 2019 Simon Zolin */
 
 #include <gui-gtk/gui.h>
+#include <util/gui-gtk/unix-shell.h>
 #include <util/path.h>
 #include <FFOS/dir.h>
 #include <FFOS/process.h>
@@ -903,15 +904,18 @@ int file_del_rename(char *url)
 
 int file_del_trash(const char **names, ffsize n)
 {
-	int r;
-	if (0 != (r = ffui_glib_trash(names, n))) {
-		errlog("can't move files to trash (KDE): %s...: error code %d"
-			, names[0], r);
-		return -1;
+	ffsize err = 0;
+	const char *e;
+	for (ffsize i = 0;  i != n;  i++) {
+		if (0 != ffui_glib_trash(names[i], &e)) {
+			errlog("can't move file to trash: %s: %s"
+				, names[i], e);
+			err++;
+		}
 	}
 
-	dbglog("moved file to trash: %s...", names[0]);
-	return 0;
+	dbglog("moved %L files to trash", n - err);
+	return (err == 0) ? 0 : -1;
 }
 
 /** Delete all selected files. */
