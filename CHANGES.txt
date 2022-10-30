@@ -8,6 +8,17 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia/Android v0.5 - Oct 30, 2022
+
+ + Show artist & title info for the currently playing .mp3/.mp4/.m4a file
+   Non-Unicode codepage is win1252
+ + "File: Show Tags" menu command
+   Show all tags for the currently playing .mp3/.mp4/.m4a file
+ * Auto-save/auto-load large playlist faster by using native code
+ * Don't rewrite playlist on sdcard unless modified
+ * random: logically split playlist into 2 chunks for better UXP
+
+
 fmedia/Android v0.4 - Oct 16, 2022
 
  * Normalize all graphical elements

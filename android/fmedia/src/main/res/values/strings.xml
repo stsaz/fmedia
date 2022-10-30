@@ -24,5 +24,5 @@
 	<string name="mlist_show_track">List: Show Current Track</string>
 	<string name="mlist_show_expl">List: Show Current Track in Explorer</string>
 	<string name="menu_about">About...</string>
-	<string name="about">fmedia for Android v0.4 EXPERIMENTAL\n\nhttps://stsaz.github.io/fmedia</string>
+	<string name="about">fmedia for Android v0.5 EXPERIMENTAL\n\nhttps://stsaz.github.io/fmedia</string>
 </resources>
