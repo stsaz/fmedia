@@ -40,6 +40,7 @@ class Queue {
 	private boolean random;
 	private boolean active;
 	private Random rnd;
+	boolean random_split;
 	private Handler mloop;
 
 	Queue(Core core) {
@@ -114,6 +115,23 @@ class Queue {
 	}
 
 	/**
+	 * Get random index
+	 */
+	int next_random() {
+		int n = pl.plist.size();
+		if (n == 1)
+			return 0;
+		int i = rnd.nextInt();
+		i &= 0x7fffffff;
+		if (!random_split)
+			i %= n / 2;
+		else
+			i = n / 2 + (i % (n - (n / 2)));
+		random_split = !random_split;
+		return i;
+	}
+
+	/**
 	 * Play next track
 	 */
 	void next() {
@@ -121,12 +139,7 @@ class Queue {
 		if (random) {
 			if (pl.plist.size() == 0)
 				return;
-			i = rnd.nextInt(pl.plist.size());
-			if (i == pl.curpos) {
-				i = pl.curpos + 1;
-				if (i == pl.plist.size())
-					i = 0;
-			}
+			i = next_random();
 		} else if (repeat) {
 			if (i == pl.plist.size())
 				i = 0;
