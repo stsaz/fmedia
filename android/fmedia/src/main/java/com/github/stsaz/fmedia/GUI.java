@@ -1,3 +1,8 @@
+/**
+ * fmedia/Android
+ * 2022, Simon Zolin
+ */
+
 package com.github.stsaz.fmedia;
 
 import android.annotation.SuppressLint;

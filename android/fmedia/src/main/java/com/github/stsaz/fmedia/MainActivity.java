@@ -1,18 +1,19 @@
+/**
+ * fmedia/Android
+ * 2022, Simon Zolin
+ */
+
 package com.github.stsaz.fmedia;
 
 import android.Manifest;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
-import android.provider.Settings;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ImageButton;
 import android.widget.ListView;
@@ -27,13 +28,10 @@ import androidx.appcompat.widget.Toolbar;
 import androidx.appcompat.widget.SearchView;
 import androidx.core.app.ActivityCompat;
 
-import java.io.File;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Calendar;
-import java.util.Comparator;
 import java.util.Date;
 import java.util.GregorianCalendar;
 
@@ -241,7 +239,7 @@ public class MainActivity extends AppCompatActivity {
 				try {
 					InputStream is = getContentResolver().openInputStream(data.getData());
 					core.queue().clear();
-					core.queue().load_data(is.readAllBytes());
+					core.queue().load_data(core.istream_readall(is));
 					plist_show();
 				} catch (Exception e) {
 					core.errlog(TAG, "openInputStream(): %s", e);
@@ -439,7 +437,7 @@ public class MainActivity extends AppCompatActivity {
 	private void file_del(int pos, String fn) {
 		if (!core.setts.file_del) {
 			core.dir_make(core.setts.trash_dir);
-			String trash_fn = String.format("%s/%s", core.setts.trash_dir, Splitter.path_split2(fn)[1]);
+			String trash_fn = String.format("%s/%s", core.setts.trash_dir, Util.path_split2(fn)[1]);
 			if (core.file_exists(trash_fn)) {
 				core.errlog(TAG, "Can't delete file: %s already exists in Trash", trash_fn);
 				return;
@@ -529,7 +527,7 @@ public class MainActivity extends AppCompatActivity {
 		ArrayList<String> names = new ArrayList<>();
 		int i = 1;
 		for (String s : l) {
-			String[] path_name = Splitter.path_split2(s);
+			String[] path_name = Util.path_split2(s);
 			names.add(String.format("%d. %s", i++, path_name[1]));
 		}
 		ArrayAdapter<String> adapter = new ArrayAdapter<>(this, R.layout.list_row, names.toArray(new String[0]));
@@ -575,7 +573,7 @@ public class MainActivity extends AppCompatActivity {
 				String s = l[i];
 				if (!s.toLowerCase().contains(filter))
 					continue;
-				String[] path_name = Splitter.path_split2(s);
+				String[] path_name = Util.path_split2(s);
 				names.add(String.format("%d. %s", n++, path_name[1]));
 				fi.add(i);
 			}
@@ -585,7 +583,7 @@ public class MainActivity extends AppCompatActivity {
 				String s = l[i];
 				if (!s.toLowerCase().contains(filter))
 					continue;
-				String[] path_name = Splitter.path_split2(s);
+				String[] path_name = Util.path_split2(s);
 				names.add(String.format("%d. %s", n++, path_name[1]));
 				fi.add(i);
 			}

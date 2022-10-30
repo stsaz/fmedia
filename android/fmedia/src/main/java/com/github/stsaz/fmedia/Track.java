@@ -1,3 +1,8 @@
+/**
+ * fmedia/Android
+ * 2022, Simon Zolin
+ */
+
 package com.github.stsaz.fmedia;
 
 import android.media.MediaPlayer;
@@ -80,7 +85,7 @@ class MP {
 
 	private int on_open(final TrackHandle t) {
 		t.seek_msec = -1;
-		t.name = Splitter.path_split2(t.url)[1];
+		t.name = Util.path_split2(t.url)[1];
 		t.state = Track.STATE_OPENING;
 
 		mp.setOnPreparedListener((mp) -> on_start(t));

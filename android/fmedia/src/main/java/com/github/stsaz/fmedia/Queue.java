@@ -1,3 +1,8 @@
+/**
+ * fmedia/Android
+ * 2022, Simon Zolin
+ */
+
 package com.github.stsaz.fmedia;
 
 import android.annotation.SuppressLint;
@@ -220,8 +225,10 @@ class Queue {
 			sb.append(s);
 			sb.append('\n');
 		}
-		if (core.file_writeall(fn, sb.toString().getBytes(), Core.FILE_WRITE_SAFE))
+		if (core.file_writeall(fn, sb.toString().getBytes(), Core.FILE_WRITE_SAFE)) {
+			pl.modified = false;
 			core.dbglog(TAG, "saved %d items to %s", pl.plist.size(), fn);
+		}
 	}
 
 	void save_stream(OutputStream os) {
