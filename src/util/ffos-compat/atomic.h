@@ -7,7 +7,6 @@ Copyright (c) 2013 Simon Zolin
 #include "types.h"
 #include <ffbase/lock.h>
 #include <ffbase/atomic.h>
-#include <ffbase/cpuid.h>
 
 typedef struct { uint val; } ffatomic32;
 
