@@ -357,9 +357,11 @@ static entry* pl_prev(plist *pl, entry *e)
 /** Get random playlist index */
 static ffsize pl_random(plist *pl)
 {
+	ffsize n = pl->indexes.len;
+	if (n == 1)
+		return 0;
 	rnd_init();
 	ffsize i = ffrnd_get();
-	ffsize n = pl->indexes.len;
 	if (!qu->random_split)
 		i %= n / 2;
 	else

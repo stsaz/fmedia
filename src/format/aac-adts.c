@@ -73,7 +73,7 @@ static int aac_adts_process(void *ctx, fmed_filt *d)
 			d->audio.total = 0;
 			d->audio.decoder = "AAC";
 			d->datatype = "aac";
-			fmed_setval("audio_frame_samples", 1024);
+			d->a_frame_samples = 1024;
 
 			if (d->stream_copy) {
 				d->audio.convfmt = d->audio.fmt;

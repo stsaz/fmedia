@@ -6,11 +6,18 @@
 typedef struct mp3_in {
 	mp3read mpg;
 	ffstr in;
+	void *trk;
 	uint sample_rate;
 	uint nframe;
 	char codec_name[9];
 	uint have_id32tag :1;
 } mp3_in;
+
+static void mp3_log(void *udata, const char *fmt, va_list va)
+{
+	mp3_in *m = udata;
+	fmed_dbglogv(core, m->trk, NULL, fmt, va);
+}
 
 static void* mp3_open(fmed_track_info *d)
 {
@@ -22,12 +29,15 @@ static void* mp3_open(fmed_track_info *d)
 	}
 
 	mp3_in *m = ffmem_new(mp3_in);
+	m->trk = d->trk;
 	ffuint64 total_size = 0;
 	if ((int64)d->input.size != FMED_NULL) {
 		total_size = d->input.size;
 	}
 	mp3read_open(&m->mpg, total_size);
-	m->mpg.id3v2.codepage = core->getval("codepage");
+	m->mpg.log = mp3_log;
+	m->mpg.udata = m;
+	m->mpg.id3v2.codepage = core->props->codepage;
 	return m;
 }
 
@@ -111,7 +121,7 @@ static int mp3_process(void *ctx, fmed_track_info *d)
 			d->datatype = "mpeg";
 			d->mpeg1_delay = info->delay;
 			d->mpeg1_padding = info->padding;
-			fmed_setval("mpeg.vbr_scale", info->vbr_scale);
+			d->mpeg1_vbr_scale = info->vbr_scale + 1;
 
 			if (d->input_info)
 				return FMED_RDONE;

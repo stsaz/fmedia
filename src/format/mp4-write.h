@@ -104,14 +104,12 @@ static int mp4_out_encode(void *ctx, fmed_filt *d)
 			&& d->duration_accurate)
 			info.total_samples = ((d->audio.total - d->audio.pos) * d->audio.convfmt.sample_rate / d->audio.fmt.sample_rate);
 
-		if (FMED_NULL == (r = (int)fmed_getval("audio_frame_samples")))
+		if (d->a_frame_samples == 0)
 			return FMED_RERR;
-		info.frame_samples = r;
+		info.frame_samples = d->a_frame_samples;
 
-		if (FMED_NULL != (r = fmed_getval("audio_enc_delay")))
-			info.enc_delay = r;
-		if (FMED_NULL != (r = fmed_getval("audio_bitrate")))
-			info.bitrate = r;
+		info.enc_delay = d->a_enc_delay;
+		info.bitrate = d->a_enc_bitrate;
 
 		if (0 != (r = mp4write_create_aac(&m->mp, &info))) {
 			errlog(core, d->trk, NULL, "ffmp4_create_aac(): %s", mp4write_error(&m->mp));

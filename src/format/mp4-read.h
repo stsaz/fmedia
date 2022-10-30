@@ -170,8 +170,8 @@ static int mp4_in_decode(void *ctx, fmed_track_info *d)
 			case MP4_A_AAC:
 				filt = "aac.decode";
 				if (!d->stream_copy) {
-					fmed_setval("audio_enc_delay", ai->enc_delay);
-					fmed_setval("audio_end_padding", ai->end_padding);
+					d->a_enc_delay = ai->enc_delay;
+					d->a_end_padding = ai->end_padding;
 					d->audio.bitrate = (ai->aac_bitrate != 0) ? ai->aac_bitrate : ai->real_bitrate;
 				}
 				break;
@@ -187,7 +187,7 @@ static int mp4_in_decode(void *ctx, fmed_track_info *d)
 			}
 
 			if (ai->frame_samples != 0)
-				fmed_setval("audio_frame_samples", ai->frame_samples);
+				d->a_frame_samples = ai->frame_samples;
 
 			if (!d->stream_copy
 				&& 0 != d->track->cmd(d->trk, FMED_TRACK_ADDFILT, (void*)filt))

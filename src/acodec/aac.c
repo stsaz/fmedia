@@ -68,8 +68,10 @@ static void* aac_open(fmed_filt *d)
 	if (NULL == (a = ffmem_tcalloc1(aac_in)))
 		return NULL;
 
-	a->aac.enc_delay = fmed_popval_def(d, "audio_enc_delay", 0);
-	a->aac.end_padding = fmed_popval_def(d, "audio_end_padding", 0);
+	a->aac.enc_delay = d->a_enc_delay;
+	a->aac.end_padding = d->a_end_padding;
+	d->a_enc_delay = 0;
+	d->a_end_padding = 0;
 	a->aac.total_samples = d->audio.total;
 	a->aac.contr_samprate = d->audio.fmt.sample_rate;
 	if (0 != ffaac_open(&a->aac, d->audio.fmt.channels, d->data, d->datalen)) {

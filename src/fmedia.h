@@ -38,7 +38,7 @@ mixer                 mixer
 It must be updated when incompatible changes are made to this file,
  then all modules must be rebuilt.
 The core will refuse to load modules built for any other core version. */
-#define FMED_VER_CORE  ((FMED_VER_MAJOR << 8) | 28)
+#define FMED_VER_CORE  ((FMED_VER_MAJOR << 8) | 30)
 
 #define FMED_HOMEPAGE  "https://stsaz.github.io/fmedia/"
 
@@ -254,6 +254,7 @@ struct fmed_props {
 	ffpcm record_format;
 
 	char language[8];
+	uint codepage;
 };
 
 typedef ffconf_arg fmed_conf_arg;
@@ -555,6 +556,11 @@ struct fmed_track_info {
 	uint a_stop_level_time; //msec
 	uint a_stop_level_mintime; //msec
 	ushort a_in_buf_time; // buffer size for audio input (msec)  0:default
+	uint a_enc_delay;
+	uint a_end_padding;
+	uint a_frame_samples;
+	uint a_enc_bitrate; // bit/sec
+	const char *in_filename;
 	/** Output file name.
 	core free()s it automatically when track is destroyed.
 	fmed_track.copy_info() frees the current pointer and copies the data from source into a new region. */
@@ -638,6 +644,7 @@ struct fmed_track_info {
 
 	ushort mpeg1_delay;
 	ushort mpeg1_padding;
+	byte mpeg1_vbr_scale; // +1
 
 	// flac.read -> flac.dec:
 	uint flac_samples;

@@ -200,7 +200,7 @@ static inline int ffmpg_copy(ffmpgcopy *m, ffstr *input, ffstr *output)
 			input->len = 0;
 		}
 		r = mpeg1read_process(&m->rdr, &m->rinput, &m->data);
-		switch (r) {
+		switch ((enum MPEG1READ_R)r) {
 
 		case MPEG1READ_MORE:
 			if (input->len != 0)
@@ -211,10 +211,6 @@ static inline int ffmpg_copy(ffmpgcopy *m, ffstr *input, ffstr *output)
 			m->rinput.len = 0;
 			m->off = m->wdataoff + mpeg1read_offset(&m->rdr);
 			return FFMPG_RSEEK;
-
-		case MP3READ_DONE:
-			m->state = CPY_FTRTAGS_OUT;
-			continue;
 
 		case MPEG1READ_HEADER:
 			m->writer.vbr_scale = mpeg1read_info(&m->rdr)->vbr_scale;

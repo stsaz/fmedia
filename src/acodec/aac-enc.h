@@ -107,9 +107,9 @@ static int aac_out_encode(void *ctx, fmed_filt *d)
 			return FMED_RERR;
 		}
 
-		fmed_setval("audio_enc_delay", a->aac.info.enc_delay);
-		fmed_setval("audio_frame_samples", ffaac_enc_frame_samples(&a->aac));
-		fmed_setval("audio_bitrate", ffaac_bitrate(&a->aac, a->aac.info.quality));
+		d->a_enc_delay = a->aac.info.enc_delay;
+		d->a_frame_samples = ffaac_enc_frame_samples(&a->aac);
+		d->a_enc_bitrate = ffaac_bitrate(&a->aac, a->aac.info.quality);
 		ffstr asc = ffaac_enc_conf(&a->aac);
 		fmed_dbglog(core, d->trk, NULL, "using bitrate %ubps, bandwidth %uHz, asc %*xb"
 			, ffaac_bitrate(&a->aac, a->aac.info.quality), a->aac.info.bandwidth, asc.len, asc.ptr);

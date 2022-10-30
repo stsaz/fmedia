@@ -136,6 +136,7 @@ static int core_conf(const char *filename)
 	fmed->props.record_format = fmed->conf.inp_pcm;
 	fmed->props.record_format = fmed->conf.inp_pcm;
 	fmed->props.prevent_sleep = fmed->conf.prevent_sleep;
+	fmed->props.codepage = fmed->conf.codepage;
 
 	r = 0;
 end:

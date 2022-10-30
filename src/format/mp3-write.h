@@ -47,7 +47,7 @@ void* mpeg_out_open(fmed_filt *d)
 	mp3write_create(&m->mpgw);
 	if (d->stream_copy) {
 		m->mpgw.options |= MP3WRITE_XINGTAG;
-		m->mpgw.vbr_scale = fmed_getval("mpeg.vbr_scale");
+		m->mpgw.vbr_scale = (int)d->mpeg1_vbr_scale - 1;
 	}
 	m->mpgw.id3v2_min_size = mpeg_out_conf.min_meta_size;
 	return m;
