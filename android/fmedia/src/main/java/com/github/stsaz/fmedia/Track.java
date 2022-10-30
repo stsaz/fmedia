@@ -46,6 +46,7 @@ class TrackHandle {
 	boolean stopped; // stopped by user
 	boolean error; // processing error
 	String url;
+	String[] meta;
 	String name; // track name shown in GUI
 	int pos_msec; // current progress (msec)
 	int prev_pos_msec; // previous progress position (msec)
@@ -83,9 +84,29 @@ class MP {
 		});
 	}
 
+	private String meta_maininfo(TrackHandle t, String[] meta) {
+		String artist = "", title = "";
+
+		for (int i = 0; i < meta.length; i+=2) {
+			if (meta[i].equals("artist"))
+				artist = meta[i + 1];
+			else if (meta[i].equals("title"))
+				title = meta[i + 1];
+		}
+
+		if (artist.isEmpty()) {
+			if (title.isEmpty()) {
+				return Util.path_split2(t.url)[1];
+			}
+			return title;
+		}
+		return String.format("%s - %s", artist, title);
+	}
+
 	private int on_open(final TrackHandle t) {
 		t.seek_msec = -1;
-		t.name = Util.path_split2(t.url)[1];
+		t.meta = core.fmedia.meta(t.url);
+		t.name = meta_maininfo(t, t.meta);
 		t.state = Track.STATE_OPENING;
 
 		mp.setOnPreparedListener((mp) -> on_start(t));

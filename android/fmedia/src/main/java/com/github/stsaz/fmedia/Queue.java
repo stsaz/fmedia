@@ -233,12 +233,7 @@ class Queue {
 	 * Save playlist to a file on disk
 	 */
 	private void save(String fn) {
-		StringBuilder sb = new StringBuilder();
-		for (String s : pl.plist) {
-			sb.append(s);
-			sb.append('\n');
-		}
-		if (core.file_writeall(fn, sb.toString().getBytes(), Core.FILE_WRITE_SAFE)) {
+		if (core.fmedia.playlistSave(fn, this.list())) {
 			pl.modified = false;
 			core.dbglog(TAG, "saved %d items to %s", pl.plist.size(), fn);
 		}
@@ -265,11 +260,7 @@ class Queue {
 	 * Load playlist from a file on disk
 	 */
 	private void load(String fn) {
-		byte[] b = core.file_readall(fn);
-		if (b == null)
-			return;
-
-		load_data(b);
+		clear_addmany(core.fmedia.playlistLoad(fn));
 		core.dbglog(TAG, "loaded %d items from %s", pl.plist.size(), fn);
 	}
 

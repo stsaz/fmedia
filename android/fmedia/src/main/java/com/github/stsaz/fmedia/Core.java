@@ -55,6 +55,7 @@ class Core extends Util {
 	private Track track;
 	private SysJobs sysjobs;
 	private MP mp;
+	Fmedia fmedia;
 
 	String storage_path;
 	String[] storage_paths;
@@ -87,6 +88,7 @@ class Core extends Util {
 		storage_path = Environment.getExternalStorageDirectory().getPath();
 		storage_paths = system_storage_dirs(ctx);
 
+		fmedia = new Fmedia();
 		setts = new CoreSettings(this);
 		gui = new GUI(this);
 		track = new Track(this);
