@@ -5,9 +5,11 @@ Copyright (c) 2015 Simon Zolin */
 #include <util/gui-winapi/winapi-shell.h>
 #endif
 #include <fmedia.h>
+#include <util/gui-gtk/unix-shell.h>
 #include <util/array.h>
 #include <FFOS/error.h>
 
+#define tui_errlog(t, ...)  fmed_errlog(core, (t)->trk, "tui", __VA_ARGS__)
 
 struct tui;
 
@@ -433,44 +435,6 @@ static int tui_setvol(tui *t, uint vol)
 	return db;
 }
 
-#ifdef FF_LINUX
-/** Exec and wait
-Return exit code or -1 on error */
-static inline int _ffui_ps_exec_wait(const char *filename, const char **argv, const char **env)
-{
-	ffps_execinfo info = {};
-	info.argv = argv;
-	info.env = env;
-	ffps ps = ffps_exec_info(filename, &info);
-	if (ps == FFPS_NULL)
-		return -1;
-
-	int code;
-	if (0 != ffps_wait(ps, -1, &code))
-		return -1;
-
-	return code;
-}
-
-/** Move files to Trash */
-static inline int ffui_glib_trash(const char **names, ffsize n)
-{
-	ffvec v = {};
-	if (NULL == ffvec_allocT(&v, 3 + n, char*))
-		return -1;
-	char **p = (char**)v.ptr;
-	*p++ = "/usr/bin/gio";
-	*p++ = "trash";
-	for (ffsize i = 0;  i != n;  i++) {
-		*p++ = (char*)names[i];
-	}
-	*p++ = NULL;
-	int r = _ffui_ps_exec_wait(((char**)v.ptr)[0], (const char**)v.ptr, (const char**)environ);
-	ffvec_free(&v);
-	return r;
-}
-#endif
-
 static void tui_rmfile(tui *t, uint cmd)
 {
 	fmed_que_entry *qtrk = t->qent;
@@ -485,8 +449,9 @@ void file_del(tui *t)
 	const char *url = qtrk->url.ptr;
 	if (tui_conf.file_delete_method == 0) {
 #ifdef FF_LINUX
-		if (0 != ffui_glib_trash(&url, 1)) {
-			fmed_syserrlog(core, t->trk, "tui", "can't move file to trash: %s", url);
+		const char *e;
+		if (0 != ffui_glib_trash(url, &e)) {
+			tui_errlog(t, "can't move file to trash: %s: %s", url, e);
 			goto end;
 		}
 #elif defined FF_WIN
