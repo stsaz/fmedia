@@ -156,6 +156,10 @@ public class MainActivity extends AppCompatActivity {
 				file_del_cur();
 				return true;
 
+			case R.id.action_file_tags_show:
+				startActivity(new Intent(this, TagsActivity.class));
+				return true;
+
 			case R.id.action_list_add:
 				startActivity(new Intent(this, AddURLActivity.class));
 				return true;

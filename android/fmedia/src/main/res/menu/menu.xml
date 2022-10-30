@@ -7,6 +7,9 @@
 		android:id="@+id/action_file_del"
 		android:title="@string/mfile_del" />
 	<item
+		android:id="@+id/action_file_tags_show"
+		android:title="@string/mfile_tags_show" />
+	<item
 		android:id="@+id/action_list_save"
 		android:title="@string/mlist_save" />
 	<item

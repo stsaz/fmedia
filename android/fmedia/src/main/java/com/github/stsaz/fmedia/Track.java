@@ -249,6 +249,10 @@ class Track {
 		core.dbglog(TAG, "init");
 	}
 
+	String[] meta() {
+		return tplay.meta;
+	}
+
 	boolean supported_url(@NonNull String name) {
 		if (name.startsWith("http://") || name.startsWith("https://"))
 			return true;

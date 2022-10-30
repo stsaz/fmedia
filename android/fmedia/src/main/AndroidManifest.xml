@@ -37,6 +37,15 @@
 		</activity>
 
 		<activity
+			android:name=".TagsActivity"
+			android:label="File Tags"
+			android:parentActivityName=".MainActivity">
+			<meta-data
+				android:name="android.support.PARENT_ACTIVITY"
+				android:value="com.github.stsaz.fmedia.MainActivity" />
+		</activity>
+
+		<activity
 			android:name=".AddURLActivity"
 			android:label="Add to Playlist"
 			android:parentActivityName=".MainActivity">
