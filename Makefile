@@ -536,7 +536,6 @@ install-only:
 		$(PROJDIR)/LICENSE \
 		$(INSTDIR)/
 	$(CP) $(PROJDIR)/README.md $(INSTDIR)/README.txt
-	sed -i '1,5d' $(INSTDIR)/README.txt
 
 ifeq ($(OS),win)
 	$(CP) fmedia-gui.exe $(INSTDIR)/ || true

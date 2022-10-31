@@ -1,8 +1,3 @@
-My anti-war statement:
-
-I feel like I need to clearly define my position about the current Russia-Ukraine war.  The decision to start a military intrusion is taken **without any approval from citizens** of Russian Federation.  I firmly stand **against** any war, and I don't approve this particular war, but I can do nothing about it except writing these words.  Furthermore, I'm sure that the most Russians are also **against this war**, no matter what our propaganda may say.  And I hope the people around the Globe can understand this, because the worst mistake they can make is to hold the Russian people responsible for the situation - please don't let your local propaganda deceive your human reason.  I'm thankful to GitHub for their position on keeping the site open for people such as myself.  And here's my statement to the Government: I demand to immediately **stop** the military operations and **withdraw** all military forces from Ukraine's territory.
-
-
 ## OVERVIEW
 
 <img align="right" src="res/fmedia.png" width="128" height="128">
