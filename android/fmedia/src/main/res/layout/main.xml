@@ -26,6 +26,9 @@
 		android:id="@+id/lname"
 		android:layout_width="match_parent"
 		android:layout_height="wrap_content"
+		android:padding="5dp"
+		android:textColor="@color/track_header"
+		android:textSize="@dimen/text_label"
 		android:textStyle="bold"
 		app:layout_constraintStart_toStartOf="parent"
 		app:layout_constraintTop_toBottomOf="@id/appbar" />
@@ -36,7 +39,7 @@
 		android:layout_height="0dp"
 		android:longClickable="true"
 		app:layout_constraintBottom_toTopOf="@+id/tfilter"
-		app:layout_constraintStart_toStartOf="@id/lname"
+		app:layout_constraintStart_toStartOf="parent"
 		app:layout_constraintTop_toBottomOf="@+id/lname" />
 
 	<androidx.appcompat.widget.SearchView
@@ -52,8 +55,9 @@
 		android:id="@+id/bexplorer"
 		android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
-		android:textOff="Explorer"
-		android:textOn="Explorer"
+		android:layout_marginVertical="5dp"
+		android:textOff="@string/bexplorer"
+		android:textOn="@string/bexplorer"
 		app:layout_constraintBottom_toTopOf="@+id/seekbar"
 		app:layout_constraintStart_toStartOf="parent" />
 
@@ -61,9 +65,10 @@
 		android:id="@+id/bplaylist"
 		android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
+		android:layout_marginVertical="5dp"
 		android:checked="true"
-		android:textOff="Playlist"
-		android:textOn="Playlist"
+		android:textOff="@string/bplaylist"
+		android:textOn="@string/bplaylist"
 		app:layout_constraintBottom_toTopOf="@+id/seekbar"
 		app:layout_constraintStart_toEndOf="@+id/bexplorer" />
 
@@ -71,6 +76,7 @@
 		android:id="@+id/seekbar"
 		android:layout_width="match_parent"
 		android:layout_height="wrap_content"
+		android:layout_marginVertical="5dp"
 		android:max="100"
 		app:layout_constraintBottom_toTopOf="@+id/bnext"
 		app:layout_constraintStart_toStartOf="parent" />
@@ -80,6 +86,7 @@
 		android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
 		android:src="@drawable/ic_rec"
+		android:tint="@color/text"
 		app:layout_constraintBottom_toBottomOf="parent"
 		app:layout_constraintStart_toStartOf="parent" />
 
@@ -88,6 +95,7 @@
 		android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
 		android:src="@drawable/ic_play"
+		android:tint="@color/text"
 		app:layout_constraintBottom_toBottomOf="parent"
 		app:layout_constraintStart_toEndOf="@+id/brec" />
 
@@ -96,6 +104,7 @@
 		android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
 		android:src="@drawable/ic_prev"
+		android:tint="@color/text"
 		app:layout_constraintBottom_toBottomOf="parent"
 		app:layout_constraintStart_toEndOf="@+id/bplay" />
 
@@ -104,15 +113,18 @@
 		android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
 		android:src="@drawable/ic_next"
+		android:tint="@color/text"
 		app:layout_constraintBottom_toBottomOf="parent"
 		app:layout_constraintStart_toEndOf="@+id/bprev" />
 
 	<TextView
 		android:id="@+id/lpos"
 		android:layout_width="wrap_content"
-		android:layout_height="48dp"
+		android:layout_height="wrap_content"
+		android:textColor="@color/time_pos"
+		android:textSize="@dimen/text_label"
 		android:textStyle="bold"
-		app:layout_constraintEnd_toEndOf="parent"
-		app:layout_constraintTop_toBottomOf="@id/seekbar" />
+		app:layout_constraintBottom_toTopOf="@id/seekbar"
+		app:layout_constraintEnd_toEndOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

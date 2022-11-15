@@ -18,7 +18,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 
 class Explorer {
-	private static final String TAG = "Explorer";
+	private static final String TAG = "fmedia.Explorer";
 	private final Core core;
 	private final Queue queue;
 	private final GUI gui;

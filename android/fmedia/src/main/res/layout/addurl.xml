@@ -9,11 +9,11 @@
 	<EditText
 		android:id="@+id/t_url"
 		android:layout_width="match_parent"
-		android:layout_height="64dp"
+		android:layout_height="wrap_content"
 		android:autofillHints="URL"
 		android:hint="URL"
-		android:textColor="@color/colorList"
-		android:textSize="20sp"
+		android:textColor="@color/text"
+		android:textSize="@dimen/text_editbox"
 		app:layout_constraintStart_toStartOf="parent"
 		app:layout_constraintTop_toTopOf="parent" />
 

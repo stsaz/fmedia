@@ -8,6 +8,8 @@ package com.github.stsaz.fmedia;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.res.ColorStateList;
+import android.graphics.PorterDuff;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
@@ -24,6 +26,7 @@ import android.widget.ToggleButton;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatDelegate;
 import androidx.appcompat.widget.Toolbar;
 import androidx.appcompat.widget.SearchView;
 import androidx.core.app.ActivityCompat;
@@ -36,8 +39,9 @@ import java.util.Date;
 import java.util.GregorianCalendar;
 
 public class MainActivity extends AppCompatActivity {
-	private static final String TAG = "MainActivity";
+	private static final String TAG = "fmedia.MainActivity";
 	private static final int REQUEST_PERM_READ_STORAGE = 1;
+	private static final int REQUEST_PERM_RECORD = 2;
 	static final int REQUEST_STORAGE_ACCESS = 1;
 	private static final int REQUEST_SAVE_FILE = 2;
 	private static final int REQUEST_OPEN_FILE = 3;
@@ -70,18 +74,15 @@ public class MainActivity extends AppCompatActivity {
 	private ToggleButton bexplorer;
 	private ToggleButton bplist;
 	private SearchView tfilter;
+	private Toolbar toolbar;
 
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		setContentView(R.layout.main);
-
-		Toolbar toolbar = findViewById(R.id.toolbar);
-		setSupportActionBar(toolbar);
 
 		if (0 != init_mods())
 			return;
-		init_system();
 		init_ui();
+		init_system();
 
 		plist_show();
 		list.setSelection(gui.list_pos);
@@ -89,8 +90,8 @@ public class MainActivity extends AppCompatActivity {
 		if (gui.cur_path.isEmpty())
 			gui.cur_path = core.storage_path;
 
-		if (gui.rec_path.isEmpty())
-			gui.rec_path = core.storage_path + "/Recordings";
+		if (core.setts.rec_path.isEmpty())
+			core.setts.rec_path = core.storage_path + "/Recordings";
 	}
 
 	protected void onStart() {
@@ -133,9 +134,8 @@ public class MainActivity extends AppCompatActivity {
 	}
 
 	public boolean onCreateOptionsMenu(Menu menu) {
-		Toolbar tb = findViewById(R.id.toolbar);
-		tb.inflateMenu(R.menu.menu);
-		tb.setOnMenuItemClickListener((MenuItem item) -> {
+		toolbar.inflateMenu(R.menu.menu);
+		toolbar.setOnMenuItemClickListener((MenuItem item) -> {
 					return onOptionsItemSelected(item);
 				}
 		);
@@ -208,11 +208,6 @@ public class MainActivity extends AppCompatActivity {
 	public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
 		if (grantResults.length != 0)
 			core.dbglog(TAG, "onRequestPermissionsResult: %d: %d", requestCode, grantResults[0]);
-		/*switch (requestCode) {
-			case PERMREQ_READ_EXT_STORAGE:
-				if (grantResults.length != 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-				}
-		}*/
 	}
 
 	public void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -256,20 +251,27 @@ public class MainActivity extends AppCompatActivity {
 	 * Request system permissions
 	 */
 	private void init_system() {
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
-			String[] perms = new String[]{
-					Manifest.permission.READ_EXTERNAL_STORAGE,
-					Manifest.permission.WRITE_EXTERNAL_STORAGE,
-					Manifest.permission.RECORD_AUDIO
-			};
-			for (String perm : perms) {
-				if (ActivityCompat.checkSelfPermission(this, perm) != PackageManager.PERMISSION_GRANTED) {
-					core.dbglog(TAG, "ActivityCompat.requestPermissions");
-					ActivityCompat.requestPermissions(this, perms, REQUEST_PERM_READ_STORAGE);
-					break;
-				}
+		String[] perms = new String[]{
+				Manifest.permission.READ_EXTERNAL_STORAGE,
+				Manifest.permission.WRITE_EXTERNAL_STORAGE,
+		};
+		for (String perm : perms) {
+			if (ActivityCompat.checkSelfPermission(this, perm) != PackageManager.PERMISSION_GRANTED) {
+				core.dbglog(TAG, "ActivityCompat.requestPermissions: %s", perm);
+				ActivityCompat.requestPermissions(this, perms, REQUEST_PERM_READ_STORAGE);
+				break;
 			}
 		}
+	}
+
+	private boolean user_ask_record() {
+		String perm = Manifest.permission.RECORD_AUDIO;
+		if (ActivityCompat.checkSelfPermission(this, perm) != PackageManager.PERMISSION_GRANTED) {
+			core.dbglog(TAG, "ActivityCompat.requestPermissions: %s", perm);
+			ActivityCompat.requestPermissions(this, new String[]{perm}, REQUEST_PERM_RECORD);
+			return false;
+		}
+		return true;
 	}
 
 	/**
@@ -314,6 +316,11 @@ public class MainActivity extends AppCompatActivity {
 	 * Set UI objects and register event handlers
 	 */
 	private void init_ui() {
+		setContentView(R.layout.main);
+
+		toolbar = findViewById(R.id.toolbar);
+		setSupportActionBar(toolbar);
+
 		explorer = new Explorer(core, this);
 		brec = findViewById(R.id.brec);
 		brec.setOnClickListener((v) -> rec_click());
@@ -377,6 +384,11 @@ public class MainActivity extends AppCompatActivity {
 	}
 
 	private void show_ui() {
+		int mode = AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM;
+		if (core.gui().theme == GUI.THM_DARK)
+			mode = AppCompatDelegate.MODE_NIGHT_YES;
+		AppCompatDelegate.setDefaultNightMode(mode);
+
 		int v = View.VISIBLE;
 		if (gui.record_hide)
 			v = View.INVISIBLE;
@@ -387,8 +399,18 @@ public class MainActivity extends AppCompatActivity {
 			v = View.INVISIBLE;
 		tfilter.setVisibility(v);
 
-		if (trec != null)
-			brec.setImageResource(R.drawable.ic_rec_stop);
+		if (trec != null) {
+			rec_state_set(true);
+		}
+	}
+
+	private void rec_state_set(boolean active) {
+		int color = R.color.text;
+		if (active)
+			color = R.color.recording;
+		color = getResources().getColor(color);
+		brec.setImageTintMode(PorterDuff.Mode.SRC_IN);
+		brec.setImageTintList(ColorStateList.valueOf(color));
 	}
 
 	private void rec_click() {
@@ -397,7 +419,7 @@ public class MainActivity extends AppCompatActivity {
 		} else {
 			track.record_stop(trec);
 			trec = null;
-			brec.setImageResource(R.drawable.ic_rec);
+			rec_state_set(false);
 			core.gui().msg_show(this, "Finished recording");
 		}
 	}
@@ -648,24 +670,28 @@ public class MainActivity extends AppCompatActivity {
 	 * Start recording
 	 */
 	private void rec_start() {
-		core.dir_make(gui.rec_path);
+		if (!user_ask_record())
+			return;
+
+		core.dir_make(core.setts.rec_path);
 		Date d = new Date();
 		Calendar cal = new GregorianCalendar();
 		cal.setTime(d);
 		int dt[] = {
 				cal.get(Calendar.YEAR),
-				cal.get(Calendar.MONTH),
-				cal.get(Calendar.DAY_OF_MONTH) + 1,
+				cal.get(Calendar.MONTH) + 1,
+				cal.get(Calendar.DAY_OF_MONTH),
 				cal.get(Calendar.HOUR_OF_DAY),
 				cal.get(Calendar.MINUTE),
 				cal.get(Calendar.SECOND),
 		};
 		String fname = String.format("%s/rec_%04d%02d%02d_%02d%02d%02d.m4a"
-				, gui.rec_path, dt[0], dt[1], dt[2], dt[3], dt[4], dt[5]);
+				, core.setts.rec_path, dt[0], dt[1], dt[2], dt[3], dt[4], dt[5]);
 		trec = track.record(fname);
 		if (trec == null)
 			return;
-		brec.setImageResource(R.drawable.ic_rec_stop);
+		rec_state_set(true);
+		core.gui().msg_show(this, "Started recording");
 	}
 
 	/**

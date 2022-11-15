@@ -16,7 +16,7 @@ import android.support.v4.media.session.PlaybackStateCompat;
  * Bridge between UI and audio service.
  */
 class TrackCtl {
-	private final String TAG = "TrackCtl";
+	private static final String TAG = "fmedia.TrackCtl";
 	private Core core;
 	private Activity activity;
 

@@ -1,7 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="colorPrimary">#FFA613</color>
-    <color name="colorPrimaryDark">#98620C</color>
-    <color name="colorAccent">#FFA613</color>
-    <color name="colorList">#000000</color>
+    <color name="colorPrimary">#ffaa00</color>
+    <color name="colorPrimaryDark">#ffaa00</color>
+    <color name="colorAccent">#ffaa00</color>
+    <color name="list_text">#000000</color>
+    <color name="text">#000000</color>
+    <color name="recording">#ff4444</color>
+    <color name="sett_group">#805500</color>
+    <color name="track_header">#000000</color>
+    <color name="time_pos">#000000</color>
 </resources>

@@ -18,16 +18,18 @@ import java.io.InputStream;
 import java.util.ArrayList;
 
 abstract class Util {
-	private static final String TAG = "Util";
+	private static final String TAG = "fmedia.Util";
 
 	abstract void errlog(String mod, String fmt, Object... args);
 
-	int str_to_int(String s, int def) {
+	int str_to_uint(String s, int def) {
 		try {
-			return Integer.decode(s);
+			int i = Integer.decode(s);
+			if (i >= 0)
+				return i;
 		} catch (Exception e) {
-			return def;
 		}
+		return def;
 	}
 
 	boolean str_to_bool(String s) {

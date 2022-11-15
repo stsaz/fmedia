@@ -30,7 +30,7 @@ class PList {
 }
 
 class Queue {
-	private final String TAG = "Queue";
+	private static final String TAG = "fmedia.Queue";
 	private Core core;
 	private Track track;
 	private ArrayList<QueueNotify> nfy;
@@ -41,6 +41,7 @@ class Queue {
 	private boolean active;
 	private Random rnd;
 	boolean random_split;
+	int autoskip_msec;
 	private Handler mloop;
 
 	Queue(Core core) {
@@ -50,6 +51,8 @@ class Queue {
 			@Override
 			public int open(TrackHandle t) {
 				active = true;
+				if (autoskip_msec != 0)
+					t.seek_msec = autoskip_msec;
 				return 0;
 			}
 
@@ -268,11 +271,6 @@ class Queue {
 		clear_addmany(core.fmedia.playlistLoadData(data));
 	}
 
-	/*
-	curpos 0..N
-	random 0|1
-	repeat 0|1
-	*/
 	@SuppressLint("DefaultLocale")
 	String writeconf() {
 		StringBuilder s = new StringBuilder();
@@ -281,20 +279,25 @@ class Queue {
 
 		s.append(String.format("random %d\n", core.bool_to_int(random)));
 		s.append(String.format("repeat %d\n", core.bool_to_int(repeat)));
+		s.append(String.format("autoskip_msec %d\n", autoskip_msec));
 
 		return s.toString();
 	}
 
 	int readconf(String k, String v) {
 		if (k.equals("curpos")) {
-			pl.curpos = core.str_to_int(v, 0);
+			pl.curpos = core.str_to_uint(v, 0);
 			pl.curpos = Math.min(pl.curpos, pl.plist.size());
 			return 0;
 
 		} else if (k.equals("random")) {
-			int val = core.str_to_int(v, 0);
+			int val = core.str_to_uint(v, 0);
 			if (val == 1)
 				random(true);
+			return 0;
+
+		} else if (k.equals("autoskip_msec")) {
+			autoskip_msec = core.str_to_uint(v, 0);
 			return 0;
 		}
 		return 1;

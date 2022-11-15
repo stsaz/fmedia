@@ -40,6 +40,8 @@ public class TagsActivity extends AppCompatActivity  {
 
 	private void show() {
 		String[] meta = core.track().meta();
+		if (meta == null)
+			meta = new String[0];
 		ArrayList<String> tags = new ArrayList<>();
 		for (int i = 0; i < meta.length; i+=2) {
 			tags.add(String.format("%s : %s", meta[i], meta[i+1]));

@@ -8,6 +8,46 @@
 		android:focusableInTouchMode="true"
 		android:orientation="vertical">
 
+		<TextView
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:text="@string/sett_interface"
+			android:textColor="@color/sett_group" />
+
+		<androidx.appcompat.widget.SwitchCompat
+			android:id="@+id/bdark"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_margin="10dp"
+			android:text="@string/sett_dark" />
+
+		<androidx.appcompat.widget.SwitchCompat
+			android:id="@+id/bshowfilter"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_margin="10dp"
+			android:text="@string/sett_show_filter" />
+
+		<androidx.appcompat.widget.SwitchCompat
+			android:id="@+id/bshowrec"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_margin="10dp"
+			android:text="@string/sett_show_record" />
+
+		<androidx.appcompat.widget.SwitchCompat
+			android:id="@+id/bsvc_notif_disable"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_margin="10dp"
+			android:text="@string/sett_svc_notif_disable" />
+
+		<TextView
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:text="@string/sett_playback"
+			android:textColor="@color/sett_group" />
+
 		<androidx.appcompat.widget.SwitchCompat
 			android:id="@+id/brandom"
 			android:layout_width="match_parent"
@@ -23,24 +63,43 @@
 			android:text="@string/sett_repeat_all" />
 
 		<androidx.appcompat.widget.SwitchCompat
-			android:id="@+id/bsvc_notif_disable"
+			android:id="@+id/bnotags"
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
 			android:layout_margin="10dp"
-			android:text="@string/sett_svc_notif_disable" />
-
-		<androidx.appcompat.widget.SwitchCompat
-			android:id="@+id/bshowfilter"
-			android:layout_width="match_parent"
-			android:layout_height="wrap_content"
-			android:layout_margin="10dp"
-			android:text="@string/sett_show_filter" />
+			android:text="@string/sett_no_tags" />
 
 		<TextView
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
 			android:layout_marginHorizontal="10dp"
-			android:text="@string/sett_trash_dir" />
+			android:layout_marginTop="10dp"
+			android:text="@string/sett_autoskip"
+			android:textColor="@color/text" />
+
+		<EditText
+			android:id="@+id/tautoskip"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginHorizontal="10dp"
+			android:autofillHints=""
+			android:hint=""
+			android:inputType="text"
+			android:textSize="@dimen/text_editbox" />
+
+		<TextView
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:text="@string/sett_operation"
+			android:textColor="@color/sett_group" />
+
+		<TextView
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginHorizontal="10dp"
+			android:layout_marginTop="10dp"
+			android:text="@string/sett_trash_dir"
+			android:textColor="@color/text" />
 
 		<EditText
 			android:id="@+id/ttrash_dir"
@@ -49,7 +108,8 @@
 			android:layout_marginHorizontal="10dp"
 			android:autofillHints=""
 			android:hint=""
-			android:inputType="text" />
+			android:inputType="text"
+			android:textSize="@dimen/text_editbox" />
 
 		<androidx.appcompat.widget.SwitchCompat
 			android:id="@+id/bfile_del"
@@ -61,21 +121,17 @@
 		<TextView
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
-			android:text="@string/sett_recording" />
-
-		<androidx.appcompat.widget.SwitchCompat
-			android:id="@+id/bshowrec"
-			android:layout_width="match_parent"
-			android:layout_height="wrap_content"
-			android:layout_margin="10dp"
-			android:text="@string/sett_show_record" />
+			android:text="@string/sett_recording"
+			android:textColor="@color/sett_group" />
 
 		<TextView
 			android:id="@+id/trecdir_text"
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
 			android:layout_marginHorizontal="10dp"
-			android:text="@string/sett_rec_dir" />
+			android:layout_marginTop="10dp"
+			android:text="@string/sett_rec_dir"
+			android:textColor="@color/text" />
 
 		<EditText
 			android:id="@+id/trecdir"
@@ -84,14 +140,16 @@
 			android:layout_marginHorizontal="10dp"
 			android:autofillHints=""
 			android:hint=""
-			android:inputType="text" />
+			android:inputType="text"
+			android:textSize="@dimen/text_editbox" />
 
 		<TextView
 			android:id="@+id/tbitrate_text"
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
 			android:layout_marginHorizontal="10dp"
-			android:text="@string/sett_bitrate" />
+			android:text="@string/sett_bitrate"
+			android:textColor="@color/text" />
 
 		<EditText
 			android:id="@+id/tbitrate"
@@ -100,7 +158,8 @@
 			android:layout_marginHorizontal="10dp"
 			android:autofillHints=""
 			android:hint=""
-			android:inputType="text" />
+			android:inputType="text"
+			android:textSize="@dimen/text_editbox" />
 
 	</LinearLayout>
 </ScrollView>

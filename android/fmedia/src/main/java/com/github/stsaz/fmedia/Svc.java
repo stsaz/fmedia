@@ -30,7 +30,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Svc extends MediaBrowserServiceCompat {
-	private static final String TAG = "Svc";
+	private static final String TAG = "fmedia.Svc";
 	private Core core;
 	private Track track;
 	private Queue queue;

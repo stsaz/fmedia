@@ -56,7 +56,7 @@ class TrackHandle {
 }
 
 class MP {
-	private static final String TAG = "MP";
+	private static final String TAG = "fmedia.MP";
 	private MediaPlayer mp;
 	private Timer tmr;
 	private Handler mloop;
@@ -86,7 +86,6 @@ class MP {
 	}
 
 	private int on_open(TrackHandle t) {
-		t.seek_msec = -1;
 		t.state = Track.STATE_OPENING;
 
 		mp.setOnPreparedListener((mp) -> on_start(t));
@@ -98,11 +97,11 @@ class MP {
 		});
 		try {
 			mp.setDataSource(t.url);
+			mp.prepareAsync(); // -> on_start()
 		} catch (Exception e) {
 			core.errlog(TAG, "mp.setDataSource: %s", e);
 			return -1;
 		}
-		mp.prepareAsync(); // -> on_start()
 		return 0;
 	}
 
@@ -141,7 +140,7 @@ class MP {
 	/**
 	 * Called by MediaPlayer when it's ready to start
 	 */
-	private void on_start(final TrackHandle t) {
+	private void on_start(TrackHandle t) {
 		core.dbglog(TAG, "prepared");
 
 		tmr = new Timer();
@@ -153,6 +152,14 @@ class MP {
 
 		t.state = Track.STATE_PLAYING;
 		t.time_total_msec = mp.getDuration();
+
+		if (t.seek_msec > 0) {
+			t.seek_msec = Math.min(t.seek_msec, t.time_total_msec / 2);
+			core.dbglog(TAG, "initial seek: %d", t.seek_msec);
+			mp.seekTo(t.seek_msec);
+			t.seek_msec = -1;
+		}
+
 		mp.start(); // ->on_complete(), ->on_error()
 	}
 
@@ -180,7 +187,7 @@ class MP {
 		// -> on_complete()
 	}
 
-	private void on_timer(final TrackHandle t) {
+	private void on_timer(TrackHandle t) {
 		mloop.post(() -> update(t));
 	}
 
@@ -188,7 +195,8 @@ class MP {
 		if (t.state != Track.STATE_PLAYING)
 			return;
 		t.pos_msec = mp.getCurrentPosition();
-		if (t.prev_pos_msec / 1000 != t.pos_msec / 1000) {
+		if (t.prev_pos_msec < 0
+				|| t.pos_msec / 1000 != t.prev_pos_msec / 1000) {
 			t.prev_pos_msec = t.pos_msec;
 			track.update(t);
 		}
@@ -199,7 +207,7 @@ class MP {
  * Chain: Queue -> MP -> SysJobs -> Svc
  */
 class Track {
-	private static final String TAG = "Track";
+	private static final String TAG = "fmedia.Track";
 	private Core core;
 	private ArrayList<Filter> filters;
 	private SimpleArrayMap<String, Boolean> supp_exts;
@@ -292,6 +300,8 @@ class Track {
 			return;
 
 		tplay.url = url;
+		tplay.seek_msec = -1;
+		tplay.prev_pos_msec = -1;
 		tplay.time_total_msec = 0;
 		tplay.meta = new String[0];
 		tplay.artist = "";
@@ -323,7 +333,7 @@ class Track {
 			trec.mr.setAudioSource(MediaRecorder.AudioSource.MIC);
 			trec.mr.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
 			trec.mr.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
-			trec.mr.setAudioEncodingBitRate(core.gui().enc_bitrate * 1000);
+			trec.mr.setAudioEncodingBitRate(core.setts.enc_bitrate * 1000);
 			trec.mr.setOutputFile(out);
 			trec.mr.prepare();
 			trec.mr.start();

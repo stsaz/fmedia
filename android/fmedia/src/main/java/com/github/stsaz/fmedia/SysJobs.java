@@ -17,7 +17,7 @@ import android.os.Build;
 import android.os.Handler;
 
 class SysJobs extends Filter {
-	private final String TAG = "SysJobs";
+	private static final String TAG = "fmedia.SysJobs";
 	private Core core;
 	private Track track;
 

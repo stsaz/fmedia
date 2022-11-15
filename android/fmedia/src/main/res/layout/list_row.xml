@@ -3,4 +3,6 @@
 	android:id="@+id/list_text"
 	android:layout_width="match_parent"
 	android:layout_height="wrap_content"
-	android:textColor="@color/colorList" />
+	android:padding="5dp"
+	android:textColor="@color/list_text"
+	android:textSize="@dimen/text_list" />

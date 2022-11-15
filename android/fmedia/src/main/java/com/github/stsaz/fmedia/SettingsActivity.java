@@ -13,10 +13,11 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.SwitchCompat;
 
 public class SettingsActivity extends AppCompatActivity {
-	private static final String TAG = "SettingsActivity";
+	private static final String TAG = "fmedia.SettingsActivity";
 	private Core core;
 	private SwitchCompat brandom, brepeat, bfilter_hide, brec_hide, bsvc_notif_disable, bfile_del;
-	private TextView trecdir, tbitrate, ttrash_dir;
+	private SwitchCompat bnotags, bdark;
+	private TextView trecdir, tbitrate, ttrash_dir, tautoskip;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -45,11 +46,9 @@ public class SettingsActivity extends AppCompatActivity {
 	}
 
 	private void load() {
-		brandom = findViewById(R.id.brandom);
-		brandom.setChecked(core.queue().is_random());
-
-		brepeat = findViewById(R.id.brepeat);
-		brepeat.setChecked(core.queue().is_repeat());
+		// Interface
+		bdark = findViewById(R.id.bdark);
+		bdark.setChecked(core.gui().theme == GUI.THM_DARK);
 
 		bfilter_hide = findViewById(R.id.bshowfilter);
 		bfilter_hide.setChecked(core.gui().filter_hide);
@@ -60,28 +59,52 @@ public class SettingsActivity extends AppCompatActivity {
 		bsvc_notif_disable = findViewById(R.id.bsvc_notif_disable);
 		bsvc_notif_disable.setChecked(core.setts.svc_notification_disable);
 
-		trecdir = findViewById(R.id.trecdir);
-		trecdir.setText(core.gui().rec_path);
+		// Playback
+		brandom = findViewById(R.id.brandom);
+		brandom.setChecked(core.queue().is_random());
 
-		tbitrate = findViewById(R.id.tbitrate);
-		tbitrate.setText(Integer.toString(core.gui().enc_bitrate));
+		brepeat = findViewById(R.id.brepeat);
+		brepeat.setChecked(core.queue().is_repeat());
 
+		bnotags = findViewById(R.id.bnotags);
+		bnotags.setChecked(core.setts.no_tags);
+
+		tautoskip = findViewById(R.id.tautoskip);
+		tautoskip.setText(Integer.toString(core.queue().autoskip_msec / 1000));
+
+		// Operation
 		ttrash_dir = findViewById(R.id.ttrash_dir);
 		ttrash_dir.setText(core.setts.trash_dir);
 
 		bfile_del = findViewById(R.id.bfile_del);
 		bfile_del.setChecked(core.setts.file_del);
+
+		// Recording
+		trecdir = findViewById(R.id.trecdir);
+		trecdir.setText(core.setts.rec_path);
+
+		tbitrate = findViewById(R.id.tbitrate);
+		tbitrate.setText(Integer.toString(core.setts.enc_bitrate));
 	}
 
 	private void save() {
 		core.queue().random(brandom.isChecked());
 		core.queue().repeat(brepeat.isChecked());
+		core.setts.no_tags = bnotags.isChecked();
+		core.queue().autoskip_msec = core.str_to_uint(tautoskip.getText().toString(), 0) * 1000;
+
 		core.setts.svc_notification_disable = bsvc_notif_disable.isChecked();
 		core.setts.trash_dir = ttrash_dir.getText().toString();
 		core.setts.file_del = bfile_del.isChecked();
+
+		int i = GUI.THM_DEF;
+		if (bdark.isChecked())
+			i = GUI.THM_DARK;
+		core.gui().theme = i;
+
 		core.gui().filter_hide = bfilter_hide.isChecked();
 		core.gui().record_hide = brec_hide.isChecked();
-		core.gui().rec_path = trecdir.getText().toString();
-		core.gui().enc_bitrate = core.str_to_int(tbitrate.getText().toString(), core.gui().enc_bitrate);
+		core.setts.rec_path = trecdir.getText().toString();
+		core.setts.enc_bitrate = core.str_to_uint(tbitrate.getText().toString(), core.setts.enc_bitrate);
 	}
 }

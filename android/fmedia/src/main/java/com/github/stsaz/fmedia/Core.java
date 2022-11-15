@@ -16,6 +16,8 @@ class CoreSettings {
 	private Core core;
 	boolean svc_notification_disable;
 	String trash_dir;
+	String rec_path = ""; // directory for recordings
+	int enc_bitrate = 192; // encoder bitrate
 	boolean file_del;
 	boolean no_tags;
 
@@ -29,18 +31,24 @@ class CoreSettings {
 		return String.format("svc_notification_disable %d\n", core.bool_to_int(svc_notification_disable)) +
 				String.format("file_delete %d\n", core.bool_to_int(file_del)) +
 				String.format("no_tags %d\n", core.bool_to_int(no_tags)) +
+				String.format("rec_path %s\n", rec_path) +
+				String.format("enc_bitrate %d\n", enc_bitrate) +
 				String.format("trash_dir %s\n", trash_dir);
 	}
 
 	int readconf(String k, String v) {
 		if (k.equals("svc_notification_disable"))
 			svc_notification_disable = core.str_to_bool(v);
+		else if (k.equals("rec_path"))
+			rec_path = v;
 		else if (k.equals("file_delete"))
 			file_del = core.str_to_bool(v);
 		else if (k.equals("trash_dir"))
 			trash_dir = v;
 		else if (k.equals("no_tags"))
 			no_tags = core.str_to_bool(v);
+		else if (k.equals("enc_bitrate"))
+			enc_bitrate = core.str_to_uint(v, enc_bitrate);
 		else
 			return 1;
 		return 0;
@@ -51,7 +59,7 @@ class Core extends Util {
 	private static Core instance;
 	private int refcount;
 
-	private static final String TAG = "Core";
+	private static final String TAG = "fmedia.Core";
 	private final String CONF_FN = "fmedia-user.conf";
 
 	private GUI gui;
@@ -115,6 +123,7 @@ class Core extends Util {
 		dbglog(TAG, "close(): %d", refcount);
 		if (--refcount != 0)
 			return;
+		fmedia.destroy();
 		instance = null;
 		qu.close();
 		sysjobs.uninit();

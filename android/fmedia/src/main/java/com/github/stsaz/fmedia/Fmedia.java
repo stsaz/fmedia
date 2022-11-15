@@ -13,6 +13,7 @@ class Fmedia {
 		init();
 	}
 	private native void init();
+	public native void destroy();
 
 	long length_msec;
 	String artist, title;
