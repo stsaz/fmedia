@@ -113,7 +113,7 @@ static int flac_in_read(void *ctx, fmed_filt *d)
 			d->audio.bitrate = i->bitrate;
 
 			if (d->input_info)
-				return FMED_RDONE;
+				return FMED_RLASTOUT;
 
 			d->flac_minblock = i->minblock;
 			d->flac_maxblock = i->maxblock;

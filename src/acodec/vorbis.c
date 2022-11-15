@@ -108,7 +108,7 @@ static int vorbis_in_decode(void *ctx, fmed_filt *d)
 
 	case R_DATA1:
 		if (d->input_info)
-			return FMED_RDONE;
+			return FMED_RLASTOUT;
 
 		if ((int64)d->audio.total != FMED_NULL && d->audio.total != 0)
 			v->vorbis.total_samples = d->audio.total;

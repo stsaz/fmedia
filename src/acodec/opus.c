@@ -124,7 +124,7 @@ again:
 		}
 
 		if (d->input_info)
-			return FMED_RDONE;
+			return FMED_RLASTOUT;
 
 		o->state = R_DATA;
 		// break

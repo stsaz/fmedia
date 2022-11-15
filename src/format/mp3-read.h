@@ -124,7 +124,7 @@ static int mp3_process(void *ctx, fmed_track_info *d)
 			d->mpeg1_vbr_scale = info->vbr_scale + 1;
 
 			if (d->input_info)
-				return FMED_RDONE;
+				return FMED_RLASTOUT;
 
 			if (!d->stream_copy
 				&& 0 != d->track->cmd(d->trk, FMED_TRACK_ADDFILT, "mpeg.decode"))

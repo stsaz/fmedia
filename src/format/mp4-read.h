@@ -200,7 +200,7 @@ static int mp4_in_decode(void *ctx, fmed_track_info *d)
 			m->state = I_DATA1;
 
 			if (d->input_info)
-				return FMED_RDONE;
+				return FMED_RLASTOUT;
 			continue;
 		}
 

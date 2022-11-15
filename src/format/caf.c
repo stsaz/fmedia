@@ -139,7 +139,7 @@ static int caf_process(void *ctx, fmed_filt *d)
 			d->audio.bitrate = ai->bitrate;
 
 			if (d->input_info)
-				return FMED_RDONE;
+				return FMED_RLASTOUT;
 
 			d->data_out = ai->codec_conf;
 			c->state = I_DATA;

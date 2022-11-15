@@ -97,7 +97,7 @@ static int flacogg_in_read(void *ctx, fmed_filt *d)
 
 		case FLACOGGREAD_HEADER_FIN: {
 			if (d->input_info)
-				return FMED_RDONE;
+				return FMED_RLASTOUT;
 
 			const struct flac_info *info = flacoggread_info(&f->fo);
 			if (info->minblock != info->maxblock) {
