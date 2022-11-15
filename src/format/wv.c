@@ -22,6 +22,7 @@ static void* wv_in_create(fmed_filt *d)
 	if ((int64)d->input.size != FMED_NULL)
 		fs = d->input.size;
 	wvread_open(&w->wv, fs);
+	w->wv.id3v1.codepage = core->props->codepage;
 	return w;
 }
 

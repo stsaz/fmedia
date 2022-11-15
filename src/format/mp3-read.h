@@ -37,6 +37,7 @@ static void* mp3_open(fmed_track_info *d)
 	mp3read_open(&m->mpg, total_size);
 	m->mpg.log = mp3_log;
 	m->mpg.udata = m;
+	m->mpg.id3v1.codepage = core->props->codepage;
 	m->mpg.id3v2.codepage = core->props->codepage;
 	return m;
 }

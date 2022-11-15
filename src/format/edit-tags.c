@@ -232,6 +232,7 @@ int mp3_id3v1(struct edittags *c)
 	}
 
 	struct id3v1read rd = {};
+	rd.codepage = core->props->codepage;
 	ffstr id31_data = *(ffstr*)&c->buf;
 	r = id3v1read_process(&rd, id31_data, &v2);
 	if (r != ID3V1READ_NO)

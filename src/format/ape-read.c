@@ -21,6 +21,7 @@ static void* ape_in_create(fmed_filt *d)
 	if ((int64)d->input.size != FMED_NULL)
 		fs = d->input.size;
 	aperead_open(&a->ape, fs);
+	a->ape.id3v1.codepage = core->props->codepage;
 	return a;
 }
 
