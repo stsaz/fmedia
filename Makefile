@@ -9,7 +9,6 @@
 PROJ := fmedia
 VER :=
 OS :=
-OPT := LTO3
 
 # repositories
 ROOT := ..
@@ -26,7 +25,7 @@ LINKFLAGS := $(LDFLAGS)
 
 
 # OS-specific options
-ifeq ($(OS),win)
+ifeq "$(OS)" "windows"
 BIN := fmedia.exe
 INSTDIR := fmedia
 CFLAGS_OS += -DFF_WIN_APIVER=0x0600
@@ -36,14 +35,11 @@ BIN := fmedia
 INSTDIR := fmedia-1
 endif
 
-ALIB3 := $(PROJDIR)/alib3/_$(OSFULL)-$(ARCH)
+ALIB3 := $(PROJDIR)/alib3/_$(OS)-$(ARCH)
 
 # CFLAGS_STD += -fsanitize=address
 # LINKFLAGS += -fsanitize=address -ldl
-ifeq ($(OPT),0)
-	CFLAGS_OPT += -DFF_DEBUG
-endif
-FFAUDIO_CFLAGS := $(CFLAGS_STD) $(CFLAGS_DEBUG) $(CFLAGS_OPT) $(CFLAGS_OS) $(CFLAGS_CPU) -I$(FFBASE) -I$(FFAUDIO)
+FFAUDIO_CFLAGS := $(CFLAGS_STD) $(CFLAGS_OPT) $(CFLAGS_OS) $(CFLAGS_CPU) -I$(FFBASE) -I$(FFAUDIO)
 CFLAGS_STD += -DFFBASE_HAVE_FFERR_STR -DFFBASE_MEM_ASSERT
 
 
@@ -59,15 +55,12 @@ CFLAGS_APP := \
 	-Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -Wno-implicit-fallthrough \
 	-Wno-stringop-overflow \
 	-I$(SRCDIR) -I$(PROJDIR)/alib3 -I$(FFBASE) -I$(FFAUDIO) -I$(AVPACK) -I$(FFOS)
-CFLAGS := $(CFLAGS_STD) $(CFLAGS_DEBUG) $(CFLAGS_OPT) $(CFLAGS_OS) $(CFLAGS_CPU) $(CFLAGS_APP)
-ifneq ($(OPT),0)
-	CFLAGS_OPT := -O3
-endif
+CFLAGS := $(CFLAGS_STD) $(CFLAGS_OPT) $(CFLAGS_OS) $(CFLAGS_CPU) $(CFLAGS_APP)
 LINKFLAGS += -Wno-stringop-overflow $(LD_LPTHREAD) -L$(ALIB3)
 ifeq ($(OS),linux)
 	LINKFLAGS += -L/usr/lib64/pipewire-0.3/jack
 endif
-ifeq ($(OS),bsd)
+ifeq "$(OS)" "freebsd"
 	LINKFLAGS += -lexecinfo
 endif
 
@@ -93,10 +86,10 @@ OS_BINS += alsa.$(SO) pulse.$(SO) jack.$(SO) gui.$(SO) dbus.$(SO)
 else ifeq ($(OS),apple)
 OS_BINS += coreaudio.$(SO)
 
-else ifeq ($(OS),bsd)
+else ifeq "$(OS)" "freebsd"
 OS_BINS += oss.$(SO)
 
-else ifeq ($(OS),win)
+else ifeq "$(OS)" "windows"
 #windows:
 
 OS_BINS += direct-sound.$(SO) wasapi.$(SO) \
@@ -112,12 +105,12 @@ build: $(BINS)
 
 FF_O := $(OBJ_DIR)/ffos.o \
 	$(OBJ_DIR)/ffstring.o
-ifeq "$(OSFULL)" "windows"
+ifeq "$(OS)" "windows"
 	FF_O +=	$(OBJ_DIR)/ffwin.o
 	FFOS_SKT := $(OBJ_DIR)/ffwin-skt.o
-else ifeq "$(OSFULL)" "macos"
+else ifeq "$(OS)" "macos"
 	FF_O +=	$(OBJ_DIR)/ffunix.o $(OBJ_DIR)/ffapple.o
-else ifeq "$(OSFULL)" "bsd"
+else ifeq "$(OS)" "freebsd"
 	FF_O +=	$(OBJ_DIR)/ffunix.o $(OBJ_DIR)/ffbsd.o
 else
 	FF_O +=	$(OBJ_DIR)/ffunix.o $(OBJ_DIR)/fflinux.o
@@ -162,7 +155,7 @@ BIN_O := \
 	$(FFOS_WREG) \
 	$(OBJ_DIR)/ffpcm.o
 
-ifeq ($(OS),win)
+ifeq "$(OS)" "windows"
 BIN_O += $(RES)
 endif
 
@@ -182,7 +175,7 @@ CORE_O := $(OBJ_DIR)/core.o $(OBJ_DIR)/core-conf.o \
 	$(OBJ_DIR)/globcmd.o \
 	$(OBJ_DIR)/ffpcm.o
 
-ifeq ($(OS),win)
+ifeq "$(OS)" "windows"
 	CORE_O += $(OBJ_DIR)/sys-sleep-win.o
 endif
 
@@ -191,7 +184,7 @@ CORE_O += $(FF_O) \
 	$(OBJ_DIR)/fffileread.o \
 	$(OBJ_DIR)/fffilewrite.o \
 	$(OBJ_DIR)/ffthpool.o
-ifeq ($(OS),win)
+ifeq "$(OS)" "windows"
 CORE_O += $(OBJ_DIR)/ffwohandler.o
 endif
 core.$(SO): $(CORE_O)
@@ -434,7 +427,7 @@ oss.$(SO): $(OSS_O)
 	$(LINK) -shared $(OSS_O) $(LINKFLAGS) $(LD_LMATH) -o $@
 
 
-ifeq ($(OS),win)
+ifeq "$(OS)" "windows"
 #
 FF_GUIHDR := $(wildcard $(SRCDIR)/util/gui-winapi/*.h)
 $(OBJ_DIR)/gui.o: $(SRCDIR)/gui-winapi/gui.c \
@@ -535,7 +528,7 @@ install-only:
 		$(INSTDIR)/
 	$(CP) $(PROJDIR)/README.md $(INSTDIR)/README.txt
 
-ifeq ($(OS),win)
+ifeq "$(OS)" "windows"
 	$(CP) fmedia-gui.exe $(INSTDIR)/ || true
 	$(CP) \
 		$(PROJDIR)/src/gui-winapi/fmedia.gui \
@@ -607,7 +600,7 @@ install-nodeps: build-nodeps
 		$(INSTDIR)/
 	$(CP) $(PROJDIR)/README.md $(INSTDIR)/README.txt
 
-ifneq ($(OS),win)
+ifneq "$(OS)" "windows"
 	chmod 644 $(INSTDIR)/*
 	chmod 755 $(INSTDIR)/fmedia
 

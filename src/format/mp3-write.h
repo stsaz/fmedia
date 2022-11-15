@@ -63,8 +63,7 @@ void mpeg_out_close(void *ctx)
 int mpeg_out_addmeta(mpeg_out *m, fmed_filt *d)
 {
 	ssize_t r;
-	fmed_trk_meta meta;
-	ffmem_zero_obj(&meta);
+	fmed_trk_meta meta = {};
 	meta.flags = FMED_QUE_UNIQ;
 
 	while (0 == d->track->cmd2(d->trk, FMED_TRACK_META_ENUM, &meta)) {

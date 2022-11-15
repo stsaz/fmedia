@@ -3,32 +3,29 @@
 
 # set initial values for:
 # . CPU: IA-32/AMD64
-# . OS: linux/bsd/macos/windows
+# . OS: linux/freebsd/apple/windows
 # . compiler: gcc/clang
 # . packaging: tar.xz/zip
 
 
 # set OS
 ifndef OS
-uname := $(shell uname)
-ifeq ($(uname),Linux)
-OS := linux
-else ifeq ($(uname),FreeBSD)
-OS := bsd
-else ifeq ($(uname),Darwin)
-OS := apple
-endif
-endif
-
-
-OSFULL := $(OS)
-ifeq "$(OSFULL)" "win"
-	OSFULL := windows
+	uname := $(shell uname)
+	ifeq "$(uname)" "Linux"
+		OS := linux
+	else ifeq "$(uname)" "FreeBSD"
+		OS := freebsd
+	else ifeq "$(uname)" "Darwin"
+		OS := apple
+	endif
+else ifeq "$(OS)" "Windows_NT"
+	# OS=Windows_NT is default env var on Windows
+	OS := windows
 endif
 
 
 # set OS-specific values
-ifeq ($(OS),win)
+ifeq "$(OS)" "windows"
 SO := dll
 CP := cp -u -v -p
 PACK := zip -9 -r -v
@@ -40,7 +37,7 @@ CP := cp -u -v -p
 PACK := tar --owner=0 --group=0 --numeric-owner -cJv -f
 PACK_EXT := tar.xz
 
-else ifeq ($(OS),bsd)
+else ifeq "$(OS)" "freebsd"
 SO := so
 CP := cp -v
 PACK := tar -cJv -f
@@ -55,7 +52,7 @@ PACK_EXT := zip
 endif #OS
 
 CPREFIX :=
-ifeq ($(OS),win)
+ifeq "$(OS)" "windows"
 	CPREFIX := x86_64-w64-mingw32-
 endif
 C := $(CPREFIX)gcc
@@ -68,49 +65,22 @@ LDFLAGS_STD := -pipe
 AR := $(CPREFIX)ar
 OBJCOPY := $(CPREFIX)objcopy
 STRIP := $(CPREFIX)strip
-OPT ?= LTO
-DEBUG ?= 1
 
 # set debug options
-ifeq ($(DEBUG),1)
-CFLAGS_DEBUG := -g
-LDFLAGS_DEBUG := -g
-else
-CFLAGS_DEBUG :=
-LDFLAGS_DEBUG := -s
-endif
+CFLAGS_STD += -g
+LDFLAGS_STD += -g
 
 # set optimization options
-ifeq ($(OPT),0)
-	CFLAGS_OPT := -D_DEBUG
-
-else ifeq ($(OPT),SECTIONS)
-	CFLAGS_OPT := -O2
-	ifneq ($(OS),win)
-		CFLAGS_OPT += -ffunction-sections -fdata-sections
-		LDFLAGS_OPT := -Wl,-gc-sections
-	endif
-
-else ifeq ($(OPT),3)
-	CFLAGS_OPT := -O3
-	ifneq ($(OS),win)
-		CFLAGS_OPT += -ffunction-sections -fdata-sections
-		LDFLAGS_OPT := -Wl,-gc-sections
-	endif
-
-else ifeq ($(OPT),LTO)
-	CFLAGS_OPT := -O2 -flto
-	LDFLAGS_OPT := -O2 -flto
-
-else ifeq ($(OPT),LTO3)
-	CFLAGS_OPT := -O3 -flto
-	LDFLAGS_OPT := -O3 -flto
-
-endif #OPT
+CFLAGS_OPT := -O3 -flto
+LDFLAGS_OPT := -O3 -flto
+ifeq "$(DEBUG)" "1"
+	CFLAGS_OPT := -DFF_DEBUG -D_DEBUG
+	LDFLAGS_OPT :=
+endif
 
 
 # set OS-specific values
-ifeq ($(OS),win)
+ifeq "$(OS)" "windows"
 LD_LWS2_32 := -lws2_32 -liphlpapi
 WINDRES := $(CPREFIX)windres
 
@@ -126,7 +96,7 @@ LD_LDL := -ldl
 LDFLAGS_OS := -Wl,-no-undefined
 LD_RPATH_ORIGIN := '-Wl,-rpath,$$ORIGIN' -Wl,--disable-new-dtags
 
-else ifeq ($(OS),bsd)
+else ifeq "$(OS)" "freebsd"
 C := clang
 LD := $(C)
 CXX := clang++
@@ -158,7 +128,7 @@ ARCH_OS := $(ARCH)
 CPU := $(ARCH)
 
 # Windows: architecture name is "x86" or "x64"
-ifeq ($(OS),win)
+ifeq "$(OS)" "windows"
 ARCH_OS := x64
 ifeq ($(ARCH),i686)
 ARCH_OS := x86
@@ -168,8 +138,8 @@ endif #OS
 
 # CPU-specific options
 ifeq ($(CPU),amd64)
-CFLAGS_CPU := -m64 -march=x86-64
-LDFLAGS_CPU := -m64 -march=x86-64
+CFLAGS_CPU := -march=x86-64
+LDFLAGS_CPU := -march=x86-64
 
 else ifeq ($(CPU),i686)
 CFLAGS_CPU := -m32 -march=i686
@@ -183,8 +153,8 @@ ifeq ($(CNAME),gcc)
 LDFLAGS_COMP := -static-libgcc
 endif
 
-CFLAGS := $(CFLAGS_STD) $(CFLAGS_DEBUG) $(CFLAGS_OPT) $(CFLAGS_OS) $(CFLAGS_CPU)
-LDFLAGS := $(LDFLAGS_STD) $(LDFLAGS_OPT) $(LDFLAGS_DEBUG) $(LDFLAGS_OS) $(LDFLAGS_CPU) $(LDFLAGS_COMP)
+CFLAGS := $(CFLAGS_STD) $(CFLAGS_OPT) $(CFLAGS_OS) $(CFLAGS_CPU)
+LDFLAGS := $(LDFLAGS_STD) $(LDFLAGS_OPT) $(LDFLAGS_OS) $(LDFLAGS_CPU) $(LDFLAGS_COMP)
 
 
 # rule for separate .debug files

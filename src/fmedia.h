@@ -38,7 +38,7 @@ mixer                 mixer
 It must be updated when incompatible changes are made to this file,
  then all modules must be rebuilt.
 The core will refuse to load modules built for any other core version. */
-#define FMED_VER_CORE  ((FMED_VER_MAJOR << 8) | 30)
+#define FMED_VER_CORE  ((FMED_VER_MAJOR << 8) | 31)
 
 #define FMED_HOMEPAGE  "https://stsaz.github.io/fmedia/"
 
@@ -133,6 +133,14 @@ enum FMED_CMD {
 	Return char* - file extension
 	 NULL: unknown */
 	FMED_DATA_FORMAT,
+
+	/** Get input filter name by file extension.
+	const char *fname = (char*)core->cmd(FMED_IFILTER_BYEXT, const char *ext) */
+	FMED_IFILTER_BYEXT,
+
+	/** Get filter interface by name.
+	const fmed_filter *fi = (fmed_filter*)core->cmd(FMED_FILTER_BYNAME, const char *name) */
+	FMED_FILTER_BYNAME,
 };
 
 enum FMED_WORKER_F {
@@ -166,7 +174,7 @@ enum FMED_GETMOD {
 	FMED_MOD_IFACE, /** Get module's interface (configured only). */
 
 	/** Get fmed_modinfo* by input/output file extension. */
-	FMED_MOD_INEXT,
+	FMED_MOD_INEXT, // obsolete
 	FMED_MOD_OUTEXT,
 
 	/** Get fmed_modinfo* of audio input/output module. */
@@ -487,7 +495,8 @@ struct fmed_trk_mon {
 typedef void (*fmed_handler)(void *udata);
 
 enum FMED_F {
-	FMED_FLAST = 1, // the last chunk of input data
+	FMED_FLAST = 1, // the last chunk of input data (obsolete)
+	FMED_FFIRST = 1, // filter is first in chain
 	FMED_FSTOP = 2, // track is being stopped
 	FMED_FFWD = 4,
 };
@@ -561,12 +570,33 @@ struct fmed_track_info {
 	uint a_frame_samples;
 	uint a_enc_bitrate; // bit/sec
 	const char *in_filename;
+	fftime in_mtime;
 	/** Output file name.
 	core free()s it automatically when track is destroyed.
 	fmed_track.copy_info() frees the current pointer and copies the data from source into a new region. */
 	char *out_filename;
 	/** net.in sets out_filename from this. */
 	const char *net_out_filename;
+
+	ffvec meta; // {char*, char*}[]
+
+	fftime mtime; // obsolete
+
+	ffslice include_files; //ffstr[]
+	ffslice exclude_files; //ffstr[]
+
+	ushort mpeg1_delay;
+	ushort mpeg1_padding;
+	byte mpeg1_vbr_scale; // +1
+
+	// flac.read -> flac.dec:
+	uint flac_samples;
+	uint flac_minblock, flac_maxblock;
+	const char *flac_vendor; // flac.enc -> flac.write
+
+	/** UI -> adev.out fast signal delivery (e.g. for fast reaction to seek command). */
+	const struct fmed_adev *adev;
+	void *adev_ctx;
 
 	// the region is initially filled with 0xff until '_bar_end'
 	byte _bar_start;
@@ -600,9 +630,6 @@ struct fmed_track_info {
 	} input, output;
 	byte _bar_end;
 
-	fftime mtime;
-	ffslice include_files; //ffstr[]
-	ffslice exclude_files; //ffstr[]
 	union {
 	uint bits;
 	struct {
@@ -641,19 +668,6 @@ struct fmed_track_info {
 		uint reserve :6;
 	};
 	};
-
-	ushort mpeg1_delay;
-	ushort mpeg1_padding;
-	byte mpeg1_vbr_scale; // +1
-
-	// flac.read -> flac.dec:
-	uint flac_samples;
-	uint flac_minblock, flac_maxblock;
-	const char *flac_vendor; // flac.enc -> flac.write
-
-	/** UI -> adev.out fast signal delivery (e.g. for fast reaction to seek command). */
-	const struct fmed_adev *adev;
-	void *adev_ctx;
 
 	union {
 		struct {

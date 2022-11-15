@@ -45,7 +45,7 @@ INPUT:
 -i, --info         Ne joue pas mais montre les infomations du média
 --tags             Imprime tous les meta tags
 --fseek=BYTE       Set input file offset                                                        (need translation)
--s, --seek=TIME    Cherche une référence temporelle : [[HH:]MM:]SS[:MSC]
+-s, --seek=TIME    Cherche une référence temporelle : [[HH:]MM:]SS[.MSC]
 -u, --until=TIME   Stoppe à l'instant T
                    Valeurs speciales :
                      'playback-end': arrête l'enregistrement quand la dernière piste est finie.

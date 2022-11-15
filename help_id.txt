@@ -47,7 +47,7 @@ INPUT:
 -i, --info              Tidak memutar file tapi menampilkan informasi media file tersebut
 --tags                  Menampilkan semua tag meta
 --fseek=BYTE            Pengaturan offset file masukan
--s, --seek=TIME         Pengaturan untuk melaju pada setingan TIME: [[HH:]MM:]SS[:MSC]
+-s, --seek=TIME         Pengaturan untuk melaju pada setingan TIME: [[HH:]MM:]SS[.MSC]
 -u, --until=TIME        Pengaturan untuk stop/berhenti tepat pada setingan TIME
                         Parameter khusus:
                          'playback-end': pengaturan untuk stop perekaman saat trek pemutaran terakhir selesai

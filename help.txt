@@ -50,7 +50,7 @@ INPUT (FILES):
 -i, --info         Don't play but show media information
 --tags             Print all meta tags
 --fseek=BYTE       Set input file offset
--s, --seek=TIME    Seek to time: [[HH:]MM:]SS[:MSC]
+-s, --seek=TIME    Seek to time: [[HH:]MM:]SS[.MSC]
 -u, --until=TIME   Stop at time
                    Special values:
                      'playback-end': stop recording when the last playback track is finished

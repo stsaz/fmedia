@@ -46,7 +46,7 @@ ENTRADA:
 -i, --info         Muestra información sin reproducir
 --tags             Imprime todos los meta tags
 --fseek=BYTE       Set input file offset
--s, --seek=TIME    Seek to time: [[HH:]MM:]SS[:MSC]
+-s, --seek=TIME    Seek to time: [[HH:]MM:]SS[.MSC]
 -u, --until=TIME   Stop at time
                    Valores especiales:
                      'playback-end': detiene la grabación cuando el último tema reproducido termina

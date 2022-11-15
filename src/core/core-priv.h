@@ -68,6 +68,7 @@ void conf_destroy(fmed_config *conf);
 #undef syserrlog
 #define infolog0(...)  fmed_infolog(core, NULL, "core", __VA_ARGS__)
 #define dbglog0(...)  fmed_dbglog(core, NULL, "core", __VA_ARGS__)
+#define dbglog1(trk, ...)  fmed_dbglog(core, trk, "core", __VA_ARGS__)
 #define errlog0(...)  fmed_errlog(core, NULL, "core", __VA_ARGS__)
 #define errlog1(trk, ...)  fmed_errlog(core, trk, NULL, __VA_ARGS__)
 #define syswarnlog(trk, ...)  fmed_syswarnlog(core, NULL, "core", __VA_ARGS__)

@@ -3,8 +3,6 @@
 
 #include <avpack/mp4-write.h>
 
-const fmed_queue *qu;
-
 typedef struct mp4_out {
 	uint state;
 	mp4write mp;
@@ -17,10 +15,6 @@ static int mp4_out_addmeta(mp4_out *m, fmed_filt *d);
 static void* mp4_out_create(fmed_filt *d)
 {
 	mp4_out *m = ffmem_new(mp4_out);
-	if (m == NULL)
-		return NULL;
-	if (qu == NULL)
-		qu = core->getmod("#queue.queue");
 	return m;
 }
 
@@ -33,16 +27,12 @@ static void mp4_out_free(void *ctx)
 
 static int mp4_out_addmeta(mp4_out *m, fmed_filt *d)
 {
-	uint i;
-	ffstr name, *val;
-	void *qent;
+	fmed_trk_meta meta = {};
+	meta.flags = FMED_QUE_UNIQ;
 
-	if (FMED_PNULL == (qent = (void*)fmed_getval("queue_item")))
-		return 0;
-
-	for (i = 0;  NULL != (val = qu->meta(qent, i, &name, FMED_QUE_UNIQ));  i++) {
-		if (val == FMED_QUE_SKIP
-			|| ffstr_eqcz(&name, "vendor"))
+	while (0 == d->track->cmd(d->trk, FMED_TRACK_META_ENUM, &meta)) {
+		ffstr name = meta.name;
+		if (ffstr_eqcz(&name, "vendor"))
 			continue;
 
 		int tag;
@@ -51,7 +41,7 @@ static int mp4_out_addmeta(mp4_out *m, fmed_filt *d)
 			continue;
 		}
 
-		if (0 != mp4write_addtag(&m->mp, tag, *val)) {
+		if (0 != mp4write_addtag(&m->mp, tag, meta.val)) {
 			warnlog(core, d->trk, "mp4", "can't add tag: %S", &name);
 		}
 	}

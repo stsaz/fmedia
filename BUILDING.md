@@ -98,11 +98,11 @@ You can build fmedia without dependencies on 3rd-party libraries.  This will be 
 4. Build with mingw (64-bit):
 
 		cd fmedia
-		mingw64-make OS=win CPREFIX=x86_64-w64-mingw32- install
+		mingw64-make OS=windows CPREFIX=x86_64-w64-mingw32- install
 
 	Build with mingw (32-bit):
 
 		cd fmedia
-		mingw32-make OS=win ARCH=i686 CPREFIX=i686-w64-mingw32- install
+		mingw32-make OS=windows ARCH=i686 CPREFIX=i686-w64-mingw32- install
 
 5. Ready!

@@ -286,6 +286,20 @@ static int core_filetype(const char *fn)
 	return core_filetype_ext(&ext);
 }
 
+static const char* ifilter_byext(const char *ext)
+{
+	const fmed_modinfo *mod;
+	ffstr s = FFSTR_INITZ(ext);
+	if (NULL == (mod = modbyext(&fmed->conf.in_ext_map, &s)))
+		goto err;
+	if (mod->m == NULL && 0 != mod_load_delayed((core_mod*)mod))
+		goto err;
+	return mod->name;
+err:
+	errlog0("module not found: %s", ext);
+	return NULL;
+}
+
 static const char* const sig_str[] = {
 	"FMED_SIG_INIT",
 	"FMED_CONF",
@@ -307,6 +321,8 @@ static const char* const sig_str[] = {
 	"FMED_TZOFFSET",
 	"FMED_FILETYPE_EXT",
 	"FMED_DATA_FORMAT",
+	"FMED_IFILTER_BYEXT",
+	"FMED_FILTER_BYNAME",
 };
 
 static ssize_t core_cmd(uint signo, ...)
@@ -438,6 +454,14 @@ static ssize_t core_cmd(uint signo, ...)
 			r = (ffssize)file_ext[r-1];
 		break;
 	}
+
+	case FMED_IFILTER_BYEXT:
+		r = (ffsize)ifilter_byext(va_arg(va, char*));
+		break;
+
+	case FMED_FILTER_BYNAME:
+		r = -1;
+		break;
 	}
 
 	va_end(va);
