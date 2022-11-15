@@ -28,7 +28,6 @@ class Explorer {
 	private boolean updir; // "UP" directory link is shown
 	private boolean uproot;
 	private int ndirs; // number of directories shown
-	private ArrayList<String> tmp_fns; // temporary array for recursive directory contents
 
 	Explorer(Core core, MainActivity main) {
 		this.core = core;
@@ -165,42 +164,6 @@ class Explorer {
 	}
 
 	/**
-	 * Recurively add directory contents to this.tmp_fns
-	 */
-	private void add_files_recursive(String dir) {
-		File fdir = new File(dir);
-		if (!fdir.isDirectory()) {
-			if (core.track().supported(dir))
-				tmp_fns.add(dir);
-			return;
-		}
-		File[] files = fdir.listFiles();
-		if (files == null)
-			return;
-
-		// sort file names (directories first)
-		Arrays.sort(files, (File f1, File f2) -> {
-			if (f1.isDirectory() == f2.isDirectory())
-				return f1.getName().compareToIgnoreCase(f2.getName());
-			if (f1.isDirectory())
-				return -1;
-			return 1;
-		});
-
-		for (File f : files) {
-			if (!f.isDirectory()) {
-				if (core.track().supported(f.getName()))
-					tmp_fns.add(f.getPath());
-			}
-		}
-
-		for (File f : files) {
-			if (f.isDirectory())
-				add_files_recursive(f.getPath());
-		}
-	}
-
-	/**
 	 * UI event on listview long click.
 	 * Add files to the playlist.  Recursively add directory contents.
 	 */
@@ -218,9 +181,8 @@ class Explorer {
 		if (pos >= ndirs)
 			return false; // long click on a file
 
-		tmp_fns = new ArrayList<>();
-		add_files_recursive(fns[pos]);
-		main.pl_set(tmp_fns.toArray(new String[0]), MainActivity.PL_ADD);
+		String[] list = core.fmedia.listDirRecursive(fns[pos]);
+		main.pl_set(list, MainActivity.PL_ADD);
 		return true;
 	}
 
