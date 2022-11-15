@@ -8,6 +8,20 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia/Android v0.6 - Nov 14, 2022
+
+ + Dark Theme
+ + Read tags from .ogg, .opus, .flac
+ + "Auto-Skip Audio" setting:
+   Automatically skip audio at the beginning of each new track
+ + Show additonal file meta info:
+   (format, size, length, date)
+ + "Codepage for Non-Unicode Tags" setting
+ + "Don't Read Tags" setting
+   (to neutralize meta info reading overhead in current implementation)
+ - "List: Load" didn't work
+
+
 fmedia/Android v0.5 - Oct 30, 2022
 
  + Show artist & title info for the currently playing .mp3/.mp4/.m4a file
