@@ -22,6 +22,7 @@ extern const fmed_filter mpc_input;
 extern const fmed_filter ogg_input;
 extern const fmed_filter ogg_output;
 extern const fmed_filter raw_input;
+extern const fmed_filter vorbismeta_input;
 extern const fmed_filter wav_input;
 extern const fmed_filter wav_output;
 extern const fmed_filter wv_input;
@@ -45,6 +46,7 @@ const void* mod_iface(const char *name)
 		"ogg",
 		"ogg-write",
 		"raw",
+		"vorbismeta",
 		"wav",
 		"wav-write",
 		"wv",
@@ -66,6 +68,7 @@ const void* mod_iface(const char *name)
 		/*"ogg"*/	&ogg_input,
 		/*"ogg-write"*/	&ogg_output,
 		/*"raw"*/	&raw_input,
+		/*"vorbismeta"*/	&vorbismeta_input,
 		/*"wav"*/	&wav_input,
 		/*"wav-write"*/	&wav_output,
 		/*"wv"*/	&wv_input,

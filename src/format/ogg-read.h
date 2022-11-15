@@ -66,21 +66,30 @@ static void ogg_close(void *ctx)
 
 static int add_decoder(struct ogg_in *o, fmed_track_info *d, ffstr data)
 {
-	const char *dec;
-	if (ffstr_matchz(&data, VORBIS_HEAD_STR))
-		dec = "vorbis.decode";
-	else if (ffstr_matchz(&data, OPUS_HEAD_STR))
+	const char *dec = NULL, *meta_filter_name = NULL;
+	if (ffstr_matchz(&data, VORBIS_HEAD_STR)) {
+		meta_filter_name = "fmt.vorbismeta";
+		if (!d->stream_copy && !d->input_info)
+			dec = "vorbis.decode";
+
+	} else if (ffstr_matchz(&data, OPUS_HEAD_STR)) {
 		dec = "opus.decode";
-	else if (ffstr_matchz(&data, FLAC_HEAD_STR)) {
+	} else if (ffstr_matchz(&data, FLAC_HEAD_STR)) {
 		dec = "flac.ogg-in";
 	} else {
 		errlog1(d->trk, "Unknown codec in OGG packet: %*xb"
 			, ffmin(data.len, 16), data.ptr);
 		return 1;
 	}
-	if (0 != d->track->cmd(d->trk, FMED_TRACK_ADDFILT, (void*)dec)) {
+
+	if (dec != NULL
+			&& NULL == (void*)d->track->cmd(d->trk, FMED_TRACK_FILT_ADD, dec))
 		return 1;
-	}
+
+	if (meta_filter_name != NULL
+			&& NULL == (void*)d->track->cmd(d->trk, FMED_TRACK_FILT_ADD, meta_filter_name))
+		return 1;
+
 	return 0;
 }
 

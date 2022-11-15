@@ -24,7 +24,6 @@ enum FFVORBIS_R {
 	FFVORBIS_RWARN = -2,
 	FFVORBIS_RERR = -1,
 	FFVORBIS_RHDR, //audio info is parsed
-	FFVORBIS_RTAG, //tag pair is returned
 	FFVORBIS_RHDRFIN, //header is finished
 	FFVORBIS_RDATA, //PCM data is returned
 	FFVORBIS_RMORE,
@@ -46,10 +45,6 @@ typedef struct ffvorbis {
 	uint64 cursample;
 	uint64 seek_sample;
 
-	vorbistagread vtag;
-	int tag;
-	ffstr pkt, tagname, tagval;
-
 	size_t pcmlen;
 	const float **pcm; //non-interleaved
 	const float* pcm_arr[8];
@@ -63,13 +58,6 @@ typedef struct ffvorbis {
 
 #define ffvorbis_rate(v)  ((v)->info.rate)
 #define ffvorbis_channels(v)  ((v)->info.channels)
-
-static inline int ffvorbis_tag(ffvorbis *v, ffstr *name, ffstr *val)
-{
-	*name = v->tagname;
-	*val = v->tagval;
-	return v->tag;
-}
 
 /** Get an absolute sample number. */
 #define ffvorbis_cursample(v)  ((v)->cursample - (v)->pkt_samples)
@@ -136,7 +124,6 @@ void* vorb_comm(const char *d, size_t len, size_t *vorbtag_len)
 		|| !(h->type == T_COMMENT && !ffs_cmp(h->vorbis, VORB_STR, FFSLEN(VORB_STR))))
 		return NULL;
 
-	*vorbtag_len = len - sizeof(struct vorbis_hdr);
 	return (char*)d + sizeof(struct vorbis_hdr);
 }
 
@@ -193,7 +180,7 @@ void ffvorbis_seek(ffvorbis *v, uint64 sample)
 Return enum FFVORBIS_R. */
 int ffvorbis_decode(ffvorbis *v, const char *pkt, size_t len)
 {
-	enum { R_HDR, R_TAGS, R_TAG, R_BOOK, R_DATA };
+	enum { R_HDR, R_TAGS, R_BOOK, R_DATA };
 	int r;
 
 	if (len == 0)
@@ -217,22 +204,10 @@ int ffvorbis_decode(ffvorbis *v, const char *pkt, size_t len)
 		return FFVORBIS_RHDR;
 
 	case R_TAGS:
-		if (NULL == (v->pkt.ptr = vorb_comm(pkt, len, &v->pkt.len)))
+		if (NULL == vorb_comm(pkt, len, NULL))
 			return ERR(v, FFVORBIS_ETAG);
-		v->state = R_TAG;
-		// break
-
-	case R_TAG:
-		r = vorbistagread_process(&v->vtag, &v->pkt, &v->tagname, &v->tagval);
-		if (r == VORBISTAGREAD_DONE) {
-			v->state = R_BOOK;
-			return FFVORBIS_RHDRFIN;
-
-		} else if (r == VORBISTAGREAD_ERROR) {
-			return ERR(v, FFVORBIS_ETAG);
-		}
-		v->tag = r;
-		return FFVORBIS_RTAG;
+		v->state = R_BOOK;
+		return FFVORBIS_RHDRFIN;
 
 	case R_BOOK:
 		if (0 != (r = vorbis_decode_init(&v->vctx, &opkt)))
