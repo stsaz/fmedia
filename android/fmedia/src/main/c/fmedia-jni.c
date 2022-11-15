@@ -2,58 +2,73 @@
 2022, Simon Zolin */
 
 #include <fmedia.h>
-const fmed_core *core;
-#include "core.h"
+
+#define syserrlog1(trk, ...)  fmed_syserrlog(core, trk, NULL, __VA_ARGS__)
+#define errlog1(trk, ...)  fmed_errlog(core, trk, NULL, __VA_ARGS__)
+#define warnlog1(trk, ...)  fmed_warnlog(core, trk, NULL, __VA_ARGS__)
+#define dbglog1(trk, ...)  fmed_dbglog(core, trk, NULL, __VA_ARGS__)
+#define dbglog0(...)  fmed_dbglog(core, NULL, NULL, __VA_ARGS__)
+
 #include "log.h"
-#include "file-input.h"
-#include "track.h"
+#include "ctl.h"
 #include "jni-helper.h"
-#include <util/path.h>
 #include <util/fntree.h>
 
 typedef struct fmedia_ctx fmedia_ctx;
 struct fmedia_ctx {
-	int dummy;
+	const fmed_track *track;
 };
 static struct fmedia_ctx *fx;
+
+extern const fmed_core *core;
+fmed_core* core_init();
+extern void core_destroy();
 
 JNIEXPORT void JNICALL
 Java_com_github_stsaz_fmedia_Fmedia_init(JNIEnv *env, jobject thiz)
 {
+	FF_ASSERT(fx == NULL);
 	fx = ffmem_new(fmedia_ctx);
-	core_init();
-	_core.loglev = FMED_LOG_INFO;
-	// _core.loglev = FMED_LOG_DEBUG;
-	_core.log = adrd_log;
-	_core.logv = adrd_logv;
-	// ffmap_free(fx);
+	fmed_core *core = core_init();
+	core->loglev = FMED_LOG_INFO;
+#ifdef FF_DEBUG
+	core->loglev = FMED_LOG_DEBUG;
+#endif
+	core->log = adrd_log;
+	core->logv = adrd_logv;
+	fx->track = core->getmod("core.track");
+}
+
+JNIEXPORT void JNICALL
+Java_com_github_stsaz_fmedia_Fmedia_destroy(JNIEnv *env, jobject thiz)
+{
+	core_destroy();
+	ffmem_free(fx);
+	fx = NULL;
 }
 
 JNIEXPORT jobjectArray JNICALL
 Java_com_github_stsaz_fmedia_Fmedia_meta(JNIEnv *env, jobject thiz, jstring jfilepath)
 {
-	struct track_ctx *t = trk_create();
+	dbglog0("%s: enter", __func__);
+	fmed_track_obj *t = fx->track->create(0, NULL);
+	fmed_track_info *ti = fx->track->conf(t);
 
-	const char *fn = jni_sz_str(jfilepath);
-	ffstr ext;
-	ffpath_split3(fn, ffsz_len(fn), NULL, NULL, &ext);
-	const fmed_filter *f = core_filter(ext);
-	if (f == NULL)
-		goto end;
+	const char *fn = jni_sz_js(jfilepath);
+	ti->in_filename = fn;
+	ti->input_info = 1;
 
-	t->ti.in_filename = fn;
-	t->ti.input_info = 1;
-	t->filters[0].iface = &file_input;
-	t->filters[0].first = 1;
-	t->filters[1].iface = f;
+	fx->track->cmd(t, FMED_TRACK_FILT_ADD, "core.file");
+	fx->track->cmd(t, FMED_TRACK_FILT_ADD, "fmt.detector");
+	fx->track->cmd(t, FMED_TRACK_FILT_ADD, "ctl");
 
-	trk_process(t);
+	fx->track->cmd(t, FMED_TRACK_START);
 
-end:
 	{
-	jobjectArray jas = jni_astr_asz(env, t->meta.ptr, t->meta.len);
+	jobjectArray jas = jni_jsa_sza(env, ti->meta.ptr, ti->meta.len);
 	jni_sz_free(fn, jfilepath);
-	trk_free(t);
+	fx->track->cmd(t, FMED_TRACK_STOP);
+	dbglog0("%s: exit", __func__);
 	return jas;
 	}
 }

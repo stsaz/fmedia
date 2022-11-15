@@ -8,7 +8,7 @@ struct fi {
 	ffvec buf;
 };
 
-void fi_close(void *ctx)
+static void fi_close(void *ctx)
 {
 	struct fi *f = ctx;
 	ffvec_free(&f->buf);
@@ -16,7 +16,7 @@ void fi_close(void *ctx)
 	ffmem_free(f);
 }
 
-void* fi_open(fmed_track_info *ti)
+static void* fi_open(fmed_track_info *ti)
 {
 	struct fi *f = ffmem_new(struct fi);
 	ffvec_alloc(&f->buf, 64*1024, 1);
@@ -42,7 +42,7 @@ end:
 	return NULL;
 }
 
-int fi_process(void *ctx, fmed_track_info *ti)
+static int fi_process(void *ctx, fmed_track_info *ti)
 {
 	struct fi *f = ctx;
 

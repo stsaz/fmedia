@@ -31,8 +31,3 @@ static void adrd_log(uint flags, fmed_track_obj *trk, const char *module, const 
 	adrd_logv(flags, trk, module, fmt, args);
 	va_end(args);
 }
-
-#define syserrlog1(trk, ...)  fmed_syserrlog(core, trk, NULL, __VA_ARGS__)
-#define errlog1(trk, ...)  fmed_errlog(core, trk, NULL, __VA_ARGS__)
-#define warnlog1(trk, ...)  fmed_warnlog(core, trk, NULL, __VA_ARGS__)
-#define dbglog1(trk, ...)  fmed_dbglog(core, trk, NULL, __VA_ARGS__)

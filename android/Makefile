@@ -33,6 +33,9 @@ lib:
 	cd fmedia && $(NDK_DIR)/ndk-build APP_ABI=armeabi-v7a NDK_DEBUG=1 $(NDK_FLAGS)
 	ls -l fmedia/libs/arm64-v8a/libfmedia.so fmedia/libs/armeabi-v7a/libfmedia.so
 
+lib-amd64:
+	cd fmedia && $(NDK_DIR)/ndk-build APP_ABI=x86_64 $(NDK_FLAGS)
+
 sign:
 	$(SDK_DIR)/build-tools/$(SDK_API)/zipalign -v -f 4 $(APK) $(APK_SIGNED)
 	$(SDK_DIR)/build-tools/$(SDK_API)/apksigner sign --ks $(KEY_STORE) --ks-pass pass:$(KEY_PASS) $(APK_SIGNED)

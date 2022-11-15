@@ -3,12 +3,10 @@
 
 #include <ffbase/map.h>
 
-static fmed_core _core;
+#define errlog0(...)  fmed_errlog(core, NULL, "core", __VA_ARGS__)
+#define dbglog0(...)  fmed_dbglog(core, NULL, "core", __VA_ARGS__)
 
-struct filter_pair {
-	char *ext;
-	const fmed_filter *iface;
-};
+static fmed_core _core;
 
 struct core_ctx {
 	fmed_props props;
@@ -16,49 +14,58 @@ struct core_ctx {
 };
 static struct core_ctx *cx;
 
-static int ext_filter_keyeq(void *opaque, const void *key, ffsize keylen, void *val)
-{
-	const struct filter_pair *fp = val;
-	ffstr s = FFSTR_INITN(key, keylen);
-	return ffstr_ieqz(&s, fp->ext);
-}
+#include "mods.h"
 
-extern const fmed_filter mp3_input;
-extern const fmed_filter mp4_input;
-
-static void init_filters()
+fmed_core* core_init()
 {
-	ffmap_init(&cx->ext_filter, ext_filter_keyeq);
-	static const struct filter_pair filters[] = {
-		{ "m4a", &mp4_input },
-		{ "mp3", &mp3_input },
-		{ "mp4", &mp4_input },
-	};
-	for (uint i = 0;  i != FF_COUNT(filters);  i++) {
-		ffmap_add(&cx->ext_filter, filters[i].ext, ffsz_len(filters[i].ext), (void*)&filters[i]);
-	}
-}
-
-int core_init()
-{
+	FF_ASSERT(cx == NULL);
 	cx = ffmem_new(struct core_ctx);
 	cx->props.codepage = FFUNICODE_WIN1252;
 	_core.props = &cx->props;
 	core = &_core;
-	init_filters();
-
-	// ffmap_free(&cx->ext_filter);
-	// ffmem_free(cx);
-	return 0;
+	mods_init();
+	return &_core;
 }
 
-const fmed_filter* core_filter(ffstr ext)
+void core_destroy()
 {
-	const struct filter_pair *f = ffmap_find(&cx->ext_filter, ext.ptr, ext.len, NULL);
-	if (f == NULL)
-		return NULL;
-	return f->iface;
+	if (cx == NULL) return;
+
+	ffmap_free(&cx->ext_filter);
+	ffmem_free(cx);
+	cx = NULL;
+}
+
+static ffssize core_cmd(uint cmd, ...)
+{
+	dbglog0("%s: %u", __func__, cmd);
+
+	ffssize r = -1;
+	va_list va;
+	va_start(va, cmd);
+
+	switch (cmd) {
+
+	case FMED_IFILTER_BYEXT: {
+		const char *sz = va_arg(va, char*);
+		ffstr ext = FFSTR_INITZ(sz);
+		r = (ffssize)mods_filter_byext(ext);
+		break;
+	}
+
+	case FMED_FILTER_BYNAME:
+		r = (ffssize)mods_filter_byname(va_arg(va, char*));
+		break;
+
+	default:
+		errlog0("%s: bad command %u", __func__, cmd);
+	}
+
+	va_end(va);
+	return r;
 }
 
 static fmed_core _core = {
+	.getmod = mods_find,
+	.cmd = core_cmd,
 };
