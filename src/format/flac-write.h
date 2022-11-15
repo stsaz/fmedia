@@ -25,7 +25,6 @@ static const fmed_conf_arg flac_out_conf_args[] = {
 	{}
 };
 
-
 int flac_out_config(fmed_conf_ctx *conf)
 {
 	flac_out_conf.sktab_int = 1;
@@ -95,33 +94,30 @@ static void pic_meta(struct flac_picinfo *info, const ffstr *data, void *trk)
 
 static int flac_out_addmeta(flac_out *f, fmed_filt *d)
 {
-	ffstr name, *val;
-
 	ffstr vendor = {};
 	if (d->flac_vendor != NULL)
 		ffstr_setz(&vendor, d->flac_vendor);
 	if (0 != flacwrite_addtag(&f->fl, MMTAG_VENDOR, vendor)) {
-		syserrlog(d->trk, "can't add tag: %S", &name);
+		syserrlog(d->trk, "can't add tag: vendor");
 		return -1;
 	}
 
-	void *qent;
-	if (FMED_PNULL == (qent = (void*)fmed_getval("queue_item")))
-		return 0;
+	fmed_trk_meta meta = {};
+	meta.flags = FMED_QUE_UNIQ;
 
-	for (uint i = 0;  NULL != (val = qu->meta(qent, i, &name, FMED_QUE_UNIQ));  i++) {
-		if (val == FMED_QUE_SKIP
-			|| ffstr_eqcz(&name, "vendor"))
+	while (0 == d->track->cmd(d->trk, FMED_TRACK_META_ENUM, &meta)) {
+		ffstr name = meta.name;
+		if (ffstr_eqcz(&name, "vendor"))
 			continue;
 
 		if (ffstr_eqcz(&name, "picture")) {
 			struct flac_picinfo info = {};
-			pic_meta(&info, val, d->trk);
-			flacwrite_pic(&f->fl, &info, val);
+			pic_meta(&info, &meta.val, d->trk);
+			flacwrite_pic(&f->fl, &info, &meta.val);
 			continue;
 		}
 
-		if (0 != flacwrite_addtag_name(&f->fl, name, *val)) {
+		if (0 != flacwrite_addtag_name(&f->fl, name, meta.val)) {
 			syserrlog(d->trk, "can't add tag: %S", &name);
 			return -1;
 		}
@@ -239,6 +235,6 @@ data:
 	return FMED_ROK;
 }
 
-const fmed_filter fmed_flac_output = {
+const fmed_filter flac_output = {
 	flac_out_create, flac_out_encode, flac_out_free
 };

@@ -17,7 +17,6 @@ Copyright (c) 2018 Simon Zolin */
 
 
 extern const fmed_core *core;
-extern const fmed_queue *qu;
 
 #include <format/flac-write.h>
 
@@ -168,6 +167,6 @@ data:
 	return FMED_RDATA;
 }
 
-const fmed_filter fmed_flac_input = {
+const fmed_filter flac_input = {
 	flac_in_create, flac_in_read, flac_in_free
 };

@@ -12,6 +12,9 @@ extern const fmed_filter aac_adts_output;
 extern const fmed_filter ape_input;
 extern const fmed_filter avi_input;
 extern const fmed_filter caf_input;
+extern const fmed_filter flac_input;
+extern const fmed_filter flac_output;
+extern const fmed_filter flacogg_input;
 extern const fmed_filter mkv_input;
 extern const fmed_filter mp3_copy;
 extern const fmed_filter mp3_input;
@@ -37,6 +40,9 @@ const void* mod_iface(const char *name)
 		"avi",
 		"caf",
 		"edit-tags",
+		"flac",
+		"flac-write",
+		"flacogg",
 		"mkv",
 		"mp3",
 		"mp3-copy",
@@ -60,6 +66,9 @@ const void* mod_iface(const char *name)
 		/*"avi"*/	&avi_input,
 		/*"caf"*/	&caf_input,
 		/*"edit-tags"*/	(fmed_filter*)&edittags_filt,
+		/*"flac"*/	&flac_input,
+		/*"flac-write"*/	&flac_output,
+		/*"flacogg"*/	&flacogg_input,
 		/*"mkv"*/	&mkv_input,
 		/*"mp3"*/	&mp3_input,
 		/*"mp3-copy"*/	&mp3_copy,
@@ -92,9 +101,10 @@ void mod_destroy()
 {
 }
 
+extern int flac_out_config(fmed_conf_ctx *ctx);
+extern int mpeg_out_config(fmed_conf_ctx *ctx);
 extern int ogg_in_conf(fmed_conf_ctx *ctx);
 extern int ogg_out_conf(fmed_conf_ctx *ctx);
-extern int mpeg_out_config(fmed_conf_ctx *ctx);
 int mod_conf(const char *name, fmed_conf_ctx *ctx)
 {
 	if (ffsz_eq(name, "ogg"))
@@ -103,6 +113,8 @@ int mod_conf(const char *name, fmed_conf_ctx *ctx)
 		return ogg_out_conf(ctx);
 	else if (ffsz_eq(name, "mp3-write"))
 		return mpeg_out_config(ctx);
+	else if (ffsz_eq(name, "flac-write"))
+		return flac_out_config(ctx);
 	return -1;
 }
 

@@ -35,8 +35,6 @@ extern "C" {
 
 _EXPORT const char* flac_vendor(void);
 
-_EXPORT unsigned char flac_crc8(const char *data, unsigned int len);
-
 _EXPORT const char* flac_errstr(int err);
 
 

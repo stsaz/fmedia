@@ -17,7 +17,7 @@ extern const fmed_core *core;
 static void* flacogg_in_create(fmed_filt *d);
 static void flacogg_in_free(void *ctx);
 static int flacogg_in_read(void *ctx, fmed_filt *d);
-const fmed_filter fmed_flacogg_input = {
+const fmed_filter flacogg_input = {
 	&flacogg_in_create, &flacogg_in_read, &flacogg_in_free
 };
 

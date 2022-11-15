@@ -9,11 +9,7 @@ const fmed_queue *qu;
 
 #include <acodec/flac-enc.h>
 
-extern const fmed_filter fmed_flac_output;
-extern const fmed_filter fmed_flac_input;
-extern const fmed_filter fmed_flacogg_input;
 static const fmed_filter fmed_flac_dec;
-extern int flac_out_config(fmed_conf_ctx *conf);
 
 //FMEDIA MODULE
 static const void* flac_iface(const char *name);
@@ -40,12 +36,6 @@ static const void* flac_iface(const char *name)
 		return &fmed_flac_dec;
 	else if (!ffsz_cmp(name, "encode"))
 		return &mod_flac_enc;
-	else if (ffsz_eq(name, "out"))
-		return &fmed_flac_output;
-	else if (ffsz_eq(name, "in"))
-		return &fmed_flac_input;
-	else if (ffsz_eq(name, "ogg-in"))
-		return &fmed_flacogg_input;
 	return NULL;
 }
 
@@ -53,8 +43,6 @@ static int flac_mod_conf(const char *name, fmed_conf_ctx *ctx)
 {
 	if (!ffsz_cmp(name, "encode"))
 		return flac_enc_config(ctx);
-	else if (ffsz_eq(name, "out"))
-		return flac_out_config(ctx);
 	return -1;
 }
 

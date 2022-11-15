@@ -37,11 +37,6 @@ const char* flac_vendor(void)
 	return FLAC__VENDOR_STRING;
 }
 
-unsigned char flac_crc8(const char *data, unsigned int len)
-{
-	return FLAC__crc8((void*)data, len);
-}
-
 
 struct flac_decoder {
 	FLAC__StreamDecoder *decoder;

@@ -280,6 +280,8 @@ FMT_O := $(OBJ_DIR)/mod-fmt.o \
 	$(OBJ_DIR)/avi.o \
 	$(OBJ_DIR)/caf.o \
 	$(OBJ_DIR)/edit-tags.o \
+	$(OBJ_DIR)/flac-fmt.o \
+	$(OBJ_DIR)/flac-ogg.o \
 	$(OBJ_DIR)/mkv.o \
 	$(OBJ_DIR)/mp3.o \
 	$(OBJ_DIR)/mp4.o \
@@ -310,11 +312,7 @@ opus.$(SO): $(OBJ_DIR)/opus.o $(FF_O)
 	$(LINK) -shared $+ $(LINKFLAGS) $(LD_RPATH_ORIGIN) -lopus-ff -o $@
 
 
-#
-# Note: .flac r/w can't be moved to fmt.so because avpack/flac code depents on libFLAC-ff.so::flac_crc8()
 FLAC_O := $(OBJ_DIR)/flac.o \
-	$(OBJ_DIR)/flac-fmt.o \
-	$(OBJ_DIR)/flac-ogg.o \
 	$(FF_O) \
 	$(OBJ_DIR)/ffpcm.o
 flac.$(SO): $(FLAC_O)
