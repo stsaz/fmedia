@@ -137,7 +137,7 @@ public class Svc extends MediaBrowserServiceCompat {
 					return;
 				}
 				track.unpause();
-				fg(null);
+				fg();
 			}
 
 			public void onPause() {
@@ -272,12 +272,7 @@ public class Svc extends MediaBrowserServiceCompat {
 	/**
 	 * Set service as foreground and show notification.
 	 */
-	void fg(String name) {
-		if (name != null && !core.setts.svc_notification_disable) {
-			nfy.setContentTitle("Playing");
-			nfy.setContentText(name);
-		}
-
+	void fg() {
 		startForeground(1, nfy.build());
 		core.dbglog(TAG, "startForeground");
 	}
@@ -301,7 +296,16 @@ public class Svc extends MediaBrowserServiceCompat {
 		sess.setMetadata(meta.build());
 
 		sess_state(PlaybackStateCompat.STATE_BUFFERING, 0);
-		fg(t.name);
+
+		if (!core.setts.svc_notification_disable) {
+			String title = t.title;
+			if (title.isEmpty())
+				title = t.name;
+			nfy.setContentTitle(title);
+			nfy.setContentText(t.artist);
+		}
+
+		fg();
 		return 0;
 	}
 

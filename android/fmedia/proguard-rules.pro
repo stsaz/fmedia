@@ -1,0 +1,1 @@
+-keep class com.github.stsaz.fmedia.Fmedia {*;}

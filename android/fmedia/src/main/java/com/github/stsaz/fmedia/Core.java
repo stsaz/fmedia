@@ -17,6 +17,7 @@ class CoreSettings {
 	boolean svc_notification_disable;
 	String trash_dir;
 	boolean file_del;
+	boolean no_tags;
 
 	CoreSettings(Core core) {
 		this.core = core;
@@ -27,6 +28,7 @@ class CoreSettings {
 	String writeconf() {
 		return String.format("svc_notification_disable %d\n", core.bool_to_int(svc_notification_disable)) +
 				String.format("file_delete %d\n", core.bool_to_int(file_del)) +
+				String.format("no_tags %d\n", core.bool_to_int(no_tags)) +
 				String.format("trash_dir %s\n", trash_dir);
 	}
 
@@ -37,6 +39,8 @@ class CoreSettings {
 			file_del = core.str_to_bool(v);
 		else if (k.equals("trash_dir"))
 			trash_dir = v;
+		else if (k.equals("no_tags"))
+			no_tags = core.str_to_bool(v);
 		else
 			return 1;
 		return 0;

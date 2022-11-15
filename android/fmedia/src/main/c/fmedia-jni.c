@@ -13,6 +13,7 @@
 #include "ctl.h"
 #include "jni-helper.h"
 #include <util/fntree.h>
+#include <FFOS/perf.h>
 
 typedef struct fmedia_ctx fmedia_ctx;
 struct fmedia_ctx {
@@ -47,10 +48,57 @@ Java_com_github_stsaz_fmedia_Fmedia_destroy(JNIEnv *env, jobject thiz)
 	fx = NULL;
 }
 
+static const char* channel_str(uint channels)
+{
+	static const char _channel_str[][8] = {
+		"mono", "stereo",
+		"3.0", "4.0", "5.0",
+		"5.1", "6.1", "7.1"
+	};
+	channels = ffmin(channels - 1, FF_COUNT(_channel_str) - 1);
+	return _channel_str[channels];
+}
+
+static uint64 info_add(ffvec *info, const fmed_track_info *ti)
+{
+	*ffvec_pushT(info, char*) = ffsz_dup("url");
+	*ffvec_pushT(info, char*) = ffsz_dup(ti->in_filename);
+
+	*ffvec_pushT(info, char*) = ffsz_dup("size");
+	*ffvec_pushT(info, char*) = ffsz_allocfmt("%UKB", ti->input.size / 1024);
+
+	*ffvec_pushT(info, char*) = ffsz_dup("file time");
+	char mtime[100];
+	ffdatetime dt = {};
+	fftime_split1(&dt, &ti->in_mtime);
+	int r = fftime_tostr1(&dt, mtime, sizeof(mtime)-1, FFTIME_YMD);
+	mtime[r] = '\0';
+	*ffvec_pushT(info, char*) = ffsz_dup(mtime);
+
+	uint64 msec = 0;
+	if (ti->audio.fmt.sample_rate != 0)
+		msec = ffpcm_time(ti->audio.total, ti->audio.fmt.sample_rate);
+	uint sec = msec / 1000;
+	*ffvec_pushT(info, char*) = ffsz_dup("length");
+	*ffvec_pushT(info, char*) = ffsz_allocfmt("%u:%02u.%03u (%,U samples)"
+		, sec / 60, sec % 60, (int)(msec % 1000)
+		, (int64)ti->audio.total);
+
+	*ffvec_pushT(info, char*) = ffsz_dup("format");
+	*ffvec_pushT(info, char*) = ffsz_allocfmt("%ukbps %s %uHz %s"
+		, (ti->audio.bitrate + 500) / 1000
+		, ti->audio.decoder
+		, ti->audio.fmt.sample_rate
+		, channel_str(ti->audio.fmt.channels));
+
+	return msec;
+}
+
 JNIEXPORT jobjectArray JNICALL
 Java_com_github_stsaz_fmedia_Fmedia_meta(JNIEnv *env, jobject thiz, jstring jfilepath)
 {
 	dbglog0("%s: enter", __func__);
+	fftime t1 = fftime_monotonic();
 	fmed_track_obj *t = fx->track->create(0, NULL);
 	fmed_track_info *ti = fx->track->conf(t);
 
@@ -64,13 +112,67 @@ Java_com_github_stsaz_fmedia_Fmedia_meta(JNIEnv *env, jobject thiz, jstring jfil
 
 	fx->track->cmd(t, FMED_TRACK_START);
 
-	{
-	jobjectArray jas = jni_jsa_sza(env, ti->meta.ptr, ti->meta.len);
-	jni_sz_free(fn, jfilepath);
+	ffvec info = {};
+	uint64 msec = info_add(&info, ti);
+
+	// info += ti->meta
+	char **it;
+	FFSLICE_WALK(&ti->meta, it) {
+		*ffvec_pushT(&info, char*) = *it;
+		*it = NULL;
+	}
+
+	// * disable picture tag conversion attempt to UTF-8
+	// * store artist & title
+	const char *artist = "", *title = "";
+	it = info.ptr;
+	for (uint i = 0;  i != info.len;  i += 2) {
+		if (ffsz_eq(it[i], "picture")) {
+			char *val = it[i+1];
+			val[0] = '\0';
+
+		} else if (ffsz_eq(it[i], "artist")) {
+			if (artist[0] == '\0')
+				artist = it[i+1];
+
+		} else if (ffsz_eq(it[i], "title")) {
+			if (title[0] == '\0')
+				title = it[i+1];
+		}
+	}
+
+	jclass jc = jni_class_obj(thiz);
+	jfieldID jf;
+
+	// this.length_msec = ...
+	jf = jni_field(jc, "length_msec", JNI_TLONG);
+	jni_obj_long_set(thiz, jf, msec);
+
+	// this.artist = ...
+	jf = jni_field(jc, "artist", JNI_TSTR);
+	jni_obj_sz_set(env, thiz, jf, artist);
+
+	// this.title = ...
+	jf = jni_field(jc, "title", JNI_TSTR);
+	jni_obj_sz_set(env, thiz, jf, title);
+
 	fx->track->cmd(t, FMED_TRACK_STOP);
+	jni_sz_free(fn, jfilepath);
+
+	fftime t2 = fftime_monotonic();
+	fftime_sub(&t2, &t1);
+	*ffvec_pushT(&info, char*) = ffsz_dup("[meta prepare time]");
+	*ffvec_pushT(&info, char*) = ffsz_allocfmt("%,U msec", fftime_to_msec(&t2));
+
+	jobjectArray jas = jni_jsa_sza(env, info.ptr, info.len);
+
+	FFSLICE_WALK(&info, it) {
+		ffmem_free(*it);
+	}
+	ffvec_free(&info);
+
 	dbglog0("%s: exit", __func__);
 	return jas;
-	}
 }
 
 JNIEXPORT jobjectArray JNICALL

@@ -47,6 +47,7 @@ class TrackHandle {
 	boolean error; // processing error
 	String url;
 	String[] meta;
+	String artist, title;
 	String name; // track name shown in GUI
 	int pos_msec; // current progress (msec)
 	int prev_pos_msec; // previous progress position (msec)
@@ -84,29 +85,8 @@ class MP {
 		});
 	}
 
-	private String meta_maininfo(TrackHandle t, String[] meta) {
-		String artist = "", title = "";
-
-		for (int i = 0; i < meta.length; i+=2) {
-			if (meta[i].equals("artist"))
-				artist = meta[i + 1];
-			else if (meta[i].equals("title"))
-				title = meta[i + 1];
-		}
-
-		if (artist.isEmpty()) {
-			if (title.isEmpty()) {
-				return Util.path_split2(t.url)[1];
-			}
-			return title;
-		}
-		return String.format("%s - %s", artist, title);
-	}
-
-	private int on_open(final TrackHandle t) {
+	private int on_open(TrackHandle t) {
 		t.seek_msec = -1;
-		t.meta = core.fmedia.meta(t.url);
-		t.name = meta_maininfo(t, t.meta);
 		t.state = Track.STATE_OPENING;
 
 		mp.setOnPreparedListener((mp) -> on_start(t));
@@ -293,6 +273,16 @@ class Track {
 		return tplay.state;
 	}
 
+	private String header(TrackHandle t) {
+		if (t.artist.isEmpty()) {
+			if (t.title.isEmpty()) {
+				return Util.path_split2(t.url)[1];
+			}
+			return t.title;
+		}
+		return String.format("%s - %s", t.artist, t.title);
+	}
+
 	/**
 	 * Start playing
 	 */
@@ -302,6 +292,19 @@ class Track {
 			return;
 
 		tplay.url = url;
+		tplay.time_total_msec = 0;
+		tplay.meta = new String[0];
+		tplay.artist = "";
+		tplay.title = "";
+
+		if (!core.setts.no_tags) {
+			tplay.meta = core.fmedia.meta(url);
+			tplay.artist = core.fmedia.artist;
+			tplay.title = core.fmedia.title;
+			tplay.time_total_msec = (int)core.fmedia.length_msec;
+		}
+		tplay.name = header(tplay);
+
 		for (Filter f : filters) {
 			core.dbglog(TAG, "opening filter %s", f);
 			int r = f.open(tplay);
@@ -351,6 +354,7 @@ class Track {
 			core.dbglog(TAG, "closing filter %s", f);
 			f.close(t);
 		}
+		t.meta = new String[0];
 		t.error = false;
 	}
 
