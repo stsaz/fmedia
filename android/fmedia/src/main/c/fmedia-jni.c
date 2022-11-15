@@ -48,6 +48,18 @@ Java_com_github_stsaz_fmedia_Fmedia_destroy(JNIEnv *env, jobject thiz)
 	fx = NULL;
 }
 
+JNIEXPORT void JNICALL
+Java_com_github_stsaz_fmedia_Fmedia_setCodepage(JNIEnv *env, jobject thiz, jstring jcodepage)
+{
+	const char *sz = jni_sz_js(jcodepage);
+	fmed_core *_core = (fmed_core*)core;
+	if (ffsz_eq(sz, "cp1251"))
+		_core->props->codepage = FFUNICODE_WIN1251;
+	else if (ffsz_eq(sz, "cp1252"))
+		_core->props->codepage = FFUNICODE_WIN1252;
+	jni_sz_free(sz, jcodepage);
+}
+
 static const char* channel_str(uint channels)
 {
 	static const char _channel_str[][8] = {

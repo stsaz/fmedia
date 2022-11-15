@@ -15,6 +15,8 @@ class Fmedia {
 	private native void init();
 	public native void destroy();
 
+	public native void setCodepage(String codepage);
+
 	long length_msec;
 	String artist, title;
 	public native String[] meta(String filepath);

@@ -17,7 +17,7 @@ public class SettingsActivity extends AppCompatActivity {
 	private Core core;
 	private SwitchCompat brandom, brepeat, bfilter_hide, brec_hide, bsvc_notif_disable, bfile_del;
 	private SwitchCompat bnotags, bdark;
-	private TextView trecdir, tbitrate, ttrash_dir, tautoskip;
+	private TextView trecdir, tbitrate, ttrash_dir, tautoskip, tcodepage;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -69,6 +69,9 @@ public class SettingsActivity extends AppCompatActivity {
 		bnotags = findViewById(R.id.bnotags);
 		bnotags.setChecked(core.setts.no_tags);
 
+		tcodepage = findViewById(R.id.tcodepage);
+		tcodepage.setText(core.setts.codepage);
+
 		tautoskip = findViewById(R.id.tautoskip);
 		tautoskip.setText(Integer.toString(core.queue().autoskip_msec / 1000));
 
@@ -91,6 +94,8 @@ public class SettingsActivity extends AppCompatActivity {
 		core.queue().random(brandom.isChecked());
 		core.queue().repeat(brepeat.isChecked());
 		core.setts.no_tags = bnotags.isChecked();
+		core.setts.set_codepage(tcodepage.getText().toString());
+		core.fmedia.setCodepage(core.setts.codepage);
 		core.queue().autoskip_msec = core.str_to_uint(tautoskip.getText().toString(), 0) * 1000;
 
 		core.setts.svc_notification_disable = bsvc_notif_disable.isChecked();

@@ -20,6 +20,7 @@ class CoreSettings {
 	int enc_bitrate = 192; // encoder bitrate
 	boolean file_del;
 	boolean no_tags;
+	String codepage = "cp1252";
 
 	CoreSettings(Core core) {
 		this.core = core;
@@ -31,9 +32,18 @@ class CoreSettings {
 		return String.format("svc_notification_disable %d\n", core.bool_to_int(svc_notification_disable)) +
 				String.format("file_delete %d\n", core.bool_to_int(file_del)) +
 				String.format("no_tags %d\n", core.bool_to_int(no_tags)) +
+				String.format("codepage %s\n", codepage) +
 				String.format("rec_path %s\n", rec_path) +
 				String.format("enc_bitrate %d\n", enc_bitrate) +
 				String.format("trash_dir %s\n", trash_dir);
+	}
+
+	void set_codepage(String val) {
+		if (val.equals("cp1251")
+				|| val.equals("cp1252"))
+			codepage = val;
+		else
+			codepage = "cp1252";
 	}
 
 	int readconf(String k, String v) {
@@ -47,6 +57,8 @@ class CoreSettings {
 			trash_dir = v;
 		else if (k.equals("no_tags"))
 			no_tags = core.str_to_bool(v);
+		else if (k.equals("codepage"))
+			set_codepage(v);
 		else if (k.equals("enc_bitrate"))
 			enc_bitrate = core.str_to_uint(v, enc_bitrate);
 		else
@@ -186,6 +198,7 @@ class Core extends Util {
 			gui.readconf(k, v);
 		}
 
+		fmedia.setCodepage(setts.codepage);
 		dbglog(TAG, "loadconf: %s: %s", fn, bs);
 	}
 
