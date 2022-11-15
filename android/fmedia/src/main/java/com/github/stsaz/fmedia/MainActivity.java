@@ -219,7 +219,8 @@ public class MainActivity extends AppCompatActivity {
 		super.onActivityResult(requestCode, resultCode, data);
 
 		if (resultCode != RESULT_OK) {
-			core.errlog(TAG, "onActivityResult: requestCode:%d resultCode:%d", requestCode, resultCode);
+			if (resultCode != RESULT_CANCELED)
+				core.errlog(TAG, "onActivityResult: requestCode:%d resultCode:%d", requestCode, resultCode);
 			return;
 		}
 

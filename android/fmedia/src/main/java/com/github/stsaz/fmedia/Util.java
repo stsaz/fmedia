@@ -160,7 +160,7 @@ abstract class Util {
 				int r = is.read(d);
 				if (r <= 0)
 					break;
-				b.write(d);
+				b.write(d, 0, r);
 			}
 		} catch (Exception e) {
 			errlog(TAG, "istream_readall(): %s", e);
