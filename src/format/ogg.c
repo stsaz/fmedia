@@ -16,4 +16,5 @@ extern const fmed_core *core;
 #include <format/ogg-write.h>
 #include <format/ogg-read.h>
 
+#include <format/opus-meta.h>
 #include <format/vorbis-meta.h>

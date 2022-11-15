@@ -15,8 +15,8 @@ enum FFOPUS_R {
 	FFOPUS_RWARN = -2,
 	FFOPUS_RERR = -1,
 	FFOPUS_RHDR, //audio info is parsed
-	FFOPUS_RTAG, //tag pair is returned
 	FFOPUS_RHDRFIN, //header is finished
+	FFOPUS_RHDRFIN_TAGS,
 	FFOPUS_RDATA, //PCM data is returned
 	FFOPUS_RMORE,
 	FFOPUS_RDONE,
@@ -41,10 +41,6 @@ typedef struct ffopus {
 	uint64 seek_sample;
 	uint64 total_samples;
 	int flush;
-
-	vorbistagread vtag;
-	int tag;
-	ffstr pkt, tagname, tagval;
 } ffopus;
 
 #define ffopus_errstr(o)  _ffopus_errstr((o)->err)
@@ -54,13 +50,6 @@ static inline void ffopus_seek(ffopus *o, uint64 sample)
 	o->seek_sample = sample + o->info.preskip;
 	o->pos = 0;
 	o->last_decoded = 0;
-}
-
-static inline int ffopus_tag(ffopus *o, ffstr *name, ffstr *val)
-{
-	*name = o->tagname;
-	*val = o->tagval;
-	return o->tag;
 }
 
 /** Get starting position (sample number) of the last decoded data */
@@ -135,10 +124,10 @@ void ffopus_close(ffopus *o)
 Return enum FFOPUS_R. */
 int ffopus_decode(ffopus *o, ffstr *input, ffstr *output)
 {
-	enum { R_HDR, R_TAGS, R_TAG, R_DATA };
+	enum { R_HDR, R_TAGS, R_DATA };
 	int r;
 
-	if (input->len == 0 && !o->flush && o->state != R_TAG)
+	if (input->len == 0 && !o->flush)
 		return FFOPUS_RMORE;
 
 	switch (o->state) {
@@ -177,21 +166,9 @@ int ffopus_decode(ffopus *o, ffstr *input, ffstr *output)
 			o->state = R_DATA;
 			return FFOPUS_RHDRFIN;
 		}
-		ffstr_set(&o->pkt, input->ptr + 8, input->len - 8);
 		input->len = 0;
-		o->state = R_TAG;
-		// break
-
-	case R_TAG:
-		r = vorbistagread_process(&o->vtag, &o->pkt, &o->tagname, &o->tagval);
-		if (r == VORBISTAGREAD_ERROR)
-			return ERR(o, FFOPUS_ETAG);
-		else if (r == VORBISTAGREAD_DONE) {
-			o->state = R_DATA;
-			return FFOPUS_RHDRFIN;
-		}
-		o->tag = r;
-		return FFOPUS_RTAG;
+		o->state = R_DATA;
+		return FFOPUS_RHDRFIN_TAGS;
 
 	case R_DATA:
 		break;

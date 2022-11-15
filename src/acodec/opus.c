@@ -98,14 +98,12 @@ static int opus_in_decode(void *ctx, fmed_filt *d)
 {
 	enum { R_HDR, R_TAGS, R_DATA1, R_DATA };
 	opus_in *o = ctx;
-	int have_tags = 0;
 	int reset = 0;
 	int r;
 
-	ffstr in = {}, in2 = {};
+	ffstr in = {};
 	if (d->flags & FMED_FFWD) {
 		ffstr_set(&in, d->data, d->datalen);
-		in2 = in;
 		d->datalen = 0;
 	}
 
@@ -180,39 +178,15 @@ again:
 		return FMED_RMORE;
 
 	case FFOPUS_RHDR:
-		d->audio.decoder = "Opus";
 		d->audio.fmt.format = FFPCM_FLOAT;
-		d->audio.fmt.channels = o->opus.info.channels;
-		d->audio.fmt.sample_rate = o->opus.info.rate;
 		d->audio.fmt.ileaved = 1;
 		o->sampsize = ffpcm_size1(&d->audio.fmt);
-
-		if (d->stream_copy) {
-			d->data_out = in2;
-			return FMED_RDONE; //HDR packet
-		}
-
 		d->datatype = "pcm";
 		break;
 
-	case FFOPUS_RTAG: {
-		have_tags = 1;
-		ffstr name, val;
-		int tag = ffopus_tag(&o->opus, &name, &val);
-		dbglog(core, d->trk, NULL, "%S: %S", &name, &val);
-		if (tag != 0)
-			ffstr_setz(&name, ffmmtag_str[tag]);
-		d->track->meta_set(d->trk, &name, &val, FMED_QUE_TMETA);
-		break;
-	}
-
 	case FFOPUS_RHDRFIN:
-		if (d->stream_copy) {
-			d->data_out = in2;
-			return FMED_RDONE; //TAGS packet
-		}
-		if (!have_tags)
-			goto again; // this packet wasn't a Tags packet but audio data
+		goto again; // this packet isn't a Tags packet but audio data
+	case FFOPUS_RHDRFIN_TAGS:
 		break;
 	}
 	}

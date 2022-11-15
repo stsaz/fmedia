@@ -73,7 +73,10 @@ static int add_decoder(struct ogg_in *o, fmed_track_info *d, ffstr data)
 			dec = "vorbis.decode";
 
 	} else if (ffstr_matchz(&data, OPUS_HEAD_STR)) {
-		dec = "opus.decode";
+		meta_filter_name = "fmt.opusmeta";
+		if (!d->stream_copy && !d->input_info)
+			dec = "opus.decode";
+
 	} else if (ffstr_matchz(&data, FLAC_HEAD_STR)) {
 		dec = "flac.ogg-in";
 	} else {
