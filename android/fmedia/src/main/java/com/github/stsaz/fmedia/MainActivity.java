@@ -242,7 +242,6 @@ public class MainActivity extends AppCompatActivity {
 			case REQUEST_OPEN_FILE:
 				try {
 					InputStream is = getContentResolver().openInputStream(data.getData());
-					core.queue().clear();
 					core.queue().load_data(core.istream_readall(is));
 					plist_show();
 				} catch (Exception e) {

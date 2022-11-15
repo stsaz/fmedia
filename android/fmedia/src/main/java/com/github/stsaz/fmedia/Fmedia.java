@@ -13,6 +13,7 @@ class Fmedia {
 
 	public native String[] meta(String filepath);
 
+	public native String[] playlistLoadData(byte[] data);
 	public native String[] playlistLoad(String filepath);
 	public native boolean playlistSave(String filepath, String[] list);
 

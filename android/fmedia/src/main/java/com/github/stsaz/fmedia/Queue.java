@@ -265,17 +265,7 @@ class Queue {
 	}
 
 	void load_data(byte[] data) {
-		String bs = new String(data);
-		pl.plist.clear();
-		Splitter spl = new Splitter();
-		while (true) {
-			String s = spl.next(bs, '\n');
-			if (s == null)
-				break;
-			if (s.length() != 0)
-				pl.plist.add(s);
-		}
-		core.dbglog(TAG, "loaded %d items", pl.plist.size());
+		clear_addmany(core.fmedia.playlistLoadData(data));
 	}
 
 	/*

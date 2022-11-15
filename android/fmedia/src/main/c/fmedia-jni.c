@@ -57,18 +57,12 @@ end:
 	}
 }
 
-JNIEXPORT jobjectArray JNICALL
-Java_com_github_stsaz_fmedia_Fmedia_playlistLoad(JNIEnv *env, jobject thiz, jstring jfilepath)
+static jobjectArray pl_load(JNIEnv *env, ffvec *buf)
 {
-	ffvec buf = {};
-	const char *fn = jni_sz_str(jfilepath);
-	int r = fffile_readwhole(fn, &buf, 16*1024*1024);
-	jni_sz_free(fn, jfilepath);
+	ffvec_addchar(buf, '\0');
+	buf->len--;
 
-	ffvec_addchar(&buf, '\0');
-	buf.len--;
-
-	ffstr d = *(ffstr*)&buf;
+	ffstr d = *(ffstr*)buf;
 	ffsize i = 0;
 	while (d.len != 0) {
 		ffstr ln;
@@ -77,9 +71,9 @@ Java_com_github_stsaz_fmedia_Fmedia_playlistLoad(JNIEnv *env, jobject thiz, jstr
 			i++;
 	}
 
-	jobjectArray jas = jni_arr(i, jni_class(JNI_CSTR));
+	jobjectArray jas = jni_joa(i, jni_class(JNI_CSTR));
 	i = 0;
-	d = *(ffstr*)&buf;
+	d = *(ffstr*)buf;
 	while (d.len != 0) {
 		ffstr ln;
 		ffstr_splitby(&d, '\n', &ln, &d);
@@ -87,31 +81,56 @@ Java_com_github_stsaz_fmedia_Fmedia_playlistLoad(JNIEnv *env, jobject thiz, jstr
 			continue;
 
 		ln.ptr[ln.len] = '\0';
-		jstring js = jni_str_sz(ln.ptr);
-		jni_arr_obj_set(jas, i, js);
+		jstring js = jni_js_sz(ln.ptr);
+		jni_joa_i_set(jas, i, js);
 		jni_local_unref(js);
 		i++;
 	}
 
+	return jas;
+}
+
+JNIEXPORT jobjectArray JNICALL
+Java_com_github_stsaz_fmedia_Fmedia_playlistLoadData(JNIEnv *env, jobject thiz, jbyteArray jdata)
+{
+	dbglog0("%s: enter", __func__);
+	ffvec buf = jni_vec_jba(env, jdata);
+	jobjectArray jas = pl_load(env, &buf);
 	ffvec_free(&buf);
+	dbglog0("%s: exit", __func__);
+	return jas;
+}
+
+JNIEXPORT jobjectArray JNICALL
+Java_com_github_stsaz_fmedia_Fmedia_playlistLoad(JNIEnv *env, jobject thiz, jstring jfilepath)
+{
+	dbglog0("%s: enter", __func__);
+	ffvec buf = {};
+	const char *fn = jni_sz_js(jfilepath);
+	fffile_readwhole(fn, &buf, 16*1024*1024);
+	jni_sz_free(fn, jfilepath);
+	jobjectArray jas = pl_load(env, &buf);
+	ffvec_free(&buf);
+	dbglog0("%s: exit", __func__);
 	return jas;
 }
 
 JNIEXPORT jboolean JNICALL
 Java_com_github_stsaz_fmedia_Fmedia_playlistSave(JNIEnv *env, jobject thiz, jstring jfilepath, jobjectArray jlist)
 {
+	dbglog0("%s: enter", __func__);
 	ffvec buf = {};
 	ffsize n = jni_arr_len(jlist);
 	for (ffsize i = 0;  i != n;  i++) {
-		jstring js = jni_arr_obj(jlist, i);
-		const char *sz = jni_sz_str(js);
+		jstring js = jni_joa_i(jlist, i);
+		const char *sz = jni_sz_js(js);
 		ffvec_addsz(&buf, sz);
 		ffvec_addchar(&buf, '\n');
 		jni_sz_free(sz, js);
 		jni_local_unref(js);
 	}
 
-	const char *fn = jni_sz_str(jfilepath);
+	const char *fn = jni_sz_js(jfilepath);
 	char *tmp = ffsz_allocfmt("%s.tmp", fn);
 	int r = fffile_writewhole(tmp, buf.ptr, buf.len, 0);
 	if (r != 0)
@@ -123,5 +142,6 @@ end:
 	jni_sz_free(fn, jfilepath);
 	ffmem_free(tmp);
 	ffvec_free(&buf);
+	dbglog0("%s: exit", __func__);
 	return (r == 0);
 }
