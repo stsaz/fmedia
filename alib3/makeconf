@@ -60,7 +60,7 @@ ifeq "$(OS)" "linux"
 else ifeq "$(OS)" "freebsd"
 	LINK_RPATH_ORIGIN := '-Wl,-rpath,$$ORIGIN'
 else ifeq "$(OS)" "apple"
-	LINK_INSTALLNAME_LOADERPATH := -Wl,-install_name -Wl,@loader_path/$@
+	LINK_INSTALLNAME_LOADERPATH = -Wl,-install_name -Wl,@loader_path/$@
 endif
 
 LINK_PTHREAD :=
@@ -69,12 +69,14 @@ ifneq "$(OS)" "windows"
 endif
 
 CFLAGS := -O3 -fpic -fvisibility=hidden
-LINKFLAGS := -fpic -Wl,-no-undefined $(LINK_INSTALLNAME_LOADERPATH) -s -lm
-LINKXXFLAGS := $(LINKFLAGS)
+LINKFLAGS = -fpic $(LINK_INSTALLNAME_LOADERPATH) -s -lm
+ifneq "$(OS)" "apple"
+	LINKFLAGS += -Wl,-no-undefined
+endif
 ifeq "$(COMPILER)" "gcc"
 	LINKFLAGS += -static-libgcc
-	LINKXXFLAGS += -static-libgcc
 endif
+LINKXXFLAGS = $(LINKFLAGS)
 ifeq "$(OS)" "windows"
 	LINKXXFLAGS += -static
 else
