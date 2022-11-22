@@ -1,14 +1,8 @@
-/** MPEG.
-Copyright (c) 2013 Simon Zolin
-*/
-
-/*
-MPEG-HEADER  [CRC16]  ([XING-TAG  LAME-TAG]  |  FRAME-DATA...) ...
+/** MPEG1 stream copy
+2021, Simon Zolin
 */
 
 #pragma once
-
-#include <util/array.h>
 #include <avpack/mpeg1-read.h>
 #include <avpack/mp3-write.h>
 

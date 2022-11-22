@@ -57,7 +57,7 @@ LINK_RPATH_ORIGIN :=
 LINK_INSTALLNAME_LOADERPATH :=
 ifeq "$(OS)" "linux"
 	LINK_RPATH_ORIGIN := '-Wl,-rpath,$$ORIGIN' -Wl,--disable-new-dtags
-else ifeq "$(OS)" "bsd"
+else ifeq "$(OS)" "freebsd"
 	LINK_RPATH_ORIGIN := '-Wl,-rpath,$$ORIGIN'
 else ifeq "$(OS)" "apple"
 	LINK_INSTALLNAME_LOADERPATH := -Wl,-install_name -Wl,@loader_path/$@
@@ -69,9 +69,13 @@ ifneq "$(OS)" "windows"
 endif
 
 CFLAGS := -O3 -fpic -fvisibility=hidden
-LINKFLAGS := -fpic -Wl,-no-undefined -static-libgcc $(LINK_INSTALLNAME_LOADERPATH) -s -lm
+LINKFLAGS := -fpic -Wl,-no-undefined $(LINK_INSTALLNAME_LOADERPATH) -s -lm
 LINKXXFLAGS := $(LINKFLAGS)
-ifeq ($(OS),win)
+ifeq "$(COMPILER)" "gcc"
+	LINKFLAGS += -static-libgcc
+	LINKXXFLAGS += -static-libgcc
+endif
+ifeq "$(OS)" "windows"
 	LINKXXFLAGS += -static
 else
 	LINKXXFLAGS += -static-libstdc++

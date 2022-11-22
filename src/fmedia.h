@@ -359,6 +359,7 @@ enum FMED_TRACK_CMD {
 	FMED_TRACK_FILT_ADDFIRST,
 	FMED_TRACK_FILT_ADDLAST,
 
+	/** Return 1 if have meta data from user */
 	FMED_TRACK_META_HAVEUSER,
 
 	/**

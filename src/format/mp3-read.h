@@ -21,7 +21,7 @@ static void mp3_log(void *udata, const char *fmt, va_list va)
 
 static void* mp3_open(fmed_track_info *d)
 {
-	if (d->stream_copy && !d->track->cmd(d->trk, FMED_TRACK_META_HAVEUSER)) {
+	if (d->stream_copy && 1 != d->track->cmd(d->trk, FMED_TRACK_META_HAVEUSER)) {
 
 		if (0 != d->track->cmd(d->trk, FMED_TRACK_ADDFILT, "fmt.mp3-copy"))
 			return NULL;

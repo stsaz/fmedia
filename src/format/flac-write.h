@@ -2,9 +2,7 @@
 2018, Simon Zolin */
 
 #include <fmedia.h>
-
 #include <avpack/flac-write.h>
-#include <format/mmtag.h>
 #include <avpack/png-read.h>
 #include <avpack/jpg-read.h>
 

@@ -72,7 +72,7 @@ int mpeg_out_addmeta(mpeg_out *m, fmed_filt *d)
 			continue;
 
 		if (0 != mp3write_addtag(&m->mpgw, r, meta.val)) {
-			warnlog(core, d->trk, "mpeg", "can't add tag: %S", &meta.name);
+			warnlog1(d->trk, "can't add tag: %S", &meta.name);
 		}
 	}
 	return 0;
@@ -91,7 +91,7 @@ int mpeg_out_process(void *ctx, fmed_filt *d)
 		if (ffsz_eq(d->datatype, "mpeg"))
 			break;
 		else if (!ffsz_eq(d->datatype, "pcm")) {
-			errlog(core, d->trk, NULL, "unsupported input data format: %s", d->datatype);
+			errlog1(d->trk, "unsupported input data format: %s", d->datatype);
 			return FMED_RERR;
 		}
 
@@ -119,7 +119,7 @@ int mpeg_out_process(void *ctx, fmed_filt *d)
 		switch (r) {
 
 		case MP3WRITE_DATA:
-			dbglog(core, d->trk, NULL, "frame #%u: %L bytes"
+			dbglog1(d->trk, "frame #%u: %L bytes"
 				, m->nframe++, out.len);
 			goto data;
 
@@ -135,7 +135,7 @@ int mpeg_out_process(void *ctx, fmed_filt *d)
 			return FMED_RDONE;
 
 		default:
-			errlog(core, d->trk, "mpeg", "mp3write_process() failed");
+			errlog1(d->trk, "mp3write_process() failed");
 			return FMED_RERR;
 		}
 	}

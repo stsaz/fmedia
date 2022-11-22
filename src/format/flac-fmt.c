@@ -2,6 +2,7 @@
 Copyright (c) 2018 Simon Zolin */
 
 #include <fmedia.h>
+#include <format/mmtag.h>
 
 extern const fmed_core *core;
 

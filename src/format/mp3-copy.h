@@ -44,8 +44,7 @@ int mpeg_copy_process(void *ctx, fmed_filt *d)
 	ffstr out;
 
 	if (d->flags & FMED_FSTOP) {
-		d->outlen = 0;
-		return FMED_RLASTOUT;
+		goto done;
 	}
 
 	if (d->datalen != 0) {
@@ -92,7 +91,7 @@ int mpeg_copy_process(void *ctx, fmed_filt *d)
 	case FFMPG_RFRAME:
 		d->audio.pos = mpeg1read_cursample(&m->mpgcpy.rdr);
 		if (ffpcm_time(d->audio.pos, d->audio.fmt.sample_rate) >= m->until) {
-			dbglog(core, d->trk, NULL, "reached time %Ums", m->until);
+			dbglog1(d->trk, "reached time %Ums", m->until);
 			ffmpg_copy_fin(&m->mpgcpy);
 			m->until = (uint64)-1;
 			continue;
@@ -108,26 +107,29 @@ int mpeg_copy_process(void *ctx, fmed_filt *d)
 		continue;
 
 	case FFMPG_RDONE:
-		core->log(FMED_LOG_INFO, d->trk, NULL, "MPEG: frames:%u", (int)mp3write_frames(&m->mpgcpy.writer));
-		d->outlen = 0;
-		return FMED_RLASTOUT;
+		infolog1(d->trk, "MPEG: frames:%u", (int)mp3write_frames(&m->mpgcpy.writer));
+		goto done;
 
 	case FFMPG_RWARN:
-		warnlog(core, d->trk, NULL, "near sample %U: ffmpg_copy(): %s"
+		warnlog1(d->trk, "near sample %U: ffmpg_copy(): %s"
 			, mpeg1read_cursample(&m->mpgcpy.rdr), ffmpg_copy_errstr(&m->mpgcpy));
 		continue;
 
 	default:
-		errlog(core, d->trk, "mpeg", "ffmpg_copy() failed: %s", ffmpg_copy_errstr(&m->mpgcpy));
+		errlog1(d->trk, "ffmpg_copy() failed: %s", ffmpg_copy_errstr(&m->mpgcpy));
 		return FMED_RERR;
 	}
 	}
 
 data:
-	d->out = out.ptr,  d->outlen = out.len;
-	dbglog(core, d->trk, "mpeg", "output: frame#%u  size:%L"
+	d->data_out = out;
+	dbglog1(d->trk, "output: frame#%u  size:%L"
 		, m->iframe++, out.len);
 	return FMED_RDATA;
+
+done:
+	d->data_out.len = 0;
+	return FMED_RLASTOUT;
 }
 
 const fmed_filter mp3_copy = {
