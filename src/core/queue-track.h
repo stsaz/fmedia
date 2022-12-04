@@ -215,7 +215,7 @@ static void que_trk_close(void *ctx)
 	qt->cmd = CMD_TRKFIN;
 	if (t->d->type == FMED_TRK_TYPE_EXPAND && e->plist->expand_all)
 		qt->cmd = CMD_TRKFIN_EXPAND;
-	qt->flags = t->d->flags;
+	qt->flags = t->d->error;
 	qt->param = (size_t)t->e;
 	que_task_add(qt);
 
@@ -271,8 +271,9 @@ static void que_ontrkfin(entry *e, uint flags)
 		que_cmd(FMED_QUE_NEXT2, &e->e);
 	}
 
-	if (((flags & FMED_E_NOSRC) && qu->conf.rm_nosrc)
-		|| ((flags & FMED_E_UNKIFMT) && qu->conf.rm_unkifmt))
+	uint error = flags;
+	if ((error == FMED_E_NOSRC && qu->conf.rm_nosrc)
+		|| (error == FMED_E_UNKIFMT && qu->conf.rm_unkifmt))
 		que_cmd(FMED_QUE_RM, e);
 
 end:

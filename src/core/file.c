@@ -219,7 +219,7 @@ static void* file_open(fmed_filt *d)
 	f->fr = fffileread_create(f->fn, &conf);
 	if (f->fr == NULL) {
 		if (fferr_notexist(fferr_last()))
-			d->flags |= FMED_E_NOSRC;
+			d->error = FMED_E_NOSRC;
 		goto done;
 	}
 

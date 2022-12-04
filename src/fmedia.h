@@ -503,8 +503,11 @@ enum FMED_F {
 };
 
 enum FMED_E {
-	FMED_E_NOSRC = 0x0100, // no source
-	FMED_E_UNKIFMT = 0x0200, // unknown input format
+	FMED_E_SUCCESS,
+	FMED_E_NOSRC, // no source
+	FMED_E_DSTEXIST, // target exists already
+	FMED_E_UNKIFMT, // unknown input format
+	FMED_E_OTHER = 255,
 };
 
 /** >0: msec;  <0: CD frames (1/75 sec) */
@@ -524,7 +527,13 @@ struct fmed_track_info {
 	fmed_handler handler;
 	fmed_track_obj *trk;
 
-	uint flags; //enum FMED_F | enum FMED_E
+	uint flags; //enum FMED_F
+
+	/** enum FMED_E
+	Filter sets it when it encounters an error and returns FMED_RERR.
+	'track' module sets it to FMED_E_OTHER for all other error cases. */
+	uint error;
+
 	uint type; //enum FMED_TRK_TYPE
 	const char *datatype;
 	struct {
@@ -657,7 +666,7 @@ struct fmed_track_info {
 		uint net_reconnect :1;
 		uint use_dynanorm :1;
 		uint _obsolete :1;
-		uint err :1;
+		uint err :1; // obsolete
 		uint show_tags :1;
 		uint print_time :1;
 		uint duration_accurate :1;
