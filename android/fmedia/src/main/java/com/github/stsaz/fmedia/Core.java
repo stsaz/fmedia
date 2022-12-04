@@ -20,6 +20,7 @@ class CoreSettings {
 	int enc_bitrate; // encoder bitrate
 	boolean file_del;
 	boolean no_tags;
+	boolean no_qu_rm_on_err;
 	String codepage;
 
 	CoreSettings(Core core) {

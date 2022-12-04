@@ -173,7 +173,6 @@ public class MainActivity extends AppCompatActivity {
 
 			case R.id.action_list_clear:
 				queue.clear();
-				plist_show2();
 				return true;
 
 			case R.id.action_list_save:
@@ -484,7 +483,6 @@ public class MainActivity extends AppCompatActivity {
 			gui.msg_show(this, "Deleted file");
 		}
 		queue.remove(pos);
-		plist_show2();
 		list.setSelection(gui.list_pos);
 	}
 
@@ -645,7 +643,6 @@ public class MainActivity extends AppCompatActivity {
 		String fn = queue.list()[pos];
 		queue.remove(pos);
 		gui.msg_show(this, "Removed 1 entry");
-		plist_show2();
 		list.setSelection(gui.list_pos);
 	}
 

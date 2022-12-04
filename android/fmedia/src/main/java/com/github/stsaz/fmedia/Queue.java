@@ -87,6 +87,7 @@ class Queue {
 	}
 
 	private void nfy_all() {
+		pl.modified = true;
 		for (QueueNotify qn : nfy) {
 			qn.on_change(0);
 		}
@@ -162,7 +163,13 @@ class Queue {
 	 */
 	private void on_close(TrackHandle t) {
 		active = false;
-		if (!t.stopped && !t.error) {
+		boolean play_next = !t.stopped;
+
+		if (t.error && !core.setts.no_qu_rm_on_err) {
+			remove(pl.curpos);
+		}
+
+		if (play_next) {
 			mloop.post(() -> next());
 		}
 	}
@@ -197,6 +204,7 @@ class Queue {
 		pl.plist.remove(pos);
 		if (pos <= pl.curpos)
 			pl.curpos--;
+		nfy_all();
 	}
 
 	/**
@@ -206,7 +214,6 @@ class Queue {
 		core.dbglog(TAG, "clear");
 		pl.plist.clear();
 		pl.curpos = -1;
-		pl.modified = true;
 		nfy_all();
 	}
 
@@ -218,7 +225,6 @@ class Queue {
 
 	void addmany(String[] urls) {
 		pl.plist.addAll(Arrays.asList(urls));
-		pl.modified = true;
 		nfy_all();
 	}
 
@@ -228,7 +234,6 @@ class Queue {
 	void add(String url) {
 		core.dbglog(TAG, "add: %s", url);
 		pl.plist.add(url);
-		pl.modified = true;
 		nfy_all();
 	}
 
