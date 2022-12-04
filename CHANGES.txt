@@ -8,6 +8,13 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia/Android v0.7 - Dec 3, 2022
+
+ + .mp3 -> .mp3 cut/copy via "File: Cut" menu command
+ * Remove track from playlist after playback error
+    and start playing next track
+
+
 fmedia/Android v0.6 - Nov 14, 2022
 
  + Dark Theme
