@@ -585,6 +585,7 @@ struct fmed_track_info {
 	core free()s it automatically when track is destroyed.
 	fmed_track.copy_info() frees the current pointer and copies the data from source into a new region. */
 	char *out_filename;
+	fftime out_mtime;
 	/** net.in sets out_filename from this. */
 	const char *net_out_filename;
 
@@ -594,6 +595,9 @@ struct fmed_track_info {
 
 	ffslice include_files; //ffstr[]
 	ffslice exclude_files; //ffstr[]
+
+	/** stream_copy=1: ogg.read -> ogg.write: granule-position value from source */
+	uint64 ogg_granule_pos;
 
 	ushort mpeg1_delay;
 	ushort mpeg1_padding;

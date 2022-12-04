@@ -187,7 +187,7 @@ data:
 		if (page_is_last_pkt) {
 			d->ogg_flush = 1;
 			set_gpos = o->og.page_endpos;
-			fmed_setval("ogg_granpos", set_gpos);
+			d->ogg_granule_pos = set_gpos;
 			if (o->sample_rate != 0)
 				set_gpos = ffpcm_time(set_gpos, o->sample_rate);
 		}

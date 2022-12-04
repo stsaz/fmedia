@@ -192,7 +192,7 @@ int ogg_out_encode(void *ctx, fmed_filt *d)
 			if (d->flags & FMED_FLAST)
 				flags = OGGWRITE_FLAST;
 
-			endpos = fmed_getval("ogg_granpos");
+			endpos = d->ogg_granule_pos;
 			r = pkt_write(o, d, &d->data_in, &d->data_out, endpos, flags);
 			return r;
 		}

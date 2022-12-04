@@ -23,7 +23,7 @@ static void* mp3_open(fmed_track_info *d)
 {
 	if (d->stream_copy && 1 != d->track->cmd(d->trk, FMED_TRACK_META_HAVEUSER)) {
 
-		if (0 != d->track->cmd(d->trk, FMED_TRACK_ADDFILT, "fmt.mp3-copy"))
+		if (NULL == (void*)d->track->cmd(d->trk, FMED_TRACK_FILT_ADD, "fmt.mp3-copy"))
 			return NULL;
 		return FMED_FILT_SKIP;
 	}
