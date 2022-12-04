@@ -187,6 +187,107 @@ Java_com_github_stsaz_fmedia_Fmedia_meta(JNIEnv *env, jobject thiz, jstring jfil
 	return jas;
 }
 
+/** Parse seek/until audio position string: [[h:]m:]s[.ms] */
+static int msec_apos(const char *apos, int64 *msec)
+{
+	ffdatetime dt;
+	fftime t;
+	ffstr s = FFSTR_INITZ(apos);
+	if (s.len == 0)
+		return 0;
+	if (s.len != fftime_fromstr1(&dt, s.ptr, s.len, FFTIME_HMS_MSEC_VAR))
+		return -1;
+	fftime_join1(&t, &dt);
+	*msec = fftime_to_msec(&t);
+	return 0;
+}
+
+/** Get error message from FMED_E value */
+static const char* trk_errstr(uint e)
+{
+	if (e == 0)
+		return NULL;
+	e--;
+
+	static const char errstr[][30] = {
+		"Input file doesn't exist", // FMED_E_NOSRC
+		"Output file already exists", // FMED_E_DSTEXIST
+		"Unknown input file format", // FMED_E_UNKIFMT
+	};
+	const char *s = "Unknown";
+	if (e < FF_COUNT(errstr))
+		s = errstr[e];
+	return s;
+}
+
+JNIEXPORT jstring JNICALL
+Java_com_github_stsaz_fmedia_Fmedia_streamCopy(JNIEnv *env, jobject thiz, jstring jiname, jstring joname, jstring jfrom, jstring jto, jint flags)
+{
+	dbglog0("%s: enter", __func__);
+	fftime t1 = fftime_monotonic();
+
+	const char *ifn = jni_sz_js(jiname)
+		, *ofn = jni_sz_js(joname)
+		, *from = jni_sz_js(jfrom)
+		, *to = jni_sz_js(jto);
+
+	const char *error = NULL;
+	fmed_track_obj *t = fx->track->create(0, NULL);
+	fmed_track_info *ti = fx->track->conf(t);
+	ti->type = FMED_TRK_TYPE_CONVERT;
+	ti->stream_copy = 1;
+
+	ti->in_filename = ifn;
+
+	ti->out_filename = ffsz_dup(ofn);
+	ti->out_preserve_date = !!(flags & 1);
+	ti->out_overwrite = !!(flags & 2);
+
+	if (0 != msec_apos(from, (int64*)&ti->audio.seek)) {
+		error = "Bad 'from' value";
+		goto end;
+	}
+	ti->seek_req = 1;
+
+	if (0 != msec_apos(to, &ti->audio.until)) {
+		error = "Bad 'until' value";
+		goto end;
+	}
+
+	fx->track->cmd(t, FMED_TRACK_FILT_ADD, "core.file");
+	fx->track->cmd(t, FMED_TRACK_FILT_ADD, "fmt.detector");
+	fx->track->cmd(t, FMED_TRACK_FILT_ADD, "ctl");
+	fx->track->cmd(t, FMED_TRACK_FILT_ADD, "core.filew");
+
+	fx->track->cmd(t, FMED_TRACK_START);
+
+end:
+	{
+	int e = ti->error;
+	fx->track->cmd(t, FMED_TRACK_STOP);
+
+	jni_sz_free(ifn, jiname);
+	jni_sz_free(ofn, joname);
+	jni_sz_free(from, jfrom);
+	jni_sz_free(to, jto);
+
+	fftime t2 = fftime_monotonic();
+	fftime_sub(&t2, &t1);
+
+	if (error == NULL)
+		error = trk_errstr(e);
+	const char *status = (error == NULL) ? "SUCCESS!" : "ERROR: ";
+	if (error == NULL)
+		error = "";
+	char *res = ffsz_allocfmt("%s%s [%,U msec]"
+		, status, error, fftime_to_msec(&t2));
+	jstring js = jni_js_sz(res);
+	ffmem_free(res);
+	dbglog0("%s: exit", __func__);
+	return js;
+	}
+}
+
 JNIEXPORT jobjectArray JNICALL
 Java_com_github_stsaz_fmedia_Fmedia_listDirRecursive(JNIEnv *env, jobject thiz, jstring jfilepath)
 {

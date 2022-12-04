@@ -58,8 +58,10 @@ const void* mods_find(const char *name)
 extern const fmed_filter _fmed_format_detector;
 extern const fmed_filter ctl_filter;
 extern const fmed_filter file_input;
+extern const fmed_filter file_output;
 extern const fmed_filter flac_input;
 extern const fmed_filter mp3_input;
+extern const fmed_filter mp3_copy;
 extern const fmed_filter mp4_input;
 extern const fmed_filter ogg_input;
 extern const fmed_filter opusmeta_input;
@@ -71,10 +73,12 @@ const fmed_filter* mods_filter_byname(const char *name)
 {
 	static const char *const names[] = {
 		"core.file",
+		"core.filew",
 		"ctl",
 		"fmt.detector",
 		"fmt.flac",
 		"fmt.mp3",
+		"fmt.mp3-copy",
 		"fmt.mp4",
 		"fmt.ogg",
 		"fmt.opusmeta",
@@ -82,10 +86,12 @@ const fmed_filter* mods_filter_byname(const char *name)
 	};
 	static const fmed_filter *const filters[] = {
 		/*"core.file"*/	&file_input,
+		/*"core.filew"*/	&file_output,
 		/*"ctl"*/	&ctl_filter,
 		/*"fmt.detector"*/	&_fmed_format_detector,
 		/*"fmt.flac"*/	&flac_input,
 		/*"fmt.mp3"*/	&mp3_input,
+		/*"fmt.mp3-copy"*/	&mp3_copy,
 		/*"fmt.mp4"*/	&mp4_input,
 		/*"fmt.ogg"*/	&ogg_input,
 		/*"fmt.opusmeta"*/	&opusmeta_input,

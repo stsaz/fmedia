@@ -5,7 +5,8 @@
 
 	<string name="menu_settings">Settings...</string>
 	<string name="mfile_del">File: Delete from Storage</string>
-	<string name="mfile_tags_show">File: Show Tags...</string>
+	<string name="mfile_convert">File: Cut...</string>
+	<string name="mfile_tags_show">File: Show Tags</string>
 	<string name="mlist_save">List: Save...</string>
 	<string name="mlist_load">List: Load...</string>
 	<string name="mlist_add">List: Add...</string>

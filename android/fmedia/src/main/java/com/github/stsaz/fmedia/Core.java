@@ -16,14 +16,17 @@ class CoreSettings {
 	private Core core;
 	boolean svc_notification_disable;
 	String trash_dir;
-	String rec_path = ""; // directory for recordings
-	int enc_bitrate = 192; // encoder bitrate
+	String rec_path; // directory for recordings
+	int enc_bitrate; // encoder bitrate
 	boolean file_del;
 	boolean no_tags;
-	String codepage = "cp1252";
+	String codepage;
 
 	CoreSettings(Core core) {
 		this.core = core;
+		enc_bitrate = 192;
+		codepage = "cp1252";
+		rec_path = "";
 		trash_dir = String.format("%s/Trash", core.storage_path);
 	}
 

@@ -1,0 +1,88 @@
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+	android:layout_width="match_parent"
+	android:layout_height="match_parent">
+
+	<LinearLayout
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:focusableInTouchMode="true"
+		android:orientation="vertical">
+
+		<TextView
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:text="Input file:"
+			android:textColor="@color/text" />
+
+		<EditText
+			android:id="@+id/conv_tiname"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginHorizontal="10dp"
+			android:inputType="text"
+			android:textSize="@dimen/text_editbox" />
+
+		<TextView
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:text="Output file:"
+			android:textColor="@color/text" />
+
+		<EditText
+			android:id="@+id/conv_toname"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginHorizontal="10dp"
+			android:inputType="text"
+			android:textSize="@dimen/text_editbox" />
+
+		<TextView
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:text="Start Audio Position:"
+			android:textColor="@color/text" />
+
+		<EditText
+			android:id="@+id/conv_tfrom"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginHorizontal="10dp"
+			android:inputType="text"
+			android:textSize="@dimen/text_editbox" />
+
+		<TextView
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:text="End Audio Position:"
+			android:textColor="@color/text" />
+
+		<EditText
+			android:id="@+id/conv_tuntil"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginHorizontal="10dp"
+			android:inputType="text"
+			android:textSize="@dimen/text_editbox" />
+
+		<androidx.appcompat.widget.SwitchCompat
+			android:id="@+id/conv_bpreserve_date"
+			android:layout_width="match_parent"
+			android:layout_height="match_parent"
+			android:layout_margin="10dp"
+			android:text="Preserve File Date" />
+
+		<Button
+			android:id="@+id/conv_bstart"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:text="Copy" />
+
+		<TextView
+			android:id="@+id/conv_lresult"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:text=""
+			android:textColor="@color/text" />
+
+	</LinearLayout>
+</ScrollView>

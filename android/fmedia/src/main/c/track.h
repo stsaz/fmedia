@@ -9,8 +9,9 @@ struct filter {
 };
 
 /* Max filter chain:
-ifile->detector->ifmt->meta->ctl */
-#define MAX_FILTERS 5
+ifile->detector->ifmt->meta->ctl
+ifile->detector->ifmt->copy->ctl->ofile */
+#define MAX_FILTERS 6
 
 struct track_ctx {
 	fmed_track_info ti;
@@ -28,10 +29,15 @@ static fmed_track_obj* trk_create(uint cmd, const char *url)
 {
 	struct track_ctx *t = ffmem_new(struct track_ctx);
 	t->cur = -1;
-	t->ti.trk = t;
-	t->ti.track = &track_iface;
-	t->ti.input.seek = FMED_NULL;
-	t->ti.audio.decoder = "";
+	fmed_track_info *ti = &t->ti;
+	ti->trk = t;
+	ti->track = &track_iface;
+	ti->input.size = FMED_NULL;
+	ti->input.seek = FMED_NULL;
+	ti->output.seek = FMED_NULL;
+	ti->audio.seek = FMED_NULL;
+	ti->audio.until = FMED_NULL;
+	ti->audio.decoder = "";
 	t->filters.ptr = t->filters_active;
 	return t;
 }
@@ -48,11 +54,15 @@ static void trk_close(struct track_ctx *t)
 		}
 	}
 
+	fmed_track_info *ti = &t->ti;
+
 	char **ps;
-	FFSLICE_WALK(&t->ti.meta, ps) {
+	FFSLICE_WALK(&ti->meta, ps) {
 		ffmem_free(*ps);
 	}
-	ffvec_free(&t->ti.meta);
+	ffvec_free(&ti->meta);
+
+	ffmem_free(ti->out_filename);
 
 	dbglog1(t, "track closed");
 	ffmem_free(t);
@@ -89,11 +99,17 @@ static void trk_process(struct track_ctx *t)
 		t->cur = i;
 		if (f->obj == NULL) {
 			dbglog1(t, "%s: opening filter", f->name);
-			if (NULL == (f->obj = f->iface->open(&t->ti))) {
+			void *obj;
+			if (NULL == (obj = f->iface->open(&t->ti))) {
 				dbglog1(t, "%s: filter open failed", f->name);
 				goto err;
 			}
-			FF_ASSERT(f->obj != FMED_FILT_SKIP);
+			if (obj == FMED_FILT_SKIP) {
+				dbglog1(t, "%s: skipping", f->name);
+				r = FMED_RDONE;
+				goto result;
+			}
+			f->obj = obj;
 		}
 
 		dbglog1(t, "%s: calling filter, input:%L  flags:%xu"
@@ -132,7 +148,7 @@ result:
 			}
 			if (t->filters.len == 0) {
 				// all filters have finished
-				goto err;
+				goto fin;
 			}
 			goto go_fwd;
 
@@ -165,6 +181,8 @@ go_back:
 			break;
 
 		case FMED_RFIN:
+			goto fin;
+
 		case FMED_RERR:
 			goto err;
 
@@ -175,7 +193,11 @@ go_back:
 	}
 
 err:
-	dbglog1(t, "finished processing");
+	if (t->ti.error == 0)
+		t->ti.error = FMED_E_OTHER;
+
+fin:
+	dbglog1(t, "finished processing: %u", t->ti.error);
 }
 
 static char* trk_chain_print(struct track_ctx *t, const struct filter *mark, char *buf, ffsize cap)

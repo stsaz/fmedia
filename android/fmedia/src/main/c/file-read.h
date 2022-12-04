@@ -24,11 +24,14 @@ static void fi_close(void *ctx)
 static void* fi_open(fmed_track_info *ti)
 {
 	struct fi *f = ffmem_new(struct fi);
+	f->fd = FFFILE_NULL;
 	if (0 != fcache_init(&f->fcache, 2, BUF_SIZE, ALIGN))
 		goto end;
 
 	if (FFFILE_NULL == (f->fd = fffile_open(ti->in_filename, FFFILE_READONLY))) {
 		syserrlog1(ti->trk, "fffile_open: %s", ti->in_filename);
+		if (fferr_notexist(fferr_last()))
+			ti->error = FMED_E_NOSRC;
 		goto end;
 	}
 

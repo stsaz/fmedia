@@ -28,6 +28,8 @@ build-install: build
 	$(MAKE) install
 
 build: lib
+	rm -vf fmedia/libs/x86_64/libfmedia.so
+	rmdir fmedia/libs/x86_64 || true
 	./gradlew $(GRD_BUILD)
 
 lib:

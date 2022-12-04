@@ -21,6 +21,10 @@ class Fmedia {
 	String artist, title;
 	public native String[] meta(String filepath);
 
+	static int F_DATE_PRESERVE = 1;
+	static int F_OVERWRITE = 2;
+	native String streamCopy(String iname, String oname, String from_msec, String to_msec, int flags);
+
 	public native String[] listDirRecursive(String filepath);
 
 	public native String[] playlistLoadData(byte[] data);

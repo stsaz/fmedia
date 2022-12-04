@@ -11,4 +11,5 @@ const fmed_core *core;
 
 #include "core.h"
 #include "file-read.h"
+#include "file-write.h"
 #include "track.h"

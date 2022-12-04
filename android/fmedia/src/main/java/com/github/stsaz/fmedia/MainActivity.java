@@ -53,7 +53,7 @@ public class MainActivity extends AppCompatActivity {
 	private Track track;
 	private Filter trk_nfy;
 	private TrackCtl trackctl;
-	private int total_dur_msec;
+	private int total_dur_msec, cur_apos_sec;
 	private int state;
 	private int cur_view; // Explorer/Playlist view switch (0:Playlist)
 	private Explorer explorer;
@@ -158,6 +158,13 @@ public class MainActivity extends AppCompatActivity {
 
 			case R.id.action_file_tags_show:
 				startActivity(new Intent(this, TagsActivity.class));
+				return true;
+
+			case R.id.action_file_convert:
+				startActivity(new Intent(this, ConvertActivity.class)
+						.putExtra("iname", cur_filename())
+						.putExtra("from", cur_apos_sec)
+						.putExtra("length", total_dur_msec / 1000 + 1));
 				return true;
 
 			case R.id.action_list_add:
@@ -481,6 +488,13 @@ public class MainActivity extends AppCompatActivity {
 		list.setSelection(gui.list_pos);
 	}
 
+	private String cur_filename() {
+		int pos = queue.cur();
+		if (pos < 0)
+			return "";
+		return queue.list()[pos];
+	}
+
 	/**
 	 * Ask confirmation before deleting the currently playing file from storage
 	 */
@@ -488,7 +502,7 @@ public class MainActivity extends AppCompatActivity {
 		int pos = queue.cur();
 		if (pos < 0)
 			return;
-		final String fn = queue.list()[pos];
+		String fn = queue.list()[pos];
 
 		AlertDialog.Builder b = new AlertDialog.Builder(this);
 		b.setIcon(android.R.drawable.ic_dialog_alert);
@@ -777,6 +791,7 @@ public class MainActivity extends AppCompatActivity {
 				break;
 		}
 
+		cur_apos_sec = t.pos_msec / 1000;
 		int pos = t.pos_msec / 1000;
 		total_dur_msec = t.time_total_msec;
 		int dur = t.time_total_msec / 1000;
