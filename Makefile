@@ -57,8 +57,8 @@ endif
 OBJ_DIR := .
 BIN_CONTAINERS := fmt.$(SO)
 BIN_ACODECS := \
-	aac.$(SO) alac.$(SO) ape.$(SO) flac.$(SO) mpeg.$(SO) mpc.$(SO) opus.$(SO) vorbis.$(SO) wavpack.$(SO)
-BIN_AFILTERS := dynanorm.$(SO) \
+	aac.$(SO) alac.$(SO) flac.$(SO) mpeg.$(SO) mpc.$(SO) opus.$(SO) vorbis.$(SO) wavpack.$(SO)
+BIN_AFILTERS := \
 	soxr.$(SO) \
 	afilter.$(SO)
 BINS := $(BIN) core.$(SO) tui.$(SO) net.$(SO) plist.$(SO) \
@@ -556,10 +556,8 @@ endif
 	mv $(INSTDIR)/mod/core.$(SO) $(INSTDIR)/ || true
 	$(CP) \
 		$(ALIB3)/libALAC-ff.$(SO) \
-		$(ALIB3)/libDynamicAudioNormalizer-ff.$(SO) \
 		$(ALIB3)/libfdk-aac-ff.$(SO) \
 		$(ALIB3)/libFLAC-ff.$(SO) \
-		$(ALIB3)/libMAC-ff.$(SO) \
 		$(ALIB3)/libmp3lame-ff.$(SO) \
 		$(ALIB3)/libmpc-ff.$(SO) \
 		$(ALIB3)/libmpg123-ff.$(SO) \

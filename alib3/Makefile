@@ -5,10 +5,8 @@ BINDIR := _$(OS)-$(CPU)
 
 build:
 	$(MAKE) -Rr -C ALAC
-	$(MAKE) -Rr -C DynamicAudioNormalizer
 	$(MAKE) -Rr -C fdk-aac
 	$(MAKE) -Rr -C FLAC
-	$(MAKE) -Rr -C MAC
 	$(MAKE) -Rr -C mp3lame
 	$(MAKE) -Rr -C mpg123
 	$(MAKE) -Rr -C musepack
@@ -21,10 +19,8 @@ build:
 install:
 	mkdir -p $(BINDIR)
 	$(CP) ALAC/*.$(SO) \
-		DynamicAudioNormalizer/*.$(SO) \
 		fdk-aac/*.$(SO) \
 		FLAC/*.$(SO) \
-		MAC/*.$(SO) \
 		mp3lame/*.$(SO) \
 		mpg123/*.$(SO) \
 		musepack/*.$(SO) \
@@ -37,10 +33,8 @@ install:
 
 clean:
 	$(MAKE) -C ALAC clean
-	$(MAKE) -C DynamicAudioNormalizer clean
 	$(MAKE) -C fdk-aac clean
 	$(MAKE) -C FLAC clean
-	$(MAKE) -C MAC clean
 	$(MAKE) -C mp3lame clean
 	$(MAKE) -C mpg123 $(ARCH) clean
 	$(MAKE) -C musepack clean
@@ -68,10 +62,8 @@ cleanlib:
 md5:
 	md5sum -b \
 		ALAC/master.zip \
-		DynamicAudioNormalizer/2.10.tar.gz \
 		fdk-aac/v0.1.6.tar.gz \
 		FLAC/flac-1.3.3.tar.xz \
-		MAC/MAC_SDK_433.zip \
 		mp3lame/lame-3.100.tar.gz \
 		mpg123/mpg123-1.25.10.tar.bz2 \
 		musepack/musepack_src_r475.tar.gz \
