@@ -152,6 +152,7 @@ static inline int ffmpg_copy(ffmpgcopy *m, ffstr *input, ffstr *output)
 			continue;
 		}
 
+		_avp_stream_reset(&m->buf);
 		m->gsize = ffmin64(MPG_FTRTAGS_CHKSIZE, m->total_size);
 		m->state = CPY_GATHER,  m->gstate = CPY_FTRTAGS;
 		m->off = ffmin64(m->total_size - MPG_FTRTAGS_CHKSIZE, m->total_size);
