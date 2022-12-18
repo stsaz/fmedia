@@ -132,7 +132,7 @@ static int loadcore(char *argv0)
 
 	if (NULL == (path = ffps_filename(buf, sizeof(buf), argv0)))
 		goto end;
-	if (0 == ffstr_catfmt(&a, "%s/../mod/core.%s%Z", path, FFDL_EXT))
+	if (0 == ffstr_catfmt(&a, "%s/../core.%s%Z", path, FFDL_EXT))
 		goto end;
 	a.len = ffpath_normalize(a.ptr, a.cap, a.ptr, a.len - 1, 0);
 	((char*)a.ptr)[a.len] = '\0';

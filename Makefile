@@ -552,6 +552,9 @@ endif
 	chmod 755 $(INSTDIR)/mod
 	$(CP) \
 		*.$(SO) \
+		$(INSTDIR)/mod/
+	mv $(INSTDIR)/mod/core.$(SO) $(INSTDIR)/ || true
+	$(CP) \
 		$(ALIB3)/libALAC-ff.$(SO) \
 		$(ALIB3)/libDynamicAudioNormalizer-ff.$(SO) \
 		$(ALIB3)/libfdk-aac-ff.$(SO) \
@@ -564,7 +567,7 @@ endif
 		$(ALIB3)/libsoxr-ff.$(SO) \
 		$(ALIB3)/libvorbis-ff.$(SO) $(ALIB3)/libvorbisenc-ff.$(SO) $(ALIB3)/libogg-ff.$(SO) \
 		$(ALIB3)/libwavpack-ff.$(SO) \
-		$(INSTDIR)/mod
+		$(INSTDIR)/mod/
 	chmod 644 $(INSTDIR)/mod/*
 
 
