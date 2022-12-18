@@ -9,11 +9,13 @@ struct filter {
 	uint backward_skip :1;
 };
 
-/* Max filter chain:
-ifile->detector->ifmt->meta->ctl
-ifile->detector->ifmt->copy->ctl ->ofile
-ifile->detector->ifmt->ctl ->ofmt->ofile */
-#define MAX_FILTERS 6
+/* Possible filter chains:
+meta:      ifile->detr->ifmt->meta->ctl
+.mp3 copy: ifile->detr->ifmt->copy->untl->ctl ->ofile
+copy:      ifile->detr->ifmt->untl->ctl ->ofmt->ofile
+convert:   ifile->detr->ifmt->dec ->untl->ctl ->aconv->conv->enc ->ofmt->ofile
+*/
+#define MAX_FILTERS 11
 
 struct track_ctx {
 	fmed_track_info ti;
@@ -35,6 +37,7 @@ static fmed_track_obj* trk_create(uint cmd, const char *url)
 	struct track_ctx *t = ffmem_new(struct track_ctx);
 	t->cur = -1;
 	t->tstart = fftime_monotonic();
+	t->filters.ptr = t->filters_active;
 
 	fmed_track_info *ti = &t->ti;
 	ti->trk = t;
@@ -45,7 +48,10 @@ static fmed_track_obj* trk_create(uint cmd, const char *url)
 	ti->audio.seek = FMED_NULL;
 	ti->audio.until = FMED_NULL;
 	ti->audio.decoder = "";
-	t->filters.ptr = t->filters_active;
+
+	// [_bar_start.._bar_end] = 0xff
+	memset(&ti->_bar_start, 0xff, FF_OFF(fmed_track_info, _bar_end) - FF_OFF(fmed_track_info, _bar_start));
+	ffstr_null(&ti->aac.profile);
 	return t;
 }
 

@@ -60,7 +60,7 @@ ifeq "$(DEBUG)" "1"
 	CFLAGS += -g -DFMED_DEBUG -DFF_DEBUG -Werror
 endif
 CFLAGS += \
-	-I$(FMED_DIR)/src \
+	-I$(FMED_DIR)/src -I$(FMED_DIR)/alib3 \
 	-I$(ROOT)/avpack \
 	-I$(ROOT)/ffos -I$(ROOT)/ffbase
 CFLAGS_OPT := -O2
@@ -73,18 +73,32 @@ ifeq "$(CPU)" "arm"
 	APP_CFLAGS_OPT := -O0
 endif
 
+LINK_RPATH_ORIGIN := '-Wl,-rpath,$$ORIGIN' -Wl,--disable-new-dtags
 LINKFLAGS += -L$(FMED_DIR)/alib3/_android-$(CPU)
-LINKFLAGS += \
+LINKFLAGS += $(LINK_RPATH_ORIGIN) \
+	-lfdk-aac-phi \
+	-lmpg123-phi \
 	-latomic -llog -lc -lm
 
 BUILD_DIR := .
 OBJ_DIR := $(BUILD_DIR)/obj-$(CPU)
 
 OBJ := \
+	$(OBJ_DIR)/acodec.o \
+	$(OBJ_DIR)/aconv.o \
 	$(OBJ_DIR)/afilter.o \
 	$(OBJ_DIR)/core.o \
+	$(OBJ_DIR)/ffpcm.o \
 	$(OBJ_DIR)/fmedia-jni.o \
 	$(OBJ_DIR)/fmt.o
+
+$(OBJ_DIR)/ffpcm.o: $(FMED_DIR)/src/afilter/ffpcm.c \
+		$(wildcard $(FMED_DIR)/src/afilter/*.h)
+	$(C) $(CFLAGS) $(CFLAGS_OPT) $< -o $@
+
+$(OBJ_DIR)/%.o: $(FMED_DIR)/src/afilter/%.c \
+		$(wildcard $(FMED_DIR)/src/afilter/*.h)
+	$(C) $(CFLAGS) $(APP_CFLAGS_OPT) $< -o $@
 
 $(OBJ_DIR)/%.o: $(FMED_DIR)/android/fmedia/src/main/c/%.c \
 		$(wildcard $(FMED_DIR)/android/fmedia/src/main/c/*.h)
@@ -101,6 +115,10 @@ $(LIBDIR)/libfmedia.so: $(OBJ)
 	$(LINK) -shared $(LINKFLAGS) $+ -o $@
 
 alib3:
+	$(CP) \
+		$(FMED_DIR)/alib3/_android-$(CPU)/libfdk-aac-phi.so \
+		$(FMED_DIR)/alib3/_android-$(CPU)/libmpg123-phi.so \
+		$(LIBDIR)
 
 OBJCOPY := $(C_DIR)/llvm-objcopy
 STRIP := $(C_DIR)/llvm-strip

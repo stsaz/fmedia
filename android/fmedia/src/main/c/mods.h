@@ -87,13 +87,21 @@ extern const fmed_filter mp4_output;
 extern const fmed_filter ogg_input;
 extern const fmed_filter opusmeta_input;
 extern const fmed_filter vorbismeta_input;
+extern const fmed_filter fmed_sndmod_autoconv;
+extern const fmed_filter fmed_sndmod_conv;
 extern const fmed_filter fmed_sndmod_until;
+extern const fmed_filter aac_output;
+extern const fmed_filter mpeg_decode_filt;
 
 extern int ogg_in_conf(fmed_conf_ctx *ctx);
+extern int aac_out_config(fmed_conf_ctx *ctx);
 
 const fmed_filter* mods_filter_byname(const char *name)
 {
 	static const char *const names[] = {
+		"aac.encode",
+		"afilter.autoconv",
+		"afilter.conv",
 		"afilter.until",
 		"core.file",
 		"core.filew",
@@ -107,8 +115,12 @@ const fmed_filter* mods_filter_byname(const char *name)
 		"fmt.ogg",
 		"fmt.opusmeta",
 		"fmt.vorbismeta",
+		"mpeg.decode",
 	};
 	static const fmed_filter *const filters[] = {
+		/*"aac.encode"*/	&aac_output,
+		/*"afilter.autoconv"*/	&fmed_sndmod_autoconv,
+		/*"afilter.conv"*/	&fmed_sndmod_conv,
 		/*"afilter.until"*/	&fmed_sndmod_until,
 		/*"core.file"*/	&file_input,
 		/*"core.filew"*/	&file_output,
@@ -122,6 +134,7 @@ const fmed_filter* mods_filter_byname(const char *name)
 		/*"fmt.ogg"*/	&ogg_input,
 		/*"fmt.opusmeta"*/	&opusmeta_input,
 		/*"fmt.vorbismeta"*/	&vorbismeta_input,
+		/*"mpeg.decode"*/	&mpeg_decode_filt,
 	};
 	int i = ffszarr_findsorted(names, FF_COUNT(names), name, ffsz_len(name));
 	if (i < 0) {
@@ -132,6 +145,10 @@ const fmed_filter* mods_filter_byname(const char *name)
 	if (filters[i] == &ogg_input) {
 		fmed_conf_ctx cc = {};
 		ogg_in_conf(&cc);
+
+	} else if (filters[i] == &aac_output) {
+		fmed_conf_ctx cc = {};
+		aac_out_config(&cc);
 	}
 
 	return filters[i];

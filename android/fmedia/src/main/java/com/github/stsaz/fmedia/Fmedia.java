@@ -35,6 +35,8 @@ class Fmedia {
 	public native boolean playlistSave(String filepath, String[] list);
 
 	static {
+		System.loadLibrary("fdk-aac-phi");
+		System.loadLibrary("mpg123-phi");
 		System.loadLibrary("fmedia");
 	}
 }

@@ -25,11 +25,23 @@
 		<TextView
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
-			android:text="Output file:"
+			android:text="Output file name (w/o extension):"
 			android:textColor="@color/text" />
-
 		<EditText
 			android:id="@+id/conv_toname"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginHorizontal="10dp"
+			android:inputType="text"
+			android:textSize="@dimen/text_editbox" />
+
+		<TextView
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:text="Output extension (mp3 | m4a):"
+			android:textColor="@color/text" />
+		<EditText
+			android:id="@+id/conv_toext"
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
 			android:layout_marginHorizontal="10dp"
@@ -64,6 +76,26 @@
 			android:inputType="text"
 			android:textSize="@dimen/text_editbox" />
 
+		<TextView
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:text="[.m4a] AAC Quality: 1..5 (VBR) or 8..800 (CBR, kbit/s)"
+			android:textColor="@color/text" />
+		<EditText
+			android:id="@+id/conv_taac_q"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginHorizontal="10dp"
+			android:inputType="text"
+			android:textSize="@dimen/text_editbox" />
+
+		<androidx.appcompat.widget.SwitchCompat
+			android:id="@+id/conv_bcopy"
+			android:layout_width="match_parent"
+			android:layout_height="match_parent"
+			android:layout_margin="10dp"
+			android:text="[.mp3/.m4a] Stream Copy" />
+
 		<androidx.appcompat.widget.SwitchCompat
 			android:id="@+id/conv_bpreserve_date"
 			android:layout_width="match_parent"
@@ -71,11 +103,16 @@
 			android:layout_margin="10dp"
 			android:text="Preserve File Date" />
 
+		<TextView
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:text="Note: the process may take up to a minute! Be patient."
+			android:textColor="@color/text" />
 		<Button
 			android:id="@+id/conv_bstart"
 			android:layout_width="wrap_content"
 			android:layout_height="wrap_content"
-			android:text="Copy" />
+			android:text="Convert!" />
 
 		<TextView
 			android:id="@+id/conv_lresult"

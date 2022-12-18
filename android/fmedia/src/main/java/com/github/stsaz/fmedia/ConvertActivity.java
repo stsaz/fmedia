@@ -15,8 +15,8 @@ import androidx.appcompat.widget.SwitchCompat;
 
 public class ConvertActivity extends AppCompatActivity {
 	Core core;
-	private EditText tiname, toname, tfrom, tuntil;
-	private SwitchCompat bpreserve;
+	private EditText tiname, toname, toext, tfrom, tuntil, taac_q;
+	private SwitchCompat bcopy, bpreserve;
 	private Button bstart;
 	private TextView lresult;
 
@@ -25,34 +25,54 @@ public class ConvertActivity extends AppCompatActivity {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.convert);
 
-		String iname = getIntent().getStringExtra("iname");
-		int from_sec = getIntent().getIntExtra("from", 0);
-		int until_sec = getIntent().getIntExtra("length", 0);
-
 		core = Core.getInstance();
 
 		tiname = findViewById(R.id.conv_tiname);
-		tiname.setText(iname);
-
 		toname = findViewById(R.id.conv_toname);
-		toname.setText(iname);
-
+		toext = findViewById(R.id.conv_toext);
 		tfrom = findViewById(R.id.conv_tfrom);
-		tfrom.setText(String.format("%d:%02d", from_sec/60, from_sec%60));
-
 		tuntil = findViewById(R.id.conv_tuntil);
-		tuntil.setText(String.format("%d:%02d", until_sec/60, until_sec%60));
-
+		bcopy = findViewById(R.id.conv_bcopy);
 		bpreserve = findViewById(R.id.conv_bpreserve_date);
-
+		taac_q = findViewById(R.id.conv_taac_q);
 		bstart = findViewById(R.id.conv_bstart);
 		bstart.setOnClickListener((v) -> convert());
-
 		lresult = findViewById(R.id.conv_lresult);
+
+		load();
+
+		String iname = getIntent().getStringExtra("iname");
+		tiname.setText(iname);
+		int pos = iname.lastIndexOf('.');
+		if (pos < 0)
+			pos = 0;
+		toname.setText(iname.substring(0, pos));
+
+		if (true) {
+			int from_sec = getIntent().getIntExtra("from", 0);
+			int until_sec = getIntent().getIntExtra("length", 0);
+			tfrom.setText(String.format("%d:%02d", from_sec/60, from_sec%60));
+			tuntil.setText(String.format("%d:%02d", until_sec/60, until_sec%60));
+		}
+	}
+
+	void load() {
+		toext.setText(core.setts.conv_outext);
+		taac_q.setText(core.int_to_str(core.setts.conv_aac_quality));
+		bcopy.setChecked(core.setts.conv_copy);
+	}
+
+	void save() {
+		core.setts.conv_outext = toext.getText().toString();
+		core.setts.conv_copy = bcopy.isChecked();
+		int v = core.str_to_uint(taac_q.getText().toString(), 0);
+		if (v != 0)
+			core.setts.conv_aac_quality = v;
 	}
 
 	@Override
 	protected void onDestroy() {
+		save();
 		core.unref();
 		super.onDestroy();
 	}
@@ -68,9 +88,11 @@ public class ConvertActivity extends AppCompatActivity {
 
 		core.fmedia.from_msec = tfrom.getText().toString();
 		core.fmedia.to_msec = tuntil.getText().toString();
-		core.fmedia.copy = true;
+		core.fmedia.copy = bcopy.isChecked();
+		core.fmedia.aac_quality = core.str_to_uint(taac_q.getText().toString(), 0);
 		String r = core.fmedia.convert(
-				tiname.getText().toString(), toname.getText().toString(),
+				tiname.getText().toString(),
+				String.format("%s.%s", toname.getText().toString(), toext.getText().toString()),
 				flags
 		);
 		lresult.setText(r);

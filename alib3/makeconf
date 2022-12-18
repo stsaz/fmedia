@@ -113,3 +113,8 @@ UNTAR_XZ := tar xJf
 UNTAR_ZST := tar -x --zstd -f
 UNZIP := unzip
 SED := sed -i.old
+
+# Set compiler and append compiler & linker flags for Android
+ifeq "$(SYS)" "android"
+include ../../android/andk.mk
+endif

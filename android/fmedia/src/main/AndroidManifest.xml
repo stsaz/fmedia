@@ -47,7 +47,7 @@
 
 		<activity
 			android:name=".ConvertActivity"
-			android:label="Cut Audio"
+			android:label="Convert Audio"
 			android:parentActivityName=".MainActivity">
 			<meta-data
 				android:name="android.support.PARENT_ACTIVITY"

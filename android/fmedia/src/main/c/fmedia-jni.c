@@ -245,6 +245,7 @@ Java_com_github_stsaz_fmedia_Fmedia_convert(JNIEnv *env, jobject thiz, jstring j
 	ti->type = FMED_TRK_TYPE_CONVERT;
 	ti->print_time = 0;
 	ti->stream_copy = jni_obj_bool(thiz, jni_field(jc, "copy", JNI_TBOOL));
+	ti->aac.quality = jni_obj_int(thiz, jni_field(jc, "aac_quality", JNI_TINT));
 
 	ti->in_filename = ifn;
 
@@ -268,6 +269,7 @@ Java_com_github_stsaz_fmedia_Fmedia_convert(JNIEnv *env, jobject thiz, jstring j
 	fx->track->cmd(t, FMED_TRACK_FILT_ADD, "fmt.detector");
 	fx->track->cmd(t, FMED_TRACK_FILT_ADD, "afilter.until");
 	fx->track->cmd(t, FMED_TRACK_FILT_ADD, "ctl");
+	fx->track->cmd(t, FMED_TRACK_FILT_ADD, "afilter.autoconv");
 
 	// Add output format filter according to the file extension of user-specified output file
 	ffstr ext;
@@ -279,6 +281,10 @@ Java_com_github_stsaz_fmedia_Fmedia_convert(JNIEnv *env, jobject thiz, jstring j
 	const char *fname = (void*)core->cmd(FMED_OFILTER_BYEXT, ext.ptr);
 	if (fname == NULL) {
 		error = "Output file extension isn't supported";
+		goto end;
+	}
+	if (ffstr_eqz(&ext, "mp3") && !ti->stream_copy) {
+		error = ".mp3 output requires Stream Copy";
 		goto end;
 	}
 	if (!(ti->stream_copy && ffstr_eqz(&ext, "mp3"))) // Note: fmt.mp3-copy is added directly by fmt.mp3

@@ -22,6 +22,10 @@ abstract class Util {
 
 	abstract void errlog(String mod, String fmt, Object... args);
 
+	String int_to_str(int v) {
+		return String.format("%d", v);
+	}
+
 	int str_to_uint(String s, int def) {
 		try {
 			int i = Integer.decode(s);

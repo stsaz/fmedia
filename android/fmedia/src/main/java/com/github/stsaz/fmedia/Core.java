@@ -24,12 +24,18 @@ class CoreSettings {
 	boolean no_qu_rm_on_err;
 	String codepage;
 
+	String conv_outext;
+	int conv_aac_quality;
+	boolean conv_copy;
+
 	CoreSettings(Core core) {
 		this.core = core;
 		enc_bitrate = 192;
 		codepage = "cp1252";
 		rec_path = "";
 		trash_dir = String.format("%s/Trash", core.storage_path);
+		conv_outext = "m4a";
+		conv_aac_quality = 5;
 	}
 
 	@SuppressLint("DefaultLocale")
@@ -41,7 +47,11 @@ class CoreSettings {
 				String.format("codepage %s\n", codepage) +
 				String.format("rec_path %s\n", rec_path) +
 				String.format("enc_bitrate %d\n", enc_bitrate) +
-				String.format("trash_dir %s\n", trash_dir);
+				String.format("trash_dir %s\n", trash_dir) +
+
+				String.format("conv_outext %s\n", conv_outext) +
+				String.format("conv_aac_quality %d\n", conv_aac_quality) +
+				String.format("conv_copy %d\n", core.bool_to_int(conv_copy));
 	}
 
 	void set_codepage(String val) {
@@ -69,6 +79,12 @@ class CoreSettings {
 			set_codepage(v);
 		else if (k.equals("enc_bitrate"))
 			enc_bitrate = core.str_to_uint(v, enc_bitrate);
+		else if (k.equals("conv_outext"))
+			conv_outext = v;
+		else if (k.equals("conv_aac_quality"))
+			conv_aac_quality = core.str_to_uint(v, conv_aac_quality);
+		else if (k.equals("conv_copy"))
+			conv_copy = core.str_to_bool(v);
 		else
 			return 1;
 		return 0;
