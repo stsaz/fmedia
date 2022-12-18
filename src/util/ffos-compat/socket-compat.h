@@ -40,7 +40,7 @@ enum {
 	, FF_MAXIP4 = 22
 	, FF_MAXIP6 = 65 // "[addr]:port"
 #ifdef FF_APPLE
-	SOCK_NONBLOCK = 0x40000000,
+	, SOCK_NONBLOCK = 0x40000000
 #endif
 };
 

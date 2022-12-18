@@ -16,6 +16,20 @@ else ifeq "$(OS)" "Windows_NT"
 	OS := windows
 endif
 
+# Set CPU arch: amd64 (x86_64), x86 (i686), arm64 (aarch64)
+# Note: Windows: must set CPU=... manually
+CPU := amd64
+ifneq "$(OS)" "windows"
+	CPU := $(shell uname -m)
+	ifeq "$(CPU)" "x86_64"
+		CPU := amd64
+	else ifeq "$(CPU)" "i686"
+		CPU := x86
+	else ifeq "$(CPU)" "aarch64"
+		CPU := arm64
+	endif
+endif
+
 DOTEXE :=
 SO := so
 ifeq "$(OS)" "apple"
@@ -77,19 +91,25 @@ ifeq "$(COMPILER)" "gcc"
 	LINKFLAGS += -static-libgcc
 endif
 LINKXXFLAGS = $(LINKFLAGS)
-ifeq "$(OS)" "windows"
-	LINKXXFLAGS += -static
-else
-	LINKXXFLAGS += -static-libstdc++
+ifeq "$(COMPILER)" "gcc"
+	ifeq "$(OS)" "linux"
+		LINKXXFLAGS += -static-libstdc++
+	else
+		LINKXXFLAGS += -static
+	endif
 endif
 
 
 # Set utils
 CURL := curl -L
 RM := rm -rf
-CP := cp -u
+CP := cp
+ifeq "$(OS)" "linux"
+	CP := cp -u
+endif
 UNTAR_BZ2 := tar xjf
 UNTAR_GZ := tar xzf
 UNTAR_XZ := tar xJf
 UNTAR_ZST := tar -x --zstd -f
 UNZIP := unzip
+SED := sed -i.old

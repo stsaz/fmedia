@@ -8,12 +8,7 @@ PKG := $(notdir $(URL))
 DIR := mpg123-$(VER)
 LIB := libmpg123-ff.$(SO)
 
-ifeq ($(OS),windows)
-	CONFIGURE_FLAGS := --host=x86_64-w64-mingw32
-endif
-all: $(DIR)
-	cd $(DIR) && ./configure $(CONFIGURE_FLAGS)
-	cd $(DIR) && cat ../*.patch | patch -p1
+all: $(DIR)/src/config.h
 	$(MAKE) -rR $(LIB)
 
 # download
@@ -25,12 +20,19 @@ $(DIR): $(PKG)
 	$(UNTAR_BZ2) $(PKG)
 	touch $(DIR)
 
+ifeq "$(OS)" "windows"
+CONFIGURE_FLAGS := --host=x86_64-w64-mingw32
+endif
+$(DIR)/src/config.h: $(DIR)
+	cd $(DIR) && ./configure $(CONFIGURE_FLAGS)
+	cd $(DIR) && cat ../*.patch | patch -p1
+
 # build
 CFLAGS += \
 	-I. -I$(DIR) -I$(DIR)/src -I$(DIR)/src/libmpg123 -I$(DIR)/src/compat \
 	-DMPG123_SO -DMPG123_EXPORT="" -DHAVE_CONFIG_H -DNO_ID3V2 -DNO_ICY -DNO_WARNING -DNO_ERRORMSG -DNO_ERETURN \
 	-DOPT_MULTI -DOPT_GENERIC -DOPT_GENERIC_DITHER -DREAL_IS_FLOAT -DMPG123_NO_LARGENAME \
-	-msse2 -fomit-frame-pointer -funroll-all-loops -finline-functions -ffast-math
+	-fomit-frame-pointer -funroll-all-loops -finline-functions -ffast-math
 
 SRC := \
 	$(DIR)/src/compat/compat_str.c \
@@ -48,19 +50,17 @@ SRC := \
 	$(DIR)/src/libmpg123/layer1.c \
 	$(DIR)/src/libmpg123/layer2.c \
 	$(DIR)/src/libmpg123/layer3.c \
-	$(DIR)/src/libmpg123/dither.c
+	$(DIR)/src/libmpg123/dither.c \
+	$(DIR)/src/libmpg123/synth_8bit.c \
+	$(DIR)/src/libmpg123/synth_real.c \
+	$(DIR)/src/libmpg123/synth_s32.c
 
-ifeq ($(CPU),i686)
+ifeq "$(CPU)" "x86"
 
-	CFLAGS += \
+	CFLAGS += -msse2 \
 		-DOPT_I386 -DOPT_I586 -DOPT_I586_DITHER -DOPT_MMX \
 		-DOPT_3DNOW -DOPT_3DNOW_VINTAGE -DOPT_3DNOWEXT -DOPT_3DNOWEXT_VINTAGE \
 		-DOPT_SSE -DOPT_SSE_VINTAGE -DNOXFERMEM -DNEWOLD_WRITE_SAMPLE
-
-	SRC += \
-		$(DIR)/src/libmpg123/synth_8bit.c \
-		$(DIR)/src/libmpg123/synth_s32.c \
-		$(DIR)/src/libmpg123/synth_real.c
 
 	SRC_AS := \
 		$(DIR)/src/libmpg123/dct64_i386.S \
@@ -85,7 +85,8 @@ ifeq ($(CPU),i686)
 		$(DIR)/src/libmpg123/synth_sse.S \
 		$(DIR)/src/libmpg123/getcpuflags.S
 
-else
+else ifeq "$(CPU)" "amd64"
+
 	CFLAGS += -DOPT_X86_64 -DOPT_AVX
 
 	SRC_AS := \
@@ -96,9 +97,6 @@ else
 		$(DIR)/src/libmpg123/dct36_avx.S \
 		$(DIR)/src/libmpg123/dct64_avx_float.S \
 		$(DIR)/src/libmpg123/dct64_avx.S \
-		$(DIR)/src/libmpg123/synth_8bit.S \
-		$(DIR)/src/libmpg123/synth_s32.S \
-		$(DIR)/src/libmpg123/synth_real.S \
 		$(DIR)/src/libmpg123/synth_x86_64_float.S \
 		$(DIR)/src/libmpg123/synth_x86_64_s32.S \
 		$(DIR)/src/libmpg123/synth_stereo_x86_64_float.S \
@@ -108,6 +106,42 @@ else
 		$(DIR)/src/libmpg123/synth_stereo_avx_float.S \
 		$(DIR)/src/libmpg123/synth_stereo_avx_s32.S \
 		$(DIR)/src/libmpg123/synth_stereo_avx.S
+
+else ifeq "$(CPU)" "arm64"
+
+	CFLAGS += -DOPT_NEON64
+
+	SRC += $(DIR)/src/libmpg123/getcpuflags_arm.c
+
+	SRC_AS := \
+		$(DIR)/src/libmpg123/check_neon.S \
+		$(DIR)/src/libmpg123/dct36_neon64.S \
+		$(DIR)/src/libmpg123/dct64_neon64.S \
+		$(DIR)/src/libmpg123/dct64_neon64_float.S \
+		$(DIR)/src/libmpg123/synth_neon64.S \
+		$(DIR)/src/libmpg123/synth_neon64_float.S \
+		$(DIR)/src/libmpg123/synth_neon64_s32.S \
+		$(DIR)/src/libmpg123/synth_stereo_neon64.S \
+		$(DIR)/src/libmpg123/synth_stereo_neon64_float.S \
+		$(DIR)/src/libmpg123/synth_stereo_neon64_s32.S
+
+else ifeq "$(CPU)" "arm"
+
+	CFLAGS += -DOPT_NEON
+
+	SRC += $(DIR)/src/libmpg123/getcpuflags_arm.c
+
+	SRC_AS := \
+		$(DIR)/src/libmpg123/check_neon.S \
+		$(DIR)/src/libmpg123/dct36_neon.S \
+		$(DIR)/src/libmpg123/dct64_neon.S \
+		$(DIR)/src/libmpg123/dct64_neon_float.S \
+		$(DIR)/src/libmpg123/synth_neon.S \
+		$(DIR)/src/libmpg123/synth_neon_float.S \
+		$(DIR)/src/libmpg123/synth_neon_s32.S \
+		$(DIR)/src/libmpg123/synth_stereo_neon.S \
+		$(DIR)/src/libmpg123/synth_stereo_neon_float.S \
+		$(DIR)/src/libmpg123/synth_stereo_neon_s32.S
 
 endif
 

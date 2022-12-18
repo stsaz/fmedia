@@ -9,7 +9,8 @@ DIR := opus-$(VER)
 LIB := libopus-ff.$(SO)
 
 all: $(DIR)
-	cd $(DIR) && ./configure
+	cd $(DIR) && ./configure $(CONFIGURE_FLAGS)
+	cat $(DIR)/config.h
 	$(MAKE) -rR $(LIB)
 
 # download
@@ -24,9 +25,9 @@ $(DIR): $(PKG)
 # build
 CFLAGS += \
 	-DHAVE_CONFIG_H -DOPUS_EXPORT= \
-	-I$(DIR) -I$(DIR)/include -I$(DIR)/celt -I$(DIR)/silk -I$(DIR)/silk/float \
+	-I$(DIR) -I$(DIR)/include -I$(DIR)/celt -I$(DIR)/silk -I$(DIR)/silk/float -I$(DIR)/silk/fixed \
 	-W -Wall -Wextra -Wcast-align -Wnested-externs -Wshadow -Wstrict-prototypes
-CFLAGS_SSE := -msse -msse2 -msse4.1
+CFLAGS_SSE :=
 
 CELT_SOURCES := \
 	$(DIR)/celt/bands.c \
@@ -47,19 +48,6 @@ CELT_SOURCES := \
 	$(DIR)/celt/quant_bands.c \
 	$(DIR)/celt/rate.c \
 	$(DIR)/celt/vq.c
-
-CELT_SOURCES_SSE := \
-	$(DIR)/celt/x86/x86cpu.c \
-	$(DIR)/celt/x86/x86_celt_map.c \
-	$(DIR)/celt/x86/pitch_sse.c
-
-CELT_SOURCES_SSE2 := \
-	$(DIR)/celt/x86/pitch_sse2.c \
-	$(DIR)/celt/x86/vq_sse2.c
-
-CELT_SOURCES_SSE4_1 := \
-	$(DIR)/celt/x86/celt_lpc_sse4_1.c \
-	$(DIR)/celt/x86/pitch_sse4_1.c
 
 SILK_SOURCES := \
 	$(DIR)/silk/CNG.c \
@@ -140,13 +128,6 @@ SILK_SOURCES := \
 	$(DIR)/silk/stereo_quant_pred.c \
 	$(DIR)/silk/LPC_fit.c
 
-SILK_SOURCES_SSE4_1 :=  \
-	$(DIR)/silk/x86/NSQ_sse4_1.c \
-	$(DIR)/silk/x86/NSQ_del_dec_sse4_1.c \
-	$(DIR)/silk/x86/x86_silk_map.c \
-	$(DIR)/silk/x86/VAD_sse4_1.c \
-	$(DIR)/silk/x86/VQ_WMat_EC_sse4_1.c
-
 SILK_SOURCES_FLOAT := \
 	$(DIR)/silk/float/apply_sine_window_FLP.c \
 	$(DIR)/silk/float/corrMatrix_FLP.c \
@@ -194,8 +175,61 @@ OPUS_SOURCES_FLOAT := \
 	$(DIR)/src/mlp.c \
 	$(DIR)/src/mlp_data.c
 
-CELT_SOURCES += $(CELT_SOURCES_SSE) $(CELT_SOURCES_SSE2) $(CELT_SOURCES_SSE4_1)
-SILK_SOURCES += $(SILK_SOURCES_SSE4_1) $(SILK_SOURCES_FLOAT)
+CPUFAM := x86
+ifeq "$(CPU)" "arm64"
+	CPUFAM := arm
+endif
+
+ifeq "$(CPUFAM)" "x86"
+
+	CFLAGS_SSE := -msse -msse2 -msse4.1
+
+	CELT_SOURCES_SSE := \
+		$(DIR)/celt/x86/x86cpu.c \
+		$(DIR)/celt/x86/x86_celt_map.c \
+		$(DIR)/celt/x86/pitch_sse.c
+
+	CELT_SOURCES_SSE2 := \
+		$(DIR)/celt/x86/pitch_sse2.c \
+		$(DIR)/celt/x86/vq_sse2.c
+
+	CELT_SOURCES_SSE4_1 := \
+		$(DIR)/celt/x86/celt_lpc_sse4_1.c \
+		$(DIR)/celt/x86/pitch_sse4_1.c
+
+	SILK_SOURCES_SSE4_1 :=  \
+		$(DIR)/silk/x86/NSQ_sse4_1.c \
+		$(DIR)/silk/x86/NSQ_del_dec_sse4_1.c \
+		$(DIR)/silk/x86/x86_silk_map.c \
+		$(DIR)/silk/x86/VAD_sse4_1.c \
+		$(DIR)/silk/x86/VQ_WMat_EC_sse4_1.c
+
+	CELT_SOURCES += $(CELT_SOURCES_SSE) $(CELT_SOURCES_SSE2) $(CELT_SOURCES_SSE4_1)
+	SILK_SOURCES += $(SILK_SOURCES_SSE4_1)
+
+else ifeq "$(CPUFAM)" "arm"
+
+	CELT_SOURCES_ARM := \
+		$(DIR)/celt/arm/armcpu.c \
+		$(DIR)/celt/arm/arm_celt_map.c
+
+	CELT_SOURCES_ARM_NEON_INTR := \
+		$(DIR)/celt/arm/celt_neon_intr.c \
+		$(DIR)/celt/arm/pitch_neon_intr.c
+
+	SILK_SOURCES_ARM_NEON_INTR := \
+		$(DIR)/silk/arm/arm_silk_map.c \
+		$(DIR)/silk/arm/biquad_alt_neon_intr.c \
+		$(DIR)/silk/arm/LPC_inv_pred_gain_neon_intr.c \
+		$(DIR)/silk/arm/NSQ_del_dec_neon_intr.c \
+		$(DIR)/silk/arm/NSQ_neon.c
+
+	CELT_SOURCES += $(CELT_SOURCES_ARM) $(CELT_SOURCES_ARM_NEON_INTR)
+	SILK_SOURCES += $(SILK_SOURCES_ARM_NEON_INTR)
+
+endif
+
+SILK_SOURCES += $(SILK_SOURCES_FLOAT)
 OPUS_SOURCES += $(OPUS_SOURCES_FLOAT)
 
 SRC := $(CELT_SOURCES) $(SILK_SOURCES) $(OPUS_SOURCES)

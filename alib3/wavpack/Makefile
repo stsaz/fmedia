@@ -36,11 +36,11 @@ SRC := \
 	$(DIR)/src/unpack_floats.c \
 	$(DIR)/src/unpack_utils.c
 
-ifeq ($(CPU),i686)
+ifeq "$(CPU)" "x86"
 	CFLAGS += -DOPT_ASM_X86=1
 	SRC_AS := $(DIR)/src/unpack_x86.s
 
-else
+else ifeq "$(CPU)" "amd64"
 	CFLAGS += -DOPT_ASM_X64=1
 	SRC_AS := $(DIR)/src/unpack_x64.s
 endif

@@ -22,9 +22,13 @@ $(DIR): $(PKG)
 
 # build
 CFLAGS += -Wall -std=gnu++11 \
-	-ffast-math -mfpmath=sse -msse -fomit-frame-pointer -fno-tree-vectorize \
+	-ffast-math -fomit-frame-pointer -fno-tree-vectorize \
 	-DNO_JAVA_SUPPORT -DNDEBUG \
 	-I$(DIR)/DynamicAudioNormalizerAPI/src -I$(DIR)/DynamicAudioNormalizerAPI/include -I$(DIR)/DynamicAudioNormalizerShared/include
+
+ifeq "$(CPU)" "x86"
+	 CFLAGS += -mfpmath=sse -msse
+endif
 
 SRC := \
 	$(DIR)/DynamicAudioNormalizerAPI/src/DynamicAudioNormalizer.cpp \

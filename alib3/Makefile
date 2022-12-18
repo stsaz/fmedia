@@ -1,27 +1,26 @@
 # alib3
 
 include makeconf
-# ARCH := CPU=i686
-BINDIR := _$(OS)-amd64
+BINDIR := _$(OS)-$(CPU)
 
-all:
+build:
 	$(MAKE) -Rr -C ALAC
 	$(MAKE) -Rr -C DynamicAudioNormalizer
 	$(MAKE) -Rr -C fdk-aac
 	$(MAKE) -Rr -C FLAC
 	$(MAKE) -Rr -C MAC
 	$(MAKE) -Rr -C mp3lame
-	$(MAKE) -Rr -C mpg123 $(ARCH)
+	$(MAKE) -Rr -C mpg123
 	$(MAKE) -Rr -C musepack
 	$(MAKE) -Rr -C ogg
 	$(MAKE) -Rr -C opus
 	$(MAKE) -Rr -C soxr
 	$(MAKE) -Rr -C vorbis
-	$(MAKE) -Rr -C wavpack $(ARCH)
+	$(MAKE) -Rr -C wavpack
 
 install:
 	mkdir -p $(BINDIR)
-	cp -u ALAC/*.$(SO) \
+	$(CP) ALAC/*.$(SO) \
 		DynamicAudioNormalizer/*.$(SO) \
 		fdk-aac/*.$(SO) \
 		FLAC/*.$(SO) \

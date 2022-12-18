@@ -40,16 +40,24 @@ SRC := \
 	$(DIR)/Source/MACLib/UnBitArrayBase.cpp \
 	$(DIR)/Source/MACLib/UnBitArray.cpp \
 	$(DIR)/Source/Shared/GlobalFunctions.cpp
+
+CFLAGS_CPU :=
+ifeq "$(CPU)" "x86"
+	CFLAGS_CPU := -msse2
+else ifeq "$(CPU)" "arm64"
+	CFLAGS += -DPLATFORM_ARM
+endif
+
 OBJ := MAC-ff.o $(SRC:.cpp=.o)
 
 MAC-ff.o: MAC-ff.cpp
 	$(CXX) $(CFLAGS) $< -o $@
 
+$(DIR)/Source/MACLib/NNFilter.o: $(DIR)/Source/MACLib/NNFilter.cpp
+	$(CXX) $(CFLAGS) $(CFLAGS_CPU) $< -o $@
+
 %.o: %.cpp
 	$(CXX) $(CFLAGS) $< -o $@
-
-$(DIR)/Source/MACLib/NNFilter.o: $(DIR)/Source/MACLib/NNFilter.cpp
-	$(CXX) $(CFLAGS) -msse2 $< -o $@
 
 $(LIB): $(OBJ)
 	$(LINKXX) $(LINKXXFLAGS) -shared $+ -o $@

@@ -3,13 +3,13 @@
 include ../makeconf
 
 VER := 3.100
-URL := https://jztkft.dl.sourceforge.net/project/lame/lame/$(VER)/lame-$(VER).tar.gz
+URL := https://github.com/stsaz/fmedia/files/10148058/lame-3.100.tar.gz
 PKG := $(notdir $(URL))
 DIR := lame-$(VER)
 LIB := libmp3lame-ff.$(SO)
 
 all: $(DIR)
-	cd $(DIR) && ./configure --disable-decoder
+	cd $(DIR) && ./configure --disable-decoder $(CONFIGURE_FLAGS)
 	$(MAKE) -rR $(LIB)
 
 # download
@@ -45,8 +45,12 @@ SRC := \
 	$(DIR)/libmp3lame/util.c \
 	$(DIR)/libmp3lame/vbrquantize.c \
 	$(DIR)/libmp3lame/VbrTag.c \
-	$(DIR)/libmp3lame/version.c \
-	$(DIR)/libmp3lame/vector/xmm_quantize_sub.c
+	$(DIR)/libmp3lame/version.c
+
+ifeq "$(CPU)" "amd64"
+	SRC += $(DIR)/libmp3lame/vector/xmm_quantize_sub.c
+endif
+
 OBJ := lame-ff.o $(SRC:.c=.o)
 
 lame-ff.o: lame-ff.c

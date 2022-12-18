@@ -25,6 +25,7 @@ endif
 
 
 # set OS-specific values
+DEL := rm -f
 ifeq "$(OS)" "windows"
 SO := dll
 CP := cp -u -v -p
@@ -122,30 +123,31 @@ override C += -c
 override CXX += -c
 
 
-# Set target architecture
-ARCH := amd64
-ARCH_OS := $(ARCH)
-CPU := $(ARCH)
-
-# Windows: architecture name is "x86" or "x64"
-ifeq "$(OS)" "windows"
-ARCH_OS := x64
-ifeq ($(ARCH),i686)
-ARCH_OS := x86
-endif #ARCH
-endif #OS
-
+# Set CPU arch: amd64 (x86_64), x86 (i686), arm64 (aarch64)
+# Note: Windows: must set CPU=... manually
+CPU := amd64
+ifneq "$(OS)" "windows"
+	CPU := $(shell uname -m)
+	ifeq "$(CPU)" "x86_64"
+		CPU := amd64
+	else ifeq "$(CPU)" "i686"
+		CPU := x86
+	else ifeq "$(CPU)" "aarch64"
+		CPU := arm64
+	endif
+endif
 
 # CPU-specific options
-ifeq ($(CPU),amd64)
-CFLAGS_CPU := -march=x86-64
-LDFLAGS_CPU := -march=x86-64
+ifeq "$(CPU)" "amd64"
+	CFLAGS_CPU := -march=nehalem
+	LDFLAGS_CPU := -march=nehalem
 
-else ifeq ($(CPU),i686)
-CFLAGS_CPU := -m32 -march=i686
-LDFLAGS_CPU := -m32 -march=i686
+else ifeq "$(CPU)" "x86"
+	CFLAGS_CPU := -m32 -march=i686
+	CFLAGS_CPU += -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast
+	LDFLAGS_CPU := -m32 -march=i686
 
-endif #CPU
+endif
 
 
 ifeq ($(CNAME),gcc)

@@ -3,13 +3,17 @@
 include ../makeconf
 
 VER := 0.1.3
-URL := https://jztkft.dl.sourceforge.net/project/soxr/soxr-$(VER)-Source.tar.xz
+URL := https://github.com/stsaz/fmedia/raw/alib3/alib3/soxr/soxr-0.1.3-Source.tar.xz
 PKG := $(notdir $(URL))
 DIR := soxr-$(VER)-Source
 LIB := libsoxr-ff.$(SO)
 
 all: $(DIR)
-	cd $(DIR) && cmake -Wno-dev -DCMAKE_BUILD_TYPE="Release" .
+	cd $(DIR) && cmake -Wno-dev -DCMAKE_BUILD_TYPE="Release" $(CMAKE_FLAGS) .
+	cd $(DIR) && cat ../*.patch | patch -p1
+	# cd $(DIR) && make VERBOSE=1
+	$(SED) 's/AVUTIL_FOUND 1/AVUTIL_FOUND 0/' $(DIR)/soxr-config.h
+	cat $(DIR)/soxr-config.h
 	$(MAKE) -rR $(LIB)
 
 # download
@@ -35,20 +39,29 @@ endif
 SRC := \
 	$(DIR)/src/cr.c \
 	$(DIR)/src/cr32.c \
-	$(DIR)/src/cr32s.c \
 	$(DIR)/src/cr64.c \
-	$(DIR)/src/cr64s.c \
 	$(DIR)/src/data-io.c \
 	$(DIR)/src/dbesi0.c \
 	$(DIR)/src/fft4g32.c \
 	$(DIR)/src/fft4g64.c \
 	$(DIR)/src/filter.c \
-	$(DIR)/src/pffft32s.c \
-	$(DIR)/src/pffft64s.c \
 	$(DIR)/src/soxr.c \
-	$(DIR)/src/util32s.c \
-	$(DIR)/src/util64s.c \
 	$(DIR)/src/vr32.c
+
+SRC_SIMD32 := \
+	$(DIR)/src/cr32s.c \
+	$(DIR)/src/pffft32s.c \
+	$(DIR)/src/util32s.c
+
+SRC += $(SRC_SIMD32)
+
+ifeq "$(CPU)" "amd64"
+	SRC += \
+		$(DIR)/src/cr64s.c \
+		$(DIR)/src/pffft64s.c \
+		$(DIR)/src/util64s.c
+endif
+
 OBJ := $(SRC:.c=.o)
 
 %.o: %.c $(wildcard $(DIR)/src/*.h)

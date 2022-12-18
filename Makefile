@@ -7,8 +7,6 @@
 # macOS: zip
 
 PROJ := fmedia
-VER :=
-OS :=
 
 # repositories
 ROOT := ..
@@ -35,29 +33,19 @@ BIN := fmedia
 INSTDIR := fmedia-1
 endif
 
-ALIB3 := $(PROJDIR)/alib3/_$(OS)-$(ARCH)
+ALIB3 := $(PROJDIR)/alib3/_$(OS)-$(CPU)
 
 # CFLAGS_STD += -fsanitize=address
 # LINKFLAGS += -fsanitize=address -ldl
 FFAUDIO_CFLAGS := $(CFLAGS_STD) $(CFLAGS_OPT) $(CFLAGS_OS) $(CFLAGS_CPU) -I$(FFBASE) -I$(FFAUDIO)
 CFLAGS_STD += -DFFBASE_HAVE_FFERR_STR -DFFBASE_MEM_ASSERT
 
-
-# CPU-specific options
-ifeq "$(CPU)" "amd64"
-	CFLAGS_CPU += -msse4.2
-else ifeq "$(CPU)" "i686"
-	CFLAGS_CPU += -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast
-endif
-
-
 CFLAGS_APP := \
 	-Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -Wno-implicit-fallthrough \
-	-Wno-stringop-overflow \
 	-I$(SRCDIR) -I$(PROJDIR)/alib3 -I$(FFBASE) -I$(FFAUDIO) -I$(AVPACK) -I$(FFOS)
 
 CFLAGS := $(CFLAGS_STD) $(CFLAGS_OPT) $(CFLAGS_OS) $(CFLAGS_CPU) $(CFLAGS_APP)
-LINKFLAGS += -Wno-stringop-overflow $(LD_LPTHREAD) -L$(ALIB3)
+LINKFLAGS += $(LD_LPTHREAD) -L$(ALIB3)
 ifeq ($(OS),linux)
 	LINKFLAGS += -L/usr/lib64/pipewire-0.3/jack
 endif
@@ -109,7 +97,7 @@ FF_O := $(OBJ_DIR)/ffos.o \
 ifeq "$(OS)" "windows"
 	FF_O +=	$(OBJ_DIR)/ffwin.o
 	FFOS_SKT := $(OBJ_DIR)/ffwin-skt.o
-else ifeq "$(OS)" "macos"
+else ifeq "$(OS)" "apple"
 	FF_O +=	$(OBJ_DIR)/ffunix.o $(OBJ_DIR)/ffapple.o
 else ifeq "$(OS)" "freebsd"
 	FF_O +=	$(OBJ_DIR)/ffunix.o $(OBJ_DIR)/ffbsd.o
@@ -227,7 +215,7 @@ TUI_O := \
 	$(FF_O) \
 	$(OBJ_DIR)/ffpcm.o
 tui.$(SO): $(TUI_O)
-	$(LINK) -shared $(TUI_O) $(LINKFLAGS) $(LD_LMATH) $(LD_LPTHREAD) -o $@
+	$(LINK) -shared $(TUI_O) $(LINKFLAGS) $(LD_LDL) $(LD_LMATH) $(LD_LPTHREAD) -o $@
 
 
 #
@@ -504,7 +492,7 @@ GUIGTK_O := $(OBJ_DIR)/gui.o \
 	$(OBJ_DIR)/ffpcm.o \
 	$(FF_O)
 gui.$(SO): $(GUIGTK_O)
-	$(LINK) -shared $(GUIGTK_O) $(LINKFLAGS) `pkg-config --libs gtk+-3.0` $(LD_LPTHREAD) $(LD_LMATH) -o $@
+	$(LINK) -shared $(GUIGTK_O) $(LINKFLAGS) `pkg-config --libs gtk+-3.0` $(LD_LPTHREAD) $(LD_LDL) $(LD_LMATH) -o $@
 
 endif
 
@@ -623,10 +611,22 @@ endif
 
 	chmod 755 $(INSTDIR)/$(BIN) $(INSTDIR)/*.$(SO)
 
+PKG_CPU := $(CPU)
+ifeq "$(OS)" "windows"
+	ifeq "$(CPU)" "amd64"
+		PKG_CPU := x64
+	endif
+endif
+
+PKG_OS := $(OS)
+ifeq "$(OS)" "apple"
+	PKG_OS := "macos"
+endif
+
 package:
-	rm -f $(PROJ)-$(VER)-$(OS)-$(ARCH_OS).$(PACK_EXT)
-	$(PACK) $(PROJ)-$(VER)-$(OS)-$(ARCH_OS).$(PACK_EXT) $(INSTDIR)
-	$(PACK) $(PROJ)-$(VER)-$(OS)-$(ARCH_OS)-debug.$(PACK_EXT) ./*.debug
+	$(DEL) $(PROJ)-$(PKG_VER)-$(PKG_OS)-$(PKG_CPU).$(PACK_EXT)
+	$(PACK) $(PROJ)-$(PKG_VER)-$(PKG_OS)-$(PKG_CPU).$(PACK_EXT) $(INSTDIR)
+	$(PACK) $(PROJ)-$(PKG_VER)-$(PKG_OS)-$(PKG_CPU)-debug.$(PACK_EXT) ./*.debug
 
 install-package: install
 	$(MAKE) -f $(firstword $(MAKEFILE_LIST)) package
