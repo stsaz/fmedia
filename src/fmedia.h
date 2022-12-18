@@ -558,6 +558,10 @@ struct fmed_track_info {
 		uint width, height;
 		const char *decoder;
 	} video;
+	// afilter.conv settings (Note: reused each time afilter.conv is added)
+	struct {
+		ffpcmex in, out;
+	} aconv;
 	uint a_prebuffer; //msec
 	float a_start_level; //dB
 	float a_stop_level; //dB

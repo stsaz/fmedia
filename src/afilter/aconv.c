@@ -3,7 +3,6 @@ Copyright (c) 2019 Simon Zolin */
 
 #include <fmedia.h>
 #include <afilter/pcm.h>
-#include <util/array.h>
 
 extern const fmed_core *core;
 
@@ -16,46 +15,21 @@ typedef struct aconv {
 	uint out_samp_size;
 	ffpcmex inpcm
 		, outpcm;
-	ffstr3 buf;
+	ffvec buf;
 	uint off;
 } aconv;
 
 static void* aconv_open(fmed_filt *d)
 {
-	aconv *c = ffmem_tcalloc1(aconv);
-
-	if (c == NULL)
-		return NULL;
+	aconv *c = ffmem_new(aconv);
 	return c;
 }
 
 static void aconv_close(void *ctx)
 {
 	aconv *c = ctx;
-	ffarr_free(&c->buf);
+	ffmem_alignfree(c->buf.ptr);
 	ffmem_free(c);
-}
-
-static ssize_t aconv_cmd(void *ctx, uint cmd, ...)
-{
-	aconv *c = ctx;
-	va_list va;
-	va_start(va, cmd);
-	ssize_t r = -1;
-
-	switch (cmd) {
-	case 0: {
-		const struct fmed_aconv *conf = va_arg(va, void*);
-		c->inpcm = conf->in;
-		c->outpcm = conf->out;
-		c->state = 1;
-		r = 0;
-		break;
-	}
-	}
-
-	va_end(va);
-	return r;
 }
 
 static void log_pcmconv(const char *module, int r, const ffpcmex *in, const ffpcmex *out, void *trk)
@@ -74,6 +48,9 @@ static void log_pcmconv(const char *module, int r, const ffpcmex *in, const ffpc
 
 static int aconv_prepare(aconv *c, fmed_filt *d)
 {
+	c->inpcm = d->aconv.in;
+	c->outpcm = d->aconv.out;
+
 	size_t cap;
 	const ffpcmex *in = &c->inpcm;
 	const ffpcmex *out = &c->outpcm;
@@ -126,15 +103,14 @@ static int aconv_prepare(aconv *c, fmed_filt *d)
 	uint out_ch = c->outpcm.channels & FFPCM_CHMASK;
 	c->out_samp_size = ffpcm_size(c->outpcm.format, out_ch);
 	cap = ffpcm_samples(CONV_OUTBUF_MSEC, c->outpcm.sample_rate) * c->out_samp_size;
+	uint n = cap;
+	if (!c->outpcm.ileaved)
+		n = sizeof(void*) * out_ch + cap;
+	if (NULL == (c->buf.ptr = ffmem_align(n, 16)))
+		return FMED_RERR;
+	c->buf.cap = n;
 	if (!c->outpcm.ileaved) {
-		if (NULL == ffarr_alloc(&c->buf, sizeof(void*) * out_ch + cap)) {
-			return FMED_RERR;
-		}
 		ffarrp_setbuf((void**)c->buf.ptr, out_ch, c->buf.ptr + sizeof(void*) * out_ch, cap / out_ch);
-
-	} else {
-		if (NULL == ffarr_alloc(&c->buf, cap))
-			return FMED_RERR;
 	}
 	c->buf.len = cap / c->out_samp_size;
 
@@ -149,8 +125,6 @@ static int aconv_process(void *ctx, fmed_filt *d)
 
 	switch (c->state) {
 	case 0:
-		return FMED_RERR; // settings are empty
-	case 1:
 		r = aconv_prepare(c, d);
 		if (r != FMED_ROK)
 			return r;
@@ -193,8 +167,8 @@ static int aconv_process(void *ctx, fmed_filt *d)
 	return FMED_RDATA;
 }
 
-const struct fmed_filter2 fmed_sndmod_conv = {
-	aconv_open, aconv_process, aconv_close, aconv_cmd
+const fmed_filter fmed_sndmod_conv = {
+	aconv_open, aconv_process, aconv_close
 };
 
 
@@ -272,23 +246,16 @@ static int autoconv_process(void *ctx, fmed_filt *d)
 		return FMED_RDONE; //no conversion is needed
 	}
 
-	const struct fmed_filter2 *conv = core->getmod("afilter.conv");
 	void *f = (void*)d->track->cmd(d->trk, FMED_TRACK_FILT_ADD, "afilter.conv");
 	if (f == NULL)
 		return FMED_RERR;
-	void *fi = (void*)d->track->cmd(d->trk, FMED_TRACK_FILT_INSTANCE, f);
-	if (fi == NULL)
-		return FMED_RERR;
 
-	struct fmed_aconv conf = {};
-	conf.in = *in;
-	conf.out = *out;
+	d->aconv.in = *in;
+	d->aconv.out = *out;
 
-	if ((c->outpcm.channels & FFPCM_CHMASK) == conf.out.channels
+	if ((c->outpcm.channels & FFPCM_CHMASK) == d->aconv.out.channels
 		&& (c->outpcm.channels & ~FFPCM_CHMASK) != 0)
-		conf.out.channels = c->outpcm.channels;
-
-	conv->cmd(fi, 0, &conf);
+		d->aconv.out.channels = c->outpcm.channels;
 
 	d->out = d->data,  d->outlen = d->datalen;
 	return FMED_RDONE;

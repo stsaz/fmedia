@@ -119,26 +119,20 @@ static int danorm_f_process(void *ctx, fmed_filt *d)
 
 	case 0:
 		if (d->audio.fmt.format != FFPCM_FLOAT64 || d->audio.fmt.ileaved) {
-			struct fmed_aconv conv;
-			conv.in = d->audio.fmt;
-			conv.out = d->audio.fmt;
-			conv.out.format = FFPCM_FLOAT64;
-			conv.out.ileaved = 0;
+			d->aconv.in = d->audio.fmt;
+			d->aconv.out = d->audio.fmt;
+			d->aconv.out.format = FFPCM_FLOAT64;
+			d->aconv.out.ileaved = 0;
 			if (d->audio.convfmt.format == 0)
 				d->audio.convfmt.format = d->audio.fmt.format;
 			if (d->audio.convfmt.channels == 0)
 				d->audio.convfmt.channels = d->audio.fmt.channels;
 			if (d->audio.convfmt.sample_rate == 0)
 				d->audio.convfmt.sample_rate = d->audio.fmt.sample_rate;
-			d->audio.fmt = conv.out;
+			d->audio.fmt = d->aconv.out;
 			void *f = (void*)d->track->cmd(d->trk, FMED_TRACK_FILT_ADDPREV, "afilter.conv");
 			if (f == NULL)
 				return FMED_RERR;
-			const struct fmed_filter2 *aconv = core->getmod("afilter.conv");
-			void *fi = (void*)d->track->cmd(d->trk, FMED_TRACK_FILT_INSTANCE, f);
-			if (fi == NULL)
-				return FMED_RERR;
-			aconv->cmd(fi, 0, &conv);
 			d->out = d->data,  d->outlen = d->datalen;
 			c->state = 1;
 			return FMED_RBACK;

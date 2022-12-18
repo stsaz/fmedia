@@ -28,7 +28,7 @@ struct submod {
 	const fmed_filter *iface;
 };
 
-extern const struct fmed_filter2 fmed_sndmod_conv;
+extern const fmed_filter fmed_sndmod_conv;
 extern const fmed_filter fmed_sndmod_autoconv;
 extern const fmed_filter fmed_sndmod_split;
 extern const fmed_filter fmed_sndmod_peaks;
