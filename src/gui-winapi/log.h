@@ -21,7 +21,7 @@ void gui_log(uint flags, fmed_logdata *ld)
 	ffstr s = FFSTR_INITN(buf, 0);
 
 	if (ld->tid != 0) {
-		ffstr_addfmt(&s, cap, "%s :%xU [%s] %s: "
+		ffstr_addfmt(&s, cap, "%s :%U [%s] %s: "
 			, ld->stime, ld->tid, ld->level, ld->module);
 	} else {
 		ffstr_addfmt(&s, cap, "%s [%s] %s: "

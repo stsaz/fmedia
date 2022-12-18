@@ -18,7 +18,7 @@ static void wlog_posted(void *param);
 static void gui_log(uint flags, fmed_logdata *ld)
 {
 	ffvec *str = ffmem_new(ffvec);
-	ffvec_addfmt(str, "%s :%xU [%s] %s: "
+	ffvec_addfmt(str, "%s :%U [%s] %s: "
 		, ld->stime, ld->tid, ld->level, ld->module);
 
 	if (ld->ctx != NULL)

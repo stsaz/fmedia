@@ -125,8 +125,6 @@ void ffkev_call(ffkqu_entry *e)
 }
 
 
-int ffdbg_mask = 1;
-
 int ffdbg_print(int t, const char *fmt, ...)
 {
 	(void)t;

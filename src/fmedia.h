@@ -1,20 +1,7 @@
 /** fmedia: public interfaces for inter-module communication
 Copyright (c) 2015 Simon Zolin */
 
-/*
-INPUT                 OUTPUT
-file                  file
-dsound  ->  core  ->  wasapi/dsound/alsa
-mixer                 mixer
-             ^
-             v
-           FILTERS
-           raw/wav/ogg
-           tui
-*/
-
 #pragma once
-
 #include <util/ffos-compat/types.h>
 #include <util/array.h>
 #include <util/conf2-scheme.h>

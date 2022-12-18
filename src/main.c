@@ -61,7 +61,7 @@ static void std_log(uint flags, fmed_logdata *ld)
 
 	if (flags != FMED_LOG_USER) {
 		if (ld->tid != 0) {
-			ffstr_addfmt(&s, cap, "%s :%xU [%s] %s: "
+			ffstr_addfmt(&s, cap, "%s :%U [%s] %s: "
 				, ld->stime, ld->tid, ld->level, ld->module);
 		} else {
 			ffstr_addfmt(&s, cap, "%s [%s] %s: "
@@ -559,23 +559,21 @@ end:
 #elif defined FF_BSD
 #define OS_STR  "bsd"
 #elif defined FF_APPLE
-#define OS_STR  "mac"
+#define OS_STR  "macos"
 #else
 #define OS_STR  "linux"
 #endif
 
-#if defined FF_WIN
-	#ifdef FF_64
-	#define CPU_STR  "x64"
-	#else
-	#define CPU_STR  "x86"
-	#endif
-#else
-	#ifdef FF_64
+#if defined FF_AMD64
 	#define CPU_STR  "amd64"
-	#else
-	#define CPU_STR  "i686"
-	#endif
+#elif defined FF_X86
+	#define CPU_STR  "x86"
+#elif defined FF_ARM64
+	#define CPU_STR  "arm64"
+#elif defined FF_ARM
+	#define CPU_STR  "arm"
+#else
+	#define CPU_STR  "?"
 #endif
 
 extern void _crash_handler(const char *fullname, const char *version, struct ffsig_info *inf);

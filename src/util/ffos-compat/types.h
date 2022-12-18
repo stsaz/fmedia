@@ -89,28 +89,8 @@ enum FFDBG_T {
 @t: enum FFDBG_T + level. */
 extern int ffdbg_print(int t, const char *fmt, ...);
 
-extern int ffdbg_mask; //~(enum FFDBG_T) + level
-
-#define FFDBG_CHKLEV(t) \
-	((ffdbg_mask & 0x0f) >= ((t) & 0x0f) && !((ffdbg_mask & (t)) & ~0x0f))
-
-#ifdef FF_DEBUG
-#define FFDBG_PRINT(t, ...) \
-do { \
-	if (FFDBG_CHKLEV(t)) \
-		ffdbg_print(t, __VA_ARGS__); \
-} while (0)
-
-#define FFDBG_PRINTLN(t, fmt, ...) \
-do { \
-	if (FFDBG_CHKLEV(t)) \
-		ffdbg_print(t, "%s(): " fmt "\n", FF_FUNC, __VA_ARGS__); \
-} while (0)
-
-#else
 #define FFDBG_PRINT(...)
 #define FFDBG_PRINTLN(...)
-#endif
 
 #include "error-compat.h"
 #include "file-compat.h"
