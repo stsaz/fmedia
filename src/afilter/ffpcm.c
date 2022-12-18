@@ -87,10 +87,20 @@ const char* ffpcm_channelstr(uint channels)
 }
 
 
-#define max8f  (128.0)
+#ifdef FF_SSE2
+	#include <emmintrin.h>
 
-#ifdef FF_AMD64
-#include <emmintrin.h> //SSE2
+#elif defined FF_ARM64
+	#include <arm_neon.h>
+#endif
+
+#ifdef FF_ARM64
+typedef float64x2_t __m128d;
+/** m128[0:63] = f64; m128[64:127] = 0 */
+static inline __m128d neon_load_sd(const double *d)
+{
+	return vsetq_lane_f64(*d, vdupq_n_f64(0), 0);
+}
 #endif
 
 /** Convert FP number to integer. */
@@ -98,14 +108,11 @@ static FFINL int ffint_ftoi(double d)
 {
 	int r;
 
-#if defined FF_AMD64
+#if defined FF_SSE2
 	r = _mm_cvtsd_si32(_mm_load_sd(&d));
 
-#elif defined FF_X86 && !defined FF_MSVC
-	__asm__ volatile("fistpl %0"
-		: "=m"(r)
-		: "t"(d)
-		: "st");
+#elif defined FF_ARM64
+	r = vgetq_lane_f64(vrndiq_f64(neon_load_sd(&d)), 0);
 
 #else
 	r = (int)((d < 0) ? d - 0.5 : d + 0.5);
@@ -113,6 +120,8 @@ static FFINL int ffint_ftoi(double d)
 
 	return r;
 }
+
+#define max8f  (128.0)
 
 static FFINL short _ffpcm_flt_8(float f)
 {
