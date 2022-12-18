@@ -106,6 +106,7 @@ static void trk_process(struct track_ctx *t)
 			}
 			if (obj == FMED_FILT_SKIP) {
 				dbglog1(t, "%s: skipping", f->name);
+				t->ti.data_out = t->ti.data_in;
 				r = FMED_RDONE;
 				goto result;
 			}
