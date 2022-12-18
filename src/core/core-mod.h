@@ -1,6 +1,10 @@
 /** fmedia: core: modules
 2015,2021, Simon Zolin */
 
+#define FMED_VER_GETMAJ(fullver)  ((fullver & 0xff0000) >> 16)
+#define FMED_VER_GETMIN(fullver)  ((fullver & 0xff00) >> 8)
+#define FMED_VER_GETPATCH(fullver)  (fullver & 0xff)
+
 void usrconf_read(ffconf_scheme *sc, ffstr key, ffstr val);
 
 static void core_posted(void *udata)
@@ -101,15 +105,15 @@ static int somod_load(core_modinfo *minfo)
 		goto fail;
 
 	if (m->ver_core != FMED_VER_CORE) {
-		errlog0("module %s v%u.%u: module is built for core v%u.%u"
-			, minfo->name, FMED_VER_GETMAJ(m->ver), FMED_VER_GETMIN(m->ver)
+		errlog0("can't load module %s v%u.%u.%u because it's built for core v%u.%u"
+			, minfo->name, FMED_VER_GETMAJ(m->ver), FMED_VER_GETMIN(m->ver), FMED_VER_GETPATCH(m->ver)
 			, FMED_VER_GETMAJ(m->ver_core), FMED_VER_GETMIN(m->ver_core));
 		goto fail;
 	}
 
 	if (s.ptr[0] != '#') {
-		dbglog0("loaded module %s v%u.%u"
-			, minfo->name, FMED_VER_GETMAJ(m->ver), FMED_VER_GETMIN(m->ver));
+		dbglog0("loaded module %s v%u.%u.%u"
+			, minfo->name, FMED_VER_GETMAJ(m->ver), FMED_VER_GETMIN(m->ver), FMED_VER_GETPATCH(m->ver));
 	}
 
 	if (0 != m->sig(FMED_SIG_INIT))

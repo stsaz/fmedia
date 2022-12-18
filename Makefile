@@ -55,6 +55,7 @@ CFLAGS_APP := \
 	-Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -Wno-implicit-fallthrough \
 	-Wno-stringop-overflow \
 	-I$(SRCDIR) -I$(PROJDIR)/alib3 -I$(FFBASE) -I$(FFAUDIO) -I$(AVPACK) -I$(FFOS)
+
 CFLAGS := $(CFLAGS_STD) $(CFLAGS_OPT) $(CFLAGS_OS) $(CFLAGS_CPU) $(CFLAGS_APP)
 LINKFLAGS += -Wno-stringop-overflow $(LD_LPTHREAD) -L$(ALIB3)
 ifeq ($(OS),linux)
@@ -164,8 +165,15 @@ $(BIN): $(BIN_O)
 
 
 #
+ifeq "$(FMED_VER_SUF)" "0"
+CFLAGS_CORE_C := -DFMED_VER_SUF=\"\"
+endif
+$(OBJ_DIR)/core.o: $(SRCDIR)/core/core.c $(GLOBDEPS) $(wildcard $(SRCDIR)/core/*.h)
+	$(C) $(CFLAGS) $(CFLAGS_CORE_C) $< -o $@
+
 $(OBJ_DIR)/%.o: $(SRCDIR)/core/%.c $(GLOBDEPS) $(wildcard $(SRCDIR)/core/*.h)
 	$(C) $(CFLAGS) $< -o $@
+
 CORE_O := $(OBJ_DIR)/core.o $(OBJ_DIR)/core-conf.o \
 	$(OBJ_DIR)/track.o \
 	$(OBJ_DIR)/file.o \

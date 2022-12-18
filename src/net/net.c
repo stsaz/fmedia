@@ -78,7 +78,7 @@ enum {
 };
 
 const char *const http_ua[] = {
-	"fmedia", "fmedia/" FMED_VER
+	"fmedia", "fmedia/1"
 };
 
 int conf_user_agent(fmed_conf *cs, net_conf *nc, ffstr *s)

@@ -14,6 +14,13 @@ Copyright (c) 2015 Simon Zolin */
 #include <FFOS/thread.h>
 #include <FFOS/file.h>
 
+#define PP_STR(ppdef)  _PP_STR(ppdef)
+#define _PP_STR(val)  #val
+
+#ifndef FMED_VER_SUF
+	#define FMED_VER_SUF  "*"
+#endif
+
 typedef struct fmedia {
 	ffvec workers; //worker[]
 	ffkqu_time kqutime;
@@ -182,7 +189,7 @@ fmed_core* core_init(char **argv, char **env)
 		goto err;
 
 	core->loglev = FMED_LOG_INFO;
-	fmed->props.version_str = FMED_VER;
+	fmed->props.version_str = PP_STR(FMED_VER_MAJOR) "." PP_STR(FMED_VER_MINOR) "." PP_STR(FMED_VER_PATCH) FMED_VER_SUF;
 	ffenv_locale(fmed->props.language, sizeof(fmed->props.language), FFENV_LANGUAGE);
 	core->props = &fmed->props;
 	return core;
