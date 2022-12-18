@@ -29,6 +29,7 @@ void mods_init()
 	}
 }
 
+/** Get filter by input file extension */
 const char* mods_ifilter_byext(ffstr ext)
 {
 	const struct filter_pair *f = ffmap_find(&cx->ext_filter, ext.ptr, ext.len, NULL);
@@ -37,6 +38,7 @@ const char* mods_ifilter_byext(ffstr ext)
 	return f->name;
 }
 
+/** Get filter by output file extension */
 const char* mods_ofilter_byext(ffstr ext)
 {
 	static const char *const exts[] = {

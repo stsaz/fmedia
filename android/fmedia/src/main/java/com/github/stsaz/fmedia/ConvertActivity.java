@@ -63,10 +63,14 @@ public class ConvertActivity extends AppCompatActivity {
 		int flags = 0;
 		if (bpreserve.isChecked())
 			flags |= Fmedia.F_DATE_PRESERVE;
+		if (false)
+			flags |= Fmedia.F_OVERWRITE;
 
-		String r = core.fmedia.streamCopy(
+		core.fmedia.from_msec = tfrom.getText().toString();
+		core.fmedia.to_msec = tuntil.getText().toString();
+		core.fmedia.copy = true;
+		String r = core.fmedia.convert(
 				tiname.getText().toString(), toname.getText().toString(),
-				tfrom.getText().toString(), tuntil.getText().toString(),
 				flags
 		);
 		lresult.setText(r);

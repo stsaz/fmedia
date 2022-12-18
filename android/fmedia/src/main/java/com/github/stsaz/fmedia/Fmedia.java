@@ -21,9 +21,12 @@ class Fmedia {
 	String artist, title;
 	public native String[] meta(String filepath);
 
-	static int F_DATE_PRESERVE = 1;
-	static int F_OVERWRITE = 2;
-	native String streamCopy(String iname, String oname, String from_msec, String to_msec, int flags);
+	static final int F_DATE_PRESERVE = 1;
+	static final int F_OVERWRITE = 2;
+	String from_msec, to_msec;
+	boolean copy;
+	int aac_quality;
+	native String convert(String iname, String oname, int flags);
 
 	public native String[] listDirRecursive(String filepath);
 

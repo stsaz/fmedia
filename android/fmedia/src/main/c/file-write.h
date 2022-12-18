@@ -22,6 +22,8 @@ static void fo_close(void *ctx)
 	struct fo *f = ctx;
 
 	if (f->fd != FFFILE_NULL) {
+		fffile_trunc(f->fd, f->size);
+
 		if (0 != fffile_close(f->fd)) {
 			syserrlog1(f->trk, "file close: %s", f->name);
 		} else {
@@ -56,9 +58,10 @@ static void* fo_open(fmed_track_info *ti)
 	else
 		flags |= FFFILE_CREATENEW;
 	if (FFFILE_NULL == (f->fd = fffile_open(f->name, flags))) {
-		syserrlog1(ti->trk, "fffile_open: %s", f->name);
+		ti->error = FMED_E_SYS | fferr_last();
 		if (fferr_exist(fferr_last()))
 			ti->error = FMED_E_DSTEXIST;
+		syserrlog1(ti->trk, "fffile_open: %s", f->name);
 		goto end;
 	}
 

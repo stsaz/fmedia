@@ -29,9 +29,10 @@ static void* fi_open(fmed_track_info *ti)
 		goto end;
 
 	if (FFFILE_NULL == (f->fd = fffile_open(ti->in_filename, FFFILE_READONLY))) {
-		syserrlog1(ti->trk, "fffile_open: %s", ti->in_filename);
+		ti->error = FMED_E_SYS | fferr_last();
 		if (fferr_notexist(fferr_last()))
 			ti->error = FMED_E_NOSRC;
+		syserrlog1(ti->trk, "fffile_open: %s", ti->in_filename);
 		goto end;
 	}
 

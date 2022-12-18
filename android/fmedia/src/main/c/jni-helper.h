@@ -18,9 +18,10 @@ Arrays:
 	jni_vec_jba
 Object:
 	jni_obj_jo_set
-	jni_obj_sz_set
+	jni_obj_str jni_obj_sz_set
 	jni_obj_long jni_obj_long_set
-
+	jni_obj_int
+	jni_obj_bool
 Notes:
 	sz	char*
 	js	jstring
@@ -39,6 +40,7 @@ Notes:
 #define JNI_TOBJ "Ljava/lang/Object;"
 #define JNI_TINT "I"
 #define JNI_TLONG "J"
+#define JNI_TBOOL "Z"
 #define JNI_TARR "["
 
 #define jni_local_unref(jobj) \
@@ -123,6 +125,10 @@ static inline jobjectArray jni_jsa_sza(JNIEnv *env, char **asz, ffsize n)
 #define	jni_obj_jo_set(jobj, jfield, val) \
 	(*env)->SetObjectField(env, jobj, jfield, val)
 
+/** string = obj.string */
+#define jni_obj_str(jobj, jfield) \
+	(*env)->GetObjectField(env, jobj, jfield)
+
 /** obj.string = sz */
 static inline void jni_obj_sz_set(JNIEnv *env, jobject jo, jfieldID jf, const char *sz)
 {
@@ -138,3 +144,11 @@ static inline void jni_obj_sz_set(JNIEnv *env, jobject jo, jfieldID jf, const ch
 /** obj.long = VAL */
 #define	jni_obj_long_set(jobj, jfield, val) \
 	(*env)->SetLongField(env, jobj, jfield, val)
+
+/** int = obj.int */
+#define jni_obj_int(jobj, jfield) \
+	(*env)->GetIntField(env, jobj, jfield)
+
+/** bool = obj.bool */
+#define jni_obj_bool(jobj, jfield) \
+	(*env)->GetBooleanField(env, jobj, jfield)

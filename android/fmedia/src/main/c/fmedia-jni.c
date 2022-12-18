@@ -33,7 +33,7 @@ Java_com_github_stsaz_fmedia_Fmedia_init(JNIEnv *env, jobject thiz)
 	fx = ffmem_new(fmedia_ctx);
 	fmed_core *core = core_init();
 	core->loglev = FMED_LOG_INFO;
-#ifdef FF_DEBUG
+#ifdef FMED_DEBUG
 	core->loglev = FMED_LOG_DEBUG;
 #endif
 	core->log = adrd_log;
@@ -208,8 +208,11 @@ static const char* trk_errstr(uint e)
 {
 	if (e == 0)
 		return NULL;
-	e--;
 
+	if (e & FMED_E_SYS)
+		return fferr_strptr(e & ~FMED_E_SYS);
+
+	e--;
 	static const char errstr[][30] = {
 		"Input file doesn't exist", // FMED_E_NOSRC
 		"Output file already exists", // FMED_E_DSTEXIST
@@ -223,10 +226,13 @@ static const char* trk_errstr(uint e)
 }
 
 JNIEXPORT jstring JNICALL
-Java_com_github_stsaz_fmedia_Fmedia_streamCopy(JNIEnv *env, jobject thiz, jstring jiname, jstring joname, jstring jfrom, jstring jto, jint flags)
+Java_com_github_stsaz_fmedia_Fmedia_convert(JNIEnv *env, jobject thiz, jstring jiname, jstring joname, jint flags)
 {
 	dbglog0("%s: enter", __func__);
 	fftime t1 = fftime_monotonic();
+	jclass jc = jni_class_obj(thiz);
+	jstring jfrom = jni_obj_str(thiz, jni_field(jc, "from_msec", JNI_TSTR));
+	jstring jto = jni_obj_str(thiz, jni_field(jc, "to_msec", JNI_TSTR));
 
 	const char *ifn = jni_sz_js(jiname)
 		, *ofn = jni_sz_js(joname)
@@ -238,7 +244,7 @@ Java_com_github_stsaz_fmedia_Fmedia_streamCopy(JNIEnv *env, jobject thiz, jstrin
 	fmed_track_info *ti = fx->track->conf(t);
 	ti->type = FMED_TRK_TYPE_CONVERT;
 	ti->print_time = 0;
-	ti->stream_copy = 1;
+	ti->stream_copy = jni_obj_bool(thiz, jni_field(jc, "copy", JNI_TBOOL));
 
 	ti->in_filename = ifn;
 
@@ -247,13 +253,14 @@ Java_com_github_stsaz_fmedia_Fmedia_streamCopy(JNIEnv *env, jobject thiz, jstrin
 	ti->out_overwrite = !!(flags & 2);
 
 	if (0 != msec_apos(from, (int64*)&ti->audio.seek)) {
-		error = "Bad 'from' value";
+		error = "Please set correct 'from' value";
 		goto end;
 	}
-	ti->seek_req = 1;
+	if ((int64)ti->audio.seek != FMED_NULL)
+		ti->seek_req = 1;
 
 	if (0 != msec_apos(to, &ti->audio.until)) {
-		error = "Bad 'until' value";
+		error = "Please set correct 'until' value";
 		goto end;
 	}
 

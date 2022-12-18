@@ -28,6 +28,8 @@ struct track_ctx {
 
 const fmed_track track_iface;
 
+static char* trk_chain_print(struct track_ctx *t, const struct filter *mark, char *buf, ffsize cap);
+
 static fmed_track_obj* trk_create(uint cmd, const char *url)
 {
 	struct track_ctx *t = ffmem_new(struct track_ctx);
@@ -154,6 +156,7 @@ static void trk_process(struct track_ctx *t)
 			, f->name, t->ti.data_in.len, t->ti.flags);
 
 		r = f->iface->process(f->obj, &t->ti);
+		i = t->cur; // t->cur may be modified when adding filters
 
 		if (t->ti.print_time) {
 			t2 = fftime_monotonic();
@@ -195,6 +198,13 @@ result:
 				// all filters have finished
 				goto fin;
 			}
+
+			{
+			char buf[200];
+			dbglog1(t, "chain [%s]"
+				, trk_chain_print(t, NULL, buf, sizeof(buf)));
+			}
+
 			goto go_fwd;
 
 		case FMED_ROK:
@@ -262,7 +272,7 @@ static char* trk_chain_print(struct track_ctx *t, const struct filter *mark, cha
 
 /**
 Return filter index within chain */
-static int trk_filter_add(struct track_ctx *t, const char *name, const fmed_filter *iface)
+static int trk_filter_add(struct track_ctx *t, const char *name, const fmed_filter *iface, uint pos)
 {
 	if (t->i_fpool == MAX_FILTERS) {
 		errlog1(t, "max filters limit reached");
@@ -276,10 +286,10 @@ static int trk_filter_add(struct track_ctx *t, const char *name, const fmed_filt
 
 	t->filters.len++;
 	struct filter **pf;
-	if ((int)t->cur < 0 || t->cur + 1 == t->filters.len)
+	if ((int)pos < 0 || pos+1 == t->filters.len)
 		pf = ffslice_lastT(&t->filters, struct filter*);
 	else
-		pf = ffslice_moveT(&t->filters, t->cur + 1, t->cur + 2, t->filters.len - 1 - (t->cur + 1), struct filter*);
+		pf = ffslice_moveT(&t->filters, pos, pos+1, t->filters.len - 1 - pos, struct filter*);
 	*pf = f;
 
 	char buf[200];
@@ -311,14 +321,22 @@ static ffssize trk_cmd(void *trk, uint cmd, ...)
 		r = 0;
 		break;
 
-	case FMED_TRACK_FILT_ADD: {
+	case FMED_TRACK_FILT_ADD:
+	case FMED_TRACK_FILT_ADDPREV: {
 		const char *name = va_arg(va, void*);
 		const fmed_filter *fi = (fmed_filter*)core->cmd(FMED_FILTER_BYNAME, name);
 		if (fi == NULL) {
 			r = 0;
 			break;
 		}
-		r = trk_filter_add(t, name, fi);
+		uint pos = t->cur + 1;
+		if (cmd == FMED_TRACK_FILT_ADDPREV)
+			pos = t->cur;
+		if ((int)t->cur < 0)
+			pos = -1;
+		r = trk_filter_add(t, name, fi, pos);
+		if (cmd == FMED_TRACK_FILT_ADDPREV && (uint)r == t->cur && r >= 0)
+			t->cur++; // the current filter added a new filter before it
 		r++;
 		break;
 	}

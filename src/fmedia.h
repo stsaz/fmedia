@@ -502,6 +502,7 @@ enum FMED_E {
 	FMED_E_UNKIFMT, // unknown input format
 	FMED_E_INCOMPATFMT, // incompatible data formats
 	FMED_E_OTHER = 255,
+	FMED_E_SYS = 0x80000000,
 };
 
 /** >0: msec;  <0: CD frames (1/75 sec) */
