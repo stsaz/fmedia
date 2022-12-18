@@ -8,6 +8,12 @@ Copyright (c) 2015 Simon Zolin */
 
 #define infolog(trk, ...)  fmed_infolog(core, trk, FILT_NAME, __VA_ARGS__)
 
+#define syserrlog1(trk, ...)  fmed_syserrlog(core, trk, NULL, __VA_ARGS__)
+#define errlog1(trk, ...)  fmed_errlog(core, trk, NULL, __VA_ARGS__)
+#define warnlog1(trk, ...)  fmed_warnlog(core, trk, NULL, __VA_ARGS__)
+#define infolog1(trk, ...)  fmed_infolog(core, trk, NULL, __VA_ARGS__)
+#define dbglog1(trk, ...)  fmed_dbglog(core, trk, NULL, __VA_ARGS__)
+
 const fmed_core *core;
 const fmed_track *track;
 

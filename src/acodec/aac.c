@@ -5,6 +5,10 @@ Copyright (c) 2016 Simon Zolin */
 #include <acodec/alib3-bridge/aac.h>
 
 const fmed_core *core;
+#define errlog1(trk, ...)  fmed_errlog(core, trk, NULL, __VA_ARGS__)
+#define warnlog1(trk, ...)  fmed_warnlog(core, trk, NULL, __VA_ARGS__)
+#define infolog1(trk, ...)  fmed_infolog(core, trk, NULL, __VA_ARGS__)
+#define dbglog1(trk, ...)  fmed_dbglog(core, trk, NULL, __VA_ARGS__)
 
 #include <acodec/aac-enc.h>
 

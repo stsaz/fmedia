@@ -1,6 +1,8 @@
 /** fmedia: FLAC encode
 2015, Simon Zolin */
 
+#include <acodec/alib3-bridge/flac.h>
+
 static struct flac_out_conf_t {
 	byte level;
 	byte md5;

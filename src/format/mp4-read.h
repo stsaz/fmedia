@@ -114,7 +114,8 @@ static int mp4_in_decode(void *ctx, fmed_track_info *d)
 		return FMED_RLASTOUT;
 	}
 
-	m->in = d->data_in;
+	if (d->flags & FMED_FFWD)
+		m->in = d->data_in;
 
 	ffstr out;
 
@@ -190,7 +191,7 @@ static int mp4_in_decode(void *ctx, fmed_track_info *d)
 				d->a_frame_samples = ai->frame_samples;
 
 			if (!d->stream_copy
-				&& 0 != d->track->cmd(d->trk, FMED_TRACK_ADDFILT, (void*)filt))
+				&& 0 == d->track->cmd(d->trk, FMED_TRACK_FILT_ADD, (void*)filt))
 				return FMED_RERR;
 
 			m->srate = ai->format.rate;

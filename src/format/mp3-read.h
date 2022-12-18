@@ -128,7 +128,7 @@ static int mp3_process(void *ctx, fmed_track_info *d)
 				return FMED_RLASTOUT;
 
 			if (!d->stream_copy
-				&& 0 != d->track->cmd(d->trk, FMED_TRACK_ADDFILT, "mpeg.decode"))
+				&& 0 == d->track->cmd(d->trk, FMED_TRACK_FILT_ADD, "mpeg.decode"))
 				return FMED_RERR;
 
 			break;

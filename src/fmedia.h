@@ -345,8 +345,14 @@ enum FMED_TRACK_CMD {
 	/** Return 1 if have meta data from user */
 	FMED_TRACK_META_HAVEUSER,
 
-	/**
-	@param: fmed_trk_meta* */
+	/** Get next meta key-value pair.
+		fmed_trk_meta meta = {};
+		// meta.flags = FMED_QUE_UNIQ;
+		int r = track->cmd(trk, FMED_TRACK_META_ENUM, &meta);
+		// use meta.name & meta.val
+	Return
+	  0: have key-value pair
+	  !=0: done */
 	FMED_TRACK_META_ENUM,
 
 	/**

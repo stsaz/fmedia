@@ -10,9 +10,7 @@ typedef struct mp4_out {
 	uint stmcopy :1;
 } mp4_out;
 
-static int mp4_out_addmeta(mp4_out *m, fmed_filt *d);
-
-static void* mp4_out_create(fmed_filt *d)
+static void* mp4_out_create(fmed_track_info *d)
 {
 	mp4_out *m = ffmem_new(mp4_out);
 	return m;
@@ -25,7 +23,7 @@ static void mp4_out_free(void *ctx)
 	ffmem_free(m);
 }
 
-static int mp4_out_addmeta(mp4_out *m, fmed_filt *d)
+static int mp4_out_addmeta(mp4_out *m, fmed_track_info *d)
 {
 	fmed_trk_meta meta = {};
 	meta.flags = FMED_QUE_UNIQ;
@@ -37,12 +35,12 @@ static int mp4_out_addmeta(mp4_out *m, fmed_filt *d)
 
 		int tag;
 		if (-1 == (tag = ffs_findarrz(ffmmtag_str, FFCNT(ffmmtag_str), name.ptr, name.len))) {
-			warnlog(core, d->trk, "mp4", "unsupported tag: %S", &name);
+			warnlog1(d->trk, "unsupported tag: %S", &name);
 			continue;
 		}
 
 		if (0 != mp4write_addtag(&m->mp, tag, meta.val)) {
-			warnlog(core, d->trk, "mp4", "can't add tag: %S", &name);
+			warnlog1(d->trk, "can't add tag: %S", &name);
 		}
 	}
 	return 0;
@@ -53,7 +51,7 @@ static int mp4_out_addmeta(mp4_out *m, fmed_filt *d)
 . Get encoder config data
 . Initialize MP4 output
 . Wrap encoded audio data into MP4 */
-static int mp4_out_encode(void *ctx, fmed_filt *d)
+static int mp4_out_encode(void *ctx, fmed_track_info *d)
 {
 	mp4_out *m = ctx;
 	int r;
@@ -67,7 +65,7 @@ static int mp4_out_encode(void *ctx, fmed_filt *d)
 			m->state = I_INIT;
 
 		} else if (ffsz_eq(d->datatype, "pcm")) {
-			if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT_PREV, "aac.encode"))
+			if (0 == d->track->cmd(d->trk, FMED_TRACK_FILT_ADDPREV, "aac.encode"))
 				return FMED_RERR;
 			m->state = I_INIT;
 			return FMED_RMORE;
@@ -77,7 +75,7 @@ static int mp4_out_encode(void *ctx, fmed_filt *d)
 			m->stmcopy = 1;
 
 		} else {
-			errlog(core, d->trk, NULL, "unsupported input data format: %s", d->datatype);
+			errlog1(d->trk, "unsupported input data format: %s", d->datatype);
 			return FMED_RERR;
 		}
 		// fallthrough
@@ -102,7 +100,7 @@ static int mp4_out_encode(void *ctx, fmed_filt *d)
 		info.bitrate = d->a_enc_bitrate;
 
 		if (0 != (r = mp4write_create_aac(&m->mp, &info))) {
-			errlog(core, d->trk, NULL, "ffmp4_create_aac(): %s", mp4write_error(&m->mp));
+			errlog1(d->trk, "ffmp4_create_aac(): %s", mp4write_error(&m->mp));
 			return FMED_RERR;
 		}
 
@@ -139,13 +137,13 @@ static int mp4_out_encode(void *ctx, fmed_filt *d)
 
 		case MP4WRITE_DONE:
 			d->outlen = 0;
-			core->log(FMED_LOG_INFO, d->trk, NULL, "MP4: frames:%u, overhead: %.2F%%"
+			infolog1(d->trk, "MP4: frames:%u, overhead: %.2F%%"
 				, m->mp.frameno
 				, (double)m->mp.mp4_size * 100 / (m->mp.mp4_size + m->mp.mdat_size));
 			return FMED_RDONE;
 
 		case MP4WRITE_ERROR:
-			errlog(core, d->trk, NULL, "mp4write_process(): %s", mp4write_error(&m->mp));
+			errlog1(d->trk, "mp4write_process(): %s", mp4write_error(&m->mp));
 			return FMED_RERR;
 		}
 	}

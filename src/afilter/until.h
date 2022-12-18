@@ -18,8 +18,7 @@ static void* until_open(fmed_filt *d)
 	if (FMED_NULL == (val = d->audio.until))
 		return FMED_FILT_SKIP;
 
-	if (NULL == (u = ffmem_new(struct until)))
-		return NULL;
+	u = ffmem_new(struct until);
 	if (val > 0)
 		u->until = ffpcm_samples(val, d->audio.fmt.sample_rate);
 	else
@@ -57,7 +56,7 @@ static int until_process(void *ctx, fmed_filt *d)
 
 	if (d->stream_copy) {
 		if (pos >= u->until) {
-			dbglog(core, d->trk, "until", "reached sample #%U", u->until);
+			dbglog1(d->trk, "reached sample #%U", u->until);
 			d->outlen = 0;
 			return FMED_RLASTOUT;
 		}
@@ -66,10 +65,10 @@ static int until_process(void *ctx, fmed_filt *d)
 	}
 
 	samps = d->datalen / u->sampsize;
-	dbglog(core, d->trk, "until", "at %U..%U", pos, pos + samps);
+	dbglog1(d->trk, "at %U..%U", pos, pos + samps);
 	d->datalen = 0;
 	if (pos + samps >= u->until) {
-		dbglog(core, d->trk, "until", "reached sample #%U", u->until);
+		dbglog1(d->trk, "reached sample #%U", u->until);
 		d->outlen = (u->until > pos) ? (u->until - pos) * u->sampsize : 0;
 		return FMED_RLASTOUT;
 	}
@@ -77,4 +76,4 @@ static int until_process(void *ctx, fmed_filt *d)
 	return FMED_ROK;
 }
 
-static const fmed_filter fmed_sndmod_until = { until_open, until_process, until_close };
+const fmed_filter fmed_sndmod_until = { until_open, until_process, until_close };

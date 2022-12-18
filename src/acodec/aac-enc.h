@@ -1,6 +1,8 @@
 /** fmedia: AAC encode
 2016, Simon Zolin */
 
+#include <acodec/alib3-bridge/aac.h>
+
 static struct aac_out_conf_t {
 	uint aot;
 	uint qual;
@@ -41,7 +43,7 @@ static int aac_conf_aot(fmed_conf *fc, void *obj, const ffstr *val)
 	return 0;
 }
 
-static int aac_out_config(fmed_conf_ctx *ctx)
+int aac_out_config(fmed_conf_ctx *ctx)
 {
 	aac_out_conf.aot = AAC_LC;
 	aac_out_conf.qual = 256;
@@ -51,9 +53,9 @@ static int aac_out_config(fmed_conf_ctx *ctx)
 	return 0;
 }
 
-static void* aac_out_create(fmed_filt *d)
+static void* aac_out_create(fmed_track_info *d)
 {
-	aac_out *a = ffmem_tcalloc1(aac_out);
+	aac_out *a = ffmem_new(aac_out);
 	if (a == NULL)
 		return NULL;
 	return a;
@@ -66,7 +68,7 @@ static void aac_out_free(void *ctx)
 	ffmem_free(a);
 }
 
-static int aac_out_encode(void *ctx, fmed_filt *d)
+static int aac_out_encode(void *ctx, fmed_track_info *d)
 {
 	aac_out *a = ctx;
 	int r;
@@ -81,7 +83,7 @@ static int aac_out_encode(void *ctx, fmed_filt *d)
 
 	case W_CREATE:
 		if (d->audio.convfmt.format != FFPCM_16LE || !d->audio.convfmt.ileaved) {
-			errlog(core, d->trk, NULL, "unsupported input PCM format");
+			errlog1(d->trk, "unsupported input PCM format");
 			return FMED_RERR;
 		}
 
@@ -95,7 +97,7 @@ static int aac_out_encode(void *ctx, fmed_filt *d)
 		a->aac.info.aot = aac_out_conf.aot;
 		if (d->aac.profile.len != 0) {
 			if (0 == (a->aac.info.aot = aac_profile(&d->aac.profile))) {
-				errlog(core, d->trk, NULL, "invalid profile %S", &d->aac.profile);
+				errlog1(d->trk, "invalid profile %S", &d->aac.profile);
 				return FMED_RERR;
 			}
 		}
@@ -103,7 +105,7 @@ static int aac_out_encode(void *ctx, fmed_filt *d)
 		a->aac.info.bandwidth = (d->aac.bandwidth != -1) ? d->aac.bandwidth : (int)aac_out_conf.bandwidth;
 
 		if (0 != (r = ffaac_create(&a->aac, &a->fmt, qual))) {
-			errlog(core, d->trk, NULL, "ffaac_create(): %s", ffaac_enc_errstr(&a->aac));
+			errlog1(d->trk, "ffaac_create(): %s", ffaac_enc_errstr(&a->aac));
 			return FMED_RERR;
 		}
 
@@ -111,7 +113,7 @@ static int aac_out_encode(void *ctx, fmed_filt *d)
 		d->a_frame_samples = ffaac_enc_frame_samples(&a->aac);
 		d->a_enc_bitrate = ffaac_bitrate(&a->aac, a->aac.info.quality);
 		ffstr asc = ffaac_enc_conf(&a->aac);
-		fmed_dbglog(core, d->trk, NULL, "using bitrate %ubps, bandwidth %uHz, asc %*xb"
+		dbglog1(d->trk, "using bitrate %ubps, bandwidth %uHz, asc %*xb"
 			, ffaac_bitrate(&a->aac, a->aac.info.quality), a->aac.info.bandwidth, asc.len, asc.ptr);
 
 		d->out = asc.ptr,  d->outlen = asc.len;
@@ -137,15 +139,15 @@ static int aac_out_encode(void *ctx, fmed_filt *d)
 		break;
 
 	case FFAAC_RERR:
-		errlog(core, d->trk, NULL, "ffaac_encode(): %s", ffaac_enc_errstr(&a->aac));
+		errlog1(d->trk, "ffaac_encode(): %s", ffaac_enc_errstr(&a->aac));
 		return FMED_RERR;
 	}
 
-	dbglog(core, d->trk, NULL, "encoded %L samples into %L bytes"
+	dbglog1(d->trk, "encoded %L samples into %L bytes"
 		, (d->datalen - a->aac.pcmlen) / ffpcm_size1(&a->fmt), a->aac.datalen);
 	d->data = (void*)a->aac.pcm,  d->datalen = a->aac.pcmlen;
 	d->out = a->aac.data,  d->outlen = a->aac.datalen;
 	return FMED_RDATA;
 }
 
-static const fmed_filter aac_output = { aac_out_create, aac_out_encode, aac_out_free };
+const fmed_filter aac_output = { aac_out_create, aac_out_encode, aac_out_free };
