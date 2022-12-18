@@ -5,6 +5,7 @@ struct filter {
 	const char *name;
 	const fmed_filter *iface;
 	void *obj;
+	fftime busytime;
 	uint backward_skip :1;
 };
 
@@ -21,6 +22,7 @@ struct track_ctx {
 	struct filter *filters_active[MAX_FILTERS];
 	ffslice filters;
 	uint cur;
+	fftime tstart;
 };
 
 const fmed_track track_iface;
@@ -29,6 +31,8 @@ static fmed_track_obj* trk_create(uint cmd, const char *url)
 {
 	struct track_ctx *t = ffmem_new(struct track_ctx);
 	t->cur = -1;
+	t->tstart = fftime_monotonic();
+
 	fmed_track_info *ti = &t->ti;
 	ti->trk = t;
 	ti->track = &track_iface;
@@ -40,6 +44,31 @@ static fmed_track_obj* trk_create(uint cmd, const char *url)
 	ti->audio.decoder = "";
 	t->filters.ptr = t->filters_active;
 	return t;
+}
+
+/** Print the time we spent inside each filter */
+static void trk_busytime_print(struct track_ctx *t)
+{
+	fftime total = fftime_monotonic();
+	fftime_sub(&total, &t->tstart);
+
+	ffvec buf = {};
+	ffvec_addfmt(&buf, "busy time: %u.%06u.  "
+		, (int)fftime_sec(&total), (int)fftime_usec(&total));
+
+	struct filter *f;
+	FF_FOREACH(t->filters_pool, f) {
+		if (f->obj == NULL)
+			continue;
+		uint percent = fftime_to_usec(&f->busytime) * 100 / fftime_to_usec(&total);
+		ffvec_addfmt(&buf, "%s: %u.%06u (%u%%), "
+			, f->name, (int)fftime_sec(&f->busytime), (int)fftime_usec(&f->busytime)
+			, percent);
+	}
+	buf.len -= FFS_LEN(", ");
+
+	infolog1(t, "%S", &buf);
+	ffvec_free(&buf);
 }
 
 static void trk_close(struct track_ctx *t)
@@ -55,6 +84,9 @@ static void trk_close(struct track_ctx *t)
 	}
 
 	fmed_track_info *ti = &t->ti;
+
+	if (ti->print_time)
+		trk_busytime_print(t);
 
 	char **ps;
 	FFSLICE_WALK(&ti->meta, ps) {
@@ -96,6 +128,10 @@ static void trk_process(struct track_ctx *t)
 		if (i == 0)
 			t->ti.flags |= FMED_FFIRST;
 
+		fftime t1, t2;
+		if (t->ti.print_time)
+			t1 = fftime_monotonic();
+
 		t->cur = i;
 		if (f->obj == NULL) {
 			dbglog1(t, "%s: opening filter", f->name);
@@ -115,7 +151,14 @@ static void trk_process(struct track_ctx *t)
 
 		dbglog1(t, "%s: calling filter, input:%L  flags:%xu"
 			, f->name, t->ti.data_in.len, t->ti.flags);
+
 		r = f->iface->process(f->obj, &t->ti);
+
+		if (t->ti.print_time) {
+			t2 = fftime_monotonic();
+			fftime_sub(&t2, &t1);
+			fftime_add(&f->busytime, &t2);
+		}
 
 		static const char rc_str[][16] = {
 			"FMED_RERR",

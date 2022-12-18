@@ -235,6 +235,7 @@ Java_com_github_stsaz_fmedia_Fmedia_streamCopy(JNIEnv *env, jobject thiz, jstrin
 	fmed_track_obj *t = fx->track->create(0, NULL);
 	fmed_track_info *ti = fx->track->conf(t);
 	ti->type = FMED_TRK_TYPE_CONVERT;
+	ti->print_time = 0;
 	ti->stream_copy = 1;
 
 	ti->in_filename = ifn;
