@@ -505,8 +505,16 @@ public class MainActivity extends AppCompatActivity {
 		AlertDialog.Builder b = new AlertDialog.Builder(this);
 		b.setIcon(android.R.drawable.ic_dialog_alert);
 		b.setTitle("File Delete");
-		b.setMessage(String.format("Delete the currently playing file from storage: %s ?", fn));
-		b.setPositiveButton("Delete", (dialog, which) -> file_del(pos, fn));
+		String msg, btn;
+		if (core.setts.file_del) {
+			msg = String.format("Delete file from storage: %s ?", fn);
+			btn = "Delete";
+		} else {
+			msg = String.format("Move file to Trash: %s ?", fn);
+			btn = "Trash";
+		}
+		b.setMessage(msg);
+		b.setPositiveButton(btn, (dialog, which) -> file_del(pos, fn));
 		b.setNegativeButton("Cancel", null);
 		b.show();
 	}
