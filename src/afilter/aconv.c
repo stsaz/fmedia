@@ -15,6 +15,7 @@ typedef struct aconv {
 	uint out_samp_size;
 	ffpcmex inpcm
 		, outpcm;
+	ffstr in;
 	ffvec buf;
 	uint off;
 } aconv;
@@ -71,8 +72,7 @@ static int aconv_prepare(aconv *c, fmed_filt *d)
 			// soxr
 			conf.in = *in;
 			conf.out = *out;
-			d->out = d->data;
-			d->outlen = d->datalen;
+			d->data_out = d->data_in;
 			soxr->cmd(fi, 0, &conf);
 			return FMED_RDONE;
 		}
@@ -114,7 +114,7 @@ static int aconv_prepare(aconv *c, fmed_filt *d)
 	}
 	c->buf.len = cap / c->out_samp_size;
 
-	return FMED_ROK;
+	return FMED_RDATA;
 }
 
 static int aconv_process(void *ctx, fmed_filt *d)
@@ -126,7 +126,7 @@ static int aconv_process(void *ctx, fmed_filt *d)
 	switch (c->state) {
 	case 0:
 		r = aconv_prepare(c, d);
-		if (r != FMED_ROK)
+		if (r != FMED_RDATA)
 			return r;
 		c->state = 2;
 		break;
@@ -135,10 +135,13 @@ static int aconv_process(void *ctx, fmed_filt *d)
 		break;
 	}
 
-	if (d->flags & FMED_FFWD)
+	if (d->flags & FMED_FFWD) {
+		c->in = d->data_in;
+		d->data_in.len = 0;
 		c->off = 0;
+	}
 
-	samples = (uint)ffmin(d->datalen / ffpcm_size1(&c->inpcm), c->buf.len);
+	samples = (uint)ffmin(c->in.len / ffpcm_size1(&c->inpcm), c->buf.len);
 	if (samples == 0) {
 		if (d->flags & FMED_FLAST)
 			return FMED_RDONE;
@@ -148,21 +151,21 @@ static int aconv_process(void *ctx, fmed_filt *d)
 	void *in[8];
 	const void *data;
 	if (!c->inpcm.ileaved) {
+		void **datani = (void**)c->in.ptr;
 		for (uint i = 0;  i != c->inpcm.channels;  i++) {
-			in[i] = (char*)d->datani[i] + c->off;
+			in[i] = (char*)datani[i] + c->off;
 		}
 		data = in;
 	} else {
-		data = (char*)d->data + c->off * c->inpcm.channels;
+		data = (char*)c->in.ptr + c->off * c->inpcm.channels;
 	}
 
 	if (0 != ffpcm_convert(&c->outpcm, c->buf.ptr, &c->inpcm, data, samples)) {
 		return FMED_RERR;
 	}
 
-	d->out = c->buf.ptr;
-	d->outlen = samples * c->out_samp_size;
-	d->datalen -= samples * ffpcm_size1(&c->inpcm);
+	ffstr_set(&d->data_out, c->buf.ptr, samples * c->out_samp_size);
+	c->in.len -= samples * ffpcm_size1(&c->inpcm);
 	c->off += samples * ffpcm_size(c->inpcm.format, 1);
 	return FMED_RDATA;
 }
@@ -184,6 +187,7 @@ The next filters in chain may set the format they need, and then they ask for ac
 
 struct autoconv {
 	uint state;
+	ffstr in;
 	ffpcmex inpcm, outpcm;
 };
 
@@ -223,6 +227,8 @@ static int autoconv_process(void *ctx, fmed_filt *d)
 		c->outpcm.ileaved = d->audio.fmt.ileaved;
 		d->audio.convfmt = c->outpcm;
 		d->audio.convfmt.channels = (c->outpcm.channels & FFPCM_CHMASK);
+		c->in = d->data_in;
+		d->data_in.len = 0;
 		d->outlen = 0;
 		c->state = 1;
 		return FMED_RDATA;
@@ -242,8 +248,7 @@ static int autoconv_process(void *ctx, fmed_filt *d)
 		&& in->channels == out->channels
 		&& in->sample_rate == out->sample_rate
 		&& in->ileaved == out->ileaved) {
-		d->out = d->data,  d->outlen = d->datalen;
-		return FMED_RDONE; //no conversion is needed
+		goto done; //no conversion is needed
 	}
 
 	void *f = (void*)d->track->cmd(d->trk, FMED_TRACK_FILT_ADD, "afilter.conv");
@@ -257,7 +262,8 @@ static int autoconv_process(void *ctx, fmed_filt *d)
 		&& (c->outpcm.channels & ~FFPCM_CHMASK) != 0)
 		d->aconv.out.channels = c->outpcm.channels;
 
-	d->out = d->data,  d->outlen = d->datalen;
+done:
+	d->data_out = c->in;
 	return FMED_RDONE;
 }
 

@@ -23,6 +23,7 @@ static const fmed_conf_arg aac_out_conf_args[] = {
 typedef struct aac_out {
 	uint state;
 	ffpcm fmt;
+	ffstr in;
 	ffaac_enc aac;
 } aac_out;
 
@@ -74,6 +75,11 @@ static int aac_out_encode(void *ctx, fmed_track_info *d)
 	int r;
 	enum { W_CONV, W_CREATE, W_DATA };
 
+	if (d->flags & FMED_FFWD) {
+		a->in = d->data_in;
+		d->data_in.len = 0;
+	}
+
 	switch (a->state) {
 	case W_CONV:
 		d->audio.convfmt.format = FFPCM_16;
@@ -124,7 +130,7 @@ static int aac_out_encode(void *ctx, fmed_track_info *d)
 	if (d->flags & FMED_FLAST)
 		a->aac.fin = 1;
 
-	a->aac.pcm = (void*)d->data,  a->aac.pcmlen = d->datalen;
+	a->aac.pcm = (void*)a->in.ptr,  a->aac.pcmlen = a->in.len;
 	r = ffaac_encode(&a->aac);
 
 	switch (r) {
@@ -144,9 +150,9 @@ static int aac_out_encode(void *ctx, fmed_track_info *d)
 	}
 
 	dbglog1(d->trk, "encoded %L samples into %L bytes"
-		, (d->datalen - a->aac.pcmlen) / ffpcm_size1(&a->fmt), a->aac.datalen);
-	d->data = (void*)a->aac.pcm,  d->datalen = a->aac.pcmlen;
-	d->out = a->aac.data,  d->outlen = a->aac.datalen;
+		, (a->in.len - a->aac.pcmlen) / ffpcm_size1(&a->fmt), a->aac.datalen);
+	ffstr_set(&a->in, (void*)a->aac.pcm, a->aac.pcmlen);
+	ffstr_set(&d->data_out, a->aac.data, a->aac.datalen);
 	return FMED_RDATA;
 }
 
