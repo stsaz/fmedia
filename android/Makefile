@@ -55,7 +55,7 @@ libs:
 CPU := amd64
 include $(FMED_DIR)/android/andk.mk
 
-CFLAGS += -fvisibility=hidden
+CFLAGS += -fvisibility=hidden -Wno-for-loop-analysis
 ifeq "$(DEBUG)" "1"
 	CFLAGS += -g -DFMED_DEBUG -DFF_DEBUG -Werror
 endif
@@ -81,6 +81,7 @@ BUILD_DIR := .
 OBJ_DIR := $(BUILD_DIR)/obj-$(CPU)
 
 OBJ := \
+	$(OBJ_DIR)/afilter.o \
 	$(OBJ_DIR)/core.o \
 	$(OBJ_DIR)/fmedia-jni.o \
 	$(OBJ_DIR)/fmt.o

@@ -29,12 +29,30 @@ void mods_init()
 	}
 }
 
-const char* mods_filter_byext(ffstr ext)
+const char* mods_ifilter_byext(ffstr ext)
 {
 	const struct filter_pair *f = ffmap_find(&cx->ext_filter, ext.ptr, ext.len, NULL);
 	if (f == NULL)
 		return NULL;
 	return f->name;
+}
+
+const char* mods_ofilter_byext(ffstr ext)
+{
+	static const char *const exts[] = {
+		"m4a",
+		"mp3",
+	};
+	static const char *const fnames[] = {
+		/*"m4a"*/ "fmt.mp4w",
+		/*"mp3"*/ "fmt.mp3w",
+	};
+	int i = ffszarr_findsorted(exts, FF_COUNT(exts), ext.ptr, ext.len);
+	if (i < 0) {
+		errlog0("'%S': no filter for output extension", &ext);
+		return NULL;
+	}
+	return fnames[i];
 }
 
 extern const fmed_track track_iface;
@@ -63,15 +81,18 @@ extern const fmed_filter flac_input;
 extern const fmed_filter mp3_input;
 extern const fmed_filter mp3_copy;
 extern const fmed_filter mp4_input;
+extern const fmed_filter mp4_output;
 extern const fmed_filter ogg_input;
 extern const fmed_filter opusmeta_input;
 extern const fmed_filter vorbismeta_input;
+extern const fmed_filter fmed_sndmod_until;
 
 extern int ogg_in_conf(fmed_conf_ctx *ctx);
 
 const fmed_filter* mods_filter_byname(const char *name)
 {
 	static const char *const names[] = {
+		"afilter.until",
 		"core.file",
 		"core.filew",
 		"ctl",
@@ -80,11 +101,13 @@ const fmed_filter* mods_filter_byname(const char *name)
 		"fmt.mp3",
 		"fmt.mp3-copy",
 		"fmt.mp4",
+		"fmt.mp4w",
 		"fmt.ogg",
 		"fmt.opusmeta",
 		"fmt.vorbismeta",
 	};
 	static const fmed_filter *const filters[] = {
+		/*"afilter.until"*/	&fmed_sndmod_until,
 		/*"core.file"*/	&file_input,
 		/*"core.filew"*/	&file_output,
 		/*"ctl"*/	&ctl_filter,
@@ -93,6 +116,7 @@ const fmed_filter* mods_filter_byname(const char *name)
 		/*"fmt.mp3"*/	&mp3_input,
 		/*"fmt.mp3-copy"*/	&mp3_copy,
 		/*"fmt.mp4"*/	&mp4_input,
+		/*"fmt.mp4w"*/	&mp4_output,
 		/*"fmt.ogg"*/	&ogg_input,
 		/*"fmt.opusmeta"*/	&opusmeta_input,
 		/*"fmt.vorbismeta"*/	&vorbismeta_input,

@@ -76,6 +76,7 @@ static int mp4_out_encode(void *ctx, fmed_track_info *d)
 
 		} else {
 			errlog1(d->trk, "unsupported input data format: %s", d->datatype);
+			d->error = FMED_E_INCOMPATFMT;
 			return FMED_RERR;
 		}
 		// fallthrough

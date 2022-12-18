@@ -121,6 +121,10 @@ enum FMED_CMD {
 	const char *fname = (char*)core->cmd(FMED_IFILTER_BYEXT, const char *ext) */
 	FMED_IFILTER_BYEXT,
 
+	/** Get output filter name by file extension.
+	const char *fname = (char*)core->cmd(FMED_OFILTER_BYEXT, const char *ext) */
+	FMED_OFILTER_BYEXT,
+
 	/** Get filter interface by name.
 	const fmed_filter *fi = (fmed_filter*)core->cmd(FMED_FILTER_BYNAME, const char *name) */
 	FMED_FILTER_BYNAME,
@@ -496,6 +500,7 @@ enum FMED_E {
 	FMED_E_NOSRC, // no source
 	FMED_E_DSTEXIST, // target exists already
 	FMED_E_UNKIFMT, // unknown input format
+	FMED_E_INCOMPATFMT, // incompatible data formats
 	FMED_E_OTHER = 255,
 };
 

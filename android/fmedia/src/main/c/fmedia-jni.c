@@ -13,6 +13,7 @@
 #include "ctl.h"
 #include "jni-helper.h"
 #include <util/fntree.h>
+#include <util/path.h>
 #include <FFOS/perf.h>
 
 typedef struct fmedia_ctx fmedia_ctx;
@@ -213,6 +214,7 @@ static const char* trk_errstr(uint e)
 		"Input file doesn't exist", // FMED_E_NOSRC
 		"Output file already exists", // FMED_E_DSTEXIST
 		"Unknown input file format", // FMED_E_UNKIFMT
+		"Incompatible data formats", // FMED_E_INCOMPATFMT
 	};
 	const char *s = "Unknown";
 	if (e < FF_COUNT(errstr))
@@ -257,7 +259,24 @@ Java_com_github_stsaz_fmedia_Fmedia_streamCopy(JNIEnv *env, jobject thiz, jstrin
 
 	fx->track->cmd(t, FMED_TRACK_FILT_ADD, "core.file");
 	fx->track->cmd(t, FMED_TRACK_FILT_ADD, "fmt.detector");
+	fx->track->cmd(t, FMED_TRACK_FILT_ADD, "afilter.until");
 	fx->track->cmd(t, FMED_TRACK_FILT_ADD, "ctl");
+
+	// Add output format filter according to the file extension of user-specified output file
+	ffstr ext;
+	ffpath_split3(ti->out_filename, ffsz_len(ti->out_filename), NULL, NULL, &ext);
+	if (ext.len == 0) {
+		error = "Please set output file extension";
+		goto end;
+	}
+	const char *fname = (void*)core->cmd(FMED_OFILTER_BYEXT, ext.ptr);
+	if (fname == NULL) {
+		error = "Output file extension isn't supported";
+		goto end;
+	}
+	if (!(ti->stream_copy && ffstr_eqz(&ext, "mp3"))) // Note: fmt.mp3-copy is added directly by fmt.mp3
+		fx->track->cmd(t, FMED_TRACK_FILT_ADD, fname);
+
 	fx->track->cmd(t, FMED_TRACK_FILT_ADD, "core.filew");
 
 	fx->track->cmd(t, FMED_TRACK_START);

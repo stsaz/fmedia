@@ -11,7 +11,8 @@ struct filter {
 
 /* Max filter chain:
 ifile->detector->ifmt->meta->ctl
-ifile->detector->ifmt->copy->ctl->ofile */
+ifile->detector->ifmt->copy->ctl ->ofile
+ifile->detector->ifmt->ctl ->ofmt->ofile */
 #define MAX_FILTERS 6
 
 struct track_ctx {
@@ -287,7 +288,7 @@ static int trk_filter_add(struct track_ctx *t, const char *name, const fmed_filt
 	return pf - (struct filter**)t->filters.ptr;
 }
 
-extern const fmed_filter* core_getfilter(const char *name);
+static int trk_meta_enum(struct track_ctx *t, fmed_trk_meta *meta);
 
 static ffssize trk_cmd(void *trk, uint cmd, ...)
 {
@@ -322,6 +323,10 @@ static ffssize trk_cmd(void *trk, uint cmd, ...)
 		break;
 	}
 
+	case FMED_TRACK_META_ENUM:
+		r = trk_meta_enum(trk, va_arg(va, fmed_trk_meta*));
+		break;
+
 	default:
 		errlog1(t, "%s: bad command %u", __func__, cmd);
 	}
@@ -335,6 +340,37 @@ static void trk_meta_set(void *trk, const ffstr *name, const ffstr *val, uint fl
 	struct track_ctx *t = trk;
 	*ffvec_pushT(&t->ti.meta, char*) = ffsz_dupstr(name);
 	*ffvec_pushT(&t->ti.meta, char*) = ffsz_dupstr(val);
+}
+
+static int trk_meta_enum(struct track_ctx *t, fmed_trk_meta *meta)
+{
+	for (;;) {
+		if (meta->idx * 2 == t->ti.meta.len)
+			return 1;
+
+		const char *k = *ffslice_itemT(&t->ti.meta, meta->idx * 2, char*);
+		const char *v = *ffslice_itemT(&t->ti.meta, meta->idx * 2 + 1, char*);
+		ffstr_setz(&meta->name, k);
+		ffstr_setz(&meta->val, v);
+		meta->idx++;
+
+		int skip = 0;
+		if (meta->flags & FMED_QUE_UNIQ) {
+			char **it;
+			FFSLICE_WALK(&t->ti.meta, it) {
+				if (k == *it)
+					break;
+				if (ffstr_ieqz(&meta->name, *it)) {
+					skip = 1; // skip current k-v pair because same key is found before
+					break;
+				}
+				it++; // skip value
+			}
+		}
+
+		if (!skip)
+			return 0;
+	}
 }
 
 const fmed_track track_iface = {

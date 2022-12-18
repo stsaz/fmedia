@@ -49,7 +49,14 @@ static ffssize core_cmd(uint cmd, ...)
 	case FMED_IFILTER_BYEXT: {
 		const char *sz = va_arg(va, char*);
 		ffstr ext = FFSTR_INITZ(sz);
-		r = (ffssize)mods_filter_byext(ext);
+		r = (ffssize)mods_ifilter_byext(ext);
+		break;
+	}
+
+	case FMED_OFILTER_BYEXT: {
+		const char *sz = va_arg(va, char*);
+		ffstr ext = FFSTR_INITZ(sz);
+		r = (ffssize)mods_ofilter_byext(ext);
 		break;
 	}
 
