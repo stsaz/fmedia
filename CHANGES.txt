@@ -8,6 +8,17 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia/Android v0.8 - Dec 18, 2022
+
+ + .mp3 -> .m4a(AAC-LC) conversion
+   (~1.5sec/min on modern arm64 phone)
+   (~7sec/min on old arm phone)
+ + .m4a -> .m4a stream copy
+ * .mp3 copy: copy id3v2+id3v1 tags
+ + new setting:
+   Playback: "Remove Track From Playlist After I Tap Next"
+
+
 fmedia/Android v0.7 - Dec 3, 2022
 
  + .mp3 -> .mp3 cut/copy via "File: Cut" menu command
