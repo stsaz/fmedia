@@ -26,6 +26,7 @@
 	<string name="sett_random">Random</string>
 	<string name="sett_repeat_all">Repeat All</string>
 	<string name="sett_no_tags">Don\'t Read Tags</string>
+	<string name="sett_list_rm_on_next">Remove Track From Playlist After I Tap Next</string>
 	<string name="sett_codepage">Codepage for Non-Unicode Tags</string>
 	<string name="sett_autoskip">Auto-Skip Audio (sec):</string>
 

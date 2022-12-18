@@ -42,6 +42,7 @@ class Queue {
 	private Random rnd;
 	boolean random_split;
 	int autoskip_msec;
+	private boolean b_order_next;
 	private Handler mloop;
 
 	Queue(Core core) {
@@ -51,6 +52,7 @@ class Queue {
 			@Override
 			public int open(TrackHandle t) {
 				active = true;
+				b_order_next = false;
 				if (autoskip_msec != 0)
 					t.seek_msec = autoskip_msec;
 				return 0;
@@ -152,6 +154,17 @@ class Queue {
 	}
 
 	/**
+	 * Next track by user command
+	 */
+	void order_next() {
+		if (active) {
+			b_order_next = true;
+			track.stop();
+		}
+		next();
+	}
+
+	/**
 	 * Play previous track
 	 */
 	void prev() {
@@ -165,7 +178,8 @@ class Queue {
 		active = false;
 		boolean play_next = !t.stopped;
 
-		if (t.error && !core.setts.no_qu_rm_on_err) {
+		if ((t.error && !core.setts.no_qu_rm_on_err)
+				|| (b_order_next && core.setts.list_rm_on_next)) {
 			remove(pl.curpos);
 		}
 

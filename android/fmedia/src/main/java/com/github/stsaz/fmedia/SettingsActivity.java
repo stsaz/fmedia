@@ -16,7 +16,7 @@ public class SettingsActivity extends AppCompatActivity {
 	private static final String TAG = "fmedia.SettingsActivity";
 	private Core core;
 	private SwitchCompat brandom, brepeat, bfilter_hide, brec_hide, bsvc_notif_disable, bfile_del;
-	private SwitchCompat bnotags, bdark;
+	private SwitchCompat bnotags, blist_rm_on_next, bdark;
 	private TextView trecdir, tbitrate, ttrash_dir, tautoskip, tcodepage;
 
 	@Override
@@ -69,6 +69,9 @@ public class SettingsActivity extends AppCompatActivity {
 		bnotags = findViewById(R.id.bnotags);
 		bnotags.setChecked(core.setts.no_tags);
 
+		blist_rm_on_next = findViewById(R.id.blist_rm_on_next);
+		blist_rm_on_next.setChecked(core.setts.list_rm_on_next);
+
 		tcodepage = findViewById(R.id.tcodepage);
 		tcodepage.setText(core.setts.codepage);
 
@@ -94,6 +97,7 @@ public class SettingsActivity extends AppCompatActivity {
 		core.queue().random(brandom.isChecked());
 		core.queue().repeat(brepeat.isChecked());
 		core.setts.no_tags = bnotags.isChecked();
+		core.setts.list_rm_on_next = blist_rm_on_next.isChecked();
 		core.setts.set_codepage(tcodepage.getText().toString());
 		core.fmedia.setCodepage(core.setts.codepage);
 		core.queue().autoskip_msec = core.str_to_uint(tautoskip.getText().toString(), 0) * 1000;

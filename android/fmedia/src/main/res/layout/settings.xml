@@ -69,6 +69,13 @@
 			android:layout_margin="10dp"
 			android:text="@string/sett_no_tags" />
 
+		<androidx.appcompat.widget.SwitchCompat
+			android:id="@+id/blist_rm_on_next"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_margin="10dp"
+			android:text="@string/sett_list_rm_on_next" />
+
 		<TextView
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"

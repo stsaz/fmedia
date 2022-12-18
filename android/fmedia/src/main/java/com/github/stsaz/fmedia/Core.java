@@ -20,6 +20,7 @@ class CoreSettings {
 	int enc_bitrate; // encoder bitrate
 	boolean file_del;
 	boolean no_tags;
+	boolean list_rm_on_next;
 	boolean no_qu_rm_on_err;
 	String codepage;
 
@@ -36,6 +37,7 @@ class CoreSettings {
 		return String.format("svc_notification_disable %d\n", core.bool_to_int(svc_notification_disable)) +
 				String.format("file_delete %d\n", core.bool_to_int(file_del)) +
 				String.format("no_tags %d\n", core.bool_to_int(no_tags)) +
+				String.format("list_rm_on_next %d\n", core.bool_to_int(list_rm_on_next)) +
 				String.format("codepage %s\n", codepage) +
 				String.format("rec_path %s\n", rec_path) +
 				String.format("enc_bitrate %d\n", enc_bitrate) +
@@ -61,6 +63,8 @@ class CoreSettings {
 			trash_dir = v;
 		else if (k.equals("no_tags"))
 			no_tags = core.str_to_bool(v);
+		else if (k.equals("list_rm_on_next"))
+			list_rm_on_next = core.str_to_bool(v);
 		else if (k.equals("codepage"))
 			set_codepage(v);
 		else if (k.equals("enc_bitrate"))
