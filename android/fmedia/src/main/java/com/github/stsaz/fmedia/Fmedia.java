@@ -38,6 +38,7 @@ class Fmedia {
 
 	static {
 		System.loadLibrary("fdk-aac-phi");
+		System.loadLibrary("FLAC-phi");
 		System.loadLibrary("mpg123-phi");
 		System.loadLibrary("fmedia");
 	}

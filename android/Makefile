@@ -56,7 +56,7 @@ CPU := amd64
 include $(FMED_DIR)/android/andk.mk
 
 CFLAGS += -fvisibility=hidden -Wno-for-loop-analysis
-ifeq "$(DEBUG)" "1"
+ifeq "$(DEBUG_LIB)" "1"
 	CFLAGS += -g -DFMED_DEBUG -DFF_DEBUG -Werror
 endif
 CFLAGS += \
@@ -77,6 +77,7 @@ LINK_RPATH_ORIGIN := '-Wl,-rpath,$$ORIGIN' -Wl,--disable-new-dtags
 LINKFLAGS += -L$(FMED_DIR)/alib3/_android-$(CPU)
 LINKFLAGS += $(LINK_RPATH_ORIGIN) \
 	-lfdk-aac-phi \
+	-lFLAC-phi \
 	-lmpg123-phi \
 	-latomic -llog -lc -lm
 
@@ -117,6 +118,7 @@ $(LIBDIR)/libfmedia.so: $(OBJ)
 alib3:
 	$(CP) \
 		$(FMED_DIR)/alib3/_android-$(CPU)/libfdk-aac-phi.so \
+		$(FMED_DIR)/alib3/_android-$(CPU)/libFLAC-phi.so \
 		$(FMED_DIR)/alib3/_android-$(CPU)/libmpg123-phi.so \
 		$(LIBDIR)
 

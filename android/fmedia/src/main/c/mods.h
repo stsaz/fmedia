@@ -42,10 +42,12 @@ const char* mods_ifilter_byext(ffstr ext)
 const char* mods_ofilter_byext(ffstr ext)
 {
 	static const char *const exts[] = {
+		"flac",
 		"m4a",
 		"mp3",
 	};
 	static const char *const fnames[] = {
+		/*"flac"*/ "fmt.flacw",
 		/*"m4a"*/ "fmt.mp4w",
 		/*"mp3"*/ "fmt.mp3w",
 	};
@@ -80,6 +82,7 @@ extern const fmed_filter ctl_filter;
 extern const fmed_filter file_input;
 extern const fmed_filter file_output;
 extern const fmed_filter flac_input;
+extern const fmed_filter flac_output;
 extern const fmed_filter mp3_input;
 extern const fmed_filter mp3_copy;
 extern const fmed_filter mp4_input;
@@ -87,18 +90,26 @@ extern const fmed_filter mp4_output;
 extern const fmed_filter ogg_input;
 extern const fmed_filter opusmeta_input;
 extern const fmed_filter vorbismeta_input;
+
 extern const fmed_filter fmed_sndmod_autoconv;
 extern const fmed_filter fmed_sndmod_conv;
 extern const fmed_filter fmed_sndmod_until;
+
+extern const fmed_filter aac_input;
 extern const fmed_filter aac_output;
 extern const fmed_filter mpeg_decode_filt;
+extern const fmed_filter mod_flac_enc;
+extern const fmed_filter fmed_flac_dec;
 
 extern int ogg_in_conf(fmed_conf_ctx *ctx);
 extern int aac_out_config(fmed_conf_ctx *ctx);
+extern int flac_enc_config(fmed_conf_ctx *ctx);
+extern int flac_out_config(fmed_conf_ctx *ctx);
 
 const fmed_filter* mods_filter_byname(const char *name)
 {
 	static const char *const names[] = {
+		"aac.decode",
 		"aac.encode",
 		"afilter.autoconv",
 		"afilter.conv",
@@ -106,8 +117,11 @@ const fmed_filter* mods_filter_byname(const char *name)
 		"core.file",
 		"core.filew",
 		"ctl",
+		"flac.decode",
+		"flac.encode",
 		"fmt.detector",
 		"fmt.flac",
+		"fmt.flacw",
 		"fmt.mp3",
 		"fmt.mp3-copy",
 		"fmt.mp4",
@@ -118,6 +132,7 @@ const fmed_filter* mods_filter_byname(const char *name)
 		"mpeg.decode",
 	};
 	static const fmed_filter *const filters[] = {
+		/*"aac.decode"*/	&aac_input,
 		/*"aac.encode"*/	&aac_output,
 		/*"afilter.autoconv"*/	&fmed_sndmod_autoconv,
 		/*"afilter.conv"*/	&fmed_sndmod_conv,
@@ -125,8 +140,11 @@ const fmed_filter* mods_filter_byname(const char *name)
 		/*"core.file"*/	&file_input,
 		/*"core.filew"*/	&file_output,
 		/*"ctl"*/	&ctl_filter,
+		/*"flac.decode"*/	&fmed_flac_dec,
+		/*"flac.encode"*/	&mod_flac_enc,
 		/*"fmt.detector"*/	&_fmed_format_detector,
 		/*"fmt.flac"*/	&flac_input,
+		/*"fmt.flacw"*/	&flac_output,
 		/*"fmt.mp3"*/	&mp3_input,
 		/*"fmt.mp3-copy"*/	&mp3_copy,
 		/*"fmt.mp4"*/	&mp4_input,
@@ -149,6 +167,14 @@ const fmed_filter* mods_filter_byname(const char *name)
 	} else if (filters[i] == &aac_output) {
 		fmed_conf_ctx cc = {};
 		aac_out_config(&cc);
+
+	} else if (filters[i] == &mod_flac_enc) {
+		fmed_conf_ctx cc = {};
+		flac_enc_config(&cc);
+
+	} else if (filters[i] == &flac_output) {
+		fmed_conf_ctx cc = {};
+		flac_out_config(&cc);
 	}
 
 	return filters[i];

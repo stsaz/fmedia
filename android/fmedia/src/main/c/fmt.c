@@ -14,6 +14,7 @@ extern const fmed_core *core;
 #include <format/mmtag.h>
 
 #include <format/flac-read.h>
+#include <format/flac-write.h>
 #include <format/mp3-copy.h>
 #include <format/mp3-read.h>
 #include <format/mp4-read.h>
