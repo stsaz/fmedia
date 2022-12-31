@@ -8,6 +8,22 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia/Android v0.9 - Dec 30, 2022
+
+ + Convert: AAC decode; FLAC decode/encode; .flac write
+ + Convert: new settings:
+   + "Output Directory"
+   + "Move Input File to Trash"
+   + "Set To Current"
+   + "Add New File to Playlist"
+ + New setting: "App Data Directory"
+ + Open playlists (.m3u) from "Explorer"
+   * Remove command "List: Load"
+ + "List: Save" now works on old devices too
+ + New command: "List: Switch L1/L2"
+ + New command: "List: Add Current to L2"
+
+
 fmedia/Android v0.8 - Dec 18, 2022
 
  + .mp3 -> .m4a(AAC-LC) conversion
