@@ -26,20 +26,22 @@ public class AddURLActivity extends AppCompatActivity {
 
 		core = Core.getInstance();
 		t_url = findViewById(R.id.t_url);
-		findViewById(R.id.b_url_add).setOnClickListener((v) -> {
-			String fn = t_url.getText().toString();
-			if (!core.track().supported_url(fn)) {
-				core.gui().msg_show(AddURLActivity.this, "Unsupported URL");
-				return;
-			}
-			core.queue().add(fn);
-			finish();
-		});
+		findViewById(R.id.b_url_add).setOnClickListener((v) -> add());
 	}
 
 	@Override
 	protected void onDestroy() {
 		core.unref();
 		super.onDestroy();
+	}
+
+	private void add() {
+		String fn = t_url.getText().toString();
+		if (!core.track().supported_url(fn)) {
+			core.gui().msg_show(AddURLActivity.this, "Unsupported URL");
+			return;
+		}
+		core.queue().add(fn);
+		finish();
 	}
 }

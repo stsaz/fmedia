@@ -4,6 +4,7 @@
 /*
 mpeg.dec->(float/i)
 flac.dec->(int8|int16|int24/ni)
+aac.dec->(int16/i)
 (int8|int16|int24/ni)->flac.enc
 (int16/i)->aac.enc
 */

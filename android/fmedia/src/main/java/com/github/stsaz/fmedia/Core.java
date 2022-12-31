@@ -186,6 +186,7 @@ class Core extends Util {
 		sb.append(this.setts.writeconf());
 		sb.append(qu.writeconf());
 		sb.append(gui.writeconf());
+		dbglog(TAG, sb.toString());
 		if (!file_writeall(fn, sb.toString().getBytes(), FILE_WRITE_SAFE))
 			errlog(TAG, "saveconf: %s", fn);
 		else

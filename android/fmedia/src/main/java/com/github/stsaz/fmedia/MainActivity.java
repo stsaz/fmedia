@@ -192,7 +192,7 @@ public class MainActivity extends AppCompatActivity {
 				return true;
 			}
 
-			case R.id.action_list_showcur_explorer: {
+			case R.id.action_file_showcur: {
 				int pos = queue.cur();
 				if (pos >= 0) {
 					pos = explorer.show_cur(pos);
