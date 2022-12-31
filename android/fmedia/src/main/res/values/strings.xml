@@ -9,11 +9,12 @@
 	<string name="menu_show_expl">File: Show Current Track</string>
 	<string name="mfile_del">File: Delete from Storage</string>
 	<string name="mlist_save">List: Save...</string>
-	<string name="mlist_load">List: Load...</string>
 	<string name="mlist_add">List: Add...</string>
 	<string name="mlist_remove">List: Remove Current Track</string>
 	<string name="mlist_clear">List: Clear</string>
 	<string name="mlist_show_track">List: Show Current Track</string>
+	<string name="mlist_switch">List: Switch L1/L2</string>
+	<string name="mlist_l2add">List: Add Current to L2</string>
 	<string name="menu_about">About...</string>
 
 	<string name="sett_interface">Interface</string>
@@ -35,8 +36,12 @@
 	<string name="sett_trash_dir">Trash Directory:</string>
 
 	<string name="sett_recording">Recording</string>
+	<string name="sett_data_dir">App Data Directory</string>
 	<string name="sett_rec_dir">Directory for Recordings</string>
 	<string name="sett_bitrate">Encoder Bitrate (kbit/sec):</string>
+
+	<string name="lssv_lname">Playlist name:</string>
+	<string name="lssv_bsave">Save</string>
 
 	<string name="conv_input_file">Input file:</string>
 	<string name="conv_out_dir">Output directory:</string>

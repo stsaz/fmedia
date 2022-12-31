@@ -43,8 +43,6 @@ public class MainActivity extends AppCompatActivity {
 	private static final int REQUEST_PERM_READ_STORAGE = 1;
 	private static final int REQUEST_PERM_RECORD = 2;
 	static final int REQUEST_STORAGE_ACCESS = 1;
-	private static final int REQUEST_SAVE_FILE = 2;
-	private static final int REQUEST_OPEN_FILE = 3;
 
 	private Core core;
 	private GUI gui;
@@ -164,7 +162,7 @@ public class MainActivity extends AppCompatActivity {
 
 			case R.id.action_file_convert:
 				startActivity(new Intent(this, ConvertActivity.class)
-						.putExtra("iname", cur_filename())
+						.putExtra("iname", track.cur_url())
 						.putExtra("length", total_dur_msec / 1000 + 1));
 				return true;
 
@@ -180,10 +178,6 @@ public class MainActivity extends AppCompatActivity {
 				list_save();
 				return true;
 
-			case R.id.action_list_load:
-				list_load();
-				return true;
-
 			case R.id.action_list_showcur: {
 				plist_click();
 				int pos = queue.cur();
@@ -192,13 +186,27 @@ public class MainActivity extends AppCompatActivity {
 				return true;
 			}
 
+			case R.id.action_list_switch: {
+				plist_reset();
+				filter_reset();
+				int qi = queue.switch_list();
+				plist_click();
+				core.gui().msg_show(this, "Switched to L%d", qi+1);
+				return true;
+			}
+
+			case R.id.action_list_l2add:
+				if (queue.l2_add_cur())
+					core.gui().msg_show(this, "Added 1 item to L2");
+				return true;
+
 			case R.id.action_file_showcur: {
-				int pos = queue.cur();
-				if (pos >= 0) {
-					pos = explorer.show_cur(pos);
-					if (pos >= 0)
-						list.setSelection(pos);
-				}
+				String fn = track.cur_url();
+				if (fn.isEmpty())
+					return true;
+				int pos = explorer.show_file(fn);
+				if (pos >= 0)
+					list.setSelection(pos);
 				return true;
 			}
 
@@ -229,27 +237,6 @@ public class MainActivity extends AppCompatActivity {
 		switch (requestCode) {
 			case REQUEST_STORAGE_ACCESS:
 				if (Environment.isExternalStorageManager()) {
-				}
-				break;
-
-			case REQUEST_SAVE_FILE:
-				try {
-					OutputStream os = getContentResolver().openOutputStream(data.getData());
-					core.queue().save_stream(os);
-					core.gui().msg_show(this, "Saved playlist file");
-				} catch (Exception e) {
-					core.errlog(TAG, "openOutputStream(): %s", e);
-				}
-				break;
-
-			case REQUEST_OPEN_FILE:
-				try {
-					InputStream is = getContentResolver().openInputStream(data.getData());
-					core.queue().load_data(core.istream_readall(is));
-					filter_reset();
-					plist_click();
-				} catch (Exception e) {
-					core.errlog(TAG, "openInputStream(): %s", e);
 				}
 				break;
 		}
@@ -487,13 +474,6 @@ public class MainActivity extends AppCompatActivity {
 		list.setSelection(gui.list_pos);
 	}
 
-	private String cur_filename() {
-		int pos = queue.cur();
-		if (pos < 0)
-			return "";
-		return queue.list()[pos];
-	}
-
 	/**
 	 * Ask confirmation before deleting the currently playing file from storage
 	 */
@@ -501,7 +481,7 @@ public class MainActivity extends AppCompatActivity {
 		int pos = queue.cur();
 		if (pos < 0)
 			return;
-		String fn = queue.list()[pos];
+		String fn = queue.get(pos);
 
 		AlertDialog.Builder b = new AlertDialog.Builder(this);
 		b.setIcon(android.R.drawable.ic_dialog_alert);
@@ -541,20 +521,14 @@ public class MainActivity extends AppCompatActivity {
 		list.setAdapter(adapter);
 	}
 
-	static final int PL_SET = 0;
-	static final int PL_ADD = 1;
-
 	void pl_set(String[] ents, int flags) {
-		filter_strlen = 0;
-		if (flags == PL_SET) {
-			queue.clear_addmany(ents);
-			core.dbglog(TAG, "added %d items", ents.length);
-			gui.msg_show(this, "Set %d playlist items", ents.length);
-		} else {
-			queue.addmany(ents);
-			core.dbglog(TAG, "added %d items", ents.length);
-			gui.msg_show(this, "Added %d items to playlist", ents.length);
-		}
+		filter_reset();
+		int n = queue.count();
+		queue.addmany(ents, flags);
+		core.dbglog(TAG, "added %d items", ents.length);
+		gui.msg_show(this, "Added %d items to playlist", ents.length);
+		if (flags == Queue.ADD)
+			queue.play(n);
 	}
 
 	private boolean list_longclick(int pos) {
@@ -660,41 +634,15 @@ public class MainActivity extends AppCompatActivity {
 		int pos = queue.cur();
 		if (pos < 0)
 			return;
-		String fn = queue.list()[pos];
 		queue.remove(pos);
 		gui.msg_show(this, "Removed 1 entry");
-		list.setSelection(gui.list_pos);
 	}
 
 	/**
 	 * Show dialog for saving playlist file
 	 */
 	private void list_save() {
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-			Intent it = new Intent(Intent.ACTION_CREATE_DOCUMENT);
-			it.addCategory(Intent.CATEGORY_OPENABLE);
-			it.setType("audio/x-mpegurl");
-			it.putExtra(Intent.EXTRA_TITLE, "Playlist1.m3u8");
-			ActivityCompat.startActivityForResult(this, it, REQUEST_SAVE_FILE, null);
-			return;
-		}
-
-		core.errlog(TAG, "Feature not supported on your OS");
-	}
-
-	/**
-	 * Show dialog for loading playlist file
-	 */
-	private void list_load() {
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-			Intent it = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-			it.addCategory(Intent.CATEGORY_OPENABLE);
-			it.setType("audio/x-mpegurl");
-			ActivityCompat.startActivityForResult(this, it, REQUEST_OPEN_FILE, null);
-			return;
-		}
-
-		core.errlog(TAG, "Feature not supported on your OS");
+		startActivity(new Intent(this, ListSaveActivity.class));
 	}
 
 	/**

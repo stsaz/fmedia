@@ -60,13 +60,16 @@ const char* mods_ofilter_byext(ffstr ext)
 }
 
 extern const fmed_track track_iface;
+extern const fmed_queue fmed_que_mgr;
 
 const void* mods_find(const char *name)
 {
 	static const char *const names[] = {
+		"core.queue",
 		"core.track",
 	};
 	static const void *const mods[] = {
+		/*"core.queue"*/	&fmed_que_mgr,
 		/*"core.track"*/	&track_iface,
 	};
 	int i = ffszarr_findsorted(names, FF_COUNT(names), name, ffsz_len(name));

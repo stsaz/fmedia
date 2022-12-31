@@ -123,9 +123,23 @@
 			android:layout_height="wrap_content"
 			android:layout_marginHorizontal="10dp"
 			android:layout_marginTop="10dp"
+			android:text="@string/sett_data_dir"
+			android:textColor="@color/text" />
+		<EditText
+			android:id="@+id/tdata_dir"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginHorizontal="10dp"
+			android:inputType="text"
+			android:textSize="@dimen/text_editbox" />
+
+		<TextView
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginHorizontal="10dp"
+			android:layout_marginTop="10dp"
 			android:text="@string/sett_trash_dir"
 			android:textColor="@color/text" />
-
 		<EditText
 			android:id="@+id/ttrash_dir"
 			android:layout_width="match_parent"

@@ -54,13 +54,9 @@ class Explorer {
 			return;
 		}
 
-		String[] pl = new String[fns.length - ndirs];
-		int n = 0;
-		for (int i = ndirs; i != fns.length; i++) {
-			pl[n++] = fns[i];
-		}
-		main.pl_set(pl, MainActivity.PL_SET);
-		main.play(pos - ndirs);
+		String[] pl = new String[1];
+		pl[0] = fns[pos];
+		main.pl_set(pl, Queue.ADD);
 	}
 
 	/**
@@ -124,8 +120,6 @@ class Explorer {
 						continue;
 					}
 
-					if (!core.track().supported(f.getName()))
-						continue;
 					s = f.getName();
 					names.add(s);
 					fnames.add(f.getPath());
@@ -178,21 +172,13 @@ class Explorer {
 		if (pos == 0 && updir)
 			return false; // no action for a long click on "<UP>"
 
-		if (pos >= ndirs)
-			return false; // long click on a file
-
-		String[] list = core.fmedia.listDirRecursive(fns[pos]);
-		main.pl_set(list, MainActivity.PL_ADD);
+		String[] list = new String[1];
+		list[0] = fns[pos];
+		main.pl_set(list, Queue.ADD_RECURSE);
 		return true;
 	}
 
-	int show_cur(int pos) {
-		String[] pl = queue.list();
-		if (pl.length == 0)
-			return -1;
-		String fn = pl[pos];
-		if (!core.track().supported(fn))
-			return -1;
+	int show_file(String fn) {
 		gui.cur_path = new File(fn).getParent();
 		main.explorer_click();
 

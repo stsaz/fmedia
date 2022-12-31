@@ -17,7 +17,7 @@ public class SettingsActivity extends AppCompatActivity {
 	private Core core;
 	private SwitchCompat brandom, brepeat, bfilter_hide, brec_hide, bsvc_notif_disable, bfile_del;
 	private SwitchCompat bnotags, blist_rm_on_next, bdark;
-	private TextView trecdir, tbitrate, ttrash_dir, tautoskip, tcodepage;
+	private TextView tdata_dir, trecdir, tbitrate, ttrash_dir, tautoskip, tcodepage;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -79,6 +79,9 @@ public class SettingsActivity extends AppCompatActivity {
 		tautoskip.setText(Integer.toString(core.queue().autoskip_msec / 1000));
 
 		// Operation
+		tdata_dir = findViewById(R.id.tdata_dir);
+		tdata_dir.setText(core.setts.pub_data_dir);
+
 		ttrash_dir = findViewById(R.id.ttrash_dir);
 		ttrash_dir.setText(core.setts.trash_dir);
 
@@ -101,6 +104,11 @@ public class SettingsActivity extends AppCompatActivity {
 		core.setts.set_codepage(tcodepage.getText().toString());
 		core.fmedia.setCodepage(core.setts.codepage);
 		core.queue().autoskip_msec = core.str_to_uint(tautoskip.getText().toString(), 0) * 1000;
+
+		String s = tdata_dir.getText().toString();
+		if (s.isEmpty())
+			s = core.storage_path + "/fmedia";
+		core.setts.pub_data_dir = s;
 
 		core.setts.svc_notification_disable = bsvc_notif_disable.isChecked();
 		core.setts.trash_dir = ttrash_dir.getText().toString();

@@ -237,6 +237,12 @@ class Track {
 		core.dbglog(TAG, "init");
 	}
 
+	String cur_url() {
+		if (tplay.state == STATE_NONE)
+			return "";
+		return tplay.url;
+	}
+
 	int curpos_msec() {
 		return tplay.pos_msec;
 	}

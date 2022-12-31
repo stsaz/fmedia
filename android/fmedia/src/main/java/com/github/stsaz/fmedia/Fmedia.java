@@ -31,11 +31,19 @@ class Fmedia {
 	String result;
 	native int convert(String iname, String oname, int flags);
 
-	public native String[] listDirRecursive(String filepath);
-
-	public native String[] playlistLoadData(byte[] data);
-	public native String[] playlistLoad(String filepath);
-	public native boolean playlistSave(String filepath, String[] list);
+	// track queue
+	native long quNew();
+	native void quDestroy(long q);
+	static final int QUADD_RECURSE = 1;
+	native void quAdd(long q, String[] urls, int flags);
+	native String quEntry(long q, int i);
+	static final int QUCOM_CLEAR = 1;
+	static final int QUCOM_REMOVE_I = 2;
+	static final int QUCOM_COUNT = 3;
+	native int quCmd(long q, int cmd, int i);
+	native int quLoad(long q, String filepath);
+	native boolean quSave(long q, String filepath);
+	native String[] quList(long q);
 
 	public native String trash(String trash_dir, String filepath);
 

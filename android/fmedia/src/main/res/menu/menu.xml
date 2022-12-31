@@ -19,9 +19,6 @@
 		android:id="@+id/action_list_save"
 		android:title="@string/mlist_save" />
 	<item
-		android:id="@+id/action_list_load"
-		android:title="@string/mlist_load" />
-	<item
 		android:id="@+id/action_list_add"
 		android:title="@string/mlist_add" />
 	<item
@@ -33,6 +30,12 @@
 	<item
 		android:id="@+id/action_list_showcur"
 		android:title="@string/mlist_show_track" />
+	<item
+		android:id="@+id/action_list_switch"
+		android:title="@string/mlist_switch" />
+	<item
+		android:id="@+id/action_list_l2add"
+		android:title="@string/mlist_l2add" />
 	<item
 		android:id="@+id/action_about"
 		android:title="@string/menu_about" />

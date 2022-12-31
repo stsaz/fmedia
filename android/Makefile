@@ -91,11 +91,16 @@ OBJ := \
 	$(OBJ_DIR)/core.o \
 	$(OBJ_DIR)/ffpcm.o \
 	$(OBJ_DIR)/fmedia-jni.o \
-	$(OBJ_DIR)/fmt.o
+	$(OBJ_DIR)/fmt.o \
+	$(OBJ_DIR)/queue.o
 
 $(OBJ_DIR)/ffpcm.o: $(FMED_DIR)/src/afilter/ffpcm.c \
 		$(wildcard $(FMED_DIR)/src/afilter/*.h)
 	$(C) $(CFLAGS) $(CFLAGS_OPT) $< -o $@
+
+$(OBJ_DIR)/queue.o: $(FMED_DIR)/src/core/queue.c \
+		$(wildcard $(FMED_DIR)/src/core/queue-*.h)
+	$(C) $(CFLAGS) $(APP_CFLAGS_OPT) $< -o $@
 
 $(OBJ_DIR)/%.o: $(FMED_DIR)/src/afilter/%.c \
 		$(wildcard $(FMED_DIR)/src/afilter/*.h)

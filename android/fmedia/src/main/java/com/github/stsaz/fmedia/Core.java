@@ -23,6 +23,7 @@ class CoreSettings {
 	boolean list_rm_on_next;
 	boolean no_qu_rm_on_err;
 	String codepage;
+	String pub_data_dir;
 
 	String conv_outext;
 	int conv_aac_quality;
@@ -33,6 +34,7 @@ class CoreSettings {
 		enc_bitrate = 192;
 		codepage = "cp1252";
 		rec_path = "";
+		pub_data_dir = "";
 		trash_dir = String.format("%s/Trash", core.storage_path);
 		conv_outext = "m4a";
 		conv_aac_quality = 5;
@@ -47,6 +49,7 @@ class CoreSettings {
 				String.format("codepage %s\n", codepage) +
 				String.format("rec_path %s\n", rec_path) +
 				String.format("enc_bitrate %d\n", enc_bitrate) +
+				String.format("data_dir %s\n", pub_data_dir) +
 				String.format("trash_dir %s\n", trash_dir) +
 
 				String.format("conv_outext %s\n", conv_outext) +
@@ -69,6 +72,8 @@ class CoreSettings {
 			rec_path = v;
 		else if (k.equals("file_delete"))
 			file_del = core.str_to_bool(v);
+		else if (k.equals("data_dir"))
+			pub_data_dir = v;
 		else if (k.equals("trash_dir"))
 			trash_dir = v;
 		else if (k.equals("no_tags"))
@@ -147,6 +152,9 @@ class Core extends Util {
 		sysjobs.init(this);
 
 		loadconf();
+		if (setts.pub_data_dir.isEmpty())
+			setts.pub_data_dir = storage_path + "/fmedia";
+		qu.load();
 		return 0;
 	}
 
@@ -159,10 +167,10 @@ class Core extends Util {
 		dbglog(TAG, "close(): %d", refcount);
 		if (--refcount != 0)
 			return;
-		fmedia.destroy();
 		instance = null;
 		qu.close();
 		sysjobs.uninit();
+		fmedia.destroy();
 	}
 
 	Queue queue() {

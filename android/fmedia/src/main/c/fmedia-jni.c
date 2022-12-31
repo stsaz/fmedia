@@ -20,6 +20,8 @@
 typedef struct fmedia_ctx fmedia_ctx;
 struct fmedia_ctx {
 	const fmed_track *track;
+	const fmed_queue *qu;
+	const fmed_mod *qumod;
 };
 static struct fmedia_ctx *fx;
 
@@ -28,6 +30,9 @@ fmed_core* core_init();
 extern void core_destroy();
 
 static int file_trash(const char *trash_dir, const char *fn);
+extern const fmed_mod* fmed_getmod_queue(const fmed_core *_core);
+static int qu_add_dir_r(const char *fn, int qi);
+static void qu_load_file(const char *fn, int qi);
 
 JNIEXPORT void JNICALL
 Java_com_github_stsaz_fmedia_Fmedia_init(JNIEnv *env, jobject thiz)
@@ -42,11 +47,16 @@ Java_com_github_stsaz_fmedia_Fmedia_init(JNIEnv *env, jobject thiz)
 	core->log = adrd_log;
 	core->logv = adrd_logv;
 	fx->track = core->getmod("core.track");
+
+	fx->qumod = fmed_getmod_queue(core);
+	fx->qumod->sig(FMED_SIG_INIT);
+	fx->qu = core->getmod("core.queue");
 }
 
 JNIEXPORT void JNICALL
 Java_com_github_stsaz_fmedia_Fmedia_destroy(JNIEnv *env, jobject thiz)
 {
+	fx->qumod->destroy();
 	core_destroy();
 	ffmem_free(fx);
 	fx = NULL;
@@ -341,17 +351,72 @@ end:
 	}
 }
 
-JNIEXPORT jobjectArray JNICALL
-Java_com_github_stsaz_fmedia_Fmedia_listDirRecursive(JNIEnv *env, jobject thiz, jstring jfilepath)
+static int qu_idx(jlong q)
+{
+	return q - 1;
+}
+
+JNIEXPORT jlong JNICALL
+Java_com_github_stsaz_fmedia_Fmedia_quNew(JNIEnv *env, jobject thiz)
+{
+	fx->qu->cmdv(FMED_QUE_NEW);
+	uint n = fx->qu->cmdv(FMED_QUE_N_LISTS);
+	if (n == 1)
+		fx->qu->cmdv(FMED_QUE_SEL, 0);
+	return n;
+}
+
+JNIEXPORT void JNICALL
+Java_com_github_stsaz_fmedia_Fmedia_quDestroy(JNIEnv *env, jobject thiz, jlong q)
+{
+	int qi = qu_idx(q);
+	fx->qu->cmdv(FMED_QUE_DEL, qi);
+}
+
+#define QUADD_RECURSE  1
+
+JNIEXPORT void JNICALL
+Java_com_github_stsaz_fmedia_Fmedia_quAdd(JNIEnv *env, jobject thiz, jlong q, jobjectArray jurls, jint flags)
+{
+	int qi = qu_idx(q);
+	jstring js;
+	const char *fn = NULL;
+	ffsize n = jni_arr_len(jurls);
+	for (uint i = 0;  i != n;  i++) {
+		if (fn != NULL)
+			jni_sz_free(fn, js);
+		js = jni_joa_i(jurls, i);
+		fn = jni_sz_js(js);
+
+		if (flags & QUADD_RECURSE) {
+			if (0 == qu_add_dir_r(fn, qi))
+				continue;
+		}
+
+		ffstr ext;
+		ffpath_splitname(fn, ffsz_len(fn), NULL, &ext);
+		if (ffstr_eqz(&ext, "m3u8")
+			|| ffstr_eqz(&ext, "m3u")) {
+			qu_load_file(fn, qi);
+			continue;
+		}
+
+		fmed_que_entry e = {};
+		ffstr_setz(&e.url, fn);
+		fx->qu->cmdv(FMED_QUE_ADD2, qi, &e);
+	}
+
+	jni_sz_free(fn, js);
+}
+
+static int qu_add_dir_r(const char *fn, int qi)
 {
 	dbglog0("%s: enter", __func__);
-	jobjectArray jas;
 	ffdirscan ds = {};
 	fntree_block *root = NULL;
-	ffvec v = {};
 	fffd f = FFFILE_NULL;
 	char *fpath = NULL;
-	const char *fn = jni_sz_js(jfilepath);
+	int rc = -1;
 
 	if (0 != ffdirscan_open(&ds, fn, 0))
 		goto end;
@@ -398,116 +463,121 @@ Java_com_github_stsaz_fmedia_Fmedia_listDirRecursive(JNIEnv *env, jobject thiz, 
 			continue;
 		}
 
-		*ffvec_pushT(&v, char*) = fpath;
-		fpath = NULL;
+		fmed_que_entry qe = {};
+		ffstr_setz(&qe.url, fpath);
+		fx->qu->cmdv(FMED_QUE_ADD2, qi, &qe);
+
+		ffmem_free(fpath); fpath = NULL;
 	}
+
+	rc = 0;
 
 end:
 	ffmem_free(fpath);
 	fffile_close(f);
 	ffdirscan_close(&ds);
 	fntree_free_all(root);
-	jni_sz_free(fn, jfilepath);
-
-	jas = jni_jsa_sza(env, v.ptr, v.len);
-
-	char **ps;
-	FFSLICE_WALK(&v, ps) {
-		ffmem_free(*ps);
-	}
-	ffvec_free(&v);
 
 	dbglog0("%s: exit", __func__);
-	return jas;
+	return rc;
 }
 
-static jobjectArray pl_load(JNIEnv *env, ffvec *buf)
+JNIEXPORT jstring JNICALL
+Java_com_github_stsaz_fmedia_Fmedia_quEntry(JNIEnv *env, jobject thiz, jlong q, jint i)
 {
-	ffvec_addchar(buf, '\0');
-	buf->len--;
+	int qi = qu_idx(q);
+	fmed_que_entry *e = (void*)fx->qu->cmdv(FMED_QUE_ITEM, qi, (ffsize)i);
+	const char *url = "";
+	if (e != NULL)
+		url = e->url.ptr;
+	return jni_js_sz(url);
+}
 
-	ffstr d = *(ffstr*)buf;
-	ffsize i = 0;
-	while (d.len != 0) {
-		ffstr ln;
-		ffstr_splitby(&d, '\n', &ln, &d);
-		if (ln.len != 0)
-			i++;
+#define QUCOM_CLEAR  1
+#define QUCOM_REMOVE_I  2
+#define QUCOM_COUNT  3
+
+JNIEXPORT jint JNICALL
+Java_com_github_stsaz_fmedia_Fmedia_quCmd(JNIEnv *env, jobject thiz, jlong q, jint cmd, jint i)
+{
+	int qi = qu_idx(q);
+	switch (cmd) {
+	case QUCOM_CLEAR:
+		fx->qu->cmdv(FMED_QUE_SEL, qi);
+		fx->qu->cmdv(FMED_QUE_CLEAR);
+		break;
+
+	case QUCOM_REMOVE_I: {
+		fmed_que_entry *e = (void*)fx->qu->cmdv(FMED_QUE_ITEM, qi, (ffsize)i);
+		fx->qu->cmdv(FMED_QUE_RM, e);
+		break;
 	}
 
-	jobjectArray jas = jni_joa(i, jni_class(JNI_CSTR));
-	i = 0;
-	d = *(ffstr*)buf;
+	case QUCOM_COUNT:
+		return fx->qu->cmdv(FMED_QUE_COUNT2, qi);
+	}
+	return 0;
+}
+
+static void qu_load_file(const char *fn, int qi)
+{
+	ffvec buf = {};
+	fffile_readwhole(fn, &buf, 16*1024*1024);
+	ffstr d = *(ffstr*)&buf;
 	while (d.len != 0) {
 		ffstr ln;
 		ffstr_splitby(&d, '\n', &ln, &d);
-		if (ln.len == 0)
+		ffstr_trimwhite(&ln);
+		if (ln.len == 0 || ln.ptr[0] == '#')
 			continue;
 
-		ln.ptr[ln.len] = '\0';
-		jstring js = jni_js_sz(ln.ptr);
-		jni_joa_i_set(jas, i, js);
-		jni_local_unref(js);
-		i++;
+		fmed_que_entry e = {};
+		ffstr_setstr(&e.url, &ln);
+		fx->qu->cmdv(FMED_QUE_ADD2, qi, &e);
 	}
-
-	return jas;
-}
-
-JNIEXPORT jobjectArray JNICALL
-Java_com_github_stsaz_fmedia_Fmedia_playlistLoadData(JNIEnv *env, jobject thiz, jbyteArray jdata)
-{
-	dbglog0("%s: enter", __func__);
-	ffvec buf = jni_vec_jba(env, jdata);
-	jobjectArray jas = pl_load(env, &buf);
 	ffvec_free(&buf);
-	dbglog0("%s: exit", __func__);
-	return jas;
 }
 
-JNIEXPORT jobjectArray JNICALL
-Java_com_github_stsaz_fmedia_Fmedia_playlistLoad(JNIEnv *env, jobject thiz, jstring jfilepath)
+JNIEXPORT jint JNICALL
+Java_com_github_stsaz_fmedia_Fmedia_quLoad(JNIEnv *env, jobject thiz, jlong q, jstring jfilepath)
 {
 	dbglog0("%s: enter", __func__);
-	ffvec buf = {};
 	const char *fn = jni_sz_js(jfilepath);
-	fffile_readwhole(fn, &buf, 16*1024*1024);
+	int qi = qu_idx(q);
+	qu_load_file(fn, qi);
 	jni_sz_free(fn, jfilepath);
-	jobjectArray jas = pl_load(env, &buf);
-	ffvec_free(&buf);
 	dbglog0("%s: exit", __func__);
-	return jas;
+	return 0;
 }
 
 JNIEXPORT jboolean JNICALL
-Java_com_github_stsaz_fmedia_Fmedia_playlistSave(JNIEnv *env, jobject thiz, jstring jfilepath, jobjectArray jlist)
+Java_com_github_stsaz_fmedia_Fmedia_quSave(JNIEnv *env, jobject thiz, jlong q, jstring jfilepath)
 {
 	dbglog0("%s: enter", __func__);
-	ffvec buf = {};
-	ffsize n = jni_arr_len(jlist);
-	for (ffsize i = 0;  i != n;  i++) {
-		jstring js = jni_joa_i(jlist, i);
-		const char *sz = jni_sz_js(js);
-		ffvec_addsz(&buf, sz);
-		ffvec_addchar(&buf, '\n');
-		jni_sz_free(sz, js);
-		jni_local_unref(js);
-	}
-
 	const char *fn = jni_sz_js(jfilepath);
-	char *tmp = ffsz_allocfmt("%s.tmp", fn);
-	int r = fffile_writewhole(tmp, buf.ptr, buf.len, 0);
-	if (r != 0)
-		goto end;
-
-	r = fffile_rename(tmp, fn);
-
-end:
+	int qi = qu_idx(q);
+	fx->qu->cmdv(FMED_QUE_SAVE, qi, fn);
 	jni_sz_free(fn, jfilepath);
-	ffmem_free(tmp);
-	ffvec_free(&buf);
 	dbglog0("%s: exit", __func__);
-	return (r == 0);
+	return 1;
+}
+
+JNIEXPORT jobjectArray JNICALL
+Java_com_github_stsaz_fmedia_Fmedia_quList(JNIEnv *env, jobject thiz, jlong q)
+{
+	int qi = qu_idx(q);
+	fx->qu->cmdv(FMED_QUE_SEL, qi);
+	uint n = fx->qu->cmdv(FMED_QUE_COUNT2, qi);
+	jobjectArray jsa = jni_joa(n, jni_class(JNI_CSTR));
+	fmed_que_entry *e = NULL;
+	uint i = 0;
+	while (fx->qu->cmdv(FMED_QUE_LIST, &e)) {
+		jstring js = jni_js_sz(e->url.ptr);
+		jni_joa_i_set(jsa, i, js);
+		jni_local_unref(js);
+		i++;
+	}
+	return jsa;
 }
 
 static int file_trash(const char *trash_dir, const char *fn)

@@ -18,21 +18,104 @@ import java.util.Random;
 
 interface QueueNotify {
 	/**
-	 * Called when the queue is modififed.
+	 * Called when the queue is modified.
 	 */
 	void on_change(int what);
 }
 
 class PList {
-	ArrayList<String> plist;
+	private static final String TAG = "fmedia.Queue";
+	Core core;
+	int qi;
+	long[] q;
 	int curpos = -1;
-	boolean modified;
+	boolean[] modified;
+
+	PList(Core core) {
+		this.core = core;
+		q = new long[2];
+		q[0] = core.fmedia.quNew();
+		q[1] = core.fmedia.quNew();
+		modified = new boolean[2];
+	}
+
+	void destroy() {
+		core.fmedia.quDestroy(q[0]);
+		core.fmedia.quDestroy(q[1]);
+		q[0] = 0;
+		q[1] = 0;
+	}
+
+	private long sel() {
+		return q[qi];
+	}
+
+	void add1(String url) {
+		String[] urls = new String[1];
+		urls[0] = url;
+		core.fmedia.quAdd(sel(), urls, 0);
+		modified[qi] = true;
+	}
+
+	void add_r(String[] urls) {
+		core.fmedia.quAdd(sel(), urls, Fmedia.QUADD_RECURSE);
+		modified[qi] = true;
+	}
+
+	void add(String[] urls) {
+		core.fmedia.quAdd(sel(), urls, 0);
+		modified[qi] = true;
+	}
+
+	void iremove(int i, int ie) {
+		core.fmedia.quCmd(q[i], Fmedia.QUCOM_REMOVE_I, ie);
+		modified[i] = true;
+		if (ie <= curpos)
+			curpos--;
+	}
+
+	void clear() {
+		core.fmedia.quCmd(sel(), Fmedia.QUCOM_CLEAR, 0);
+		modified[qi] = true;
+		curpos = -1;
+	}
+
+	String get(int i) {
+		return core.fmedia.quEntry(sel(), i);
+	}
+
+	String[] list() {
+		return core.fmedia.quList(sel());
+	}
+
+	int size() {
+		return core.fmedia.quCmd(sel(), Fmedia.QUCOM_COUNT, 0);
+	}
+
+	/** Load playlist from a file on disk */
+	void iload_file(int i, String fn) {
+		core.fmedia.quLoad(q[i], fn);
+	}
+
+	/** Save playlist to a file */
+	void isave(int i, String fn) {
+		if (!core.fmedia.quSave(q[i], fn))
+			return;
+		modified[i] = false;
+	}
+
+	void save(String fn) {
+		isave(qi, fn);
+		core.dbglog(TAG, "saved %d items to %s", size(), fn);
+	}
 }
 
 class Queue {
 	private static final String TAG = "fmedia.Queue";
 	private Core core;
 	private Track track;
+	private int trk_q = -1;
+	private int trk_idx = -1;
 	private ArrayList<QueueNotify> nfy;
 
 	private PList pl;
@@ -49,7 +132,6 @@ class Queue {
 		this.core = core;
 		track = core.track();
 		track.filter_add(new Filter() {
-			@Override
 			public int open(TrackHandle t) {
 				active = true;
 				b_order_next = false;
@@ -58,26 +140,60 @@ class Queue {
 				return 0;
 			}
 
-			@Override
 			public void close(TrackHandle t) {
 				on_close(t);
 			}
 		});
-		pl = new PList();
-		pl.plist = new ArrayList<>();
+		pl = new PList(core);
 		nfy = new ArrayList<>();
 
 		mloop = new Handler(Looper.getMainLooper());
-
-		load(core.work_dir + "/list1.m3u8");
 	}
 
 	void close() {
+		pl.destroy();
+	}
+
+	void load() {
+		pl.iload_file(0, core.setts.pub_data_dir + "/list1.m3u8");
+		pl.iload_file(1, core.setts.pub_data_dir + "/list2.m3u8");
+		pl.curpos = Math.min(pl.curpos, pl.size());
 	}
 
 	void saveconf() {
-		if (pl.modified)
-			save(core.work_dir + "/list1.m3u8");
+		if (pl.modified[0])
+			pl.isave(0, core.setts.pub_data_dir + "/list1.m3u8");
+		if (pl.modified[1])
+			pl.isave(1, core.setts.pub_data_dir + "/list2.m3u8");
+	}
+
+	/**
+	 * Save playlist to a file
+	 */
+	void save(String fn) {
+		pl.save(fn);
+	}
+
+	/** Switch between playlists */
+	int switch_list() {
+		int i = pl.qi + 1;
+		if (i == pl.q.length)
+			i = 0;
+		pl.qi = i;
+		return i;
+	}
+
+	/** Add currently playing track to L2 */
+	boolean l2_add_cur() {
+		if (pl.qi != 0)
+			return false;
+		String url = track.cur_url();
+		if (url.isEmpty())
+			return false;
+		pl.qi = 1;
+		pl.add1(url);
+		pl.qi = 0;
+		return true;
 	}
 
 	void nfy_add(QueueNotify qn) {
@@ -89,7 +205,6 @@ class Queue {
 	}
 
 	private void nfy_all() {
-		pl.modified = true;
 		for (QueueNotify qn : nfy) {
 			qn.on_change(0);
 		}
@@ -113,18 +228,20 @@ class Queue {
 		if (active)
 			track.stop();
 
-		if (index < 0 || index >= pl.plist.size())
+		if (index < 0 || index >= pl.size())
 			return;
 
+		trk_q = pl.qi;
+		trk_idx = index;
 		pl.curpos = index;
-		track.start(pl.plist.get(index));
+		track.start(pl.get(index));
 	}
 
 	/**
 	 * Get random index
 	 */
 	int next_random() {
-		int n = pl.plist.size();
+		int n = pl.size();
 		if (n == 1)
 			return 0;
 		int i = rnd.nextInt();
@@ -143,11 +260,11 @@ class Queue {
 	void next() {
 		int i = pl.curpos + 1;
 		if (random) {
-			if (pl.plist.size() == 0)
+			if (pl.size() == 0)
 				return;
 			i = next_random();
 		} else if (repeat) {
-			if (i == pl.plist.size())
+			if (i == pl.size())
 				i = 0;
 		}
 		play(i);
@@ -175,6 +292,7 @@ class Queue {
 	 * Called after a track has been finished.
 	 */
 	private void on_close(TrackHandle t) {
+		trk_idx = -1;
 		active = false;
 		boolean play_next = !t.stopped;
 
@@ -210,14 +328,20 @@ class Queue {
 	}
 
 	String[] list() {
-		return pl.plist.toArray(new String[0]);
+		return pl.list();
+	}
+
+	String get(int i) {
+		return pl.get(i);
 	}
 
 	void remove(int pos) {
-		core.dbglog(TAG, "remove: %d", pos);
-		pl.plist.remove(pos);
-		if (pos <= pl.curpos)
-			pl.curpos--;
+		core.dbglog(TAG, "remove: %d:%d", trk_q, pos);
+		pl.iremove(trk_q, pos);
+		if (pos == trk_idx)
+			trk_idx = -1;
+		else if (pos < trk_idx)
+			trk_idx--;
 		nfy_all();
 	}
 
@@ -226,19 +350,24 @@ class Queue {
 	 */
 	void clear() {
 		core.dbglog(TAG, "clear");
-		pl.plist.clear();
-		pl.curpos = -1;
+		pl.clear();
+		trk_idx = -1;
 		nfy_all();
 	}
 
-	void clear_addmany(String[] urls) {
-		pl.plist.clear();
-		pl.curpos = -1;
-		addmany(urls);
+	int count() {
+		return pl.size();
 	}
 
-	void addmany(String[] urls) {
-		pl.plist.addAll(Arrays.asList(urls));
+	static final int ADD_RECURSE = 1;
+	static final int ADD = 2;
+
+	void addmany(String[] urls, int flags) {
+		if (flags == ADD) {
+			pl.add(urls);
+		} else {
+			pl.add_r(urls);
+		}
 		nfy_all();
 	}
 
@@ -247,47 +376,8 @@ class Queue {
 	 */
 	void add(String url) {
 		core.dbglog(TAG, "add: %s", url);
-		pl.plist.add(url);
+		pl.add1(url);
 		nfy_all();
-	}
-
-	/**
-	 * Save playlist to a file on disk
-	 */
-	private void save(String fn) {
-		if (core.fmedia.playlistSave(fn, this.list())) {
-			pl.modified = false;
-			core.dbglog(TAG, "saved %d items to %s", pl.plist.size(), fn);
-		}
-	}
-
-	void save_stream(OutputStream os) {
-		StringBuilder sb = new StringBuilder();
-		for (String s : pl.plist) {
-			sb.append(s);
-			sb.append('\n');
-		}
-		try {
-			BufferedOutputStream bo = new BufferedOutputStream(os);
-			bo.write(sb.toString().getBytes());
-			bo.close();
-			os.close();
-			core.dbglog(TAG, "saved %d items to a file", pl.plist.size());
-		} catch (Exception e) {
-			core.errlog(TAG, "save_stream: %s", e);
-		}
-	}
-
-	/**
-	 * Load playlist from a file on disk
-	 */
-	private void load(String fn) {
-		clear_addmany(core.fmedia.playlistLoad(fn));
-		core.dbglog(TAG, "loaded %d items from %s", pl.plist.size(), fn);
-	}
-
-	void load_data(byte[] data) {
-		clear_addmany(core.fmedia.playlistLoadData(data));
 	}
 
 	@SuppressLint("DefaultLocale")
@@ -306,28 +396,27 @@ class Queue {
 	int readconf(String k, String v) {
 		if (k.equals("curpos")) {
 			pl.curpos = core.str_to_uint(v, 0);
-			pl.curpos = Math.min(pl.curpos, pl.plist.size());
-			return 0;
 
 		} else if (k.equals("random")) {
 			int val = core.str_to_uint(v, 0);
 			if (val == 1)
 				random(true);
-			return 0;
 
 		} else if (k.equals("autoskip_msec")) {
 			autoskip_msec = core.str_to_uint(v, 0);
-			return 0;
+
+		} else {
+			return 1;
 		}
-		return 1;
+		return 0;
 	}
 
 	/**
 	 * Get currently playing track index
 	 */
 	int cur() {
-		if (!active)
+		if (pl.qi != trk_q)
 			return -1;
-		return pl.curpos;
+		return trk_idx;
 	}
 }
