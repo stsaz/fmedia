@@ -38,5 +38,19 @@
 	<string name="sett_rec_dir">Directory for Recordings</string>
 	<string name="sett_bitrate">Encoder Bitrate (kbit/sec):</string>
 
+	<string name="conv_input_file">Input file:</string>
+	<string name="conv_out_dir">Output directory:</string>
+	<string name="conv_out_name">Output file name (w/o extension):</string>
+	<string name="conv_out_fmt">Output format (flac | m4a | mp3):</string>
+	<string name="conv_apos_start">Start Audio Position:</string>
+	<string name="conv_from_set_cur">Set To Current</string>
+	<string name="conv_apos_end">End Audio Position:</string>
+	<string name="conv_aac_q">[.m4a] AAC Quality: 1..5 (VBR) or 8..800 (CBR, kbit/s)</string>
+	<string name="conv_copy">[.mp3/.m4a] Stream Copy</string>
+	<string name="conv_preserve_date">Preserve File Date</string>
+	<string name="conv_trash_orig">Move Input File to Trash</string>
+	<string name="conv_pl_add">Add New File to Playlist</string>
+	<string name="conv_go">Convert!</string>
+
 	<string name="about">fmedia for Android v0.8 EXPERIMENTAL\n\nhttps://stsaz.github.io/fmedia</string>
 </resources>

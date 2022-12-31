@@ -23,10 +23,13 @@ class Fmedia {
 
 	static final int F_DATE_PRESERVE = 1;
 	static final int F_OVERWRITE = 2;
+	static final int F_TRASH_ORIG = 4;
+	String trash_dir;
 	String from_msec, to_msec;
 	boolean copy;
 	int aac_quality;
-	native String convert(String iname, String oname, int flags);
+	String result;
+	native int convert(String iname, String oname, int flags);
 
 	public native String[] listDirRecursive(String filepath);
 

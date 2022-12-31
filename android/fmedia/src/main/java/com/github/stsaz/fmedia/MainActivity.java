@@ -53,7 +53,7 @@ public class MainActivity extends AppCompatActivity {
 	private Track track;
 	private Filter trk_nfy;
 	private TrackCtl trackctl;
-	private int total_dur_msec, cur_apos_sec;
+	private int total_dur_msec;
 	private int state;
 	private int cur_view; // Explorer/Playlist view switch (0:Playlist)
 	private Explorer explorer;
@@ -165,7 +165,6 @@ public class MainActivity extends AppCompatActivity {
 			case R.id.action_file_convert:
 				startActivity(new Intent(this, ConvertActivity.class)
 						.putExtra("iname", cur_filename())
-						.putExtra("from", cur_apos_sec)
 						.putExtra("length", total_dur_msec / 1000 + 1));
 				return true;
 
@@ -809,7 +808,6 @@ public class MainActivity extends AppCompatActivity {
 				break;
 		}
 
-		cur_apos_sec = t.pos_msec / 1000;
 		int pos = t.pos_msec / 1000;
 		total_dur_msec = t.time_total_msec;
 		int dur = t.time_total_msec / 1000;

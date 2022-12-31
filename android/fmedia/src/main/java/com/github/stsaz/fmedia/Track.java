@@ -237,6 +237,10 @@ class Track {
 		core.dbglog(TAG, "init");
 	}
 
+	int curpos_msec() {
+		return tplay.pos_msec;
+	}
+
 	String[] meta() {
 		return tplay.meta;
 	}

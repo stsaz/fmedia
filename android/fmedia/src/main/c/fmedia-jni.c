@@ -27,6 +27,8 @@ extern const fmed_core *core;
 fmed_core* core_init();
 extern void core_destroy();
 
+static int file_trash(const char *trash_dir, const char *fn);
+
 JNIEXPORT void JNICALL
 Java_com_github_stsaz_fmedia_Fmedia_init(JNIEnv *env, jobject thiz)
 {
@@ -226,7 +228,11 @@ static const char* trk_errstr(uint e)
 	return s;
 }
 
-JNIEXPORT jstring JNICALL
+#define F_DATE_PRESERVE  1
+#define F_OVERWRITE  2
+#define F_TRASH_ORIG  4
+
+JNIEXPORT jint JNICALL
 Java_com_github_stsaz_fmedia_Fmedia_convert(JNIEnv *env, jobject thiz, jstring jiname, jstring joname, jint flags)
 {
 	dbglog0("%s: enter", __func__);
@@ -251,8 +257,8 @@ Java_com_github_stsaz_fmedia_Fmedia_convert(JNIEnv *env, jobject thiz, jstring j
 	ti->in_filename = ifn;
 
 	ti->out_filename = ffsz_dup(ofn);
-	ti->out_preserve_date = !!(flags & 1);
-	ti->out_overwrite = !!(flags & 2);
+	ti->out_preserve_date = !!(flags & F_DATE_PRESERVE);
+	ti->out_overwrite = !!(flags & F_OVERWRITE);
 
 	if (0 != msec_apos(from, (int64*)&ti->audio.seek)) {
 		error = "Please set correct 'from' value";
@@ -295,6 +301,16 @@ Java_com_github_stsaz_fmedia_Fmedia_convert(JNIEnv *env, jobject thiz, jstring j
 
 	fx->track->cmd(t, FMED_TRACK_START);
 
+	if ((flags & F_TRASH_ORIG) && ti->error == 0
+		&& !ffsz_eq(ti->in_filename, ti->out_filename)) {
+
+		jstring jtrash_dir = jni_obj_str(thiz, jni_field(jc, "trash_dir", JNI_TSTR));
+		const char *trash_dir = jni_sz_js(jtrash_dir);
+		if (0 != file_trash(trash_dir, ti->in_filename))
+		{}
+		jni_sz_free(trash_dir, jtrash_dir);
+	}
+
 end:
 	{
 	int e = ti->error;
@@ -310,15 +326,18 @@ end:
 
 	if (error == NULL)
 		error = trk_errstr(e);
+	else
+		e = -1;
+
 	const char *status = (error == NULL) ? "SUCCESS!" : "ERROR: ";
 	if (error == NULL)
 		error = "";
 	char *res = ffsz_allocfmt("%s%s [%,U msec]"
 		, status, error, fftime_to_msec(&t2));
-	jstring js = jni_js_sz(res);
+	jni_obj_sz_set(env, thiz, jni_field(jc, "result", JNI_TSTR), res);
 	ffmem_free(res);
 	dbglog0("%s: exit", __func__);
-	return js;
+	return e;
 	}
 }
 
