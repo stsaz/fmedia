@@ -94,6 +94,17 @@ fmedia is free and open-source project, and you can use it as a standalone appli
 fmedia uses modified versions of these 3rd party libraries: libALAC, libfdk-aac, libFLAC, libMAC, libmp3lame, libmpg123, libmpc, libogg, libopus, libsoxr, libvorbisenc, libvorbis, libwavpack, libDynamicAudioNormalizer.  See contents of `alib3/` for more info.
 
 
+### fmedia/Android features
+
+* Playback: .m4a, .mp3, .flac, .ogg, .opus (depends on OS)
+* Recording: .m4a(AAC-LC)
+* Convert: .mp3(decode), .m4a(AAC-LC decode/encode), .flac(decode/encode)
+* Convert (stream copy): .mp3, .m4a
+* GUI: list of meta tags
+* GUI: file explorer
+* GUI: 2 playlists
+
+
 ## INSTALL
 
 ### INSTALL ON WINDOWS
