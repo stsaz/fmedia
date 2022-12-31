@@ -34,6 +34,8 @@ class Fmedia {
 	public native String[] playlistLoad(String filepath);
 	public native boolean playlistSave(String filepath, String[] list);
 
+	public native String trash(String trash_dir, String filepath);
+
 	static {
 		System.loadLibrary("fdk-aac-phi");
 		System.loadLibrary("mpg123-phi");

@@ -7,6 +7,7 @@
 #define errlog1(trk, ...)  fmed_errlog(core, trk, NULL, __VA_ARGS__)
 #define warnlog1(trk, ...)  fmed_warnlog(core, trk, NULL, __VA_ARGS__)
 #define dbglog1(trk, ...)  fmed_dbglog(core, trk, NULL, __VA_ARGS__)
+#define syswarnlog0(...)  fmed_syswarnlog(core, NULL, NULL, __VA_ARGS__)
 #define dbglog0(...)  fmed_dbglog(core, NULL, NULL, __VA_ARGS__)
 
 #include "log.h"
@@ -488,4 +489,65 @@ end:
 	ffvec_free(&buf);
 	dbglog0("%s: exit", __func__);
 	return (r == 0);
+}
+
+static int file_trash(const char *trash_dir, const char *fn)
+{
+	int rc = -1;
+	ffstr name;
+	ffpath_splitpath(fn, ffsz_len(fn), NULL, &name);
+	char *trash_fn = ffsz_allocfmt("%s/%S", trash_dir, &name);
+
+	uint flags = 1|2;
+	for (;;) {
+
+		if (fffile_exists(trash_fn)) {
+			if (!(flags & 2))
+				goto end;
+			fftime now;
+			fftime_now(&now);
+			ffmem_free(trash_fn);
+			trash_fn = ffsz_allocfmt("%s/%S-%xu", trash_dir, &name, (uint)now.sec);
+			flags &= ~2;
+			continue;
+		}
+
+		if (0 != fffile_rename(fn, trash_fn)) {
+			syswarnlog0("move to trash: %s", trash_fn);
+			int e = fferr_last();
+			if (fferr_notexist(e) && (flags & 1)) {
+				ffdir_make(trash_dir);
+				flags &= ~1;
+				continue;
+			}
+			goto end;
+		}
+
+		dbglog0("moved to trash: %s", fn);
+		rc = 0;
+		break;
+	}
+
+end:
+	ffmem_free(trash_fn);
+	return rc;
+}
+
+JNIEXPORT jstring JNICALL
+Java_com_github_stsaz_fmedia_Fmedia_trash(JNIEnv *env, jobject thiz, jstring jtrash_dir, jstring jfilepath)
+{
+	dbglog0("%s: enter", __func__);
+	const char *error = "";
+	const char *trash_dir = jni_sz_js(jtrash_dir);
+	const char *fn = jni_sz_js(jfilepath);
+
+	if (0 != file_trash(trash_dir, fn))
+		error = fferr_strptr(fferr_last());
+
+	jni_sz_free(fn, jfilepath);
+	jni_sz_free(trash_dir, jtrash_dir);
+
+	jstring js = jni_js_sz(error);
+	dbglog0("%s: exit", __func__);
+	return js;
 }

@@ -473,14 +473,11 @@ public class MainActivity extends AppCompatActivity {
 	 */
 	private void file_del(int pos, String fn) {
 		if (!core.setts.file_del) {
-			core.dir_make(core.setts.trash_dir);
-			String trash_fn = String.format("%s/%s", core.setts.trash_dir, Util.path_split2(fn)[1]);
-			if (core.file_exists(trash_fn)) {
-				core.errlog(TAG, "Can't delete file: %s already exists in Trash", trash_fn);
+			String e = core.fmedia.trash(core.setts.trash_dir, fn);
+			if (!e.isEmpty()) {
+				core.errlog(TAG, "Can't trash file %s: %s", fn, e);
 				return;
 			}
-			if (!core.file_rename(fn, trash_fn))
-				return;
 			gui.msg_show(this, "Moved file to Trash directory");
 		} else {
 			if (!core.file_delete(fn))
