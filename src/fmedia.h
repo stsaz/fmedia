@@ -606,6 +606,7 @@ struct fmed_track_info {
 	uint flac_samples;
 	uint flac_minblock, flac_maxblock;
 	const char *flac_vendor; // flac.enc -> flac.write
+	uint flac_frame_samples; // flac.enc -> flac.write
 
 	/** UI -> adev.out fast signal delivery (e.g. for fast reaction to seek command). */
 	const struct fmed_adev *adev;
@@ -923,10 +924,12 @@ enum FMED_QUE {
 	FMED_QUE_PREV2,
 
 	/** Save playlist to file.
-	int save(ssize_t plid, const char *filename)
+	int r = qu->cmdv(FMED_QUE_SAVE, int list_index, const char *filename);
 	Return -1:plid doesn't exist */
 	FMED_QUE_SAVE,
 
+	/**
+	qu->cmdv(FMED_QUE_CLEAR); */
 	FMED_QUE_CLEAR,
 
 	/** Add an item.
@@ -935,7 +938,8 @@ enum FMED_QUE {
 	FMED_QUE_ADD,
 
 	/** Remove an item.
-	@param: fmed_que_entry* */
+	fmed_que_entry *e = ...;
+	qu->cmdv(FMED_QUE_RM, fmed_que_entry *e); */
 	FMED_QUE_RM,
 
 	/** Remove "dead" items from the current playlist.
@@ -954,19 +958,23 @@ enum FMED_QUE {
 
 	/** Create new list.
 	flags: enum FMED_QUE_CMDF
-	void new(uint flags) */
+	qu->cmdv(FMED_QUE_NEW, uint flags); */
 	FMED_QUE_NEW,
 
 	/** Delete a list.
-	void del(uint index) */
+	qu->cmdv(FMED_QUE_DEL, int list_index); */
 	FMED_QUE_DEL,
 
-	FMED_QUE_SEL, // @param: uint
+	/**
+	qu->cmdv(FMED_QUE_SEL, uint list_index); */
+	FMED_QUE_SEL,
 
 	/** List playlist entries.
-	pent: user sets to NULL on first call.
-	int list(fmed_que_entry **pent)
-	Return 0 if no more entries. */
+	Return 0 if no more entries.
+	fmed_que_entry *e = NULL;
+	while (qu->cmdv(FMED_QUE_LIST, &e)) {
+		...
+	} */
 	FMED_QUE_LIST,
 
 	/** Return 1 if entry is inside the currently selected playlist.
@@ -977,14 +985,13 @@ enum FMED_QUE {
 	size_t get_id(fmed_que_entry *ent)
 	Return -1 on error. */
 	FMED_QUE_ID,
+
 	/**
-	plid: -1: current list
-	fmed_que_entry* item(size_t plid, size_t id) */
+	fmed_que_entry *e = qu->cmdv(FMED_QUE_ITEM, int list_index, size_t id); */
 	FMED_QUE_ITEM,
 
 	/** Get an item and protect it from change.  Thread-safe.
-	plid: -1: current list
-	fmed_que_entry* item_getlocked(size_t plid, size_t id) */
+	fmed_que_entry *e = qu->cmdv(FMED_QUE_ITEMLOCKED, int list_index, size_t id); */
 	FMED_QUE_ITEMLOCKED,
 
 	/** Unlock an item.  Thread-safe.
@@ -1004,8 +1011,12 @@ enum FMED_QUE {
 	FMED_QUE_SORT,
 
 	/**
-	uint count() */
+	uint n = qu->cmdv(FMED_QUE_COUNT); */
 	FMED_QUE_COUNT,
+
+	/**
+	uint n = qu->cmdv(FMED_QUE_COUNT2, int list_index); */
+	FMED_QUE_COUNT2,
 
 	/** Start processing several tracks in parallel, if possible.
 	void xplay(fmed_que_entry *first)
@@ -1013,7 +1024,9 @@ enum FMED_QUE {
 	FMED_QUE_XPLAY,
 
 	/** Add an item.
-	fmed_que_entry* add2(int plist, fmed_que_entry *ent) */
+	fmed_que_entry e = {};
+	ffstr_set(&e.url, ...);
+	fmed_que_entry *qe = qu->cmdv(FMED_QUE_ADD2, int list_index, &e); */
 	FMED_QUE_ADD2,
 
 	/** Add an entry after another one.
@@ -1061,7 +1074,8 @@ enum FMED_QUE {
 	void set_curid(int plist, size_t id) */
 	FMED_QUE_SETCURID,
 
-	/** Get N of lists */
+	/** Get N of lists
+	uint n = qu->cmdv(FMED_QUE_N_LISTS); */
 	FMED_QUE_N_LISTS,
 
 	/**
@@ -1139,12 +1153,12 @@ typedef struct fmed_queue {
 plid: playlist ID. -1: current.
 id: item ID
 Return fmed_que_entry*. */
-#define fmed_queue_item(plid, id)  cmdv(FMED_QUE_ITEM, (ssize_t)(plid), (size_t)(id))
+#define fmed_queue_item(plid, id)  cmdv(FMED_QUE_ITEM, (int)(plid), (size_t)(id))
 
-#define fmed_queue_item_locked(plid, id)  cmdv(FMED_QUE_ITEMLOCKED, (ssize_t)(plid), (size_t)(id))
+#define fmed_queue_item_locked(plid, id)  cmdv(FMED_QUE_ITEMLOCKED, (int)(plid), (size_t)(id))
 
 #define fmed_queue_save(qid, filename) \
-	cmdv(FMED_QUE_SAVE, (ffssize)(qid), (void*)(filename))
+	cmdv(FMED_QUE_SAVE, (int)(qid), (void*)(filename))
 
 #define fmed_queue_add(flags, plid, ent)  cmdv(FMED_QUE_ADD2 | (flags), (int)(plid), ent)
 

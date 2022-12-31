@@ -87,16 +87,16 @@ static void pic_meta(struct flac_picinfo *info, const ffstr *data, void *trk)
 		return;
 	if (0 == pic_meta_jpeg(info, data))
 		return;
-	warnlog(trk, "picture write: can't detect MIME; writing without MIME and image dimensions");
+	warnlog1(trk, "picture write: can't detect MIME; writing without MIME and image dimensions");
 }
 
-static int flac_out_addmeta(flac_out *f, fmed_filt *d)
+static int flac_out_addmeta(flac_out *f, fmed_track_info *d)
 {
 	ffstr vendor = {};
 	if (d->flac_vendor != NULL)
 		ffstr_setz(&vendor, d->flac_vendor);
 	if (0 != flacwrite_addtag(&f->fl, MMTAG_VENDOR, vendor)) {
-		syserrlog(d->trk, "can't add tag: vendor");
+		syserrlog1(d->trk, "can't add tag: vendor");
 		return -1;
 	}
 
@@ -116,16 +116,16 @@ static int flac_out_addmeta(flac_out *f, fmed_filt *d)
 		}
 
 		if (0 != flacwrite_addtag_name(&f->fl, name, meta.val)) {
-			syserrlog(d->trk, "can't add tag: %S", &name);
+			syserrlog1(d->trk, "can't add tag: %S", &name);
 			return -1;
 		}
 	}
 	return 0;
 }
 
-static void* flac_out_create(fmed_filt *d)
+static void* flac_out_create(fmed_track_info *d)
 {
-	flac_out *f = ffmem_tcalloc1(flac_out);
+	flac_out *f = ffmem_new(flac_out);
 	if (f == NULL)
 		return NULL;
 	return f;
@@ -138,7 +138,7 @@ static void flac_out_free(void *ctx)
 	ffmem_free(f);
 }
 
-static int flac_out_encode(void *ctx, fmed_filt *d)
+static int flac_out_encode(void *ctx, fmed_track_info *d)
 {
 	enum { I_FIRST, I_INIT, I_DATA0, I_DATA };
 	flac_out *f = ctx;
@@ -146,19 +146,19 @@ static int flac_out_encode(void *ctx, fmed_filt *d)
 
 	switch (f->state) {
 	case I_FIRST:
-		if (0 != d->track->cmd2(d->trk, FMED_TRACK_ADDFILT_PREV, "flac.encode"))
+		if (0 == d->track->cmd(d->trk, FMED_TRACK_FILT_ADDPREV, "flac.encode"))
 			return FMED_RERR;
 		f->state = I_INIT;
 		return FMED_RMORE;
 
 	case I_INIT:
 		if (!ffsz_eq(d->datatype, "flac")) {
-			errlog(d->trk, "unsupported input data format: %s", d->datatype);
+			errlog1(d->trk, "unsupported input data format: %s", d->datatype);
 			return FMED_RERR;
 		}
 
 		if (d->datalen != sizeof(struct flac_info)) {
-			errlog(d->trk, "invalid first input data block");
+			errlog1(d->trk, "invalid first input data block");
 			return FMED_RERR;
 		}
 
@@ -188,7 +188,7 @@ static int flac_out_encode(void *ctx, fmed_filt *d)
 		ffstr_set(&f->in, (const void**)d->datani, d->datalen);
 		if (d->flags & FMED_FLAST) {
 			if (d->datalen != sizeof(struct flac_info)) {
-				errlog(d->trk, "invalid last input data block");
+				errlog1(d->trk, "invalid last input data block");
 				return FMED_RERR;
 			}
 			flacwrite_finish(&f->fl, (void*)d->data);
@@ -198,7 +198,7 @@ static int flac_out_encode(void *ctx, fmed_filt *d)
 	ffstr out = {};
 
 	for (;;) {
-		r = flacwrite_process(&f->fl, &f->in, fmed_getval("flac_in_frsamples"), &out);
+		r = flacwrite_process(&f->fl, &f->in, d->flac_frame_samples, &out);
 
 		switch (r) {
 		case FLACWRITE_MORE:
@@ -219,18 +219,18 @@ static int flac_out_encode(void *ctx, fmed_filt *d)
 
 		case FLACWRITE_ERROR:
 		default:
-			errlog(d->trk, "flacwrite_process(): %s", flacwrite_error(&f->fl));
+			errlog1(d->trk, "flacwrite_process(): %s", flacwrite_error(&f->fl));
 			return FMED_RERR;
 		}
 	}
 
 data:
-	dbglog(d->trk, "output: %L bytes", out.len);
+	dbglog1(d->trk, "output: %L bytes", out.len);
 	d->out = out.ptr;
 	d->outlen = out.len;
 	if (r == FLACWRITE_DONE)
 		return FMED_RDONE;
-	return FMED_ROK;
+	return FMED_RDATA;
 }
 
 const fmed_filter flac_output = {

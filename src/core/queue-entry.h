@@ -93,7 +93,7 @@ static int que_setmeta(entry *ent, const char *meta, void *trk)
 
 	ffstr_setz(&s, meta);
 	while (s.len != 0) {
-		ffstr_shift(&s, ffstr_nextval(s.ptr, s.len, &m, ';'));
+		ffstr_splitby(&s, ';', &m, &s);
 
 		if (ffstr_eqcz(&m, "clear")) {
 			ent->no_tmeta = 1;

@@ -14,7 +14,7 @@ static const fmed_conf_arg flac_enc_conf_args[] = {
 	{}
 };
 
-static int flac_enc_config(fmed_conf_ctx *conf)
+int flac_enc_config(fmed_conf_ctx *conf)
 {
 	flac_out_conf.level = 6;
 	flac_out_conf.md5 = 1;
@@ -116,7 +116,7 @@ static int flac_enc_encode(void *ctx, fmed_filt *d)
 		return FMED_RMORE;
 
 	case FFFLAC_RDATA:
-		fmed_setval("flac_in_frsamples", f->fl.frsamps);
+		d->flac_frame_samples = f->fl.frsamps;
 		break;
 
 	case FFFLAC_RDONE:
@@ -136,4 +136,4 @@ static int flac_enc_encode(void *ctx, fmed_filt *d)
 	return FMED_RDATA;
 }
 
-static const fmed_filter mod_flac_enc = { flac_enc_create, flac_enc_encode, flac_enc_free };
+const fmed_filter mod_flac_enc = { flac_enc_create, flac_enc_encode, flac_enc_free };

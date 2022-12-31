@@ -94,7 +94,7 @@ static void _que_meta_set(fmed_que_entry *ent, const char *name, size_t name_len
 void que_meta_set2(fmed_que_entry *ent, ffstr name, ffstr val, uint flags);
 static ffstr* que_meta_find(fmed_que_entry *ent, const char *name, size_t name_len);
 static ffstr* que_meta(fmed_que_entry *ent, size_t n, ffstr *name, uint flags);
-static const fmed_queue fmed_que_mgr = {
+const fmed_queue fmed_que_mgr = {
 	&que_cmdv, &que_cmd, &que_cmd2, &_que_add, &_que_meta_set, &que_meta_find, &que_meta, que_meta_set2
 };
 
@@ -451,6 +451,14 @@ static plist* plist_by_idx(size_t idx)
 	return NULL;
 }
 
+static plist* plist_by_useridx(int idx)
+{
+	plist *pl = qu->curlist;
+	if (idx >= 0)
+		pl = plist_by_idx(idx);
+	return pl;
+}
+
 struct plist_sortdata {
 	ffstr meta; // meta key by which to sort
 	uint url :1
@@ -576,6 +584,7 @@ static const char *const scmds[] = {
 	"FMED_QUE_LIST_NOFILTER",
 	"FMED_QUE_SORT",
 	"FMED_QUE_COUNT",
+	"FMED_QUE_COUNT2",
 	"FMED_QUE_XPLAY",
 	"FMED_QUE_ADD2",
 	"FMED_QUE_ADDAFTER",
@@ -624,13 +633,12 @@ static ssize_t que_cmdv(uint cmd, ...)
 	}
 
 	case FMED_QUE_ADD2: {
-		int plist_idx = va_arg(va, int);
+		plist *pl = plist_by_useridx(va_arg(va, int));
 		fmed_que_entry *ent = va_arg(va, fmed_que_entry*);
-
-		plist *pl = qu->curlist;
-		if (plist_idx >= 0)
-			pl = plist_by_idx(plist_idx);
-
+		if (pl == NULL) {
+			r = 0;
+			goto end;
+		}
 		r = (ssize_t)que_add(pl, ent, NULL, cmdflags);
 		goto end;
 	}
@@ -645,6 +653,22 @@ static ssize_t que_cmdv(uint cmd, ...)
 
 	case FMED_QUE_COUNT: {
 		pl = qu->curlist;
+		if (pl == NULL) {
+			r = 0;
+			goto end;
+		}
+		if (pl->filtered_plist != NULL)
+			pl = pl->filtered_plist;
+		r = pl->indexes.len;
+		goto end;
+	}
+
+	case FMED_QUE_COUNT2: {
+		pl = plist_by_useridx(va_arg(va, int));
+		if (pl == NULL) {
+			r = 0;
+			goto end;
+		}
 		if (pl->filtered_plist != NULL)
 			pl = pl->filtered_plist;
 		r = pl->indexes.len;
@@ -653,7 +677,7 @@ static ssize_t que_cmdv(uint cmd, ...)
 
 	case FMED_QUE_CURID: {
 		int plid = va_arg(va, int);
-		pl = (plid != -1) ? plist_by_idx(plid) : qu->curlist;
+		pl = plist_by_useridx(plid);
 		if (pl == NULL)
 			goto end;
 		r = que_cmdv(FMED_QUE_ID, pl->cur);
@@ -670,15 +694,17 @@ static ssize_t que_cmdv(uint cmd, ...)
 	case FMED_QUE_SETCURID: {
 		int plid = va_arg(va, int);
 		size_t eid = va_arg(va, size_t);
-		pl = (plid != -1) ? plist_by_idx(plid) : qu->curlist;
+		pl = plist_by_useridx(plid);
 		if (pl == NULL)
 			goto end;
-		pl->cur = (void*)que_cmdv(FMED_QUE_ITEM, (size_t)plid, (size_t)eid);
+		pl->cur = (void*)que_cmdv(FMED_QUE_ITEM, plid, (size_t)eid);
 		goto end;
 	}
 
 	case FMED_QUE_DEL:
-		pl = plist_by_idx(va_arg(va, int));
+		pl = plist_by_useridx(va_arg(va, int));
+		if (pl == NULL)
+			break;
 		fflist_rm(&qu->plists, &pl->sib);
 		FFLIST_ENUMSAFE(&pl->ents, ent_rm, entry, sib);
 		if (fflist_empty(&pl->ents)) {
@@ -703,7 +729,7 @@ static ssize_t que_cmdv(uint cmd, ...)
 	}
 
 	case FMED_QUE_ITEMLOCKED: {
-		ssize_t plid = va_arg(va, size_t);
+		int plid = va_arg(va, int);
 		ssize_t idx = va_arg(va, size_t);
 		fflk_lock(&qu->plist_lock);
 		r = que_cmdv(FMED_QUE_ITEM, plid, idx);
@@ -874,6 +900,8 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 
 	case FMED_QUE_RM:
 		e = param;
+		if (e == NULL)
+			break;
 		dbglog(core, NULL, "que", "removed item %S", &e->e.url);
 
 		if (!(flags & FMED_QUE_NO_ONCHANGE) && qu->onchange != NULL) {
@@ -923,10 +951,7 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 
 
 	case FMED_QUE_SAVE:
-		if ((ssize_t)param == -1)
-			pl = qu->curlist;
-		else
-			pl = plist_by_idx((size_t)param);
+		pl = plist_by_useridx((int)(size_t)param);
 		if (pl == NULL)
 			return -1;
 		ents = &pl->ents;
@@ -982,7 +1007,7 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 				i = que_cmdv(FMED_QUE_ID, *ent) + 1;
 			if (i == pl->indexes.len)
 				return 0;
-			*ent = (void*)que_cmdv(FMED_QUE_ITEM, (size_t)i);
+			*ent = (void*)que_cmdv(FMED_QUE_ITEM, -1, i);
 			return 1;
 		}
 		//fallthrough
@@ -1023,8 +1048,10 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 		return plist_ent_idx(pl, e);
 
 	case FMED_QUE_ITEM: {
-		ssize_t plid = (size_t)param;
-		pl = (plid != -1) ? plist_by_idx(plid) : qu->curlist;
+		int plid = (int)(size_t)param;
+		pl = plist_by_useridx(plid);
+		if (pl == NULL)
+			return (ffsize)NULL;
 		if (pl->filtered_plist != NULL)
 			pl = pl->filtered_plist;
 		return (size_t)plist_ent(pl, param2);

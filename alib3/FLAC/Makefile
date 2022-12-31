@@ -8,9 +8,7 @@ PKG := $(notdir $(URL))
 DIR := flac-$(VER)
 LIB := libFLAC-ff.$(SO)
 
-all: $(DIR)
-	cd $(DIR) && ./configure --disable-ogg
-	cd $(DIR) && cat ../*.patch | patch -p1
+all: $(DIR)/config.h
 	$(MAKE) -rR $(LIB)
 
 # download
@@ -21,6 +19,25 @@ $(PKG):
 $(DIR): $(PKG)
 	$(UNTAR_XZ) $(PKG)
 	touch $(DIR)
+
+_:=
+ifeq "$(OS)" "windows"
+	CONFIGURE_FLAGS := --host=x86_64-w64-mingw32
+else ifeq "$(CPU)" "arm64"
+	CONFIGURE_FLAGS := --host=aarch64
+else ifeq "$(CPU)" "arm"
+	CONFIGURE_FLAGS := --host=armv7
+endif
+$(DIR)/config.h: $(DIR)
+	cd $(DIR) && ./configure --disable-ogg $(CONFIGURE_FLAGS)
+	cd $(DIR) && cat ../*.patch | patch -p1
+ifeq "$(CPU)" "amd64"
+else ifeq "$(CPU)" "x86"
+else
+	$(SED) 's/FLAC__HAS_X86INTRIN 1/FLAC__HAS_X86INTRIN 0/' $(DIR)/config.h
+	$(SED) 's/#define HAVE_CPUID_H 1/\/\/#define HAVE_CPUID_H 0/' $(DIR)/config.h
+endif
+	cat $@
 
 # build
 CFLAGS += -funroll-loops \
@@ -37,24 +54,29 @@ SRC := \
 	$(DIR)/src/libFLAC/cpu.c \
 	$(DIR)/src/libFLAC/crc.c \
 	$(DIR)/src/libFLAC/fixed.c \
-	$(DIR)/src/libFLAC/fixed_intrin_sse2.c \
-	$(DIR)/src/libFLAC/fixed_intrin_ssse3.c \
 	$(DIR)/src/libFLAC/float.c \
 	$(DIR)/src/libFLAC/format.c \
 	$(DIR)/src/libFLAC/lpc.c \
-	$(DIR)/src/libFLAC/lpc_intrin_sse.c \
-	$(DIR)/src/libFLAC/lpc_intrin_sse2.c \
-	$(DIR)/src/libFLAC/lpc_intrin_sse41.c \
-	$(DIR)/src/libFLAC/lpc_intrin_avx2.c \
 	$(DIR)/src/libFLAC/md5.c \
 	$(DIR)/src/libFLAC/memory.c \
 	$(DIR)/src/libFLAC/stream_decoder.c \
 	$(DIR)/src/libFLAC/stream_encoder.c \
-	$(DIR)/src/libFLAC/stream_encoder_intrin_sse2.c \
-	$(DIR)/src/libFLAC/stream_encoder_intrin_ssse3.c \
-	$(DIR)/src/libFLAC/stream_encoder_intrin_avx2.c \
 	$(DIR)/src/libFLAC/stream_encoder_framing.c \
 	$(DIR)/src/libFLAC/window.c
+
+ifeq "$(CPU)" "amd64"
+	SRC += \
+		$(DIR)/src/libFLAC/fixed_intrin_sse2.c \
+		$(DIR)/src/libFLAC/fixed_intrin_ssse3.c \
+		$(DIR)/src/libFLAC/lpc_intrin_sse.c \
+		$(DIR)/src/libFLAC/lpc_intrin_sse2.c \
+		$(DIR)/src/libFLAC/lpc_intrin_sse41.c \
+		$(DIR)/src/libFLAC/lpc_intrin_avx2.c \
+		$(DIR)/src/libFLAC/stream_encoder_intrin_sse2.c \
+		$(DIR)/src/libFLAC/stream_encoder_intrin_ssse3.c \
+		$(DIR)/src/libFLAC/stream_encoder_intrin_avx2.c
+endif
+
 OBJ := FLAC-ff.o $(SRC:.c=.o)
 
 FLAC-ff.o: FLAC-ff.c
