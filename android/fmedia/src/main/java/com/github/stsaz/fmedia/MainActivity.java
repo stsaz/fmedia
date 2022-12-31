@@ -60,6 +60,8 @@ public class MainActivity extends AppCompatActivity {
 
 	private TrackHandle trec;
 
+	private ArrayAdapter<String> pl_adapter;
+
 	// Playlist track filter:
 	private int filter_strlen;
 	private ArrayList<Integer> filtered_idx;
@@ -245,7 +247,8 @@ public class MainActivity extends AppCompatActivity {
 				try {
 					InputStream is = getContentResolver().openInputStream(data.getData());
 					core.queue().load_data(core.istream_readall(is));
-					plist_show();
+					filter_reset();
+					plist_click();
 				} catch (Exception e) {
 					core.errlog(TAG, "openInputStream(): %s", e);
 				}
@@ -293,6 +296,7 @@ public class MainActivity extends AppCompatActivity {
 		queue = core.queue();
 		quenfy = new QueueNotify() {
 			public void on_change(int what) {
+				plist_reset();
 				plist_show2();
 			}
 		};
@@ -439,7 +443,8 @@ public class MainActivity extends AppCompatActivity {
 	}
 
 	void explorer_click() {
-		gui.list_pos = list.getFirstVisiblePosition();
+		if (cur_view == 0)
+			gui.list_pos = list.getFirstVisiblePosition();
 		cur_view = -1;
 		bexplorer.setChecked(true);
 		bplist.setChecked(false);
@@ -566,18 +571,27 @@ public class MainActivity extends AppCompatActivity {
 	 * Show the playlist items
 	 */
 	private void plist_show() {
-		if (cur_view < 0)
-			return;
-		filter_strlen = 0;
-		String[] l = queue.list();
-		ArrayList<String> names = new ArrayList<>();
-		int i = 1;
-		for (String s : l) {
-			String[] path_name = Util.path_split2(s);
-			names.add(String.format("%d. %s", i++, path_name[1]));
+		if (pl_adapter == null) {
+			String[] l = queue.list();
+			ArrayList<String> names = new ArrayList<>();
+			int i = 1;
+			for (String s : l) {
+				String[] path_name = Util.path_split2(s);
+				names.add(String.format("%d. %s", i++, path_name[1]));
+			}
+			pl_adapter = new ArrayAdapter<>(this, R.layout.list_row, names.toArray(new String[0]));
 		}
-		ArrayAdapter<String> adapter = new ArrayAdapter<>(this, R.layout.list_row, names.toArray(new String[0]));
-		list.setAdapter(adapter);
+		list.setAdapter(pl_adapter);
+	}
+
+	private void filter_reset() {
+		filter_strlen = 0;
+		filtered_idx = null;
+		filter_adapter = null;
+	}
+
+	private void plist_reset() {
+		pl_adapter = null;
 	}
 
 	private void plist_show2() {
@@ -595,15 +609,17 @@ public class MainActivity extends AppCompatActivity {
 		core.dbglog(TAG, "list_filter: %s", filter);
 
 		if (filter_strlen != 0 && filter.length() == 0) {
-			filter_strlen = 0;
+			filter_reset();
 			plist_show();
 			return;
 		}
 
 		boolean increase = (filter.length() > filter_strlen);
 		if (filter.length() < 2) {
-			if (!increase)
+			if (!increase) {
+				filter_reset();
 				plist_show();
+			}
 			return;
 		}
 
