@@ -2,6 +2,11 @@
 
 This is the list of the things that need to be done.
 
+* Features
+* Bugs
+* Refactoring
+* Android
+
 ## Features
 
 * .ts
@@ -157,3 +162,11 @@ This is the list of the things that need to be done.
 
 * opus & vorbis still use `input_info`
 * setvalstr() leftovers
+
+
+## Android
+
+	+ Translations
+	+ Navigation bar color
+	+ Trash on tap Next
+	- A11: playback notification: Pause doesn't change the button's icon

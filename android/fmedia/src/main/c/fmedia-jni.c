@@ -62,15 +62,18 @@ Java_com_github_stsaz_fmedia_Fmedia_init(JNIEnv *env, jobject thiz)
 	fx->qumod = fmed_getmod_queue(core);
 	fx->qumod->sig(FMED_SIG_INIT);
 	fx->qu = core->getmod("core.queue");
+	dbglog0("%s: exit", __func__);
 }
 
 JNIEXPORT void JNICALL
 Java_com_github_stsaz_fmedia_Fmedia_destroy(JNIEnv *env, jobject thiz)
 {
+	dbglog0("%s: enter", __func__);
 	fx->qumod->destroy();
 	core_destroy();
 	ffmem_free(fx);
 	fx = NULL;
+	dbglog0("%s: exit", __func__);
 }
 
 JNIEXPORT void JNICALL
@@ -273,7 +276,9 @@ Java_com_github_stsaz_fmedia_Fmedia_convert(JNIEnv *env, jobject thiz, jstring j
 	fmed_track_obj *t = fx->track->create(0, NULL);
 	fmed_track_info *ti = fx->track->conf(t);
 	ti->type = FMED_TRK_TYPE_CONVERT;
-	ti->print_time = 0;
+#ifdef FMED_DEBUG
+	ti->print_time = 1;
+#endif
 	ti->stream_copy = jni_obj_bool(thiz, jni_field(jc, "copy", JNI_TBOOL));
 	ti->aac.quality = jni_obj_int(thiz, jni_field(jc, "aac_quality", JNI_TINT));
 

@@ -8,6 +8,7 @@ MKDIR := mkdir -p
 RM := rm -rf
 CP := cp -au
 LS := ls -l
+# ADB_FLAGS := -d
 
 # SDK_DIR :=
 SDK_API := 33.0.0
@@ -175,13 +176,13 @@ build-sign: build
 	$(MAKE) sign
 
 sign-install: sign
-	$(SDK_DIR)/platform-tools/adb install -r $(APK_SIGNED)
+	$(SDK_DIR)/platform-tools/adb $(ADB_FLAGS) install -r $(APK_SIGNED)
 
 install:
-	$(SDK_DIR)/platform-tools/adb install -r $(APK)
+	$(SDK_DIR)/platform-tools/adb $(ADB_FLAGS) install -r $(APK)
 
 uninstall:
-	$(SDK_DIR)/platform-tools/adb uninstall $(APP_ID)
+	$(SDK_DIR)/platform-tools/adb $(ADB_FLAGS) uninstall $(APP_ID)
 
 build-install: build
 	$(MAKE) install
@@ -191,10 +192,13 @@ emulator:
 	$(SDK_DIR)/emulator/emulator $(AVD)
 
 log:
-	$(SDK_DIR)/platform-tools/adb logcat -v time | grep --color=auto --line-buffered '/fmedia'
+	$(SDK_DIR)/platform-tools/adb $(ADB_FLAGS) logcat -v time | egrep --color=auto --line-buffered '/fmedia|W/|E/'
 
 log-clear:
-	$(SDK_DIR)/platform-tools/adb logcat -c
+	$(SDK_DIR)/platform-tools/adb $(ADB_FLAGS) logcat -c
+
+bt:
+	$(SDK_DIR)/platform-tools/adb $(ADB_FLAGS) logcat -v time | $(NDK_DIR)/ndk-stack -sym fmedia/libs/x86_64
 
 apk-list:
 	unzip -l $(APK)

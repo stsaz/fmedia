@@ -400,6 +400,7 @@ public class MainActivity extends AppCompatActivity {
 		if (trec != null) {
 			rec_state_set(true);
 		}
+		state(STATE_DEF);
 	}
 
 	private void rec_state_set(boolean active) {
@@ -697,26 +698,27 @@ public class MainActivity extends AppCompatActivity {
 		trackctl.seek(percent * total_dur_msec / 100);
 	}
 
-	private static final int STATE_NONE = 0;
-	private static final int STATE_PLAYING = 1;
-	private static final int STATE_PAUSED = 2;
+	private static final int STATE_DEF = 1;
+	private static final int STATE_PLAYING = 2;
+	private static final int STATE_PAUSED = 3;
 
 	private void state(int st) {
 		if (st == state)
 			return;
+		String fm = "φfmedia";
 		switch (st) {
-			case STATE_NONE:
-				getSupportActionBar().setTitle("fmedia");
+			case STATE_DEF:
+				getSupportActionBar().setTitle(fm);
 				bplay.setImageResource(R.drawable.ic_play);
 				break;
 
 			case STATE_PLAYING:
-				getSupportActionBar().setTitle("fmedia");
+				getSupportActionBar().setTitle(String.format("%s [Playing]", fm));
 				bplay.setImageResource(R.drawable.ic_pause);
 				break;
 
 			case STATE_PAUSED:
-				getSupportActionBar().setTitle("[Paused] fmedia");
+				getSupportActionBar().setTitle(String.format("%s [Paused]", fm));
 				bplay.setImageResource(R.drawable.ic_play);
 				break;
 		}
@@ -749,7 +751,7 @@ public class MainActivity extends AppCompatActivity {
 		lbl_name.setText("");
 		lbl_pos.setText("");
 		progs.setProgress(0);
-		state(STATE_NONE);
+		state(STATE_DEF);
 	}
 
 	/**
