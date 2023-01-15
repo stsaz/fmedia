@@ -10,6 +10,7 @@ class Fmedia {
 		length_msec = 0;
 		artist = "";
 		title = "";
+		info = "";
 		init();
 	}
 	private native void init();
@@ -18,7 +19,7 @@ class Fmedia {
 	public native void setCodepage(String codepage);
 
 	long length_msec;
-	String artist, title;
+	String artist, title, info;
 	public native String[] meta(String filepath);
 
 	static final int F_DATE_PRESERVE = 1;

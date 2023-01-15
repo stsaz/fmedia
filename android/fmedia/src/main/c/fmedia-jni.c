@@ -121,13 +121,6 @@ static uint64 info_add(ffvec *info, const fmed_track_info *ti)
 		, sec / 60, sec % 60, (int)(msec % 1000)
 		, (int64)ti->audio.total);
 
-	*ffvec_pushT(info, char*) = ffsz_dup("format");
-	*ffvec_pushT(info, char*) = ffsz_allocfmt("%ukbps %s %uHz %s"
-		, (ti->audio.bitrate + 500) / 1000
-		, ti->audio.decoder
-		, ti->audio.fmt.sample_rate
-		, channel_str(ti->audio.fmt.channels));
-
 	return msec;
 }
 
@@ -138,6 +131,7 @@ Java_com_github_stsaz_fmedia_Fmedia_meta(JNIEnv *env, jobject thiz, jstring jfil
 	fftime t1 = fftime_monotonic();
 	fmed_track_obj *t = fx->track->create(0, NULL);
 	fmed_track_info *ti = fx->track->conf(t);
+	jclass jc = jni_class_obj(thiz);
 
 	const char *fn = jni_sz_js(jfilepath);
 	ti->in_filename = fn;
@@ -151,6 +145,15 @@ Java_com_github_stsaz_fmedia_Fmedia_meta(JNIEnv *env, jobject thiz, jstring jfil
 
 	ffvec info = {};
 	uint64 msec = info_add(&info, ti);
+
+	char *format = ffsz_allocfmt("%ukbps %s %uHz %s"
+		, (ti->audio.bitrate + 500) / 1000
+		, ti->audio.decoder
+		, ti->audio.fmt.sample_rate
+		, channel_str(ti->audio.fmt.channels));
+	jni_obj_sz_set(env, thiz, jni_field(jc, "info", JNI_TSTR), format);
+	*ffvec_pushT(&info, char*) = ffsz_dup("format");
+	*ffvec_pushT(&info, char*) = format;
 
 	// info += ti->meta
 	char **it;
@@ -178,7 +181,6 @@ Java_com_github_stsaz_fmedia_Fmedia_meta(JNIEnv *env, jobject thiz, jstring jfil
 		}
 	}
 
-	jclass jc = jni_class_obj(thiz);
 	jfieldID jf;
 
 	// this.length_msec = ...

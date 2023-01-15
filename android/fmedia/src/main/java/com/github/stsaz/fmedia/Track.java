@@ -49,7 +49,7 @@ class TrackHandle {
 	boolean error; // processing error
 	String url;
 	String[] meta;
-	String artist, title;
+	String artist, title, info;
 	String name; // track name shown in GUI
 	int pos_msec; // current progress (msec)
 	int prev_pos_msec; // previous progress position (msec)
@@ -318,11 +318,13 @@ class Track {
 		tplay.meta = new String[0];
 		tplay.artist = "";
 		tplay.title = "";
+		tplay.info = "";
 
 		if (!core.setts.no_tags) {
 			tplay.meta = core.fmedia.meta(url);
 			tplay.artist = core.fmedia.artist;
 			tplay.title = core.fmedia.title;
+			tplay.info = core.fmedia.info;
 			tplay.time_total_msec = (int)core.fmedia.length_msec;
 		}
 		tplay.name = header(tplay);

@@ -35,6 +35,11 @@
 			android:layout_margin="10dp"
 			android:text="@string/sett_show_record" />
 
+		<androidx.appcompat.widget.SwitchCompat android:id="@+id/ui_info_in_title"
+			android:layout_width="match_parent" android:layout_height="wrap_content"
+			android:layout_margin="10dp"
+			android:text="@string/sett_ui_info_in_title" />
+
 		<androidx.appcompat.widget.SwitchCompat
 			android:id="@+id/bsvc_notif_disable"
 			android:layout_width="match_parent"

@@ -17,7 +17,7 @@ public class SettingsActivity extends AppCompatActivity {
 	private static final String TAG = "fmedia.SettingsActivity";
 	private Core core;
 	private SwitchCompat brandom, brepeat, bfilter_hide, brec_hide, bsvc_notif_disable, bfile_del;
-	private SwitchCompat bnotags, blist_rm_on_next, blist_rm_on_err, bdark;
+	private SwitchCompat bnotags, blist_rm_on_next, blist_rm_on_err, bdark, ui_info_in_title;
 	private TextView tdata_dir, trecdir, ttrash_dir, tautoskip, tcodepage;
 
 	private TextView rec_bitrate, rec_buf_len, rec_until, rec_gain;
@@ -54,6 +54,7 @@ public class SettingsActivity extends AppCompatActivity {
 		// Interface
 		bdark = findViewById(R.id.bdark);
 		bdark.setChecked(core.gui().theme == GUI.THM_DARK);
+		ui_info_in_title = findViewById(R.id.ui_info_in_title);
 
 		bfilter_hide = findViewById(R.id.bshowfilter);
 		bfilter_hide.setChecked(core.gui().filter_hide);
@@ -105,6 +106,7 @@ public class SettingsActivity extends AppCompatActivity {
 
 	private void load() {
 		blist_rm_on_err.setChecked(core.setts.qu_rm_on_err);
+		ui_info_in_title.setChecked(core.gui().ainfo_in_title);
 
 		rec_load();
 	}
@@ -135,6 +137,7 @@ public class SettingsActivity extends AppCompatActivity {
 
 		core.gui().filter_hide = bfilter_hide.isChecked();
 		core.gui().record_hide = brec_hide.isChecked();
+		core.gui().ainfo_in_title = ui_info_in_title.isChecked();
 
 		rec_save();
 		core.setts.normalize();

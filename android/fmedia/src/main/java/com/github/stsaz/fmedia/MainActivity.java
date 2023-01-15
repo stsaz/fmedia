@@ -728,7 +728,11 @@ public class MainActivity extends AppCompatActivity {
 	 * Called by Track when a new track is initialized
 	 */
 	private int new_track(TrackHandle t) {
-		lbl_name.setText(t.name);
+		String title = t.name;
+		if (core.gui().ainfo_in_title && !t.info.isEmpty())
+			title = String.format("%s [%s]", t.name, t.info);
+		lbl_name.setText(title);
+
 		progs.setProgress(0);
 		if (t.state == Track.STATE_PAUSED) {
 			state(STATE_PAUSED);

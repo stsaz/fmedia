@@ -14,6 +14,7 @@ class GUI {
 	Context cur_activity;
 	boolean filter_hide;
 	boolean record_hide;
+	boolean ainfo_in_title;
 	String cur_path = ""; // current explorer path
 	int list_pos; // list scroll position
 
@@ -31,6 +32,7 @@ class GUI {
 				String.format("filter_hide %d\n", core.bool_to_int(filter_hide)) +
 				String.format("record_hide %d\n", core.bool_to_int(record_hide)) +
 				String.format("list_pos %d\n", list_pos) +
+				String.format("ui_info_in_title %d\n", core.bool_to_int(ainfo_in_title)) +
 				String.format("theme %d\n", theme);
 	}
 
@@ -43,6 +45,8 @@ class GUI {
 			record_hide = core.str_to_bool(v);
 		else if (k.equals("list_pos"))
 			list_pos = core.str_to_uint(v, 0);
+		else if (k.equals("ui_info_in_title"))
+			ainfo_in_title = core.str_to_bool(v);
 		else if (k.equals("theme"))
 			theme = core.str_to_uint(v, 0);
 		else
