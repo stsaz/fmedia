@@ -687,8 +687,10 @@ struct fmed_track_info {
 		uint mpg_lametag :1;
 		uint ogg_flush :1;
 		uint ogg_gen_opus_tag :1; // ogg.write must generate Opus-tag packet
+		uint ai_exclusive :1;
+		uint ai_power_save :1;
 
-		uint reserve :6;
+		uint reserve :4;
 	};
 	};
 

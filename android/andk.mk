@@ -7,15 +7,17 @@ LINK := $(C_DIR)/clang
 LINKXX := $(C_DIR)/clang++
 
 # Set target
+A_API := 21
+A_API32 := $(A_API)
 ifeq "$(CPU)" "amd64"
-	CFLAGS += -target x86_64-none-linux-android21
-	LINKFLAGS += -target x86_64-none-linux-android21
+	CFLAGS += -target x86_64-none-linux-android$(A_API)
+	LINKFLAGS += -target x86_64-none-linux-android$(A_API)
 else ifeq "$(CPU)" "arm64"
-	CFLAGS += -target aarch64-none-linux-android21
-	LINKFLAGS += -target aarch64-none-linux-android21
+	CFLAGS += -target aarch64-none-linux-android$(A_API)
+	LINKFLAGS += -target aarch64-none-linux-android$(A_API)
 else ifeq "$(CPU)" "arm"
-	CFLAGS += -target armv7-none-linux-androideabi19 -mthumb
-	LINKFLAGS += -target armv7-none-linux-androideabi19
+	CFLAGS += -target armv7-none-linux-androideabi$(A_API32) -mthumb
+	LINKFLAGS += -target armv7-none-linux-androideabi$(A_API32)
 endif
 
 CFLAGS += -Wall -Wextra -Wno-unused-parameter \

@@ -48,8 +48,11 @@ build: libs
 libs:
 	$(MKDIR) $(BUILD_DIR)/obj-arm64 $(BUILD_DIR)/obj-arm $(LIBDIR_ARM64) $(LIBDIR_ARM)
 	$(MAKE) CPU=arm64 $(LIBDIR_ARM64)/libfmedia.so.debug
-	$(MAKE) CPU=arm $(LIBDIR_ARM)/libfmedia.so.debug
-	$(LS) $(LIBDIR_ARM64)/libfmedia.so $(LIBDIR_ARM)/libfmedia.so
+	$(MAKE) CPU=arm A_API32=19 $(LIBDIR_ARM)/libfmedia.so.debug
+	$(MAKE) CPU=arm64 A_API=26 $(LIBDIR_ARM64)/aaudio.so.debug
+	$(MAKE) CPU=arm A_API=26 $(LIBDIR_ARM)/aaudio.so.debug
+	$(LS) $(LIBDIR_ARM64)/libfmedia.so $(LIBDIR_ARM)/libfmedia.so \
+		$(LIBDIR_ARM64)/aaudio.so $(LIBDIR_ARM)/aaudio.so
 # 	$(C_DIR)/llvm-objdump -T $(LIBDIR_ARM64)/libfmedia.so
 
 CPU := amd64
