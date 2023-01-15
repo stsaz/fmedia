@@ -12,6 +12,7 @@ Copyright (c) 2016 Simon Zolin */
 
 #undef dbglog
 #undef errlog
+#define infolog1(trk, ...)  fmed_infolog(core, trk, "track", __VA_ARGS__)
 #define dbglog(trk, ...)  fmed_dbglog(core, trk, "track", __VA_ARGS__)
 #define errlog(trk, ...)  fmed_errlog(core, trk, "track", __VA_ARGS__)
 
@@ -76,7 +77,8 @@ typedef struct fm_trk {
 	fmed_trk props;
 	ffchain filt_chain;
 	ffchain_item chain_parent;
-	ffvec filters;
+	ffvec filters; // fmed_f[]
+	uint filters_max;
 	fflist_cursor cur;
 	ffrbtree dict;
 	ffrbtree meta;
@@ -102,7 +104,7 @@ static void trk_fin(fm_trk *t);
 static void trk_process(void *udata);
 static void trk_stop(fm_trk *t, uint flags);
 static fmed_f* trk_modbyext(fm_trk *t, uint flags, const ffstr *ext);
-static void trk_printtime(fm_trk *t);
+static void trk_printtime(fm_trk *t, fftime total);
 static int trk_meta_enum(fm_trk *t, fmed_trk_meta *meta);
 static int trk_meta_copy(fm_trk *t, fm_trk *src);
 static char* chain_print(fm_trk *t, const ffchain_item *mark, char *buf, size_t cap);
@@ -512,17 +514,12 @@ static void trk_stop(fm_trk *t, uint flags)
 	core->cmd(FMED_TASK_XPOST, &t->tsk_stop, t->wid);
 }
 
-static void trk_printtime(fm_trk *t)
+static void trk_printtime(fm_trk *t, fftime all)
 {
 	fmed_f *pf;
 	ffstr3 s = {0};
-	fftime all = {0};
 
-	FFSLICE_WALK(&t->filters, pf) {
-		fftime_add(&all, &pf->clk);
-	}
-	if (fftime_empty(&all))
-		return;
+	t->filters.len = t->filters_max;
 	ffstr_catfmt(&s, "time: %u.%06u.  ", (int)fftime_sec(&all), (int)fftime_usec(&all));
 
 	FFSLICE_WALK(&t->filters, pf) {
@@ -533,7 +530,7 @@ static void trk_printtime(fm_trk *t)
 	if (s.len > FFSLEN(", "))
 		s.len -= FFSLEN(", ");
 
-	dbglog(t, "%S", &s);
+	infolog1(t, "%S", &s);
 	ffarr_free(&s);
 }
 
@@ -584,20 +581,6 @@ static void trk_free(fm_trk *t)
 	if (t->state == TRK_ST_ERR)
 		t->props.err = 1;
 
-	if (t->props.print_time) {
-		struct ffps_perf i2 = {};
-		ffps_perf(&i2, FFPS_PERF_REALTIME | FFPS_PERF_CPUTIME | FFPS_PERF_RUSAGE);
-		ffps_perf_diff(&t->psperf, &i2);
-		core->log(FMED_LOG_INFO, t, "track", "processing time: real:%u.%06u  cpu:%u.%06u (user:%u.%06u system:%u.%06u)"
-			"  resources: pagefaults:%u  maxrss:%u  I/O:%u  ctxsw:%u"
-			, (int)fftime_sec(&i2.realtime), (int)fftime_usec(&i2.realtime)
-			, (int)fftime_sec(&i2.cputime), (int)fftime_usec(&i2.cputime)
-			, (int)fftime_sec(&i2.usertime), (int)fftime_usec(&i2.usertime)
-			, (int)fftime_sec(&i2.systime), (int)fftime_usec(&i2.systime)
-			, i2.pagefaults, i2.maxrss, i2.inblock + i2.outblock, i2.vctxsw + i2.ivctxsw
-			);
-	}
-
 	FFSLICE_RWALK(&t->filters, pf) {
 		if (pf->ctx != NULL) {
 			t->cur = &pf->sib;
@@ -607,8 +590,20 @@ static void trk_free(fm_trk *t)
 	}
 	t->cur = NULL;
 
-	if (core->loglev == FMED_LOG_DEBUG)
-		trk_printtime(t);
+	if (t->props.print_time) {
+		struct ffps_perf i2 = {};
+		ffps_perf(&i2, FFPS_PERF_REALTIME | FFPS_PERF_CPUTIME | FFPS_PERF_RUSAGE);
+		ffps_perf_diff(&t->psperf, &i2);
+		infolog1(t, "processing time: real:%u.%06u  cpu:%u.%06u (user:%u.%06u system:%u.%06u)"
+			"  resources: pagefaults:%u  maxrss:%u  I/O:%u  ctxsw:%u"
+			, (int)fftime_sec(&i2.realtime), (int)fftime_usec(&i2.realtime)
+			, (int)fftime_sec(&i2.cputime), (int)fftime_usec(&i2.cputime)
+			, (int)fftime_sec(&i2.usertime), (int)fftime_usec(&i2.usertime)
+			, (int)fftime_sec(&i2.systime), (int)fftime_usec(&i2.systime)
+			, i2.pagefaults, i2.maxrss, i2.inblock + i2.outblock, i2.vctxsw + i2.ivctxsw
+			);
+		trk_printtime(t, i2.realtime);
+	}
 
 	ffvec_free(&t->filters);
 
@@ -685,7 +680,7 @@ static int filt_call(fm_trk *t, fmed_f *f)
 	int r;
 	fftime t1 = {}, t2;
 
-	if (core->loglev == FMED_LOG_DEBUG) {
+	if (t->props.print_time) {
 		t1 = fftime_monotonic();
 	}
 
@@ -723,7 +718,7 @@ static int filt_call(fm_trk *t, fmed_f *f)
 	r = f->filt->process(f->ctx, &t->props);
 	f->d.data = t->props.data,  f->d.datalen = t->props.datalen;
 
-	if (core->loglev == FMED_LOG_DEBUG) {
+	if (t->props.print_time) {
 		t2 = fftime_monotonic();
 		fftime_sub(&t2, &t1);
 		fftime_add(&f->clk, &t2);
@@ -1166,6 +1161,7 @@ static fmed_f* filt_add(fm_trk *t, uint cmd, const char *name)
 
 	f->name = name;
 	t->filters.len++;
+	t->filters_max = ffmax(t->filters.len, t->filters_max);
 
 	if (t->cur == ffchain_sentl(&t->filt_chain))
 		t->cur = ffchain_first(&t->filt_chain);
@@ -1293,6 +1289,9 @@ static ssize_t trk_cmd(void *trk, uint cmd, ...)
 
 	case FMED_TRACK_START:
 	case FMED_TRACK_XSTART:
+		if (t->props.print_time)
+			ffps_perf(&t->psperf, FFPS_PERF_REALTIME | FFPS_PERF_CPUTIME | FFPS_PERF_RUSAGE);
+
 		if (0 != trk_addfilters(t)) {
 			trk_setval(t, "error", 1);
 			trk_free(t);
@@ -1304,9 +1303,6 @@ static ssize_t trk_cmd(void *trk, uint cmd, ...)
 			r = -1;
 			break;
 		}
-
-		if (t->props.print_time)
-			ffps_perf(&t->psperf, FFPS_PERF_REALTIME | FFPS_PERF_CPUTIME | FFPS_PERF_RUSAGE);
 
 		t->wflags = (cmd == FMED_TRACK_XSTART) ? FMED_WORKER_FPARALLEL : 0;
 		t->wid = core->cmd(FMED_WORKER_ASSIGN, &t->kq, t->wflags);
