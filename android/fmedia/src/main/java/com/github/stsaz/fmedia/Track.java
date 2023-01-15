@@ -7,6 +7,7 @@ package com.github.stsaz.fmedia;
 
 import android.media.MediaPlayer;
 import android.media.MediaRecorder;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 
@@ -41,6 +42,7 @@ abstract class Filter {
 }
 
 class TrackHandle {
+	long fmed_trk;
 	MediaRecorder mr;
 	int state;
 	boolean stopped; // stopped by user
@@ -337,8 +339,25 @@ class Track {
 		}
 	}
 
-	TrackHandle record(String out) {
+	TrackHandle rec_start(String out, Fmedia.Callback cb) {
 		trec = new TrackHandle();
+
+		if (Build.VERSION.SDK_INT >= 26) {
+			int flags = 0;
+			if (core.setts.rec_exclusive) flags |= Fmedia.RECF_EXCLUSIVE;
+			if (true) flags |= Fmedia.RECF_POWER_SAVE;
+
+			int q = core.setts.enc_bitrate;
+			trec.fmed_trk = core.fmedia.recStart(out, core.setts.rec_buf_len_ms
+				, core.setts.rec_gain_db100, Fmedia.REC_AACLC, q, core.setts.rec_until_sec, flags
+				, cb);
+			if (trec.fmed_trk == 0) {
+				trec = null;
+				return null;
+			}
+			return trec;
+		}
+
 		trec.mr = new MediaRecorder();
 		try {
 			trec.mr.setAudioSource(MediaRecorder.AudioSource.MIC);
@@ -357,6 +376,12 @@ class Track {
 	}
 
 	void record_stop(TrackHandle t) {
+		if (trec.fmed_trk != 0) {
+			core.fmedia.recStop(trec.fmed_trk);
+			trec = null;
+			return;
+		}
+
 		try {
 			t.mr.stop();
 			t.mr.reset();

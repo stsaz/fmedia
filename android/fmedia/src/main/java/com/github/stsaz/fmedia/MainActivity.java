@@ -13,6 +13,8 @@ import android.graphics.PorterDuff;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -405,8 +407,10 @@ public class MainActivity extends AppCompatActivity {
 		if (active)
 			color = R.color.recording;
 		color = getResources().getColor(color);
-		brec.setImageTintMode(PorterDuff.Mode.SRC_IN);
-		brec.setImageTintList(ColorStateList.valueOf(color));
+		if (Build.VERSION.SDK_INT >= 21) {
+			brec.setImageTintMode(PorterDuff.Mode.SRC_IN);
+			brec.setImageTintList(ColorStateList.valueOf(color));
+		}
 	}
 
 	private void rec_click() {
@@ -666,7 +670,10 @@ public class MainActivity extends AppCompatActivity {
 		};
 		String fname = String.format("%s/rec_%04d%02d%02d_%02d%02d%02d.m4a"
 				, core.setts.rec_path, dt[0], dt[1], dt[2], dt[3], dt[4], dt[5]);
-		trec = track.record(fname);
+		trec = track.rec_start(fname, () -> {
+				Handler mloop = new Handler(Looper.getMainLooper());
+				mloop.post(() -> rec_click());
+			});
 		if (trec == null)
 			return;
 		rec_state_set(true);

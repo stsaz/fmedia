@@ -2,7 +2,9 @@
 2022, Simon Zolin */
 
 /*
+jni_attach jni_detach
 jni_local_unref
+jni_global_ref jni_global_unref
 Meta:
 	jni_class jni_class_obj
 	jni_field
@@ -22,6 +24,9 @@ Object:
 	jni_obj_long jni_obj_long_set
 	jni_obj_int
 	jni_obj_bool
+Functions:
+	jni_func jni_call_void
+	jni_sfunc jni_scall_void
 Notes:
 	sz	char*
 	js	jstring
@@ -43,8 +48,20 @@ Notes:
 #define JNI_TBOOL "Z"
 #define JNI_TARR "["
 
+#define jni_attach(jvm, envp) \
+	(*jvm)->AttachCurrentThread(jvm, envp, NULL)
+
+#define jni_detach(jvm) \
+	(*jvm)->DetachCurrentThread(jvm)
+
 #define jni_local_unref(jobj) \
 	(*env)->DeleteLocalRef(env, jobj)
+
+#define jni_global_ref(jobj) \
+	(*env)->NewGlobalRef(env, jobj)
+
+#define jni_global_unref(jobj) \
+	(*env)->DeleteGlobalRef(env, jobj)
 
 /** jclass = class(JNI_C...) */
 #define jni_class(C) \
@@ -152,3 +169,27 @@ static inline void jni_obj_sz_set(JNIEnv *env, jobject jo, jfieldID jf, const ch
 /** bool = obj.bool */
 #define jni_obj_bool(jobj, jfield) \
 	(*env)->GetBooleanField(env, jobj, jfield)
+
+
+/** jmethodID of a class function
+
+class C {
+	T name(P1, P2, ...) {}
+	// signature template: (P1P2...)T
+} */
+#define jni_func(jclazz, name, sig) \
+	(*env)->GetMethodID(env, jclazz, name, sig)
+
+/** jmethodID of a class static function
+
+class C {
+	static T name() {}
+} */
+#define jni_sfunc(jclazz, name, sig) \
+	(*env)->GetStaticMethodID(env, jclazz, name, sig)
+
+#define jni_call_void(jobj, jfunc, ...) \
+	(*env)->CallVoidMethod(env, jobj, jfunc, #__VA_ARGS__)
+
+#define jni_scall_void(jobj, jfunc, ...) \
+	(*env)->CallVoidMethod(env, jobj, jfunc, #__VA_ARGS__)

@@ -188,7 +188,6 @@
 			android:textSize="@dimen/text_editbox" />
 
 		<TextView
-			android:id="@+id/tbitrate_text"
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
 			android:layout_marginHorizontal="10dp"
@@ -196,7 +195,7 @@
 			android:textColor="@color/text" />
 
 		<EditText
-			android:id="@+id/tbitrate"
+			android:id="@+id/rec_bitrate"
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
 			android:layout_marginHorizontal="10dp"
@@ -204,6 +203,41 @@
 			android:hint=""
 			android:inputType="text"
 			android:textSize="@dimen/text_editbox" />
+
+		<TextView android:text="@string/sett_rec_buf_len"
+			android:layout_width="match_parent" android:layout_height="wrap_content"
+			android:layout_marginHorizontal="10dp"
+			android:textColor="@color/text" />
+		<EditText android:id="@+id/rec_buf_len"
+			android:layout_width="match_parent" android:layout_height="wrap_content"
+			android:layout_marginHorizontal="10dp"
+			android:inputType="text"
+			android:textSize="@dimen/text_editbox" />
+
+		<TextView android:text="@string/sett_rec_until"
+			android:layout_width="match_parent" android:layout_height="wrap_content"
+			android:layout_marginHorizontal="10dp"
+			android:textColor="@color/text" />
+		<EditText android:id="@+id/rec_until"
+			android:layout_width="match_parent" android:layout_height="wrap_content"
+			android:layout_marginHorizontal="10dp"
+			android:inputType="text"
+			android:textSize="@dimen/text_editbox" />
+
+		<TextView android:text="@string/sett_rec_gain"
+			android:layout_width="match_parent" android:layout_height="wrap_content"
+			android:layout_marginHorizontal="10dp"
+			android:textColor="@color/text" />
+		<EditText android:id="@+id/rec_gain"
+			android:layout_width="match_parent" android:layout_height="wrap_content"
+			android:layout_marginHorizontal="10dp"
+			android:inputType="text"
+			android:textSize="@dimen/text_editbox" />
+
+		<androidx.appcompat.widget.SwitchCompat android:id="@+id/rec_exclusive"
+			android:layout_width="match_parent" android:layout_height="wrap_content"
+			android:layout_margin="10dp"
+			android:text="@string/sett_rec_exclusive" />
 
 	</LinearLayout>
 </ScrollView>

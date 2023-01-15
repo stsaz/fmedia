@@ -5,6 +5,7 @@
 
 package com.github.stsaz.fmedia;
 
+import android.os.Build;
 import android.os.Bundle;
 import android.widget.TextView;
 
@@ -17,7 +18,10 @@ public class SettingsActivity extends AppCompatActivity {
 	private Core core;
 	private SwitchCompat brandom, brepeat, bfilter_hide, brec_hide, bsvc_notif_disable, bfile_del;
 	private SwitchCompat bnotags, blist_rm_on_next, blist_rm_on_err, bdark;
-	private TextView tdata_dir, trecdir, tbitrate, ttrash_dir, tautoskip, tcodepage;
+	private TextView tdata_dir, trecdir, ttrash_dir, tautoskip, tcodepage;
+
+	private TextView rec_bitrate, rec_buf_len, rec_until, rec_gain;
+	private SwitchCompat rec_exclusive;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -92,14 +96,17 @@ public class SettingsActivity extends AppCompatActivity {
 
 		// Recording
 		trecdir = findViewById(R.id.trecdir);
-		trecdir.setText(core.setts.rec_path);
-
-		tbitrate = findViewById(R.id.tbitrate);
-		tbitrate.setText(Integer.toString(core.setts.enc_bitrate));
+		rec_bitrate = findViewById(R.id.rec_bitrate);
+		rec_buf_len = findViewById(R.id.rec_buf_len);
+		rec_until = findViewById(R.id.rec_until);
+		rec_gain = findViewById(R.id.rec_gain);
+		rec_exclusive = findViewById(R.id.rec_exclusive);
 	}
 
 	private void load() {
 		blist_rm_on_err.setChecked(core.setts.qu_rm_on_err);
+
+		rec_load();
 	}
 
 	private void save() {
@@ -128,7 +135,33 @@ public class SettingsActivity extends AppCompatActivity {
 
 		core.gui().filter_hide = bfilter_hide.isChecked();
 		core.gui().record_hide = brec_hide.isChecked();
+
+		rec_save();
+		core.setts.normalize();
+	}
+
+	private void rec_load() {
+		trecdir.setText(core.setts.rec_path);
+		rec_bitrate.setText(Integer.toString(core.setts.enc_bitrate));
+		rec_buf_len.setText(core.int_to_str(core.setts.rec_buf_len_ms));
+		rec_until.setText(core.int_to_str(core.setts.rec_until_sec));
+		rec_gain.setText(core.float_to_str((float)core.setts.rec_gain_db100 / 100));
+		rec_exclusive.setChecked(core.setts.rec_exclusive);
+
+		if (Build.VERSION.SDK_INT < 26) {
+			rec_buf_len.setEnabled(false);
+			rec_until.setEnabled(false);
+			rec_gain.setEnabled(false);
+			rec_exclusive.setEnabled(false);
+		}
+	}
+
+	private void rec_save() {
 		core.setts.rec_path = trecdir.getText().toString();
-		core.setts.enc_bitrate = core.str_to_uint(tbitrate.getText().toString(), core.setts.enc_bitrate);
+		core.setts.enc_bitrate = core.str_to_uint(rec_bitrate.getText().toString(), -1);
+		core.setts.rec_buf_len_ms = core.str_to_uint(rec_buf_len.getText().toString(), -1);
+		core.setts.rec_until_sec = core.str_to_uint(rec_until.getText().toString(), -1);
+		core.setts.rec_gain_db100 = (int)(core.str_to_float(rec_gain.getText().toString(), 0) * 100);
+		core.setts.rec_exclusive = rec_exclusive.isChecked();
 	}
 }

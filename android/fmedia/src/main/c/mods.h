@@ -97,6 +97,7 @@ extern const fmed_filter vorbismeta_input;
 extern const fmed_filter fmed_sndmod_autoconv;
 extern const fmed_filter fmed_sndmod_conv;
 extern const fmed_filter fmed_sndmod_until;
+extern const fmed_filter fmed_sndmod_gain;
 
 extern const fmed_filter aac_input;
 extern const fmed_filter aac_output;
@@ -109,13 +110,49 @@ extern int aac_out_config(fmed_conf_ctx *ctx);
 extern int flac_enc_config(fmed_conf_ctx *ctx);
 extern int flac_out_config(fmed_conf_ctx *ctx);
 
+static const fmed_mod* mod_load(const char *name_so)
+{
+	ffdl dl = ffdl_open(name_so, 0);
+	if (dl == FFDL_NULL) {
+		errlog0("%s: can't load: %s", name_so, ffdl_errstr());
+		return NULL;
+	}
+	fmed_getmod_t getmod = ffdl_addr(dl, "fmed_getmod");
+	if (getmod == NULL) {
+		ffdl_close(dl);
+		errlog0("%s: can't load: %s", name_so, ffdl_errstr());
+		return NULL;
+	}
+	const fmed_mod *m = getmod(core);
+	if (m == NULL) {
+		ffdl_close(dl);
+		errlog0("%s: can't load: fmed_getmod()", name_so);
+		return NULL;
+	}
+	// ffdl_close(dl);
+	return m;
+}
+
 const fmed_filter* mods_filter_byname(const char *name)
 {
+	if (ffsz_eq(name, "aaudio.in")) {
+		const fmed_mod *m = mod_load("aaudio.so");
+		if (m == NULL)
+			return NULL;
+		const fmed_filter *f = m->iface("in");
+		if (f == NULL) {
+			errlog0("%s: no such filter", name);
+			return NULL;
+		}
+		return f;
+	}
+
 	static const char *const names[] = {
 		"aac.decode",
 		"aac.encode",
 		"afilter.autoconv",
 		"afilter.conv",
+		"afilter.gain",
 		"afilter.until",
 		"core.file",
 		"core.filew",
@@ -139,6 +176,7 @@ const fmed_filter* mods_filter_byname(const char *name)
 		/*"aac.encode"*/	&aac_output,
 		/*"afilter.autoconv"*/	&fmed_sndmod_autoconv,
 		/*"afilter.conv"*/	&fmed_sndmod_conv,
+		/*"afilter.gain"*/	&fmed_sndmod_gain,
 		/*"afilter.until"*/	&fmed_sndmod_until,
 		/*"core.file"*/	&file_input,
 		/*"core.filew"*/	&file_output,

@@ -26,11 +26,31 @@ abstract class Util {
 		return String.format("%d", v);
 	}
 
+	String float_to_str(float v) {
+		return String.format("%.02f", v);
+	}
+
+	float str_to_float(String s, float def) {
+		try {
+			return Float.parseFloat(s);
+		} catch (Exception e) {
+		}
+		return def;
+	}
+
 	int str_to_uint(String s, int def) {
 		try {
 			int i = Integer.decode(s);
 			if (i >= 0)
 				return i;
+		} catch (Exception e) {
+		}
+		return def;
+	}
+
+	int str_to_int(String s, int def) {
+		try {
+			return Integer.decode(s);
 		} catch (Exception e) {
 		}
 		return def;

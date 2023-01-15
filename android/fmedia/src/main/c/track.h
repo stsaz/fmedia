@@ -14,11 +14,15 @@ meta:      ifile->detr->ifmt->meta->ctl
 .mp3 copy: ifile->detr->ifmt->copy->untl->ctl ->ofile
 copy:      ifile->detr->ifmt->untl->ctl ->ofmt->ofile
 convert:   ifile->detr->ifmt->dec ->untl->ctl ->aconv->conv->enc ->ofmt->ofile
+record:    sig  ->aa  ->untl->ctl ->gain->acnv->enc  ->ofmt ->ofile
 */
 #define MAX_FILTERS 11
 
 struct track_ctx {
 	fmed_track_info ti;
+	fmed_worker_task worker;
+	uint state; // enum STATE
+	uint xstart :1;
 
 	struct filter filters_pool[MAX_FILTERS];
 	uint i_fpool;
@@ -26,6 +30,13 @@ struct track_ctx {
 	ffslice filters;
 	uint cur;
 	fftime tstart;
+};
+
+enum STATE {
+	ST_RUNNING, // ->(ST_FINISHED || ST_STOP)
+	ST_FINISHED,
+	ST_STOP, // ->ST_STOPPING
+	ST_STOPPING,
 };
 
 const fmed_track track_iface;
@@ -105,6 +116,7 @@ static void trk_close(struct track_ctx *t)
 
 	ffmem_free(ti->out_filename);
 
+	core->cmd(FMED_XDEL, &t->worker);
 	dbglog1(t, "track closed");
 	ffmem_free(t);
 }
@@ -117,9 +129,21 @@ static fmed_track_info* trk_conf(fmed_track_obj *trk)
 
 static void trk_process(struct track_ctx *t)
 {
-	uint i = 0;
+	if (t->state == ST_FINISHED) {
+		trk_close(t);
+		return;
+	}
+
+	uint i = t->cur;
 	int r;
 	for (;;) {
+
+		if (FFINT_READONCE(t->state) == ST_STOP) {
+			// FMED_TRACK_STOP is received: notify active filters so they can stop the chain
+			t->state = ST_STOPPING;
+			t->ti.flags |= FMED_FSTOP;
+		}
+
 		struct filter *f = *ffslice_itemT(&t->filters, i, struct filter*);
 
 		if (f->backward_skip) {
@@ -241,6 +265,9 @@ go_back:
 			ffstr_null(&t->ti.data_out);
 			break;
 
+		case FMED_RASYNC:
+			return;
+
 		case FMED_RFIN:
 			goto fin;
 
@@ -259,6 +286,12 @@ err:
 
 fin:
 	dbglog1(t, "finished processing: %u", t->ti.error);
+	if (ST_RUNNING == ffint_cmpxchg(&t->state, ST_RUNNING, ST_FINISHED)) {
+		t->ti.flags |= FMED_FFINISHED;
+		trk_filters_close(t);
+		return; // waiting for FMED_TRACK_STOP
+	}
+	trk_close(t);
 }
 
 static char* trk_chain_print(struct track_ctx *t, const struct filter *mark, char *buf, ffsize cap)
@@ -317,13 +350,32 @@ static ffssize trk_cmd(void *trk, uint cmd, ...)
 
 	switch (cmd) {
 
+	case FMED_TRACK_XSTART:
+		t->cur = 0;
+		t->xstart = 1;
+		core->cmd(FMED_XASSIGN, &t->worker);
+		core->cmd(FMED_XADD, &t->worker, trk_process, t);
+		r = 0;
+		break;
+
 	case FMED_TRACK_START:
+		t->cur = 0;
 		trk_process(t);
 		r = 0;
 		break;
 
 	case FMED_TRACK_STOP:
-		trk_close(t);
+		if (t->xstart) {
+			if (ST_FINISHED == ffint_cmpxchg(&t->state, ST_RUNNING, ST_STOP))
+				core->cmd(FMED_XADD, &t->worker, trk_process, t);
+		} else {
+			trk_close(t);
+		}
+		r = 0;
+		break;
+
+	case FMED_TRACK_WAKE:
+		core->cmd(FMED_XADD, &t->worker, trk_process, t);
 		r = 0;
 		break;
 
@@ -343,6 +395,17 @@ static ffssize trk_cmd(void *trk, uint cmd, ...)
 		r = trk_filter_add(t, name, fi, pos);
 		if (cmd == FMED_TRACK_FILT_ADDPREV && (uint)r == t->cur && r >= 0)
 			t->cur++; // the current filter added a new filter before it
+		r++;
+		break;
+	}
+
+	case FMED_TRACK_FILT_ADDF: {
+		const char *name = va_arg(va, void*);
+		const fmed_filter *fi = va_arg(va, void*);
+		uint pos = t->cur + 1;
+		if ((int)t->cur < 0)
+			pos = -1;
+		r = trk_filter_add(t, name, fi, pos);
 		r++;
 		break;
 	}

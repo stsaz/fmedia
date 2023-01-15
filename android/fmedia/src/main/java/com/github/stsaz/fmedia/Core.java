@@ -17,7 +17,6 @@ class CoreSettings {
 	boolean svc_notification_disable;
 	String trash_dir;
 	String rec_path; // directory for recordings
-	int enc_bitrate; // encoder bitrate
 	boolean file_del;
 	boolean no_tags;
 	boolean list_rm_on_next;
@@ -25,17 +24,24 @@ class CoreSettings {
 	String codepage;
 	String pub_data_dir;
 
+	int enc_bitrate, rec_buf_len_ms, rec_until_sec, rec_gain_db100;
+	boolean rec_exclusive;
+
 	String conv_outext;
 	int conv_aac_quality;
 	boolean conv_copy;
 
 	CoreSettings(Core core) {
 		this.core = core;
-		enc_bitrate = 192;
 		codepage = "cp1252";
 		rec_path = "";
 		pub_data_dir = "";
 		trash_dir = "Trash";
+
+		enc_bitrate = 192;
+		rec_buf_len_ms = 500;
+		rec_until_sec = 3600;
+
 		conv_outext = "m4a";
 		conv_aac_quality = 5;
 	}
@@ -49,9 +55,14 @@ class CoreSettings {
 				String.format("qu_rm_on_err %d\n", core.bool_to_int(qu_rm_on_err)) +
 				String.format("codepage %s\n", codepage) +
 				String.format("rec_path %s\n", rec_path) +
-				String.format("enc_bitrate %d\n", enc_bitrate) +
 				String.format("data_dir %s\n", pub_data_dir) +
 				String.format("trash_dir_rel %s\n", trash_dir) +
+
+				String.format("rec_bitrate %d\n", enc_bitrate) +
+				String.format("rec_buf_len %d\n", rec_buf_len_ms) +
+				String.format("rec_until %d\n", rec_until_sec) +
+				String.format("rec_gain %d\n", rec_gain_db100) +
+				String.format("rec_exclusive %d\n", core.bool_to_int(rec_exclusive)) +
 
 				String.format("conv_outext %s\n", conv_outext) +
 				String.format("conv_aac_quality %d\n", conv_aac_quality) +
@@ -64,6 +75,15 @@ class CoreSettings {
 			codepage = val;
 		else
 			codepage = "cp1252";
+	}
+
+	void normalize() {
+		if (enc_bitrate <= 0)
+			enc_bitrate = 192;
+		if (rec_buf_len_ms <= 0)
+			rec_buf_len_ms = 500;
+		if (rec_until_sec < 0)
+			rec_until_sec = 3600;
 	}
 
 	int readconf(String k, String v) {
@@ -85,8 +105,18 @@ class CoreSettings {
 			qu_rm_on_err = core.str_to_bool(v);
 		else if (k.equals("codepage"))
 			set_codepage(v);
-		else if (k.equals("enc_bitrate"))
+
+		else if (k.equals("rec_bitrate"))
 			enc_bitrate = core.str_to_uint(v, enc_bitrate);
+		else if (k.equals("rec_buf_len"))
+			rec_buf_len_ms = core.str_to_uint(v, rec_buf_len_ms);
+		else if (k.equals("rec_exclusive"))
+			rec_exclusive = core.str_to_bool(v);
+		else if (k.equals("rec_until"))
+			rec_until_sec = core.str_to_uint(v, rec_until_sec);
+		else if (k.equals("rec_gain"))
+			rec_gain_db100 = core.str_to_int(v, rec_gain_db100);
+
 		else if (k.equals("conv_outext"))
 			conv_outext = v;
 		else if (k.equals("conv_aac_quality"))
@@ -235,6 +265,7 @@ class Core extends Util {
 			gui.readconf(k, v);
 		}
 
+		setts.normalize();
 		fmedia.setCodepage(setts.codepage);
 		dbglog(TAG, "loadconf: %s: %s", fn, bs);
 	}

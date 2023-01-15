@@ -10,4 +10,5 @@ extern const fmed_core *core;
 #define infolog1(trk, ...)  fmed_infolog(core, trk, NULL, __VA_ARGS__)
 #define dbglog1(trk, ...)  fmed_dbglog(core, trk, NULL, __VA_ARGS__)
 
+#include <afilter/gain.h>
 #include <afilter/until.h>

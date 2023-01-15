@@ -31,6 +31,15 @@ class Fmedia {
 	String result;
 	native int convert(String iname, String oname, int flags);
 
+	interface Callback {
+		void on_finish();
+	}
+	static final int REC_AACLC = 0;
+	static final int RECF_EXCLUSIVE = 1;
+	static final int RECF_POWER_SAVE = 2;
+	native long recStart(String oname, int buf_len_msec, int gain_db100, int fmt, int q, int until_sec, int flags, Callback cb);
+	native void recStop(long trk);
+
 	// track queue
 	native long quNew();
 	native void quDestroy(long q);

@@ -77,8 +77,8 @@ ifeq "$(CPU)" "arm"
 endif
 
 LINK_RPATH_ORIGIN := '-Wl,-rpath,$$ORIGIN' -Wl,--disable-new-dtags
-LINKFLAGS += -L$(FMED_DIR)/alib3/_android-$(CPU)
-LINKFLAGS += $(LINK_RPATH_ORIGIN) \
+FMED_LINKFLAGS := -L$(FMED_DIR)/alib3/_android-$(CPU)
+FMED_LINKFLAGS += $(LINK_RPATH_ORIGIN) \
 	-lfdk-aac-phi \
 	-lFLAC-phi \
 	-lmpg123-phi \
@@ -121,7 +121,21 @@ else ifeq "$(CPU)" "arm"
 endif
 
 $(LIBDIR)/libfmedia.so: $(OBJ)
-	$(LINK) -shared $(LINKFLAGS) $+ -o $@
+	$(LINK) -shared $(LINKFLAGS) $(FMED_LINKFLAGS) $+ -o $@
+
+AAUDIO_OBJ := $(OBJ_DIR)/aaudio.o \
+	$(OBJ_DIR)/ffa-aaudio.o
+
+$(OBJ_DIR)/aaudio.o: $(FMED_DIR)/src/adev/aaudio.c \
+		$(wildcard $(FMED_DIR)/src/adev/*.h)
+	$(C) -I$(ROOT)/ffaudio $(CFLAGS) $(CFLAGS_OPT) $< -o $@
+
+$(OBJ_DIR)/ffa-aaudio.o: $(ROOT)/ffaudio/ffaudio/aaudio.c \
+		$(ROOT)/ffaudio/ffaudio/audio.h
+	$(C) -I$(ROOT)/ffaudio $(CFLAGS) $(CFLAGS_OPT) $< -o $@
+
+$(LIBDIR)/aaudio.so: $(AAUDIO_OBJ)
+	$(LINK) -shared $(LINKFLAGS) -laaudio $+ -o $@
 
 alib3:
 	$(CP) \
@@ -141,7 +155,7 @@ STRIP := $(C_DIR)/llvm-strip
 
 lib-amd64:
 	$(MKDIR) $(BUILD_DIR)/obj-amd64 $(LIBDIR_AMD64)
-	$(MAKE) $(LIBDIR_AMD64)/libfmedia.so
+	$(MAKE) A_API=26 $(LIBDIR_AMD64)/libfmedia.so $(LIBDIR_AMD64)/aaudio.so
 
 build-install-amd64: lib-amd64
 	$(MAKE) alib3

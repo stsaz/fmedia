@@ -7,6 +7,7 @@
 #define errlog1(trk, ...)  fmed_errlog(core, trk, NULL, __VA_ARGS__)
 #define warnlog1(trk, ...)  fmed_warnlog(core, trk, NULL, __VA_ARGS__)
 #define dbglog1(trk, ...)  fmed_dbglog(core, trk, NULL, __VA_ARGS__)
+#define errlog0(...)  fmed_errlog(core, NULL, NULL, __VA_ARGS__)
 #define syswarnlog0(...)  fmed_syswarnlog(core, NULL, NULL, __VA_ARGS__)
 #define dbglog0(...)  fmed_dbglog(core, NULL, NULL, __VA_ARGS__)
 
@@ -22,8 +23,11 @@ struct fmedia_ctx {
 	const fmed_track *track;
 	const fmed_queue *qu;
 	const fmed_mod *qumod;
+	JavaVM *jvm;
+	jmethodID Fmedia_Callback_on_finish;
 };
 static struct fmedia_ctx *fx;
+static JavaVM *jvm;
 
 extern const fmed_core *core;
 fmed_core* core_init();
@@ -34,11 +38,18 @@ extern const fmed_mod* fmed_getmod_queue(const fmed_core *_core);
 static int qu_add_dir_r(const char *fn, int qi);
 static void qu_load_file(const char *fn, int qi);
 
+JNIEXPORT jint JNI_OnLoad(JavaVM *_jvm, void *reserved)
+{
+	jvm = _jvm;
+	return JNI_VERSION_1_6;
+}
+
 JNIEXPORT void JNICALL
 Java_com_github_stsaz_fmedia_Fmedia_init(JNIEnv *env, jobject thiz)
 {
 	FF_ASSERT(fx == NULL);
 	fx = ffmem_new(fmedia_ctx);
+	fx->jvm = jvm;
 	fmed_core *core = core_init();
 	core->loglev = FMED_LOG_INFO;
 #ifdef FMED_DEBUG
@@ -349,6 +360,112 @@ end:
 	dbglog0("%s: exit", __func__);
 	return e;
 	}
+}
+
+#define RECF_EXCLUSIVE  1
+#define RECF_POWER_SAVE  2
+
+static void* rectrk_open(fmed_track_info *ti)
+{
+	return ti;
+}
+
+static void rectrk_close(void *ctx)
+{
+	fmed_track_info *ti = ctx;
+	JNIEnv *env;
+	int r = jni_attach(fx->jvm, &env);
+	if (r != 0) {
+		errlog0("jni_attach: %d", r);
+		goto end;
+	}
+	if (ti->flags & FMED_FFINISHED) {
+		jobject jo = ti->finsig_data;
+		jni_call_void(jo, fx->Fmedia_Callback_on_finish);
+	}
+
+end:
+	jni_global_unref(ti->finsig_data);
+	jni_detach(jvm);
+}
+
+static int rectrk_process(void *ctx, fmed_track_info *ti)
+{
+	return FMED_RDONE;
+}
+
+static const fmed_filter rectrk_mon = { rectrk_open, rectrk_process, rectrk_close };
+
+JNIEXPORT jlong JNICALL
+Java_com_github_stsaz_fmedia_Fmedia_recStart(JNIEnv *env, jobject thiz, jstring joname, jint buf_len_msec, jint gain_db100, jint fmt, jint q, jint until_sec, jint flags, jobject jcb)
+{
+	dbglog0("%s: enter", __func__);
+	int e = -1;
+	const char *oname = jni_sz_js(joname);
+
+	fmed_track_obj *t = fx->track->create(0, NULL);
+	fmed_track_info *ti = fx->track->conf(t);
+	ti->type = FMED_TRK_TYPE_REC;
+#ifdef FMED_DEBUG
+	ti->print_time = 1;
+#endif
+
+	fx->Fmedia_Callback_on_finish = jni_func(jni_class_obj(jcb), "on_finish", "()V");
+	ti->finsig_data = jni_global_ref(jcb);
+	fx->track->cmd(t, FMED_TRACK_FILT_ADDF, "mon", &rectrk_mon);
+
+	ti->ai_exclusive = !!(flags & RECF_EXCLUSIVE);
+	ti->ai_power_save = !!(flags & RECF_POWER_SAVE);
+	ti->a_in_buf_time = buf_len_msec;
+	if (NULL == (void*)fx->track->cmd(t, FMED_TRACK_FILT_ADD, "aaudio.in")) {
+		goto end;
+	}
+
+	if (until_sec != 0) {
+		ti->audio.until = (uint)until_sec*1000;
+		fx->track->cmd(t, FMED_TRACK_FILT_ADD, "afilter.until");
+	}
+
+	fx->track->cmd(t, FMED_TRACK_FILT_ADD, "ctl");
+
+	if (gain_db100 != 0) {
+		ti->audio.gain = gain_db100;
+		fx->track->cmd(t, FMED_TRACK_FILT_ADD, "afilter.gain");
+	}
+
+	fx->track->cmd(t, FMED_TRACK_FILT_ADD, "afilter.autoconv");
+
+	if (q != 0)
+		ti->aac.quality = (uint)q;
+	const char *fname = (void*)core->cmd(FMED_OFILTER_BYEXT, "m4a");
+	FF_ASSERT(fname != NULL);
+	fx->track->cmd(t, FMED_TRACK_FILT_ADD, fname);
+
+	ti->out_filename = ffsz_dup(oname);
+	fx->track->cmd(t, FMED_TRACK_FILT_ADD, "core.filew");
+
+	fx->track->cmd(t, FMED_TRACK_XSTART);
+	e = 0;
+
+end:
+	jni_sz_free(oname, joname);
+	if (e != 0) {
+		fx->track->cmd(t, FMED_TRACK_STOP);
+		t = NULL;
+	}
+	dbglog0("%s: exit", __func__);
+	return (jlong)t;
+}
+
+JNIEXPORT void JNICALL
+Java_com_github_stsaz_fmedia_Fmedia_recStop(JNIEnv *env, jobject thiz, jlong trk)
+{
+	if (trk == 0) return;
+
+	dbglog0("%s: enter", __func__);
+	fmed_track_obj *t = (void*)trk;
+	fx->track->cmd(t, FMED_TRACK_STOP);
+	dbglog0("%s: exit", __func__);
 }
 
 static int qu_idx(jlong q)
