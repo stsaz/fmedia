@@ -28,6 +28,7 @@ fmed_core* core_init()
 	core = &_core;
 	cx->wx = wrkx_init();
 	mods_init();
+	qu = core->getmod("core.queue");
 	return &_core;
 }
 

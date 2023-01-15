@@ -93,6 +93,7 @@ extern const fmed_filter mp4_output;
 extern const fmed_filter ogg_input;
 extern const fmed_filter opusmeta_input;
 extern const fmed_filter vorbismeta_input;
+extern const fmed_filter fmed_m3u_input;
 
 extern const fmed_filter fmed_sndmod_autoconv;
 extern const fmed_filter fmed_sndmod_conv;
@@ -162,6 +163,7 @@ const fmed_filter* mods_filter_byname(const char *name)
 		"fmt.detector",
 		"fmt.flac",
 		"fmt.flacw",
+		"fmt.m3u",
 		"fmt.mp3",
 		"fmt.mp3-copy",
 		"fmt.mp4",
@@ -186,6 +188,7 @@ const fmed_filter* mods_filter_byname(const char *name)
 		/*"fmt.detector"*/	&_fmed_format_detector,
 		/*"fmt.flac"*/	&flac_input,
 		/*"fmt.flacw"*/	&flac_output,
+		/*"fmt.m3u"*/	&fmed_m3u_input,
 		/*"fmt.mp3"*/	&mp3_input,
 		/*"fmt.mp3-copy"*/	&mp3_copy,
 		/*"fmt.mp4"*/	&mp4_input,

@@ -516,7 +516,9 @@ Java_com_github_stsaz_fmedia_Fmedia_quAdd(JNIEnv *env, jobject thiz, jlong q, jo
 		ffpath_splitname(fn, ffsz_len(fn), NULL, &ext);
 		if (ffstr_eqz(&ext, "m3u8")
 			|| ffstr_eqz(&ext, "m3u")) {
+			int qi_prev = fx->qu->cmdv(FMED_QUE_SEL, qi);
 			qu_load_file(fn, qi);
+			fx->qu->cmdv(FMED_QUE_SEL, qi_prev);
 			continue;
 		}
 
@@ -640,21 +642,16 @@ Java_com_github_stsaz_fmedia_Fmedia_quCmd(JNIEnv *env, jobject thiz, jlong q, ji
 
 static void qu_load_file(const char *fn, int qi)
 {
-	ffvec buf = {};
-	fffile_readwhole(fn, &buf, 16*1024*1024);
-	ffstr d = *(ffstr*)&buf;
-	while (d.len != 0) {
-		ffstr ln;
-		ffstr_splitby(&d, '\n', &ln, &d);
-		ffstr_trimwhite(&ln);
-		if (ln.len == 0 || ln.ptr[0] == '#')
-			continue;
+	fmed_track_obj *t = fx->track->create(FMED_TRK_TYPE_EXPAND, NULL);
+	fmed_track_info *ti = fx->track->conf(t);
 
-		fmed_que_entry e = {};
-		ffstr_setstr(&e.url, &ln);
-		fx->qu->cmdv(FMED_QUE_ADD2, qi, &e);
-	}
-	ffvec_free(&buf);
+	ti->in_filename = fn;
+	fx->track->cmd(t, FMED_TRACK_FILT_ADD, "core.file");
+
+	fx->track->cmd(t, FMED_TRACK_FILT_ADD, "fmt.m3u");
+
+	fx->track->cmd(t, FMED_TRACK_START);
+	fx->track->cmd(t, FMED_TRACK_STOP);
 }
 
 JNIEXPORT jint JNICALL
@@ -663,7 +660,11 @@ Java_com_github_stsaz_fmedia_Fmedia_quLoad(JNIEnv *env, jobject thiz, jlong q, j
 	dbglog0("%s: enter", __func__);
 	const char *fn = jni_sz_js(jfilepath);
 	int qi = qu_idx(q);
+	int qi_prev = fx->qu->cmdv(FMED_QUE_SEL, qi);
 	qu_load_file(fn, qi);
+
+	fx->qu->cmdv(FMED_QUE_SEL, qi_prev);
+
 	jni_sz_free(fn, jfilepath);
 	dbglog0("%s: exit", __func__);
 	return 0;

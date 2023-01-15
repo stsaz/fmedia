@@ -3,6 +3,7 @@
 
 #include <fmedia.h>
 const fmed_core *core;
+const fmed_queue *qu;
 
 #define syserrlog1(trk, ...)  fmed_syserrlog(core, trk, NULL, __VA_ARGS__)
 #define syserrlog0(...)  fmed_syserrlog(core, NULL, NULL, __VA_ARGS__)

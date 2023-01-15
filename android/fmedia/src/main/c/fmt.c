@@ -3,6 +3,7 @@
 
 #include <fmedia.h>
 extern const fmed_core *core;
+extern const fmed_queue *qu;
 
 #define syserrlog1(trk, ...)  fmed_syserrlog(core, trk, NULL, __VA_ARGS__)
 #define errlog1(trk, ...)  fmed_errlog(core, trk, NULL, __VA_ARGS__)
@@ -12,6 +13,9 @@ extern const fmed_core *core;
 
 #include <core/format-detector.h>
 #include <format/mmtag.h>
+
+#include <plist/entry.h>
+#include <plist/m3u-read.h>
 
 #include <format/flac-read.h>
 #include <format/flac-write.h>
