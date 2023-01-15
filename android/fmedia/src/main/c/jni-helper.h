@@ -86,7 +86,10 @@ T: JNI_T... */
 	(*env)->GetStringUTFChars(env, js, NULL)
 
 #define jni_sz_free(sz, js) \
-	(*env)->ReleaseStringUTFChars(env, js, sz)
+do { \
+	if (js != NULL) \
+		(*env)->ReleaseStringUTFChars(env, js, sz); \
+} while(0)
 
 
 #define jni_arr_len(ja) \

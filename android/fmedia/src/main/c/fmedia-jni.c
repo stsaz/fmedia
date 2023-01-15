@@ -136,11 +136,12 @@ Java_com_github_stsaz_fmedia_Fmedia_meta(JNIEnv *env, jobject thiz, jstring jfil
 	fmed_track_info *ti = fx->track->conf(t);
 	jclass jc = jni_class_obj(thiz);
 
-	const char *fn = jni_sz_js(jfilepath);
-	ti->in_filename = fn;
 	ti->input_info = 1;
 
+	const char *fn = jni_sz_js(jfilepath);
+	ti->in_filename = fn;
 	fx->track->cmd(t, FMED_TRACK_FILT_ADD, "core.file");
+
 	fx->track->cmd(t, FMED_TRACK_FILT_ADD, "fmt.detector");
 	fx->track->cmd(t, FMED_TRACK_FILT_ADD, "ctl");
 
@@ -256,7 +257,6 @@ static const char* trk_errstr(uint e)
 
 #define F_DATE_PRESERVE  1
 #define F_OVERWRITE  2
-#define F_TRASH_ORIG  4
 
 JNIEXPORT jint JNICALL
 Java_com_github_stsaz_fmedia_Fmedia_convert(JNIEnv *env, jobject thiz, jstring jiname, jstring joname, jint flags)
@@ -280,13 +280,9 @@ Java_com_github_stsaz_fmedia_Fmedia_convert(JNIEnv *env, jobject thiz, jstring j
 	ti->print_time = 1;
 #endif
 	ti->stream_copy = jni_obj_bool(thiz, jni_field(jc, "copy", JNI_TBOOL));
-	ti->aac.quality = jni_obj_int(thiz, jni_field(jc, "aac_quality", JNI_TINT));
 
 	ti->in_filename = ifn;
-
-	ti->out_filename = ffsz_dup(ofn);
-	ti->out_preserve_date = !!(flags & F_DATE_PRESERVE);
-	ti->out_overwrite = !!(flags & F_OVERWRITE);
+	fx->track->cmd(t, FMED_TRACK_FILT_ADD, "core.file");
 
 	if (0 != msec_apos(from, (int64*)&ti->audio.seek)) {
 		error = "Please set correct 'from' value";
@@ -294,21 +290,22 @@ Java_com_github_stsaz_fmedia_Fmedia_convert(JNIEnv *env, jobject thiz, jstring j
 	}
 	if ((int64)ti->audio.seek != FMED_NULL)
 		ti->seek_req = 1;
+	fx->track->cmd(t, FMED_TRACK_FILT_ADD, "fmt.detector");
 
 	if (0 != msec_apos(to, &ti->audio.until)) {
 		error = "Please set correct 'until' value";
 		goto end;
 	}
-
-	fx->track->cmd(t, FMED_TRACK_FILT_ADD, "core.file");
-	fx->track->cmd(t, FMED_TRACK_FILT_ADD, "fmt.detector");
 	fx->track->cmd(t, FMED_TRACK_FILT_ADD, "afilter.until");
+
+	ti->out_preserve_date = !!(flags & F_DATE_PRESERVE);
 	fx->track->cmd(t, FMED_TRACK_FILT_ADD, "ctl");
+
 	fx->track->cmd(t, FMED_TRACK_FILT_ADD, "afilter.autoconv");
 
 	// Add output format filter according to the file extension of user-specified output file
 	ffstr ext;
-	ffpath_split3(ti->out_filename, ffsz_len(ti->out_filename), NULL, NULL, &ext);
+	ffpath_split3(ofn, ffsz_len(ofn), NULL, NULL, &ext);
 	if (ext.len == 0) {
 		error = "Please set output file extension";
 		goto end;
@@ -322,22 +319,16 @@ Java_com_github_stsaz_fmedia_Fmedia_convert(JNIEnv *env, jobject thiz, jstring j
 		error = ".mp3 output requires Stream Copy";
 		goto end;
 	}
-	if (!(ti->stream_copy && ffstr_eqz(&ext, "mp3"))) // Note: fmt.mp3-copy is added directly by fmt.mp3
+	if (!(ti->stream_copy && ffstr_eqz(&ext, "mp3"))) { // Note: fmt.mp3-copy is added directly by fmt.mp3
+		ti->aac.quality = jni_obj_int(thiz, jni_field(jc, "aac_quality", JNI_TINT));
 		fx->track->cmd(t, FMED_TRACK_FILT_ADD, fname);
+	}
 
+	ti->out_filename = ffsz_dup(ofn);
+	ti->out_overwrite = !!(flags & F_OVERWRITE);
 	fx->track->cmd(t, FMED_TRACK_FILT_ADD, "core.filew");
 
 	fx->track->cmd(t, FMED_TRACK_START);
-
-	if ((flags & F_TRASH_ORIG) && ti->error == 0
-		&& !ffsz_eq(ti->in_filename, ti->out_filename)) {
-
-		jstring jtrash_dir = jni_obj_jo(thiz, jni_field(jc, "trash_dir", JNI_TSTR));
-		const char *trash_dir = jni_sz_js(jtrash_dir);
-		if (0 != file_trash(trash_dir, ti->in_filename))
-		{}
-		jni_sz_free(trash_dir, jtrash_dir);
-	}
 
 end:
 	{
@@ -502,13 +493,13 @@ Java_com_github_stsaz_fmedia_Fmedia_quDestroy(JNIEnv *env, jobject thiz, jlong q
 JNIEXPORT void JNICALL
 Java_com_github_stsaz_fmedia_Fmedia_quAdd(JNIEnv *env, jobject thiz, jlong q, jobjectArray jurls, jint flags)
 {
+	dbglog0("%s: enter", __func__);
 	int qi = qu_idx(q);
-	jstring js;
+	jstring js = NULL;
 	const char *fn = NULL;
 	ffsize n = jni_arr_len(jurls);
 	for (uint i = 0;  i != n;  i++) {
-		if (fn != NULL)
-			jni_sz_free(fn, js);
+		jni_sz_free(fn, js);
 		js = jni_joa_i(jurls, i);
 		fn = jni_sz_js(js);
 
@@ -533,6 +524,7 @@ Java_com_github_stsaz_fmedia_Fmedia_quAdd(JNIEnv *env, jobject thiz, jlong q, jo
 	}
 
 	jni_sz_free(fn, js);
+	dbglog0("%s: exit", __func__);
 }
 
 static int qu_add_dir_r(const char *fn, int qi)

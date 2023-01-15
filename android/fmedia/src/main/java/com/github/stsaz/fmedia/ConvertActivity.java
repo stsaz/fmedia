@@ -14,6 +14,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.SwitchCompat;
 
 public class ConvertActivity extends AppCompatActivity {
+	private static final String TAG = "fmedia.ConvertActivity";
 	Core core;
 	private EditText tiname, todir, toname, toext, tfrom, tuntil, taac_q;
 	private SwitchCompat bcopy, bpreserve, btrash_orig, bpl_add;
@@ -103,20 +104,27 @@ public class ConvertActivity extends AppCompatActivity {
 			flags |= Fmedia.F_DATE_PRESERVE;
 		if (false)
 			flags |= Fmedia.F_OVERWRITE;
-		if (btrash_orig.isChecked())
-			flags |= Fmedia.F_TRASH_ORIG;
 
-		core.fmedia.trash_dir = core.setts.trash_dir;
 		core.fmedia.from_msec = tfrom.getText().toString();
 		core.fmedia.to_msec = tuntil.getText().toString();
 		core.fmedia.copy = bcopy.isChecked();
 		core.fmedia.aac_quality = core.str_to_uint(taac_q.getText().toString(), 0);
+		String iname = tiname.getText().toString();
 		String oname = String.format("%s/%s.%s", todir.getText().toString(), toname.getText().toString(), toext.getText().toString());
-		int r = core.fmedia.convert(tiname.getText().toString(), oname, flags);
+		int r = core.fmedia.convert(iname, oname, flags);
 		lresult.setText(core.fmedia.result);
 
 		if (r == 0 && bpl_add.isChecked()) {
 			core.queue().add(oname);
+		}
+
+		if (r == 0 && btrash_orig.isChecked() && !iname.equals(oname)) {
+			String e = core.fmedia.trash(core.setts.trash_dir, iname);
+			if (!e.isEmpty()) {
+				core.errlog(TAG, "Can't trash file %s: %s", iname, e);
+			} else {
+				// core.queue().remove(x);
+			}
 		}
 	}
 }

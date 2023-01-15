@@ -96,6 +96,7 @@ OBJ := \
 	$(OBJ_DIR)/ffpcm.o \
 	$(OBJ_DIR)/fmedia-jni.o \
 	$(OBJ_DIR)/fmt.o \
+	$(OBJ_DIR)/fmt-ul.o \
 	$(OBJ_DIR)/queue.o
 
 $(OBJ_DIR)/ffpcm.o: $(FMED_DIR)/src/afilter/ffpcm.c \
@@ -106,12 +107,25 @@ $(OBJ_DIR)/queue.o: $(FMED_DIR)/src/core/queue.c \
 		$(wildcard $(FMED_DIR)/src/core/queue-*.h)
 	$(C) $(CFLAGS) $(APP_CFLAGS_OPT) $< -o $@
 
+$(OBJ_DIR)/fmt.o: $(FMED_DIR)/android/fmedia/src/main/c/fmt.c \
+		$(wildcard $(FMED_DIR)/android/fmedia/src/main/c/*.h) \
+		$(wildcard $(FMED_DIR)/src/format/*.h) \
+		$(wildcard $(FMED_DIR)/src/plist/*.h)
+	$(C) $(CFLAGS) $(CFLAGS_OPT) $< -o $@
+
+$(OBJ_DIR)/fmedia-jni.o: $(FMED_DIR)/android/fmedia/src/main/c/fmedia-jni.c \
+		$(wildcard $(FMED_DIR)/android/fmedia/src/main/c/*.h)
+	$(C) $(CFLAGS) $(CFLAGS_OPT) $< -o $@
+
 $(OBJ_DIR)/%.o: $(FMED_DIR)/src/afilter/%.c \
+		$(wildcard $(FMED_DIR)/android/fmedia/src/main/c/*.h) \
 		$(wildcard $(FMED_DIR)/src/afilter/*.h)
-	$(C) $(CFLAGS) $(APP_CFLAGS_OPT) $< -o $@
+	$(C) $(CFLAGS) $(CFLAGS_OPT) $< -o $@
 
 $(OBJ_DIR)/%.o: $(FMED_DIR)/android/fmedia/src/main/c/%.c \
-		$(wildcard $(FMED_DIR)/android/fmedia/src/main/c/*.h)
+		$(wildcard $(FMED_DIR)/android/fmedia/src/main/c/*.h) \
+		$(wildcard $(FMED_DIR)/src/format/*.h) \
+		$(wildcard $(FMED_DIR)/src/plist/*.h)
 	$(C) $(CFLAGS) $(APP_CFLAGS_OPT) $< -o $@
 
 LIBDIR := $(LIBDIR_AMD64)

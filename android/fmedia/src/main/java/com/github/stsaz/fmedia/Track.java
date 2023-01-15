@@ -333,7 +333,7 @@ class Track {
 			core.dbglog(TAG, "opening filter %s", f);
 			int r = f.open(tplay);
 			if (r != 0) {
-				core.errlog(TAG, "f.open(): %d", r);
+				core.dbglog(TAG, "f.open(): %d", r);
 				tplay.error = true;
 				trk_close(tplay);
 				return;
