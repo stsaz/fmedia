@@ -2,12 +2,14 @@
 Copyright (c) 2015 Simon Zolin */
 
 #include <fmedia.h>
-#include <util/path.h>
 #include <util/url.h>
+
+#define warnlog1(trk, ...)  fmed_warnlog(core, trk, NULL, __VA_ARGS__)
 
 const fmed_core *core;
 const fmed_queue *qu;
 
+#include <plist/entry.h>
 
 //FMEDIA MODULE
 static const void* plist_iface(const char *name);
@@ -18,24 +20,6 @@ static const fmed_mod fmed_plist_mod = {
 	.ver = FMED_VER_FULL, .ver_core = FMED_VER_CORE,
 	&plist_iface, &plist_sig, &plist_destroy, &plist_conf
 };
-
-typedef struct pls_entry {
-	ffarr url;
-	ffarr artist;
-	ffarr title;
-	int duration;
-	uint clear :1;
-} pls_entry;
-
-static FFINL void pls_entry_free(pls_entry *ent)
-{
-	ffarr_free(&ent->url);
-	ffarr_free(&ent->artist);
-	ffarr_free(&ent->title);
-	ent->duration = -1;
-}
-
-int plist_fullname(fmed_filt *d, const ffstr *name, ffstr *dst);
 
 FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 {
@@ -89,36 +73,4 @@ static int plist_sig(uint signo)
 
 static void plist_destroy(void)
 {
-}
-
-
-/** Parse URI scheme.
-Return scheme length on success. */
-static inline uint ffuri_scheme(const char *s, size_t len)
-{
-	ffstr scheme;
-	if (0 >= (ssize_t)ffs_fmatch(s, len, "%S://", &scheme))
-		return 0;
-	return scheme.len;
-}
-
-/** Get absolute filename. */
-int plist_fullname(fmed_filt *d, const ffstr *name, ffstr *dst)
-{
-	const char *fn;
-	ffstr path = {0};
-	ffstr3 s = {0};
-
-	if (0 == ffuri_scheme(name->ptr, name->len)
-		&& !ffpath_abs(name->ptr, name->len)) {
-
-		fn = d->track->getvalstr(d->trk, "input");
-		if (NULL != ffpath_split2(fn, ffsz_len(fn), &path, NULL))
-			path.len++;
-	}
-
-	if (0 == ffstr_catfmt(&s, "%S%S", &path, name))
-		return 1;
-	ffstr_acqstr3(dst, &s);
-	return 0;
 }

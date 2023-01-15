@@ -2,6 +2,7 @@
 Copyright (c) 2019 Simon Zolin */
 
 #include <fmedia.h>
+#include <plist/entry.h>
 #include <avpack/cue.h>
 
 
@@ -9,7 +10,6 @@ Copyright (c) 2019 Simon Zolin */
 
 extern const fmed_core *core;
 extern const fmed_queue *qu;
-extern int plist_fullname(fmed_filt *d, const ffstr *name, ffstr *dst);
 
 enum FFCUE_GAP {
 	/* Gap is added to the end of the previous track:

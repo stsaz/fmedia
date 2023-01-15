@@ -18,7 +18,8 @@ static void* m3u_open(fmed_filt *d)
 	if (NULL == (m = ffmem_tcalloc1(m3u)))
 		return NULL;
 	m3uread_open(&m->m3u);
-	m->qu_cur = (void*)fmed_getval("queue_item");
+	if (d->track->getval != NULL)
+		m->qu_cur = (void*)fmed_getval("queue_item");
 	return m;
 }
 
@@ -119,7 +120,7 @@ static int m3u_process(void *ctx, fmed_filt *d)
 			break;
 
 		case M3UREAD_WARN:
-			warnlog(core, d->trk, "m3u", "parse error: %s", m3uread_error(&m->m3u));
+			warnlog1(d->trk, "parse error: %s", m3uread_error(&m->m3u));
 			continue;
 
 		default:
@@ -129,4 +130,4 @@ static int m3u_process(void *ctx, fmed_filt *d)
 	}
 }
 
-static const fmed_filter fmed_m3u_input = { m3u_open, m3u_process, m3u_close };
+const fmed_filter fmed_m3u_input = { m3u_open, m3u_process, m3u_close };
