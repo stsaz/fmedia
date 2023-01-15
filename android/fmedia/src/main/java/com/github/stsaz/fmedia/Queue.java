@@ -296,7 +296,7 @@ class Queue {
 		active = false;
 		boolean play_next = !t.stopped;
 
-		if ((t.error && !core.setts.no_qu_rm_on_err)
+		if ((t.error && core.setts.qu_rm_on_err)
 				|| (b_order_next && core.setts.list_rm_on_next)) {
 			remove(pl.curpos);
 		}

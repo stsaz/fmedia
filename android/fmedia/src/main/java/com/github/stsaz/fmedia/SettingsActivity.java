@@ -16,7 +16,7 @@ public class SettingsActivity extends AppCompatActivity {
 	private static final String TAG = "fmedia.SettingsActivity";
 	private Core core;
 	private SwitchCompat brandom, brepeat, bfilter_hide, brec_hide, bsvc_notif_disable, bfile_del;
-	private SwitchCompat bnotags, blist_rm_on_next, bdark;
+	private SwitchCompat bnotags, blist_rm_on_next, blist_rm_on_err, bdark;
 	private TextView tdata_dir, trecdir, tbitrate, ttrash_dir, tautoskip, tcodepage;
 
 	@Override
@@ -28,6 +28,7 @@ public class SettingsActivity extends AppCompatActivity {
 			actionBar.setDisplayHomeAsUpEnabled(true);
 
 		core = Core.getInstance();
+		setup();
 		load();
 	}
 
@@ -45,7 +46,7 @@ public class SettingsActivity extends AppCompatActivity {
 		super.onDestroy();
 	}
 
-	private void load() {
+	private void setup() {
 		// Interface
 		bdark = findViewById(R.id.bdark);
 		bdark.setChecked(core.gui().theme == GUI.THM_DARK);
@@ -71,6 +72,7 @@ public class SettingsActivity extends AppCompatActivity {
 
 		blist_rm_on_next = findViewById(R.id.blist_rm_on_next);
 		blist_rm_on_next.setChecked(core.setts.list_rm_on_next);
+		blist_rm_on_err = findViewById(R.id.blist_rm_on_err);
 
 		tcodepage = findViewById(R.id.tcodepage);
 		tcodepage.setText(core.setts.codepage);
@@ -96,11 +98,16 @@ public class SettingsActivity extends AppCompatActivity {
 		tbitrate.setText(Integer.toString(core.setts.enc_bitrate));
 	}
 
+	private void load() {
+		blist_rm_on_err.setChecked(core.setts.qu_rm_on_err);
+	}
+
 	private void save() {
 		core.queue().random(brandom.isChecked());
 		core.queue().repeat(brepeat.isChecked());
 		core.setts.no_tags = bnotags.isChecked();
 		core.setts.list_rm_on_next = blist_rm_on_next.isChecked();
+		core.setts.qu_rm_on_err = blist_rm_on_err.isChecked();
 		core.setts.set_codepage(tcodepage.getText().toString());
 		core.fmedia.setCodepage(core.setts.codepage);
 		core.queue().autoskip_msec = core.str_to_uint(tautoskip.getText().toString(), 0) * 1000;

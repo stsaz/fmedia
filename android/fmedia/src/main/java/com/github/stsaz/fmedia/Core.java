@@ -21,7 +21,7 @@ class CoreSettings {
 	boolean file_del;
 	boolean no_tags;
 	boolean list_rm_on_next;
-	boolean no_qu_rm_on_err;
+	boolean qu_rm_on_err;
 	String codepage;
 	String pub_data_dir;
 
@@ -46,6 +46,7 @@ class CoreSettings {
 				String.format("file_delete %d\n", core.bool_to_int(file_del)) +
 				String.format("no_tags %d\n", core.bool_to_int(no_tags)) +
 				String.format("list_rm_on_next %d\n", core.bool_to_int(list_rm_on_next)) +
+				String.format("qu_rm_on_err %d\n", core.bool_to_int(qu_rm_on_err)) +
 				String.format("codepage %s\n", codepage) +
 				String.format("rec_path %s\n", rec_path) +
 				String.format("enc_bitrate %d\n", enc_bitrate) +
@@ -80,6 +81,8 @@ class CoreSettings {
 			no_tags = core.str_to_bool(v);
 		else if (k.equals("list_rm_on_next"))
 			list_rm_on_next = core.str_to_bool(v);
+		else if (k.equals("qu_rm_on_err"))
+			qu_rm_on_err = core.str_to_bool(v);
 		else if (k.equals("codepage"))
 			set_codepage(v);
 		else if (k.equals("enc_bitrate"))
