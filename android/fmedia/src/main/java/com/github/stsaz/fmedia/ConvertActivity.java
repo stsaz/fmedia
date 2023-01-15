@@ -17,7 +17,7 @@ public class ConvertActivity extends AppCompatActivity {
 	Core core;
 	private EditText tiname, todir, toname, toext, tfrom, tuntil, taac_q;
 	private SwitchCompat bcopy, bpreserve, btrash_orig, bpl_add;
-	private Button bfrom_set_cur, bstart;
+	private Button bfrom_set_cur, until_set_cur, bstart;
 	private TextView lresult;
 
 	@Override
@@ -33,7 +33,9 @@ public class ConvertActivity extends AppCompatActivity {
 		toext = findViewById(R.id.conv_toext);
 		tfrom = findViewById(R.id.conv_tfrom);
 		bfrom_set_cur = findViewById(R.id.conv_bfrom_set_cur);
-		bfrom_set_cur.setOnClickListener((v) -> frompos_set_cur());
+		bfrom_set_cur.setOnClickListener((v) -> pos_set_cur(true));
+		until_set_cur = findViewById(R.id.conv_until_set_cur);
+		until_set_cur.setOnClickListener((v) -> pos_set_cur(false));
 		tuntil = findViewById(R.id.conv_tuntil);
 		bcopy = findViewById(R.id.conv_bcopy);
 		bpreserve = findViewById(R.id.conv_bpreserve_date);
@@ -83,10 +85,14 @@ public class ConvertActivity extends AppCompatActivity {
 		super.onDestroy();
 	}
 
-	/** Set 'from' position equal to the current playing position */
-	private void frompos_set_cur() {
+	/** Set 'from/until' position equal to the current playing position */
+	private void pos_set_cur(boolean from) {
 		int sec = core.track().curpos_msec() / 1000;
-		tfrom.setText(String.format("%d:%02d", sec/60, sec%60));
+		String s = String.format("%d:%02d", sec/60, sec%60);
+		if (from)
+			tfrom.setText(s);
+		else
+			tuntil.setText(s);
 	}
 
 	private void convert() {
