@@ -974,8 +974,8 @@ enum FMED_QUE {
 	qu->cmdv(FMED_QUE_DEL, int list_index); */
 	FMED_QUE_DEL,
 
-	/**
-	qu->cmdv(FMED_QUE_SEL, uint list_index); */
+	/** Select list and return the previously selected list index.
+	int prev_index = qu->cmdv(FMED_QUE_SEL, uint list_index); */
 	FMED_QUE_SEL,
 
 	/** List playlist entries.

@@ -992,16 +992,22 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 	case FMED_QUE_SEL:
 		{
 		uint i = 0, n = (uint)(size_t)param;
-		fflist_item *li;
 
 		if (n >= qu->plists.len)
 			return -1;
 
+		plist *sel;
+		int prev = -1;
+		fflist_item *li;
 		FFLIST_FOREACH(&qu->plists, li) {
+			plist *pl = FF_STRUCTPTR(plist, sib, li);
+			if (pl == qu->curlist)
+				prev = i;
 			if (i++ == n)
-				break;
+				sel = pl;
 		}
-		qu->curlist = FF_GETPTR(plist, sib, li);
+		qu->curlist = sel;
+		return prev;
 		}
 		break;
 
