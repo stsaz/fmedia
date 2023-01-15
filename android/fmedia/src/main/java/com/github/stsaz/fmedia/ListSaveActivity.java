@@ -11,7 +11,10 @@ import android.widget.EditText;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import java.io.File;
+
 public class ListSaveActivity extends AppCompatActivity {
+	private static final String TAG = "fmedia.ListSaveActivity";
 	Core core;
 	private EditText tname;
 	private Button bsave;
@@ -36,6 +39,11 @@ public class ListSaveActivity extends AppCompatActivity {
 
 	private void save() {
 		String fn = String.format("%s/%s.m3u8", core.setts.pub_data_dir, tname.getText().toString());
+		File f = new File(fn);
+		if (f.exists()) {
+			core.errlog(TAG, "File exists.  Please specify a different name.");
+			return;
+		}
 		core.queue().save(fn);
 		this.finish();
 	}
