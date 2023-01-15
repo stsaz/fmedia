@@ -182,7 +182,7 @@ void gui_theme_set(int idx)
 
 	ffui_loader ldr;
 	ffui_ldr_init2(&ldr, &gui_getctl, NULL, gg);
-	ffui_ldr_loadconf(&ldr, fn);
+	ffui_ldr_loadconf(&ldr, fn, 1*1024*1024);
 	fffile_rm(fn);
 
 	ffui_menuitem mi = {};

@@ -1658,7 +1658,7 @@ int ffui_ldr_loadfile(ffui_loader *g, const char *fn)
 	g->path.len += FFS_LEN("/");
 
 	ffstr errstr = {};
-	int r = ffconf_parse_file(top_args, g, fn, 0, &errstr);
+	int r = ffconf_parse_file(top_args, g, fn, 0, &errstr, 1*1024*1024);
 	if (r != 0) {
 		ffmem_free(g->errstr);
 		g->errstr = ffsz_dupstr(&errstr);
@@ -1763,12 +1763,12 @@ int ffui_ldr_write(ffui_loaderw *ldr, const char *fn)
 	return fffile_writewhole(fn, buf.ptr, buf.len, 0);
 }
 
-void ffui_ldr_loadconf(ffui_loader *g, const char *fn)
+void ffui_ldr_loadconf(ffui_loader *g, const char *fn, ffuint64 file_max_size)
 {
 	ffvec buf = {};
 	ffstr s, line, name, val;
 
-	if (0 != fffile_readwhole(fn, &buf, 64*1024*1024))
+	if (0 != fffile_readwhole(fn, &buf, file_max_size))
 		goto done;
 	ffstr_setstr(&s, &buf);
 

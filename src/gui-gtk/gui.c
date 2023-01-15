@@ -296,7 +296,7 @@ static int load_ui()
 		goto done;
 	}
 
-	ffui_ldr_loadconf(&ldr, fnconf);
+	ffui_ldr_loadconf(&ldr, fnconf, 1*1024*1024);
 	r = 0;
 
 done:

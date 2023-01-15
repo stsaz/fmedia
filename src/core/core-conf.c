@@ -20,7 +20,6 @@ void conf_destroy(fmed_config *conf)
 }
 
 enum {
-	CONF_MBUF = 2 * 4096,
 	CONF_DELAYED = 100,
 };
 
@@ -424,9 +423,7 @@ int core_conf_parse(fmed_config *conf, const char *filename, uint flags)
 	fmed_conf ps = {};
 	int r = FMC_ESYS;
 	ffstr s;
-	char *buf = NULL;
-	size_t n;
-	fffd f = FF_BADFD;
+	ffvec buf = {};
 
 	ffconf_init(&pconf);
 	ffconf_scheme_init(&ps, &pconf);
@@ -435,7 +432,7 @@ int core_conf_parse(fmed_config *conf, const char *filename, uint flags)
 	else
 		ffconf_scheme_addctx(&ps, conf_args, conf);
 
-	if (FF_BADFD == (f = fffile_open(filename, O_RDONLY))) {
+	if (0 != fffile_readwhole(filename, &buf, 1*1024*1024)) {
 		if (fferr_nofile(fferr_last()) && (flags & CONF_F_OPT)) {
 			r = 0;
 			goto fail;
@@ -446,17 +443,8 @@ int core_conf_parse(fmed_config *conf, const char *filename, uint flags)
 
 	dbglog(core, NULL, "core", "reading config file %s", filename);
 
-	if (NULL == (buf = ffmem_alloc(CONF_MBUF))) {
-		goto err;
-	}
-
-	for (;;) {
-		n = fffile_read(f, buf, CONF_MBUF);
-		if (n == (size_t)-1) {
-			goto err;
-		} else if (n == 0)
-			break;
-		ffstr_set(&s, buf, n);
+	{
+		ffstr_setstr(&s, &buf);
 
 		while (s.len != 0) {
 			ffstr val;
@@ -514,8 +502,6 @@ fail:
 	ffconf_ctxcopy_destroy(&conf->conf_copy);
 	ffconf_fin(&pconf);
 	ffconf_scheme_destroy(&ps);
-	ffmem_safefree(buf);
-	if (f != FF_BADFD)
-		fffile_close(f);
+	ffvec_free(&buf);
 	return r;
 }

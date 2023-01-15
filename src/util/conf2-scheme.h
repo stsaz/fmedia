@@ -513,10 +513,10 @@ end:
 }
 
 #ifdef _FFOS_FILE_H
-static inline int ffconf_parse_file(const ffconf_arg *args, void *obj, const char *fn, ffuint scheme_flags, ffstr *errmsg)
+static inline int ffconf_parse_file(const ffconf_arg *args, void *obj, const char *fn, ffuint scheme_flags, ffstr *errmsg, ffuint64 file_max_size)
 {
 	ffvec data = {};
-	if (0 != fffile_readwhole(fn, &data, -1)) {
+	if (0 != fffile_readwhole(fn, &data, file_max_size)) {
 		if (errmsg != NULL) {
 			ffsize cap = 0;
 			errmsg->len = 0;

@@ -857,7 +857,7 @@ static FFTHDCALL int gui_worker(void *param)
 		ffui_ldr_fin(&ldr);
 		goto err;
 	}
-	ffui_ldr_loadconf(&ldr, fnconf);
+	ffui_ldr_loadconf(&ldr, fnconf, 1*1024*1024);
 	ffmem_free0(fn);
 	ffmem_free0(fnconf);
 	gg->paned_array = ldr.paned_array;

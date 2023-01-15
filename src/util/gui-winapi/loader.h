@@ -111,7 +111,7 @@ FF_EXTERN void ffui_ldr_fin(ffui_loader *g);
 /** Load GUI from file. */
 FF_EXTERN int ffui_ldr_loadfile(ffui_loader *g, const char *fn);
 
-FF_EXTERN void ffui_ldr_loadconf(ffui_loader *g, const char *fn);
+FF_EXTERN void ffui_ldr_loadconf(ffui_loader *g, const char *fn, ffuint64 file_max_size);
 
 
 typedef struct ffui_ldr_ctl ffui_ldr_ctl;
