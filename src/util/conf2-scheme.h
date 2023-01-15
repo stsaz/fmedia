@@ -12,6 +12,7 @@ ffconf_parse_file
 
 #pragma once
 #include "conf2.h"
+#include "conf2-ltconf.h"
 #include <FFOS/file.h> // optional
 #include <FFOS/error.h>
 #include <ffbase/stringz.h>
@@ -473,16 +474,16 @@ Return 0 on success
 static inline int ffconf_parse_object(const ffconf_arg *args, void *obj, ffstr *data, ffuint scheme_flags, ffstr *errmsg)
 {
 	int r, r2;
-	ffconf c = {};
-	ffconf_init(&c);
+	ffltconf c = {};
+	ffltconf_init(&c);
 
 	ffconf_scheme cs = {};
 	cs.flags = scheme_flags;
-	cs.parser = &c;
+	cs.parser = &c.ff;
 	ffconf_scheme_addctx(&cs, args, obj);
 
 	for (;;) {
-		r = ffconf_parse(&c, data);
+		r = ffltconf_parse(&c, data);
 		if (r < 0)
 			goto end;
 		else if (r == 0)
@@ -495,17 +496,17 @@ static inline int ffconf_parse_object(const ffconf_arg *args, void *obj, ffstr *
 
 end:
 	ffconf_scheme_destroy(&cs);
-	r2 = ffconf_fin(&c);
+	r2 = ffltconf_fin(&c);
 	if (r == 0)
 		r = r2;
 
 	if (r != 0 && errmsg != NULL) {
 		ffsize cap = 0;
-		const char *err = ffconf_errstr(r);
+		const char *err = ffltconf_error(&c);
 		if (r == -FFCONF_ESCHEME)
 			err = cs.errmsg;
 		ffstr_growfmt(errmsg, &cap, "%u:%u: %s"
-			, (int)c.line, (int)c.linechar
+			, (int)c.ff.line, (int)c.ff.linechar
 			, err);
 	}
 

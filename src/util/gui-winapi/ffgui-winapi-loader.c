@@ -1797,10 +1797,10 @@ void ffui_ldr_loadconf(ffui_loader *g, const char *fn, ffuint64 file_max_size)
 
 		g->ctl = g->getctl(g->udata, &name);
 		if (g->ctl != NULL) {
-			ffconf conf = {};
-			ffconf_init(&conf);
+			ffltconf conf = {};
+			ffltconf_init(&conf);
 			ffconf_scheme cs = {};
-			cs.parser = &conf;
+			cs.parser = &conf.ff;
 			state_reset(g);
 
 			switch (g->ctl->uid) {
@@ -1835,7 +1835,7 @@ void ffui_ldr_loadconf(ffui_loader *g, const char *fn, ffuint64 file_max_size)
 
 			ffbool lf = 0;
 			for (;;) {
-				int r = ffconf_parse(&conf, &val);
+				int r = ffltconf_parse(&conf, &val);
 				if (r < 0)
 					goto done;
 				else if (r == FFCONF_RMORE && !lf) {
@@ -1852,7 +1852,7 @@ void ffui_ldr_loadconf(ffui_loader *g, const char *fn, ffuint64 file_max_size)
 			}
 
 			ffconf_scheme_destroy(&cs);
-			ffconf_fin(&conf);
+			ffltconf_fin(&conf);
 		}
 	}
 

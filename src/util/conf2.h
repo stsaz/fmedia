@@ -132,8 +132,7 @@ static inline int ffconf_strval_acquire(ffconf *c, ffstr *dst)
 		ffstr_null(dst);
 		return 0;
 	}
-	if (c->buf.cap != 0) {
-		FF_ASSERT(c->val.ptr == c->buf.ptr);
+	if (c->buf.cap != 0 && c->val.ptr == c->buf.ptr) {
 		*dst = c->val;
 		ffvec_free(&c->buf);
 		return 0;

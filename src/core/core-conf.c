@@ -2,6 +2,7 @@
 Copyright (c) 2019 Simon Zolin */
 
 #include <core/core-priv.h>
+#include <util/conf2-ltconf.h>
 
 void usrconf_read(ffconf_scheme *sc, ffstr key, ffstr val);
 
@@ -419,14 +420,14 @@ static void inout_ext_map_init(ffmap *map, ffslice *arr)
 
 int core_conf_parse(fmed_config *conf, const char *filename, uint flags)
 {
-	ffconf pconf;
+	ffltconf pconf;
 	fmed_conf ps = {};
 	int r = FMC_ESYS;
 	ffstr s;
 	ffvec buf = {};
 
-	ffconf_init(&pconf);
-	ffconf_scheme_init(&ps, &pconf);
+	ffltconf_init(&pconf);
+	ffconf_scheme_init(&ps, &pconf.ff);
 	if (flags & CONF_F_USR)
 		ffconf_scheme_addctx(&ps, confusr_args, conf);
 	else
@@ -448,7 +449,7 @@ int core_conf_parse(fmed_config *conf, const char *filename, uint flags)
 
 		while (s.len != 0) {
 			ffstr val;
-			r = ffconf_parse3(&pconf, &s, &val);
+			r = ffltconf_parse3(&pconf, &s, &val);
 			if (r < 0)
 				goto err;
 
@@ -457,7 +458,7 @@ int core_conf_parse(fmed_config *conf, const char *filename, uint flags)
 				if (r2 < 0) {
 					errlog0("parse config: %s: %u:%u: ffconf_ctx_copy()"
 						, filename
-						, pconf.line, pconf.linechar);
+						, pconf.ff.line, pconf.ff.linechar);
 					goto fail;
 				} else if (r2 > 0) {
 					core_mod *m = (void*)conf->conf_copy_mod;
@@ -474,18 +475,18 @@ int core_conf_parse(fmed_config *conf, const char *filename, uint flags)
 		}
 	}
 
-	r = ffconf_fin(&pconf);
+	r = ffltconf_fin(&pconf);
 
 err:
 	if (r < 0) {
-		const char *ser = ffconf_errstr(r);
+		const char *ser = ffltconf_error(&pconf);
 		if (r == -FFCONF_ESCHEME)
 			ser = ps.errmsg;
 		errlog(core, NULL, "core"
 			, "parse config: %s: %u:%u: near \"%S\": \"%s\": %s"
 			, filename
-			, pconf.line, pconf.linechar
-			, &pconf.val, (ps.arg != NULL) ? ps.arg->name : ""
+			, pconf.ff.line, pconf.ff.linechar
+			, &pconf.ff.val, (ps.arg != NULL) ? ps.arg->name : ""
 			, (r == FMC_ESYS) ? fferr_strp(fferr_last()) : ser);
 		goto fail;
 	}
@@ -500,7 +501,7 @@ err:
 fail:
 	conf->conf_copy_mod = NULL;
 	ffconf_ctxcopy_destroy(&conf->conf_copy);
-	ffconf_fin(&pconf);
+	ffltconf_fin(&pconf);
 	ffconf_scheme_destroy(&ps);
 	ffvec_free(&buf);
 	return r;

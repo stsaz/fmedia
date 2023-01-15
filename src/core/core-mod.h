@@ -1,6 +1,8 @@
 /** fmedia: core: modules
 2015,2021, Simon Zolin */
 
+#include <util/conf2-ltconf.h>
+
 #define FMED_VER_GETMAJ(fullver)  ((fullver & 0xff0000) >> 16)
 #define FMED_VER_GETMIN(fullver)  ((fullver & 0xff00) >> 8)
 #define FMED_VER_GETPATCH(fullver)  (fullver & 0xff)
@@ -300,14 +302,14 @@ static int mod_usrconf_read(core_mod *mod)
 static int mod_readconf(core_mod *mod, const char *name)
 {
 	int r, rc = -1;
-	ffconf conf = {};
+	ffltconf conf = {};
 	ffconf_scheme ps = {};
 
 	if (mod->m->conf == NULL)
 		return -1;
 
-	ffconf_init(&conf);
-	ffconf_scheme_init(&ps, &conf);
+	ffltconf_init(&conf);
+	ffconf_scheme_init(&ps, &conf.ff);
 
 	fmed_conf_ctx ctx = {};
 	if (0 != mod->m->conf(name, &ctx))
@@ -317,13 +319,13 @@ static int mod_readconf(core_mod *mod, const char *name)
 
 	ffstr data = mod->conf_data;
 	while (data.len != 0) {
-		r = ffconf_parse(&conf, &data);
+		r = ffltconf_parse(&conf, &data);
 		r = ffconf_scheme_process(&ps, r);
 		if (r < 0)
 			goto done;
 	}
 
-	r = ffconf_fin(&conf);
+	r = ffltconf_fin(&conf);
 	if (r < 0)
 		goto done;
 
@@ -334,11 +336,11 @@ static int mod_readconf(core_mod *mod, const char *name)
 done:
 	if (rc != 0) {
 		errlog0("can't load module %s: config parser: %u:%u: \"%s\": %s"
-			, mod->name, conf.line, conf.linechar
+			, mod->name, conf.ff.line, conf.ff.linechar
 			, (ps.arg != NULL) ? ps.arg->name : ""
 			, ffconf_errstr(r));
 	}
-	ffconf_fin(&conf);
+	ffltconf_fin(&conf);
 	ffconf_scheme_destroy(&ps);
 	return rc;
 }
