@@ -81,7 +81,7 @@ static ssize_t soxr_cmd(void *ctx, uint cmd, ...)
 	return r;
 }
 
-static void log_pcmconv(const char *module, int r, const ffpcmex *in, const ffpcmex *out, void *trk)
+static void log_pcmconv(int r, const ffpcmex *in, const ffpcmex *out, void *trk)
 {
 	int f = FMED_LOG_DEBUG;
 	const char *unsupp = "";
@@ -89,7 +89,7 @@ static void log_pcmconv(const char *module, int r, const ffpcmex *in, const ffpc
 		f = FMED_LOG_ERR;
 		unsupp = "unsupported ";
 	}
-	core->log(f, trk, module, "%sPCM conversion: %s/%u/%u/%s -> %s/%u/%u/%s"
+	core->log(f, trk, NULL, "%sPCM conversion: %s/%u/%u/%s -> %s/%u/%u/%s"
 		, unsupp
 		, ffpcm_fmtstr(in->format), in->sample_rate, in->channels, (in->ileaved) ? "i" : "ni"
 		, ffpcm_fmtstr(out->format), out->sample_rate, (out->channels & FFPCM_CHMASK), (out->ileaved) ? "i" : "ni");
@@ -113,7 +113,7 @@ static int soxr_conv(void *ctx, fmed_filt *d)
 		// c->soxr.dither = 1;
 		if (0 != (val = ffsoxr_create(&c->soxr, &inpcm, &outpcm))
 			|| (core->loglev == FMED_LOG_DEBUG)) {
-			log_pcmconv("soxr", val, &inpcm, &outpcm, d->trk);
+			log_pcmconv(val, &inpcm, &outpcm, d->trk);
 			if (val != 0)
 				return FMED_RERR;
 		}

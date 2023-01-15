@@ -4,6 +4,9 @@ Copyright (c) 2019 Simon Zolin */
 #include <fmedia.h>
 #include <afilter/pcm.h>
 
+#define errlog1(trk, ...)  fmed_errlog(core, trk, NULL, __VA_ARGS__)
+#define dbglog1(trk, ...)  fmed_dbglog(core, trk, NULL, __VA_ARGS__)
+
 extern const fmed_core *core;
 
 enum {
@@ -33,7 +36,7 @@ static void aconv_close(void *ctx)
 	ffmem_free(c);
 }
 
-static void log_pcmconv(const char *module, int r, const ffpcmex *in, const ffpcmex *out, void *trk)
+static void log_pcmconv(int r, const ffpcmex *in, const ffpcmex *out, void *trk)
 {
 	int f = FMED_LOG_DEBUG;
 	const char *unsupp = "";
@@ -41,7 +44,7 @@ static void log_pcmconv(const char *module, int r, const ffpcmex *in, const ffpc
 		f = FMED_LOG_ERR;
 		unsupp = "unsupported ";
 	}
-	core->log(f, trk, module, "%sPCM conversion: %s/%u/%u/%s -> %s/%u/%u/%s"
+	core->log(f, trk, NULL, "%sPCM conversion: %s/%u/%u/%s -> %s/%u/%u/%s"
 		, unsupp
 		, ffpcm_fmtstr(in->format), in->sample_rate, in->channels, (in->ileaved) ? "i" : "ni"
 		, ffpcm_fmtstr(out->format), out->sample_rate, (out->channels & FFPCM_CHMASK), (out->ileaved) ? "i" : "ni");
@@ -95,7 +98,7 @@ static int aconv_prepare(aconv *c, fmed_filt *d)
 
 	int r = ffpcm_convert(&c->outpcm, NULL, &c->inpcm, NULL, 0);
 	if (r != 0 || (core->loglev == FMED_LOG_DEBUG)) {
-		log_pcmconv("conv", r, &c->inpcm, &c->outpcm, d->trk);
+		log_pcmconv(r, &c->inpcm, &c->outpcm, d->trk);
 		if (r != 0)
 			return FMED_RERR;
 	}
@@ -195,7 +198,7 @@ static void* autoconv_open(fmed_filt *d)
 {
 	if (d->stream_copy) {
 		if (ffsz_eq(d->datatype, "pcm")) {
-			errlog(core, d->trk, "afilter.autoconv", "decoder doesn't support --stream-copy", 0);
+			errlog1(d->trk, "decoder doesn't support --stream-copy", 0);
 			return NULL;
 		}
 		d->audio.convfmt = d->audio.fmt;
@@ -241,7 +244,7 @@ static int autoconv_process(void *ctx, fmed_filt *d)
 	if ((in->format != c->outpcm.format && c->outpcm.format != out->format)
 		|| (in->channels != c->outpcm.channels && (c->outpcm.channels & FFPCM_CHMASK) != out->channels)
 		|| (in->sample_rate != c->outpcm.sample_rate && c->outpcm.sample_rate != out->sample_rate))
-		dbglog(core, d->trk, NULL, "conversion format was overwritten by output filters: %s/%u/%u"
+		dbglog1(d->trk, "conversion format was overwritten by output filters: %s/%u/%u"
 			, ffpcm_fmtstr(out->format), out->channels, out->sample_rate);
 
 	if (in->format == out->format

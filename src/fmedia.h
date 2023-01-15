@@ -346,6 +346,11 @@ enum FMED_TRACK_CMD {
 	FMED_TRACK_FILT_ADDFIRST,
 	FMED_TRACK_FILT_ADDLAST,
 
+	/** Add new filter to the track chain with the specified interface.
+	const fmed_filter iface = {};
+	track->cmd(t, FMED_TRACK_FILT_ADDF, "name", &iface); */
+	FMED_TRACK_FILT_ADDF,
+
 	/** Return 1 if have meta data from user */
 	FMED_TRACK_META_HAVEUSER,
 
@@ -493,6 +498,7 @@ enum FMED_F {
 	FMED_FFIRST = 1, // filter is first in chain
 	FMED_FSTOP = 2, // track is being stopped
 	FMED_FFWD = 4,
+	FMED_FFINISHED = 8,
 };
 
 enum FMED_E {
@@ -611,6 +617,9 @@ struct fmed_track_info {
 	/** UI -> adev.out fast signal delivery (e.g. for fast reaction to seek command). */
 	const struct fmed_adev *adev;
 	void *adev_ctx;
+
+	/** Android: first-in-chain filter data for notifying main thread after the track is finished */
+	void *finsig_data;
 
 	// the region is initially filled with 0xff until '_bar_end'
 	byte _bar_start;

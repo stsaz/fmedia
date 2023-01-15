@@ -9,8 +9,8 @@ struct guivar {
 
 static inline int _vars_keyeq(void *opaque, const void *key, ffsize keylen, void *val)
 {
-	const struct guivar *v = val;
-	return 0 == ffstr_cmp(&v->name, key, keylen);
+	const struct guivar *v = (struct guivar*)val;
+	return 0 == ffstr_cmp(&v->name, (char*)key, keylen);
 }
 
 static inline void vars_init(ffmap *vs)
@@ -24,7 +24,7 @@ static inline void vars_free(ffmap *vs)
 	FFMAP_WALK(vs, it) {
 		if (!_ffmap_item_occupied(it))
 			continue;
-		struct guivar *v = it->val;
+		struct guivar *v = (struct guivar*)it->val;
 		ffmem_free(v);
 	}
 	ffmap_free(vs);
@@ -37,7 +37,7 @@ static inline ffstr vars_val(ffmap *vs, ffstr name)
 	if (name.len != 0 && name.ptr[0] == '$') {
 		ffstr_shift(&name, 1);
 		struct guivar *v;
-		if (NULL != (v = ffmap_find(vs, name.ptr, name.len, NULL))) {
+		if (NULL != (v = (struct guivar*)ffmap_find(vs, name.ptr, name.len, NULL))) {
 			s = v->val;
 		}
 	}
@@ -48,7 +48,7 @@ static inline void vars_set(ffmap *vs, ffstr name, ffstr val)
 {
 	struct guivar *v;
 	int nu = 0;
-	if (NULL == (v = ffmap_find(vs, name.ptr, name.len, NULL))) {
+	if (NULL == (v = (struct guivar*)ffmap_find(vs, name.ptr, name.len, NULL))) {
 		v = ffmem_new(struct guivar);
 		nu = 1;
 	}

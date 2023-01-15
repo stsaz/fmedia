@@ -44,6 +44,6 @@ static int sndmod_gain_process(void *ctx, fmed_filt *d)
 	return FMED_ROK;
 }
 
-static const fmed_filter fmed_sndmod_gain = {
+const fmed_filter fmed_sndmod_gain = {
 	sndmod_gain_open, sndmod_gain_process, sndmod_gain_close
 };

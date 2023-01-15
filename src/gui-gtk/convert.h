@@ -44,9 +44,8 @@ const ffui_ldr_ctl wconvert_ctls[] = {
 
 // CONFIG
 
-static int conf_conv_sets_output(fmed_conf *fc, void *obj, char *val)
+static int conf_conv_sets_output(fmed_conf *fc, struct gui_wconvert *c, char *val)
 {
-	struct gui_wconvert *c = obj;
 	ffmem_free(c->output);
 	c->output = ffsz_dup(val);
 	return 0;
@@ -491,7 +490,7 @@ static fmed_que_entry* convert1(fmed_que_entry *input, fmed_trk *trkinfo)
 	e.url = input->url;
 	e.from = input->from;
 	e.to = input->to;
-	if (NULL == (qent = (void*)gg->qu->fmed_queue_add(FMED_QUE_NO_ONCHANGE, c->itab-1, &e)))
+	if (NULL == (qent = (fmed_que_entry*)gg->qu->fmed_queue_add(FMED_QUE_NO_ONCHANGE, c->itab-1, &e)))
 		return NULL;
 
 	// copy meta from source

@@ -118,7 +118,7 @@ static inline void * _ffarr_append(ffarr *ar, const void *src, size_t num, size_
 {
 	if (num != ffvec_add((ffvec*)ar, src, num, elsz))
 		return NULL;
-	return ar->ptr + ar->len * elsz;
+	return (void*)((char*)ar->ptr + ar->len * elsz);
 }
 
 #define ffarr_append(ar, src, num) \
@@ -134,7 +134,7 @@ do { \
 typedef ffarr ffstr3;
 
 static inline void ffstr_acqstr3(ffstr *dst, ffstr3 *src) {
-	dst->ptr = src->ptr;
+	dst->ptr = (char*)src->ptr;
 	dst->len = src->len;
 	ffarr_null(src);
 }

@@ -202,7 +202,7 @@ static inline int ffconfw_size(ffconfw *c, ffuint type_flags, const void *src, i
 	*complex = 0;
 	switch (type_flags & 0x8000000f) {
 	case FFCONF_TSTR:
-	case 1<<31: {
+	case 1U<<31: {
 		const ffstr *s = (ffstr*)src;
 		ffsize r = s->len;
 		if (!(type_flags & FFCONFW_FDONTESCAPE))
@@ -216,7 +216,7 @@ static inline int ffconfw_size(ffconfw *c, ffuint type_flags, const void *src, i
 	case _FFCONF_TINT:
 		cap = 1 + FFS_INTCAP;
 		break;
-	case FFCONF_TOBJ | (1<<31):
+	case FFCONF_TOBJ | (1U<<31):
 	case FFCONF_TOBJ:
 		cap = FFS_LEN("\r\n}");
 		break;

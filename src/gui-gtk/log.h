@@ -48,7 +48,7 @@ static const fmed_log gui_logger = {
 /** Thread: GUI */
 static void wlog_posted(void *param)
 {
-	ffvec *str = param;
+	ffvec *str = (ffvec*)param;
 	ffui_text_addtextstr(&gg->wlog->tlog, str);
 	ffvec_free(str);
 	ffmem_free(str);

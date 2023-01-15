@@ -646,8 +646,13 @@ static ssize_t que_cmdv(uint cmd, ...)
 	case FMED_QUE_ADDAFTER: {
 		fmed_que_entry *ent = va_arg(va, void*);
 		fmed_que_entry *qprev = va_arg(va, void*);
-		entry *prev = FF_GETPTR(entry, e, qprev);
-		r = (ssize_t)que_add(prev->plist, ent, prev, cmdflags);
+		entry *prev = NULL;
+		plist *pl = qu->curlist;
+		if (qprev != NULL) {
+			prev = FF_GETPTR(entry, e, qprev);
+			pl = prev->plist;
+		}
+		r = (ssize_t)que_add(pl, ent, prev, cmdflags);
 		goto end;
 	}
 
@@ -759,6 +764,8 @@ static ssize_t que_cmdv(uint cmd, ...)
 	case FMED_QUE_COPYTRACKPROPS: {
 		fmed_que_entry *qent = va_arg(va, void*);
 		fmed_que_entry *qsrc = va_arg(va, void*);
+		if (qent == NULL || qsrc == NULL)
+			goto end;
 		entry *e = FF_GETPTR(entry, e, qent);
 		entry *src = FF_GETPTR(entry, e, qsrc);
 		que_copytrackprops(e, src);

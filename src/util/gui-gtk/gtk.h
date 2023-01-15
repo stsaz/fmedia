@@ -184,9 +184,9 @@ static inline ffbool ffui_checkbox_checked(ffui_checkbox *cb)
 }
 static inline void ffui_checkbox_check(ffui_checkbox *cb, int val)
 {
-	g_signal_handlers_block_by_func(cb->h, G_CALLBACK(_ffui_checkbox_clicked), cb);
+	g_signal_handlers_block_by_func(cb->h, (void*)_ffui_checkbox_clicked, cb);
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(cb->h), val);
-	g_signal_handlers_unblock_by_func(cb->h, G_CALLBACK(_ffui_checkbox_clicked), cb);
+	g_signal_handlers_unblock_by_func(cb->h, (void*)_ffui_checkbox_clicked, cb);
 }
 
 

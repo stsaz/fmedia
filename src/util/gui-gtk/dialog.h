@@ -37,7 +37,7 @@ static inline char* ffui_dlg_nextname(ffui_dialog *d)
 {
 	if (d->curname == NULL)
 		return NULL;
-	char *name = d->curname->data;
+	char *name = (char*)d->curname->data;
 	d->curname = d->curname->next;
 	return name;
 }

@@ -188,7 +188,7 @@ static inline void ffconf_scheme_addctx(ffconf_scheme *cs, const ffconf_arg *arg
 /** Skip the object context being opened */
 static inline void ffconf_scheme_skipctx(ffconf_scheme *cs)
 {
-	ffconf_scheme_addctx(cs, (void*)-1, (void*)-1);
+	ffconf_scheme_addctx(cs, (ffconf_arg*)-1, (void*)-1);
 }
 
 /** Get bits to shift by size suffix K, M, G, T */

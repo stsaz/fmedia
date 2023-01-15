@@ -233,10 +233,10 @@ static inline int http_req_write(char *buf, ffsize cap, ffstr method, ffstr path
 		return -1;
 
 	char *p = buf;
-	p = ffmem_copy(p, method.ptr, method.len);
+	p = (char*)ffmem_copy(p, method.ptr, method.len);
 	*p++ = ' ';
 	if (flags == 0) {
-		p = ffmem_copy(p, path.ptr, path.len);
+		p = (char*)ffmem_copy(p, path.ptr, path.len);
 	} else {
 		ffssize r = httpurl_escape(p, buf+cap - p - (1+8+2), path);
 		if (r < 0)
@@ -258,7 +258,7 @@ static inline int http_resp_write(char *buf, ffsize cap, ffuint code, ffstr msg)
 		return -1;
 
 	char *p = buf;
-	p = ffmem_copy(p, "HTTP/1.1", 8);
+	p = (char*)ffmem_copy(p, "HTTP/1.1", 8);
 	*p++ = ' ';
 
 	*p++ = code/100 + '0';
@@ -266,7 +266,7 @@ static inline int http_resp_write(char *buf, ffsize cap, ffuint code, ffstr msg)
 	*p++ = code%10 + '0';
 	*p++ = ' ';
 
-	p = ffmem_copy(p, msg.ptr, msg.len);
+	p = (char*)ffmem_copy(p, msg.ptr, msg.len);
 	*p++ = '\r';
 	*p = '\n';
 	return n;
@@ -282,10 +282,10 @@ static inline int http_hdr_write(char *buf, ffsize cap, ffstr name, ffstr val)
 		return (buf != NULL) ? 0 : n;
 
 	char *p = buf;
-	p = ffmem_copy(p, name.ptr, name.len);
+	p = (char*)ffmem_copy(p, name.ptr, name.len);
 	*p++ = ':';
 	*p++ = ' ';
-	p = ffmem_copy(p, val.ptr, val.len);
+	p = (char*)ffmem_copy(p, val.ptr, val.len);
 	*p++ = '\r';
 	*p = '\n';
 	return n;
@@ -411,7 +411,7 @@ static inline int httpurl_escape(char *buf, ffsize cap, ffstr url)
 			r = end - d;
 		if (r > ebuf - p)
 			return -1;
-		p = ffmem_copy(p, d, r);
+		p = (char*)ffmem_copy(p, d, r);
 		d += r;
 
 		if (d == end)
@@ -456,7 +456,7 @@ static inline int httpurl_unescape(char *buf, ffsize cap, ffstr url)
 			r = end - d;
 		if (r > ebuf - p)
 			return -1;
-		p = ffmem_copy(p, d, r);
+		p = (char*)ffmem_copy(p, d, r);
 		d += r;
 
 		if (d == end)

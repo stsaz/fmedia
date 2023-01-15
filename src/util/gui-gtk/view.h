@@ -147,24 +147,22 @@ enum FFUI_VIEW_STYLE {
 
 static inline void ffui_view_style(ffui_view *v, uint flags, uint set)
 {
-	uint val;
-
 	if (flags & FFUI_VIEW_GRIDLINES) {
-		val = (set & FFUI_VIEW_GRIDLINES)
+		GtkTreeViewGridLines val = (set & FFUI_VIEW_GRIDLINES)
 			? GTK_TREE_VIEW_GRID_LINES_BOTH
 			: GTK_TREE_VIEW_GRID_LINES_NONE;
 		gtk_tree_view_set_grid_lines(GTK_TREE_VIEW(v->h), val);
 	}
 
 	if (flags & FFUI_VIEW_MULTI_SELECT) {
-		val = (set & FFUI_VIEW_MULTI_SELECT)
+		GtkSelectionMode val = (set & FFUI_VIEW_MULTI_SELECT)
 			? GTK_SELECTION_MULTIPLE
 			: GTK_SELECTION_SINGLE;
 		gtk_tree_selection_set_mode(gtk_tree_view_get_selection(GTK_TREE_VIEW(v->h)), val);
 	}
 
 	if (flags & FFUI_VIEW_EDITABLE) {
-		val = !!(set & FFUI_VIEW_EDITABLE);
+		uint val = !!(set & FFUI_VIEW_EDITABLE);
 		g_object_set(v->rend, "editable", val, NULL);
 	}
 }
@@ -195,7 +193,7 @@ typedef struct ffui_sel {
 Return ffui_sel*.  Free with ffui_view_sel_free(). */
 static inline ffui_sel* ffui_view_getsel(ffui_view *v)
 {
-	void *tvsel = gtk_tree_view_get_selection(GTK_TREE_VIEW(v->h));
+	GtkTreeSelection *tvsel = gtk_tree_view_get_selection(GTK_TREE_VIEW(v->h));
 	GList *rows = gtk_tree_selection_get_selected_rows(tvsel, NULL);
 	uint n = gtk_tree_selection_count_selected_rows(tvsel);
 
@@ -204,14 +202,14 @@ static inline ffui_sel* ffui_view_getsel(ffui_view *v)
 		return NULL;
 
 	for (GList *l = rows;  l != NULL;  l = l->next) {
-		GtkTreePath *path = l->data;
+		GtkTreePath *path = (GtkTreePath*)l->data;
 		int *ii = gtk_tree_path_get_indices(path);
 		*ffvec_pushT(&a, uint) = ii[0];
 	}
 	g_list_free_full(rows, (GDestroyNotify)gtk_tree_path_free);
 
 	ffui_sel *sel = ffmem_new(ffui_sel);
-	sel->ptr = a.ptr;
+	sel->ptr = (char*)a.ptr;
 	sel->len = a.len;
 	sel->off = 0;
 	return sel;
