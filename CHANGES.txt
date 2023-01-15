@@ -8,6 +8,19 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia/Android v0.10 - Jan 14, 2023
+
+ + Record via AAudio (native audio interface since Android 8).  Settings:
+   + Buffer Length
+   + Gain/Attenuate filter
+   + Autostop timer
+ + New settings:
+   + "Show Audio Info in Title"
+   + "Remove Track From Playlist On Error"
+ *! Set "Trash" directory relative to storage mount-point
+ * List Save: warn when file already exists
+
+
 fmedia/Android v0.9 - Dec 30, 2022
 
  + Convert: AAC decode; FLAC decode/encode; .flac write
