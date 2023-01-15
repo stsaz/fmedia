@@ -76,7 +76,7 @@ static inline const char* ffpcm_format_str(uint f)
 }
 
 
-static int audio_dev_list(const fmed_core *core, const ffaudio_interface *audio, fmed_adev_ent **ents, uint flags, const char *mod_name)
+static inline int audio_dev_list(const fmed_core *core, const ffaudio_interface *audio, fmed_adev_ent **ents, uint flags, const char *mod_name)
 {
 	ffarr a = {};
 	ffaudio_dev *d;
@@ -135,7 +135,7 @@ end:
 	return rr;
 }
 
-static void audio_dev_listfree(fmed_adev_ent *ents)
+static inline void audio_dev_listfree(fmed_adev_ent *ents)
 {
 	fmed_adev_ent *e;
 	for (e = ents;  e->name != NULL;  e++) {

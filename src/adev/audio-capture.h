@@ -11,6 +11,7 @@ typedef struct audio_in {
 	ffuint buffer_length_msec; // input, output
 	uint loopback;
 	uint aflags;
+	uint recv_events :1;
 
 	// runtime
 	ffaudio_buf *stream;
@@ -18,6 +19,8 @@ typedef struct audio_in {
 	uint frame_size;
 	uint async;
 } audio_in;
+
+static void audio_oncapt(void *udata);
 
 /** Return FFAUDIO_E* */
 static int audio_in_open(audio_in *a, fmed_filt *d)
@@ -36,12 +39,14 @@ static int audio_in_open(audio_in *a, fmed_filt *d)
 		conf.device_id = a->audio->dev_info(dev, FFAUDIO_DEV_ID);
 	}
 
-	int afmt = ffpcm_to_ffaudio(d->audio.fmt.format);
-	if (afmt < 0) {
-		errlog1(d->trk, "format not supported", 0);
-		goto err;
+	if (d->audio.fmt.format != 0) {
+		int afmt = ffpcm_to_ffaudio(d->audio.fmt.format);
+		if (afmt < 0) {
+			errlog1(d->trk, "format not supported", 0);
+			goto err;
+		}
+		conf.format = afmt;
 	}
-	conf.format = afmt;
 	conf.sample_rate = d->audio.fmt.sample_rate;
 	conf.channels = d->audio.fmt.channels;
 
@@ -51,6 +56,11 @@ static int audio_in_open(audio_in *a, fmed_filt *d)
 
 	int aflags = (a->loopback) ? FFAUDIO_LOOPBACK : FFAUDIO_CAPTURE;
 	aflags |= a->aflags;
+
+	if (a->recv_events) {
+		conf.on_event = audio_oncapt;
+		conf.udata = a;
+	}
 
 	if (NULL == (a->stream = a->audio->alloc())) {
 		errlog1(d->trk, "create audio buffer");
@@ -95,18 +105,24 @@ static int audio_in_open(audio_in *a, fmed_filt *d)
 		break;
 	}
 
-	dbglog1(d->trk, "opened audio capture buffer: %ums"
+	dbglog1(d->trk, "opened audio capture buffer: %s/%u/%u %ums"
+		, ffaudio_format_str(conf.format), conf.sample_rate, conf.channels
 		, conf.buffer_length_msec);
 
 	a->buffer_length_msec = conf.buffer_length_msec;
-	a->audio->dev_free(dev);
+	if (dev)
+		a->audio->dev_free(dev);
+	d->audio.fmt.format = ffaudio_to_ffpcm(conf.format);
+	d->audio.fmt.sample_rate = conf.sample_rate;
+	d->audio.fmt.channels = conf.channels;
 	d->audio.fmt.ileaved = 1;
 	d->datatype = "pcm";
 	a->frame_size = ffpcm_size1(&d->audio.fmt);
 	return 0;
 
 err:
-	a->audio->dev_free(dev);
+	if (dev)
+		a->audio->dev_free(dev);
 	a->audio->free(a->stream);
 	a->stream = NULL;
 	return rc;
@@ -121,7 +137,7 @@ static void audio_in_close(audio_in *a)
 static void audio_oncapt(void *udata)
 {
 	audio_in *a = udata;
-	if (!a->async)
+	if (!a->async && !a->recv_events)
 		return;
 	a->async = 0;
 	a->track->cmd(a->trk, FMED_TRACK_WAKE);
