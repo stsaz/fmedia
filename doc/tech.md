@@ -1,5 +1,7 @@
 # Technical details
 
+* Creating and starting tracks
+* Stopping the track
 * Seeking
 * .ogg write
 * Queue
@@ -7,6 +9,75 @@
 	* UI interaction
 * Filter: Auto Attenuator
 
+## Creating and starting tracks
+
+```c
+	#Main                   #Worker1        #Worker2
+	==================================================
+	track->create()
+	track->cmd(...)
+	track->cmd(FMED_TRACK_XSTART):
+	  core->cmd(FMED_XASSIGN) -> *
+	  core->cmd(FMED_XADD) ->
+	                        trk_process()
+	--
+	track->create()
+	track->cmd(...)
+	track->cmd(FMED_TRACK_XSTART):
+	  core->cmd(FMED_XASSIGN) ------------> *
+	  core->cmd(FMED_XADD) ---------------> trk_process()
+```
+
+## Stopping the track
+
+Case 1.  Stop-signal is received after the chain has been finished.
+
+```c
+	#Worker         #Main
+	==============================
+	trk_process():
+	  FINISHED=1
+	                FMED_TRACK_STOP:
+	                  (FINISHED):
+	                    #Worker <- trk_process
+	--
+	trk_process():
+	  (FINISHED):
+	    close()
+```
+
+Case 2.  Stop-signal is received while processing the track's filter chain.
+
+```c
+	#Worker         #Main
+	==============================
+	                FMED_TRACK_STOP:
+	                  (!FINISHED):
+	trk_process():      STOP=1
+	  (STOP):
+	    FSTOP=1
+	  ...
+	  (STOP):
+        close()
+```
+
+Case 3.  Stop-signal is received while the chain is suspended after FMED_RASYNC.
+
+```c
+	#Worker         #Main           #Audio
+	================================================
+	                FMED_TRACK_STOP:
+	                  (!FINISHED):
+	                    STOP=1
+	                                FMED_TRACK_WAKE:
+	                                  #Worker <- trk_process
+	trk_process():
+	  (STOP):
+	    FSTOP=1
+	  ...
+	  (STOP):
+	    close()
+```
 
 ## Seeking
 

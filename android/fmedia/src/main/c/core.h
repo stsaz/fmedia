@@ -8,13 +8,16 @@
 
 static fmed_core _core;
 
+struct wrk_ctx;
 struct core_ctx {
 	fmed_props props;
 	ffmap ext_filter; // char[] -> struct filter_pair*
+	struct wrk_ctx *wx;
 };
 static struct core_ctx *cx;
 
 #include "mods.h"
+#include "worker.h"
 
 fmed_core* core_init()
 {
@@ -23,6 +26,7 @@ fmed_core* core_init()
 	cx->props.codepage = FFUNICODE_WIN1252;
 	_core.props = &cx->props;
 	core = &_core;
+	cx->wx = wrkx_init();
 	mods_init();
 	return &_core;
 }
@@ -31,6 +35,7 @@ void core_destroy()
 {
 	if (cx == NULL) return;
 
+	wrkx_destroy(cx->wx);
 	ffmap_free(&cx->ext_filter);
 	ffmem_free(cx);
 	cx = NULL;
@@ -62,6 +67,24 @@ static ffssize core_cmd(uint cmd, ...)
 
 	case FMED_FILTER_BYNAME:
 		r = (ffssize)mods_filter_byname(va_arg(va, char*));
+		break;
+
+	case FMED_XASSIGN:
+		wrkx_assign(cx->wx, va_arg(va, void*));
+		r = 0;
+		break;
+
+	case FMED_XADD: {
+		void *wt = va_arg(va, void*);
+		void *func = va_arg(va, void*);
+		void *udata = va_arg(va, void*);
+		wrkx_add(cx->wx, wt, func, udata);
+		r = 0;
+		break;
+	}
+	case FMED_XDEL:
+		wrkx_del(cx->wx, va_arg(va, void*));
+		r = 0;
 		break;
 
 	default:

@@ -44,6 +44,10 @@ typedef struct fmed_props fmed_props;
 typedef struct fmed_mod fmed_mod;
 typedef struct fmed_filter fmed_filter;
 typedef void fmed_track_obj;
+typedef struct {
+	fftask ts;
+	uint wid;
+} fmed_worker_task;
 
 #define FMED_MODFUNCNAME  "fmed_getmod" //name of the function which is exported by a module
 typedef const fmed_mod* (*fmed_getmod_t)(const fmed_core *core);
@@ -128,6 +132,20 @@ enum FMED_CMD {
 	/** Get filter interface by name.
 	const fmed_filter *fi = (fmed_filter*)core->cmd(FMED_FILTER_BYNAME, const char *name) */
 	FMED_FILTER_BYNAME,
+
+	/** Assign task to a worker thread.
+	core->cmd(FMED_XASSIGN, fmed_worker_task *w); */
+	FMED_XASSIGN,
+
+	/** Add task (once) to a worker thread's queue.
+	Several consecutive commands result in a single call to the target function.
+	void func(void *param) {}
+	core->cmd(FMED_XADD, fmed_worker_task *w, func, void *param); */
+	FMED_XADD,
+
+	/** Delete task from worker thread's queue.
+	core->cmd(FMED_XDEL, fmed_worker_task *w); */
+	FMED_XDEL,
 };
 
 enum FMED_WORKER_F {
@@ -371,7 +389,11 @@ enum FMED_TRACK_CMD {
 	FMED_TRACK_FILT_GETPREV, // get context pointer of the previous filter
 	FMED_TRACK_FILT_INSTANCE, // get (create) filter instance.  @param: void *filter_id
 
-	/** Continue track processing after suspend and an asynchronous event. */
+	/** Continue track processing after it was suspended after FMED_RASYNC.
+	Several consecutive signals result in a single call to track processing function.
+	This function will be called on the same worker thread that was assigned initially.
+	Thread-safe.
+	track->cmd(trk, FMED_TRACK_WAKE); */
 	FMED_TRACK_WAKE,
 
 	FMED_TRACK_MONITOR,
@@ -380,7 +402,8 @@ enum FMED_TRACK_CMD {
 	Return fffd. */
 	FMED_TRACK_KQ,
 
-	/** Start a track in any worker. */
+	/** Start a track in any worker thread.
+	track->cmd(trk, FMED_TRACK_XSTART); */
 	FMED_TRACK_XSTART,
 
 	/** Mark the track as stopped (as if user has pressed Stop button).
