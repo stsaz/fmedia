@@ -78,7 +78,7 @@ static void trk_busytime_print(struct track_ctx *t)
 
 	struct filter *f;
 	FF_FOREACH(t->filters_pool, f) {
-		if (f->obj == NULL)
+		if (fftime_empty(&f->busytime))
 			continue;
 		uint percent = fftime_to_usec(&f->busytime) * 100 / fftime_to_usec(&total);
 		ffvec_addfmt(&buf, "%s: %u.%06u (%u%%), "
@@ -91,17 +91,23 @@ static void trk_busytime_print(struct track_ctx *t)
 	ffvec_free(&buf);
 }
 
+static void trk_filters_close(struct track_ctx *t)
+{
+	for (uint i = 0;  i != MAX_FILTERS;  i++) {
+		struct filter *f = &t->filters_pool[i];
+		if (f->obj != NULL) {
+			dbglog1(t, "%s: closing filter", f->name);
+			f->iface->close(f->obj);
+			f->obj = NULL;
+		}
+	}
+}
+
 static void trk_close(struct track_ctx *t)
 {
 	if (t == NULL) return;
 
-	for (uint i = 0;  i != MAX_FILTERS;  i++) {
-		const struct filter *f = &t->filters_pool[i];
-		if (f->obj != NULL) {
-			dbglog1(t, "%s: closing filter", f->name);
-			f->iface->close(f->obj);
-		}
-	}
+	trk_filters_close(t);
 
 	fmed_track_info *ti = &t->ti;
 
