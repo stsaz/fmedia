@@ -45,6 +45,7 @@ class Fmedia {
 	native boolean quSave(long q, String filepath);
 	native String[] quList(long q);
 
+	String[] storage_paths;
 	public native String trash(String trash_dir, String filepath);
 
 	static {

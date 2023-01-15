@@ -35,7 +35,7 @@ class CoreSettings {
 		codepage = "cp1252";
 		rec_path = "";
 		pub_data_dir = "";
-		trash_dir = String.format("%s/Trash", core.storage_path);
+		trash_dir = "Trash";
 		conv_outext = "m4a";
 		conv_aac_quality = 5;
 	}
@@ -51,7 +51,7 @@ class CoreSettings {
 				String.format("rec_path %s\n", rec_path) +
 				String.format("enc_bitrate %d\n", enc_bitrate) +
 				String.format("data_dir %s\n", pub_data_dir) +
-				String.format("trash_dir %s\n", trash_dir) +
+				String.format("trash_dir_rel %s\n", trash_dir) +
 
 				String.format("conv_outext %s\n", conv_outext) +
 				String.format("conv_aac_quality %d\n", conv_aac_quality) +
@@ -75,7 +75,7 @@ class CoreSettings {
 			file_del = core.str_to_bool(v);
 		else if (k.equals("data_dir"))
 			pub_data_dir = v;
-		else if (k.equals("trash_dir"))
+		else if (k.equals("trash_dir_rel"))
 			trash_dir = v;
 		else if (k.equals("no_tags"))
 			no_tags = core.str_to_bool(v);
@@ -145,6 +145,7 @@ class Core extends Util {
 		storage_paths = system_storage_dirs(ctx);
 
 		fmedia = new Fmedia();
+		fmedia.storage_paths = storage_paths;
 		setts = new CoreSettings(this);
 		gui = new GUI(this);
 		track = new Track(this);

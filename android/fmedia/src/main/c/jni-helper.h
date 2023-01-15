@@ -17,8 +17,8 @@ Arrays:
 	jni_jsa_sza
 	jni_vec_jba
 Object:
-	jni_obj_jo_set
-	jni_obj_str jni_obj_sz_set
+	jni_obj_jo jni_obj_jo_set
+	jni_obj_sz_set
 	jni_obj_long jni_obj_long_set
 	jni_obj_int
 	jni_obj_bool
@@ -125,8 +125,8 @@ static inline jobjectArray jni_jsa_sza(JNIEnv *env, char **asz, ffsize n)
 #define	jni_obj_jo_set(jobj, jfield, val) \
 	(*env)->SetObjectField(env, jobj, jfield, val)
 
-/** string = obj.string */
-#define jni_obj_str(jobj, jfield) \
+/** object = obj.object */
+#define jni_obj_jo(jobj, jfield) \
 	(*env)->GetObjectField(env, jobj, jfield)
 
 /** obj.string = sz */

@@ -34,7 +34,7 @@
 
 	<string name="sett_operation">Operation</string>
 	<string name="sett_file_del">Don\'t Move Files to Trash</string>
-	<string name="sett_trash_dir">Trash Directory:</string>
+	<string name="sett_trash_dir">Trash Directory (relative to storage mount-point):</string>
 
 	<string name="sett_recording">Recording</string>
 	<string name="sett_data_dir">App Data Directory</string>

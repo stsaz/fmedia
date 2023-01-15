@@ -248,8 +248,8 @@ Java_com_github_stsaz_fmedia_Fmedia_convert(JNIEnv *env, jobject thiz, jstring j
 	dbglog0("%s: enter", __func__);
 	fftime t1 = fftime_monotonic();
 	jclass jc = jni_class_obj(thiz);
-	jstring jfrom = jni_obj_str(thiz, jni_field(jc, "from_msec", JNI_TSTR));
-	jstring jto = jni_obj_str(thiz, jni_field(jc, "to_msec", JNI_TSTR));
+	jstring jfrom = jni_obj_jo(thiz, jni_field(jc, "from_msec", JNI_TSTR));
+	jstring jto = jni_obj_jo(thiz, jni_field(jc, "to_msec", JNI_TSTR));
 
 	const char *ifn = jni_sz_js(jiname)
 		, *ofn = jni_sz_js(joname)
@@ -314,7 +314,7 @@ Java_com_github_stsaz_fmedia_Fmedia_convert(JNIEnv *env, jobject thiz, jstring j
 	if ((flags & F_TRASH_ORIG) && ti->error == 0
 		&& !ffsz_eq(ti->in_filename, ti->out_filename)) {
 
-		jstring jtrash_dir = jni_obj_str(thiz, jni_field(jc, "trash_dir", JNI_TSTR));
+		jstring jtrash_dir = jni_obj_jo(thiz, jni_field(jc, "trash_dir", JNI_TSTR));
 		const char *trash_dir = jni_sz_js(jtrash_dir);
 		if (0 != file_trash(trash_dir, ti->in_filename))
 		{}
@@ -622,19 +622,50 @@ end:
 	return rc;
 }
 
+static char* trash_dir_abs(JNIEnv *env, jobjectArray jsa, const char *trash_dir_rel, const char *fn)
+{
+	char *trash_dir = NULL;
+	// Select the storage root of the file to be moved
+	jstring jstg = NULL;
+	const char *stg = NULL;
+	uint n = jni_arr_len(jsa);
+	for (uint i = 0;  i != n;  i++) {
+		jni_sz_free(stg, jstg);
+		jni_local_unref(jstg);
+		jstg = jni_joa_i(jsa, i);
+		stg = jni_sz_js(jstg);
+		if (ffsz_matchz(fn, stg)
+			&& stg[0] != '\0' && fn[ffsz_len(stg)] == '/') {
+			// e.g. "/storage/emulated/0/Music/file.mp3" starts with "/storage/emulated/0"
+			trash_dir = ffsz_allocfmt("%s/%s", stg, trash_dir_rel);
+			break;
+		}
+	}
+	jni_sz_free(stg, jstg);
+	jni_local_unref(jstg);
+	return trash_dir;
+}
+
 JNIEXPORT jstring JNICALL
 Java_com_github_stsaz_fmedia_Fmedia_trash(JNIEnv *env, jobject thiz, jstring jtrash_dir, jstring jfilepath)
 {
 	dbglog0("%s: enter", __func__);
+	jclass jc = jni_class_obj(thiz);
 	const char *error = "";
-	const char *trash_dir = jni_sz_js(jtrash_dir);
+	const char *trash_dir_rel = jni_sz_js(jtrash_dir);
 	const char *fn = jni_sz_js(jfilepath);
 
-	if (0 != file_trash(trash_dir, fn))
+	// Select the storage root of the file to be moved
+	jobjectArray jsa = jni_obj_jo(thiz, jni_field(jc, "storage_paths", JNI_TARR JNI_TSTR));
+	char *trash_dir = trash_dir_abs(env, jsa, trash_dir_rel, fn);
+
+	if (trash_dir != NULL
+		&& 0 != file_trash(trash_dir, fn))
 		error = fferr_strptr(fferr_last());
 
 	jni_sz_free(fn, jfilepath);
-	jni_sz_free(trash_dir, jtrash_dir);
+	jni_sz_free(trash_dir_rel, jtrash_dir);
+	ffmem_free(trash_dir);
 
 	jstring js = jni_js_sz(error);
 	dbglog0("%s: exit", __func__);
