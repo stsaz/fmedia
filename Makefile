@@ -259,8 +259,6 @@ mpc.$(SO): $(MPC_O)
 
 
 #
-$(OBJ_DIR)/ogg.o: $(SRCDIR)/format/ogg.c $(SRCDIR)/format/ogg-write.h $(GLOBDEPS)
-	$(C) $(CFLAGS) $< -o $@
 $(OBJ_DIR)/%.o: $(SRCDIR)/format/%.c $(wildcard $(SRCDIR)/format/*.h) $(GLOBDEPS)
 	$(C) $(CFLAGS) $< -o $@
 FMT_O := $(OBJ_DIR)/mod-fmt.o \

@@ -78,7 +78,7 @@ static int add_decoder(struct ogg_in *o, fmed_track_info *d, ffstr data)
 			dec = "opus.decode";
 
 	} else if (ffstr_matchz(&data, FLAC_HEAD_STR)) {
-		dec = "flac.ogg-in";
+		dec = "fmt.flacogg";
 	} else {
 		errlog1(d->trk, "Unknown codec in OGG packet: %*xb"
 			, ffmin(data.len, 16), data.ptr);

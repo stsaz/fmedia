@@ -83,14 +83,18 @@ static int opusmeta_read(void *ctx, fmed_track_info *d)
 		d->audio.fmt.sample_rate = info.rate;
 		if (d->stream_copy)
 			d->meta_block = 1;
+		if (d->input_info)
+			d->meta_block = 1; // prevent tui from stopping the track until we've read tags
 		o->state = 1;
 		break;
 	}
 
 	case 1: {
 		r = FMED_RDONE;
-		if (d->input_info)
+		if (d->input_info) {
+			d->meta_block = 0;
 			r = FMED_RLASTOUT;
+		}
 		o->state = 2;
 		ffstr vc;
 		if (0 != opuscomment_read(d->data_in, &vc)) {

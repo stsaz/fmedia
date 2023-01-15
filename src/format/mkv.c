@@ -201,6 +201,9 @@ again:
 				if (NULL == (void*)d->track->cmd(d->trk, FMED_TRACK_FILT_ADD, (void*)codec)) {
 					return FMED_RERR;
 				}
+				if (ai->codec == MKV_A_VORBIS
+					&& NULL == (void*)d->track->cmd(d->trk, FMED_TRACK_FILT_ADD, "fmt.vorbismeta"))
+					return FMED_RERR;
 			}
 			d->audio.fmt.channels = ai->channels;
 			d->audio.fmt.sample_rate = ai->sample_rate;

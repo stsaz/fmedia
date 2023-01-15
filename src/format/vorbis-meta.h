@@ -116,14 +116,18 @@ static int vorbismeta_read(void *ctx, fmed_track_info *d)
 		d->audio.bitrate = br;
 		if (d->stream_copy)
 			d->meta_block = 1;
+		if (d->input_info)
+			d->meta_block = 1; // prevent tui from stopping the track until we've read tags
 		v->state = 1;
 		break;
 	}
 
 	case 1: {
 		r = FMED_RDONE;
-		if (d->input_info)
+		if (d->input_info) {
+			d->meta_block = 0;
 			r = FMED_RLASTOUT;
+		}
 		v->state = 2;
 		ffstr vc;
 		if (0 != vorbiscomment_read(d->data_in, &vc)) {
