@@ -2,8 +2,8 @@
 
 include ../makeconf
 
-VER := 1.3.3
-URL := http://downloads.xiph.org/releases/flac/flac-$(VER).tar.xz
+VER := 1.4.2
+URL := https://github.com/xiph/flac/releases/download/$(VER)/flac-$(VER).tar.xz
 PKG := $(notdir $(URL))
 DIR := flac-$(VER)
 LIB := libFLAC-ff.$(SO)
@@ -28,24 +28,21 @@ else ifeq "$(CPU)" "arm64"
 else ifeq "$(CPU)" "arm"
 	CONFIGURE_FLAGS := --host=armv7
 endif
-$(DIR)/config.h: $(DIR)
-	cd $(DIR) && ./configure --disable-ogg $(CONFIGURE_FLAGS)
-	cd $(DIR) && cat ../*.patch | patch -p1
-ifeq "$(CPU)" "amd64"
-else ifeq "$(CPU)" "x86"
-else
-	$(SED) 's/FLAC__HAS_X86INTRIN 1/FLAC__HAS_X86INTRIN 0/' $(DIR)/config.h
-	$(SED) 's/#define HAVE_CPUID_H 1/\/\/#define HAVE_CPUID_H 0/' $(DIR)/config.h
+ifeq "$(SYS)" "android"
+	CONFIGURE_ENV := CC="$(C_DIR)/clang" CFLAGS="$(CFLAGS_TARGET)"
 endif
+$(DIR)/config.h: $(DIR)
+	cd $(DIR) && $(CONFIGURE_ENV) ./configure --disable-ogg $(CONFIGURE_FLAGS)
+	cd $(DIR) && cat ../*.patch | patch -p1
 	cat $@
 
 # build
-CFLAGS += -funroll-loops \
+CFLAGS += -O3 \
 	-I. -I$(DIR) -I$(DIR)/src/libFLAC/include -I$(DIR)/include \
-	-DHAVE_CONFIG_H -DFLAC_EXP -D_FORTIFY_SOURCE=2 \
-	-Wall -Wextra -Wstrict-prototypes -Waggregate-return \
-	-Wcast-align -Wnested-externs -Wshadow -Wundef -Wunreachable-code -Winline -Wdeclaration-after-statement \
-	-Wno-unused-function -Wno-unused-variable -Wno-unused-parameter -Wno-implicit-fallthrough
+	-DHAVE_CONFIG_H -D_FORTIFY_SOURCE=2 \
+	-fvisibility=hidden -fassociative-math -fno-signed-zeros -fno-trapping-math -freciprocal-math -funroll-loops \
+	-Wall -Wextra -Wstrict-prototypes -Wmissing-prototypes -Waggregate-return -Wcast-align \
+	-Wnested-externs -Wshadow -Wundef -Wmissing-declarations -Winline -Wdeclaration-after-statement
 
 SRC := \
 	$(DIR)/src/libFLAC/bitmath.c \
@@ -64,18 +61,18 @@ SRC := \
 	$(DIR)/src/libFLAC/stream_encoder_framing.c \
 	$(DIR)/src/libFLAC/window.c
 
-ifeq "$(CPU)" "amd64"
-	SRC += \
-		$(DIR)/src/libFLAC/fixed_intrin_sse2.c \
-		$(DIR)/src/libFLAC/fixed_intrin_ssse3.c \
-		$(DIR)/src/libFLAC/lpc_intrin_sse.c \
-		$(DIR)/src/libFLAC/lpc_intrin_sse2.c \
-		$(DIR)/src/libFLAC/lpc_intrin_sse41.c \
-		$(DIR)/src/libFLAC/lpc_intrin_avx2.c \
-		$(DIR)/src/libFLAC/stream_encoder_intrin_sse2.c \
-		$(DIR)/src/libFLAC/stream_encoder_intrin_ssse3.c \
-		$(DIR)/src/libFLAC/stream_encoder_intrin_avx2.c
-endif
+SRC += \
+	$(DIR)/src/libFLAC/fixed_intrin_sse2.c \
+	$(DIR)/src/libFLAC/fixed_intrin_ssse3.c \
+	$(DIR)/src/libFLAC/lpc_intrin_avx2.c \
+	$(DIR)/src/libFLAC/lpc_intrin_fma.c \
+	$(DIR)/src/libFLAC/lpc_intrin_neon.c \
+	$(DIR)/src/libFLAC/lpc_intrin_sse2.c \
+	$(DIR)/src/libFLAC/lpc_intrin_sse41.c \
+	$(DIR)/src/libFLAC/lpc_intrin_vsx.c \
+	$(DIR)/src/libFLAC/stream_encoder_intrin_sse2.c \
+	$(DIR)/src/libFLAC/stream_encoder_intrin_ssse3.c \
+	$(DIR)/src/libFLAC/stream_encoder_intrin_avx2.c
 
 OBJ := FLAC-ff.o $(SRC:.c=.o)
 
@@ -87,6 +84,9 @@ FLAC-ff.o: FLAC-ff.c
 
 $(LIB): $(OBJ)
 	$(LINK) -shared $+ $(LINKFLAGS) -o $@
+ifeq "$(SYS)" "android"
+	$(C_DIR)/llvm-objdump -T $@
+endif
 
 clean:
 	$(RM) $(OBJ) $(DIR)

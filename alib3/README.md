@@ -12,7 +12,7 @@
 * alac-rev2
 * DynamicAudioNormalizer-2.10
 * fdk-aac-0.1.6
-* flac-1.3.3
+* flac-1.4.2
 * lame-3.100
 * MAC-433
 * mpg123-1.25.10

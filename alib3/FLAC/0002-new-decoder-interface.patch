@@ -1,44 +1,18 @@
-From 62b1137386a1d3fedc77e1fd37989d737bc91b1d Mon Sep 17 00:00:00 2001
-From: Simon Zolin <stsaz@yandex.ru>
-Date: Sun, 7 Jan 2018 10:30:12 +0300
-Subject: [PATCH 1/2] new decoder interface
+From 17ebdb119a152ef4387e5b4baa28d64c715e806a Mon Sep 17 00:00:00 2001
+From: Simon Zolin <4729655+stsaz@users.noreply.github.com>
+Date: Thu, 9 Feb 2023 20:05:41 +0300
+Subject: [PATCH 2/3] new decoder interface
 
-+ FLAC__bitreader_set()
 ---
- include/FLAC/export.h        | 13 +++++++
  src/libFLAC/bitreader.c      |  6 +++
  src/libFLAC/stream_decoder.c | 73 ++++++++++++++++++++++++++++++++++++
- 3 files changed, 92 insertions(+)
+ 2 files changed, 79 insertions(+)
 
-diff --git a/include/FLAC/export.h b/include/FLAC/export.h
-index d52f0bb..5a52dd5 100644
---- a/include/FLAC/export.h
-+++ b/include/FLAC/export.h
-@@ -92,6 +92,19 @@ extern FLAC_API int FLAC_API_SUPPORTS_OGG_FLAC;
- }
- #endif
- 
-+
-+enum {
-+	FLAC_E_RINIT,
-+	FLAC_E_RSTATUS,
-+	FLAC_E_RSTATE,
-+
-+	FLAC_E_WINIT,
-+	FLAC_E_WSTATE,
-+};
-+
-+#define FLAC_ERR(type, code)  -((type << 8) | code)
-+
-+
- /* \} */
- 
- #endif
 diff --git a/src/libFLAC/bitreader.c b/src/libFLAC/bitreader.c
-index 935208a..19e2d33 100644
+index 9a8a5f0..cc14092 100644
 --- a/src/libFLAC/bitreader.c
 +++ b/src/libFLAC/bitreader.c
-@@ -258,6 +258,12 @@ void FLAC__bitreader_delete(FLAC__BitReader *br)
+@@ -282,6 +282,12 @@ void FLAC__bitreader_delete(FLAC__BitReader *br)
   *
   ***********************************************************************/
  
@@ -52,10 +26,10 @@ index 935208a..19e2d33 100644
  {
  	FLAC__ASSERT(0 != br);
 diff --git a/src/libFLAC/stream_decoder.c b/src/libFLAC/stream_decoder.c
-index db1f320..336d849 100644
+index 09bdada..bcd2f31 100644
 --- a/src/libFLAC/stream_decoder.c
 +++ b/src/libFLAC/stream_decoder.c
-@@ -53,6 +53,7 @@
+@@ -52,6 +52,7 @@
  #include "private/md5.h"
  #include "private/memory.h"
  #include "private/macros.h"
@@ -63,7 +37,7 @@ index db1f320..336d849 100644
  
  
  /* technically this should be in an "export.c" but this is convenient enough */
-@@ -167,6 +168,8 @@ typedef struct FLAC__StreamDecoderPrivate {
+@@ -164,6 +165,8 @@ typedef struct FLAC__StreamDecoderPrivate {
  	FLAC__uint64 target_sample;
  	uint32_t unparseable_frame_count; /* used to tell whether we're decoding a future version of FLAC or just got a bad sync */
  	FLAC__bool got_a_frame; /* hack needed in Ogg FLAC seek routine to check when process_single() actually writes a frame */
@@ -72,7 +46,7 @@ index db1f320..336d849 100644
  } FLAC__StreamDecoderPrivate;
  
  /***********************************************************************
-@@ -2006,6 +2009,7 @@ FLAC__bool frame_sync_(FLAC__StreamDecoder *decoder)
+@@ -2021,6 +2024,7 @@ FLAC__bool frame_sync_(FLAC__StreamDecoder *decoder)
  			send_error_to_client_(decoder, FLAC__STREAM_DECODER_ERROR_STATUS_LOST_SYNC);
  			first = false;
  		}
@@ -80,23 +54,23 @@ index db1f320..336d849 100644
  	}
  
  	return true;
-@@ -2146,6 +2150,7 @@ FLAC__bool read_frame_(FLAC__StreamDecoder *decoder, FLAC__bool *got_a_frame, FL
- 	FLAC__ASSERT(decoder->private_->frame.header.number_type == FLAC__FRAME_NUMBER_TYPE_SAMPLE_NUMBER);
- 	decoder->private_->samples_decoded = decoder->private_->frame.header.number.sample_number + decoder->private_->frame.header.blocksize;
+@@ -2234,6 +2238,7 @@ FLAC__bool read_frame_(FLAC__StreamDecoder *decoder, FLAC__bool *got_a_frame, FL
+ 		FLAC__ASSERT(decoder->private_->frame.header.number_type == FLAC__FRAME_NUMBER_TYPE_SAMPLE_NUMBER);
+ 		decoder->private_->samples_decoded = decoder->private_->frame.header.number.sample_number + decoder->private_->frame.header.blocksize;
  
 +#if 0
- 	/* write it */
- 	if(do_full_decode) {
- 		if(write_audio_frame_to_client_(decoder, &decoder->private_->frame, (const FLAC__int32 * const *)decoder->private_->output) != FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE) {
-@@ -2153,6 +2158,7 @@ FLAC__bool read_frame_(FLAC__StreamDecoder *decoder, FLAC__bool *got_a_frame, FL
- 			return false;
+ 		/* write it */
+ 		if(do_full_decode) {
+ 			if(write_audio_frame_to_client_(decoder, &decoder->private_->frame, (const FLAC__int32 * const *)decoder->private_->output) != FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE) {
+@@ -2241,6 +2246,7 @@ FLAC__bool read_frame_(FLAC__StreamDecoder *decoder, FLAC__bool *got_a_frame, FL
+ 				return false;
+ 			}
  		}
- 	}
 +#endif
+ 	}
  
  	decoder->protected_->state = FLAC__STREAM_DECODER_SEARCH_FOR_FRAME_SYNC;
- 	return true;
-@@ -2983,6 +2989,9 @@ FLAC__StreamDecoderWriteStatus write_audio_frame_to_client_(FLAC__StreamDecoder
+@@ -3226,6 +3232,9 @@ FLAC__StreamDecoderWriteStatus write_audio_frame_to_client_(FLAC__StreamDecoder
  
  void send_error_to_client_(const FLAC__StreamDecoder *decoder, FLAC__StreamDecoderErrorStatus status)
  {
@@ -106,9 +80,9 @@ index db1f320..336d849 100644
  	if(!decoder->private_->is_seeking)
  		decoder->private_->error_callback(decoder, status, decoder->private_->client_data);
  	else if(status == FLAC__STREAM_DECODER_ERROR_STATUS_UNPARSEABLE_STREAM)
-@@ -3402,3 +3411,67 @@ void *get_client_data_from_decoder(FLAC__StreamDecoder *decoder)
- {
- 	return decoder->private_->client_data;
+@@ -3687,3 +3696,67 @@ FLAC__bool file_eof_callback_(const FLAC__StreamDecoder *decoder, void *client_d
+ 
+ 	return feof(decoder->private_->file)? true : false;
  }
 +
 +
@@ -175,5 +149,5 @@ index db1f320..336d849 100644
 +	return 0;
 +}
 -- 
-2.28.0
+2.35.1
 
