@@ -8,6 +8,7 @@
 #define FMED_VER_GETPATCH(fullver)  (fullver & 0xff)
 
 void usrconf_read(ffconf_scheme *sc, ffstr key, ffstr val);
+static const fmed_modinfo* _core_getmodinfo(ffstr name);
 
 static void core_posted(void *udata)
 {
@@ -185,7 +186,7 @@ static core_modinfo* core_findmod(const ffstr *name)
 
 const fmed_modinfo* core_insmod(ffstr name, ffconf_scheme *fc)
 {
-	core_mod *mod = (void*)core_getmodinfo(name);
+	core_mod *mod = (void*)_core_getmodinfo(name);
 	if (mod != NULL) {
 		return NULL;
 	}
@@ -263,7 +264,7 @@ const fmed_modinfo* core_insmod_delayed(ffstr name)
 	return (void*)mod;
 }
 
-const fmed_modinfo* core_getmodinfo(ffstr name)
+static const fmed_modinfo* _core_getmodinfo(ffstr name)
 {
 	core_mod *mod;
 	_FFLIST_WALK(&fmed->mods, mod, sib) {
@@ -271,6 +272,14 @@ const fmed_modinfo* core_getmodinfo(ffstr name)
 			return (fmed_modinfo*)mod;
 	}
 	return NULL;
+}
+
+const fmed_modinfo* core_getmodinfo(ffstr name)
+{
+	const fmed_modinfo *mod = _core_getmodinfo(name);
+	if (mod == NULL)
+		mod = core_insmod_delayed(name);
+	return mod;
 }
 
 /** Process user config settings stored previously for this module */
@@ -346,7 +355,7 @@ done:
 }
 
 /** Actually load a module. */
-static int mod_load_delayed(core_mod *mod)
+static int mod_load_delayed(core_mod *mod, uint flags)
 {
 	ffbool locked = 0;
 	ffstr soname, modname;
@@ -379,7 +388,8 @@ static int mod_load_delayed(core_mod *mod)
 	return 0;
 
 fail:
-	errlog0("can't load module %s", mod->name);
+	if (!(flags & FMED_MOD_NOLOG))
+		errlog0("can't load module %s", mod->name);
 end:
 	if (locked)
 		fflk_unlock(&mod->lock);
@@ -448,7 +458,7 @@ static const void* core_getmod2(uint flags, const char *name, ssize_t name_len)
 
 	if (mod == NULL)
 		goto err;
-	if (mod->m == NULL && 0 != mod_load_delayed((core_mod*)mod))
+	if (mod->m == NULL && 0 != mod_load_delayed((core_mod*)mod, flags))
 		return NULL;
 	if (t == FMED_MOD_IFACE)
 		return mod->iface;

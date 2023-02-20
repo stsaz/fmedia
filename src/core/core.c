@@ -299,7 +299,7 @@ static const char* ifilter_byext(const char *ext)
 	ffstr s = FFSTR_INITZ(ext);
 	if (NULL == (mod = modbyext(&fmed->conf.in_ext_map, &s)))
 		goto err;
-	if (mod->m == NULL && 0 != mod_load_delayed((core_mod*)mod))
+	if (mod->m == NULL && 0 != mod_load_delayed((core_mod*)mod, 0))
 		goto err;
 	return mod->name;
 err:
