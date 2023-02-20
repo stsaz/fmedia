@@ -23,8 +23,8 @@ int ogg_out_conf(fmed_conf_ctx *ctx)
 
 struct ogg_out {
 	oggwrite og;
-	ffvec pkt;
-	ffstr in;
+	ffvec pktbuf;
+	ffstr pkt;
 	uint state;
 	uint64 total;
 };
@@ -50,7 +50,7 @@ void ogg_out_close(void *ctx)
 {
 	struct ogg_out *o = ctx;
 	oggwrite_close(&o->og);
-	ffvec_free(&o->pkt);
+	ffvec_free(&o->pktbuf);
 	ffmem_free(o);
 }
 
@@ -89,7 +89,7 @@ int pkt_write(struct ogg_out *o, fmed_filt *d, ffstr *in, ffstr *out, uint64 end
 	}
 
 	o->total += out->len;
-	dbglog1(d->trk, "output: %L bytes (%U), page:%U, end-pos:%U"
+	dbglog1(d->trk, "output: %L bytes (%U), page:%U, end-pos:%D"
 		, out->len, o->total, (int64)o->og.stat.npages-1, o->og.page_startpos);
 	return FMED_RDATA;
 }
@@ -139,7 +139,7 @@ int ogg_out_encode(void *ctx, fmed_filt *d)
 			}
 
 			if (o->state == I_PKT && !(d->flags & FMED_FLAST)) {
-				ffvec_add2(&o->pkt, &d->data_in, 1); // store the first packet
+				ffvec_add2(&o->pktbuf, &d->data_in, 1); // store the first packet
 				return FMED_RMORE;
 			}
 
@@ -147,8 +147,6 @@ int ogg_out_encode(void *ctx, fmed_filt *d)
 		}
 
 		case I_PKT:
-			ffstr_set2(&in, &o->pkt); // gonna write the previous packet
-
 			endpos = d->audio.pos; // end-pos (for previous packet) = start-pos of this packet
 			if (o->og.stat.npkts == 0) {
 				endpos = 0;
@@ -160,9 +158,7 @@ int ogg_out_encode(void *ctx, fmed_filt *d)
 			if ((d->flags & FMED_FLAST) && d->data_in.len == 0)
 				flags = OGGWRITE_FLAST;
 
-			r = pkt_write(o, d, &in, &d->data_out, endpos, flags);
-			if (in.len == 0)
-				o->pkt.len = 0;
+			r = pkt_write(o, d, &o->pkt, &d->data_out, endpos, flags);
 			if (r == FMED_RMORE) {
 				if (d->flags & FMED_FLAST) {
 					if ((int64)d->audio.total != FMED_NULL && endpos < d->audio.total)
@@ -171,8 +167,10 @@ int ogg_out_encode(void *ctx, fmed_filt *d)
 						endpos++; // we don't know the packet's audio length -> can't set the real end-pos value
 					return pkt_write(o, d, &d->data_in, &d->data_out, endpos, OGGWRITE_FLAST);
 				}
-				ffvec_add2(&o->pkt, &d->data_in, 1); // store the current data packet
+				o->pktbuf.len = 0;
+				ffvec_add2(&o->pktbuf, &d->data_in, 1); // store the current data packet
 				d->data_in.len = 0;
+				ffstr_set2(&o->pkt, &o->pktbuf);
 			}
 			return r;
 
