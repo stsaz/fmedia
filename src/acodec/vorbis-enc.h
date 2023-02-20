@@ -55,7 +55,8 @@ static int vorbis_out_addmeta(vorbis_out *v, fmed_filt *d)
 
 	for (i = 0;  NULL != (val = qu->meta(qent, i, &name, FMED_QUE_UNIQ));  i++) {
 		if (val == FMED_QUE_SKIP
-			|| ffstr_eqcz(&name, "vendor"))
+			|| ffstr_eqcz(&name, "vendor")
+			|| ffstr_eqcz(&name, "picture"))
 			continue;
 		if (0 != ffvorbis_addtag(&v->vorbis, name.ptr, val->ptr, val->len))
 			warnlog(core, d->trk, NULL, "can't add tag: %S", &name);
