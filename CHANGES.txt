@@ -8,6 +8,24 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.30 - Feb 19, 2023
+
+ + --playback-buffer=INT: Length (in msec) of the playback buffer
+ *! move mod/core.so -> core.so (Core isn't really a module)
+ * core: optimize fmedia.conf so that it's easier to embed fmedia into other projects
+   (it's no longer required to declare a module in fmedia.conf)
+ * --print-time: don't require '--debug' to get per-filter timings
+ * .mp3, .ape, .wv read: id3v1 codepage
+ * Linux: use libgio directly to trash files
+ * Vorbis write: skip 'picture' tag
+ * update to libFLAC-1.4.2
+ - PulseAudio: playback could hang if there's a problem with device
+ - .mp3 copy: copy id3v1 tag (v1.27.2 bug)
+ - .ogg write: fix hanging on trying to write a large packet (v1.29 bug)
+ - .ogg read: inaccurate seeking (v1.29 bug)
+ - GUI/Linux: incorrect audio-conversion settings were written into fmedia-user.conf
+
+
 fmedia/Android v0.10 - Jan 14, 2023
 
  + Record via AAudio (native audio interface since Android 8).  Settings:
