@@ -242,7 +242,7 @@ static inline int audio_out_open(audio_out *a, fmed_filt *d, const ffpcm *fmt)
 	conf.sample_rate = fmt->sample_rate;
 	conf.channels = fmt->channels;
 
-	conf.buffer_length_msec = a->buffer_length_msec;
+	conf.buffer_length_msec = (d->a_out_buf_time != 0) ? d->a_out_buf_time : a->buffer_length_msec;
 
 	uint aflags = a->aflags;
 	ffaudio_conf in_conf = conf;

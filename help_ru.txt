@@ -15,6 +15,8 @@
 --dev-capture=DEVNO Use capture device
 --dev-loopback=DEVNO
                     Use playback device in a loopback mode (record from playback) (WASAPI only)
+--playback-buffer=INT
+                    Length (in msec) of the playback buffer (See also fmedia.conf::*.out.buffer_length)
 
 ФОРМАТ ЗВУКА:
 

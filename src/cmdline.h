@@ -370,6 +370,7 @@ static const ffcmdarg_arg fmed_cmdline_args[] = {
 	{ 0, "dev",	TINT32,	O(playdev_name) },
 	{ 0, "dev-capture",	TINT32,	O(captdev_name) },
 	{ 0, "dev-loopback",	TINT32,	O(lbdev_name) },
+	{ 0, "playback-buffer",	FFCMDARG_TINT16,	O(play_buf_len) },
 
 	//AUDIO FORMAT
 	{ 0, "format",	TSTR,	F(arg_format) },

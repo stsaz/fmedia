@@ -235,6 +235,7 @@ static void qu_setprops(fmed_cmd *fmed, const fmed_queue *qu, fmed_que_entry *qe
 
 static void trk_prep(fmed_cmd *fmed, fmed_trk *trk)
 {
+	const fmed_cmd *cmd = fmed;
 	trk->input_info = fmed->info;
 	trk->show_tags = fmed->tags;
 	trk->include_files = fmed->include_files;
@@ -249,6 +250,7 @@ static void trk_prep(fmed_cmd *fmed, fmed_trk *trk)
 		trk->audio.split = fmed->split_time;
 	if (fmed->prebuffer != 0)
 		trk->a_prebuffer = fmed->prebuffer;
+	trk->a_out_buf_time = cmd->play_buf_len;
 
 	trk->out_overwrite = fmed->overwrite;
 	trk->out_preserve_date = fmed->preserve_date;

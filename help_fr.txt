@@ -15,6 +15,8 @@ AUDIO DEVICES:
 --dev-capture=DEVNO Utilise le périphérique de capture.
 --dev-loopback=DEVNO
                     Utilise le périphérique de lecture en mode boucle (enregistrement à partir de la lecture) (WASAPI seulement).
+--playback-buffer=INT
+                    Length (in msec) of the playback buffer (See also fmedia.conf::*.out.buffer_length)
 
 AUDIO FORMAT:
 

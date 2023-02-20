@@ -15,6 +15,7 @@ typedef struct fmed_cmd {
 	uint playdev_name;
 	uint captdev_name;
 	uint lbdev_name;
+	ushort play_buf_len; //msec
 
 	struct {
 	uint out_format;

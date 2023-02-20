@@ -29,7 +29,6 @@ static void* aai_open(fmed_track_info *d)
 	a->aflags |= (d->ai_power_save) ? FFAUDIO_O_POWER_SAVE : 0;
 	a->aflags |= (d->ai_exclusive) ? FFAUDIO_O_EXCLUSIVE : 0;
 	a->recv_events = 1;
-	a->buffer_length_msec = d->a_in_buf_time;
 
 	if (0 != audio_in_open(a, d))
 		goto err;

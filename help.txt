@@ -17,6 +17,8 @@ AUDIO DEVICES:
                     Use playback device in a loopback mode (record from playback) (WASAPI only).
                     If used together with --dev-capture,
                      2 recording streams from both devices will run in parallel.
+--playback-buffer=INT
+                    Length (in msec) of the playback buffer (See also fmedia.conf::*.out.buffer_length)
 
 AUDIO FORMAT:
 
