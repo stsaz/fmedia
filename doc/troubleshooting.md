@@ -28,23 +28,23 @@ For playback, do:
 1. in `fmedia.conf` find this:
 
 		output "wasapi.out"
-		# output "direct-sound.out"
+		output "direct-sound.out"
 
 2. and change it to:
 
-		# output "wasapi.out"
 		output "direct-sound.out"
+		output "wasapi.out"
 
 For recording, do:
 
 1. in `fmedia.conf` find this:
 
 		input "wasapi.in"
-		# input "direct-sound.in"
+		input "direct-sound.in"
 
 2. and change it to:
 
-		# input "wasapi.in"
 		input "direct-sound.in"
+		input "wasapi.in"
 
 Now fmedia will use Direct Sound.

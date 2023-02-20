@@ -13,15 +13,15 @@ Copyright (c) 2015 Simon Zolin */
 #include <FFOS/timerqueue.h>
 
 #define FMED_VER_MAJOR  1
-#define FMED_VER_MINOR  29
-#define FMED_VER_PATCH  1
+#define FMED_VER_MINOR  30
+#define FMED_VER_PATCH  0
 #define FMED_VER_FULL  ((FMED_VER_MAJOR << 16) | (FMED_VER_MINOR << 8) | FMED_VER_PATCH)
 
 /** Inter-module compatibility version.
 It must be updated when incompatible changes are made to this file,
  then all modules must be rebuilt.
 The core will refuse to load modules built for any other core version. */
-#define FMED_VER_CORE  ((FMED_VER_MAJOR << 16) | (31<<8))
+#define FMED_VER_CORE  ((FMED_VER_MAJOR << 16) | (30<<8))
 
 #define FMED_HOMEPAGE  "https://stsaz.github.io/fmedia/"
 

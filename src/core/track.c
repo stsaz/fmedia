@@ -227,6 +227,14 @@ static void trk_open_capt(fm_trk *t)
 	addfilter(t, "afilter.rtpeak");
 }
 
+static void filter_add_ui(fm_trk *t)
+{
+	if (core->props->gui)
+		addfilter(t, "gui.gui");
+	else if (core->props->tui)
+		addfilter(t, "tui.tui");
+}
+
 static int trk_addfilters(fm_trk *t)
 {
 	switch (t->props.type) {
@@ -267,20 +275,12 @@ static int trk_addfilters(fm_trk *t)
 	case FMED_TRK_TYPE_METAINFO:
 	case FMED_TRK_TYPE_EXPAND:
 		t->props.input_info = 1;
-		if (core->props->gui)
-			addfilter(t, "gui.gui");
-		else if (core->props->tui)
-			addfilter(t, "tui.tui");
+		filter_add_ui(t);
 		return 0;
 
 	case FMED_TRK_TYPE_PCMINFO:
 		addfilter(t, "afilter.until");
-
-		if (core->props->gui)
-			addfilter(t, "gui.gui");
-		else if (core->props->tui)
-			addfilter(t, "tui.tui");
-
+		filter_add_ui(t);
 		if (t->props.use_dynanorm)
 			addfilter(t, "dynanorm.filter");
 		addfilter(t, "afilter.gain");
@@ -296,10 +296,7 @@ static int trk_addfilters(fm_trk *t)
 		return 0;
 
 	case FMED_TRK_TYPE_REC:
-		if (core->props->gui)
-			addfilter(t, "gui.gui");
-		else if (core->props->tui)
-			addfilter(t, "tui.tui");
+		filter_add_ui(t);
 
 		if (t->props.a_start_level != 0)
 			addfilter(t, "afilter.startlevel");
@@ -316,10 +313,7 @@ static int trk_addfilters(fm_trk *t)
 
 	if (t->props.type != FMED_TRK_TYPE_NETIN) {
 		addfilter(t, "afilter.until");
-		if (core->props->gui)
-			addfilter(t, "gui.gui");
-		else if (core->props->tui)
-			addfilter(t, "tui.tui");
+		filter_add_ui(t);
 	}
 
 	if (t->props.a_start_level != 0)

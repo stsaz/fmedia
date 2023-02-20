@@ -88,8 +88,8 @@ static const fmed_conf_arg gui_conf_args[] = {
 	{ "convert",	FMC_OBJ, FMC_F(gui_conf_convert) },
 	{ "minimize_to_tray",	FMC_BOOL8, FMC_O(ggui, minimize_to_tray) },
 	{ "status_tray",	FMC_BOOL8, FMC_O(ggui, status_tray) },
-	{ "seek_step",	FMC_INT8NZ, FMC_O(ggui, seek_step_delta) },
-	{ "seek_leap",	FMC_INT8NZ, FMC_O(ggui, seek_leap_delta) },
+	{ "seek_step",	FMC_INT8NZ, FMC_O(ggui, conf.seek_step_delta) },
+	{ "seek_leap",	FMC_INT8NZ, FMC_O(ggui, conf.seek_leap_delta) },
 	{ "autosave_playlists",	FMC_BOOL8, FMC_O(ggui, autosave_playlists) },
 	{ "global_hotkeys",	FMC_OBJ, FMC_F(gui_conf_ghk) },
 	{ "theme",	FMC_INT8, FMC_O(ggui, theme_startup) },
@@ -1133,8 +1133,8 @@ static void gui_destroy(void)
 
 static int gtrk_conf(fmed_conf_ctx *ctx)
 {
-	gg->seek_step_delta = 5;
-	gg->seek_leap_delta = 60;
+	gg->conf.seek_step_delta = 5;
+	gg->conf.seek_leap_delta = 60;
 	gg->status_tray = 1;
 	gg->autosave_playlists = 1;
 	fmed_conf_addctx(ctx, gg, gui_conf_args);

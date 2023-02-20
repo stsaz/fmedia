@@ -37,7 +37,8 @@
 
 ВХОД:
 --record           Capture audio.  Set default audio format in fmedia.conf::record_format.
---capture-buffer   Length (in msec) of the capture buffer (See also fmedia.conf::*.in.buffer_length)
+--capture-buffer=INT
+                   Length (in msec) of the capture buffer (See also fmedia.conf::*.in.buffer_length)
 
 --flist=FILE       Read filenames from FILE
 --include='WILDCARD[;WILDCARD]'

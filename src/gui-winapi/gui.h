@@ -38,6 +38,8 @@ struct gui_wmain {
 typedef struct gui_trk gui_trk;
 
 struct guiconf {
+	byte seek_step_delta;
+	byte seek_leap_delta;
 	byte list_repeat;
 	float auto_attenuate_ceiling;
 };
@@ -108,8 +110,6 @@ typedef struct ggui {
 
 	ffarr ghks; //struct ghk_ent[]
 
-	byte seek_step_delta;
-	byte seek_leap_delta;
 	byte minimize_to_tray;
 	byte status_tray;
 	byte autosave_playlists;

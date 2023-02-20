@@ -37,7 +37,8 @@ QUEUE:
 INPUT:
 
 --record           Enregistrement audio. Déterminer le format audio par défaut dans fmedia.conf::record_format.
---capture-buffer   Length (in msec) of the capture buffer (See also fmedia.conf::*.in.buffer_length)
+--capture-buffer=INT
+                   Length (in msec) of the capture buffer (See also fmedia.conf::*.in.buffer_length)
 
 --flist=FILE       Lit les noms de fichier à partir de FILE.
 --include='WILDCARD[;WILDCARD]'

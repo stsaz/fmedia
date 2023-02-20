@@ -38,7 +38,8 @@ QUEUE:
 ENTRADA:
 
 --record           Captura audio.  Defina el formato de audio por defecto en fmedia.conf::record_format.
---capture-buffer   Tamaño (en milisegundos) del buffer de captura (Vea también fmedia.conf::*.in.buffer_length)
+--capture-buffer=INT
+                   Tamaño (en milisegundos) del buffer de captura (Vea también fmedia.conf::*.in.buffer_length)
 
 --flist=ARCHIVO    Lee nombres de archivo desde ARCHIVO
 --include='WILDCARD[;WILDCARD]'

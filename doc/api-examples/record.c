@@ -95,7 +95,7 @@ int main(int argc, char **argv)
 	assert(NULL != (exe = ffps_filename(buf, sizeof(buf), argv[0])));
 	ffstr path;
 	ffpath_splitpath(exe, ffsz_len(exe), &path, NULL);
-	char *core_so = ffsz_allocfmt("%S/mod/core.%s", &path, FFDL_EXT);
+	char *core_so = ffsz_allocfmt("%S/core.%s", &path, FFDL_EXT);
 	char *fmedia_conf = ffsz_allocfmt("%S/fmedia.conf", &path);
 
 	// Open fmedia core library

@@ -566,7 +566,7 @@ endif
 		$(ALIB3)/libvorbis-ff.$(SO) $(ALIB3)/libvorbisenc-ff.$(SO) $(ALIB3)/libogg-ff.$(SO) \
 		$(ALIB3)/libwavpack-ff.$(SO) \
 		$(INSTDIR)/mod/
-	chmod 644 $(INSTDIR)/mod/*
+	chmod 644 $(INSTDIR)/mod/* $(INSTDIR)/core.$(SO)
 
 
 copy-bins:

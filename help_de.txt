@@ -38,7 +38,8 @@ WARTESCHLANGE:
 EINGABE:
 
 --record           Audio aufnehmen. Das Standard Audio Format ist in fmedia.conf::record_format hinterlegt.
---capture-buffer   Length (in msec) of the capture buffer (See also fmedia.conf::*.in.buffer_length)
+--capture-buffer=INT
+                   Length (in msec) of the capture buffer (See also fmedia.conf::*.in.buffer_length)
 
 --flist=FILE       Lese alle Dateinamen von FILE
 --include='WILDCARD[;WILDCARD]'

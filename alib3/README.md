@@ -1,7 +1,7 @@
 # Third-party audio libraries
 
 * In order to be used by fmedia all these libraries must be built in a specific way - with plain and simple make files rather than with the official (sometimes unnecessarily huge and complex) make files.
-* Sometimes the call to configure script is necessary to generate header files.
+* Sometimes the call to configure script is necessary to generate header files (e.g. `config.h`).
 * For each library there's a wrapper that provides a different API that's easier to use and more suitable for fmedia.
 * For some of the wrappers to work correctly we require quite large patches to original code.  The downside is that it's hard to upgrade those libs.
 * The functionality that's not used by fmedia is either removed or disabled; fmedia doesn't use the official include files.

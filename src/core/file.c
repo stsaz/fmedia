@@ -270,7 +270,7 @@ static int file_getdata(void *ctx, fmed_filt *d)
 	if ((int64)d->input.seek != FMED_NULL) {
 		f->seek = d->input.seek;
 		d->input.seek = FMED_NULL;
-		dbglog(d->trk, "seeking to %xU", f->seek);
+		dbglog(d->trk, "seeking to %U (%xUh)", f->seek, f->seek);
 		f->done = 0;
 		seek_req = 1;
 		f->nseek++;

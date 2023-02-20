@@ -494,19 +494,19 @@ void gui_seek(uint cmd)
 		break;
 
 	case A_PLAY_FFWD:
-		delta = gg->seek_step_delta;
+		delta = gg->conf.seek_step_delta;
 		goto use_delta;
 
 	case A_PLAY_RWND:
-		delta = -(int)gg->seek_step_delta;
+		delta = -(int)gg->conf.seek_step_delta;
 		goto use_delta;
 
 	case A_PLAY_LEAP_FWD:
-		delta = gg->seek_leap_delta;
+		delta = gg->conf.seek_leap_delta;
 		goto use_delta;
 
 	case A_PLAY_LEAP_BACK:
-		delta = -(int)gg->seek_leap_delta;
+		delta = -(int)gg->conf.seek_leap_delta;
 		goto use_delta;
 
 use_delta:

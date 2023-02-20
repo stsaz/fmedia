@@ -1,7 +1,7 @@
 # fmedia API Examples
 
 fmedia can be used as a library for your own software, and here's how you can use it with an official fmedia installation, without building anything else but your own code.
-By default, `fmedia-1/fmedia` executable file loads `mod/core.so` and prepares the jobs for it according to command line.
+By default, `fmedia-1/fmedia` executable file loads `core.so` and prepares the jobs for it according to command line.
 You can do same things but **without** the official `fmedia` executable.
 The approach is plain and simple.
 All interfaces to fmedia modules are located in a single file `fmedia.h` which you include into your code.

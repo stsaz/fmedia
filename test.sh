@@ -6,23 +6,43 @@ set -x
 # exit if a child process reports an error
 set -e
 
-BIN=./fmedia
+CMD=$1
 
-if test "$1" = "clean" ; then
+if test "$CMD" = "all" ; then
+	./fmedia --list-dev
+	sh $0 record
+	sh $0 info
+	sh $0 play
+	sh $0 cue
+	sh $0 convert
+	sh $0 convert_meta
+	sh $0 convert_streamcopy
+	sh $0 convert_parallel
+	sh $0 filters
+
+elif test "$CMD" = "perf" ; then
+	for i in $(seq 1 3) ; do
+		./fmedia afile --print-time --pcm-peaks
+		./fmedia afile --print-time -o fmedia-test.wav -y --rate=96000 --format=int32
+	done
+
+fi
+
+if test "$CMD" = "clean" ; then
 	rm *.aac *.wav *.flac *.mp3 *.m4a *.ogg *.opus *.mpc *.wv *.mp4 *.mkv *.avi *.caf *.cue
 	exit
 fi
 
-if test "$1" = "radio" ; then
+if test "$CMD" = "radio" ; then
 	URL="http://"
-	$BIN $URL -o '$artist-$title.mp3' --out-copy --stream-copy -y --meta=artist=A --until=1
+	./fmedia $URL -o '$artist-$title.mp3' --out-copy --stream-copy -y --meta=artist=A --until=1
 fi
 
-if test "$1" = "rec1" ; then
+if test "$CMD" = "rec1" ; then
 	./fmedia --record -o rec.wav -y --until=2 --rate=44100 --format=int16
 fi
 
-if test "$1" = "record" ; then
+if test "$CMD" = "record" ; then
 	# record -> .*
 	# TODO --meta=artist=A;title=T
 	./fmedia --record -o rec.wav -y --until=2 --rate=44100 --format=int16
@@ -34,12 +54,12 @@ if test "$1" = "record" ; then
 	./fmedia rec.* --pcm-peaks
 fi
 
-if test "$1" = "info" ; then
+if test "$CMD" = "info" ; then
 	OPTS="--info --tags"
-	$BIN rec.* $OPTS
+	./fmedia rec.* $OPTS
 fi
 
-if test "$1" = "play" ; then
+if test "$CMD" = "play" ; then
 	if ! test -f "rec4.wav" ; then
 		./fmedia --record --format=int16 --rate=48000 --channels=2 --until=4 -o rec4.wav -y
 	fi
@@ -74,7 +94,7 @@ if test "$1" = "play" ; then
 	./fmedia play_* --seek=2
 fi
 
-if test "$1" = "cue" ; then
+if test "$CMD" = "cue" ; then
 	if ! test -f "rec4.flac" ; then
 		./fmedia --record --format=int16 --rate=48000 --channels=2 --until=4 -o rec4.flac -y
 	fi
@@ -88,83 +108,83 @@ TRACK 02 AUDIO
 	./fmedia cue.cue
 fi
 
-if test "$1" = "convert" ; then
+if test "$CMD" = "convert" ; then
 	if ! test -f "rec.wav" ; then
 		./fmedia --record --format=int16 --rate=48000 --channels=2 --until=2 -o rec.wav -y
 	fi
 	# convert .wav -> .*
 	OPTS="-y"
-	$BIN rec.wav -o enc.wav $OPTS
-	$BIN rec.wav -o enc.flac $OPTS
-	$BIN rec.wav -o enc.mp3 $OPTS
-	$BIN rec.wav -o enc.m4a $OPTS
-	$BIN rec.wav -o enc.ogg $OPTS
-	$BIN rec.wav -o enc.opus $OPTS
-	$BIN enc.* --pcm-peaks
-	$BIN enc.* --pcm-peaks --seek=0.500
+	./fmedia rec.wav -o enc.wav $OPTS
+	./fmedia rec.wav -o enc.flac $OPTS
+	./fmedia rec.wav -o enc.mp3 $OPTS
+	./fmedia rec.wav -o enc.m4a $OPTS
+	./fmedia rec.wav -o enc.ogg $OPTS
+	./fmedia rec.wav -o enc.opus $OPTS
+	./fmedia enc.* --pcm-peaks
+	./fmedia enc.* --pcm-peaks --seek=0.500
 
 	# convert with seek: .wav -> .*
 	OPTS="-y --seek=0.500"
-	$BIN rec.wav -o enc-seek.wav $OPTS
-	$BIN rec.wav -o enc-seek.flac $OPTS
-	$BIN rec.wav -o enc-seek.mp3 $OPTS
-	$BIN rec.wav -o enc-seek.m4a $OPTS
-	$BIN rec.wav -o enc-seek.ogg $OPTS
-	$BIN rec.wav -o enc-seek.opus $OPTS
-	$BIN enc-seek.* --pcm-peaks
+	./fmedia rec.wav -o enc-seek.wav $OPTS
+	./fmedia rec.wav -o enc-seek.flac $OPTS
+	./fmedia rec.wav -o enc-seek.mp3 $OPTS
+	./fmedia rec.wav -o enc-seek.m4a $OPTS
+	./fmedia rec.wav -o enc-seek.ogg $OPTS
+	./fmedia rec.wav -o enc-seek.opus $OPTS
+	./fmedia enc-seek.* --pcm-peaks
 
 	# convert with --until: .wav -> .*
 	OPTS="-y --until=0.500"
-	$BIN rec.wav -o enc-until.wav $OPTS
-	$BIN rec.wav -o enc-until.flac $OPTS
-	$BIN rec.wav -o enc-until.mp3 $OPTS
-	$BIN rec.wav -o enc-until.m4a $OPTS
-	$BIN rec.wav -o enc-until.ogg $OPTS
-	$BIN rec.wav -o enc-until.opus $OPTS
-	$BIN enc-until.* --pcm-peaks
+	./fmedia rec.wav -o enc-until.wav $OPTS
+	./fmedia rec.wav -o enc-until.flac $OPTS
+	./fmedia rec.wav -o enc-until.mp3 $OPTS
+	./fmedia rec.wav -o enc-until.m4a $OPTS
+	./fmedia rec.wav -o enc-until.ogg $OPTS
+	./fmedia rec.wav -o enc-until.opus $OPTS
+	./fmedia enc-until.* --pcm-peaks
 
 	# convert with rate: .wav -> .*
 	OPTS="-y --rate=48000"
-	$BIN rec.wav -o enc48.wav $OPTS
-	$BIN rec.wav -o enc48.flac $OPTS
-	$BIN rec.wav -o enc48.mp3 $OPTS
-	$BIN rec.wav -o enc48.m4a $OPTS
-	$BIN rec.wav -o enc48.ogg $OPTS
-	$BIN rec.wav -o enc48.opus $OPTS
-	$BIN enc48.* --pcm-peaks
+	./fmedia rec.wav -o enc48.wav $OPTS
+	./fmedia rec.wav -o enc48.flac $OPTS
+	./fmedia rec.wav -o enc48.mp3 $OPTS
+	./fmedia rec.wav -o enc48.m4a $OPTS
+	./fmedia rec.wav -o enc48.ogg $OPTS
+	./fmedia rec.wav -o enc48.opus $OPTS
+	./fmedia enc48.* --pcm-peaks
 
 	# convert with rate & channels .wav -> .*
 	OPTS="-y --rate=48000 --channels=mono"
-	$BIN rec.wav -o enc48mono.wav $OPTS
-	$BIN rec.wav -o enc48mono.flac $OPTS
-	$BIN rec.wav -o enc48mono.mp3 $OPTS
-	$BIN rec.wav -o enc48mono.m4a $OPTS
-	$BIN rec.wav -o enc48mono.ogg $OPTS
-	$BIN rec.wav -o enc48mono.opus $OPTS
-	$BIN enc48mono.* --pcm-peaks
+	./fmedia rec.wav -o enc48mono.wav $OPTS
+	./fmedia rec.wav -o enc48mono.flac $OPTS
+	./fmedia rec.wav -o enc48mono.mp3 $OPTS
+	./fmedia rec.wav -o enc48mono.m4a $OPTS
+	./fmedia rec.wav -o enc48mono.ogg $OPTS
+	./fmedia rec.wav -o enc48mono.opus $OPTS
+	./fmedia enc48mono.* --pcm-peaks
 
 	# convert with format & rate .wav -> .*
 	OPTS="-y --format=int32 --rate=48000"
-	$BIN rec.wav -o enc48-32.wav $OPTS
-	# TODO $BIN rec.wav -o enc48-32.flac $OPTS
-	$BIN rec.wav -o enc48-32.mp3 $OPTS
-	$BIN rec.wav -o enc48-32.m4a $OPTS
-	$BIN rec.wav -o enc48-32.ogg $OPTS
-	$BIN rec.wav -o enc48-32.opus $OPTS
-	$BIN enc48-32.* --pcm-peaks
+	./fmedia rec.wav -o enc48-32.wav $OPTS
+	# TODO ./fmedia rec.wav -o enc48-32.flac $OPTS
+	./fmedia rec.wav -o enc48-32.mp3 $OPTS
+	./fmedia rec.wav -o enc48-32.m4a $OPTS
+	./fmedia rec.wav -o enc48-32.ogg $OPTS
+	./fmedia rec.wav -o enc48-32.opus $OPTS
+	./fmedia enc48-32.* --pcm-peaks
 
 	# convert with format, rate & channels .wav -> .*
 	OPTS="-y --format=int32 --rate=48000 --channels=mono"
-	$BIN rec.wav -o enc48mono-32.wav $OPTS
-	# TODO $BIN rec.wav -o enc48mono-32.flac $OPTS
-	$BIN rec.wav -o enc48mono-32.mp3 $OPTS
-	$BIN rec.wav -o enc48mono-32.m4a $OPTS
-	$BIN rec.wav -o enc48mono-32.ogg $OPTS
-	$BIN rec.wav -o enc48mono-32.opus $OPTS
-	$BIN enc48mono-32.* --pcm-peaks
+	./fmedia rec.wav -o enc48mono-32.wav $OPTS
+	# TODO ./fmedia rec.wav -o enc48mono-32.flac $OPTS
+	./fmedia rec.wav -o enc48mono-32.mp3 $OPTS
+	./fmedia rec.wav -o enc48mono-32.m4a $OPTS
+	./fmedia rec.wav -o enc48mono-32.ogg $OPTS
+	./fmedia rec.wav -o enc48mono-32.opus $OPTS
+	./fmedia enc48mono-32.* --pcm-peaks
 fi
 
-if test "$1" = "convert_meta" ; then
+if test "$CMD" = "convert_meta" ; then
 	if ! test -f "rec.wav" ; then
 		./fmedia --record -o rec.wav -y --until=2 --rate=44100 --format=int16
 	fi
@@ -215,14 +235,14 @@ if test "$1" = "convert_meta" ; then
 	./fmedia enc_meta_fmt.opus --info 2>&1 | grep 'SomeArtist - SomeTitle'
 fi
 
-if test "$1" = "convert_parallel" ; then
+if test "$CMD" = "convert_parallel" ; then
 	# parallel conversion
 	OPTS="-y --parallel"
-	$BIN rec.* -o 'parallel-$counter.m4a' $OPTS
-	$BIN parallel-*.m4a --pcm-peaks --parallel
+	./fmedia rec.* -o 'parallel-$counter.m4a' $OPTS
+	./fmedia parallel-*.m4a --pcm-peaks --parallel
 fi
 
-if test "$1" = "convert_streamcopy" ; then
+if test "$CMD" = "convert_streamcopy" ; then
 	# convert with stream-copy
 	./fmedia play_aac.mp4 -o copy_aac.m4a -y --stream-copy
 	./fmedia play_mp3.mp3 -o copy_mp3.mp3 -y --stream-copy
@@ -247,17 +267,17 @@ if test "$1" = "convert_streamcopy" ; then
 	./fmedia copy_meta.m4a --info 2>&1 | grep 'SomeArtist - SomeTitle'
 fi
 
-if test "$1" = "filters" ; then
+if test "$CMD" = "filters" ; then
 	sh $0 filters_aconv
 	sh $0 filters_gain
 	sh $0 filters_dynanorm
 	OPTS="-y"
-	$BIN rec.wav -o 'split-$counter.wav' --split=0.100 $OPTS
-	$BIN rec.wav -o 'split-$counter.mp3' --split=0.100 $OPTS
-	$BIN split-* --pcm-peaks
+	./fmedia rec.wav -o 'split-$counter.wav' --split=0.100 $OPTS
+	./fmedia rec.wav -o 'split-$counter.mp3' --split=0.100 $OPTS
+	./fmedia split-* --pcm-peaks
 fi
 
-if test "$1" = "filters_aconv" ; then
+if test "$CMD" = "filters_aconv" ; then
 	./fmedia --record --format=int16 --rate=48000 --channels=2 --until=1 -o aconv_rec.wav -y
 
 	# int16 -> int32
@@ -277,15 +297,15 @@ if test "$1" = "filters_aconv" ; then
 	./fmedia aconv32-192.wav --pcm-peaks
 fi
 
-if test "$1" = "filters_gain" ; then
+if test "$CMD" = "filters_gain" ; then
 	OPTS="-y"
-	$BIN rec.wav -o vol.wav --volume=50 $OPTS
-	$BIN vol.wav --pcm-peaks
-	$BIN rec.wav -o gain.wav --gain=-6.0 $OPTS
-	$BIN gain.wav --pcm-peaks
+	./fmedia rec.wav -o vol.wav --volume=50 $OPTS
+	./fmedia vol.wav --pcm-peaks
+	./fmedia rec.wav -o gain.wav --gain=-6.0 $OPTS
+	./fmedia gain.wav --pcm-peaks
 fi
 
-if test "$1" = "filters_dynanorm" ; then
+if test "$CMD" = "filters_dynanorm" ; then
 	./fmedia --record --until=2 --dynanorm -o rec-dynanorm.wav -y
 	./fmedia rec-dynanorm.wav --pcm-peaks
 
@@ -293,26 +313,6 @@ if test "$1" = "filters_dynanorm" ; then
 
 	./fmedia rec-dynanorm.wav -o dynanorm.wav --dynanorm -y
 	./fmedia dynanorm.wav --pcm-peaks
-fi
-
-if test "$1" = "all" ; then
-	$BIN --list-dev
-	sh $0 record
-	sh $0 info
-	sh $0 play
-	sh $0 cue
-	sh $0 convert
-	sh $0 convert_meta
-	sh $0 convert_streamcopy
-	sh $0 convert_parallel
-	sh $0 filters
-
-elif test "$1" = "perf" ; then
-	for i in $(seq 1 3) ; do
-		./fmedia afile --print-time --pcm-peaks
-		./fmedia afile --print-time -o fmedia-test.wav -y --rate=96000 --format=int32
-	done
-
 fi
 
 echo DONE

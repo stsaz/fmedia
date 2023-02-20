@@ -93,6 +93,8 @@ int mix_out_conf(fmed_conf_ctx *ctx)
 
 static void* mix_in_open(fmed_filt *d)
 {
+	if (mx == NULL)
+		return NULL;
 	mix_in *mi;
 
 	mi = ffmem_tcalloc1(mix_in);

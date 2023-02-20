@@ -146,6 +146,7 @@ This is the list of the things that need to be done.
 * mkv(MP3) seek artifacts (probably because pos > seek and thus mpeg doesnt skip first samples)
 * "play_pcm.caf" 0.73MB 0:00.000 (0 samples) 0kbps  int16 48000Hz stereo
 * play_aac.avi: always "0:00 / 1:00"
+* --record --capture-buffer=1 hangs due to 0ms (1/3=0) timer interval
 
 ## Refactoring
 

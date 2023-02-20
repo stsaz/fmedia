@@ -16,18 +16,18 @@ You can edit `fmedia.conf` file and set `portable_conf true` setting, but this c
 By using `fmedia-ext.conf` configuration file you won't need to edit `fmedia.conf` after fmedia upgrade.
 
 
-## Linux: use ALSA rather than Pulse Audio
+## Linux: use ALSA rather than Pulse Audio for playback
 
-If you suspect that Pulse Audio is not the best choice for audio I/O due to sound quality, latency or performance, you can configure fmedia to use ALSA:
+If you suspect that Pulse Audio is not the best choice for audio playback due to sound quality, latency or performance, you can configure fmedia to use ALSA:
 
 1. in `fmedia.conf` find these lines:
 
-		# output "alsa.out"
 		output "pulse.out"
+		output "alsa.out"
 
 2. and change them to:
 
 		output "alsa.out"
-		# output "pulse.out"
+		output "pulse.out"
 
-Now fmedia will use ALSA for audio I/O.
+Now fmedia will use ALSA for audio playback.

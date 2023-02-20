@@ -39,7 +39,7 @@ QUEUE / Antrian:
 INPUT:
 
 --record                Untuk merekam audio. Untuk pengaturan format audio default dapat diatur pada file fmedia.conf::record_format.
---capture-buffer        "Length" (dalam msec) dari capture buffer (Lihat juga file fmedia.conf::*.in.buffer_length)
+--capture-buffer=INT    "Length" (dalam msec) dari capture buffer (Lihat juga file fmedia.conf::*.in.buffer_length)
 
 --flist=FILE            Membaca nama file dari parameter <FILE>
 --include='WILDCARD[;WILDCARD]'
