@@ -219,7 +219,9 @@ static void trk_open_capt(fm_trk *t)
 		t->props.audio.convfmt.channels = rec->channels;
 		t->props.audio.fmt.channels = rec->channels & FFPCM_CHMASK;
 	}
-	addfilter1(t, core->props->record_module);
+
+	const fmed_modinfo *record_module = core->getmod2(FMED_MOD_INFO_ADEV_IN, NULL, 0);
+	addfilter1(t, record_module);
 
 	addfilter(t, "afilter.until");
 	addfilter(t, "afilter.rtpeak");
@@ -329,9 +331,7 @@ static int trk_addfilters(fm_trk *t)
 		addfilter(t, "dynanorm.filter");
 
 	if (t->props.type != FMED_TRK_TYPE_MIXOUT && !t->props.stream_copy) {
-		ffbool playback = (t->props.type == FMED_TRK_TYPE_PLAYBACK
-			&& core->props->playback_module != NULL);
-
+		ffbool playback = (t->props.type == FMED_TRK_TYPE_PLAYBACK);
 		if (!(playback && t->props.audio.auto_attenuate_ceiling != 0.0))
 			addfilter(t, "afilter.gain");
 	}
@@ -348,9 +348,11 @@ output:
 		if (0 != trk_setout_file(t))
 			return -1;
 
-	} else if (core->props->playback_module != NULL) {
+	} else {
 		addfilter(t, "afilter.auto-attenuator");
-		addfilter1(t, core->props->playback_module);
+
+		const fmed_modinfo *playback_module = core->getmod2(FMED_MOD_INFO_ADEV_OUT, NULL, 0);
+		addfilter1(t, playback_module);
 	}
 
 	return 0;
@@ -407,10 +409,8 @@ static void* trk_create(uint cmd, const char *fn)
 	case FMED_TRK_TYPE_MIXIN:
 	case FMED_TRK_TYPE_PCMINFO:
 	case FMED_TRK_TYPE_METAINFO:
-		if (0 != trk_open(t, fn)) {
-			trk_free(t);
-			return FMED_TRK_EFMT;
-		}
+		if (0 != trk_open(t, fn))
+			goto err;
 		break;
 
 	case FMED_TRK_TYPE_REC:

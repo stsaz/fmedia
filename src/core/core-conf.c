@@ -9,6 +9,12 @@ void usrconf_read(ffconf_scheme *sc, ffstr key, ffstr val);
 int conf_init(fmed_config *conf)
 {
 	conf->codepage = FFUNICODE_WIN1252;
+	conf->instance_mode = FMED_IM_PLAY;
+	conf->prevent_sleep = 1;
+
+	conf->inp_pcm.format = FFPCM_16;
+	conf->inp_pcm.channels = 2;
+	conf->inp_pcm.sample_rate = 44100;
 	return 0;
 }
 
@@ -18,6 +24,17 @@ void conf_destroy(fmed_config *conf)
 	ffmap_free(&conf->out_ext_map);
 	ffvec_free(&conf->inmap);
 	ffvec_free(&conf->outmap);
+
+	char **name;
+	FFSLICE_WALK(&conf->input_mods, name) {
+		ffmem_free(*name);
+	}
+	ffvec_free(&conf->input_mods);
+
+	FFSLICE_WALK(&conf->output_mods, name) {
+		ffmem_free(*name);
+	}
+	ffvec_free(&conf->output_mods);
 }
 
 enum {
@@ -41,23 +58,6 @@ static int conf_instance_mode(fmed_conf *fc, fmed_config *conf, ffstr *val)
 	return FMC_EBADVAL;
 }
 
-#define MODS_WIN_ONLY  "wasapi.", "direct-sound.", "#winsleep."
-#define MODS_LINUX_ONLY  "alsa.", "pulse.", "jack.", "dbus."
-#define MODS_BSD_ONLY  "oss."
-#define MODS_MAC_ONLY  "coreaudio."
-
-static const char *const mods_skip[] = {
-#if defined FF_WIN
-	MODS_LINUX_ONLY, MODS_BSD_ONLY, MODS_MAC_ONLY
-#elif defined FF_LINUX
-	MODS_WIN_ONLY, MODS_BSD_ONLY, MODS_MAC_ONLY
-#elif defined FF_BSD
-	MODS_WIN_ONLY, MODS_LINUX_ONLY, MODS_MAC_ONLY
-#elif defined FF_APPLE
-	MODS_WIN_ONLY, MODS_LINUX_ONLY, MODS_BSD_ONLY
-#endif
-};
-
 /** Return 1 if the module is allowed to load. */
 static int allowed_mod(const ffstr *name)
 {
@@ -65,12 +65,6 @@ static int allowed_mod(const ffstr *name)
 		return 0;
 	if (ffstr_matchz(name, "tui.") && (!core->props->tui || core->props->gui))
 		return 0;
-
-	const char *const *s;
-	FFARRS_FOREACH(mods_skip, s) {
-		if (ffstr_matchz(name, *s))
-			return 0;
-	}
 	return 1;
 }
 
@@ -121,26 +115,15 @@ static int conf_modconf(fmed_conf *fc, fmed_config *conf)
 
 static int conf_output(fmed_conf *fc, fmed_config *conf, ffstr *val)
 {
-	if (!allowed_mod(val) || conf->output != NULL)
-		return 0;
-
-	const void *out;
-	if (NULL == (out = core_getmodinfo(*val))) {
-		if (ffsz_eq(fc->arg->name, "output_optional"))
-			return 0;
-		return FMC_EBADVAL;
-	}
-	conf->output = out;
+	char **p = ffvec_pushT(&conf->output_mods, char*);
+	*p = ffsz_dupstr(val);
 	return 0;
 }
 
 static int conf_input(fmed_conf *fc, fmed_config *conf, ffstr *val)
 {
-	if (!allowed_mod(val))
-		return 0;
-
-	if (NULL == (conf->input = core_getmodinfo(*val)))
-		return FMC_EBADVAL;
+	char **p = ffvec_pushT(&conf->input_mods, char*);
+	*p = ffsz_dupstr(val);
 	return 0;
 }
 
@@ -274,7 +257,6 @@ static const fmed_conf_arg conf_args[] = {
 	{ "mod",	FMC_STRNE | FFCONF_FMULTI, FMC_F(conf_mod) },
 	{ "mod_conf",	FMC_OBJ | FFCONF_FNOTEMPTY | FFCONF_FMULTI, FMC_F(conf_modconf) },
 	{ "output",	FMC_STRNE | FFCONF_FMULTI, FMC_F(conf_output) },
-	{ "output_optional",	FMC_STRNE | FFCONF_FMULTI, FMC_F(conf_output) },
 	{ "input",	FMC_STRNE | FFCONF_FMULTI, FMC_F(conf_input) },
 	{ "record_format",	FMC_OBJ, FMC_F(conf_recfmt) },
 	{ "input_ext",	FMC_OBJ, FMC_F(conf_ext) },
@@ -321,14 +303,14 @@ static int confusr_mod(fmed_conf *fc, fmed_config *conf, ffstr *val)
 			return 0;
 		}
 
-		if (!mod->have_conf) {
-			infolog0("user config: module doesn't support configuration: %S", &modname);
-			return 0;
-		}
-
 		if (mod->conf_ctx.args == NULL) {
 			// the module isn't yet loaded - just store all its user settings
 			ffvec_addfmt(&mod->usrconf_data, "%S %S\n", &key, val);
+			return 0;
+		}
+
+		if (!mod->have_conf) {
+			infolog0("user config: module doesn't support configuration: %S", &modname);
 			return 0;
 		}
 

@@ -224,6 +224,7 @@ static void rec_sets_destroy(rec_sets_t *sets)
 int gui_conf_rec(fmed_conf *fc, void *obj)
 {
 	struct gui_wrec *w = gg->wrec;
+	w->rec_sets.output = ffsz_dup("%APPDATA%\\fmedia\\rec-$date-$time.flac");
 	fmed_conf_addnewctx(fc, &w->rec_sets, rec_sets_conf);
 	return 0;
 }

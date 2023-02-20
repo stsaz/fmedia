@@ -138,9 +138,6 @@ static int core_conf(const char *filename)
 		dbglog0("conf process time: %uus", t1.sec*1000000 + t1.nsec/1000);
 	}
 
-	fmed->props.playback_module = fmed->conf.output;
-	fmed->props.record_module = fmed->conf.input;
-	fmed->props.record_format = fmed->conf.inp_pcm;
 	fmed->props.record_format = fmed->conf.inp_pcm;
 	fmed->props.prevent_sleep = fmed->conf.prevent_sleep;
 	fmed->props.codepage = fmed->conf.codepage;

@@ -67,6 +67,7 @@ int fileout_config(fmed_conf_ctx *ctx)
 	out_conf.prealloc = 1 * 1024 * 1024;
 	out_conf.prealloc_grow = 1;
 	out_conf.file_del = 1;
+	out_conf.use_thread_pool = 1;
 	fmed_conf_addctx(ctx, &out_conf, file_out_conf_args);
 	return 0;
 }

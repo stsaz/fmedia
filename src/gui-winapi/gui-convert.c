@@ -298,6 +298,8 @@ static void output_show()
 int gui_conf_convert(fmed_conf *fc, void *obj)
 {
 	struct gui_wconvert *w = gg->wconvert;
+	output_add("$filepath/$tracknumber. $artist - $title.ogg");
+	output_add("$filepath/$filename.m4a");
 	fmed_conf_addnewctx(fc, &w->conv_sets, cvt_sets_conf);
 	return 0;
 }

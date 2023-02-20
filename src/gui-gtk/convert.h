@@ -86,6 +86,8 @@ static const fmed_conf_arg conf_conv[] = {
 };
 int conf_convert(fmed_conf *fc, void *obj)
 {
+	struct gui_wconvert *c = gg->wconvert;
+	c->output = ffsz_dup("$filepath/$filename.m4a");
 	fmed_conf_addnewctx(fc, gg->wconvert, conf_conv);
 	return 0;
 }

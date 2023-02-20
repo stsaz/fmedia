@@ -174,7 +174,7 @@ static int http_config(fmed_conf_ctx *ctx)
 {
 	net->conf.bufsize = 16 * 1024;
 	net->conf.nbufs = 2;
-	net->conf.buf_lowat = 8 * 1024;
+	net->conf.buf_lowat = 4 * 1024;
 	net->conf.conn_tmout = 1500;
 	net->conf.tmout = 5000;
 	net->conf.user_agent = UA_OFF;

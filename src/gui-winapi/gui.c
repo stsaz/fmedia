@@ -1136,6 +1136,7 @@ static int gtrk_conf(fmed_conf_ctx *ctx)
 	gg->seek_step_delta = 5;
 	gg->seek_leap_delta = 60;
 	gg->status_tray = 1;
+	gg->autosave_playlists = 1;
 	fmed_conf_addctx(ctx, gg, gui_conf_args);
 	return 0;
 }

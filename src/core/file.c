@@ -169,6 +169,7 @@ static int file_in_conf(fmed_conf_ctx *ctx)
 	mod->in_conf.bsize = 64 * 1024;
 	mod->in_conf.nbufs = 3;
 	mod->in_conf.directio = 0;
+	mod->in_conf.use_thread_pool = 1;
 	fmed_conf_addctx(ctx, &mod->in_conf, file_in_conf_args);
 	return 0;
 }

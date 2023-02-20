@@ -261,9 +261,7 @@ struct fmed_props {
 	Linux:   "$HOME/.config/fmedia/" */
 	char *user_path;
 
-	const fmed_modinfo *playback_module;
 	uint playback_dev_index;
-	const fmed_modinfo *record_module;
 	ffpcm record_format;
 
 	char language[8];

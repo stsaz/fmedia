@@ -13,11 +13,11 @@ typedef struct fmed_config {
 	byte prevent_sleep;
 	byte workers;
 	ffpcm inp_pcm;
-	const fmed_modinfo *output;
-	const fmed_modinfo *input;
+	const fmed_modinfo *audio_input, *audio_output;
 	ffvec inmap; //inmap_item[]
 	ffvec outmap; //inmap_item[]
 	ffmap in_ext_map, out_ext_map; // file extension -> inmap_item*
+	ffvec input_mods, output_mods; // char*[]
 
 	ffconf_ctxcopy conf_copy;
 	fmed_modinfo *conf_copy_mod; //core_mod

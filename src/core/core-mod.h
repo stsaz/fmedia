@@ -43,8 +43,9 @@ fail:
 . load .so module
 . get its fmedia module interface
 . check if module's version is supported
-. send 'initialize' signal */
-static int somod_load(core_modinfo *minfo)
+. send 'initialize' signal
+flags: FMED_MOD_NOLOG */
+static int somod_load(core_modinfo *minfo, uint flags)
 {
 	int rc = -1;
 	fmed_getmod_t getmod;
@@ -81,7 +82,8 @@ static int somod_load(core_modinfo *minfo)
 
 		dl = ffdl_open(fn, FFDL_SELFDIR);
 		if (dl == NULL) {
-			errlog0("module %s: %s: %s", fn, ffdl_open_S, ffdl_errstr());
+			if (!(flags & FMED_MOD_NOLOG))
+				errlog0("module %s: %s: %s", fn, ffdl_open_S, ffdl_errstr());
 			goto fail;
 		}
 
@@ -204,7 +206,7 @@ const fmed_modinfo* core_insmod(ffstr name, ffconf_scheme *fc)
 			goto fail;
 	}
 
-	if (minfo->m == NULL && 0 != somod_load(minfo)) {
+	if (minfo->m == NULL && 0 != somod_load(minfo, 0)) {
 		somod_destroy(minfo);
 		fmed->bmods.len--;
 		goto fail;
@@ -315,15 +317,16 @@ static int mod_readconf(core_mod *mod, const char *name)
 	ffconf_scheme ps = {};
 
 	if (mod->m->conf == NULL)
-		return -1;
+		goto no_conf;
 
 	ffltconf_init(&conf);
 	ffconf_scheme_init(&ps, &conf.ff);
 
 	fmed_conf_ctx ctx = {};
 	if (0 != mod->m->conf(name, &ctx))
-		return -1;
+		goto no_conf;
 	mod->conf_ctx = ctx;
+	mod->have_conf = 1;
 	ffconf_scheme_addctx(&ps, ctx.args, ctx.obj);
 
 	ffstr data = mod->conf_data;
@@ -352,9 +355,15 @@ done:
 	ffltconf_fin(&conf);
 	ffconf_scheme_destroy(&ps);
 	return rc;
+
+no_conf:
+	if (mod->have_conf)
+		return -1; // have conf data (via "mod_conf ... {}") but the module doesn't support configuration
+	return 0;
 }
 
-/** Actually load a module. */
+/** Actually load a module.
+flags: FMED_MOD_NOLOG */
 static int mod_load_delayed(core_mod *mod, uint flags)
 {
 	ffbool locked = 0;
@@ -364,7 +373,7 @@ static int mod_load_delayed(core_mod *mod, uint flags)
 	core_modinfo *bmod;
 	if (NULL == (bmod = core_findmod(&soname)))
 		goto fail;
-	if (bmod->m == NULL && 0 != somod_load(bmod))
+	if (bmod->m == NULL && 0 != somod_load(bmod, flags))
 		goto fail;
 
 	if (0 != mod_loadiface(mod, bmod))
@@ -372,10 +381,8 @@ static int mod_load_delayed(core_mod *mod, uint flags)
 
 	fflk_lock(&mod->lock);
 	locked = 1;
-	if (mod->have_conf) {
-		if (0 != mod_readconf(mod, modname.ptr))
-			goto end;
-	}
+	if (0 != mod_readconf(mod, modname.ptr))
+		goto end;
 
 	if (!bmod->opened) {
 		dbglog0("signal:%u for module %s", (int)FMED_OPEN, bmod->name);
@@ -399,6 +406,29 @@ end:
 	return -1;
 }
 
+/** Find the first working module for audio I/O */
+static const fmed_modinfo* audio_mod_find(int flags)
+{
+	ffvec *mods = (flags == 1) ? &fmed->conf.input_mods : &fmed->conf.output_mods;
+
+	const fmed_modinfo *mi = NULL;
+	char **name;
+	FFSLICE_WALK(mods, name) {
+		ffstr s = FFSTR_INITZ(*name);
+		if (NULL == (mi = core_getmodinfo(s)))
+			return NULL;
+		if (0 == mod_load_delayed((core_mod*)mi, FMED_MOD_NOLOG))
+			break;
+		mi = NULL;
+	}
+
+	FFSLICE_WALK(mods, name) {
+		ffmem_free(*name);
+	}
+	ffvec_free(mods);
+	return mi;
+}
+
 static const void* core_getmod2(uint flags, const char *name, ssize_t name_len)
 {
 	const fmed_modinfo *mod;
@@ -414,7 +444,7 @@ static const void* core_getmod2(uint flags, const char *name, ssize_t name_len)
 
 	case FMED_MOD_SOINFO: {
 		core_modinfo *m = core_findmod(&s);
-		if (0 != somod_load(m))
+		if (0 != somod_load(m, 0))
 			return NULL;
 		return m;
 	}
@@ -445,11 +475,19 @@ static const void* core_getmod2(uint flags, const char *name, ssize_t name_len)
 		break;
 
 	case FMED_MOD_INFO_ADEV_IN:
-		mod = fmed->conf.input;
+		mod = fmed->conf.audio_input;
+		if (mod == NULL) {
+			mod = audio_mod_find(1);
+			fmed->conf.audio_input = mod;
+		}
 		break;
 
 	case FMED_MOD_INFO_ADEV_OUT:
-		mod = fmed->conf.output;
+		mod = fmed->conf.audio_output;
+		if (mod == NULL) {
+			mod = audio_mod_find(0);
+			fmed->conf.audio_output = mod;
+		}
 		break;
 
 	default:
