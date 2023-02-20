@@ -42,6 +42,24 @@ const ffui_ldr_ctl wconvert_ctls[] = {
 #define CONV_ENC_VORBIS_QUAL_NULL (255)
 #define CONV_ENC_MPEG_QUAL_NULL (-1)
 
+enum {
+	PROP_IN_SEEK = 1,
+	PROP_IN_UNTIL,
+	PROP_FILT_AFORMAT,
+	PROP_FILT_SRATE,
+	PROP_FILT_CHAN,
+	PROP_FILT_GAIN,
+	PROP_ENC_DATACOPY,
+	PROP_ENC_AAC_QUAL,
+	PROP_ENC_VORBIS_QUAL,
+	PROP_ENC_OPUS_BRATE,
+	PROP_ENC_MPEG_QUAL,
+	PROP_OUT_OVERWRITE,
+	PROP_OUT_PRESERVEDATE,
+};
+
+static char* sett_to_str(uint i);
+
 // CONFIG
 
 static int conf_conv_sets_output(fmed_conf *fc, struct gui_wconvert *c, char *val)
@@ -72,26 +90,36 @@ int conf_convert(fmed_conf *fc, void *obj)
 	return 0;
 }
 
-static void conv_writeval(ffconfw *conf, ffuint i)
+static void conv_writeval(ffconfw *conf, const char *name, ffuint i)
 {
 	struct gui_wconvert *c = gg->wconvert;
+	int id = -1;
+
 	switch (i) {
 	case 0:
-		ffconfw_addint(conf, c->enc_aac_qual);
-		break;
+		id = PROP_ENC_AAC_QUAL; break;
 	case 1:
-		ffconfw_addfloat(conf, c->enc_vorbis_qual, 2);
-		break;
+		id = PROP_ENC_VORBIS_QUAL; break;
 	case 2:
-		ffconfw_addint(conf, c->enc_opus_brate);
-		break;
+		id = PROP_ENC_OPUS_BRATE; break;
 	case 3:
-		ffconfw_addint(conf, c->enc_mpeg_qual);
-		break;
+		id = PROP_ENC_MPEG_QUAL; break;
+	}
+
+	if (id >= 0) {
+		char *val = sett_to_str(id);
+		if (val != NULL)
+			ffconfw_addpairz(conf, name, val);
+		ffmem_free(val);
+	}
+
+	switch (i) {
 	case 4:
+		ffconfw_addkeyz(conf, name);
 		ffconfw_addstrz(conf, c->output);
 		break;
 	case 5:
+		ffconfw_addkeyz(conf, name);
 		ffconfw_addint(conf, c->enc_datacopy);
 		break;
 	}
@@ -112,8 +140,7 @@ int wconvert_conf_writeval(ffstr *line, ffconfw *conf)
 	if (line == NULL) {
 		for (ffuint i = 0;  i != FF_COUNT(setts);  i++) {
 			if (!c->wconf_flags[i]) {
-				ffconfw_addkeyz(conf, setts[i]);
-				conv_writeval(conf, i);
+				conv_writeval(conf, setts[i], i);
 			}
 		}
 		return 0;
@@ -121,8 +148,7 @@ int wconvert_conf_writeval(ffstr *line, ffconfw *conf)
 
 	for (ffuint i = 0;  i != FF_COUNT(setts);  i++) {
 		if (ffstr_matchz(line, setts[i])) {
-			ffconfw_addkeyz(conf, setts[i]);
-			conv_writeval(conf, i);
+			conv_writeval(conf, setts[i], i);
 			c->wconf_flags[i] = 1;
 			return 1;
 		}
@@ -130,22 +156,6 @@ int wconvert_conf_writeval(ffstr *line, ffconfw *conf)
 	return 0;
 }
 
-
-enum {
-	PROP_IN_SEEK = 1,
-	PROP_IN_UNTIL,
-	PROP_FILT_AFORMAT,
-	PROP_FILT_SRATE,
-	PROP_FILT_CHAN,
-	PROP_FILT_GAIN,
-	PROP_ENC_DATACOPY,
-	PROP_ENC_AAC_QUAL,
-	PROP_ENC_VORBIS_QUAL,
-	PROP_ENC_OPUS_BRATE,
-	PROP_ENC_MPEG_QUAL,
-	PROP_OUT_OVERWRITE,
-	PROP_OUT_PRESERVEDATE,
-};
 
 struct conv_prop_ent {
 	const char *name;
@@ -174,6 +184,34 @@ static struct conv_prop_ent conv_props[] = {
 	{ "  Overwrite File (0 | 1)",	PROP_OUT_OVERWRITE },
 	{ "  Preserve Date&Time (0 | 1)",	PROP_OUT_PRESERVEDATE },
 };
+
+static char* sett_to_str(uint i)
+{
+	struct gui_wconvert *w = gg->wconvert;
+	char *s = NULL;
+	switch (i) {
+	case PROP_ENC_AAC_QUAL:
+		if (w->enc_aac_qual != 0)
+			s = ffsz_allocfmt("%u", w->enc_aac_qual);
+		break;
+
+	case PROP_ENC_VORBIS_QUAL:
+		if (w->enc_vorbis_qual != CONV_ENC_VORBIS_QUAL_NULL)
+			s = ffsz_allocfmt("%.1f", w->enc_vorbis_qual);
+		break;
+
+	case PROP_ENC_OPUS_BRATE:
+		if (w->enc_opus_brate != 0)
+			s = ffsz_allocfmt("%d", w->enc_opus_brate);
+		break;
+
+	case PROP_ENC_MPEG_QUAL:
+		if (w->enc_mpeg_qual != CONV_ENC_MPEG_QUAL_NULL)
+			s = ffsz_allocfmt("%d", w->enc_mpeg_qual);
+		break;
+	}
+	return s;
+}
 
 /** Display conversion properties */
 static void conv_disp(ffui_view *v)
@@ -231,23 +269,10 @@ static void conv_disp(ffui_view *v)
 			break;
 
 		case PROP_ENC_AAC_QUAL:
-			if (gg->wconvert->enc_aac_qual != 0)
-				zval = ffsz_allocfmt("%u", gg->wconvert->enc_aac_qual);
-			break;
-
 		case PROP_ENC_VORBIS_QUAL:
-			if (gg->wconvert->enc_vorbis_qual != CONV_ENC_VORBIS_QUAL_NULL)
-				zval = ffsz_allocfmt("%.1f", gg->wconvert->enc_vorbis_qual);
-			break;
-
 		case PROP_ENC_OPUS_BRATE:
-			if (gg->wconvert->enc_opus_brate != 0)
-				zval = ffsz_allocfmt("%d", gg->wconvert->enc_opus_brate);
-			break;
-
 		case PROP_ENC_MPEG_QUAL:
-			if (gg->wconvert->enc_mpeg_qual != CONV_ENC_MPEG_QUAL_NULL)
-				zval = ffsz_allocfmt("%d", gg->wconvert->enc_mpeg_qual);
+			zval = sett_to_str(c->id);
 			break;
 
 		case PROP_OUT_OVERWRITE:
@@ -532,7 +557,7 @@ static void trkinfo_set(fmed_trk *ti)
 		ti->vorbis.quality = (c->enc_vorbis_qual+1) * 10;
 	if (c->enc_opus_brate != 0)
 		ti->opus.bitrate = c->enc_opus_brate;
-	if (c->enc_mpeg_qual != 0)
+	if (c->enc_mpeg_qual != CONV_ENC_MPEG_QUAL_NULL)
 		ti->mpeg.quality = c->enc_mpeg_qual;
 
 	if (c->out_overwrite != 0)
