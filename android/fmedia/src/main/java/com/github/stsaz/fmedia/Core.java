@@ -24,6 +24,7 @@ class CoreSettings {
 	boolean qu_rm_on_err;
 	String codepage;
 	String pub_data_dir;
+	String plist_save_dir;
 
 	String rec_path; // directory for recordings
 	String rec_enc, rec_fmt;
@@ -38,6 +39,7 @@ class CoreSettings {
 		this.core = core;
 		codepage = "cp1252";
 		pub_data_dir = "";
+		plist_save_dir = "";
 		trash_dir = "Trash";
 
 		rec_path = "";
@@ -59,6 +61,7 @@ class CoreSettings {
 				String.format("qu_rm_on_err %d\n", core.bool_to_int(qu_rm_on_err)) +
 				String.format("codepage %s\n", codepage) +
 				String.format("data_dir %s\n", pub_data_dir) +
+				String.format("plist_save_dir %s\n", plist_save_dir) +
 				String.format("trash_dir_rel %s\n", trash_dir) +
 
 				String.format("rec_path %s\n", rec_path) +
@@ -107,6 +110,8 @@ class CoreSettings {
 			file_del = core.str_to_bool(v);
 		else if (k.equals("data_dir"))
 			pub_data_dir = v;
+		else if (k.equals("plist_save_dir"))
+			plist_save_dir = v;
 		else if (k.equals("trash_dir_rel"))
 			trash_dir = v;
 		else if (k.equals("no_tags"))
@@ -204,6 +209,8 @@ class Core extends Util {
 		loadconf();
 		if (setts.pub_data_dir.isEmpty())
 			setts.pub_data_dir = storage_path + "/fmedia";
+		if (setts.plist_save_dir.isEmpty())
+			setts.plist_save_dir = setts.pub_data_dir;
 		qu.load();
 		return 0;
 	}

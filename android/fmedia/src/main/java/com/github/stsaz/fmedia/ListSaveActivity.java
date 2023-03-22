@@ -16,7 +16,7 @@ import java.io.File;
 public class ListSaveActivity extends AppCompatActivity {
 	private static final String TAG = "fmedia.ListSaveActivity";
 	Core core;
-	private EditText tname;
+	private EditText tdir, tname;
 	private Button bsave;
 
 	protected void onCreate(Bundle savedInstanceState) {
@@ -25,10 +25,12 @@ public class ListSaveActivity extends AppCompatActivity {
 
 		core = Core.getInstance();
 
+		tdir = findViewById(R.id.lssv_tdir);
 		tname = findViewById(R.id.lssv_tname);
 		bsave = findViewById(R.id.lssv_bsave);
 		bsave.setOnClickListener((v) -> save());
 
+		tdir.setText(core.setts.plist_save_dir);
 		tname.setText("Playlist1");
 	}
 
@@ -38,10 +40,11 @@ public class ListSaveActivity extends AppCompatActivity {
 	}
 
 	private void save() {
-		String fn = String.format("%s/%s.m3u8", core.setts.pub_data_dir, tname.getText().toString());
+		core.setts.plist_save_dir = tdir.getText().toString();
+		String fn = String.format("%s/%s.m3u8", core.setts.plist_save_dir, tname.getText().toString());
 		File f = new File(fn);
 		if (f.exists()) {
-			core.errlog(TAG, "File exists.  Please specify a different name.");
+			core.errlog(TAG, "File already exists.  Please specify a different name.");
 			return;
 		}
 		core.queue().save(fn);
