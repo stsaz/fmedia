@@ -13,6 +13,12 @@ all: $(DIR)
 	cd $(DIR) && cat ../*.patch | patch -p1
 	# cd $(DIR) && make VERBOSE=1
 	$(SED) 's/AVUTIL_FOUND 1/AVUTIL_FOUND 0/' $(DIR)/soxr-config.h
+ifeq "$(CPU)" "amd64"
+else ifeq "$(CPU)" "x86"
+else
+	$(SED) 's/WITH_CR64 1/WITH_CR64 0/' $(DIR)/soxr-config.h
+	$(SED) 's/WITH_CR64S 1/WITH_CR64S 0/' $(DIR)/soxr-config.h
+endif
 	cat $(DIR)/soxr-config.h
 	$(MAKE) -rR $(LIB)
 
@@ -29,7 +35,12 @@ $(DIR): $(PKG)
 CFLAGS += \
 	-I$(DIR) -I$(DIR)/src \
 	-DNDEBUG -DSOXR_LIB -D_DEFAULT_SOURCE \
-	-Wconversion -Wall -W -pedantic -Wundef -Wcast-align -Wpointer-arith -Wno-long-long -Wnested-externs -Wmissing-prototypes -Wstrict-prototypes
+	-Wconversion -Wall -W -pedantic -Wundef -Wcast-align -Wpointer-arith -Wno-long-long -Wnested-externs -Wmissing-prototypes -Wstrict-prototypes \
+	-Wno-cast-align
+ifeq "$(CPU)" "arm"
+	# w/a for `cannot locate symbol "fetestexcept"`
+	CFLAGS += -DSOXR_NO_FETESTEXCEPT
+endif
 ifeq ($(OS),windows)
 	CFLAGS += -DSOXR_DLL -Dsoxr_EXPORTS -D_USE_MATH_DEFINES
 else
