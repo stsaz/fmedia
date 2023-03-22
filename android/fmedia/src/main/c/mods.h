@@ -99,6 +99,7 @@ extern const fmed_filter fmed_sndmod_autoconv;
 extern const fmed_filter fmed_sndmod_conv;
 extern const fmed_filter fmed_sndmod_until;
 extern const fmed_filter fmed_sndmod_gain;
+extern const struct fmed_filter2 fmed_soxr;
 
 extern const fmed_filter aac_input;
 extern const fmed_filter aac_output;
@@ -174,6 +175,7 @@ const fmed_filter* mods_filter_byname(const char *name)
 		"fmt.opusmeta",
 		"fmt.vorbismeta",
 		"mpeg.decode",
+		"soxr.conv",
 	};
 	static const fmed_filter *const filters[] = {
 		/*"aac.decode"*/	&aac_input,
@@ -200,6 +202,7 @@ const fmed_filter* mods_filter_byname(const char *name)
 		/*"fmt.opusmeta"*/	&opusmeta_input,
 		/*"fmt.vorbismeta"*/	&vorbismeta_input,
 		/*"mpeg.decode"*/	&mpeg_decode_filt,
+		/*"soxr.conv"*/	(fmed_filter*)&fmed_soxr,
 	};
 	int i = ffszarr_findsorted(names, FF_COUNT(names), name, ffsz_len(name));
 	if (i < 0) {

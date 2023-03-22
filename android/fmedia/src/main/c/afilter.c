@@ -12,3 +12,4 @@ extern const fmed_core *core;
 
 #include <afilter/gain.h>
 #include <afilter/until.h>
+#include <afilter/soxr-conv.h>

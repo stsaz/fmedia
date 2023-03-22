@@ -16,7 +16,7 @@ import androidx.appcompat.widget.SwitchCompat;
 public class ConvertActivity extends AppCompatActivity {
 	private static final String TAG = "fmedia.ConvertActivity";
 	Core core;
-	private EditText tiname, todir, toname, toext, tfrom, tuntil, taac_q;
+	private EditText tiname, todir, toname, toext, tfrom, tuntil, tsample_rate, taac_q;
 	private SwitchCompat bcopy, bpreserve, btrash_orig, bpl_add;
 	private Button bfrom_set_cur, until_set_cur, bstart;
 	private TextView lresult;
@@ -43,6 +43,7 @@ public class ConvertActivity extends AppCompatActivity {
 		bpreserve = findViewById(R.id.conv_bpreserve_date);
 		btrash_orig = findViewById(R.id.conv_btrash_orig);
 		bpl_add = findViewById(R.id.conv_bpl_add);
+		tsample_rate = findViewById(R.id.conv_tsample_rate);
 		taac_q = findViewById(R.id.conv_taac_q);
 		bstart = findViewById(R.id.conv_bstart);
 		bstart.setOnClickListener((v) -> convert());
@@ -110,6 +111,7 @@ public class ConvertActivity extends AppCompatActivity {
 		core.fmedia.from_msec = tfrom.getText().toString();
 		core.fmedia.to_msec = tuntil.getText().toString();
 		core.fmedia.copy = bcopy.isChecked();
+		core.fmedia.sample_rate = core.str_to_uint(tsample_rate.getText().toString(), 0);
 		core.fmedia.aac_quality = core.str_to_uint(taac_q.getText().toString(), 0);
 		String iname = tiname.getText().toString();
 		String oname = String.format("%s/%s.%s", todir.getText().toString(), toname.getText().toString(), toext.getText().toString());

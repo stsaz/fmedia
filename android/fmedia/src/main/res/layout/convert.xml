@@ -96,6 +96,16 @@
 			android:text="@string/conv_from_set_cur" />
 
 		<TextView
+			android:layout_width="match_parent" android:layout_height="wrap_content"
+			android:text="@string/conv_sample_rate"
+			android:textColor="@color/text" />
+		<EditText android:id="@+id/conv_tsample_rate"
+			android:layout_width="match_parent" android:layout_height="wrap_content"
+			android:layout_marginHorizontal="10dp"
+			android:inputType="text"
+			android:textSize="@dimen/text_editbox" />
+
+		<TextView
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
 			android:text="@string/conv_aac_q"

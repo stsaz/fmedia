@@ -13,10 +13,10 @@ struct filter {
 meta:      ifile->detr->ifmt->meta->ctl
 .mp3 copy: ifile->detr->ifmt->copy->untl->ctl ->ofile
 copy:      ifile->detr->ifmt->untl->ctl ->ofmt->ofile
-convert:   ifile->detr->ifmt->dec ->untl->ctl ->aconv->conv->enc ->ofmt->ofile
-record:    sig  ->aa  ->untl->ctl ->gain->acnv->enc  ->ofmt ->ofile
+convert:   ifile->detr->ifmt->dec ->untl->ctl ->aconv->conv->soxr->enc ->ofmt->ofile
+record:    sig  ->aa  ->untl->ctl ->gain->acnv->enc  ->ofmt->ofile
 */
-#define MAX_FILTERS 11
+#define MAX_FILTERS 12
 
 struct track_ctx {
 	fmed_track_info ti;
@@ -413,6 +413,26 @@ static ffssize trk_cmd(void *trk, uint cmd, ...)
 			pos = -1;
 		r = trk_filter_add(t, name, fi, pos);
 		r++;
+		break;
+	}
+
+	case FMED_TRACK_FILT_INSTANCE: {
+		size_t i = va_arg(va, size_t);
+		struct filter *f = *ffslice_itemT(&t->filters, i - 1, struct filter*);
+
+		if (f->obj == NULL) {
+			dbglog1(t, "%s: opening filter", f->name);
+			void *obj;
+			if (NULL == (obj = f->iface->open(&t->ti))) {
+				dbglog1(t, "%s: filter open failed", f->name);
+				r = (size_t)NULL;
+				break;
+			}
+			FF_ASSERT(obj != FMED_FILT_SKIP);
+			f->obj = obj;
+		}
+
+		r = (size_t)f->obj;
 		break;
 	}
 

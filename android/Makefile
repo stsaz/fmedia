@@ -84,6 +84,7 @@ FMED_LINKFLAGS += $(LINK_RPATH_ORIGIN) \
 	-lfdk-aac-phi \
 	-lFLAC-phi \
 	-lmpg123-phi \
+	-lsoxr-phi \
 	-latomic -llog -lc -lm
 
 BUILD_DIR := .
@@ -159,6 +160,7 @@ alib3:
 		$(FMED_DIR)/alib3/_android-$(CPU)/libfdk-aac-phi.so \
 		$(FMED_DIR)/alib3/_android-$(CPU)/libFLAC-phi.so \
 		$(FMED_DIR)/alib3/_android-$(CPU)/libmpg123-phi.so \
+		$(FMED_DIR)/alib3/_android-$(CPU)/libsoxr-phi.so \
 		$(LIBDIR)
 
 OBJCOPY := $(C_DIR)/llvm-objcopy

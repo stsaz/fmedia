@@ -26,6 +26,7 @@ class Fmedia {
 	static final int F_OVERWRITE = 2;
 	String from_msec, to_msec;
 	boolean copy;
+	int sample_rate;
 	int aac_quality;
 	String result;
 	native int convert(String iname, String oname, int flags);
@@ -64,6 +65,7 @@ class Fmedia {
 		System.loadLibrary("fdk-aac-phi");
 		System.loadLibrary("FLAC-phi");
 		System.loadLibrary("mpg123-phi");
+		System.loadLibrary("soxr-phi");
 		System.loadLibrary("fmedia");
 	}
 }
