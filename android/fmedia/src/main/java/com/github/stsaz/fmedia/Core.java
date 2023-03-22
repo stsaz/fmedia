@@ -8,6 +8,8 @@ package com.github.stsaz.fmedia;
 import androidx.annotation.NonNull;
 
 import android.annotation.SuppressLint;
+import android.content.ClipboardManager;
+import android.content.ClipData;
 import android.content.Context;
 import android.os.Environment;
 import android.util.Log;
@@ -282,6 +284,12 @@ class Core extends Util {
 		setts.normalize();
 		fmedia.setCodepage(setts.codepage);
 		dbglog(TAG, "loadconf: %s: %s", fn, bs);
+	}
+
+	void clipboard_text_set(Context ctx, String s) {
+		ClipboardManager cm = (ClipboardManager)ctx.getSystemService(Context.CLIPBOARD_SERVICE);
+		ClipData cd = ClipData.newPlainText("", s);
+		cm.setPrimaryClip(cd);
 	}
 
 	void errlog(String mod, String fmt, Object... args) {

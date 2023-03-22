@@ -17,6 +17,7 @@ import java.util.ArrayList;
 public class TagsActivity extends AppCompatActivity  {
 	private Core core;
 	private ListView lv_tags;
+	private String[] meta;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -27,6 +28,7 @@ public class TagsActivity extends AppCompatActivity  {
 			actionBar.setDisplayHomeAsUpEnabled(true);
 
 		lv_tags = findViewById(R.id.lv_tags);
+		lv_tags.setOnItemClickListener((parent, view, position, id) -> lv_tags_click(position));
 
 		core = Core.getInstance();
 		show();
@@ -39,7 +41,7 @@ public class TagsActivity extends AppCompatActivity  {
 	}
 
 	private void show() {
-		String[] meta = core.track().meta();
+		meta = core.track().meta();
 		if (meta == null)
 			meta = new String[0];
 		ArrayList<String> tags = new ArrayList<>();
@@ -48,5 +50,12 @@ public class TagsActivity extends AppCompatActivity  {
 		}
 		ArrayAdapter<String> adapter = new ArrayAdapter<>(this, R.layout.list_row, tags);
 		lv_tags.setAdapter(adapter);
+	}
+
+	private void lv_tags_click(int pos) {
+		pos = pos * 2 + 1;
+		if (pos >= meta.length) return;
+
+		core.clipboard_text_set(this, meta[pos]);
 	}
 }
