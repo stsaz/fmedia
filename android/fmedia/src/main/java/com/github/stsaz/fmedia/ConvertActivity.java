@@ -20,6 +20,7 @@ public class ConvertActivity extends AppCompatActivity {
 	private SwitchCompat bcopy, bpreserve, btrash_orig, bpl_add;
 	private Button bfrom_set_cur, until_set_cur, bstart;
 	private TextView lresult;
+	private int qu_cur_pos;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -49,6 +50,7 @@ public class ConvertActivity extends AppCompatActivity {
 
 		load();
 
+		qu_cur_pos = core.queue().cur();
 		String iname = getIntent().getStringExtra("iname");
 		tiname.setText(iname);
 
@@ -119,12 +121,22 @@ public class ConvertActivity extends AppCompatActivity {
 		}
 
 		if (r == 0 && btrash_orig.isChecked() && !iname.equals(oname)) {
-			String e = core.fmedia.trash(core.setts.trash_dir, iname);
-			if (!e.isEmpty()) {
-				core.errlog(TAG, "Can't trash file %s: %s", iname, e);
-			} else {
-				// core.queue().remove(x);
-			}
+			trash_input_file(iname);
 		}
+	}
+
+	private void trash_input_file(String iname) {
+		String e = core.fmedia.trash(core.setts.trash_dir, iname);
+		if (!e.isEmpty()) {
+			core.errlog(TAG, "Can't trash file %s: %s", iname, e);
+			return;
+		}
+
+		if (qu_cur_pos == -1) return;
+
+		String url = core.queue().get(qu_cur_pos);
+		if (url.equals(iname))
+			core.queue().remove(qu_cur_pos);
+		qu_cur_pos = -1;
 	}
 }
