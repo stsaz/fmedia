@@ -105,6 +105,7 @@ extern const fmed_filter aac_output;
 extern const fmed_filter mpeg_decode_filt;
 extern const fmed_filter mod_flac_enc;
 extern const fmed_filter fmed_flac_dec;
+extern const fmed_filter alac_input;
 
 extern int ogg_in_conf(fmed_conf_ctx *ctx);
 extern int aac_out_config(fmed_conf_ctx *ctx);
@@ -155,6 +156,7 @@ const fmed_filter* mods_filter_byname(const char *name)
 		"afilter.conv",
 		"afilter.gain",
 		"afilter.until",
+		"alac.decode",
 		"core.file",
 		"core.filew",
 		"ctl",
@@ -180,6 +182,7 @@ const fmed_filter* mods_filter_byname(const char *name)
 		/*"afilter.conv"*/	&fmed_sndmod_conv,
 		/*"afilter.gain"*/	&fmed_sndmod_gain,
 		/*"afilter.until"*/	&fmed_sndmod_until,
+		/*"alac.decode"*/	&alac_input,
 		/*"core.file"*/	&file_input,
 		/*"core.filew"*/	&file_output,
 		/*"ctl"*/	&ctl_filter,

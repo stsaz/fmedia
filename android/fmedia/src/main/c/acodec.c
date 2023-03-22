@@ -5,6 +5,7 @@
 mpeg.dec->(float/i)
 flac.dec->(int8|int16|int24/ni)
 aac.dec->(int16/i)
+alac.dec->(intXX/i)
 (int8|int16|int24/ni)->flac.enc
 (int16/i)->aac.enc
 */
@@ -19,6 +20,7 @@ extern const fmed_core *core;
 #define dbglog1(trk, ...)  fmed_dbglog(core, trk, NULL, __VA_ARGS__)
 
 #include <acodec/aac-dec.h>
+#include <acodec/alac-dec.h>
 #include <acodec/flac-dec.h>
 #include <acodec/mpeg-dec.h>
 

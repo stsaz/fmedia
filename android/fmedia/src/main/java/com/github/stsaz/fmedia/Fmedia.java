@@ -57,6 +57,7 @@ class Fmedia {
 	public native String trash(String trash_dir, String filepath);
 
 	static {
+		System.loadLibrary("ALAC-phi");
 		System.loadLibrary("fdk-aac-phi");
 		System.loadLibrary("FLAC-phi");
 		System.loadLibrary("mpg123-phi");

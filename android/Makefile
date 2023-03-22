@@ -80,6 +80,7 @@ endif
 LINK_RPATH_ORIGIN := '-Wl,-rpath,$$ORIGIN' -Wl,--disable-new-dtags
 FMED_LINKFLAGS := -L$(FMED_DIR)/alib3/_android-$(CPU)
 FMED_LINKFLAGS += $(LINK_RPATH_ORIGIN) \
+	-lALAC-phi \
 	-lfdk-aac-phi \
 	-lFLAC-phi \
 	-lmpg123-phi \
@@ -154,6 +155,7 @@ $(LIBDIR)/aaudio.so: $(AAUDIO_OBJ)
 
 alib3:
 	$(CP) \
+		$(FMED_DIR)/alib3/_android-$(CPU)/libALAC-phi.so \
 		$(FMED_DIR)/alib3/_android-$(CPU)/libfdk-aac-phi.so \
 		$(FMED_DIR)/alib3/_android-$(CPU)/libFLAC-phi.so \
 		$(FMED_DIR)/alib3/_android-$(CPU)/libmpg123-phi.so \
