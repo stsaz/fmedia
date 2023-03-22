@@ -497,6 +497,10 @@ static void trk_onstop(void *p)
 {
 	fm_trk *t = p;
 	t->props.flags |= FMED_FSTOP;
+
+	// If the track is paused: unpause so the filters can gracefully finish their work.
+	trk_cmd(t, FMED_TRACK_UNPAUSE);
+
 	if (t->state != TRK_ST_ACTIVE)
 		trk_fin(t);
 }
