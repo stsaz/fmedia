@@ -16,7 +16,6 @@ class CoreSettings {
 	private Core core;
 	boolean svc_notification_disable;
 	String trash_dir;
-	String rec_path; // directory for recordings
 	boolean file_del;
 	boolean no_tags;
 	boolean list_rm_on_next;
@@ -24,6 +23,8 @@ class CoreSettings {
 	String codepage;
 	String pub_data_dir;
 
+	String rec_path; // directory for recordings
+	String rec_enc, rec_fmt;
 	int enc_bitrate, rec_buf_len_ms, rec_until_sec, rec_gain_db100;
 	boolean rec_exclusive;
 
@@ -34,10 +35,11 @@ class CoreSettings {
 	CoreSettings(Core core) {
 		this.core = core;
 		codepage = "cp1252";
-		rec_path = "";
 		pub_data_dir = "";
 		trash_dir = "Trash";
 
+		rec_path = "";
+		rec_enc = "AAC-LC";
 		enc_bitrate = 192;
 		rec_buf_len_ms = 500;
 		rec_until_sec = 3600;
@@ -54,10 +56,11 @@ class CoreSettings {
 				String.format("list_rm_on_next %d\n", core.bool_to_int(list_rm_on_next)) +
 				String.format("qu_rm_on_err %d\n", core.bool_to_int(qu_rm_on_err)) +
 				String.format("codepage %s\n", codepage) +
-				String.format("rec_path %s\n", rec_path) +
 				String.format("data_dir %s\n", pub_data_dir) +
 				String.format("trash_dir_rel %s\n", trash_dir) +
 
+				String.format("rec_path %s\n", rec_path) +
+				String.format("rec_enc %s\n", rec_enc) +
 				String.format("rec_bitrate %d\n", enc_bitrate) +
 				String.format("rec_buf_len %d\n", rec_buf_len_ms) +
 				String.format("rec_until %d\n", rec_until_sec) +
@@ -78,6 +81,15 @@ class CoreSettings {
 	}
 
 	void normalize() {
+		if (rec_enc.equals("AAC-LC") || rec_enc.equals("AAC-HE") || rec_enc.equals("AAC-HEv2")) {
+			rec_fmt = "m4a";
+		} else if (rec_enc.equals("FLAC")) {
+			rec_fmt = "flac";
+		} else {
+			rec_fmt = "m4a";
+			rec_enc = "AAC-LC";
+		}
+
 		if (enc_bitrate <= 0)
 			enc_bitrate = 192;
 		if (rec_buf_len_ms <= 0)
@@ -89,8 +101,6 @@ class CoreSettings {
 	int readconf(String k, String v) {
 		if (k.equals("svc_notification_disable"))
 			svc_notification_disable = core.str_to_bool(v);
-		else if (k.equals("rec_path"))
-			rec_path = v;
 		else if (k.equals("file_delete"))
 			file_del = core.str_to_bool(v);
 		else if (k.equals("data_dir"))
@@ -106,6 +116,10 @@ class CoreSettings {
 		else if (k.equals("codepage"))
 			set_codepage(v);
 
+		else if (k.equals("rec_path"))
+			rec_path = v;
+		else if (k.equals("rec_enc"))
+			rec_enc = v;
 		else if (k.equals("rec_bitrate"))
 			enc_bitrate = core.str_to_uint(v, enc_bitrate);
 		else if (k.equals("rec_buf_len"))

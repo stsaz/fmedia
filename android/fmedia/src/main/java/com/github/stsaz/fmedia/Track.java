@@ -345,13 +345,21 @@ class Track {
 		trec = new TrackHandle();
 
 		if (Build.VERSION.SDK_INT >= 26) {
+			int enc = Fmedia.REC_AACLC;
+			if (core.setts.rec_enc.equals("AAC-HE"))
+				enc = Fmedia.REC_AACHE;
+			else if (core.setts.rec_enc.equals("AAC-HEv2"))
+				enc = Fmedia.REC_AACHE2;
+			else if (core.setts.rec_enc.equals("FLAC"))
+				enc = Fmedia.REC_FLAC;
+
 			int flags = 0;
 			if (core.setts.rec_exclusive) flags |= Fmedia.RECF_EXCLUSIVE;
 			if (true) flags |= Fmedia.RECF_POWER_SAVE;
 
 			int q = core.setts.enc_bitrate;
 			trec.fmed_trk = core.fmedia.recStart(out, core.setts.rec_buf_len_ms
-				, core.setts.rec_gain_db100, Fmedia.REC_AACLC, q, core.setts.rec_until_sec, flags
+				, core.setts.rec_gain_db100, enc, q, core.setts.rec_until_sec, flags
 				, cb);
 			if (trec.fmed_trk == 0) {
 				trec = null;

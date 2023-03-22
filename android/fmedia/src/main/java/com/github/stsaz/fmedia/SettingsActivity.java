@@ -20,7 +20,7 @@ public class SettingsActivity extends AppCompatActivity {
 	private SwitchCompat bnotags, blist_rm_on_next, blist_rm_on_err, bdark, ui_info_in_title;
 	private TextView tdata_dir, trecdir, ttrash_dir, tautoskip, tcodepage;
 
-	private TextView rec_bitrate, rec_buf_len, rec_until, rec_gain;
+	private TextView rec_enc, rec_bitrate, rec_buf_len, rec_until, rec_gain;
 	private SwitchCompat rec_exclusive;
 
 	@Override
@@ -97,6 +97,7 @@ public class SettingsActivity extends AppCompatActivity {
 
 		// Recording
 		trecdir = findViewById(R.id.trecdir);
+		rec_enc = findViewById(R.id.rec_enc);
 		rec_bitrate = findViewById(R.id.rec_bitrate);
 		rec_buf_len = findViewById(R.id.rec_buf_len);
 		rec_until = findViewById(R.id.rec_until);
@@ -145,6 +146,7 @@ public class SettingsActivity extends AppCompatActivity {
 
 	private void rec_load() {
 		trecdir.setText(core.setts.rec_path);
+		rec_enc.setText(core.setts.rec_enc);
 		rec_bitrate.setText(Integer.toString(core.setts.enc_bitrate));
 		rec_buf_len.setText(core.int_to_str(core.setts.rec_buf_len_ms));
 		rec_until.setText(core.int_to_str(core.setts.rec_until_sec));
@@ -152,6 +154,7 @@ public class SettingsActivity extends AppCompatActivity {
 		rec_exclusive.setChecked(core.setts.rec_exclusive);
 
 		if (Build.VERSION.SDK_INT < 26) {
+			rec_enc.setEnabled(false);
 			rec_buf_len.setEnabled(false);
 			rec_until.setEnabled(false);
 			rec_gain.setEnabled(false);
@@ -162,6 +165,7 @@ public class SettingsActivity extends AppCompatActivity {
 	private void rec_save() {
 		core.setts.rec_path = trecdir.getText().toString();
 		core.setts.enc_bitrate = core.str_to_uint(rec_bitrate.getText().toString(), -1);
+		core.setts.rec_enc = rec_enc.getText().toString();
 		core.setts.rec_buf_len_ms = core.str_to_uint(rec_buf_len.getText().toString(), -1);
 		core.setts.rec_until_sec = core.str_to_uint(rec_until.getText().toString(), -1);
 		core.setts.rec_gain_db100 = (int)(core.str_to_float(rec_gain.getText().toString(), 0) * 100);

@@ -40,6 +40,7 @@
 	<string name="sett_recording">Recording</string>
 	<string name="sett_data_dir">App Data Directory</string>
 	<string name="sett_rec_dir">Directory for Recordings</string>
+	<string name="sett_rec_enc">Encoder (AAC-LC | AAC-HE | AAC-HEv2 | FLAC):</string>
 	<string name="sett_bitrate">Encoder Bitrate (kbit/sec):</string>
 	<string name="sett_rec_buf_len">Buffer Length (msec):</string>
 	<string name="sett_rec_until">Auto-Stop After (sec):</string>

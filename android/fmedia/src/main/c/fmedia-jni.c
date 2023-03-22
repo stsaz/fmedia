@@ -394,6 +394,14 @@ static int rectrk_process(void *ctx, fmed_track_info *ti)
 
 static const fmed_filter rectrk_mon = { rectrk_open, rectrk_process, rectrk_close };
 
+
+enum {
+	REC_AACLC = 0,
+	REC_AACHE = 1,
+	REC_AACHE2 = 2,
+	REC_FLAC = 3,
+};
+
 JNIEXPORT jlong JNICALL
 Java_com_github_stsaz_fmedia_Fmedia_recStart(JNIEnv *env, jobject thiz, jstring joname, jint buf_len_msec, jint gain_db100, jint fmt, jint q, jint until_sec, jint flags, jobject jcb)
 {
@@ -433,10 +441,29 @@ Java_com_github_stsaz_fmedia_Fmedia_recStart(JNIEnv *env, jobject thiz, jstring 
 
 	fx->track->cmd(t, FMED_TRACK_FILT_ADD, "afilter.autoconv");
 
+	ffstr ext;
+	ffpath_split3(oname, ffsz_len(oname), NULL, NULL, &ext);
+	if (ext.len == 0) {
+		errlog0("Please set output file extension");
+		goto end;
+	}
+	const char *fname = (void*)core->cmd(FMED_OFILTER_BYEXT, ext.ptr);
+	if (fname == NULL) {
+		errlog0("Output file extension isn't supported");
+		goto end;
+	}
+
 	if (q != 0)
 		ti->aac.quality = (uint)q;
-	const char *fname = (void*)core->cmd(FMED_OFILTER_BYEXT, "m4a");
-	FF_ASSERT(fname != NULL);
+
+	uint enc = flags & 0x0f;
+	switch (enc) {
+	case REC_AACHE:
+		ffstr_setz(&ti->aac.profile, "HE"); break;
+	case REC_AACHE2:
+		ffstr_setz(&ti->aac.profile, "HEv2"); break;
+	}
+
 	fx->track->cmd(t, FMED_TRACK_FILT_ADD, fname);
 
 	ti->out_filename = ffsz_dup(oname);

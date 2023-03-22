@@ -669,8 +669,9 @@ public class MainActivity extends AppCompatActivity {
 				cal.get(Calendar.MINUTE),
 				cal.get(Calendar.SECOND),
 		};
-		String fname = String.format("%s/rec_%04d%02d%02d_%02d%02d%02d.m4a"
-				, core.setts.rec_path, dt[0], dt[1], dt[2], dt[3], dt[4], dt[5]);
+		String fname = String.format("%s/rec_%04d%02d%02d_%02d%02d%02d.%s"
+				, core.setts.rec_path, dt[0], dt[1], dt[2], dt[3], dt[4], dt[5]
+				, core.setts.rec_fmt);
 		trec = track.rec_start(fname, () -> {
 				Handler mloop = new Handler(Looper.getMainLooper());
 				mloop.post(() -> rec_click());
