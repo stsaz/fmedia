@@ -26,17 +26,19 @@ CFLAGS += -Wall \
 	-I$(DIR)/codec
 
 SRC_CPP := \
-	$(DIR)/codec/ALACDecoder.cpp \
-	$(DIR)/codec/ALACEncoder.cpp
+	$(DIR)/codec/ALACDecoder.cpp
 SRC := \
 	$(DIR)/codec/EndianPortable.c \
 	$(DIR)/codec/ALACBitUtilities.c \
 	$(DIR)/codec/ag_dec.c \
-	$(DIR)/codec/ag_enc.c \
 	$(DIR)/codec/dp_dec.c \
-	$(DIR)/codec/dp_enc.c \
-	$(DIR)/codec/matrix_dec.c \
-	$(DIR)/codec/matrix_enc.c
+	$(DIR)/codec/matrix_dec.c
+# SRC_CPP := \
+# 	$(DIR)/codec/ALACEncoder.cpp
+# SRC += \
+# 	$(DIR)/codec/ag_enc.c \
+# 	$(DIR)/codec/dp_enc.c \
+# 	$(DIR)/codec/matrix_enc.c
 OBJ := ALAC-ff.o $(SRC_CPP:.cpp=.o) $(SRC:.c=.o)
 
 %.o: %.c
