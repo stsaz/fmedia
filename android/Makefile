@@ -115,6 +115,11 @@ $(OBJ_DIR)/fmt.o: $(FMED_DIR)/android/fmedia/src/main/c/fmt.c \
 		$(wildcard $(FMED_DIR)/src/plist/*.h)
 	$(C) $(CFLAGS) $(CFLAGS_OPT) $< -o $@
 
+$(OBJ_DIR)/acodec.o: $(FMED_DIR)/android/fmedia/src/main/c/acodec.c \
+		$(wildcard $(FMED_DIR)/src/acodec/*.h) \
+		$(wildcard $(FMED_DIR)/src/acodec/alib3-bridge/*.h)
+	$(C) $(CFLAGS) $(CFLAGS_OPT) $< -o $@
+
 $(OBJ_DIR)/fmedia-jni.o: $(FMED_DIR)/android/fmedia/src/main/c/fmedia-jni.c \
 		$(wildcard $(FMED_DIR)/android/fmedia/src/main/c/*.h)
 	$(C) $(CFLAGS) $(CFLAGS_OPT) $< -o $@
@@ -210,6 +215,9 @@ emulator:
 	$(SDK_DIR)/emulator/emulator $(AVD)
 
 log:
+	$(SDK_DIR)/platform-tools/adb $(ADB_FLAGS) logcat -v time | grep --color=auto --line-buffered '/fmedia'
+
+logw:
 	$(SDK_DIR)/platform-tools/adb $(ADB_FLAGS) logcat -v time | egrep --color=auto --line-buffered '/fmedia|W/|E/'
 
 log-clear:

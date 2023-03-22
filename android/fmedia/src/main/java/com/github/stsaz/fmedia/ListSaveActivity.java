@@ -47,7 +47,10 @@ public class ListSaveActivity extends AppCompatActivity {
 			core.errlog(TAG, "File already exists.  Please specify a different name.");
 			return;
 		}
-		core.queue().save(fn);
+		if (!core.queue().save(fn)) {
+			core.errlog(TAG, "Error saving playlist file");
+			return;
+		}
 		this.finish();
 	}
 }

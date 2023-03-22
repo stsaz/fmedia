@@ -152,11 +152,12 @@ Java_com_github_stsaz_fmedia_Fmedia_meta(JNIEnv *env, jobject thiz, jstring jfil
 	ffvec info = {};
 	uint64 msec = info_add(&info, ti);
 
-	char *format = ffsz_allocfmt("%ukbps %s %uHz %s"
+	char *format = ffsz_allocfmt("%ukbps %s %uHz %s %s"
 		, (ti->audio.bitrate + 500) / 1000
 		, ti->audio.decoder
 		, ti->audio.fmt.sample_rate
-		, channel_str(ti->audio.fmt.channels));
+		, channel_str(ti->audio.fmt.channels)
+		, ffpcm_fmtstr(ti->audio.fmt.format));
 	jni_obj_sz_set(env, thiz, jni_field(jc, "info", JNI_TSTR), format);
 	*ffvec_pushT(&info, char*) = ffsz_dup("format");
 	*ffvec_pushT(&info, char*) = format;
@@ -303,6 +304,7 @@ Java_com_github_stsaz_fmedia_Fmedia_convert(JNIEnv *env, jobject thiz, jstring j
 	ti->out_preserve_date = !!(flags & F_DATE_PRESERVE);
 	fx->track->cmd(t, FMED_TRACK_FILT_ADD, "ctl");
 
+	ti->audio.convfmt.sample_rate = jni_obj_int(thiz, jni_field(jc, "sample_rate", JNI_TINT));
 	fx->track->cmd(t, FMED_TRACK_FILT_ADD, "afilter.autoconv");
 
 	// Add output format filter according to the file extension of user-specified output file

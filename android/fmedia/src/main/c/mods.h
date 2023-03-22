@@ -74,7 +74,7 @@ const void* mods_find(const char *name)
 	};
 	int i = ffszarr_findsorted(names, FF_COUNT(names), name, ffsz_len(name));
 	if (i < 0) {
-		errlog0("%s: no such module");
+		errlog0("%s: no such module", name);
 		return NULL;
 	}
 	return mods[i];

@@ -171,3 +171,4 @@ This is the list of the things that need to be done.
 	+ Navigation bar color
 	+ Trash on tap Next
 	- A11: playback notification: Pause doesn't change the button's icon
+	- A4: Record button: active/red color doesn't work

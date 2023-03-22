@@ -102,15 +102,18 @@ class PList {
 	}
 
 	/** Save playlist to a file */
-	void isave(int i, String fn) {
+	int isave(int i, String fn) {
 		if (!core.fmedia.quSave(q[i], fn))
-			return;
+			return -1;
 		modified[i] = false;
+		return 0;
 	}
 
-	void save(String fn) {
-		isave(qi, fn);
+	int save(String fn) {
+		if (0 != isave(qi, fn))
+			return -1;
 		core.dbglog(TAG, "saved %d items to %s", size(), fn);
+		return 0;
 	}
 }
 
@@ -161,7 +164,8 @@ class Queue {
 	void load() {
 		pl.iload_file(0, core.setts.pub_data_dir + "/list1.m3u8");
 		pl.iload_file(1, core.setts.pub_data_dir + "/list2.m3u8");
-		pl.curpos = Math.min(pl.curpos, pl.size());
+		if (pl.curpos >= pl.size())
+			pl.curpos = -1;
 	}
 
 	void saveconf() {
@@ -174,8 +178,8 @@ class Queue {
 	/**
 	 * Save playlist to a file
 	 */
-	void save(String fn) {
-		pl.save(fn);
+	boolean save(String fn) {
+		return 0 == pl.save(fn);
 	}
 
 	/** Switch between playlists */
@@ -296,14 +300,16 @@ class Queue {
 	 * Called after a track has been finished.
 	 */
 	private void on_close(TrackHandle t) {
-		trk_idx = -1;
 		active = false;
 		boolean play_next = !t.stopped;
 
 		if ((t.error && core.setts.qu_rm_on_err)
 				|| (b_order_next && core.setts.list_rm_on_next)) {
-			remove(pl.curpos);
+			String url = get(trk_idx);
+			if (url.equals(t.url))
+				remove(trk_idx);
 		}
+		trk_idx = -1;
 
 		if (play_next) {
 			mloop.post(() -> next());

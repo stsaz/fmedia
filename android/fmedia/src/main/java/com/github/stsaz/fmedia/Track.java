@@ -254,7 +254,8 @@ class Track {
 	}
 
 	boolean supported_url(@NonNull String name) {
-		if (name.startsWith("http://") || name.startsWith("https://"))
+		if (name.startsWith("/")
+			|| name.startsWith("http://") || name.startsWith("https://"))
 			return true;
 		return false;
 	}
