@@ -8,6 +8,16 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia/Android v0.11 - Mar 19, 2023
+
+ + Convert: ALAC decoder
+ + Convert: "Sample Rate" setting
+ * Convert: Auto-Trash: remove item from list
+ + Recording: new setting "Encoder (AAC-LC | AAC-HE | AAC-HEv2 | FLAC)"
+ + UI: Playlist Save: choose output directory
+ * UI: Show Tags: copy tag's value to clipboard on click
+
+
 fmedia v1.30 - Feb 19, 2023
 
  + --playback-buffer=INT: Length (in msec) of the playback buffer

@@ -2,7 +2,7 @@
 
 <img align="right" src="res/fmedia.png" width="128" height="128">
 
-fmedia is a fast audio player/recorder/converter for Windows, macOS, Linux and FreeBSD.
+fmedia is a fast audio player/recorder/converter for Windows, macOS, Linux, FreeBSD, Android`*`.
 It provides smooth playback and recording even if devices are very slow.
 It's highly customizable and can be easily extended with additional plugins.
 Its low CPU & memory consumption saves energy when running on a notebook's battery.
@@ -14,12 +14,15 @@ fmedia is free and open-source project, and you can use it as a standalone appli
 
 **fmedia can write**: .mp3, .ogg, .opus, .m4a (AAC), .flac, .wav, .aac (--stream-copy only).
 
+`*` fmedia/Android is currently far behind on features compared to the full-functional desktop-version.
+
 ### Contents:
 
 * [Features](#features)
-* [Install](#install)
-	* Install On Windows
-	* Install On Linux
+	* [fmedia/Android features](#fmedia-android-features)
+ * [Install](#install)
+	* [Install On Windows](#install-on-windows)
+	* [Install On Linux](#install-on-linux)
 * [Build](#build)
 * [Config](#config)
 * [Terminal UI](#terminal-ui)
@@ -96,9 +99,12 @@ fmedia uses modified versions of these 3rd party libraries: libALAC, libfdk-aac,
 
 ### fmedia/Android features
 
+Currently implemented features:
+
 * Playback: .m4a, .mp3, .flac, .ogg, .opus (depends on OS)
-* Recording: .m4a(AAC-LC)
-* Convert: .mp3(decode), .m4a(AAC-LC decode/encode), .flac(decode/encode)
+* Recording: .m4a(AAC), .flac
+* Convert (decode): .mp3, .mp4/.m4a(AAC-LC,ALAC), .flac
+* Convert (encode): .m4a(AAC-LC), .flac
 * Convert (stream copy): .mp3, .m4a
 * GUI: list of meta tags
 * GUI: file explorer
