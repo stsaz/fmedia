@@ -4,6 +4,7 @@
     <color name="colorPrimaryDark">#ffaa00</color>
     <color name="colorAccent">#ffaa00</color>
     <color name="list_text">#000000</color>
+    <color name="list_row_pressed">#fcda96</color>
     <color name="text">#000000</color>
     <color name="recording">#ff4444</color>
     <color name="sett_group">#805500</color>

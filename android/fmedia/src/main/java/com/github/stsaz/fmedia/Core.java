@@ -176,7 +176,7 @@ class Core extends Util {
 		return instance;
 	}
 
-	static Core init_once(@NonNull Context ctx) {
+	static Core init_once(Context ctx) {
 		if (instance == null) {
 			Core c = new Core();
 			c.refcount = 1;

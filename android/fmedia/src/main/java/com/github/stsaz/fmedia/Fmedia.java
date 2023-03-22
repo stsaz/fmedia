@@ -53,6 +53,9 @@ class Fmedia {
 	static final int QUCOM_REMOVE_I = 2;
 	static final int QUCOM_COUNT = 3;
 	native int quCmd(long q, int cmd, int i);
+	static final int QUFILTER_URL = 1;
+	static final int QUFILTER_META = 2;
+	native int quFilter(long q, String filter, int flags);
 	native int quLoad(long q, String filepath);
 	native boolean quSave(long q, String filepath);
 	native String[] quList(long q);

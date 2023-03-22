@@ -18,9 +18,7 @@ import android.os.Looper;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.ArrayAdapter;
 import android.widget.ImageButton;
-import android.widget.ListView;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.ToggleButton;
@@ -32,10 +30,10 @@ import androidx.appcompat.app.AppCompatDelegate;
 import androidx.appcompat.widget.Toolbar;
 import androidx.appcompat.widget.SearchView;
 import androidx.core.app.ActivityCompat;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.ArrayList;
+import java.io.File;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
@@ -55,23 +53,18 @@ public class MainActivity extends AppCompatActivity {
 	private TrackCtl trackctl;
 	private int total_dur_msec;
 	private int state;
-	private int cur_view; // Explorer/Playlist view switch (0:Playlist)
-	private Explorer explorer;
 
 	private TrackHandle trec;
 
-	private ArrayAdapter<String> pl_adapter;
-
-	// Playlist track filter:
-	private int filter_strlen;
-	private ArrayList<Integer> filtered_idx;
-	private ArrayAdapter<String> filter_adapter;
+	private boolean view_explorer;
+	private Explorer explorer;
+	private RecyclerView list;
+	private PlaylistAdapter pl_adapter;
 
 	private TextView lbl_name;
 	private ImageButton brec;
 	private ImageButton bplay;
 	private TextView lbl_pos;
-	private ListView list;
 	private SeekBar progs;
 	private ToggleButton bexplorer;
 	private ToggleButton bplist;
@@ -86,8 +79,8 @@ public class MainActivity extends AppCompatActivity {
 		init_ui();
 		init_system();
 
+		list.setAdapter(pl_adapter);
 		plist_show();
-		list.setSelection(gui.list_pos);
 
 		if (gui.cur_path.isEmpty())
 			gui.cur_path = core.storage_path;
@@ -117,8 +110,8 @@ public class MainActivity extends AppCompatActivity {
 		if (core != null) {
 			core.dbglog(TAG, "onStop()");
 			queue.saveconf();
-			if (cur_view == 0)
-				gui.list_pos = list.getFirstVisiblePosition();
+			if (!view_explorer)
+				pl_leave();
 			core.saveconf();
 		}
 		super.onStop();
@@ -137,10 +130,7 @@ public class MainActivity extends AppCompatActivity {
 
 	public boolean onCreateOptionsMenu(Menu menu) {
 		toolbar.inflateMenu(R.menu.menu);
-		toolbar.setOnMenuItemClickListener((MenuItem item) -> {
-					return onOptionsItemSelected(item);
-				}
-		);
+		toolbar.setOnMenuItemClickListener(this::onOptionsItemSelected);
 		return true;
 	}
 
@@ -184,15 +174,16 @@ public class MainActivity extends AppCompatActivity {
 				plist_click();
 				int pos = queue.cur();
 				if (pos >= 0)
-					list.setSelection(pos);
+					list.scrollToPosition(queue.cur());
 				return true;
 			}
 
 			case R.id.action_list_switch: {
-				plist_reset();
-				filter_reset();
 				int qi = queue.switch_list();
-				plist_click();
+				if (view_explorer)
+					plist_click();
+				else
+					list_update();
 				core.gui().msg_show(this, "Switched to L%d", qi+1);
 				return true;
 			}
@@ -206,9 +197,17 @@ public class MainActivity extends AppCompatActivity {
 				String fn = track.cur_url();
 				if (fn.isEmpty())
 					return true;
-				int pos = explorer.show_file(fn);
+				gui.cur_path = new File(fn).getParent();
+				if (!view_explorer) {
+					explorer_click();
+				} else {
+					explorer.fill();
+					pl_adapter.view_explorer = true;
+					list_update();
+				}
+				int pos = explorer.file_idx(fn);
 				if (pos >= 0)
-					list.setSelection(pos);
+					list.scrollToPosition(pos);
 				return true;
 			}
 
@@ -223,6 +222,7 @@ public class MainActivity extends AppCompatActivity {
 	 * Called by OS with the result of requestPermissions().
 	 */
 	public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+		super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 		if (grantResults.length != 0)
 			core.dbglog(TAG, "onRequestPermissionsResult: %d: %d", requestCode, grantResults[0]);
 	}
@@ -283,9 +283,10 @@ public class MainActivity extends AppCompatActivity {
 		gui = core.gui();
 		queue = core.queue();
 		quenfy = new QueueNotify() {
-			public void on_change(int what) {
-				plist_reset();
-				plist_show2();
+			public void on_change(int pos) {
+				if (view_explorer) return;
+
+				pl_adapter.on_change(pos);
 			}
 		};
 		queue.nfy_add(quenfy);
@@ -372,11 +373,8 @@ public class MainActivity extends AppCompatActivity {
 		});
 
 		list = findViewById(R.id.list);
-		list.setOnItemClickListener((parent, view, position, id) -> list_click(position));
-		list.setOnItemLongClickListener((parent, view, position, id) -> {
-					return list_longclick(position);
-				}
-		);
+		list.setLayoutManager(new LinearLayoutManager(this));
+		pl_adapter = new PlaylistAdapter(this, explorer);
 
 		gui.cur_activity = this;
 	}
@@ -404,10 +402,10 @@ public class MainActivity extends AppCompatActivity {
 	}
 
 	private void rec_state_set(boolean active) {
-		int color = R.color.text;
+		int res = R.color.text;
 		if (active)
-			color = R.color.recording;
-		color = getResources().getColor(color);
+			res = R.color.recording;
+		int color = getResources().getColor(res);
 		if (Build.VERSION.SDK_INT >= 21) {
 			brec.setImageTintMode(PorterDuff.Mode.SRC_IN);
 			brec.setImageTintList(ColorStateList.valueOf(color));
@@ -434,29 +432,31 @@ public class MainActivity extends AppCompatActivity {
 	}
 
 	void explorer_click() {
-		if (cur_view == 0)
-			gui.list_pos = list.getFirstVisiblePosition();
-		cur_view = -1;
 		bexplorer.setChecked(true);
+		if (view_explorer) return;
+
+		pl_leave();
+		view_explorer = true;
 		bplist.setChecked(false);
 		tfilter.setVisibility(View.INVISIBLE);
 
-		String[] names;
-		if (gui.cur_path.isEmpty())
-			names = explorer.list_show_root();
-		else
-			names = explorer.list_show(gui.cur_path);
-		list_set_data(names);
+		explorer.fill();
+		pl_adapter.view_explorer = true;
+		list_update();
 	}
 
 	void plist_click() {
-		cur_view = 0;
-		bexplorer.setChecked(false);
 		bplist.setChecked(true);
+		if (!view_explorer) return;
+
+		view_explorer = false;
+		bexplorer.setChecked(false);
 		if (!gui.filter_hide)
 			tfilter.setVisibility(View.VISIBLE);
-		plist_show2();
-		list.setSelection(gui.list_pos);
+
+		pl_adapter.view_explorer = false;
+		list_update();
+		plist_show();
 	}
 
 	/**
@@ -476,7 +476,6 @@ public class MainActivity extends AppCompatActivity {
 			gui.msg_show(this, "Deleted file");
 		}
 		queue.remove(pos);
-		list.setSelection(gui.list_pos);
 	}
 
 	/**
@@ -505,30 +504,15 @@ public class MainActivity extends AppCompatActivity {
 		b.show();
 	}
 
-	/**
-	 * UI event on listview click
-	 * If the view is Playlist: start playing the track at this position.
-	 * If the view is Explorer:
-	 * if the entry is a directory: show its contents;
-	 * or create a playlist with all the files in the current directory
-	 * and start playing the selected track
-	 */
-	private void list_click(int pos) {
-		if (cur_view == 0) {
-			play(pos);
+	void explorer_event(String fn, int flags) {
+		if (fn == null) {
+			list.setAdapter(pl_adapter);
 			return;
 		}
-		explorer.list_click(pos);
-	}
 
-	void list_set_data(String[] names) {
-		ArrayAdapter<String> adapter = new ArrayAdapter<>(this, R.layout.list_row, names);
-		list.setAdapter(adapter);
-	}
-
-	void pl_set(String[] ents, int flags) {
-		filter_reset();
 		int n = queue.count();
+		String[] ents = new String[1];
+		ents[0] = fn;
 		queue.addmany(ents, flags);
 		core.dbglog(TAG, "added %d items", ents.length);
 		gui.msg_show(this, "Added %d items to playlist", ents.length);
@@ -536,100 +520,24 @@ public class MainActivity extends AppCompatActivity {
 			queue.play(n);
 	}
 
-	private boolean list_longclick(int pos) {
-		if (cur_view == 0)
-			return false; // no action for a playlist
-		return explorer.add_files_r(pos);
+	private void list_update() {
+		pl_adapter.on_change(-1);
 	}
 
-	/**
-	 * Show the playlist items
-	 */
 	private void plist_show() {
-		if (pl_adapter == null) {
-			String[] l = queue.list();
-			ArrayList<String> names = new ArrayList<>();
-			int i = 1;
-			for (String s : l) {
-				String[] path_name = Util.path_split2(s);
-				names.add(String.format("%d. %s", i++, path_name[1]));
-			}
-			pl_adapter = new ArrayAdapter<>(this, R.layout.list_row, names.toArray(new String[0]));
-		}
-		list.setAdapter(pl_adapter);
+		list.scrollToPosition(gui.list_pos);
 	}
 
-	private void filter_reset() {
-		filter_strlen = 0;
-		filtered_idx = null;
-		filter_adapter = null;
-	}
-
-	private void plist_reset() {
-		pl_adapter = null;
-	}
-
-	private void plist_show2() {
-		if (cur_view < 0)
-			return;
-		if (filter_strlen != 0)
-			list.setAdapter(filter_adapter);
-		else
-			plist_show();
+	/** Called when we're leaving the playlist tab */
+	void pl_leave() {
+		LinearLayoutManager llm = (LinearLayoutManager) list.getLayoutManager();
+		gui.list_pos = llm.findLastCompletelyVisibleItemPosition();
 	}
 
 	private void plist_filter(String filter) {
-		if (cur_view < 0)
-			return;
 		core.dbglog(TAG, "list_filter: %s", filter);
-
-		if (filter_strlen != 0 && filter.length() == 0) {
-			filter_reset();
-			plist_show();
-			return;
-		}
-
-		boolean increase = (filter.length() > filter_strlen);
-		if (filter.length() < 2) {
-			if (!increase) {
-				filter_reset();
-				plist_show();
-			}
-			return;
-		}
-
-		filter = filter.toLowerCase();
-
-		ArrayList<Integer> fi = new ArrayList<>();
-		ArrayList<String> names = new ArrayList<>();
-		String[] l = queue.list();
-		int n = 1;
-
-		if (filter_strlen == 0 || !increase) {
-			for (int i = 0; i != l.length; i++) {
-				String s = l[i];
-				if (!s.toLowerCase().contains(filter))
-					continue;
-				String[] path_name = Util.path_split2(s);
-				names.add(String.format("%d. %s", n++, path_name[1]));
-				fi.add(i);
-			}
-
-		} else {
-			for (Integer i : filtered_idx) {
-				String s = l[i];
-				if (!s.toLowerCase().contains(filter))
-					continue;
-				String[] path_name = Util.path_split2(s);
-				names.add(String.format("%d. %s", n++, path_name[1]));
-				fi.add(i);
-			}
-		}
-
-		filter_adapter = new ArrayAdapter<>(this, R.layout.list_row, names.toArray(new String[0]));
-		list.setAdapter(filter_adapter);
-		filtered_idx = fi;
-		filter_strlen = filter.length();
+		queue.filter(filter);
+		list_update();
 	}
 
 	/**
@@ -674,22 +582,12 @@ public class MainActivity extends AppCompatActivity {
 				, core.setts.rec_fmt);
 		trec = track.rec_start(fname, () -> {
 				Handler mloop = new Handler(Looper.getMainLooper());
-				mloop.post(() -> rec_click());
+				mloop.post(this::rec_click);
 			});
 		if (trec == null)
 			return;
 		rec_state_set(true);
 		core.gui().msg_show(this, "Started recording");
-	}
-
-	/**
-	 * Start playing a new track
-	 */
-	void play(int pos) {
-		if (filter_strlen != 0) {
-			pos = filtered_idx.get(pos);
-		}
-		queue.play(pos);
 	}
 
 	/**

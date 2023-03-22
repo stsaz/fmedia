@@ -17,6 +17,7 @@
 #include <util/fntree.h>
 #include <util/path.h>
 #include <FFOS/perf.h>
+#include <FFOS/ffos-extern.h>
 
 typedef struct fmedia_ctx fmedia_ctx;
 struct fmedia_ctx {
@@ -25,6 +26,7 @@ struct fmedia_ctx {
 	const fmed_mod *qumod;
 	JavaVM *jvm;
 	jmethodID Fmedia_Callback_on_finish;
+	uint list_filter;
 };
 static struct fmedia_ctx *fx;
 static JavaVM *jvm;
@@ -662,6 +664,67 @@ Java_com_github_stsaz_fmedia_Fmedia_quCmd(JNIEnv *env, jobject thiz, jlong q, ji
 		return fx->qu->cmdv(FMED_QUE_COUNT2, qi);
 	}
 	return 0;
+}
+
+enum {
+	QUFILTER_URL = 1,
+	QUFILTER_META = 2,
+};
+
+JNIEXPORT jint JNICALL
+Java_com_github_stsaz_fmedia_Fmedia_quFilter(JNIEnv *env, jobject thiz, jlong q, jstring jfilter, jint flags)
+{
+	uint nfilt = 0;
+	dbglog0("%s: enter", __func__);
+	const char *filterz = jni_sz_js(jfilter);
+	ffstr filter = FFSTR_INITZ(filterz);
+
+	if (filter.len == 0) {
+		fx->list_filter = 0;
+		fx->qu->cmdv(FMED_QUE_DEL_FILTERED);
+		return -1;
+	}
+
+	if (!fx->list_filter && filter.len < 2)
+		return -1; // too small filter text
+
+	fx->qu->cmdv(FMED_QUE_NEW_FILTERED);
+
+	fmed_que_entry *e = NULL;
+	for (;;) {
+
+		if (0 == fx->qu->cmdv(FMED_QUE_LIST_NOFILTER, &e, 0))
+			break;
+		uint inc = 0;
+
+		if ((flags & QUFILTER_URL)
+			&& -1 != ffstr_ifindstr(&e->url, &filter)) {
+			inc = 1;
+
+		} else if (flags & QUFILTER_META) {
+
+			ffstr *meta, name;
+			for (uint i = 0;  NULL != (meta = fx->qu->meta(e, i, &name, 0));  i++) {
+				if (meta == FMED_QUE_SKIP)
+					continue;
+				if (-1 != ffstr_ifindstr(meta, &filter)) {
+					inc = 1;
+					break;
+				}
+			}
+		}
+
+		if (inc) {
+			fx->qu->cmdv(FMED_QUE_ADD_FILTERED, e);
+			nfilt++;
+		}
+	}
+
+	fx->list_filter = 1;
+
+	jni_sz_free(filterz, jfilter);
+	dbglog0("%s: exit", __func__);
+	return nfilt;
 }
 
 static void qu_load_file(const char *fn, int qi)

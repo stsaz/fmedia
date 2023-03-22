@@ -20,10 +20,10 @@ import java.util.Arrays;
 class Explorer {
 	private static final String TAG = "fmedia.Explorer";
 	private final Core core;
-	private final Queue queue;
 	private final GUI gui;
 	private final MainActivity main;
 
+	private String[] rows;
 	private String[] fns; // file names
 	private boolean updir; // "UP" directory link is shown
 	private boolean uproot;
@@ -32,37 +32,56 @@ class Explorer {
 	Explorer(Core core, MainActivity main) {
 		this.core = core;
 		this.main = main;
-		queue = core.queue();
 		gui = core.gui();
 	}
 
-	void list_click(int pos) {
+	int count() {
+		return rows.length;
+	}
+
+	String get(int pos) {
+		return rows[pos];
+	}
+
+	void event(int ev, int pos) {
 		if (pos == 0)
 			return; // click on our current directory path
 		pos--;
 
+		if (ev == PlaylistAdapter.EV_LONGCLICK) {
+			add_files_r(pos);
+			return;
+		}
+
 		if (uproot) {
 			if (pos == 0) {
-				main.list_set_data(list_show_root());
+				list_show_root();
+				main.explorer_event(null, 0);
 				return;
 			}
 			pos--;
 		}
 
 		if (pos < ndirs) {
-			main.list_set_data(list_show(fns[pos]));
+			list_show(fns[pos]);
+			main.explorer_event(null, 0);
 			return;
 		}
 
-		String[] pl = new String[1];
-		pl[0] = fns[pos];
-		main.pl_set(pl, Queue.ADD);
+		main.explorer_event(fns[pos], Queue.ADD);
+	}
+
+	void fill() {
+		if (gui.cur_path.isEmpty())
+			list_show_root();
+		else
+			list_show(gui.cur_path);
 	}
 
 	/**
 	 * Read directory contents and update listview
 	 */
-	String[] list_show(String path) {
+	private void list_show(String path) {
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
 			if (!Environment.isExternalStorageManager()) {
 				Intent it = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION
@@ -127,24 +146,22 @@ class Explorer {
 			}
 		} catch (Exception e) {
 			core.errlog(TAG, "list_show: %s", e);
-			fns = new String[0];
-			return new String[]{};
+			return;
 		}
 
 		fns = fnames.toArray(new String[0]);
 		gui.cur_path = path;
-		String[] anames = names.toArray(new String[0]);
+		rows = names.toArray(new String[0]);
 		this.updir = updir;
 		this.uproot = uproot;
 		this.ndirs = ndirs;
 		core.dbglog(TAG, "added %d files", fns.length - 1);
-		return anames;
 	}
 
 	/**
 	 * Show the list of all available storage directories
 	 */
-	String[] list_show_root() {
+	private void list_show_root() {
 		fns = core.storage_paths;
 		gui.cur_path = "";
 		updir = false;
@@ -154,34 +171,25 @@ class Explorer {
 		ArrayList<String> names = new ArrayList<>();
 		names.add("[Storage directories]");
 		names.addAll(Arrays.asList(fns));
-		return names.toArray(new String[0]);
+		rows = names.toArray(new String[0]);
 	}
 
 	/**
 	 * UI event on listview long click.
 	 * Add files to the playlist.  Recursively add directory contents.
 	 */
-	boolean add_files_r(int pos) {
-		if (pos == 0)
-			return false; // long click on our current directory path
-		pos--;
-
+	private boolean add_files_r(int pos) {
 		if (uproot)
 			pos--;
 
 		if (pos == 0 && updir)
 			return false; // no action for a long click on "<UP>"
 
-		String[] list = new String[1];
-		list[0] = fns[pos];
-		main.pl_set(list, Queue.ADD_RECURSE);
+		main.explorer_event(fns[pos], Queue.ADD_RECURSE);
 		return true;
 	}
 
-	int show_file(String fn) {
-		gui.cur_path = new File(fn).getParent();
-		main.explorer_click();
-
+	int file_idx(String fn) {
 		for (int i = 0; i != fns.length; i++) {
 			if (fns[i].equalsIgnoreCase(fn)) {
 				return i;

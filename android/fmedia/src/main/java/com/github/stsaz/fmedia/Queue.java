@@ -92,6 +92,10 @@ class PList {
 		return core.fmedia.quCmd(sel(), Fmedia.QUCOM_COUNT, 0);
 	}
 
+	void filter(String filter) {
+		core.fmedia.quFilter(sel(), filter, Fmedia.QUFILTER_URL);
+	}
+
 	/** Load playlist from a file on disk */
 	void iload_file(int i, String fn) {
 		core.fmedia.quLoad(q[i], fn);
@@ -204,9 +208,9 @@ class Queue {
 		nfy.remove(qn);
 	}
 
-	private void nfy_all() {
+	private void nfy_all(int first_pos) {
 		for (QueueNotify qn : nfy) {
-			qn.on_change(0);
+			qn.on_change(first_pos);
 		}
 	}
 
@@ -342,7 +346,7 @@ class Queue {
 			trk_idx = -1;
 		else if (pos < trk_idx)
 			trk_idx--;
-		nfy_all();
+		nfy_all(pos);
 	}
 
 	/**
@@ -352,7 +356,7 @@ class Queue {
 		core.dbglog(TAG, "clear");
 		pl.clear();
 		trk_idx = -1;
-		nfy_all();
+		nfy_all(-1);
 	}
 
 	int count() {
@@ -363,12 +367,13 @@ class Queue {
 	static final int ADD = 2;
 
 	void addmany(String[] urls, int flags) {
+		int pos = pl.size();
 		if (flags == ADD) {
 			pl.add(urls);
 		} else {
 			pl.add_r(urls);
 		}
-		nfy_all();
+		nfy_all(pos);
 	}
 
 	/**
@@ -376,8 +381,9 @@ class Queue {
 	 */
 	void add(String url) {
 		core.dbglog(TAG, "add: %s", url);
+		int pos = pl.size();
 		pl.add1(url);
-		nfy_all();
+		nfy_all(pos);
 	}
 
 	@SuppressLint("DefaultLocale")
@@ -418,5 +424,9 @@ class Queue {
 		if (pl.qi != trk_q)
 			return -1;
 		return trk_idx;
+	}
+
+	void filter(String filter) {
+		pl.filter(filter);
 	}
 }
