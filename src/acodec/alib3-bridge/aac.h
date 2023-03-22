@@ -113,7 +113,8 @@ static inline int ffaac_decode(ffaac *a)
 	if (rc == FFAAC_RDATA_NEWFMT) {
 		a->fmt.channels = a->info.channels;
 		a->fmt.sample_rate = a->info.rate;
-		a->rate_mul = a->info.rate / a->contr_samprate;
+		if (a->contr_samprate != 0)
+			a->rate_mul = a->info.rate / a->contr_samprate;
 	}
 
 	a->pcmlen = r * ffpcm_size(a->fmt.format, a->info.channels);

@@ -61,7 +61,7 @@ static int aconv_prepare(aconv *c, fmed_filt *d)
 
 	if (in->sample_rate != out->sample_rate) {
 
-		const struct fmed_filter2 *soxr = core->getmod("soxr.conv");
+		const struct fmed_filter2 *soxr = (void*)core->cmd(FMED_FILTER_BYNAME, "soxr.conv");
 		void *f = (void*)d->track->cmd(d->trk, FMED_TRACK_FILT_ADD, "soxr.conv");
 		if (f == NULL)
 			return FMED_RERR;

@@ -331,6 +331,7 @@ static const char* const sig_str[] = {
 	"FMED_FILETYPE_EXT",
 	"FMED_DATA_FORMAT",
 	"FMED_IFILTER_BYEXT",
+	"FMED_OFILTER_BYEXT",
 	"FMED_FILTER_BYNAME",
 };
 
@@ -468,9 +469,11 @@ static ssize_t core_cmd(uint signo, ...)
 		r = (ffsize)ifilter_byext(va_arg(va, char*));
 		break;
 
-	case FMED_FILTER_BYNAME:
-		r = -1;
+	case FMED_FILTER_BYNAME: {
+		const char *name = va_arg(va, char*);
+		r = (size_t)core->getmod(name);
 		break;
+	}
 	}
 
 	va_end(va);

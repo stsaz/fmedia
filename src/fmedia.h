@@ -385,7 +385,11 @@ enum FMED_TRACK_CMD {
 	FMED_TRACK_META_COPYFROM,
 
 	FMED_TRACK_FILT_GETPREV, // get context pointer of the previous filter
-	FMED_TRACK_FILT_INSTANCE, // get (create) filter instance.  @param: void *filter_id
+
+	/** Get (create) filter instance.
+	void *f_id = (void*)track->cmd(t, FMED_TRACK_FILT_ADD, "...");
+	void *fi = (void*)track->cmd(t, FMED_TRACK_FILT_INSTANCE, f_id); */
+	FMED_TRACK_FILT_INSTANCE,
 
 	/** Continue track processing after it was suspended after FMED_RASYNC.
 	Several consecutive signals result in a single call to track processing function.
@@ -1031,9 +1035,21 @@ enum FMED_QUE {
 	void item_unlock(fmed_que_entry *ent) */
 	FMED_QUE_ITEMUNLOCK,
 
+	/** Create a virtual queue for item filtering.
+	qu->cmdv(FMED_QUE_NEW_FILTERED); */
 	FMED_QUE_NEW_FILTERED,
+
+	/** Add the item which passed the filtering.
+	fmed_que_entry *e = NULL;
+	qu->cmdv(FMED_QUE_LIST_NOFILTER, &e);
+	qu->cmdv(FMED_QUE_ADD_FILTERED, e); */
 	FMED_QUE_ADD_FILTERED,
+
+	/** Close the filtered queue.
+	qu->cmdv(FMED_QUE_DEL_FILTERED); */
 	FMED_QUE_DEL_FILTERED,
+
+	/** Get next item */
 	FMED_QUE_LIST_NOFILTER,
 
 	/**
