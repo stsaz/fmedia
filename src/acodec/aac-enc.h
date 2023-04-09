@@ -117,10 +117,11 @@ static int aac_out_encode(void *ctx, fmed_track_info *d)
 
 		d->a_enc_delay = a->aac.info.enc_delay;
 		d->a_frame_samples = ffaac_enc_frame_samples(&a->aac);
-		d->a_enc_bitrate = ffaac_bitrate(&a->aac, a->aac.info.quality);
+		if (a->aac.info.quality > 5)
+			d->a_enc_bitrate = a->aac.info.quality;
 		ffstr asc = ffaac_enc_conf(&a->aac);
 		dbglog1(d->trk, "using bitrate %ubps, bandwidth %uHz, asc %*xb"
-			, ffaac_bitrate(&a->aac, a->aac.info.quality), a->aac.info.bandwidth, asc.len, asc.ptr);
+			, d->a_enc_bitrate, a->aac.info.bandwidth, asc.len, asc.ptr);
 
 		d->out = asc.ptr,  d->outlen = asc.len;
 		a->state = W_DATA;

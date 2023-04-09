@@ -221,22 +221,6 @@ static inline ffstr ffaac_enc_conf(ffaac_enc *a)
 	return s;
 }
 
-/** Get bitrate from quality. */
-static inline uint ffaac_bitrate(ffaac_enc *a, uint qual)
-{
-	static const byte vbr_brate[] = {
-		32, 40, 56, 64, 96
-	};
-
-	if (qual == 0)
-		return 0;
-
-	if (qual <= 5)
-		return a->info.channels * vbr_brate[qual - 1] * 1000;
-
-	return qual;
-}
-
 #define ffaac_cursample(a)  ((a)->cursample - (a)->enc_delay)
 
 /** Get audio samples per AAC frame. */

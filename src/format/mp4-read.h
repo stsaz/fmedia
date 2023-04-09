@@ -173,7 +173,7 @@ static int mp4_in_decode(void *ctx, fmed_track_info *d)
 				if (!d->stream_copy) {
 					d->a_enc_delay = ai->enc_delay;
 					d->a_end_padding = ai->end_padding;
-					d->audio.bitrate = (ai->aac_bitrate != 0) ? ai->aac_bitrate : ai->real_bitrate;
+					d->audio.bitrate = ((int)ai->aac_bitrate >= 0) ? ai->aac_bitrate : ai->real_bitrate;
 				}
 				break;
 
