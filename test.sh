@@ -1,4 +1,20 @@
+#!/bin/bash
 # fmedia tester
+
+
+TESTS_ALL=(
+	record info play cue
+	convert convert_meta convert_streamcopy convert_parallel
+	filters filters_aconv filters_gain filters_dynanorm
+	playlist-heal
+	)
+
+if test "$#" -lt 1 ; then
+	echo Usage: bash test.sh all
+	echo Usage: bash test.sh TEST...
+	echo "TEST: ${TESTS_ALL[@]}"
+	exit 1
+fi
 
 # print commands before executing
 set -x
@@ -6,43 +22,35 @@ set -x
 # exit if a child process reports an error
 set -e
 
-CMD=$1
-
+TESTS=("$@")
 if test "$CMD" = "all" ; then
-	./fmedia --list-dev
-	sh $0 record
-	sh $0 info
-	sh $0 play
-	sh $0 cue
-	sh $0 convert
-	sh $0 convert_meta
-	sh $0 convert_streamcopy
-	sh $0 convert_parallel
-	sh $0 filters
+	TESTS=("${CMDS_OPS[@]}")
+fi
 
-elif test "$CMD" = "perf" ; then
+for CMD in "${TESTS[@]}" ; do
+
+rm -rf fmedtest
+mkdir fmedtest
+
+if test "$CMD" = "perf" ; then
 	for i in $(seq 1 3) ; do
 		./fmedia afile --print-time --pcm-peaks
 		./fmedia afile --print-time -o fmedia-test.wav -y --rate=96000 --format=int32
 	done
 
-fi
-
-if test "$CMD" = "clean" ; then
+elif test "$CMD" = "clean" ; then
+	rm -rf fmedtest
 	rm *.aac *.wav *.flac *.mp3 *.m4a *.ogg *.opus *.mpc *.wv *.mp4 *.mkv *.avi *.caf *.cue
 	exit
-fi
 
-if test "$CMD" = "radio" ; then
+elif test "$CMD" = "radio" ; then
 	URL="http://"
 	./fmedia $URL -o '$artist-$title.mp3' --out-copy --stream-copy -y --meta=artist=A --until=1
-fi
 
-if test "$CMD" = "rec1" ; then
+elif test "$CMD" = "rec1" ; then
 	./fmedia --record -o rec.wav -y --until=2 --rate=44100 --format=int16
-fi
 
-if test "$CMD" = "record" ; then
+elif test "$CMD" = "record" ; then
 	# record -> .*
 	# TODO --meta=artist=A;title=T
 	./fmedia --record -o rec.wav -y --until=2 --rate=44100 --format=int16
@@ -52,14 +60,12 @@ if test "$CMD" = "record" ; then
 	./fmedia --record -o rec.ogg -y --until=2 --rate=44100 --format=int16
 	./fmedia --record -o rec.opus -y --until=2 --rate=44100 --format=int16
 	./fmedia rec.* --pcm-peaks
-fi
 
-if test "$CMD" = "info" ; then
+elif test "$CMD" = "info" ; then
 	OPTS="--info --tags"
 	./fmedia rec.* $OPTS
-fi
 
-if test "$CMD" = "play" ; then
+elif test "$CMD" = "play" ; then
 	if ! test -f "rec4.wav" ; then
 		./fmedia --record --format=int16 --rate=48000 --channels=2 --until=4 -o rec4.wav -y
 	fi
@@ -240,9 +246,8 @@ if test "$CMD" = "convert_parallel" ; then
 	OPTS="-y --parallel"
 	./fmedia rec.* -o 'parallel-$counter.m4a' $OPTS
 	./fmedia parallel-*.m4a --pcm-peaks --parallel
-fi
 
-if test "$CMD" = "convert_streamcopy" ; then
+elif test "$CMD" = "convert_streamcopy" ; then
 	# convert with stream-copy
 	./fmedia play_aac.mp4 -o copy_aac.m4a -y --stream-copy
 	./fmedia play_mp3.mp3 -o copy_mp3.mp3 -y --stream-copy
@@ -265,19 +270,14 @@ if test "$CMD" = "convert_streamcopy" ; then
 
 	./fmedia play_aac.mp4 -o copy_meta.m4a -y --stream-copy --meta='artist=SomeArtist;title=SomeTitle'
 	./fmedia copy_meta.m4a --info 2>&1 | grep 'SomeArtist - SomeTitle'
-fi
 
-if test "$CMD" = "filters" ; then
-	sh $0 filters_aconv
-	sh $0 filters_gain
-	sh $0 filters_dynanorm
+elif test "$CMD" = "filters" ; then
 	OPTS="-y"
 	./fmedia rec.wav -o 'split-$counter.wav' --split=0.100 $OPTS
 	./fmedia rec.wav -o 'split-$counter.mp3' --split=0.100 $OPTS
 	./fmedia split-* --pcm-peaks
-fi
 
-if test "$CMD" = "filters_aconv" ; then
+elif test "$CMD" = "filters_aconv" ; then
 	./fmedia --record --format=int16 --rate=48000 --channels=2 --until=1 -o aconv_rec.wav -y
 
 	# int16 -> int32
@@ -295,17 +295,15 @@ if test "$CMD" = "filters_aconv" ; then
 	# int16/48000 -> int32/192000
 	./fmedia aconv_rec.wav --format=int32 --rate=192000 -o aconv32-192.wav -y -D | grep 'PCM conv'
 	./fmedia aconv32-192.wav --pcm-peaks
-fi
 
-if test "$CMD" = "filters_gain" ; then
+elif test "$CMD" = "filters_gain" ; then
 	OPTS="-y"
 	./fmedia rec.wav -o vol.wav --volume=50 $OPTS
 	./fmedia vol.wav --pcm-peaks
 	./fmedia rec.wav -o gain.wav --gain=-6.0 $OPTS
 	./fmedia gain.wav --pcm-peaks
-fi
 
-if test "$CMD" = "filters_dynanorm" ; then
+elif test "$CMD" = "filters_dynanorm" ; then
 	./fmedia --record --until=2 --dynanorm -o rec-dynanorm.wav -y
 	./fmedia rec-dynanorm.wav --pcm-peaks
 
@@ -315,4 +313,7 @@ if test "$CMD" = "filters_dynanorm" ; then
 	./fmedia dynanorm.wav --pcm-peaks
 fi
 
+done
+
+rm -rf fmedtest
 echo DONE
