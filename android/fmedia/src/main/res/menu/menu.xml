@@ -15,6 +15,8 @@
 	<item
 		android:id="@+id/action_file_del"
 		android:title="@string/mfile_del" />
+	<item android:id="@+id/action_file_move"
+		android:title="@string/mfile_move" />
 	<item
 		android:id="@+id/action_list_save"
 		android:title="@string/mlist_save" />

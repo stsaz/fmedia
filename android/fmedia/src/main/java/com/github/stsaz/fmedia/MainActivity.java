@@ -148,6 +148,10 @@ public class MainActivity extends AppCompatActivity {
 				file_del_cur();
 				return true;
 
+			case R.id.action_file_move:
+				file_move_cur();
+				return true;
+
 			case R.id.action_file_tags_show:
 				startActivity(new Intent(this, TagsActivity.class));
 				return true;
@@ -502,6 +506,26 @@ public class MainActivity extends AppCompatActivity {
 		b.setPositiveButton(btn, (dialog, which) -> file_del(pos, fn));
 		b.setNegativeButton("Cancel", null);
 		b.show();
+	}
+
+	private void file_move_cur() {
+		if (core.setts.quick_move_dir.isEmpty()) {
+			core.errlog(TAG, "Please set move-directory in Settings");
+			return;
+		}
+
+		int pos = queue.cur();
+		if (pos < 0)
+			return;
+		String fn = queue.get(pos);
+
+		String e = core.fmedia.fileMove(fn, core.setts.quick_move_dir);
+		if (!e.isEmpty()) {
+			core.errlog(TAG, "file move: %s", e);
+			return;
+		}
+
+		gui.msg_show(this, "Moved file to %s", core.setts.quick_move_dir);
 	}
 
 	void explorer_event(String fn, int flags) {

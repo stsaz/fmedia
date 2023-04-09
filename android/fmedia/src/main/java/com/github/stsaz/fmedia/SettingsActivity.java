@@ -18,7 +18,7 @@ public class SettingsActivity extends AppCompatActivity {
 	private Core core;
 	private SwitchCompat brandom, brepeat, bfilter_hide, brec_hide, bsvc_notif_disable, bfile_del;
 	private SwitchCompat bnotags, blist_rm_on_next, blist_rm_on_err, bdark, ui_info_in_title;
-	private TextView tdata_dir, trecdir, ttrash_dir, tautoskip, tcodepage;
+	private TextView tdata_dir, tquick_move_dir, trecdir, ttrash_dir, tautoskip, tcodepage;
 
 	private TextView rec_enc, rec_bitrate, rec_buf_len, rec_until, rec_gain;
 	private SwitchCompat rec_exclusive;
@@ -88,6 +88,7 @@ public class SettingsActivity extends AppCompatActivity {
 		// Operation
 		tdata_dir = findViewById(R.id.tdata_dir);
 		tdata_dir.setText(core.setts.pub_data_dir);
+		tquick_move_dir = findViewById(R.id.tquick_move_dir);
 
 		ttrash_dir = findViewById(R.id.ttrash_dir);
 		ttrash_dir.setText(core.setts.trash_dir);
@@ -108,6 +109,7 @@ public class SettingsActivity extends AppCompatActivity {
 	private void load() {
 		blist_rm_on_err.setChecked(core.setts.qu_rm_on_err);
 		ui_info_in_title.setChecked(core.gui().ainfo_in_title);
+		tquick_move_dir.setText(core.setts.quick_move_dir);
 
 		rec_load();
 	}
@@ -130,6 +132,8 @@ public class SettingsActivity extends AppCompatActivity {
 		core.setts.svc_notification_disable = bsvc_notif_disable.isChecked();
 		core.setts.trash_dir = ttrash_dir.getText().toString();
 		core.setts.file_del = bfile_del.isChecked();
+
+		core.setts.quick_move_dir = tquick_move_dir.getText().toString();
 
 		int i = GUI.THM_DEF;
 		if (bdark.isChecked())

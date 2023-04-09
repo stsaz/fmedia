@@ -25,6 +25,7 @@ class CoreSettings {
 	String codepage;
 	String pub_data_dir;
 	String plist_save_dir;
+	String quick_move_dir;
 
 	String rec_path; // directory for recordings
 	String rec_enc, rec_fmt;
@@ -40,6 +41,7 @@ class CoreSettings {
 		codepage = "cp1252";
 		pub_data_dir = "";
 		plist_save_dir = "";
+		quick_move_dir = "";
 		trash_dir = "Trash";
 
 		rec_path = "";
@@ -62,6 +64,7 @@ class CoreSettings {
 				String.format("codepage %s\n", codepage) +
 				String.format("data_dir %s\n", pub_data_dir) +
 				String.format("plist_save_dir %s\n", plist_save_dir) +
+				String.format("quick_move_dir %s\n", quick_move_dir) +
 				String.format("trash_dir_rel %s\n", trash_dir) +
 
 				String.format("rec_path %s\n", rec_path) +
@@ -112,6 +115,8 @@ class CoreSettings {
 			pub_data_dir = v;
 		else if (k.equals("plist_save_dir"))
 			plist_save_dir = v;
+		else if (k.equals("quick_move_dir"))
+			quick_move_dir = v;
 		else if (k.equals("trash_dir_rel"))
 			trash_dir = v;
 		else if (k.equals("no_tags"))

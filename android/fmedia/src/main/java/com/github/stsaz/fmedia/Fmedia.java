@@ -62,6 +62,7 @@ class Fmedia {
 
 	String[] storage_paths;
 	public native String trash(String trash_dir, String filepath);
+	public native String fileMove(String filepath, String target_dir);
 
 	static {
 		System.loadLibrary("ALAC-phi");

@@ -167,6 +167,17 @@
 			android:layout_margin="10dp"
 			android:text="@string/sett_file_del" />
 
+		<TextView android:text="@string/sett_quick_move_dir"
+			android:layout_width="match_parent" android:layout_height="wrap_content"
+			android:layout_marginHorizontal="10dp"
+			android:layout_marginTop="10dp"
+			android:textColor="@color/text" />
+		<EditText android:id="@+id/tquick_move_dir"
+			android:layout_width="match_parent" android:layout_height="wrap_content"
+			android:layout_marginHorizontal="10dp"
+			android:inputType="text"
+			android:textSize="@dimen/text_editbox" />
+
 		<TextView
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"

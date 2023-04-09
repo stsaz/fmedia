@@ -8,6 +8,7 @@
 	<string name="mfile_convert">File: Convert...</string>
 	<string name="menu_show_expl">File: Show Current Track</string>
 	<string name="mfile_del">File: Delete from Storage</string>
+	<string name="mfile_move">File: Quick Move!</string>
 	<string name="mlist_save">List: Save...</string>
 	<string name="mlist_add">List: Add...</string>
 	<string name="mlist_remove">List: Remove Current Track</string>
@@ -36,6 +37,7 @@
 	<string name="sett_operation">Operation</string>
 	<string name="sett_file_del">Don\'t Move Files to Trash</string>
 	<string name="sett_trash_dir">Trash Directory (relative to storage mount-point):</string>
+	<string name="sett_quick_move_dir">Quick-Move Directory:</string>
 
 	<string name="sett_recording">Recording</string>
 	<string name="sett_data_dir">App Data Directory</string>
