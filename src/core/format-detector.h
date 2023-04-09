@@ -1,6 +1,8 @@
 /** fmedia: detect file format from file data
 2020, Simon Zolin */
 
+#include <util/path.h>
+
 enum FILE_FORMAT {
 	FILE_UNK,
 	FILE_AVI,
@@ -12,6 +14,7 @@ enum FILE_FORMAT {
 	FILE_OGG,
 	FILE_WAV,
 	FILE_WV,
+	FILE_ID3,
 };
 
 static const char file_ext[][5] = {
@@ -24,6 +27,7 @@ static const char file_ext[][5] = {
 	"ogg",
 	"wav",
 	"wv",
+	"",
 };
 
 /** Detect file format by first several bytes
@@ -98,7 +102,7 @@ static inline int file_format_detect(const void *data, ffsize len)
 		if (!ffmem_cmp(&d[0], "ID3", 3)
 			&& d[3] <= 9
 			&& d[4] <= 9)
-			return FILE_MP3;
+			return FILE_ID3;
 	}
 
 	if (len >= 4) {
@@ -137,6 +141,15 @@ static int fdetcr_process(void *ctx, fmed_filt *d)
 	}
 
 	ffstr ext = FFSTR_INITZ(file_ext[r-1]);
+	if (r == FILE_ID3) {
+		const char *fn = d->in_filename;
+		if (fn == NULL)
+			fn = d->track->getvalstr(d->trk, "input");
+		ffstr name = FFSTR_INITZ(fn);
+		ffpath_split3(name.ptr, name.len, NULL, NULL, &ext);
+		if (!ffstr_ieqz(&ext, "flac"))
+			ffstr_setz(&ext, "mp3");
+	}
 	dbglog1(d->trk, "detected format: %S", &ext);
 
 	const char *fname = (char*)core->cmd(FMED_IFILTER_BYEXT, ext.ptr);
