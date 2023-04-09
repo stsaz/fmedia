@@ -440,6 +440,7 @@ static const ffcmdarg_arg fmed_cmdline_args[] = {
 	{ 'h', "help",	TSWITCH,	F(arg_usage) },
 	{ 0, "cue-gaps",	FFCMDARG_TINT8,	O(cue_gaps) },
 	{ 0, "parallel",	TSWITCH,	O(parallel) },
+	{ 0, "playlist-heal",	FFCMDARG_TSTRZ,	O(playlist_heal) },
 
 	//INSTALL
 	{ 0, "install",	TSWITCH,	F(arg_install) },

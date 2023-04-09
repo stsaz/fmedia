@@ -183,6 +183,19 @@ OTHER OPTIONS:
 --globcmd.pipe-name=STR
                    Set name of the pipe for communication between fmedia instances
 
+--playlist-heal="[Option,...]"
+                    Auto-correct the paths to files inside a .m3u playlist.
+                    Replace absolute file paths to relative paths, e.g.:
+                      for /path/list.m3u:
+                      /path/dir/file.mp3 -> dir/file.mp3
+                    Correct the file extension, e.g.:
+                      dir/file.mp3 -> dir/file.m4a
+                    Correct the file directory, e.g.:
+                      olddir/file.mp3 -> newdir/file.mp3
+                    Correct the file directory & extension, e.g.:
+                      olddir/file.mp3 -> newdir/file.m4a
+                    Note: can't detect file renamings.
+
 --conf=FN          Set configuration file (default: "fmedia.conf" from the program directory)
 --gui              Run in graphical UI mode (Windows,Linux only)
 --notui            Don't use terminal UI
@@ -205,3 +218,5 @@ Convert:
     fmedia input.wav -o output.ogg
 Edit tags:
     fmedia --edit-tags --meta='artist=ARTIST;title=TITLE' file.mp3
+Heal playlists:
+	fmedia --playlist-heal="" ./*.m3u8

@@ -201,7 +201,7 @@ static void* file_open(fmed_filt *d)
 	f = ffmem_tcalloc1(fmed_file);
 	if (f == NULL)
 		return NULL;
-	f->fn = d->track->getvalstr(d->trk, "input");
+	f->fn = (d->in_filename != NULL) ? d->in_filename : d->track->getvalstr(d->trk, "input");
 	f->trk = d->trk;
 
 	fffileread_conf conf = {};

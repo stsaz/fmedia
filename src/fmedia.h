@@ -21,7 +21,7 @@ Copyright (c) 2015 Simon Zolin */
 It must be updated when incompatible changes are made to this file,
  then all modules must be rebuilt.
 The core will refuse to load modules built for any other core version. */
-#define FMED_VER_CORE  ((FMED_VER_MAJOR << 16) | (30<<8))
+#define FMED_VER_CORE  ((FMED_VER_MAJOR << 16) | (31<<8))
 
 #define FMED_HOMEPAGE  "https://stsaz.github.io/fmedia/"
 
@@ -430,6 +430,9 @@ enum FMED_TRK_TYPE {
 	/** Just print meta data */
 	FMED_TRK_TYPE_METAINFO,
 
+	/** Modify (correct or "heal") the paths to files inside a playlist */
+	FMED_TRK_TYPE_PLAYLIST_HEAL,
+
 	_FMED_TRK_TYPE_END,
 };
 
@@ -619,6 +622,7 @@ struct fmed_track_info {
 	fftime out_mtime;
 	/** net.in sets out_filename from this. */
 	const char *net_out_filename;
+	const char *playlist_heal_options;
 
 	ffvec meta; // {char*, char*}[]
 

@@ -39,6 +39,7 @@ static fmed_core *core;
 static void open_input(void *udata);
 static int rec_tracks_start(fmed_cmd *cmd, fmed_trk *trkinfo);
 static void rec_lpback_new_track(fmed_cmd *cmd);
+static int pl_heal(fmed_cmd *cmd);
 
 // TRACK MONITOR
 static void mon_onsig(void *trk, uint sig);
@@ -108,6 +109,9 @@ static void mon_onsig(void *trk, uint sig)
 
 		if (ti->err)
 			g->psexit = 1;
+
+		if (pl_heal(g->cmd) < 0)
+			core->sig(FMED_STOP);
 		break;
 
 	case FMED_TRK_ONLAST:
@@ -312,6 +316,28 @@ static void trk_prep(fmed_cmd *fmed, fmed_trk *trk)
 	trk->print_time = fmed->print_time;
 }
 
+/** --playlist-heal=... */
+static int pl_heal(fmed_cmd *cmd)
+{
+	if (cmd->playlist_heal == NULL) return 0;
+
+	if (cmd->pl_heal_idx == cmd->in_files.len)
+		return -1;
+	char *fn = *ffslice_itemT(&cmd->in_files, cmd->pl_heal_idx, char*);
+	cmd->pl_heal_idx++;
+
+	fmed_track_obj *trk;
+	if (NULL == (trk = g->track->create(FMED_TRK_TYPE_PLAYLIST_HEAL, fn)))
+		return -1;
+
+	fmed_track_info *ti = g->track->conf(trk);
+	ti->playlist_heal_options = cmd->playlist_heal;
+	ti->out_preserve_date = cmd->preserve_date;
+
+	g->track->cmd(trk, FMED_TRACK_START);
+	return 1;
+}
+
 static void open_input(void *udata)
 {
 	char **pfn;
@@ -322,6 +348,9 @@ static void open_input(void *udata)
 	fmed_cmd *fmed = udata;
 
 	if (0 != expand_input_wcard(fmed))
+		return;
+
+	if (0 != pl_heal(fmed))
 		return;
 
 	fmed_trk trkinfo;

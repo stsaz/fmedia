@@ -30,6 +30,7 @@ FF_EXP const fmed_mod* fmed_getmod(const fmed_core *_core)
 extern const fmed_filter fmed_cue_input;
 extern const fmed_filter cuehook_iface;
 extern const fmed_filter fmed_dir_input;
+extern const fmed_filter fmed_plheal;
 extern int dir_conf(fmed_conf_ctx *ctx);
 
 #include <plist/m3u-read.h>
@@ -50,6 +51,8 @@ static const void* plist_iface(const char *name)
 		return &cuehook_iface;
 	else if (!ffsz_cmp(name, "dir"))
 		return &fmed_dir_input;
+	else if (ffsz_eq(name, "heal"))
+		return &fmed_plheal;
 	return NULL;
 }
 

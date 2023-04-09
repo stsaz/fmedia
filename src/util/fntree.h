@@ -346,7 +346,7 @@ static inline fntree_block* _fntr_blk_next_r_post(fntree_cursor *c, fntree_block
 
 
 /** Free all tree-blocks. */
-static void fntree_free_all(fntree_block *b)
+static inline void fntree_free_all(fntree_block *b)
 {
 	if (b == NULL)
 		return;

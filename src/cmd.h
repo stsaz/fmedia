@@ -23,6 +23,8 @@ typedef struct fmed_cmd {
 	byte out_channels;
 	};
 
+	uint pl_heal_idx;
+
 	byte rec;
 	ushort capture_buf_len; //msec
 	byte mix;
@@ -66,6 +68,7 @@ typedef struct fmed_cmd {
 	byte gui;
 	byte print_time;
 	byte cue_gaps;
+	char *playlist_heal;
 
 	ffstr outfn;
 	char *outfnz;
@@ -114,4 +117,5 @@ static inline void cmd_destroy(fmed_cmd *cmd)
 	ffslice_free(&cmd->exclude_files);
 	ffmem_free(cmd->include_files_data);
 	ffmem_free(cmd->exclude_files_data);
+	ffmem_free(cmd->playlist_heal);
 }

@@ -261,6 +261,7 @@ static int trk_addfilters(fm_trk *t)
 
 	switch (t->props.type) {
 	case FMED_TRK_TYPE_NONE:
+	case FMED_TRK_TYPE_PLAYLIST_HEAL:
 		return 0;
 
 	case FMED_TRK_TYPE_PLAYBACK:
@@ -376,6 +377,7 @@ static void* trk_create(uint cmd, const char *fn)
 	fm_trk *t = ffmem_tcalloc1(fm_trk);
 	if (t == NULL)
 		return NULL;
+	fmed_track_info *ti = &t->props;
 	ffchain_init(&t->filt_chain);
 	t->cur = ffchain_sentl(&t->filt_chain);
 	ffrbt_init(&t->dict);
@@ -417,6 +419,14 @@ static void* trk_create(uint cmd, const char *fn)
 		break;
 
 	case FMED_TRK_TYPE_PLIST:
+		break;
+
+	case FMED_TRK_TYPE_PLAYLIST_HEAL:
+		ti->in_filename = fn;
+		addfilter(t, "#file.in");
+		addfilter(t, "plist.heal");
+		// out_filename is set by plist.heal
+		addfilter(t, "#file.out");
 		break;
 
 	default:

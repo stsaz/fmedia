@@ -311,6 +311,48 @@ elif test "$CMD" = "filters_dynanorm" ; then
 
 	./fmedia rec-dynanorm.wav -o dynanorm.wav --dynanorm -y
 	./fmedia dynanorm.wav --pcm-peaks
+
+elif test "$CMD" = "playlist-heal" ; then
+	mkdir fmedtest/plheal
+	echo '#EXTM3U
+#EXTINF:123,ARTIST - abs-rel
+/tmp/fmedia/fmedia-1/fmedtest/plheal/file.mp3
+#EXTINF:123,ARTIST - chg-ext
+plheal/file.mp3
+#EXTINF:123,ARTIST - chg-dir
+plheal/dir1/dir2/file-cd.mp3
+#EXTINF:123,ARTIST - chg-dir-ext
+plheal/dir1/dir2/file-cde.mp3
+#EXTINF:123,ARTIST - abs-out-of-scope
+/tmp/plheal/file-oos.mp3' >fmedtest/list.m3u
+	echo '#EXTM3U
+#EXTINF:123,ARTIST - abs-rel
+plheal/file.ogg
+#EXTINF:123,ARTIST - chg-ext
+plheal/file.ogg
+#EXTINF:123,ARTIST - chg-dir
+plheal/dir3/file-cd.mp3
+#EXTINF:123,ARTIST - chg-dir-ext
+plheal/dir3/file-cde.ogg
+#EXTINF:123,ARTIST - abs-out-of-scope
+/tmp/plheal/file-oos.mp3' >fmedtest/list2.m3u
+	touch fmedtest/plheal/file.ogg
+	mkdir fmedtest/plheal/dir3
+	touch fmedtest/plheal/dir3/file-cd.mp3
+	touch fmedtest/plheal/dir3/file-cde.ogg
+
+	./fmedia --playlist-heal="" "fmedtest/list.m3u"
+	diff -Z fmedtest/list.m3u fmedtest/list2.m3u
+
+	echo '#EXTM3U
+#EXTINF:123,ARTIST - unchanged
+plheal/file.ogg' >fmedtest/list.m3u
+	echo '#EXTM3U
+#EXTINF:123,ARTIST - unchanged
+plheal/file.ogg' >fmedtest/list2.m3u
+	./fmedia --playlist-heal="" "fmedtest/list.m3u"
+	diff -Z fmedtest/list.m3u fmedtest/list2.m3u
+
 fi
 
 done
