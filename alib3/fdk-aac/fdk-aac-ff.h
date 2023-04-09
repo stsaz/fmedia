@@ -28,8 +28,8 @@ typedef struct fdkaac_conf {
 	unsigned int channels;
 	unsigned int rate;
 	unsigned int aot; //enum AAC_AOT
-	unsigned int quality; //VBR:1..5, CBR:8000..800000 (bit/s)
-	unsigned int bandwidth; //up to 20000Hz
+	unsigned int quality; // VBR:1..5, CBR:8000..800000 (bit/s) [in/out]
+	unsigned int bandwidth; // up to 20000Hz [in/out]
 	unsigned int afterburner :1;
 
 	//output:

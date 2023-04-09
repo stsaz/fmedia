@@ -252,7 +252,8 @@ int fdkaac_encode_create(fdkaac_encoder **penc, fdkaac_conf *conf)
 	conf->frame_samples = info.frameLength;
 	conf->max_frame_size = info.maxOutBufBytes;
 	conf->enc_delay = info.encoderDelay;
-	conf->quality = aacEncoder_GetParam(enc, AACENC_BITRATE);
+	if (-1 != (r = aacEncoder_GetParam(enc, AACENC_BITRATE)))
+		conf->quality = r;
 	conf->bandwidth = aacEncoder_GetParam(enc, AACENC_BANDWIDTH);
 
 	*penc = a;
