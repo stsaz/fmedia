@@ -8,6 +8,15 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia/Android v0.12 - May 6, 2023
+
+ * compress auto-loaded playlists with zstd
+   ("/storage/fmedia/list1.m3uz")
+ + playlist view: show artist-title-duration info
+ + "File: Quick Move" command
+ - .mp4(AAC) write: don't write incorrect VBR bitrate & sample rate values
+
+
 fmedia/Android v0.11 - Mar 19, 2023
 
  + Convert: ALAC decoder
