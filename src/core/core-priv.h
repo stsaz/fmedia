@@ -22,7 +22,7 @@ typedef struct fmed_config {
 	ffconf_ctxcopy conf_copy;
 	fmed_modinfo *conf_copy_mod; //core_mod
 
-	int use_inmap :1;
+	uint use_inmap :1;
 } fmed_config;
 
 typedef struct inmap_item {

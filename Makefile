@@ -19,8 +19,6 @@ FFOS := $(ROOT)/ffos
 FFPACK := $(ROOT)/ffpack
 
 include $(PROJDIR)/makeconf
-LINK := $(LD)
-LINKFLAGS := $(LDFLAGS)
 
 
 # OS-specific options

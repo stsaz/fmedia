@@ -125,7 +125,6 @@ static int aac_decode(void *ctx, fmed_track_info *d)
 		//fall through
 
 	case R_CACHE_DATA:
-		d->audio.bitrate = a->br;
 		if (d->audio.total == 0 && (int64)d->input.size != FMED_NULL)
 			d->audio.total = d->input.size * 8 * a->sample_rate / a->br;
 		switch (a->aac.info.aot) {

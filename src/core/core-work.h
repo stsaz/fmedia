@@ -102,6 +102,7 @@ static void work_release(uint wid, uint flags)
 	struct worker *w = ffslice_itemT(&fmed->workers, wid, struct worker);
 	if (flags & FMED_WORKER_FPARALLEL) {
 		ssize_t n = ffatom_decret(&w->njobs);
+		(void)n;
 		FF_ASSERT(n >= 0);
 	}
 }

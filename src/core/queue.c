@@ -556,6 +556,13 @@ static void plist_sort(struct plist *pl, const char *by, uint flags)
 	}
 }
 
+static plist* pl_sel(plist *sel)
+{
+	plist *old = qu->curlist;
+	qu->curlist = sel;
+	return old;
+}
+
 /** Get next item */
 static int pl_list_next(fmed_que_entry **ent)
 {
@@ -750,11 +757,11 @@ static ssize_t que_cmdv(uint cmd, ...)
 		fflist_rm(&qu->plists, &pl->sib);
 		FFLIST_ENUMSAFE(&pl->ents, ent_rm, entry, sib);
 		if (fflist_empty(&pl->ents)) {
-			plist_free(pl);
 			if (qu->curlist == pl)
-				qu->curlist = NULL;
+				pl_sel(NULL);
 			if (qu->pl_playing == pl)
 				qu->pl_playing = NULL;
+			plist_free(pl);
 		} else
 			pl->rm = 1;
 		break;
@@ -1047,7 +1054,7 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 			if (i++ == n)
 				sel = pl;
 		}
-		qu->curlist = sel;
+		pl_sel(sel);
 		return prev;
 		}
 		break;

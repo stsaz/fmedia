@@ -51,11 +51,9 @@ static int somod_load(core_modinfo *minfo, uint flags)
 	fmed_getmod_t getmod;
 	const fmed_mod *m;
 	ffdl dl = NULL;
-	ffstr s;
+	ffstr s = FFSTR_INITZ(minfo->name);
 	char *fn = NULL;
 	ffbool locked = 0;
-
-	ffstr_setz(&s, minfo->name);
 
 	if (s.ptr[0] == '#') {
 		if (ffstr_eqcz(&s, "#core"))
@@ -453,7 +451,7 @@ static const void* core_getmod2(uint flags, const char *name, ssize_t name_len)
 		mod = modbyext(&fmed->conf.in_ext_map, &s);
 		if (mod == NULL) {
 			dbglog0("unknown input file format: %S.  Will detect format from data.", &s);
-			ffstr nm = FFSTR_INITZ("#core.format-detector");
+			ffstr nm = FFSTR_INITZ("fmt.detector");
 			mod = core_getmodinfo(nm);
 		}
 		flags |= FMED_MOD_NOLOG;

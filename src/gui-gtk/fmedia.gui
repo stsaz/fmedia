@@ -48,6 +48,7 @@ menu mfile {
 	}
 	item $MFExit {
 		action A_QUIT
+		hotkey "Ctrl+Q"
 	}
 }
 

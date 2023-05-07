@@ -149,7 +149,7 @@ static inline int ltconf_read(struct ltconf *c, ffstr *in, ffstr *out)
 			continue;
 
 		case I_COMMENT:
-			if (NULL == (d = ffmem_findbyte(d, end - d, '\n')))
+			if (NULL == (d = (char*)ffmem_findbyte(d, end - d, '\n')))
 				goto skip;
 			c->state = I_WHITE;
 			continue;

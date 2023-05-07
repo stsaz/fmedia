@@ -116,12 +116,6 @@ enum FMED_CMD {
 	Return enum FMED_FT. */
 	FMED_FILETYPE_EXT,
 
-	/** Guess file format by data
-	args: "ffstr *data"
-	Return char* - file extension
-	 NULL: unknown */
-	FMED_DATA_FORMAT,
-
 	/** Get input filter name by file extension.
 	const char *fname = (char*)core->cmd(FMED_IFILTER_BYEXT, const char *ext) */
 	FMED_IFILTER_BYEXT,
@@ -1039,7 +1033,8 @@ enum FMED_QUE {
 	Return -1 on error. */
 	FMED_QUE_ID,
 
-	/**
+	/** Get item pointer by its position.
+	list_index: -1: use current playlist
 	fmed_que_entry *e = qu->cmdv(FMED_QUE_ITEM, int list_index, size_t id); */
 	FMED_QUE_ITEM,
 
@@ -1200,8 +1195,10 @@ typedef struct fmed_queue {
 
 	fmed_que_entry* (*add)(fmed_que_entry *ent);
 
-	/** flags: enum FMED_QUE_META_F */
+	/** (obsolete)
+	flags: enum FMED_QUE_META_F */
 	void (*meta_set)(fmed_que_entry *ent, const char *name, size_t name_len, const char *val, size_t val_len, uint flags);
+
 	ffstr* (*meta_find)(fmed_que_entry *ent, const char *name, size_t name_len);
 
 	/** Get meta.
@@ -1211,6 +1208,8 @@ typedef struct fmed_queue {
 	 FMED_QUE_SKIP: skip this entry */
 	ffstr* (*meta)(fmed_que_entry *ent, size_t n, ffstr *name, uint flags);
 
+	/**
+	flags: enum FMED_QUE_META_F */
 	void (*meta_set2)(fmed_que_entry *ent, ffstr name, ffstr val, uint flags);
 } fmed_queue;
 

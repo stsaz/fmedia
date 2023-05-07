@@ -1,7 +1,7 @@
 /** fmedia: detect file format from file data
 2020, Simon Zolin */
 
-#include <util/path.h>
+#include <fmedia.h>
 
 enum FILE_FORMAT {
 	FILE_UNK,
@@ -17,7 +17,7 @@ enum FILE_FORMAT {
 	FILE_ID3,
 };
 
-static const char file_ext[][5] = {
+const char file_ext[][5] = {
 	"avi",
 	"caf",
 	"flac",
@@ -33,7 +33,7 @@ static const char file_ext[][5] = {
 /** Detect file format by first several bytes
 len: >=12
 Return enum FILE_FORMAT */
-static inline int file_format_detect(const void *data, ffsize len)
+int file_format_detect(const void *data, ffsize len)
 {
 	const ffbyte *d = data;
 	if (len >= 12) {
@@ -133,24 +133,33 @@ static void fdetcr_close(void *ctx)
 
 static int fdetcr_process(void *ctx, fmed_filt *d)
 {
+	ffstr ext;
+	const char *fn = d->in_filename;
+	if (fn == NULL)
+		fn = d->track->getvalstr(d->trk, "input");
+	ffpath_split3_str(FFSTR_Z(fn), NULL, NULL, &ext);
+
 	int r = file_format_detect(d->data_in.ptr, d->data_in.len);
-	if (r == FILE_UNK) {
+	switch (r) {
+	case FILE_UNK:
+		dbglog1(d->trk, "unrecognized file header");
+		break;
+
+	case FILE_ID3:
+		if (!ffstr_ieqz(&ext, "flac"))
+			ffstr_setz(&ext, "mp3");
+		break;
+
+	default:
+		ffstr_setz(&ext, file_ext[r-1]);
+		dbglog1(d->trk, "detected format: %S", &ext);
+	}
+
+	if (!ext.len) {
 		d->error = FMED_E_UNKIFMT;
 		errlog1(d->trk, "unknown file format");
 		return FMED_RERR;
 	}
-
-	ffstr ext = FFSTR_INITZ(file_ext[r-1]);
-	if (r == FILE_ID3) {
-		const char *fn = d->in_filename;
-		if (fn == NULL)
-			fn = d->track->getvalstr(d->trk, "input");
-		ffstr name = FFSTR_INITZ(fn);
-		ffpath_split3(name.ptr, name.len, NULL, NULL, &ext);
-		if (!ffstr_ieqz(&ext, "flac"))
-			ffstr_setz(&ext, "mp3");
-	}
-	dbglog1(d->trk, "detected format: %S", &ext);
 
 	const char *fname = (char*)core->cmd(FMED_IFILTER_BYEXT, ext.ptr);
 	if (fname == NULL) {
@@ -163,6 +172,4 @@ static int fdetcr_process(void *ctx, fmed_filt *d)
 	return FMED_RDONE;
 }
 
-const fmed_filter _fmed_format_detector = {
-	&fdetcr_open, &fdetcr_process, &fdetcr_close
-};
+const fmed_filter _fmed_format_detector = { fdetcr_open, fdetcr_process, fdetcr_close };

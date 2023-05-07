@@ -66,7 +66,7 @@ To build a working package you should checkout a specific git tag for `fmedia` r
 
 	Option 2. Use pre-built binaries (copy to `alib3/_{OS}-{CPU}/` directory), e.g. for Linux/AMD64:
 
-		tar Jxf fmedia-1.28-linux-amd64.tar.xz -C /tmp
+		tar Jxf fmedia-1.XX-linux-amd64.tar.xz -C /tmp
 		mkdir -p fmedia/alib3/_linux-amd64
 		cp -v /tmp/fmedia-1/mod/lib*-ff.so fmedia/alib3/_linux-amd64
 
@@ -90,7 +90,7 @@ To build a working package you should checkout a specific git tag for `fmedia` r
 
 	On Linux `gcc` is used by default.  Specify `clang` like this:
 
-		make C=clang
+		make COMPILER=clang
 
 6. Prepare the complete fmedia installation directory:
 
@@ -112,12 +112,12 @@ To build a working package you should checkout a specific git tag for `fmedia` r
 5. Build with mingw (64-bit):
 
 		cd fmedia
-		mingw64-make OS=windows CPU=amd64 CPREFIX=x86_64-w64-mingw32-
+		mingw64-make OS=windows CPU=amd64 CROSS_PREFIX=x86_64-w64-mingw32-
 
 	Build with mingw (32-bit):
 
 		cd fmedia
-		mingw32-make OS=windows CPU=x86 CPREFIX=i686-w64-mingw32-
+		mingw32-make OS=windows CPU=x86 CROSS_PREFIX=i686-w64-mingw32-
 
 
 ## Light Build

@@ -18,6 +18,9 @@ extern const fmed_core *core;
 #define dbglog(...)  fmed_dbglog(core, NULL, "edittags", __VA_ARGS__)
 #define infolog(...)  fmed_infolog(core, NULL, "edittags", __VA_ARGS__)
 
+extern const char file_ext[][5];
+extern int file_format_detect(const void *data, ffsize len);
+
 struct edittags {
 	struct fmed_edittags_conf conf;
 	fffd fd, fdw;
@@ -355,13 +358,13 @@ int edittags_process(struct edittags *c)
 	}
 	c->buf.len = r;
 
-	ffssize rc = core->cmd(FMED_DATA_FORMAT, &c->buf);
-	const char *ext = (void*)rc;
-	if (ext == NULL) {
+	uint fmt = file_format_detect(c->buf.ptr, c->buf.len);
+	if (fmt == 0) {
 		errlog("can't detect file format");
 		return FMED_RERR;
 	}
 
+	const char *ext = file_ext[fmt];
 	if (ffsz_eq(ext, "mp3")) {
 		if (FMED_RDONE == (r = mp3_id3v2(c)))
 			r = mp3_id3v1(c);

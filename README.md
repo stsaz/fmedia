@@ -94,7 +94,7 @@ fmedia is free and open-source project, and you can use it as a standalone appli
 	* Terminal UI
 	* Graphical UI (Windows, Linux/GTK)
 
-fmedia uses modified versions of these 3rd party libraries: libALAC, libfdk-aac, libFLAC, libMAC, libmp3lame, libmpg123, libmpc, libogg, libopus, libsoxr, libvorbisenc, libvorbis, libwavpack, libDynamicAudioNormalizer.  See contents of `alib3/` for more info.
+fmedia uses modified versions of these 3rd party libraries: libALAC, libfdk-aac, libFLAC, libMAC, libmp3lame, libmpg123, libmpc, libogg, libopus, libsoxr, libvorbisenc, libvorbis, libwavpack, libDynamicAudioNormalizer, libzstd.  See contents of `alib3/` for more info.
 
 
 ### fmedia/Android features

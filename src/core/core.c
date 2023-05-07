@@ -2,7 +2,6 @@
 Copyright (c) 2015 Simon Zolin */
 
 #include <core/core-priv.h>
-#include <core/format-detector.h>
 #include <util/path.h>
 #include <util/taskqueue.h>
 #ifdef FF_WIN
@@ -166,7 +165,6 @@ fmed_core* core_init(char **argv, char **env)
 	fflist_init(&fmed->mods);
 	core_insmodz("#core.core", NULL);
 	core_insmodz("#core.track", NULL);
-	core_insmodz("#core.format-detector", NULL);
 	core_insmodz("#queue.queue", NULL);
 
 	ffkqu_settm(&fmed->kqutime, (uint)-1);
@@ -330,7 +328,6 @@ static const char* const sig_str[] = {
 	"FMED_SETLOG",
 	"FMED_TZOFFSET",
 	"FMED_FILETYPE_EXT",
-	"FMED_DATA_FORMAT",
 	"FMED_IFILTER_BYEXT",
 	"FMED_OFILTER_BYEXT",
 	"FMED_FILTER_BYNAME",
@@ -456,16 +453,6 @@ static ssize_t core_cmd(uint signo, ...)
 		r = fmed->tz.real_offset;
 		break;
 
-	case FMED_DATA_FORMAT: {
-		ffstr *data = va_arg(va, void*);
-		r = file_format_detect(data->ptr, data->len);
-		if (r == FILE_UNK)
-			r = 0;
-		else
-			r = (ffssize)file_ext[r-1];
-		break;
-	}
-
 	case FMED_IFILTER_BYEXT:
 		r = (ffsize)ifilter_byext(va_arg(va, char*));
 		break;
@@ -559,8 +546,6 @@ static const void* core_iface(const char *name)
 		return (void*)1;
 	else if (!ffsz_cmp(name, "track"))
 		return &_fmed_track;
-	else if (!ffsz_cmp(name, "format-detector"))
-		return &_fmed_format_detector;
 	return NULL;
 }
 

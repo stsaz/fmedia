@@ -143,7 +143,7 @@ static void alsa_destroy(void)
 	ffvec_free(&mod->fmts);
 	ffmem_free(mod);
 	mod = NULL;
-	ffalsa.uninit(core->kq);
+	ffalsa.uninit();
 }
 
 static int alsa_init(fmed_trk *trk)

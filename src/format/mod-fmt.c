@@ -3,9 +3,12 @@
 
 #include <fmedia.h>
 
+const fmed_core *core;
+#define warnlog1(trk, ...)  fmed_warnlog(core, trk, NULL, __VA_ARGS__)
+#define errlog1(trk, ...)  fmed_errlog(core, trk, NULL, __VA_ARGS__)
 #define dbglog1(trk, ...)  fmed_dbglog(core, trk, NULL, __VA_ARGS__)
 
-const fmed_core *core;
+#include <format/detector.h>
 
 extern const fmed_filter aac_adts_input;
 extern const fmed_filter aac_adts_output;
@@ -39,6 +42,7 @@ const void* mod_iface(const char *name)
 		"ape",
 		"avi",
 		"caf",
+		"detector",
 		"edit-tags",
 		"flac",
 		"flac-write",
@@ -65,6 +69,7 @@ const void* mod_iface(const char *name)
 		/*"ape"*/	&ape_input,
 		/*"avi"*/	&avi_input,
 		/*"caf"*/	&caf_input,
+		/*"detector"*/	&_fmed_format_detector,
 		/*"edit-tags"*/	(fmed_filter*)&edittags_filt,
 		/*"flac"*/	&flac_input,
 		/*"flac-write"*/	&flac_output,

@@ -1,71 +1,34 @@
-# multi-platform build configuration for GNU make
-# Simon Zolin, 2016
+# fmedia: global definitions for Makefile: OS, compiler, utils
 
-# set initial values for:
-# . CPU: IA-32/AMD64
-# . OS: linux/freebsd/apple/windows
-# . compiler: gcc/clang
-# . packaging: tar.xz/zip
-
-
-# set OS
-ifndef OS
-	uname := $(shell uname)
-	ifeq "$(uname)" "Linux"
-		OS := linux
-	else ifeq "$(uname)" "FreeBSD"
-		OS := freebsd
-	else ifeq "$(uname)" "Darwin"
-		OS := apple
-	endif
-else ifeq "$(OS)" "Windows_NT"
-	# OS=Windows_NT is default env var on Windows
-	OS := windows
-endif
-
+include ../ffbase/test/makeconf
 
 # set OS-specific values
 DEL := rm -f
+CP := cp -v
 ifeq "$(OS)" "windows"
-SO := dll
 CP := cp -u -v -p
 PACK := zip -9 -r -v
 PACK_EXT := zip
 
-else ifeq ($(OS),linux)
-SO := so
+else ifeq "$(OS)" "linux"
 CP := cp -u -v -p
 PACK := tar --owner=0 --group=0 --numeric-owner -cJv -f
 PACK_EXT := tar.xz
 
 else ifeq "$(OS)" "freebsd"
-SO := so
-CP := cp -v
 PACK := tar -cJv -f
 PACK_EXT := tar.xz
 
-else ifeq ($(OS),apple)
-SO := dylib
-CP := cp -v
+else ifeq "$(OS)" "apple"
 PACK := zip -9 -r -v
 PACK_EXT := zip
-
-endif #OS
-
-CPREFIX :=
-ifeq "$(OS)" "windows"
-	CPREFIX := x86_64-w64-mingw32-
 endif
-C := $(CPREFIX)gcc
-LD := $(C)
-CXX := $(CPREFIX)g++
-LDXX := $(CXX)
-CFLAGS_STD := -pipe -std=gnu99 -fno-strict-aliasing -fvisibility=hidden -Wno-deprecated-declarations
-CXXFLAGS := -pipe -fno-strict-aliasing -fvisibility=hidden -Wno-deprecated-declarations
-LDFLAGS_STD := -pipe
-AR := $(CPREFIX)ar
-OBJCOPY := $(CPREFIX)objcopy
-STRIP := $(CPREFIX)strip
+
+CFLAGS_STD := -std=gnu99 -fno-strict-aliasing -fvisibility=hidden -Wno-deprecated-declarations
+CXXFLAGS := -fno-strict-aliasing -fvisibility=hidden -Wno-deprecated-declarations
+LDFLAGS_STD :=
+OBJCOPY := $(CROSS_PREFIX)objcopy
+STRIP := $(CROSS_PREFIX)strip
 
 # set debug options
 CFLAGS_STD += -g
@@ -83,64 +46,27 @@ endif
 # set OS-specific values
 ifeq "$(OS)" "windows"
 LD_LWS2_32 := -lws2_32 -liphlpapi
-WINDRES := $(CPREFIX)windres
 
 else #OS
 
 CFLAGS_OS := -fpic
 LDFLAGS_OS := -fpic
-LD_LPTHREAD := -pthread
 LD_LMATH := -lm
 
-ifeq ($(OS),linux)
+ifeq "$(OS)" "linux"
 LD_LDL := -ldl
-LDFLAGS_OS := -Wl,-no-undefined
-LD_RPATH_ORIGIN := '-Wl,-rpath,$$ORIGIN' -Wl,--disable-new-dtags
-
-else ifeq "$(OS)" "freebsd"
-C := clang
-LD := $(C)
-CXX := clang++
-LDXX := $(CXX)
-LDFLAGS_OS := -Wl,-no-undefined
-LD_RPATH_ORIGIN := '-Wl,-rpath,$$ORIGIN'
-
-else ifeq ($(OS),apple)
-C := clang
-LD := $(C)
-CXX := clang++
-LDXX := $(CXX)
-
 endif
 
 endif #OS
 
-CNAME := gcc
-ifeq ($(C),clang)
-CNAME := clang
-endif
-override C += -c
-override CXX += -c
-
-
-# Set CPU arch: amd64 (x86_64), x86 (i686), arm64 (aarch64)
-# Note: Windows: must set CPU=... manually
-CPU := amd64
-ifneq "$(OS)" "windows"
-	CPU := $(shell uname -m)
-	ifeq "$(CPU)" "x86_64"
-		CPU := amd64
-	else ifeq "$(CPU)" "i686"
-		CPU := x86
-	else ifeq "$(CPU)" "aarch64"
-		CPU := arm64
-	endif
-endif
+LDFLAGS_OS += $(LINKFLAGS)
+LD_RPATH_ORIGIN := $(LINK_RPATH_ORIGIN)
+LD_LPTHREAD := $(LINK_PTHREAD)
 
 # CPU-specific options
 ifeq "$(CPU)" "amd64"
-	CFLAGS_CPU := -march=nehalem
-	LDFLAGS_CPU := -march=nehalem
+	CFLAGS_CPU := -march=x86-64
+	LDFLAGS_CPU := -march=x86-64
 
 else ifeq "$(CPU)" "x86"
 	CFLAGS_CPU := -m32 -march=i686
@@ -150,13 +76,13 @@ else ifeq "$(CPU)" "x86"
 endif
 
 
-ifeq ($(CNAME),gcc)
+ifeq "$(COMPILER)" "gcc"
 # Remove dependency on libgcc_s_sjlj-1.dll (Windows), libgcc_s.so.1 (Linux)
 LDFLAGS_COMP := -static-libgcc
 endif
 
 CFLAGS := $(CFLAGS_STD) $(CFLAGS_OPT) $(CFLAGS_OS) $(CFLAGS_CPU)
-LDFLAGS := $(LDFLAGS_STD) $(LDFLAGS_OPT) $(LDFLAGS_OS) $(LDFLAGS_CPU) $(LDFLAGS_COMP)
+LINKFLAGS := $(LDFLAGS_STD) $(LDFLAGS_OPT) $(LDFLAGS_OS) $(LDFLAGS_CPU) $(LDFLAGS_COMP)
 
 
 # rule for separate .debug files

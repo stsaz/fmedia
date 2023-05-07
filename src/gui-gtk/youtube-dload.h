@@ -20,7 +20,7 @@ struct gui_wdload {
 	ffbyte wconf_flags[2];
 	struct subps *subps;
 
-	int first :1;
+	uint first :1;
 };
 
 const ffui_ldr_ctl wdload_ctls[] = {
