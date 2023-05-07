@@ -2,6 +2,7 @@
 
 ROOT := ../..
 FMED_DIR := $(ROOT)/fmedia
+FFPACK := $(ROOT)/ffpack
 
 # Set utils
 MKDIR := mkdir -p
@@ -78,13 +79,15 @@ ifeq "$(CPU)" "arm"
 endif
 
 LINK_RPATH_ORIGIN := '-Wl,-rpath,$$ORIGIN' -Wl,--disable-new-dtags
-FMED_LINKFLAGS := -L$(FMED_DIR)/alib3/_android-$(CPU)
+FMED_LINKFLAGS := -L$(FMED_DIR)/alib3/_android-$(CPU) \
+	-L$(FFPACK)/_android-$(CPU)
 FMED_LINKFLAGS += $(LINK_RPATH_ORIGIN) \
 	-lALAC-phi \
 	-lfdk-aac-phi \
 	-lFLAC-phi \
 	-lmpg123-phi \
 	-lsoxr-phi \
+	-lzstd-ffpack \
 	-latomic -llog -lc -lm
 
 BUILD_DIR := .
@@ -95,10 +98,11 @@ OBJ := \
 	$(OBJ_DIR)/aconv.o \
 	$(OBJ_DIR)/afilter.o \
 	$(OBJ_DIR)/core.o \
+	$(OBJ_DIR)/dfilter.o \
 	$(OBJ_DIR)/ffpcm.o \
 	$(OBJ_DIR)/fmedia-jni.o \
-	$(OBJ_DIR)/fmt.o \
 	$(OBJ_DIR)/fmt-ul.o \
+	$(OBJ_DIR)/fmt.o \
 	$(OBJ_DIR)/queue.o
 
 $(OBJ_DIR)/ffpcm.o: $(FMED_DIR)/src/afilter/ffpcm.c \
@@ -114,6 +118,11 @@ $(OBJ_DIR)/fmt.o: $(FMED_DIR)/android/fmedia/src/main/c/fmt.c \
 		$(wildcard $(FMED_DIR)/src/format/*.h) \
 		$(wildcard $(FMED_DIR)/src/plist/*.h)
 	$(C) $(CFLAGS) $(CFLAGS_OPT) $< -o $@
+
+$(OBJ_DIR)/dfilter.o: $(FMED_DIR)/android/fmedia/src/main/c/dfilter.c \
+		$(FMED_DIR)/android/fmedia/src/main/c/file-*.h \
+		$(FMED_DIR)/src/dfilter/*.h
+	$(C) $(CFLAGS) -I$(FFPACK) $(CFLAGS_OPT) $< -o $@
 
 $(OBJ_DIR)/acodec.o: $(FMED_DIR)/android/fmedia/src/main/c/acodec.c \
 		$(wildcard $(FMED_DIR)/src/acodec/*.h) \
@@ -166,6 +175,7 @@ alib3:
 		$(FMED_DIR)/alib3/_android-$(CPU)/libFLAC-phi.so \
 		$(FMED_DIR)/alib3/_android-$(CPU)/libmpg123-phi.so \
 		$(FMED_DIR)/alib3/_android-$(CPU)/libsoxr-phi.so \
+		$(FFPACK)/_android-$(CPU)/libzstd-ffpack.so \
 		$(LIBDIR)
 
 OBJCOPY := $(C_DIR)/llvm-objcopy

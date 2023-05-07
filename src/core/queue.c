@@ -153,17 +153,19 @@ static int que_sig(uint signo)
 {
 	switch (signo) {
 	case FMED_SIG_INIT:
-		if (NULL == (qu = ffmem_tcalloc1(que)))
-			return 1;
+		qu = ffmem_new(struct que);
 		fflist_init(&qu->plists);
-		fflk_init(&qu->plist_lock);
 		break;
 
 	case FMED_OPEN:
+#ifdef FF_ANDROID
+		qu->track = core->getmod("core.track");
+#else
 		que_cmd2(FMED_QUE_NEW, NULL, 0);
 		que_cmd2(FMED_QUE_SEL, (void*)0, 0);
 		qu->track = core->getmod("#core.track");
 		qu->next_if_err = qu->conf.next_if_err;
+#endif
 		break;
 	}
 	return 0;
@@ -309,6 +311,10 @@ static fmed_track_obj* que_export(plist *pl, const char *fn)
 
 	uint add_cmd = FMED_TRACK_FILT_ADDLAST;
 	const char *file_write_filter = "#file.out";
+#ifdef FF_ANDROID
+	add_cmd = FMED_TRACK_FILT_ADD;
+	file_write_filter = "core.filew";
+#endif
 
 	entry *first = pl_first(pl);
 	ti->que_cur = &first->e;

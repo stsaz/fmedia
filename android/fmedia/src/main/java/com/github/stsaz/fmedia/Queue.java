@@ -162,17 +162,17 @@ class Queue {
 	}
 
 	void load() {
-		pl.iload_file(0, core.setts.pub_data_dir + "/list1.m3u8");
-		pl.iload_file(1, core.setts.pub_data_dir + "/list2.m3u8");
+		pl.iload_file(0, core.setts.pub_data_dir + "/list1.m3uz");
+		pl.iload_file(1, core.setts.pub_data_dir + "/list2.m3uz");
 		if (pl.curpos >= pl.size())
 			pl.curpos = -1;
 	}
 
 	void saveconf() {
 		if (pl.modified[0])
-			pl.isave(0, core.setts.pub_data_dir + "/list1.m3u8");
+			pl.isave(0, core.setts.pub_data_dir + "/list1.m3uz");
 		if (pl.modified[1])
-			pl.isave(1, core.setts.pub_data_dir + "/list2.m3u8");
+			pl.isave(1, core.setts.pub_data_dir + "/list2.m3uz");
 	}
 
 	/**

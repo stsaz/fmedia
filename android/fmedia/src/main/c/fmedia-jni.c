@@ -63,6 +63,7 @@ Java_com_github_stsaz_fmedia_Fmedia_init(JNIEnv *env, jobject thiz)
 
 	fx->qumod = fmed_getmod_queue(core);
 	fx->qumod->sig(FMED_SIG_INIT);
+	fx->qumod->sig(FMED_OPEN);
 	fx->qu = core->getmod("core.queue");
 	dbglog0("%s: exit", __func__);
 }
@@ -542,7 +543,8 @@ Java_com_github_stsaz_fmedia_Fmedia_quAdd(JNIEnv *env, jobject thiz, jlong q, jo
 		ffstr ext;
 		ffpath_splitname(fn, ffsz_len(fn), NULL, &ext);
 		if (ffstr_eqz(&ext, "m3u8")
-			|| ffstr_eqz(&ext, "m3u")) {
+			|| ffstr_eqz(&ext, "m3u")
+			|| ffstr_eqz(&ext, "m3uz")) {
 			int qi_prev = fx->qu->cmdv(FMED_QUE_SEL, qi);
 			qu_load_file(fn, qi);
 			fx->qu->cmdv(FMED_QUE_SEL, qi_prev);
@@ -736,6 +738,11 @@ static void qu_load_file(const char *fn, int qi)
 
 	ti->in_filename = fn;
 	fx->track->cmd(t, FMED_TRACK_FILT_ADD, "core.file");
+
+	ffstr ext;
+	ffpath_split3_str(FFSTR_Z(fn), NULL, NULL, &ext);
+	if (ffstr_eqz(&ext, "m3uz"))
+		fx->track->cmd(t, FMED_TRACK_FILT_ADD, "zstd.decompress");
 
 	fx->track->cmd(t, FMED_TRACK_FILT_ADD, "fmt.m3u");
 

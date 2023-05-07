@@ -70,6 +70,7 @@ class Fmedia {
 		System.loadLibrary("FLAC-phi");
 		System.loadLibrary("mpg123-phi");
 		System.loadLibrary("soxr-phi");
+		System.loadLibrary("zstd-ffpack");
 		System.loadLibrary("fmedia");
 	}
 }

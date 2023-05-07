@@ -94,6 +94,9 @@ extern const fmed_filter ogg_input;
 extern const fmed_filter opusmeta_input;
 extern const fmed_filter vorbismeta_input;
 extern const fmed_filter fmed_m3u_input;
+extern const fmed_filter m3u_output;
+extern const fmed_filter fmed_zstdw;
+extern const fmed_filter fmed_zstdr;
 
 extern const fmed_filter fmed_sndmod_autoconv;
 extern const fmed_filter fmed_sndmod_conv;
@@ -175,7 +178,10 @@ const fmed_filter* mods_filter_byname(const char *name)
 		"fmt.opusmeta",
 		"fmt.vorbismeta",
 		"mpeg.decode",
+		"plist.m3u-out",
 		"soxr.conv",
+		"zstd.compress",
+		"zstd.decompress",
 	};
 	static const fmed_filter *const filters[] = {
 		/*"aac.decode"*/	&aac_input,
@@ -202,7 +208,10 @@ const fmed_filter* mods_filter_byname(const char *name)
 		/*"fmt.opusmeta"*/	&opusmeta_input,
 		/*"fmt.vorbismeta"*/	&vorbismeta_input,
 		/*"mpeg.decode"*/	&mpeg_decode_filt,
+		/*"plist.m3u-out"*/	&m3u_output,
 		/*"soxr.conv"*/	(fmed_filter*)&fmed_soxr,
+		/*"zstd.compress"*/ &fmed_zstdw,
+		/*"zstd.decompress"*/ &fmed_zstdr,
 	};
 	int i = ffszarr_findsorted(names, FF_COUNT(names), name, ffsz_len(name));
 	if (i < 0) {

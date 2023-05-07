@@ -15,3 +15,4 @@ extern const fmed_queue *qu;
 
 #include <plist/entry.h>
 #include <plist/m3u-read.h>
+#include <plist/m3u-write.h>
