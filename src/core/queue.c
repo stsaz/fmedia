@@ -256,6 +256,51 @@ static void que_destroy(void)
 	ffmem_free0(qu);
 }
 
+
+/** Simple file anti-overwrite filter.
+Store all input data in memory; write to disk only if the data is changed */
+struct plaow {
+	ffvec buf;
+};
+static void* plaow_open(fmed_track_info *ti)
+{
+	return ffmem_new(struct plaow);
+}
+static void plaow_close(void *ctx)
+{
+	struct plaow *p = ctx;
+	ffvec_free(&p->buf);
+	ffmem_free(p);
+}
+static int plaow_process(void *ctx, fmed_track_info *ti)
+{
+	struct plaow *p = ctx;
+	int rc;
+
+	if (ti->flags & FMED_FFWD)
+		ffvec_addstr(&p->buf, &ti->data_in);
+
+	if (!(ti->flags & FMED_FFIRST))
+		return FMED_RMORE;
+
+	ffvec d = {};
+	fffile_readwhole(ti->out_filename, &d, 10*1024*1024);
+
+	if (ffstr_eq2(&p->buf, &d)) {
+		rc = FMED_RFIN; // the playlist hasn't changed
+		goto end;
+	}
+
+	ffstr_setstr(&ti->data_out, &p->buf);
+	rc = FMED_RDONE;
+
+end:
+	ffvec_free(&d);
+	return rc;
+}
+static const fmed_filter fmed_plaow = { plaow_open, plaow_process, plaow_close };
+
+
 /** Save playlist file. */
 static fmed_track_obj* que_export(plist *pl, const char *fn)
 {
@@ -273,6 +318,8 @@ static fmed_track_obj* que_export(plist *pl, const char *fn)
 	ffpath_split3_str(FFSTR_Z(fn), NULL, NULL, &ext);
 	if (ffstr_eqz(&ext, "m3uz"))
 		qu->track->cmd(t, add_cmd, "zstd.compress");
+
+	qu->track->cmd(t, FMED_TRACK_FILT_ADDF, add_cmd, "pl-aow", &fmed_plaow);
 
 	ti->out_filename = ffsz_dup(fn);
 	ti->out_overwrite = 1;
