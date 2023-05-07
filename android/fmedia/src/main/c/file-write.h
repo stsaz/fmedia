@@ -14,6 +14,7 @@ struct fo {
 	fftime mtime;
 	void *trk;
 	const char *name;
+	char *filename_tmp;
 	uint fin;
 };
 
@@ -21,25 +22,37 @@ static void fo_close(void *ctx)
 {
 	struct fo *f = ctx;
 
-	if (f->fd != FFFILE_NULL) {
-		fffile_trunc(f->fd, f->size);
+	if (f->fd == FFFILE_NULL)
+		goto end;
 
-		if (0 != fffile_close(f->fd)) {
-			syserrlog1(f->trk, "file close: %s", f->name);
-		} else {
-			if (!f->fin) {
-				if (0 == fffile_remove(f->name))
-					dbglog1(f->trk, "removed file %s", f->name);
-			} else {
-				if (f->mtime.sec != 0) {
-					fffile_set_mtime_path(f->name, &f->mtime);
-				}
-				dbglog1(f->trk, "%s: written %UKB", f->name, f->size / 1024);
-			}
-		}
+	fffile_trunc(f->fd, f->size);
+
+	if (0 != fffile_close(f->fd)) {
+		syserrlog1(f->trk, "file close: %s", f->name);
+		goto end;
 	}
 
+	if (!f->fin) {
+		if (0 == fffile_remove(f->name))
+			dbglog1(f->trk, "removed file %s", f->name);
+		goto end;
+	}
+
+	if (f->mtime.sec != 0) {
+		fffile_set_mtime_path(f->name, &f->mtime);
+	}
+
+	if (f->filename_tmp != NULL
+		&& 0 != fffile_rename(f->filename_tmp, f->name)) {
+		syserrlog1(f->trk, "fffile_rename: %s -> %s", f->filename_tmp, f->name);
+		goto end;
+	}
+
+	dbglog1(f->trk, "%s: written %UKB", f->name, f->size / 1024);
+
+end:
 	ffmem_alignfree(f->wbuf.ptr);
+	ffmem_free(f->filename_tmp);
 	ffmem_free(f);
 }
 
@@ -52,16 +65,27 @@ static void* fo_open(fmed_track_info *ti)
 
 	f->wbuf.ptr = ffmem_align(BUF_SIZE, ALIGN);
 
+	const char *fn = f->name;
+	if (ti->out_name_tmp) {
+		if (!ti->out_overwrite && fffile_exists(fn)) {
+			errlog1(ti->trk, "%s: file already exists", fn);
+			goto end;
+		}
+
+		f->filename_tmp = ffsz_allocfmt("%s.tmp", fn);
+		fn = f->filename_tmp;
+	}
+
 	uint flags = FFFILE_WRITEONLY;
 	if (ti->out_overwrite)
 		flags |= FFFILE_CREATE;
 	else
 		flags |= FFFILE_CREATENEW;
-	if (FFFILE_NULL == (f->fd = fffile_open(f->name, flags))) {
+	if (FFFILE_NULL == (f->fd = fffile_open(fn, flags))) {
 		ti->error = FMED_E_SYS | fferr_last();
 		if (fferr_exist(fferr_last()))
 			ti->error = FMED_E_DSTEXIST;
-		syserrlog1(ti->trk, "fffile_open: %s", f->name);
+		syserrlog1(ti->trk, "fffile_open: %s", fn);
 		goto end;
 	}
 
