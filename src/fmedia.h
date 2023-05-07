@@ -724,7 +724,10 @@ struct fmed_track_info {
 		uint ai_exclusive :1;
 		uint ai_power_save :1;
 
-		uint reserve :4;
+		/** Write data to ".tmp" file, then rename file on completion */
+		uint out_name_tmp :1;
+
+		uint reserve :3;
 	};
 	};
 

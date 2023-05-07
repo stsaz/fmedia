@@ -54,6 +54,7 @@ typedef struct fmed_fileout {
 	fmed_trk *d;
 	void *trk;
 	ffstr fname;
+	char *filename_tmp;
 	uint64 wr;
 	fftime modtime;
 	uint ok :1;
@@ -298,6 +299,16 @@ static void* fileout_open(fmed_filt *d)
 	if (NULL == (filename = fileout_getname(f, d)))
 		goto done;
 
+	if (d->out_name_tmp) {
+		if (!d->out_overwrite && fffile_exists(filename)) {
+			errlog(d->trk, "%s: file already exists", filename);
+			goto done;
+		}
+
+		f->filename_tmp = ffsz_allocfmt("%s.tmp", filename);
+		filename = f->filename_tmp;
+	}
+
 	fffilewrite_conf conf;
 	fffilewrite_setconf(&conf);
 	conf.udata = f;
@@ -332,29 +343,40 @@ static void fileout_close(void *ctx)
 {
 	fmed_fileout *f = ctx;
 
-	if (f->fw != NULL) {
-		fffilewrite_stat st;
-		fffilewrite_getstat(f->fw, &st);
-		fffilewrite_free(f->fw);
+	if (f->fw == NULL)
+		goto end;
 
-		if (f->ok) {
-			if (f->d->out_file_del) {
-				if (0 == fffile_rm(f->fname.ptr))
-					dbglog(NULL, "removed file %S", &f->fname);
-			} else {
-				if (fftime_sec(&f->modtime) != 0)
-					fffile_settimefn(f->fname.ptr, &f->modtime);
+	fffilewrite_stat st;
+	fffilewrite_getstat(f->fw, &st);
+	fffilewrite_free(f->fw);
 
-				core->log(FMED_LOG_USER, NULL, "file", "saved file %S, %U kbytes"
-					, &f->fname, f->wr / 1024);
-			}
+	dbglog(f->d->trk, "%S: mem write#:%u  file write#:%u  prealloc#:%u"
+		, &f->fname, st.nmwrite, st.nfwrite, st.nprealloc);
 
-			dbglog(NULL, "%S: mem write#:%u  file write#:%u  prealloc#:%u"
-				, &f->fname, st.nmwrite, st.nfwrite, st.nprealloc);
-		}
+	if (!f->ok)
+		goto end;
+
+	if (f->d->out_file_del) {
+		if (0 == fffile_rm(f->fname.ptr))
+			dbglog(f->d->trk, "removed file %S", &f->fname);
+		goto end;
 	}
 
+	if (fftime_sec(&f->modtime) != 0)
+		fffile_settimefn(f->fname.ptr, &f->modtime);
+
+	if (f->filename_tmp != NULL
+		&& 0 != fffile_rename(f->filename_tmp, f->fname.ptr)) {
+		syserrlog(f->d->trk, "fffile_rename: %s -> %s", f->filename_tmp, f->fname.ptr);
+		goto end;
+	}
+
+	core->log(FMED_LOG_USER, f->d->trk, "file", "saved file %S, %U kbytes"
+		, &f->fname, f->wr / 1024);
+
+end:
 	ffstr_free(&f->fname);
+	ffmem_free(f->filename_tmp);
 	ffmem_free(f);
 }
 
