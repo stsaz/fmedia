@@ -46,6 +46,7 @@ struct plist {
 static void plist_free(plist *pl);
 static ssize_t plist_ent_idx(plist *pl, entry *e);
 static struct entry* plist_ent(struct plist *pl, size_t idx);
+static entry* pl_first(plist *pl);
 
 struct que_conf {
 	byte next_if_err;
@@ -101,7 +102,6 @@ const fmed_queue fmed_que_mgr = {
 static fmed_que_entry* que_add(plist *pl, fmed_que_entry *ent, entry *prev, uint flags);
 static void que_play(entry *e);
 static void que_play2(entry *ent, uint flags);
-static void que_save(entry *first, const fflist_item *sentl, const char *fn);
 static void ent_start_prepare(entry *e, void *trk);
 static void rnd_init();
 static void plist_remove_entry(entry *e, ffbool from_index, ffbool remove);
@@ -256,75 +256,31 @@ static void que_destroy(void)
 	ffmem_free0(qu);
 }
 
-
 /** Save playlist file. */
-static void que_save(entry *first, const fflist_item *sentl, const char *fn)
+static fmed_track_obj* que_export(plist *pl, const char *fn)
 {
-	fffd f = FF_BADFD;
-	m3uwrite m3 = {};
-	int rc = -1;
-	entry *e;
-	ffvec v = {};
-	char *tmp_fname = NULL;
+	fmed_track_obj *t = qu->track->create(FMED_TRK_TYPE_PLIST, NULL);
+	fmed_track_info *ti = qu->track->conf(t);
 
-	m3uwrite_create(&m3, 0);
+	uint add_cmd = FMED_TRACK_FILT_ADDLAST;
+	const char *file_write_filter = "#file.out";
 
-	for (e = first;  &e->sib != sentl;  e = FF_GETPTR(entry, sib, e->sib.next)) {
-		int r = 0;
-		ffstr *s;
-		m3uwrite_entry me = {};
+	entry *first = pl_first(pl);
+	ti->que_cur = &first->e;
+	qu->track->cmd(t, add_cmd, "plist.m3u-out");
 
-		int dur = (e->e.dur != 0) ? e->e.dur / 1000 : -1;
-		me.duration_sec = dur;
+	ffstr ext;
+	ffpath_split3_str(FFSTR_Z(fn), NULL, NULL, &ext);
+	if (ffstr_eqz(&ext, "m3uz"))
+		qu->track->cmd(t, add_cmd, "zstd.compress");
 
-		if (NULL != (s = que_meta_find(&e->e, FFSTR("artist"))))
-			me.artist = *s;
+	ti->out_filename = ffsz_dup(fn);
+	ti->out_overwrite = 1;
+	ti->out_name_tmp = 1;
+	qu->track->cmd(t, add_cmd, file_write_filter);
 
-		if (NULL != (s = que_meta_find(&e->e, FFSTR("title"))))
-			me.title = *s;
-
-		me.url = e->e.url;
-		r |= m3uwrite_process(&m3, &me);
-
-		if (r != 0)
-			goto done;
-	}
-
-	ffstr out = m3uwrite_fin(&m3);
-
-	fffile_readwhole(fn, &v, 10*1024*1024);
-	if (ffstr_eq2(&out, &v)) {
-		rc = 0;
-		goto done; // the playlist hasn't changed
-	}
-
-	if (NULL == (tmp_fname = ffsz_allocfmt("%s.tmp", fn)))
-		goto done;
-
-	if (FF_BADFD == (f = fffile_open(tmp_fname, FFO_CREATE | FFO_TRUNC | FFO_WRONLY))) {
-		if (0 != ffdir_make_path(tmp_fname, 0))
-			goto done;
-		if (FF_BADFD == (f = fffile_open(tmp_fname, FFO_CREATE | FFO_TRUNC | FFO_WRONLY))) {
-			syserrlog("%s: %s", fffile_open_S, tmp_fname);
-			goto done;
-		}
-	}
-
-	if (out.len != (size_t)fffile_write(f, out.ptr, out.len))
-		goto done;
-	fffile_safeclose(f);
-	if (0 != fffile_rename(tmp_fname, fn))
-		goto done;
-	dbglog(core, NULL, "que", "saved playlist to %s (%L KB)", fn, out.len / 1024);
-	rc = 0;
-
-done:
-	if (rc != 0)
-		syserrlog("saving playlist to file: %s", fn);
-	ffvec_free(&v);
-	fffile_safeclose(f);
-	ffmem_free(tmp_fname);
-	m3uwrite_close(&m3);
+	qu->track->cmd(t, FMED_TRACK_START);
+	return t;
 }
 
 /** Get the first playlist item. */
@@ -545,6 +501,34 @@ static void plist_sort(struct plist *pl, const char *by, uint flags)
 	for (size_t i = 0;  i != pl->indexes.len;  i++) {
 		fflist_ins(&pl->ents, &arr[i]->sib);
 	}
+}
+
+/** Get next item */
+static int pl_list_next(fmed_que_entry **ent)
+{
+	ffchain_item *it;
+	fflist *ents;
+	entry *e;
+	if (*ent == NULL) {
+		ents = &qu->curlist->ents;
+		it = fflist_first(ents);
+	} else {
+		e = FF_STRUCTPTR(entry, e, *ent);
+		ents = &e->plist->ents;
+		it = e->sib.next;
+	}
+
+	for (;;) {
+		if (it == fflist_sentl(ents))
+			return 0;
+		e = FF_STRUCTPTR(entry, sib, it);
+		if (!e->rm)
+			break;
+		it = e->sib.next;
+	}
+
+	*ent = &e->e;
+	return 1;
 }
 
 static void que_cmd(uint cmd, void *param)
@@ -812,6 +796,19 @@ static ssize_t que_cmdv(uint cmd, ...)
 		pl_expand_next(qu->curlist, NULL);
 		goto end;
 
+
+	case FMED_QUE_SAVE: {
+		int plid = va_arg(va, int);
+		const char *fn = va_arg(va, char*);
+		plist *pl = plist_by_useridx(plid);
+		if (pl == NULL) {
+			r = -1;
+			goto end;
+		}
+		r = (ffsize)que_export(pl, fn);
+		goto end;
+	}
+
 	default:
 		break;
 	}
@@ -956,15 +953,6 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 		e = param;
 		return (e->meta.len != 0 || e->no_tmeta);
 
-
-	case FMED_QUE_SAVE:
-		pl = plist_by_useridx((int)(size_t)param);
-		if (pl == NULL)
-			return -1;
-		ents = &pl->ents;
-		que_save(FF_GETPTR(entry, sib, fflist_first(ents)), fflist_sentl(ents), (void*)param2);
-		break;
-
 	case FMED_QUE_CLEAR:
 		fflk_lock(&qu->plist_lock);
 		FFLIST_ENUMSAFE(ents, ent_rm, entry, sib);
@@ -1026,26 +1014,7 @@ static ssize_t que_cmd2(uint cmd, void *param, size_t param2)
 		//fallthrough
 
 	case FMED_QUE_LIST_NOFILTER:
-		{
-		fmed_que_entry **ent = param;
-		ffchain_item *it;
-		if (*ent == NULL) {
-			it = fflist_first(ents);
-		} else {
-			e = FF_GETPTR(entry, e, *ent);
-			it = e->sib.next;
-		}
-		for (;;) {
-			if (it == fflist_sentl(ents))
-				return 0;
-			e = FF_GETPTR(entry, sib, it);
-			if (!e->rm)
-				break;
-			it = e->sib.next;
-		}
-		*ent = &e->e;
-		}
-		return 1;
+		return pl_list_next((fmed_que_entry**)param);
 
 	case FMED_QUE_ISCURLIST:
 		e = param;

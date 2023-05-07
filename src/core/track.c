@@ -200,6 +200,9 @@ static int trk_open(fm_trk *t, const char *fn)
 		else
 			addfilter(t, "#file.in");
 
+		if (ffstr_eqz(&ext, "m3uz"))
+			addfilter(t, "zstd.decompress");
+
 		if (NULL == trk_modbyext(t, FMED_MOD_INEXT, &ext)) {
 			errlog(t, "can't open file: \"%s\"", fn);
 			return 1;
@@ -263,16 +266,12 @@ static int trk_addfilters(fm_trk *t)
 	switch (t->props.type) {
 	case FMED_TRK_TYPE_NONE:
 	case FMED_TRK_TYPE_PLAYLIST_HEAL:
+	case FMED_TRK_TYPE_PLIST:
 		return 0;
 
 	case FMED_TRK_TYPE_PLAYBACK:
 	case FMED_TRK_TYPE_CONVERT:
 		break;
-
-	case FMED_TRK_TYPE_PLIST:
-		if (0 != trk_setout_file(t))
-			return 1;
-		return 0;
 
 	case FMED_TRK_TYPE_METAINFO:
 	case FMED_TRK_TYPE_EXPAND:

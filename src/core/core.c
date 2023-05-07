@@ -275,6 +275,7 @@ static int core_filetype_ext(const ffstr *ext)
 
 	if (ffstr_eqcz(ext, "m3u8")
 		|| ffstr_eqcz(ext, "m3u")
+		|| ffstr_eqcz(ext, "m3uz")
 		|| ffstr_eqcz(ext, "pls")
 		|| ffstr_eqcz(ext, "cue"))
 		return FMED_FT_PLIST;

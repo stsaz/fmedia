@@ -147,7 +147,7 @@ enum {
 
 #define GUI_USERCONF  "fmedia.gui.conf"
 #define FMED_USERCONF  "fmedia-user.conf"
-#define GUI_PLIST_NAME  "list%u.m3u8"
+#define GUI_PLIST_NAME  "list%u.m3uz"
 #define GUI_FAV_NAME  "fav.m3u8"
 
 enum ST {

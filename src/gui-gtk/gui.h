@@ -22,7 +22,7 @@ enum {
 
 #define CTL_CONF_FN  "fmedia.gui.conf"
 #define FMED_USERCONF  "fmedia-user.conf"
-#define AUTOPLIST_FN  "list%u.m3u8"
+#define AUTOPLIST_FN  "list%u.m3uz"
 
 enum FILE_DEL_METHOD {
 	FDM_TRASH,

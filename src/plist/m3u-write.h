@@ -8,13 +8,18 @@ struct m3uw {
 	fmed_que_entry *cur;
 	const fmed_track *track;
 	void *trk;
+	uint next;
 };
 
 static void* m3uw_open(fmed_filt *d)
 {
+	if (d->que_cur == NULL)
+		return FMED_FILT_SKIP;
+
 	struct m3uw *m = ffmem_new(struct m3uw);
 	m->trk = d->trk;
 	m->track = d->track;
+	m->cur = d->que_cur;
 	m3uwrite_create(&m->m3, 0);
 	return m;
 }
@@ -42,9 +47,19 @@ static int m3uw_process(void *ctx, fmed_filt *d)
 	int r = 0;
 	ffstr ss = {}, *s;
 
-	while (0 != qu->cmdv(FMED_QUE_LIST, &e)) {
+	for (;;) {
 
-		uint t = core->cmd(FMED_FILETYPE, e->url.ptr);
+		if (m->next) {
+			if (0 == qu->cmdv(FMED_QUE_LIST_NOFILTER, &e))
+				break;
+		} else {
+			m->next = 1;
+		}
+
+		uint t = 0;
+#ifndef FF_ANDROID
+		t = core->cmd(FMED_FILETYPE, e->url.ptr);
+#endif
 		if (t == FMED_FT_DIR || t == FMED_FT_PLIST) {
 			m->cur = e;
 			void *trk = (void*)qu->cmdv(FMED_QUE_EXPAND2, e, &m3uw_expand_done, m);
@@ -80,4 +95,4 @@ static int m3uw_process(void *ctx, fmed_filt *d)
 	return FMED_RLASTOUT;
 }
 
-static const fmed_filter m3u_output = { m3uw_open, m3uw_process, m3uw_close };
+const fmed_filter m3u_output = { m3uw_open, m3uw_process, m3uw_close };

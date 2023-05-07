@@ -11,6 +11,7 @@ Copyright (c) 2015 Simon Zolin */
 #include <FFOS/file.h>
 #include <FFOS/error.h>
 #include <FFOS/timerqueue.h>
+#include <util/util.h>
 
 #define FMED_VER_MAJOR  1
 #define FMED_VER_MINOR  30
@@ -555,6 +556,7 @@ static FFINL uint64 fmed_apos_samples(fmed_apos val, uint rate)
 }
 
 struct fmed_adev;
+struct fmed_que_entry;
 struct fmed_track_info {
 	const fmed_track *track;
 	fmed_handler handler;
@@ -654,6 +656,9 @@ struct fmed_track_info {
 
 	/** Android: first-in-chain filter data for notifying main thread after the track is finished */
 	void *finsig_data;
+
+	/** Current queue item */
+	struct fmed_que_entry *que_cur;
 
 	// the region is initially filled with 0xff until '_bar_end'
 	byte _bar_start;
@@ -972,8 +977,8 @@ enum FMED_QUE {
 	FMED_QUE_PREV2,
 
 	/** Save playlist to file.
-	int r = qu->cmdv(FMED_QUE_SAVE, int list_index, const char *filename);
-	Return -1:plid doesn't exist */
+	fmed_track_obj *t = qu->cmdv(FMED_QUE_SAVE, int list_index, const char *filename);
+	Return NULL: error (list_index doesn't exist) */
 	FMED_QUE_SAVE,
 
 	/**

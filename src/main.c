@@ -27,6 +27,7 @@ struct gctx {
 	const fmed_queue *qu;
 	uint psexit; //process exit code
 	fftask tsk_tracks_stop;
+	fmed_track_obj *pl_export;
 
 	ffdl core_dl;
 	fmed_core* (*core_init)(char **argv, char **env);
@@ -96,22 +97,26 @@ static void mon_onsig(void *trk, uint sig)
 {
 	dbglog0("%s: %d", FF_FUNC, sig);
 	fmed_trk *ti = g->track->conf(trk);
+	int quit = 0;
 	switch (sig) {
 	case FMED_TRK_ONCLOSE:
-		if (trk == g->rec_trk) {
-			g->rec_trk = NULL;
-			core->sig(FMED_STOP);
-		}
-
-		if (ti->type == FMED_TRK_TYPE_PLIST
-			&& !g->cmd->gui)
-			core->sig(FMED_STOP);
-
 		if (ti->err)
 			g->psexit = 1;
 
+		if (trk == g->rec_trk) {
+			g->rec_trk = NULL;
+			quit = 1;
+			break;
+		}
+
+		if (trk == g->pl_export) {
+			g->pl_export = NULL;
+			quit = 1;
+			break;
+		}
+
 		if (pl_heal(g->cmd) < 0)
-			core->sig(FMED_STOP);
+			quit = 1;
 		break;
 
 	case FMED_TRK_ONLAST:
@@ -122,9 +127,12 @@ static void mon_onsig(void *trk, uint sig)
 				g->track->cmd(g->rec_trk, FMED_TRACK_STOP);
 			break;
 		}
-		core->sig(FMED_STOP);
+		quit = 1;
 		break;
 	}
+
+	if (quit)
+		core->sig(FMED_STOP);
 }
 
 
@@ -372,14 +380,7 @@ static void open_input(void *udata)
 	ffstr ext;
 	ffpath_split3(fmed->outfn.ptr, fmed->outfn.len, NULL, NULL, &ext);
 	if (ffstr_eqz(&ext, "m3u8") || ffstr_eqz(&ext, "m3u")) {
-		fmed_track_obj *trk;
-		if (NULL == (trk = track->create(FMED_TRK_TYPE_PLIST, NULL)))
-			goto end;
-
-		fmed_trk *ti = track->conf(trk);
-		track->copy_info(ti, &trkinfo);
-
-		track->cmd(trk, FMED_TRACK_START);
+		g->pl_export = (fmed_track_obj*)qu->fmed_queue_save(0, fmed->outfn.ptr);
 		goto end;
 	}
 

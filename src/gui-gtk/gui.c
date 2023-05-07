@@ -773,8 +773,8 @@ static void lists_save(void)
 	for (uint i = 0; ; i++) {
 		buf.len = 0;
 		ffstr_catfmt(&buf, "%s" AUTOPLIST_FN "%Z", fn, n++);
-		int r = gg->qu->fmed_queue_save(i, buf.ptr);
-		if (r != 0) {
+		fmed_track_obj *t = (fmed_track_obj*)gg->qu->fmed_queue_save(i, buf.ptr);
+		if (t == NULL) {
 			fffile_rm(buf.ptr);
 			break;
 		}
