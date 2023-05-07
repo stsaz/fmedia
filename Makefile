@@ -16,6 +16,7 @@ FFBASE := $(ROOT)/ffbase
 FFAUDIO := $(ROOT)/ffaudio
 AVPACK := $(ROOT)/avpack
 FFOS := $(ROOT)/ffos
+FFPACK := $(ROOT)/ffpack
 
 include $(PROJDIR)/makeconf
 LINK := $(LD)
@@ -34,6 +35,7 @@ INSTDIR := fmedia-1
 endif
 
 ALIB3 := $(PROJDIR)/alib3/_$(OS)-$(CPU)
+FFPACK_BIN := $(FFPACK)/_$(OS)-$(CPU)
 
 # CFLAGS_STD += -fsanitize=address
 # LINKFLAGS += -fsanitize=address -ldl
@@ -61,10 +63,12 @@ BIN_ACODECS := \
 BIN_AFILTERS := dynanorm.$(SO) \
 	soxr.$(SO) \
 	afilter.$(SO)
+BIN_DFILTERS := zstd.$(SO)
 BINS := $(BIN) core.$(SO) tui.$(SO) net.$(SO) plist.$(SO) \
 	$(BIN_CONTAINERS) \
 	$(BIN_ACODECS) \
-	$(BIN_AFILTERS)
+	$(BIN_AFILTERS) \
+	$(BIN_DFILTERS)
 
 # OS-specific modules
 OS_BINS :=
@@ -504,6 +508,13 @@ dbus.$(SO): $(OBJ_DIR)/sys-sleep-dbus.o $(FF_O)
 	$(LINK) -shared $+ $(LINKFLAGS) -ldbus-1 -o$@
 
 
+#
+$(OBJ_DIR)/%.o: $(SRCDIR)/dfilter/%.c $(SRCDIR)/dfilter/*.h $(GLOBDEPS)
+	$(C) $(CFLAGS) -I $(FFPACK) $< -o $@
+zstd.$(SO): $(OBJ_DIR)/zstd.o
+	$(LINK) -shared $+ -L $(FFPACK_BIN) $(LINKFLAGS) $(LD_RPATH_ORIGIN) -lzstd-ffpack -o $@
+
+
 clean:
 	rm -vf $(BINS) *.debug *.o $(RES)
 
@@ -566,6 +577,9 @@ endif
 		$(ALIB3)/libsoxr-ff.$(SO) \
 		$(ALIB3)/libvorbis-ff.$(SO) $(ALIB3)/libvorbisenc-ff.$(SO) $(ALIB3)/libogg-ff.$(SO) \
 		$(ALIB3)/libwavpack-ff.$(SO) \
+		$(INSTDIR)/mod/
+	$(CP) \
+		$(FFPACK_BIN)/libzstd-ffpack.$(SO) \
 		$(INSTDIR)/mod/
 	chmod 644 $(INSTDIR)/mod/* $(INSTDIR)/core.$(SO)
 

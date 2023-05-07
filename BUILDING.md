@@ -48,6 +48,7 @@ The easiest way to build fmedia is by using `fmedia-autobuild.sh` script.  It wi
 		git clone https://github.com/stsaz/ffaudio
 		git clone https://github.com/stsaz/ffos
 		git clone https://github.com/stsaz/avpack
+		git clone https://github.com/stsaz/ffpack
 		git clone https://github.com/stsaz/fmedia
 
 Note: builds from the latest `master` branch are not supported and *may not work*!
@@ -69,24 +70,33 @@ To build a working package you should checkout a specific git tag for `fmedia` r
 		mkdir -p fmedia/alib3/_linux-amd64
 		cp -v /tmp/fmedia-1/mod/lib*-ff.so fmedia/alib3/_linux-amd64
 
-4. Build fmedia:
+4. Build other third-party packages:
+
+		cd ffpack/zstd
+		make
+		cd ..
+		make md5check
+		make install
+		cd ..
+
+5. Build fmedia:
 
 		cd fmedia
 		make
 
 	You can explicitly specify the path to each source repository, e.g.:
 
-		make FFOS=~/ffos FFBASE=~/ffbase FFAUDIO=~/ffaudio AVPACK=~/avpack
+		make FFOS=~/ffos FFBASE=~/ffbase FFAUDIO=~/ffaudio AVPACK=~/avpack FFPACK=~/ffpack
 
 	On Linux `gcc` is used by default.  Specify `clang` like this:
 
 		make C=clang
 
-5. Prepare the complete fmedia installation directory:
+6. Prepare the complete fmedia installation directory:
 
 		make install
 
-6. Ready!  You can copy the directory `./fmedia-1` anywhere you want (see README.md, section "INSTALL ON LINUX").
+7. Ready!  You can copy the directory `./fmedia-1` anywhere you want (see README.md, section "INSTALL ON LINUX").
 
 
 ## Build On Linux For Windows
@@ -97,9 +107,9 @@ To build a working package you should checkout a specific git tag for `fmedia` r
 
 		dnf install mingw64-gcc mingw64-gcc-c++ mingw64-winpthreads mingw64-winpthreads-static dos2unix
 
-1-3. See section "Build On Linux".
+1-4. See section "Build On Linux".
 
-4. Build with mingw (64-bit):
+5. Build with mingw (64-bit):
 
 		cd fmedia
 		mingw64-make OS=windows CPU=amd64 CPREFIX=x86_64-w64-mingw32-
@@ -108,8 +118,6 @@ To build a working package you should checkout a specific git tag for `fmedia` r
 
 		cd fmedia
 		mingw32-make OS=windows CPU=x86 CPREFIX=i686-w64-mingw32-
-
-5. Ready!
 
 
 ## Light Build

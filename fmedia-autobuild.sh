@@ -46,6 +46,7 @@ git clone https://github.com/stsaz/ffbase
 git clone https://github.com/stsaz/ffaudio
 git clone https://github.com/stsaz/ffos
 git clone https://github.com/stsaz/avpack
+git clone https://github.com/stsaz/ffpack
 git clone https://github.com/stsaz/fmedia
 
 
@@ -58,6 +59,17 @@ if test "$OS" == "Linux" ; then
 fi
 $MAKE install
 cd ../../
+
+
+echo 'Building zstd...'
+cd ffpack/zstd
+$MAKE
+cd ..
+if test "$OS" == "Linux" ; then
+	$MAKE md5check
+fi
+$MAKE install
+cd ..
 
 
 echo 'Building the app...'
