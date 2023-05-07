@@ -83,58 +83,6 @@ abstract class Util {
 		return a.toArray(new String[0]);
 	}
 
-	static final int FILE_WRITE_SAFE = 1;
-
-	boolean file_writeall(String fn, byte[] data, int flags) {
-		String name = fn;
-		if (flags == FILE_WRITE_SAFE)
-			name = fn + ".tmp";
-		try {
-			File f = new File(name);
-			FileOutputStream os = new FileOutputStream(f);
-			BufferedOutputStream bo = new BufferedOutputStream(os);
-			bo.write(data);
-			bo.close();
-			os.close();
-			if (flags == FILE_WRITE_SAFE) {
-				if (!f.renameTo(new File(fn))) {
-					errlog(TAG, "renameTo() failed");
-					return false;
-				}
-			}
-		} catch (Exception e) {
-			errlog(TAG, "file_writeall: %s", e);
-			return false;
-		}
-
-		return true;
-	}
-
-	byte[] file_readall(String fn) {
-		byte[] b;
-		try {
-			File f = new File(fn);
-			FileInputStream is = new FileInputStream(f);
-			int n = (int) f.length();
-			b = new byte[n];
-			is.read(b, 0, n);
-		} catch (Exception e) {
-			errlog(TAG, "file_readall: %s", e);
-			return null;
-		}
-		return b;
-	}
-
-	boolean file_rename(String old, String newname) {
-		try {
-			File f = new File(old);
-			return f.renameTo(new File(newname));
-		} catch (Exception e) {
-			errlog(TAG, "file_rename: %s", e);
-			return false;
-		}
-	}
-
 	boolean file_delete(String path) {
 		try {
 			File f = new File(path);
@@ -145,21 +93,12 @@ abstract class Util {
 		}
 	}
 
-	boolean file_exists(String path) {
-		try {
-			File f = new File(path);
-			return f.exists();
-		} catch (Exception e) {
-			return true;
-		}
-	}
-
 	boolean dir_make(String path) {
 		try {
 			File f = new File(path);
 			return f.mkdir();
 		} catch (Exception e) {
-			errlog(TAG, "file_rename: %s", e);
+			errlog(TAG, "dir_make: %s", e);
 			return false;
 		}
 	}
@@ -176,26 +115,6 @@ abstract class Util {
 	}
 
 	/**
-	 * Read all data from InputStream
-	 */
-	byte[] istream_readall(InputStream is) {
-		ByteArrayOutputStream b = new ByteArrayOutputStream();
-		byte[] d = new byte[4096];
-		try {
-			for (; ; ) {
-				int r = is.read(d);
-				if (r <= 0)
-					break;
-				b.write(d, 0, r);
-			}
-		} catch (Exception e) {
-			errlog(TAG, "istream_readall(): %s", e);
-			b.reset();
-		}
-		return b.toByteArray();
-	}
-
-	/**
 	 * Split full file path into path (without slash) and file name
 	 */
 	static String[] path_split2(String s) {
@@ -209,31 +128,5 @@ abstract class Util {
 			parts[1] = s;
 		}
 		return parts;
-	}
-}
-
-class Splitter {
-	private int off;
-
-	/**
-	 * Return null if no more entries.
-	 */
-	String next(String s, char by) {
-		if (off == s.length())
-			return null;
-		int pos = s.indexOf(by, off);
-		String r;
-		if (pos == -1) {
-			r = s.substring(off);
-			off = s.length();
-		} else {
-			r = s.substring(off, pos);
-			off = pos + 1;
-		}
-		return r;
-	}
-
-	String remainder(String s) {
-		return s.substring(off);
 	}
 }

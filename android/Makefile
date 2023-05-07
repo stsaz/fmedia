@@ -26,7 +26,7 @@ endif
 # APK_KEY_STORE :=
 # APK_KEY_PASS :=
 # APK_VER :=
-APK_SIGNED := fmedia-$(APK_VER)-android.apk
+APK_SIGNED := fmedia-$(APK_VER)-android-$(CPU).apk
 APP_ID := com.github.stsaz.fmedia
 APK := fmedia/build/outputs/apk/release/fmedia-release-unsigned.apk
 ifeq "$(DEBUG)" "1"
@@ -39,23 +39,34 @@ LIBDIR_AMD64 := $(FMED_DIR)/android/fmedia/libs/x86_64
 LIBDIR_ARM64 := $(FMED_DIR)/android/fmedia/libs/arm64-v8a
 LIBDIR_ARM := $(FMED_DIR)/android/fmedia/libs/armeabi-v7a
 
-build: libs
-	$(RM) $(LIBDIR_AMD64)
+build-arm64: lib-arm64
+	$(RM) $(LIBDIR_AMD64) $(LIBDIR_ARM)
 	$(MAKE) CPU=arm64 alib3
+	$(GRADLE) $(GRD_BUILD)
+	$(LS) $(APK)
+	unzip -l $(APK) | grep lib
+
+build-arm: lib-arm
+	$(RM) $(LIBDIR_AMD64) $(LIBDIR_ARM64)
 	$(MAKE) CPU=arm alib3
 	$(GRADLE) $(GRD_BUILD)
 	$(LS) $(APK)
 	unzip -l $(APK) | grep lib
 
-libs:
-	$(MKDIR) $(BUILD_DIR)/obj-arm64 $(BUILD_DIR)/obj-arm $(LIBDIR_ARM64) $(LIBDIR_ARM)
+lib-arm64:
+	$(MKDIR) $(BUILD_DIR)/obj-arm64 $(LIBDIR_ARM64)
 	$(MAKE) CPU=arm64 $(LIBDIR_ARM64)/libfmedia.so.debug
-	$(MAKE) CPU=arm A_API32=19 $(LIBDIR_ARM)/libfmedia.so.debug
 	$(MAKE) CPU=arm64 A_API=26 $(LIBDIR_ARM64)/aaudio.so.debug
-	$(MAKE) CPU=arm A_API=26 $(LIBDIR_ARM)/aaudio.so.debug
-	$(LS) $(LIBDIR_ARM64)/libfmedia.so $(LIBDIR_ARM)/libfmedia.so \
-		$(LIBDIR_ARM64)/aaudio.so $(LIBDIR_ARM)/aaudio.so
+	$(LS) $(LIBDIR_ARM64)/libfmedia.so \
+		$(LIBDIR_ARM64)/aaudio.so
 # 	$(C_DIR)/llvm-objdump -T $(LIBDIR_ARM64)/libfmedia.so
+
+lib-arm:
+	$(MKDIR) $(BUILD_DIR)/obj-arm $(LIBDIR_ARM)
+	$(MAKE) CPU=arm A_API32=19 $(LIBDIR_ARM)/libfmedia.so.debug
+	$(MAKE) CPU=arm A_API=26 $(LIBDIR_ARM)/aaudio.so.debug
+	$(LS) $(LIBDIR_ARM)/libfmedia.so \
+		$(LIBDIR_ARM)/aaudio.so
 
 CPU := amd64
 include $(FMED_DIR)/android/andk.mk
@@ -217,7 +228,10 @@ install:
 uninstall:
 	$(SDK_DIR)/platform-tools/adb $(ADB_FLAGS) uninstall $(APP_ID)
 
-build-install: build
+build-install-arm64: build-arm64
+	$(MAKE) install
+
+build-install-arm: build-arm
 	$(MAKE) install
 
 emulator:

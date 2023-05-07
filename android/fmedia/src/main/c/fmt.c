@@ -11,7 +11,7 @@ extern const fmed_queue *qu;
 #define infolog1(trk, ...)  fmed_infolog(core, trk, NULL, __VA_ARGS__)
 #define dbglog1(trk, ...)  fmed_dbglog(core, trk, NULL, __VA_ARGS__)
 
-#include <core/format-detector.h>
+#include <format/detector.h>
 
 #include <plist/entry.h>
 #include <plist/m3u-read.h>

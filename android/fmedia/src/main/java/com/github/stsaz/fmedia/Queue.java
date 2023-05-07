@@ -200,6 +200,7 @@ class Queue {
 	}
 
 	void saveconf() {
+		core.dir_make(core.setts.pub_data_dir);
 		if (pl.modified[0])
 			pl.isave(0, core.setts.pub_data_dir + "/list1.m3uz");
 		if (pl.modified[1])

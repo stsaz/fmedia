@@ -17,7 +17,7 @@ Arrays:
 	jni_joa
 	jni_joa_i jni_joa_i_set
 	jni_jsa_sza
-	jni_vec_jba
+	jni_str_jba
 Object:
 	jni_obj_jo jni_obj_jo_set
 	jni_obj_sz_set
@@ -100,7 +100,7 @@ do { \
 	(*env)->GetByteArrayElements(env, jab, NULL)
 
 #define jni_bytes_free(ptr, jab) \
-	(*env)->ReleaseByteArrayElements(env, jab, ptr, 0)
+	(*env)->ReleaseByteArrayElements(env, jab, (jbyte*)(ptr), 0)
 
 /** jobjectArray = new */
 #define jni_joa(cap, jclazz) \
@@ -114,16 +114,12 @@ do { \
 #define jni_joa_i_set(ja, i, val) \
 	(*env)->SetObjectArrayElement(env, ja, i, val)
 
-/** ffvec = byte[] */
-static inline ffvec jni_vec_jba(JNIEnv *env, jbyteArray *jab)
+/** ffstr = byte[]
+Free with jni_bytes_free(s.ptr, jba) */
+static inline ffstr jni_str_jba(JNIEnv *env, jbyteArray *jba)
 {
-	ffvec v = {};
-	ffvec_alloc(&v, jni_arr_len(jab) + 1, 1);
-	jbyte *b = jni_bytes_jba(jab);
-	v.len = v.cap - 1;
-	ffmem_copy(v.ptr, b, v.len);
-	jni_bytes_free(b, jab);
-	return v;
+	ffstr s = FFSTR_INITN(jni_bytes_jba(jba), jni_arr_len(jba));
+	return s;
 }
 
 /** String[] = char*[] */

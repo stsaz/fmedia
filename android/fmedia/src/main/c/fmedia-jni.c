@@ -7,6 +7,7 @@
 #define errlog1(trk, ...)  fmed_errlog(core, trk, NULL, __VA_ARGS__)
 #define warnlog1(trk, ...)  fmed_warnlog(core, trk, NULL, __VA_ARGS__)
 #define dbglog1(trk, ...)  fmed_dbglog(core, trk, NULL, __VA_ARGS__)
+#define syserrlog0(...)  fmed_syserrlog(core, NULL, NULL, __VA_ARGS__)
 #define errlog0(...)  fmed_errlog(core, NULL, NULL, __VA_ARGS__)
 #define syswarnlog0(...)  fmed_syswarnlog(core, NULL, NULL, __VA_ARGS__)
 #define dbglog0(...)  fmed_dbglog(core, NULL, NULL, __VA_ARGS__)
@@ -78,6 +79,87 @@ Java_com_github_stsaz_fmedia_Fmedia_destroy(JNIEnv *env, jobject thiz)
 	ffmem_free(fx);
 	fx = NULL;
 	dbglog0("%s: exit", __func__);
+}
+
+static inline ffsize ffstr_charcount(ffstr s, int ch)
+{
+	ffsize r = 0;
+	for (;;) {
+		ffssize i = ffstr_findchar(&s, ch);
+		if (i < 0)
+			break;
+		r++;
+		ffstr_shift(&s, i+1);
+	}
+	return r;
+}
+
+JNIEXPORT jobjectArray JNICALL
+Java_com_github_stsaz_fmedia_Fmedia_confRead(JNIEnv *env, jobject thiz, jstring jfilepath)
+{
+	dbglog0("%s: enter", __func__);
+	const char *fn = jni_sz_js(jfilepath);
+	ffvec d = {};
+	jobjectArray jsa = NULL;
+	if (0 != fffile_readwhole(fn, &d, 1*1024*1024))
+		goto end;
+
+	ffstr s = FFSTR_INITSTR(&d);
+	uint n = ffstr_charcount(s, '\n');
+	jsa = jni_joa(n * 2, jni_class(JNI_CSTR));
+
+	uint i = 0;
+	ffstr_setstr(&s, &d);
+	while (s.len) {
+		ffstr ln, k, v;
+		ffstr_splitby(&s, '\n', &ln, &s);
+		ffstr_splitby(&ln, ' ', &k, &v);
+
+		k.ptr[k.len] = '\0';
+		jstring js = jni_js_sz(k.ptr);
+		jni_joa_i_set(jsa, i, js);
+		jni_local_unref(js);
+		i++;
+
+		v.ptr[v.len] = '\0';
+		js = jni_js_sz(v.ptr);
+		jni_joa_i_set(jsa, i, js);
+		jni_local_unref(js);
+		i++;
+	}
+
+end:
+	jni_sz_free(fn, jfilepath);
+	ffvec_free(&d);
+	dbglog0("%s: exit", __func__);
+	return jsa;
+}
+
+JNIEXPORT jboolean JNICALL
+Java_com_github_stsaz_fmedia_Fmedia_confWrite(JNIEnv *env, jobject thiz, jstring jfilepath, jbyteArray jdata)
+{
+	dbglog0("%s: enter", __func__);
+	const char *fn = jni_sz_js(jfilepath);
+	char *fn_tmp = ffsz_allocfmt("%s.tmp", fn);
+	ffstr data = jni_str_jba(env, jdata);
+	int rc = 0;
+	if (0 != fffile_writewhole(fn_tmp, data.ptr, data.len, 0)) {
+		syserrlog0("fffile_writewhole: %s", fn_tmp);
+		goto end;
+	}
+
+	if (0 != fffile_rename(fn_tmp, fn)) {
+		syserrlog0("fffile_rename: %s", fn);
+		goto end;
+	}
+	rc = 1;
+
+end:
+	jni_bytes_free(data.ptr, jdata);
+	jni_sz_free(fn, jfilepath);
+	ffmem_free(fn_tmp);
+	dbglog0("%s: exit", __func__);
+	return rc;
 }
 
 JNIEXPORT void JNICALL

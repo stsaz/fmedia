@@ -17,6 +17,9 @@ class Fmedia {
 	private native void init();
 	public native void destroy();
 
+	public native String[] confRead(String filepath);
+	public native boolean confWrite(String filepath, byte[] data);
+
 	public native void setCodepage(String codepage);
 
 	long length_msec;

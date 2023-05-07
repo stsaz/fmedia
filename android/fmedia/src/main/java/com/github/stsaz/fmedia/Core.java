@@ -257,7 +257,7 @@ class Core extends Util {
 		sb.append(qu.writeconf());
 		sb.append(gui.writeconf());
 		dbglog(TAG, sb.toString());
-		if (!file_writeall(fn, sb.toString().getBytes(), FILE_WRITE_SAFE))
+		if (!fmedia.confWrite(fn, sb.toString().getBytes()))
 			errlog(TAG, "saveconf: %s", fn);
 		else
 			dbglog(TAG, "saveconf ok: %s", fn);
@@ -268,24 +268,12 @@ class Core extends Util {
 	 */
 	private void loadconf() {
 		String fn = work_dir + "/" + CONF_FN;
-		byte[] b = file_readall(fn);
-		if (b == null)
+		String[] kv = fmedia.confRead(fn);
+		if (kv == null)
 			return;
-		String bs = new String(b);
-
-		Splitter spl = new Splitter();
-		while (true) {
-			String ln = spl.next(bs, '\n');
-			if (ln == null)
-				break;
-
-			Splitter spl2 = new Splitter();
-			String k, v;
-			k = spl2.next(ln, ' ');
-			v = spl2.remainder(ln);
-			if (k == null || v == null)
-				continue;
-
+		for (int i = 0;  i < kv.length;  i += 2) {
+			String k = kv[i];
+			String v = kv[i+1];
 			if (0 == setts.readconf(k, v))
 				continue;
 			if (0 == qu.readconf(k, v))
@@ -295,7 +283,7 @@ class Core extends Util {
 
 		setts.normalize();
 		fmedia.setCodepage(setts.codepage);
-		dbglog(TAG, "loadconf: %s: %s", fn, bs);
+		dbglog(TAG, "loadconf: %s", fn);
 	}
 
 	void clipboard_text_set(Context ctx, String s) {

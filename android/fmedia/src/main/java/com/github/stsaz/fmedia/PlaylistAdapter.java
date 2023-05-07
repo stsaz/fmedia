@@ -39,10 +39,6 @@ class PlaylistViewHolder extends RecyclerView.ViewHolder
 	}
 }
 
-/*
-long click
-*/
-
 class PlaylistAdapter extends RecyclerView.Adapter<PlaylistViewHolder> {
 
 	private final Core core;

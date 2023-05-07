@@ -136,6 +136,131 @@ static fmed_track_info* trk_conf(fmed_track_obj *trk)
 	return &t->ti;
 }
 
+/** Call filter */
+static int trk_filter_run(struct track_ctx *t, struct filter *f)
+{
+	if (f->backward_skip) {
+		// last time the filter returned FMED_ROK
+		f->backward_skip = 0;
+		if (t->cur != 0)
+			return FMED_RMORE; // go to previous filter
+		// calling first-in-chain filter
+	}
+
+	t->ti.flags &= ~FMED_FFIRST;
+	if (t->cur == 0)
+		t->ti.flags |= FMED_FFIRST;
+
+	if (f->obj == NULL) {
+		dbglog1(t, "%s: opening filter", f->name);
+		void *obj;
+		if (NULL == (obj = f->iface->open(&t->ti))) {
+			dbglog1(t, "%s: filter open failed", f->name);
+			return FMED_RERR;
+		}
+		if (obj == FMED_FILT_SKIP) {
+			dbglog1(t, "%s: skipping", f->name);
+			t->ti.data_out = t->ti.data_in;
+			return FMED_RDONE;
+		}
+		f->obj = obj;
+	}
+
+	dbglog1(t, "%s: calling filter, input:%L  flags:%xu"
+		, f->name, t->ti.data_in.len, t->ti.flags);
+
+	return f->iface->process(f->obj, &t->ti);
+}
+
+/** Handle result code and output data from filter */
+static int trk_filter_handle_result(struct track_ctx *t, struct filter *f, int r)
+{
+	uint chain_modified = 0;
+
+	switch (r) {
+	case FMED_RDONE:
+		// deactivate filter
+		ffslice_rmT(&t->filters, t->cur, 1, void*);
+		t->cur--;
+		chain_modified = 1;
+		if (t->filters.len == 0)
+			return FMED_RFIN;
+
+		r = FMED_RDATA;
+		goto go_fwd;
+
+	case FMED_RLASTOUT:
+		// deactivate this and all previous filters
+		ffslice_rmT(&t->filters, 0, t->cur + 1, void*);
+		t->cur = -1;
+		chain_modified = 1;
+		if (t->filters.len == 0)
+			return FMED_RFIN;
+
+		r = FMED_RDATA;
+		goto go_fwd;
+
+	case FMED_ROK:
+		f->backward_skip = 1;
+		r = FMED_RDATA;
+		// fallthrough
+
+	case FMED_RDATA:
+go_fwd:
+		if (t->cur + 1 == t->filters.len) {
+			// last-in-chain filter returned data
+			r = FMED_RMORE;
+			break;
+		}
+		t->cur++;
+		break;
+
+	case FMED_RMORE:
+		if (t->cur == 0) {
+			errlog1(t, "%s: first-in-chain filter wants more data", f->name);
+			return FMED_RERR;
+		}
+		t->cur--;
+		break;
+
+	case FMED_RASYNC:
+	case FMED_RFIN:
+	case FMED_RERR:
+		break;
+
+	case FMED_RSYSERR:
+		syserrlog1(t, "%s: system error", f->name);
+		break;
+
+	default:
+		errlog1(t, "%s: bad return code %u", f->name, r);
+		r = FMED_RERR;
+	}
+
+	if (chain_modified) {
+		char buf[200];
+		dbglog1(t, "chain [%s]"
+			, trk_chain_print(t, NULL, buf, sizeof(buf)));
+	}
+
+	return r;
+}
+
+static const char filter_result_str[][16] = {
+	"FMED_RERR",
+	"FMED_ROK",
+	"FMED_RDATA",
+	"FMED_RDONE",
+	"FMED_RLASTOUT",
+	"FMED_RNEXTDONE",
+	"FMED_RMORE",
+	"FMED_RBACK",
+	"FMED_RASYNC",
+	"FMED_RFIN",
+	"FMED_RSYSERR",
+	"FMED_RDONE_ERR",
+};
+
 static void trk_process(struct track_ctx *t)
 {
 	if (t->state == ST_FINISHED) {
@@ -143,7 +268,6 @@ static void trk_process(struct track_ctx *t)
 		return;
 	}
 
-	uint i = t->cur;
 	int r;
 	for (;;) {
 
@@ -153,49 +277,12 @@ static void trk_process(struct track_ctx *t)
 			t->ti.flags |= FMED_FSTOP;
 		}
 
-		struct filter *f = *ffslice_itemT(&t->filters, i, struct filter*);
-
-		if (f->backward_skip) {
-			// last time the filter returned FMED_ROK
-			f->backward_skip = 0;
-			if (i != 0) {
-				// go to previous filter
-				r = FMED_RMORE;
-				goto result;
-			}
-			// calling first-in-chain filter
-		}
-
-		t->ti.flags &= ~FMED_FFIRST;
-		if (i == 0)
-			t->ti.flags |= FMED_FFIRST;
-
 		fftime t1, t2;
 		if (t->ti.print_time)
 			t1 = fftime_monotonic();
 
-		t->cur = i;
-		if (f->obj == NULL) {
-			dbglog1(t, "%s: opening filter", f->name);
-			void *obj;
-			if (NULL == (obj = f->iface->open(&t->ti))) {
-				dbglog1(t, "%s: filter open failed", f->name);
-				goto err;
-			}
-			if (obj == FMED_FILT_SKIP) {
-				dbglog1(t, "%s: skipping", f->name);
-				t->ti.data_out = t->ti.data_in;
-				r = FMED_RDONE;
-				goto result;
-			}
-			f->obj = obj;
-		}
-
-		dbglog1(t, "%s: calling filter, input:%L  flags:%xu"
-			, f->name, t->ti.data_in.len, t->ti.flags);
-
-		r = f->iface->process(f->obj, &t->ti);
-		i = t->cur; // t->cur may be modified when adding filters
+		struct filter *f = *ffslice_itemT(&t->filters, t->cur, struct filter*);
+		r = trk_filter_run(t, f);
 
 		if (t->ti.print_time) {
 			t2 = fftime_monotonic();
@@ -203,74 +290,20 @@ static void trk_process(struct track_ctx *t)
 			fftime_add(&f->busytime, &t2);
 		}
 
-		static const char rc_str[][16] = {
-			"FMED_RERR",
-			"FMED_ROK",
-			"FMED_RDATA",
-			"FMED_RDONE",
-			"FMED_RLASTOUT",
-			"FMED_RNEXTDONE",
-			"FMED_RMORE",
-			"FMED_RBACK",
-			"FMED_RASYNC",
-			"FMED_RFIN",
-			"FMED_RSYSERR",
-			"FMED_RDONE_ERR",
-		};
 		dbglog1(t, "%s: filter returned %s, output:%L"
-			, f->name, rc_str[r+1], t->ti.data_out.len);
+			, f->name, filter_result_str[r+1], t->ti.data_out.len);
 
-result:
+		r = trk_filter_handle_result(t, f, r);
 		switch (r) {
-		case FMED_RDONE:
-		case FMED_RLASTOUT:
-			if (r == FMED_RDONE) {
-				// deactivate filter
-				ffslice_rmT(&t->filters, i, 1, void*);
-				i--;
-			} else {
-				// deactivate this and all previous filters
-				ffslice_rmT(&t->filters, 0, i + 1, void*);
-				i = -1;
-			}
-			if (t->filters.len == 0) {
-				// all filters have finished
-				goto fin;
-			}
-
-			{
-			char buf[200];
-			dbglog1(t, "chain [%s]"
-				, trk_chain_print(t, NULL, buf, sizeof(buf)));
-			}
-
-			goto go_fwd;
-
-		case FMED_ROK:
-			f->backward_skip = 1;
-			// fallthrough
-		case FMED_RDATA:
-go_fwd:
-			if (i + 1 == t->filters.len) {
-				// last-in-chain filter returned data
-				goto go_back;
-			}
-			i++;
-
-			t->ti.flags |= FMED_FFWD;
-			t->ti.data_in = t->ti.data_out;
+		case FMED_RMORE:
+			t->ti.flags &= ~FMED_FFWD;
+			ffstr_null(&t->ti.data_in);
 			ffstr_null(&t->ti.data_out);
 			break;
 
-		case FMED_RMORE:
-go_back:
-			if (i == 0) {
-				errlog1(t, "%s: first-in-chain filter wants more data", f->name);
-				goto err;
-			}
-			i--;
-			t->ti.flags &= ~FMED_FFWD;
-			ffstr_null(&t->ti.data_in);
+		case FMED_RDATA:
+			t->ti.flags |= FMED_FFWD;
+			t->ti.data_in = t->ti.data_out;
 			ffstr_null(&t->ti.data_out);
 			break;
 
@@ -281,10 +314,6 @@ go_back:
 			goto fin;
 
 		case FMED_RERR:
-			goto err;
-
-		default:
-			errlog1(t, "%s: bad return code %u", f->name, r);
 			goto err;
 		}
 	}
