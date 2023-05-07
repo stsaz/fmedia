@@ -66,8 +66,14 @@ class PlaylistAdapter extends RecyclerView.Adapter<PlaylistViewHolder> {
 	public void onBindViewHolder(@NonNull PlaylistViewHolder holder, int position) {
 		String s;
 		if (!view_explorer) {
-			s = queue.get(position);
-			s = String.format("%d. %s", position + 1, Util.path_split2(s)[1]);
+			QueueItemInfo qi = queue.getInfo(position);
+			if (!qi.title.isEmpty()) {
+				s = String.format("%d. %s - %s [%d:%02d]"
+					, position + 1, qi.artist, qi.title
+					, qi.length_sec / 60, qi.length_sec % 60);
+			} else {
+				s = String.format("%d. %s", position + 1, Util.path_split2(qi.url)[1]);
+			}
 		} else {
 			s = explorer.get(position);
 		}
@@ -95,10 +101,14 @@ class PlaylistAdapter extends RecyclerView.Adapter<PlaylistViewHolder> {
 		queue.play(i);
 	}
 
-	void on_change(int pos) {
+	void on_change(int how, int pos) {
 		if (pos < 0)
 			notifyDataSetChanged();
-		else
+		else if (how == QueueNotify.UPDATE)
+			notifyItemChanged(pos);
+		else if (how == QueueNotify.ADDED)
+			notifyItemInserted(pos);
+		else if (how == QueueNotify.REMOVED)
 			notifyItemRemoved(pos);
 	}
 }

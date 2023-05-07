@@ -11,6 +11,7 @@ class Fmedia {
 		artist = "";
 		title = "";
 		info = "";
+		url = "";
 		init();
 	}
 	private native void init();
@@ -19,8 +20,8 @@ class Fmedia {
 	public native void setCodepage(String codepage);
 
 	long length_msec;
-	String artist, title, info;
-	public native String[] meta(String filepath);
+	String url, artist, title, info;
+	public native String[] meta(int list_item, String filepath);
 
 	static final int F_DATE_PRESERVE = 1;
 	static final int F_OVERWRITE = 2;
@@ -52,6 +53,7 @@ class Fmedia {
 	static final int QUCOM_CLEAR = 1;
 	static final int QUCOM_REMOVE_I = 2;
 	static final int QUCOM_COUNT = 3;
+	static final int QUCOM_META = 4; // set url, length_msec, artist, title
 	native int quCmd(long q, int cmd, int i);
 	static final int QUFILTER_URL = 1;
 	static final int QUFILTER_META = 2;

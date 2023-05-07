@@ -307,7 +307,7 @@ class Track {
 	/**
 	 * Start playing
 	 */
-	void start(String url) {
+	void start(int list_item, String url) {
 		core.dbglog(TAG, "play: %s", url);
 		if (tplay.state != STATE_NONE)
 			return;
@@ -322,7 +322,7 @@ class Track {
 		tplay.info = "";
 
 		if (!core.setts.no_tags) {
-			tplay.meta = core.fmedia.meta(url);
+			tplay.meta = core.fmedia.meta(list_item, url);
 			tplay.artist = core.fmedia.artist;
 			tplay.title = core.fmedia.title;
 			tplay.info = core.fmedia.info;

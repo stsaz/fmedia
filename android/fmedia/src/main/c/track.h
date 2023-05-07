@@ -23,6 +23,7 @@ struct track_ctx {
 	fmed_worker_task worker;
 	uint state; // enum STATE
 	uint xstart :1;
+	const fmed_queue *qu;
 
 	struct filter filters_pool[MAX_FILTERS];
 	uint i_fpool;
@@ -49,8 +50,10 @@ static fmed_track_obj* trk_create(uint cmd, const char *url)
 	t->cur = -1;
 	t->tstart = fftime_monotonic();
 	t->filters.ptr = t->filters_active;
+	t->qu = core->getmod("core.queue");
 
 	fmed_track_info *ti = &t->ti;
+	ti->type = cmd;
 	ti->trk = t;
 	ti->track = &track_iface;
 	ti->input.size = FMED_NULL;
@@ -458,6 +461,9 @@ static void trk_meta_set(void *trk, const ffstr *name, const ffstr *val, uint fl
 	struct track_ctx *t = trk;
 	*ffvec_pushT(&t->ti.meta, char*) = ffsz_dupstr(name);
 	*ffvec_pushT(&t->ti.meta, char*) = ffsz_dupstr(val);
+
+	if (t->ti.que_cur != NULL)
+		t->qu->meta_set2(t->ti.que_cur, *name, *val, flags);
 }
 
 static int trk_meta_enum(struct track_ctx *t, fmed_trk_meta *meta)

@@ -76,7 +76,7 @@ public class Svc extends MediaBrowserServiceCompat {
 		core = Core.init_once(getApplicationContext());
 		core.dbglog(TAG, "init");
 		queue = core.queue();
-		queue.nfy_add(what -> sess_setqueue());
+		queue.nfy_add(this::sess_setqueue);
 		track = core.track();
 		track.filter_add(new Filter() {
 			public int open(TrackHandle t) {
@@ -96,7 +96,7 @@ public class Svc extends MediaBrowserServiceCompat {
 		delayed_stop = this::stop_delayed;
 
 		sess_init();
-		sess_setqueue();
+		sess_setqueue(0, -1);
 		setSessionToken(sess.getSessionToken());
 		fg_prep();
 	}
@@ -205,7 +205,7 @@ public class Svc extends MediaBrowserServiceCompat {
 	/**
 	 * Set session queue
 	 */
-	void sess_setqueue() {
+	void sess_setqueue(int how, int pos) {
 		String[] l = queue.list();
 		ArrayList<MediaSessionCompat.QueueItem> q = new ArrayList<>(l.length);
 		int id = 0;

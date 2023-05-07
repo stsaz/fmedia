@@ -17,10 +17,23 @@ import java.util.Date;
 import java.util.Random;
 
 interface QueueNotify {
+	static final int UPDATE = 0;
+	static final int ADDED = 1;
+	static final int REMOVED = 2;
 	/**
 	 * Called when the queue is modified.
 	 */
-	void on_change(int what);
+	void on_change(int how, int pos);
+}
+
+class QueueItemInfo {
+	QueueItemInfo() {
+		url = "";
+		artist = "";
+		title = "";
+	}
+	String url, artist, title;
+	int length_sec;
 }
 
 class PList {
@@ -84,6 +97,17 @@ class PList {
 		return core.fmedia.quEntry(sel(), i);
 	}
 
+	QueueItemInfo getInfo(int i) {
+		core.fmedia.quCmd(sel(), Fmedia.QUCOM_META, i);
+		QueueItemInfo qi = new QueueItemInfo();
+		qi.url = core.fmedia.url;
+		qi.artist = core.fmedia.artist;
+		qi.title = core.fmedia.title;
+		qi.length_sec = (int)core.fmedia.length_msec / 1000;
+		core.dbglog(TAG, "getInfo: %s %s %s", qi.url, qi.artist, qi.title);
+		return qi;
+	}
+
 	String[] list() {
 		return core.fmedia.quList(sel());
 	}
@@ -144,6 +168,13 @@ class Queue {
 				b_order_next = false;
 				if (autoskip_msec != 0)
 					t.seek_msec = autoskip_msec;
+
+				if (!core.setts.no_tags) {
+					pl.modified[0] = true;
+					pl.modified[1] = true;
+					nfy_all(QueueNotify.UPDATE, trk_idx); // redraw item to display artist-title info
+				}
+
 				return 0;
 			}
 
@@ -212,9 +243,9 @@ class Queue {
 		nfy.remove(qn);
 	}
 
-	private void nfy_all(int first_pos) {
+	private void nfy_all(int how, int first_pos) {
 		for (QueueNotify qn : nfy) {
-			qn.on_change(first_pos);
+			qn.on_change(how, first_pos);
 		}
 	}
 
@@ -242,7 +273,7 @@ class Queue {
 		trk_q = pl.qi;
 		trk_idx = index;
 		pl.curpos = index;
-		track.start(pl.get(index));
+		track.start(index, pl.get(index));
 	}
 
 	/**
@@ -345,6 +376,10 @@ class Queue {
 		return pl.get(i);
 	}
 
+	QueueItemInfo getInfo(int i) {
+		return pl.getInfo(i);
+	}
+
 	void remove(int pos) {
 		core.dbglog(TAG, "remove: %d:%d", trk_q, pos);
 		pl.iremove(trk_q, pos);
@@ -352,7 +387,7 @@ class Queue {
 			trk_idx = -1;
 		else if (pos < trk_idx)
 			trk_idx--;
-		nfy_all(pos);
+		nfy_all(QueueNotify.REMOVED, pos);
 	}
 
 	/**
@@ -362,7 +397,7 @@ class Queue {
 		core.dbglog(TAG, "clear");
 		pl.clear();
 		trk_idx = -1;
-		nfy_all(-1);
+		nfy_all(QueueNotify.REMOVED, -1);
 	}
 
 	int count() {
@@ -379,7 +414,7 @@ class Queue {
 		} else {
 			pl.add_r(urls);
 		}
-		nfy_all(pos);
+		nfy_all(QueueNotify.ADDED, pos);
 	}
 
 	/**
@@ -389,7 +424,7 @@ class Queue {
 		core.dbglog(TAG, "add: %s", url);
 		int pos = pl.size();
 		pl.add1(url);
-		nfy_all(pos);
+		nfy_all(QueueNotify.ADDED, pos);
 	}
 
 	@SuppressLint("DefaultLocale")

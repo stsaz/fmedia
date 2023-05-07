@@ -287,10 +287,10 @@ public class MainActivity extends AppCompatActivity {
 		gui = core.gui();
 		queue = core.queue();
 		quenfy = new QueueNotify() {
-			public void on_change(int pos) {
+			public void on_change(int how, int pos) {
 				if (view_explorer) return;
 
-				pl_adapter.on_change(pos);
+				pl_adapter.on_change(how, pos);
 			}
 		};
 		queue.nfy_add(quenfy);
@@ -545,7 +545,7 @@ public class MainActivity extends AppCompatActivity {
 	}
 
 	private void list_update() {
-		pl_adapter.on_change(-1);
+		pl_adapter.on_change(0, -1);
 	}
 
 	private void plist_show() {
