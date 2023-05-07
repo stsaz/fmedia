@@ -352,19 +352,23 @@ enum FMED_TRACK_CMD {
 	@param: char *filter_name */
 	FMED_TRACK_ADDFILT,
 	FMED_TRACK_ADDFILT_PREV,
-	FMED_TRACK_ADDFILT_BEGIN,
 
 	/** Add new filter to the track chain.
-	@param: char *filter_name
-	Return filter ID;  NULL on error. */
+	* Android: add after current or add to the end (if track hasn't been started yet).
+	* Other OS: add after current.
+	Return filter ID;  NULL on error.
+
+	track->cmd(t, FMED_TRACK_FILT_ADD, "filter_name"); */
 	FMED_TRACK_FILT_ADD,
+
 	FMED_TRACK_FILT_ADDPREV,
 	FMED_TRACK_FILT_ADDFIRST,
 	FMED_TRACK_FILT_ADDLAST,
 
 	/** Add new filter to the track chain with the specified interface.
-	const fmed_filter iface = {};
-	track->cmd(t, FMED_TRACK_FILT_ADDF, "name", &iface); */
+
+	const fmed_filter iface = ...;
+	track->cmd(t, FMED_TRACK_FILT_ADDF, FMED_TRACK_FILT_ADDXXX, "name", &iface); */
 	FMED_TRACK_FILT_ADDF,
 
 	/** Return 1 if have meta data from user */

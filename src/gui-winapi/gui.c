@@ -42,14 +42,6 @@ static void gui_loadlists(void);
 
 static int gtrk_conf(fmed_conf_ctx *ctx);
 
-//RECORDING TRACK WRAPPER
-static void* rec_open(fmed_filt *d);
-static int rec_process(void *ctx, fmed_filt *d);
-static void rec_close(void *ctx);
-static const fmed_filter gui_rec_iface = {
-	&rec_open, &rec_process, &rec_close
-};
-
 
 static int gui_conf_ghk_add(fmed_conf *fc, void *obj, ffstr *val);
 
@@ -525,6 +517,7 @@ void gui_media_showpcm(void)
 }
 
 
+/** Recording track observer */
 static void* rec_open(fmed_filt *d)
 {
 	wmain_rec_started();
@@ -545,6 +538,8 @@ static int rec_process(void *ctx, fmed_filt *d)
 	return FMED_RDONE;
 }
 
+static const fmed_filter fmed_gui_rec = { rec_open, rec_process, rec_close };
+
 
 void gui_rec(uint cmd)
 {
@@ -561,7 +556,7 @@ void gui_rec(uint cmd)
 	if (NULL == (t = gg->track->create(FMED_TRK_TYPE_REC, NULL)))
 		return;
 
-	gg->track->cmd2(t, FMED_TRACK_ADDFILT_BEGIN, "gui.rec-nfy");
+	gg->track->cmd(t, FMED_TRACK_FILT_ADDF, FMED_TRACK_FILT_ADDFIRST, "gui.rec-observer", &fmed_gui_rec);
 
 	if (0 != gui_rec_addsetts(t)) {
 		gg->track->cmd(t, FMED_TRACK_STOP);
@@ -911,8 +906,6 @@ static const void* gui_iface(const char *name)
 {
 	if (!ffsz_cmp(name, "gui"))
 		return &fmed_gui;
-	else if (!ffsz_cmp(name, "rec-nfy"))
-		return &gui_rec_iface;
 	else if (!ffsz_cmp(name, "log"))
 		return &gui_logger;
 	return NULL;

@@ -114,6 +114,7 @@ static fmed_f* addfilter1(fm_trk *t, const fmed_modinfo *mod);
 static fmed_f* filt_add(fm_trk *t, uint cmd, const char *name);
 static int filt_call(fm_trk *t, fmed_f *f);
 static void filt_close(fm_trk *t, fmed_f *f);
+static fmed_f* filt_add_iface(fm_trk *t, uint cmd, const char *name, const fmed_filter *iface);
 
 static dict_ent* dict_add(fm_trk *t, const char *name, uint *f);
 static void dict_ent_free(dict_ent *e);
@@ -1130,6 +1131,21 @@ static int trk_meta_copy(fm_trk *t, fm_trk *src)
 static fmed_f* filt_add(fm_trk *t, uint cmd, const char *name)
 {
 	uint optional = cmd & 0x80000000;
+	const fmed_filter *iface = core->getmod2(FMED_MOD_IFACE | FMED_MOD_NOLOG, name, -1);
+	if (iface == NULL) {
+		if (!optional)
+			errlog(t, "no such interface %s", name);
+		return NULL;
+	}
+
+	return filt_add_iface(t, cmd, name, iface);
+}
+
+/** Add filter with the specified interface to chain.
+If cursor is not initialized: cursor is set to the first filter */
+static fmed_f* filt_add_iface(fm_trk *t, uint cmd, const char *name, const fmed_filter *iface)
+{
+	uint optional = cmd & 0x80000000;
 	cmd &= ~0x80000000;
 	fmed_f *f;
 	if (ffvec_isfull(&t->filters)) {
@@ -1140,15 +1156,10 @@ static fmed_f* filt_add(fm_trk *t, uint cmd, const char *name)
 
 	f = ffslice_endT(&t->filters, fmed_f);
 	ffmem_zero_obj(f);
-	if (NULL == (f->filt = core->getmod2(FMED_MOD_IFACE | FMED_MOD_NOLOG, name, -1))) {
-		if (!optional)
-			errlog(t, "no such interface %s", name);
-		return NULL;
-	}
+	f->filt = iface;
 
 	switch (cmd) {
 	case FMED_TRACK_FILT_ADDFIRST:
-	case FMED_TRACK_ADDFILT_BEGIN:
 		ffchain_addfront(&t->filt_chain, &f->sib);
 		break;
 
@@ -1238,7 +1249,6 @@ static const char* const cmd_str[] = {
 	"FMED_TRACK_LAST",
 	"FMED_TRACK_ADDFILT",
 	"FMED_TRACK_ADDFILT_PREV",
-	"FMED_TRACK_ADDFILT_BEGIN",
 	"FMED_TRACK_FILT_ADD",
 	"FMED_TRACK_FILT_ADDPREV",
 	"FMED_TRACK_FILT_ADDFIRST",
@@ -1371,14 +1381,27 @@ static ssize_t trk_cmd(void *trk, uint cmd, ...)
 		break;
 	}
 	case FMED_TRACK_ADDFILT:
-	case FMED_TRACK_ADDFILT_PREV:
-	case FMED_TRACK_ADDFILT_BEGIN: {
+	case FMED_TRACK_ADDFILT_PREV: {
 		const char *name = va_arg(va, char*);
 		fmed_f *f = filt_add(t, cmd, name);
 		if (f == NULL) {
 			r = -1;
 			break;
 		}
+		r = 0;
+		break;
+	}
+
+	case FMED_TRACK_FILT_ADDF: {
+		uint filt_add_cmd = va_arg(va, uint);
+		const char *name = va_arg(va, void*);
+		const fmed_filter *fi = va_arg(va, void*);
+		fmed_f *f = filt_add_iface(t, filt_add_cmd, name, fi);
+		if (f == NULL) {
+			r = -1;
+			break;
+		}
+		f->filt = fi;
 		r = 0;
 		break;
 	}

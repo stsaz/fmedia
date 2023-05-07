@@ -406,6 +406,11 @@ static ffssize trk_cmd(void *trk, uint cmd, ...)
 	}
 
 	case FMED_TRACK_FILT_ADDF: {
+		uint filt_add_cmd = va_arg(va, uint);
+		if (filt_add_cmd != FMED_TRACK_FILT_ADD) {
+			r = 0;
+			break;
+		}
 		const char *name = va_arg(va, void*);
 		const fmed_filter *fi = va_arg(va, void*);
 		uint pos = t->cur + 1;

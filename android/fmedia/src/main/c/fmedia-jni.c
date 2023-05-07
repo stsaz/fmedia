@@ -422,7 +422,7 @@ Java_com_github_stsaz_fmedia_Fmedia_recStart(JNIEnv *env, jobject thiz, jstring 
 
 	fx->Fmedia_Callback_on_finish = jni_func(jni_class_obj(jcb), "on_finish", "()V");
 	ti->finsig_data = jni_global_ref(jcb);
-	fx->track->cmd(t, FMED_TRACK_FILT_ADDF, "mon", &rectrk_mon);
+	fx->track->cmd(t, FMED_TRACK_FILT_ADDF, FMED_TRACK_FILT_ADD, "mon", &rectrk_mon);
 
 	ti->ai_exclusive = !!(flags & RECF_EXCLUSIVE);
 	ti->ai_power_save = !!(flags & RECF_POWER_SAVE);
