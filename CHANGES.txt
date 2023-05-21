@@ -8,6 +8,26 @@ HISTORY OF FMEDIA
  "!" - broken compatibility
 
 
+fmedia v1.31 - May 21, 2023
+
+ + --http-ctl="<IP>": Enable HTTP server for handling remote commands
+   This option allows fmedia to be remotely controlled using web browser.
+   Server address is "http://<IP>:7314/".
+   Supported commands:
+     "POST /api/pause": Pause
+     "POST /api/unpause": Unpause
+     "POST /api/next": Play next track
+
+ + --playlist-heal="": Auto-correct the paths to files inside a .m3u playlist
+ * TUI: colored output
+ * GUI: compress auto-loaded playlists with zstd ("listN.m3uz")
+ * Recording: support --dev=... together with --record
+ * Restore support for old AMD64 CPU (without SSE4.2 support)
+ - Recording: finalize the output file while recording after --globcmd=stop
+ - .mp4(AAC) write: don't write incorrect VBR bitrate & sample rate values
+ - .ogg write: fix (v1.30 bug)
+
+
 fmedia/Android v0.12 - May 6, 2023
 
  * compress auto-loaded playlists with zstd

@@ -23,8 +23,8 @@ set -x
 set -e
 
 TESTS=("$@")
-if test "$CMD" = "all" ; then
-	TESTS=("${CMDS_OPS[@]}")
+if test "$1" = "all" ; then
+	TESTS=("${TESTS_ALL[@]}")
 fi
 
 for CMD in "${TESTS[@]}" ; do

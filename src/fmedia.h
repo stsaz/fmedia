@@ -14,7 +14,7 @@ Copyright (c) 2015 Simon Zolin */
 #include <util/util.h>
 
 #define FMED_VER_MAJOR  1
-#define FMED_VER_MINOR  30
+#define FMED_VER_MINOR  31
 #define FMED_VER_PATCH  0
 #define FMED_VER_FULL  ((FMED_VER_MAJOR << 16) | (FMED_VER_MINOR << 8) | FMED_VER_PATCH)
 
