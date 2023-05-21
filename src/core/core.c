@@ -511,6 +511,7 @@ static void core_logv(uint flags, void *trk, const char *module, const char *fmt
 	ld.tid = ffthd_curid();
 
 	FF_ASSERT(lev != 0);
+	FF_ASSERT(FF_COUNT(loglevs) == FMED_LOG_DEBUG);
 	ld.level = loglevs[lev - 1];
 
 	ld.ctx = NULL;

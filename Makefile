@@ -137,7 +137,8 @@ $(RES): $(PROJDIR)/res/fmedia.rc $(wildcard $(PROJDIR)/res/*.ico)
 	$(WINDRES) -I$(SRCDIR) -I$(FFBASE) -I$(FFOS) $(PROJDIR)/res/fmedia.rc $@
 
 
-$(OBJ_DIR)/main.o: $(SRCDIR)/main.c $(SRCDIR)/cmd.h $(SRCDIR)/cmdline.h $(GLOBDEPS)
+$(OBJ_DIR)/main.o: $(SRCDIR)/main.c $(GLOBDEPS) \
+		$(SRCDIR)/cmd.h $(SRCDIR)/cmdline.h $(SRCDIR)/log.h
 	$(C) $(CFLAGS) $< -o $@
 BIN_O := \
 	$(OBJ_DIR)/crash.o \

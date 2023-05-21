@@ -839,8 +839,14 @@ enum FMED_LOG {
 	_FMED_LOG_LEVMASK = 0x0f,
 
 	FMED_LOG_SYS = 0x10,
+	FMED_LOG_EXTRA = 0x20,
 };
 
+#define fmed_extralog(core, trk, mod, ...) \
+do { \
+	if ((core)->loglev >= FMED_LOG_DEBUG) \
+		(core)->log(FMED_LOG_DEBUG | FMED_LOG_EXTRA, trk, mod, __VA_ARGS__); \
+} while (0)
 #define fmed_dbglog(core, trk, mod, ...) \
 do { \
 	if ((core)->loglev == FMED_LOG_DEBUG) \

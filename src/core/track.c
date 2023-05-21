@@ -13,6 +13,7 @@ Copyright (c) 2016 Simon Zolin */
 #undef dbglog
 #undef errlog
 #define infolog1(trk, ...)  fmed_infolog(core, trk, "track", __VA_ARGS__)
+#define extralog1(trk, ...)  fmed_extralog(core, trk, "track", __VA_ARGS__)
 #define dbglog(trk, ...)  fmed_dbglog(core, trk, "track", __VA_ARGS__)
 #define errlog(trk, ...)  fmed_errlog(core, trk, "track", __VA_ARGS__)
 
@@ -698,13 +699,13 @@ static int filt_call(fm_trk *t, fmed_f *f)
 	ffbool first = filt_isfirst(t, t->cur);
 	ffint_bitmask(&t->props.flags, FMED_FLAST, first);
 
-	dbglog(t, "%s calling %s, input:%L  flags:%xu"
+	extralog1(t, "%s calling %s, input:%L  flags:%xu"
 		, (t->props.flags & FMED_FFWD) ? ">>" : "<<", f->name, f->d.datalen, t->props.flags);
 
 	t->props.data = f->d.data,  t->props.datalen = f->d.datalen;
 
 	if (!f->opened) {
-		dbglog(t, "creating context for %s...", f->name);
+		extralog1(t, "creating context for %s...", f->name);
 		f->ctx = f->filt->open(&t->props);
 		f->d.data = t->props.data,  f->d.datalen = t->props.datalen;
 		if (f->ctx == NULL) {
@@ -712,14 +713,14 @@ static int filt_call(fm_trk *t, fmed_f *f)
 			return FMED_RFIN;
 
 		} else if (f->ctx == FMED_FILT_SKIP) {
-			dbglog(t, "%s is skipped", f->name);
+			extralog1(t, "%s is skipped", f->name);
 			f->ctx = NULL; //don't call fmed_filter.close()
 			f->closed = 1;
 			t->props.out = t->props.data,  t->props.outlen = t->props.datalen;
 			return FMED_RDONE;
 		}
 
-		dbglog(t, "context for %s created: 0x%p", f->name, f->ctx);
+		extralog1(t, "context for %s created: 0x%p", f->name, f->ctx);
 		f->opened = 1;
 	}
 
@@ -732,7 +733,7 @@ static int filt_call(fm_trk *t, fmed_f *f)
 		fftime_add(&f->clk, &t2);
 	}
 
-	dbglog(t, "   %s returned: %s, output:%L"
+	extralog1(t, "   %s returned: %s, output:%L"
 		, f->name, ((uint)(r + 1) < FFCNT(fmed_retstr)) ? fmed_retstr[r + 1] : "", t->props.outlen);
 	return r;
 }
