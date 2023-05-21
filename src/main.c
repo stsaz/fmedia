@@ -578,6 +578,20 @@ static void crash_handler(struct ffsig_info *inf)
 #endif
 }
 
+/** Check if fd is a terminal */
+static int std_console(fffd fd)
+{
+#ifdef FF_WIN
+	DWORD r;
+	return GetConsoleMode(fd, &r);
+
+#else
+	fffileinfo fi;
+	return (0 == fffile_info(fd, &fi)
+		&& FFFILE_UNIX_CHAR == (fffileinfo_attr(&fi) & FFFILE_UNIX_TYPEMASK));
+#endif
+}
+
 int main(int argc, char **argv, char **env)
 {
 	int rc = 1, r;
@@ -601,7 +615,19 @@ int main(int argc, char **argv, char **env)
 	ffenv_init(NULL, env);
 	ffstderr_fmt("φfmedia v%s (" OS_STR "-" CPU_STR ")\n"
 		, core->props->version_str);
+
 	core->cmd(FMED_SETLOG, &std_logger);
+
+#ifdef FF_WIN
+	core->props->stdout_color = (0 == ffstd_attr(ffstdout, FFSTD_VTERM, FFSTD_VTERM));
+	core->props->stderr_color = (0 == ffstd_attr(ffstderr, FFSTD_VTERM, FFSTD_VTERM));
+	(void)std_console;
+
+#else
+	core->props->stdout_color = std_console(ffstdout);
+	core->props->stderr_color = std_console(ffstderr);
+#endif
+
 	g->cmd = ffmem_new(fmed_cmd);
 	cmd_init(g->cmd);
 	gcmd = g->cmd;

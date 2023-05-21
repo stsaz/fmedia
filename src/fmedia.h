@@ -248,6 +248,8 @@ struct fmed_props {
 	uint prevent_sleep :1;
 	uint gui :1; // GUI is enabled
 	uint tui :1; // TUI is enabled
+	uint stdout_color :1;
+	uint stderr_color :1;
 	char *version_str; // "X.XX[.XX]"
 
 	/** Path to user configuration directory (with the trailing slash).
