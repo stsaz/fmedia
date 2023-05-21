@@ -25,6 +25,13 @@ typedef struct gtui {
 	uint vol;
 	uint progress_dots;
 
+	struct {
+		const char *progress,
+			*filename,
+			*index,
+			*reset;
+	} color;
+
 	uint mute :1;
 } gtui;
 
@@ -160,6 +167,24 @@ static int tui_mod_conf(const char *name, fmed_conf_ctx *ctx)
 	return -1;
 }
 
+#define CLR_PROGRESS  FFSTD_CLR(FFSTD_GREEN)
+#define CLR_FILENAME  FFSTD_CLR_I(FFSTD_BLUE)
+#define CLR_INDEX  FFSTD_CLR(FFSTD_YELLOW)
+
+static void color_init(struct gtui *t)
+{
+	t->color.progress = "";
+	t->color.filename = "";
+	t->color.index = "";
+	t->color.reset = "";
+	if (core->props->stderr_color) {
+		t->color.progress = CLR_PROGRESS;
+		t->color.filename = CLR_FILENAME;
+		t->color.index = CLR_INDEX;
+		t->color.reset = FFSTD_CLR_RESET;
+	}
+}
+
 static int tui_sig(uint signo)
 {
 	switch (signo) {
@@ -210,6 +235,7 @@ static int tui_sig(uint signo)
 #endif
 
 		gt->progress_dots = ffmax((int)term_wnd_size - (int)FFSLEN("[] 00:00 / 00:00"), 0);
+		color_init(gt);
 		break;
 	}
 	return 0;
@@ -342,10 +368,13 @@ static void tui_info(tui *t, fmed_filt *d)
 	size_t trkid = (qtrk != FMED_PNULL) ? gt->qu->cmdv(FMED_QUE_ID, qtrk) + 1 : 1;
 
 	t->buf.len = 0;
-	ffstr_catfmt(&t->buf, "\n#%L \"%S - %S\" \"%s\" %.02FMB %u:%02u.%03u (%,U samples) %ukbps %s %s %uHz %s"
-		, trkid
+	ffstr_catfmt(&t->buf, "\n%s#%L%s "
+		"\"%S - %S\" "
+		"%s\"%s\"%s "
+		"%.02FMB %u:%02u.%03u (%,U samples) %ukbps %s %s %uHz %s"
+		, gt->color.index, trkid, gt->color.reset
 		, &artist, &title
-		, input
+		, gt->color.filename, input, gt->color.reset
 		, (double)tsize / (1024 * 1024)
 		, tmsec / 60, tmsec % 60, (uint)(total_time % 1000)
 		, t->total_samples
@@ -581,11 +610,12 @@ static int tui_process(void *ctx, fmed_filt *d)
 
 	t->buf.len = 0;
 	uint dots = gt->progress_dots;
-	ffstr_catfmt(&t->buf, "%*c[%*c%*c] %u:%02u / %u:%02u"
+	ffstr_catfmt(&t->buf, "%*c[%s%*c%s%*c] "
+		"%s%u:%02u%s / %u:%02u"
 		, (size_t)t->nback, '\r'
-		, (size_t)(playpos * dots / t->total_samples), '='
+		, gt->color.progress, (size_t)(playpos * dots / t->total_samples), '=', gt->color.reset
 		, (size_t)(dots - (playpos * dots / t->total_samples)), '.'
-		, playtime / 60, playtime % 60
+		, gt->color.progress, playtime / 60, playtime % 60, gt->color.reset
 		, t->total_time_sec / 60, t->total_time_sec % 60);
 
 print:
