@@ -862,7 +862,7 @@ static ssize_t que_cmdv(uint cmd, ...)
 		const char *fn = va_arg(va, char*);
 		plist *pl = plist_by_useridx(plid);
 		if (pl == NULL) {
-			r = -1;
+			r = 0;
 			goto end;
 		}
 		r = (ffsize)que_export(pl, fn);
