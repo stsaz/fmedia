@@ -47,6 +47,7 @@ git clone https://github.com/stsaz/ffaudio
 git clone https://github.com/stsaz/ffos
 git clone https://github.com/stsaz/avpack
 git clone https://github.com/stsaz/ffpack
+git clone https://github.com/stsaz/alphahttpd
 git clone https://github.com/stsaz/fmedia
 
 

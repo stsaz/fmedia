@@ -432,6 +432,7 @@ static const ffcmdarg_arg fmed_cmdline_args[] = {
 #endif
 	{ 0, "globcmd",	TSTR,	O(globcmd) },
 	{ 0, "globcmd.pipe-name",	TSTRZ,	O(globcmd_pipename) },
+	{ 0, "http-ctl",	FFCMDARG_TSTRZ,	O(http_ctl_options) },
 	{ 0, "conf",	FFCMDARG_TSTR,	F(arg_skipstr) },
 	{ 0, "notui",	TSWITCH,	O(notui) },
 	{ 0, "gui",	TSWITCH,	O(gui) },

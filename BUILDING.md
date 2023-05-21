@@ -49,6 +49,7 @@ The easiest way to build fmedia is by using `fmedia-autobuild.sh` script.  It wi
 		git clone https://github.com/stsaz/ffos
 		git clone https://github.com/stsaz/avpack
 		git clone https://github.com/stsaz/ffpack
+		git clone https://github.com/stsaz/alphahttpd
 		git clone https://github.com/stsaz/fmedia
 
 Note: builds from the latest `master` branch are not supported and *may not work*!

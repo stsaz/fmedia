@@ -11,6 +11,7 @@ ffip6_tov4
 CONVERT
 	ffip4_parse ffip6_parse
 	ffip4_parse_subnet ffip6_parse_subnet
+	ffip_port_split
 	ffip4_tostr ffip4_tostrz ffip6_tostr ffip6_tostrz ffip46_tostr
 */
 
@@ -356,4 +357,49 @@ static inline ffuint ffip46_tostr(const ffip6 *ip, char *buf, ffsize cap)
 	if (ip4 != NULL)
 		return ffip4_tostr(ip4, buf, cap);
 	return ffip6_tostr(ip, buf, cap);
+}
+
+/** Split "IP:port" string.
+  e.g. "127.0.0.1", "::1", "80", "127.0.0.1:80", "[::1]:80"
+Return:
+ 1: IP is set
+ 2: port is set
+ 3: both IP and port are set
+ <0: error */
+static inline int ffip_port_split(ffstr s, void *ip6, ffuint *port)
+{
+	char ip[16];
+	int r = ffip4_parse((ffip4*)ip, s.ptr, s.len);
+	if (r < 0) {
+		// bad IPv4
+		if (s.len == 0)
+			return -1;
+
+		ffuint brkt = (s.ptr[0] == '[');
+		r = ffip6_parse((ffip6*)ip, s.ptr + brkt, s.len - brkt);
+
+		if (brkt) {
+			if (r <= 0 || s.ptr[r+1] != ']')
+				return -2; // bad IPv6 in brackets
+			r += 2;
+		}
+
+		if (r >= 0)
+			ffmem_copy(ip6, ip, 16);
+	} else {
+		ffip6_v4mapped_set(ip6, (ffip4*)ip);
+	}
+
+	if (r == 0) {
+		return 1; // "127.0.0.1" or "::1"
+
+	} else if (r > 0) {
+		if (s.ptr[r] != ':')
+			return -3; // missing colon
+		ffstr_shift(&s, r+1);
+	}
+
+	if (!ffstr_toint(&s, port, FFS_INT16))
+		return -4; // bad port
+	return (r > 0) | 2;
 }

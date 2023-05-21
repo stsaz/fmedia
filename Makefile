@@ -17,6 +17,7 @@ FFAUDIO := $(ROOT)/ffaudio
 AVPACK := $(ROOT)/avpack
 FFOS := $(ROOT)/ffos
 FFPACK := $(ROOT)/ffpack
+ALPHAHTTPD := $(ROOT)/alphahttpd
 
 include $(PROJDIR)/makeconf
 
@@ -63,6 +64,7 @@ BIN_AFILTERS := dynanorm.$(SO) \
 	afilter.$(SO)
 BIN_DFILTERS := zstd.$(SO)
 BINS := $(BIN) core.$(SO) tui.$(SO) net.$(SO) plist.$(SO) \
+	http-ctl.$(SO) \
 	$(BIN_CONTAINERS) \
 	$(BIN_ACODECS) \
 	$(BIN_AFILTERS) \
@@ -514,6 +516,26 @@ zstd.$(SO): $(OBJ_DIR)/zstd.o
 	$(LINK) -shared $+ -L $(FFPACK_BIN) $(LINKFLAGS) $(LD_RPATH_ORIGIN) -lzstd-ffpack -o $@
 
 
+#
+alphahttpd-client.o: $(ALPHAHTTPD)/src/http/client.c \
+		$(ALPHAHTTPD)/src/alphahttpd.h
+	$(C) $(CFLAGS) -I $(ALPHAHTTPD)/src $< -o $@
+alphahttpd-server.o: $(ALPHAHTTPD)/src/server.c \
+		$(ALPHAHTTPD)/src/alphahttpd.h
+	$(C) $(CFLAGS) -I $(ALPHAHTTPD)/src $< -o $@
+alphahttpd-filters.o: $(SRCDIR)/http-ctl/alphahttpd-filters.c \
+		$(ALPHAHTTPD)/src/alphahttpd.h $(ALPHAHTTPD)/src/http/*.h \
+		$(GLOBDEPS)
+	$(C) $(CFLAGS) -I $(ALPHAHTTPD)/src $< -o $@
+http-ctl.o: $(SRCDIR)/http-ctl/http-ctl.c \
+		$(ALPHAHTTPD)/src/alphahttpd.h \
+		$(GLOBDEPS)
+	$(C) $(CFLAGS) -I $(ALPHAHTTPD)/src $< -o $@
+http-ctl.$(SO): http-ctl.o alphahttpd-filters.o \
+		alphahttpd-server.o alphahttpd-client.o
+	$(LINK) -shared $+ $(LINKFLAGS) $(LD_LWS2_32) -o $@
+
+
 clean:
 	rm -vf $(BINS) *.debug *.o $(RES)
 
@@ -581,6 +603,11 @@ endif
 		$(FFPACK_BIN)/libzstd-ffpack.$(SO) \
 		$(INSTDIR)/mod/
 	chmod 644 $(INSTDIR)/mod/* $(INSTDIR)/core.$(SO)
+
+	# install http-ctl
+	mkdir -p $(INSTDIR)/www
+	chmod 755 $(INSTDIR)/www
+	$(CP) $(PROJDIR)/src/http-ctl/*.html $(INSTDIR)/www
 
 
 copy-bins:

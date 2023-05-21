@@ -709,6 +709,12 @@ int main(int argc, char **argv, char **env)
 	ffsig_mask(SIG_BLOCK, sigs_block, FF_COUNT(sigs_block));
 #endif
 
+	if (g->cmd->http_ctl_options != NULL) {
+		const fmed_modinfo *m = core->insmod("http-ctl", NULL);
+		if (0 != m->m->conf(g->cmd->http_ctl_options, NULL))
+			goto end;
+	}
+
 	if (0 != core->sig(FMED_OPEN))
 		goto end;
 

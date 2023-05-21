@@ -159,6 +159,13 @@ ANDERE OPTIONEN:
 --globcmd.pipe-name=STR
                    Setzt den Namen der Pipe für die Kommunikation zwischen fmedia Instanzen
 
+--http-ctl="[Option,...]"
+                    Enable HTTP server (http://<IP>:7314/) for handling remote commands.
+                    Supported commands:
+                      "POST /api/next": Play next track
+                      "POST /api/pause": Pause
+                      "POST /api/unpause": Unpause
+
 --playlist-heal="[Option,...]"
                     Auto-correct the paths to files inside a .m3u playlist.
                     Replace absolute file paths to relative paths, e.g.:

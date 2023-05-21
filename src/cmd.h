@@ -61,6 +61,7 @@ typedef struct fmed_cmd {
 
 	ffstr globcmd;
 	char *globcmd_pipename;
+	char *http_ctl_options;
 	byte bground;
 	byte bgchild;
 	char *conf_fn;
@@ -113,6 +114,7 @@ static inline void cmd_destroy(fmed_cmd *cmd)
 
 	ffmem_safefree(cmd->globcmd_pipename);
 	ffstr_free(&cmd->globcmd);
+	ffmem_free(cmd->http_ctl_options);
 	ffslice_free(&cmd->include_files);
 	ffslice_free(&cmd->exclude_files);
 	ffmem_free(cmd->include_files_data);

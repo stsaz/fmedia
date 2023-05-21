@@ -193,7 +193,7 @@ const fmed_modinfo* core_insmod(ffstr name, ffconf_scheme *fc)
 
 	ffstr so, modname;
 	ffstr_splitby(&name, '.', &so, &modname);
-	if (so.len == 0 || modname.len == 0) {
+	if (so.len == 0) {
 		fferr_set(EINVAL);
 		goto fail;
 	}
@@ -208,6 +208,11 @@ const fmed_modinfo* core_insmod(ffstr name, ffconf_scheme *fc)
 		somod_destroy(minfo);
 		fmed->bmods.len--;
 		goto fail;
+	}
+
+	if (!modname.len) {
+		// no interface specified: just return the plugin instance
+		return (fmed_modinfo*)minfo;
 	}
 
 	if (NULL == (mod = mod_createiface(name)))
