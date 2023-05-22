@@ -140,6 +140,7 @@ int ogg_out_encode(void *ctx, fmed_filt *d)
 
 			if (o->state == I_PKT && !(d->flags & FMED_FLAST)) {
 				ffvec_add2(&o->pktbuf, &d->data_in, 1); // store the first packet
+				ffstr_set2(&o->pkt, &o->pktbuf);
 				return FMED_RMORE;
 			}
 
