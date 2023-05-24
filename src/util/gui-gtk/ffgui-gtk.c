@@ -327,7 +327,7 @@ void ffui_view_dragdrop(ffui_view *v, uint action_id)
 		view_prepare(v);
 
 	static const GtkTargetEntry ents[] = {
-		{ "text/plain", GTK_TARGET_OTHER_APP, 0 }
+		{ "text/uri-list", GTK_TARGET_OTHER_APP, 0 }
 	};
 	gtk_drag_dest_set(v->h, GTK_DEST_DEFAULT_ALL, ents, FF_COUNT(ents), GDK_ACTION_COPY);
 	g_signal_connect(v->h, "drag_data_received", G_CALLBACK(_ffui_view_drag_data_received), v);
