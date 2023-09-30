@@ -1,3 +1,21 @@
+**Next Major Version (beta)**
+
+Hi!
+I invite you to participate in beta-testing process of a new major version.
+
+The main improvement is the revised command-line interface that will eliminate ambiguity with over 50 (as of `v1.31`) command-line options that allow hundreds of use-cases without any real value (in such cases, the options are either silently ignored or can result in an unexpected behaviour).  Obviously, it's necessary to split different use-cases over different commands, just like `git` or `docker` CLI executables do.  So I hope the new CLI will find support among current fmedia users as well as assist new users who are trying to use CLI for audio files manipulation for the first time.
+
+The second improvement is for the developers who want to use fmedia as a library that provides complete solution for audio playback/recording/conversion with plugin support.  Both C and Java interfaces are now much easier to use, and it's also very easy to insert some custom audio filters anywhere into the processing chain.  Furthermore, I merged main/core code for desktop OS and Android, proving that the SDK is correctly designed and really works as it should.
+
+The third improvement is that it is no longer required to have an explicit configuration file (i.e. `fmedia.conf`) for all functions to work correctly - all supported settings can be specified via command-line.  And of course, just as before, all plugins are loaded dynamically on demand, and they don't affect the startup time.
+
+Note however, that not all current features are included in the new beta.  For now, I decided to leave out some rarely used functions to minimize the package size, until it becomes clear that the omitted function is really necessary.
+
+So, if you're interested, please visit the project page and build or download the latest package: [phiola](/stsaz/phiola/).
+Due to the fact that it's *beta* version, there may be some bugs.
+That's why your feedback is very important, and together we can make this small tool better.
+
+
 ## OVERVIEW
 
 <img align="right" src="res/fmedia.png" width="128" height="128">
