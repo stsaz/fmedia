@@ -11,7 +11,7 @@ The third improvement is that it is no longer required to have an explicit confi
 
 Note however, that not all current features are included in the new beta.  For now, I decided to leave out some rarely used functions to minimize the package size, until it becomes clear that the omitted function is really necessary.
 
-So, if you're interested, please visit the project page and build or download the latest package: [phiola](/stsaz/phiola/).
+So, if you're interested, please visit the project page and build or download the latest package: [phiola](https://github.com/stsaz/phiola/).
 Due to the fact that it's *beta* version, there may be some bugs.
 That's why your feedback is very important, and together we can make this small tool better.
 
