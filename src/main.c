@@ -382,6 +382,8 @@ static void* rec_track_start(fmed_cmd *cmd, fmed_trk *trkinfo, uint flags)
 		ti->audio.fmt.channels = cmd->out_channels;
 	if (cmd->out_rate != 0)
 		ti->audio.fmt.sample_rate = cmd->out_rate;
+	if (cmd->playdev_name != 0)
+		track->setval(trk, "playdev_name", cmd->playdev_name);
 
 	if (cmd->playdev_name != 0)
 		track->setval(trk, "playdev_name", cmd->playdev_name);
